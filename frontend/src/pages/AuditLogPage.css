@@ -24,8 +24,8 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   padding: 2px 7px;
   border-radius: 5px;
   letter-spacing: 0.03em;
@@ -42,8 +42,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
   color: var(--ink-2);
   line-height: 1.3;
 }
@@ -66,13 +66,13 @@
 .audit-list-panel__intro h2 {
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-md);
+  font-size: var(--text-body-size);
   font-weight: var(--fw-semibold);
 }
 .audit-list-panel__intro p {
   margin: 4px 0 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   line-height: 1.5;
 }
 .audit-list-panel__count {
@@ -83,7 +83,7 @@
   background: var(--surface-2);
   color: var(--ink-2);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-medium);
 }
 /* Row skin (hover wash, is-selected structural edge, sticky thead, card
@@ -113,7 +113,7 @@
   gap: 6px;
   flex-shrink: 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-medium);
   opacity: 0;
   transform: translateX(4px);
@@ -134,6 +134,8 @@
   backdrop-filter: blur(2px);
 }
 .audit-detail-modal .audit-detail-modal__box {
+  display: flex;
+  flex-direction: column;
   width: min(580px, calc(100vw - 24px));
   max-width: none;
   height: 100dvh;
@@ -146,11 +148,12 @@
   overflow: hidden;
 }
 .audit-detail-modal__header {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px 24px 18px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 20px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
 }
@@ -158,7 +161,7 @@
   display: block;
   margin-bottom: 4px;
   color: var(--accent-2);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-label-size);
   font-weight: var(--fw-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -166,18 +169,21 @@
 .audit-detail-modal__header h2 {
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-xl);
+  font-size: var(--text-dialog-title-size);
   line-height: var(--lh-tight);
 }
+.audit-detail-modal__header > div { min-width: 0; overflow-wrap: anywhere; }
+.audit-detail-modal__header > form { flex: 0 0 auto; }
 .audit-detail-modal__header p {
   margin: 6px 0 0;
   color: var(--ink-3);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
 }
 .audit-detail-modal__body {
-  height: calc(100dvh - 104px);
-  padding: 22px 24px 40px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 20px max(16px, env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -200,7 +206,7 @@
 
 /* ── Audit-log message (desktop = ellipsis, mobile = wraps) ── */
 .audit-log__msg {
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   color: var(--ink-2);
   line-height: 1.4;
   overflow: visible;
@@ -248,9 +254,17 @@
     max-height: 88dvh;
     border-radius: var(--app-radius-lg) var(--app-radius-lg) 0 0;
   }
-  .audit-detail-modal__header { padding: 18px 18px 14px; }
+  .audit-detail-modal__header { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px)); }
   .audit-detail-modal__body {
-    height: calc(min(88dvh, 760px) - 94px);
-    padding: 18px 18px 32px;
+    padding: 12px max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
   }
+}
+
+@media (hover: none) {
+  .audit-row-content__preview { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audit-list-panel .table-hover tbody tr,
+  .audit-row-content__preview { transition: none; }
 }

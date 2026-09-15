@@ -11,7 +11,7 @@ export function TripFormProvider({ form, children }: { form: UseTripFormReturn; 
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- hook co-located with its provider component
+ 
 export function useTripFormContext(): UseTripFormReturn {
   const ctx = useContext(TripFormContext);
   if (!ctx) throw new Error('useTripFormContext must be used within a TripFormProvider');

@@ -608,7 +608,7 @@
 .as-page .as-mcard__amount-value {
   font-family: var(--font-data);
   font-weight: var(--fw-bold);
-  font-size: clamp(1.35rem, 6vw, 1.7rem);
+  font-size: var(--text-metric-size);
   line-height: 1.15;
   color: var(--ink);
 
@@ -848,10 +848,19 @@
     color: var(--ink);
     padding: 0 12px;
     font: inherit;
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
 
   /* UUI select triggers already ship max-md:min-h-11 (44px) from the vendored
      base (select-shared.tsx) — page stylesheets never own UUI field dimensions
      (control-density contract). */
+}
+
+.as-page .as-kpi-row { gap: 0; border-block: 1px solid var(--line); }
+.as-page .as-kpi { min-width: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 10px 12px; }
+.as-page .as-kpi + .as-kpi { border-inline-start: 1px solid var(--line); }
+.as-page .as-kpi__asset { display: none; }
+.as-page .as-kpi.is-active { background: var(--surface-2); box-shadow: inset 0 -2px var(--brand); }
+@media (max-width: 640px) {
+  .as-page .as-mobile-filter { padding: 8px 0; border-inline: 0; border-radius: 0; background: transparent; }
 }

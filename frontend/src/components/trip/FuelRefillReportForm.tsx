@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Fuel, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
-import { buildOfflineCommandKey } from '../../features/driver/useOfflineCommandQueue';
+import { buildIdempotencyKey } from '../../lib/idempotency';
 import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
@@ -94,7 +94,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
     setSubmitting(true);
     setFormError(null);
     try {
-      const idempotencyKey = buildOfflineCommandKey(
+      const idempotencyKey = buildIdempotencyKey(
         'fuel-refill-report',
         tripId,
         occurredAt,

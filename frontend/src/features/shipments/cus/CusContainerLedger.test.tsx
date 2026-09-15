@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
@@ -48,22 +48,37 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger() {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void } = {}) {
+  const props = {
+    detail,
+    onLineSaved: vi.fn(),
+    getIdempotencyKey: () => 'test-key',
+    clearIdempotencyKey: () => {},
+    idPrefix: 'test',
+    onAppointmentSavedAndExit: opts.onAppointmentSavedAndExit,
+    onDirtyChange: opts.onDirtyChange,
+  };
   const utils = render(
     <ToastProvider>
-      <ContainerLedger
-        detail={detail}
-        onLineSaved={vi.fn()}
-        getIdempotencyKey={() => 'test-key'}
-        clearIdempotencyKey={() => {}}
-        idPrefix="test"
-      />
+      <ContainerLedger {...props} />
     </ToastProvider>,
   );
-  return { ...utils, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
+  const rerenderWithSavedLine = () => utils.rerender(
+    <ToastProvider>
+      <ContainerLedger {...props} detail={{ ...detail, containers: [{ ...detail.containers[0], customerAppointmentAt: '2026-09-16T02:00:00.000Z' }] }} />
+    </ToastProvider>,
+  );
+  return { ...utils, rerenderWithSavedLine, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
 describe('ContainerLedger confirm affordances', () => {
+  // The save mock is module-level: without a clear, call counts accumulate
+  // across tests and every assertion would have to track the whole file's
+  // history.
+  beforeEach(() => {
+    updateCusShipmentContainerLine.mockClear();
+  });
+
   it('renders Lưu/Hủy actions when row inputs change, and discards on Hủy', () => {
     const view = renderLedger();
     const plateInput = screen.getByLabelText(/Biển số xe/) as HTMLInputElement;
@@ -132,6 +147,133 @@ describe('ContainerLedger confirm affordances', () => {
     // browser zone — a +08 host used to shift the stored instant by an hour.
     expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
     expect(payload.plateNumber).toBe('15C-999.99');
+  });
+
+  it('Enter inside the popover saves the ledger and returns the row to display', async () => {
+    renderLedger();
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+
+    // Enter commits straight from the portaled popover — no backdrop click,
+    // no footer button, no table-level key handler.
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
+
+    // Back to display: popover closed, the trigger shows the saved value.
+    await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
+    const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
+    expect(trigger.getAttribute('aria-label')).toContain('09:00 11/9/26');
+  });
+
+  it('Escape in the popover closes without saving', async () => {
+    renderLedger();
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+
+    // Popover closes, but the draft stays — nothing is sent.
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('_34: Escape reverts the appointment draft part and never exits the drawer', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    const onDirtyChange = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit, onDirtyChange });
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    // Typing in the popover dirties the ledger draft (onChange → onDraftChange).
+    fireEvent.change(datetimeInput, { target: { value: '11:00 19/09/2026' } });
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+    // Dismiss-without-commit: popover closes, the abandoned value is reverted.
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(false));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+    // Reopen shows the base value, not the abandoned draft.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const reopened = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(reopened.value).not.toBe('11:00 19/09/2026');
+  });
+
+  it('Enter-commit success exits the detail surface to the list (fires onAppointmentSavedAndExit once)', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    const view = renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    // Production: the refetched line lands, drafts reset, the saved line stops
+    // being dirty, and only then does the exit fire. Mirror that by rerendering
+    // with the saved line; the exit must NOT fire while the line is still dirty.
+    await waitFor(() => expect(onAppointmentSavedAndExit).not.toHaveBeenCalled());
+    view.rerenderWithSavedLine();
+    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+  });
+
+  it('failed commit does not exit the detail surface', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockRejectedValue(new Error('boom'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+    expect(document.querySelector('.cus-appointment-popover')).not.toBeNull();
+  });
+
+  it('Escape never fires the exit callback', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+  });
+
+  it('_42: settle-poll exit holds while a save is in flight, then fires once it clears', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    const view = renderLedger({ onAppointmentSavedAndExit });
+    let resolveSave: (value: { line: { id: number; shipmentVersion: number } }) => void;
+    updateCusShipmentContainerLine.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+
+    // Drafts go clean while the save is STILL in flight (the refetch race).
+    view.rerenderWithSavedLine();
+    await new Promise((r) => setTimeout(r, 250));
+    // Holding: saving has not cleared, so the exit must not fire mid-teardown.
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+
+    resolveSave!({ line: { id: 10, shipmentVersion: 5 } });
+    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
   });
 });
 

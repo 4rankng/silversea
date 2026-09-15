@@ -138,7 +138,7 @@ export function FleetVehiclesView() {
         (driverByTruck.get(t.id) ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [trucks, needle, carrierFilter, carriers, driverByTruck, trailerById]);
+  }, [trucks, needle, carrierFilter, driverByTruck, trailerById]);
 
   // Full catalog is already client-side (unpaginated lookup table), so sorting
   // happens locally with the shared contract: empty cells last, id tiebreaker.
@@ -158,8 +158,8 @@ export function FleetVehiclesView() {
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
       <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
         <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Danh mục Xe nội bộ</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
+          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Xe nội bộ</h1>
+          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
             Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
           </p>
         </div>
@@ -168,7 +168,7 @@ export function FleetVehiclesView() {
         </Button>
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid" style={{ marginBottom: 16 }}>
+      <div className="kpi-grid dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
         <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
         <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
         <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
@@ -220,7 +220,7 @@ export function FleetVehiclesView() {
                     key={t.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => crud.showEdit(t.id)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(t.id); } }}
+                    onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); crud.showEdit(t.id); } }}
                     tabIndex={0}
                     role="button"
                     aria-label={`Chỉnh sửa xe ${t.licensePlate}`}

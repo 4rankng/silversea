@@ -1,6 +1,6 @@
 import { qk } from '../../api/keys';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -19,9 +19,9 @@ import {
   type WorkInboxResponseOf,
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
-import { useAuth } from '../../hooks/useAuth';
-import { buildOfflineCommandKey, useOfflineCommandQueue } from '../../features/driver/useOfflineCommandQueue';
-import { sendRoleOfflineCommand } from '../../features/offline/roleCommandSender';
+import { buildIdempotencyKey } from '../../lib/idempotency';
+import { forwarderClient } from '../../api/forwarderClient';
+
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
 import './RoleWorkInbox.css';
@@ -79,6 +79,13 @@ function statusLabel(item: WorkInboxItemBase) {
 // the gate that blocks *them* (Đã đổi lệnh = ops handoff).
 // (Gate derivation + cell rendering: RoleWorkInboxGateCell.tsx)
 
+function subtitleFor(item: RoleItem, role: Role) {
+  if (role !== 'operations' || !item.subtitle) return item.subtitle;
+  const operation = item as OperationsWorkInboxItem;
+  const repeated = new Set([operation.containerSummary, operation.driverName, operation.truckPlate, 'Chưa có container', 'Chưa phân tài xế']);
+  return item.subtitle.split(' · ').filter(part => !repeated.has(part)).join(' · ');
+}
+
 function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: string }> {
   if (role === 'operations') {
     const value = item as OperationsWorkInboxItem;
@@ -98,19 +105,17 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
       { label: 'Điểm đi', value: value.origin || 'Chưa cập nhật' },
       { label: 'Điểm đến', value: value.destination || 'Chưa cập nhật' },
       { label: 'Liên hệ', value: [value.contactName, value.contactPhone].filter(Boolean).join(' · ') || 'Chưa cập nhật' },
-      { label: 'POD', value: value.podState === 'ACCEPTED' ? 'Đã duyệt' : value.podState === 'SUBMITTED' ? 'Chờ duyệt' : value.podState === 'REJECTED' ? 'Cần bổ sung' : value.podState === 'DRAFT' ? 'Bản nháp' : 'Chưa nộp' },
+      { label: 'POD', value: value.podState === 'ACCEPTED' ? 'Khách đã xác nhận' : value.podState === 'SUBMITTED' ? 'Đã lưu' : value.podState === 'REJECTED' ? 'Cần bổ sung' : value.podState === 'DRAFT' ? 'Bản nháp' : 'Chưa nộp' },
     ];
   }
   const value = item as CustomerWorkInboxItem;
   return [
     { label: 'Container', value: value.containerSummary || 'Không áp dụng' },
-    { label: 'Nguồn trạng thái', value: value.deliveryTruth === 'DRIVER_REPORTED' ? 'Tài xế báo đã giao' : value.deliveryTruth === 'POD_ACCEPTED' ? 'POD đã được chấp nhận' : value.deliveryTruth === 'IN_TRANSIT' ? 'Đang vận chuyển' : 'Chưa có báo cáo giao hàng' },
+    { label: 'Nguồn trạng thái', value: value.deliveryTruth === 'DRIVER_REPORTED' ? 'Tài xế báo đã giao' : value.deliveryTruth === 'POD_ACCEPTED' ? 'Khách đã xác nhận POD' : value.deliveryTruth === 'IN_TRANSIT' ? 'Đang vận chuyển' : 'Chưa có báo cáo giao hàng' },
   ];
 }
 
 export function RoleWorkInbox({ role, title, description, customerId, scopeReady = true }: Props) {
-  const auth = useAuth();
-  const user = auth?.user ?? null;
   const navigate = useNavigate();
   const [data, setData] = useState<InboxData | null>(null);
   // Queue + page restore (QA-043): the selected queue and page serialize into
@@ -132,11 +137,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const responseKeys = useRef(new Map<string, string>());
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const latestLoadRequest = useRef(0);
-  const replayAttemptedIds = useRef('');
-  const { commands, enqueue, drain } = useOfflineCommandQueue({
-    maxPending: 12,
-    storageScope: role !== 'customer' && user ? `${user.role}:${user.userId}` : null,
-  });
   const endpoint = endpointFor(role, customerId, states[active], page);
 
   const queryClient = useQueryClient();
@@ -174,7 +174,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     prevScopeRef.current = scopeKey;
     setActive(0);
     setPage(1);
-  }, [customerId, role]);
+  }, [scopeKey]);
 
   // Mirror queue/page into the URL (replace — no history spam) so the detail
   // page's return link can rebuild the exact list context. The one-shot `row`
@@ -213,28 +213,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const items = data?.items ?? [];
   const stale = data ? Date.now() - new Date(data.asOf).getTime() > STALE_AFTER_MS : false;
   const panelId = `role-inbox-panel-${role}`;
-  const replayableCommandIds = useMemo(() => commands
-    .filter((command) => (command.status === 'QUEUED' || command.status === 'FAILED') && (role === 'driver' ? command.endpoint.startsWith('driver.') : role === 'operations' ? command.endpoint.startsWith('forwarder.') : false))
-    .map((command) => command.id)
-    .sort()
-    .join('|'), [commands, role]);
-
-  useEffect(() => {
-    if (!online) {
-      replayAttemptedIds.current = '';
-      return;
-    }
-    if (role === 'customer' || !replayableCommandIds || replayAttemptedIds.current === replayableCommandIds) return;
-    replayAttemptedIds.current = replayableCommandIds;
-    void drain(sendRoleOfflineCommand).then((result) => {
-      replayAttemptedIds.current = Object.entries(result.statusById)
-        .filter(([, status]) => status === 'QUEUED' || status === 'FAILED')
-        .map(([id]) => id)
-        .sort()
-        .join('|');
-      if (result.done > 0) void load();
-    });
-  }, [drain, load, online, replayableCommandIds, role]);
 
   const selectTab = (index: number) => {
     setActive(index);
@@ -254,52 +232,44 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   };
 
   const sendOrderExchange = async (item: OperationsWorkInboxItem) => {
-    if (item.orderExchangeState === 'COMPLETED') return;
+    if (item.orderExchangeState === 'COMPLETED' || !online) return;
     const action = item.orderExchangeState === 'PENDING' ? 'start' : 'complete';
-    const idempotencyKey = buildOfflineCommandKey('forwarder', 'order-exchange', item.shipmentId, action, 'version', item.shipmentVersion);
+    const idempotencyKey = buildIdempotencyKey('forwarder', 'order-exchange', item.shipmentId, action, 'version', item.shipmentVersion);
     setRespondingItemId(item.id);
     setResponseMessage(null);
-    enqueue({
-      id: idempotencyKey,
-      endpoint: `forwarder.order-exchange.${action}`,
-      method: 'POST',
-      path: `/forwarder/me/shipments/${item.shipmentId}/order-exchange/${action}`,
-      fulfillmentScopeKey: `shipment:${item.shipmentId}`,
-      expectedVersion: item.shipmentVersion,
-      actionKind: action === 'start' ? 'ORDER_EXCHANGE_START' : 'ORDER_EXCHANGE_COMPLETE',
-      payload: { kind: `order-exchange-${action}`, shipmentId: item.shipmentId, expectedVersion: item.shipmentVersion },
-    });
-    replayAttemptedIds.current = [...new Set([...replayableCommandIds.split('|').filter(Boolean), idempotencyKey])].sort().join('|');
-    const result = await drain(sendRoleOfflineCommand);
-    const status = result.statusById[idempotencyKey];
-    if (status === 'DONE') {
+    try {
+      if (action === 'start') {
+        await forwarderClient.startOrderExchange(item.shipmentId, item.shipmentVersion, idempotencyKey);
+      } else {
+        await forwarderClient.completeOrderExchange(item.shipmentId, item.shipmentVersion, idempotencyKey);
+      }
       setResponseMessage({ kind: 'success', text: action === 'start' ? 'Máy chủ đã xác nhận bắt đầu đổi lệnh.' : 'Máy chủ đã xác nhận hoàn tất đổi lệnh.' });
-      // The exchange flips the trip detail's orderExchangeStatus — a
-      // previously visited detail page would otherwise serve its 5-minute
-      // cached pre-exchange snapshot (stale Chờ đổi lệnh + disabled handoff).
       if (action === 'complete' && item.tripId != null) {
         await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(item.tripId) });
         await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripsAll });
       }
       await load();
-    } else if (status === 'CONFLICT') {
-      setResponseMessage({ kind: 'conflict', text: result.messageById[idempotencyKey] ?? 'Lô hàng đã thay đổi. Bản lệnh vẫn được giữ để kiểm tra.' });
-    } else if (status === 'REJECTED') {
-      setResponseMessage({ kind: 'error', text: result.messageById[idempotencyKey] ?? 'Máy chủ từ chối lệnh. Bản lệnh vẫn được giữ để kiểm tra.' });
-    } else {
-      setResponseMessage({ kind: 'error', text: 'Đã lưu lệnh ngoại tuyến; chưa được xem là hoàn tất.' });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 409 || error.status === 428)) {
+        setResponseMessage({ kind: 'conflict', text: error.message ?? 'Lô hàng đã thay đổi. Vui lòng tải lại.' });
+      } else if (error instanceof ApiError) {
+        setResponseMessage({ kind: 'error', text: error.message ?? 'Máy chủ từ chối lệnh.' });
+      } else {
+        setResponseMessage({ kind: 'error', text: 'Mất kết nối. Vui lòng thử lại.' });
+      }
+    } finally {
+      setRespondingItemId(null);
     }
-    setRespondingItemId(null);
   };
 
   const sendCustomerResponse = async (item: CustomerWorkInboxItem, decision: 'CONFIRMED' | 'DISPUTED') => {
-    if (!item.deliveryEventId || !item.deliveryEventVersion) return;
+    if (respondingItemId != null || !item.deliveryEventId || !item.deliveryEventVersion) return;
     const reason = decision === 'DISPUTED' ? disputeReason.trim() : undefined;
     if (decision === 'DISPUTED' && !reason) {
       setResponseMessage({ kind: 'error', text: 'Vui lòng nêu lý do sai lệch.' });
       return;
     }
-    const keyName = `${item.deliveryEventId}:${decision}`;
+    const keyName = `${item.deliveryEventId}:${item.deliveryEventVersion}:${decision}:${reason ?? ""}`;
     let idempotencyKey = responseKeys.current.get(keyName);
     if (!idempotencyKey) {
       idempotencyKey = crypto.randomUUID();
@@ -316,7 +286,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
       responseKeys.current.delete(keyName);
       setDisputeItemId(null);
       setDisputeReason('');
-      setResponseMessage({ kind: 'success', text: decision === 'CONFIRMED' ? 'Đã đồng bộ xác nhận nhận hàng.' : 'Đã đồng bộ báo cáo sai lệch.' });
+      setResponseMessage({ kind: 'success', text: decision === 'CONFIRMED' ? 'Đã ghi nhận xác nhận nhận hàng.' : 'Đã ghi nhận báo cáo sai lệch.' });
       await load();
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -330,7 +300,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   };
 
   return (
-    <main className="role-work-inbox">
+    <main className={`role-work-inbox role-work-inbox--${role}`}>
       <header className="role-work-inbox__header">
         <div>
           <span className="role-work-inbox__eyebrow">Không gian công việc</span>
@@ -357,7 +327,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
           <Clock3 size={16} aria-hidden="true" /> Dữ liệu đã cũ. Hãy làm mới trước khi xử lý.
         </div>
       )}
-      {responseMessage && (
+      {responseMessage && !(disputeItemId && responseMessage.kind !== 'success') && (
         <div className={`role-work-inbox__notice is-${responseMessage.kind}`} role={responseMessage.kind === 'success' ? 'status' : 'alert'}>
           {responseMessage.kind === 'success' ? <CheckCircle2 size={16} aria-hidden="true" /> : <AlertTriangle size={16} aria-hidden="true" />}
           {responseMessage.text}
@@ -423,8 +393,8 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                     navigate(withOrigin(rowTarget));
                   };
                   return (
+                    <Fragment key={item.id}>
                     <tr
-                      key={item.id}
                       data-row-key={item.id}
                       className={item.priority >= 80 ? 'is-priority' : ''}
                       role="link"
@@ -432,6 +402,10 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                       aria-label={`Mở hồ sơ ${item.title}`}
                       onClick={handleRowActivate}
                       onKeyDown={(event) => {
+                        // Mirror the pointer guard above: keys inside form
+                        // controls (e.g. Enter in the dispute-reason
+                        // textarea) must not activate the row.
+                        if ((event.target as HTMLElement).closest('a, button, textarea, input, select, label')) return;
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
                           handleRowActivate(event);
@@ -440,7 +414,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                     >
                       <td data-label="Công việc">
                         <strong className="role-work-inbox__identity">{item.title}</strong>
-                        {item.subtitle && <span className="role-work-inbox__subtitle">{item.subtitle}</span>}
+                        {subtitleFor(item, role) && <span className="role-work-inbox__subtitle">{subtitleFor(item, role)}</span>}
                       </td>
                       <td data-label="Thông tin">
                         <dl className="role-work-inbox__facts">
@@ -461,19 +435,26 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                         ) : customerAction && customerItem ? (
                           <div className="role-work-inbox__customer-actions">
                             <button type="button" className="role-work-inbox__button is-primary" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'CONFIRMED')}>Xác nhận đã nhận hàng</button>
-                            {disputeItemId === item.id ? (
-                              <div className="role-work-inbox__dispute">
-                                <label htmlFor={`dispute-${item.id}`}>Lý do sai lệch</label>
-                                <textarea id={`dispute-${item.id}`} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} maxLength={1000} autoFocus />
-                                <div><button type="button" className="role-work-inbox__button is-danger" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'DISPUTED')}>Gửi báo sai lệch</button><button type="button" className="role-work-inbox__button" onClick={() => setDisputeItemId(null)}>Hủy</button></div>
-                              </div>
-                            ) : <button type="button" className="role-work-inbox__button" onClick={() => { setDisputeItemId(item.id); setDisputeReason(''); }}>Báo sai lệch</button>}
+                            <button type="button" className="role-work-inbox__button" disabled={respondingItemId != null} onClick={() => { setDisputeItemId(item.id); setDisputeReason(''); setResponseMessage(null); }}>Báo sai lệch</button>
                           </div>
                         ) : item.nextAction ? (
                           <Link className="role-work-inbox__button" to={item.nextAction.targetRoute}>{item.nextAction.label}</Link>
                         ) : <Link className="role-work-inbox__detail-link" to={withOrigin(item.targetRoute)}>Xem hồ sơ</Link>}
                       </td>
                     </tr>
+                    {disputeItemId === item.id && customerItem && (
+                      <tr className="role-work-inbox__dispute-row">
+                        <td colSpan={role === 'customer' ? 6 : 7}>
+                          <div className="role-work-inbox__dispute">
+                            <label htmlFor={`dispute-${item.id}`}>Lý do sai lệch</label>
+                            <textarea id={`dispute-${item.id}`} value={disputeReason} disabled={respondingItemId != null} aria-describedby={responseMessage && responseMessage.kind !== 'success' ? `dispute-error-${item.id}` : undefined} onChange={(event) => setDisputeReason(event.target.value)} maxLength={1000} autoFocus />
+                            {responseMessage && responseMessage.kind !== 'success' && <p role="alert" id={`dispute-error-${item.id}`} className="role-work-inbox__notice is-error">{responseMessage.text}</p>}
+                            <div><button type="button" className="role-work-inbox__button is-danger" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'DISPUTED')}>Gửi báo sai lệch</button><button type="button" className="role-work-inbox__button" disabled={respondingItemId != null} onClick={() => setDisputeItemId(null)}>Hủy</button></div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

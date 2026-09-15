@@ -1,15 +1,15 @@
 // Shipment coordination leaf — customer-visible events, dispatch handoffs,
-// and change-request review.
+// and an explicit retired response for the former change-review endpoint.
 //
 // `/:id/customer-events` feed (portal-visible timeline), the
 // `/:id/dispatch-handoff(s)` clerk→dispatcher handoff lifecycle, and the
-// ADMIN/MANAGER decision on shipment change requests.
+// former shipment change-review endpoint (response-only410).
 
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
-import { getShipmentDetail, reviewShipmentChangeRequest } from '../../services/shipment.service';
+import { getShipmentDetail } from '../../services/shipment.service';
 import {
   CUSTOMER_EVENT_TYPES,
   createCustomerVisibleEvent,
@@ -29,7 +29,7 @@ import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
-import { parseId, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { parseId } from './shipment-shared';
 
 const customerVisibleEventSchema = z.object({
   eventKey: z.string().trim().min(1).max(120),
@@ -51,10 +51,6 @@ const resolveHandoffSchema = z.object({
   resolution: z.enum(['SEEN', 'ACCEPTED', 'REJECTED']),
   expectedVersion: z.number().int().positive(),
   rejectReason: z.string().trim().min(1).max(1_000).optional().nullable(),
-});
-
-const reviewShipmentChangeRequestSchema = z.object({
-  resolution: z.enum(['APPLIED', 'REJECTED']),
 });
 
 const coordinationRoutes = Router();
@@ -197,42 +193,8 @@ coordinationRoutes.post(
   }),
 );
 
-coordinationRoutes.post(
-  '/:id/change-requests/:requestId/review',
-  requireRoles(Role.ADMIN, Role.MANAGER),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    const requestId = parseInt(req.params.requestId as string, 10);
-    if (!Number.isInteger(requestId) || requestId <= 0) {
-      res.status(400).json({ error: 'ID yêu cầu thay đổi không hợp lệ' });
-      return;
-    }
-    const parsed = reviewShipmentChangeRequestSchema.safeParse(req.body);
-    if (!parsed.success) throwValidation(parsed.error);
-    const user = getUser(req);
-    const { result } = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CHANGE_REQUEST_REVIEW,
-      { shipmentId, requestId, data: parsed.data },
-      async (tx) => {
-        const reviewed = await reviewShipmentChangeRequest(
-          shipmentId,
-          requestId,
-          parsed.data.resolution,
-          user,
-          tx,
-        );
-        return {
-          body: reviewed,
-          status: 200,
-          auditEntityId: reviewed.shipment.id,
-          auditEntityKey: reviewed.shipment.shipmentCode ?? "Lô hàng chưa có mã",
-        };
-      },
-    );
-    sendShipmentWrite(res, result);
-  }),
-);
+coordinationRoutes.post('/:id/change-requests/:requestId/review', (_req, res) => {
+  res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa lô hàng trực tiếp.' });
+});
 
 export { coordinationRoutes };

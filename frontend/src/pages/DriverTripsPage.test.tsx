@@ -76,6 +76,26 @@ describe('DriverTripsPage', () => {
     navigateMock.mockReset();
   });
 
+  it('POLISH-DRV-02 keeps journey tabs keyboard reachable and labels the visible panel', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 2, bucket: 'RUNNING' }),
+      card({ fulfillmentId: 3, bucket: 'HISTORY' }),
+    ]));
+    renderPage();
+    const first = screen.getByRole('tab', { name: /Lệnh mới/ });
+    const running = screen.getByRole('tab', { name: /Đã nhận/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(running).toHaveFocus();
+    expect(running).toHaveAttribute('aria-selected', 'true');
+    expect(first).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('tabpanel', { name: 'Đã nhận' })).toBeVisible();
+    fireEvent.keyDown(running, { key: 'End' });
+    expect(screen.getByRole('tab', { name: /Lịch sử/ })).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Lịch sử' })).toBeVisible();
+  });
+
   it('renders the card time VN-pinned — a 17:30Z trip reads 00:30 on the NEXT day', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
     renderPage();
@@ -123,12 +143,14 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText(/Seal SL001/)).toBeTruthy();
   });
 
-  it('navigates to the fulfillment detail page when a card footer is pressed', async () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 42 })]));
+  it('navigates to the trip detail by TRIP id when a card footer is pressed (20260915_1)', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ tripId: 55, fulfillmentId: 42 })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ }));
-    expect(navigateMock).toHaveBeenCalledWith('/my-trips/42');
+    // Card 20260915_1: the detail route carries the TRIP id; the page resolves
+    // fulfillmentId from the trip payload (works for ad-hoc trips too).
+    expect(navigateMock).toHaveBeenCalledWith('/my-trips/55');
   });
 
   it('tags sibling linked cards with KẸP and groups them visually', async () => {

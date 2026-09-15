@@ -1,68 +1,51 @@
-/**
- * Wave 4 M8.1 — useOnline hook + OfflineBanner tests.
- *
- * The hook listens to navigator.onLine + window online/offline events.
- * The banner renders a Vietnamese message when offline, nothing when online.
- */
-import { render, screen, act } from '@testing-library/react';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useOnline } from './useOnline';
-import { OfflineBanner } from '../components/shared/OfflineBanner';
+import { assertConnectionForMutation } from '../lib/connection';
 
-function OnlineProbe() {
-  const online = useOnline();
-  return <div data-testid="probe">{online ? 'online' : 'offline'}</div>;
-}
-
-describe('useOnline — M8.1 network-status hook', () => {
-  beforeEach(() => {
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true });
-  });
-
-  it('reports online when navigator.onLine is true', () => {
-    render(<OnlineProbe />);
-    expect(screen.getByTestId('probe').textContent).toBe('online');
-  });
-
-  it('reports offline when navigator.onLine is false', () => {
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    render(<OnlineProbe />);
-    expect(screen.getByTestId('probe').textContent).toBe('offline');
-  });
-
-  it('reacts to window offline/online events', () => {
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    render(<OnlineProbe />);
-    expect(screen.getByTestId('probe').textContent).toBe('online');
-
-    // Simulate going offline.
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    act(() => { window.dispatchEvent(new Event('offline')); });
-    expect(screen.getByTestId('probe').textContent).toBe('offline');
-
-    // Simulate coming back online.
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    act(() => { window.dispatchEvent(new Event('online')); });
-    expect(screen.getByTestId('probe').textContent).toBe('online');
-  });
+function Probe() { return <span data-testid="connection">{useOnline() ? 'online' : 'blocked'}</span>; }
+beforeEach(() => {
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-describe('OfflineBanner — M8.1 global offline indicator', () => {
-  beforeEach(() => {
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true });
+describe('internet-required reachability', () => {
+  it('does not trust navigator.onLine before a successful service probe', async () => {
+    let resolve!: (response: Response) => void;
+    const request = new Promise<Response>((r) => { resolve = r; });
+    vi.stubGlobal('fetch', vi.fn(() => request));
+    render(<Probe />);
+    expect(screen.getByTestId('connection')).toHaveTextContent('blocked');
+    expect(() => assertConnectionForMutation()).toThrow(/Chưa gửi/);
+    await act(async () => { resolve(new Response(null, { status: 200 })); });
+    expect(screen.getByTestId('connection')).toHaveTextContent('online');
+    expect(() => assertConnectionForMutation()).not.toThrow();
   });
 
-  it('renders nothing when online', () => {
-    const { container } = render(<OfflineBanner />);
-    expect(container.firstChild).toBeNull();
+  it('blocks on service failure, shares one probe, and only resumes after real recovery', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetcher);
+    render(<><Probe /><Probe /></>);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    expect(() => assertConnectionForMutation()).toThrow();
+    act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(screen.getAllByTestId('connection').every((n) => n.textContent === 'online')).toBe(true));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every((call) => call[1].method === 'HEAD')).toBe(true);
   });
 
-  it('renders the Vietnamese offline message when offline', () => {
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    render(<OfflineBanner />);
-    const banner = screen.getByTestId('offline-banner');
-    expect(banner.getAttribute('role')).toBe('status');
-    expect(banner.textContent).toMatch(/Mất kết nối/);
-    expect(banner.textContent).toMatch(/đồng bộ khi có mạng/);
+  it('ignores a late successful probe after an offline event', async () => {
+    let resolve!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((r) => { resolve = r; })));
+    render(<Probe />);
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+      window.dispatchEvent(new Event('offline'));
+    });
+    await act(async () => resolve(new Response(null, { status: 200 })));
+    expect(screen.getByTestId('connection')).toHaveTextContent('blocked');
+    expect(() => assertConnectionForMutation()).toThrow();
   });
 });

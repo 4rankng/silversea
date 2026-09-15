@@ -1,7 +1,7 @@
 /* ============================================================================
  * Money — inline money value with a subtitle-sized currency unit.
- * The unit scales with the surrounding font-size via em, so this works
- * anywhere: a 34px hero, a 16px line item, a 13px table cell.
+ * Digits inherit their data/metric context; the unit uses the shared caption
+ * role so it never becomes an unreadable fraction of a dense table value.
  * ========================================================================== */
 
 .money {
@@ -20,7 +20,7 @@
 }
 
 .money__unit {
-  font-size: 12px !important;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   font-weight: 500;
   opacity: 0.65;

@@ -4,7 +4,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
 export interface OpsOrderItem {

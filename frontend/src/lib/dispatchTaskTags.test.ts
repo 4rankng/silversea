@@ -6,8 +6,8 @@ describe('composeNote', () => {
     expect(composeNote(['Đặt đầu', 'Lấy vỏ ICD đi đóng'], 'gọi lái trước 30p')).toBe('Đặt đầu; Lấy vỏ ICD đi đóng\ngọi lái trước 30p');
   });
 
-  it('emits tags only when manual text is empty', () => {
-    expect(composeNote(['Đặt đầu'], '   ')).toBe('Đặt đầu');
+  it('preserves whitespace in manual text (normalization is save-time only)', () => {
+    expect(composeNote(['Đặt đầu'], '   ')).toBe('Đặt đầu\n   ');
   });
 
   it('emits manual text only when no tags are selected', () => {

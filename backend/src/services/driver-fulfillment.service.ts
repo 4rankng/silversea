@@ -22,7 +22,8 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
-import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
+import { syncAttendanceAfterStatusChange, toBusinessDateString } from './trip-attendance-sync.service';
+import { syncTripWorkDays } from './attendance.service';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import {
@@ -485,6 +486,26 @@ export async function completeOwnedFulfillmentTrip(args: {
       );
       const { recomputeShipmentCompletion } = await import('./shipment.service.js');
       await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
+
+      // Sync attendance for completed trip within the same transaction so the
+      // work-day records are atomically consistent with the trip status.
+      const [tripForAttendance] = await tx.select({
+        departureDate: s.trips.departureDate,
+        completedAt: s.trips.completedAt,
+      }).from(s.trips).where(eq(s.trips.id, ownedTrip.tripId)).limit(1);
+
+      if (tripForAttendance && args.driverId) {
+        const completionDate = toBusinessDateString(tripForAttendance.completedAt);
+        await syncTripWorkDays(
+          args.driverId,
+          ownedTrip.tripId,
+          tripForAttendance.departureDate,
+          completionDate,
+          args.actorUserId,
+          tx,
+        );
+      }
+
       return buildDriverFulfillmentCompletionResultTx(tx, ownedTrip.tripId, args.driverId);
     },
     load: async (entityId, tx) => buildDriverFulfillmentCompletionResultTx(tx, entityId, args.driverId),

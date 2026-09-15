@@ -1,13 +1,30 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, sql, isNull, ne, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, ne, inArray } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
+import { computeLiveSalary } from './salary-calculation.service';
+import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbLike = Tx | typeof db;
+
+/** Convert a Date to a YYYY-MM-DD string in the Asia/Ho_Chi_Minh business timezone. */
+function toBusinessDate(value: Date | null | undefined): string | null {
+  if (!value) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
 
 async function lockDriverWorkDay(tx: Tx, driverId: number, date: string): Promise<void> {
   await lockApplicationOwnedUniqueness(tx, 'driver-work-day', [driverId, date]);
@@ -221,7 +238,7 @@ export async function syncTripWorkDays(
   const execute = async (tx: Tx) => {
     for (const date of dates) {
       await lockDriverWorkDay(tx, driverId, date);
-      const [existing] = await tx.select({ id: s.driverWorkDays.id })
+      const [existing] = await tx.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
         .from(s.driverWorkDays)
         .where(and(
           eq(s.driverWorkDays.driverId, driverId),
@@ -230,6 +247,12 @@ export async function syncTripWorkDays(
         .limit(1);
 
       if (existing) {
+        // Contribution-aware: preserve existing trip attribution if another
+        // trip already owns this day.  Only overwrite when the record has no
+        // trip link (manual entry) or already points to the same trip.
+        if (existing.existingTripId != null && existing.existingTripId !== tripId) {
+          continue;
+        }
         await tx.update(s.driverWorkDays)
           .set({
             status: 'TRIP_DAY',
@@ -254,18 +277,71 @@ export async function syncTripWorkDays(
 
 /**
  * Remove TRIP_DAY records for a canceled trip.
+ * Contribution-aware: if another active trip also covers the same day,
+ * reassign the tripId instead of deleting.  Only deletes when no other
+ * trip contributes.
  */
 export async function removeTripWorkDays(
   driverId: number,
   tripId: number,
   executor: DbLike = db,
 ) {
-  await executor.delete(s.driverWorkDays)
-    .where(and(
-      eq(s.driverWorkDays.driverId, driverId),
-      eq(s.driverWorkDays.tripId, tripId),
-      eq(s.driverWorkDays.status, 'TRIP_DAY'),
-    ));
+  const execute = async (tx: Tx) => {
+    // Find all work day records currently attributed to this trip
+    const affectedDays = await tx.select({
+      id: s.driverWorkDays.id,
+      date: s.driverWorkDays.date,
+    })
+      .from(s.driverWorkDays)
+      .where(and(
+        eq(s.driverWorkDays.driverId, driverId),
+        eq(s.driverWorkDays.tripId, tripId),
+        eq(s.driverWorkDays.status, 'TRIP_DAY'),
+      ));
+
+    if (affectedDays.length === 0) return;
+
+    // Find other active trips for this driver whose date range may overlap
+    const otherTrips = await tx.select({
+      id: s.trips.id,
+      departureDate: s.trips.departureDate,
+      completedAt: s.trips.completedAt,
+    })
+      .from(s.trips)
+      .where(and(
+        eq(s.trips.driverId, driverId),
+        ne(s.trips.id, tripId),
+        ne(s.trips.status, 'CANCELED'),
+        isNull(s.trips.deletedAt),
+      ));
+
+    for (const day of affectedDays) {
+      // Check if another trip's date range covers this day.
+      // A trip covers a date when departureDate <= date <= end, where end is
+      // the completedAt business-date (if completed) or departureDate itself
+      // (single-day trip / still in transit with unknown end).
+      const coveringTrip = otherTrips.find((other) => {
+        const otherStart = other.departureDate;
+        const otherEnd = toBusinessDate(other.completedAt) ?? other.departureDate;
+        return day.date >= otherStart && day.date <= otherEnd;
+      });
+
+      if (coveringTrip) {
+        await tx.update(s.driverWorkDays)
+          .set({ tripId: coveringTrip.id, updatedAt: new Date() })
+          .where(eq(s.driverWorkDays.id, day.id));
+      } else {
+        await tx.delete(s.driverWorkDays)
+          .where(eq(s.driverWorkDays.id, day.id));
+      }
+    }
+  };
+
+  if (executor === db) {
+    await db.transaction(execute);
+    return;
+  }
+  await execute(executor as Tx);
 }
 
 /**
@@ -338,7 +414,7 @@ export async function computeAttendanceSummary(
   };
 }
 
-type ConfirmationMap = Map<number, { status: string | null; confirmedBy: number | null; confirmedAt: Date | null }>;
+export type ConfirmationMap = Map<number, { status: string | null; confirmedBy: number | null; confirmedAt: Date | null; salarySnapshot?: Record<string, unknown> | null }>;
 
 export interface SalaryConfirmationRecord {
   id: number;
@@ -382,94 +458,36 @@ export async function getSalaryConfirmationRecord(
  * Compute the full salary breakdown for a driver in a month.
  * @param confirmationMap Optional pre-fetched confirmation map (avoids N+1 in batch calls).
  */
+/** A confirmed payslip is immutable; later operational days remain available for reconciliation. */
 export async function computeSalary(
-  driverId: number,
-  year: number,
-  month: number,
-  confirmationMap?: ConfirmationMap,
-  executor: DbLike = db,
+  driverId: number, year: number, month: number,
+  confirmationMap?: ConfirmationMap, executor: DbLike = db,
 ) {
-  const attendance = await computeAttendanceSummary(driverId, year, month, executor);
-  const { periodStart: start, periodEnd: end, standardWorkDays, tripDays, standbyDays, paidDays } = attendance;
-
-  // Get driver base salary
-  const [driver] = await executor.select({
-    baseSalary: s.drivers.baseSalary,
-    socialInsurance: s.drivers.socialInsurance,
-  }).from(s.drivers)
-    .where(eq(s.drivers.id, driverId)).limit(1);
-
-  if (!driver) {
-    throw new ApiError(404, 'Không tìm thấy lái xe');
+  const confirmation = confirmationMap?.get(driverId) ?? (await executor.select({
+    status: s.salaryConfirmations.status,
+    confirmedBy: s.salaryConfirmations.confirmedBy,
+    confirmedAt: s.salaryConfirmations.confirmedAt,
+    salarySnapshot: s.salaryConfirmations.salarySnapshot,
+  }).from(s.salaryConfirmations).where(and(
+    eq(s.salaryConfirmations.driverId, driverId),
+    eq(s.salaryConfirmations.year, year), eq(s.salaryConfirmations.month, month),
+  )).limit(1))[0];
+  const frozen = confirmation?.status === 'CONFIRMED'
+    ? restoreSalarySnapshot<Awaited<ReturnType<typeof computeLiveSalary>>>(confirmation.salarySnapshot, driverId, year, month)
+    : null;
+  if (frozen) {
+    const currentDays = await getWorkDays(driverId, frozen.periodStart, frozen.periodEnd, executor);
+    return {
+      ...frozen, confirmationStatus: 'CONFIRMED',
+      confirmedBy: confirmation!.confirmedBy, confirmedAt: confirmation!.confirmedAt,
+      salarySnapshotState: 'CONFIRMED' as const,
+      salaryReconciliationRequired: attendanceFingerprint(currentDays) !== attendanceFingerprint(frozen.workDays),
+    };
   }
-  const baseSalary = parseFloat(driver.baseSalary || '0');
-  // Social insurance from drivers.social_insurance column (was hardcoded to 0)
-  const socialInsurance = parseFloat(driver.socialInsurance || '0');
-
-  // Per customer (Pete): dailyRate = baseSalary / standardWorkDays
-  // This is a cost-allocation rate to distribute monthly salary across trips, NOT actual pay.
-  const dailyRate = Math.round(baseSalary / standardWorkDays);
-
-  // Cost allocation: trip salary = trip days × daily rate
-  const totalTripSalary = tripDays * dailyRate;
-
-  // Standby cost: standby days × daily rate (idle days → allocated cost)
-  const supplementPay = standbyDays * dailyRate;
-
-  // Leave deduction: Removed because adjustment handles it natively.
-  const leaveDeduction = 0;
-
-  // Adjustment: (paidDays - standardWorkDays) * dailyRate
-  const adjustment = (paidDays - standardWorkDays) * dailyRate;
-
-  // Penalties in period
-  const [penaltyRow] = await executor.select({
-    total: sql<string>`coalesce(sum(${s.penalties.amount}::numeric), 0)`,
-  }).from(s.penalties)
-    .where(and(
-      eq(s.penalties.driverId, driverId),
-      isNull(s.penalties.deletedAt),
-      ne(s.penalties.status, 'CANCELED'),
-      gte(s.penalties.date, start),
-      lte(s.penalties.date, end),
-    ));
-
-  const totalPenalties = parseFloat(penaltyRow?.total || '0');
-
-  // Net salary is just base salary + adjustment - penalties
-  const netSalary = baseSalary + adjustment - totalPenalties;
-
-  // Get salary confirmation status — use pre-fetched map if available
-  let confirmationRow: { status: string | null; confirmedBy: number | null; confirmedAt: Date | null } | undefined;
-  if (confirmationMap) {
-    confirmationRow = confirmationMap.get(driverId);
-  } else {
-    [confirmationRow] = await executor.select({
-      status: s.salaryConfirmations.status,
-      confirmedBy: s.salaryConfirmations.confirmedBy,
-      confirmedAt: s.salaryConfirmations.confirmedAt,
-    }).from(s.salaryConfirmations)
-      .where(and(
-        eq(s.salaryConfirmations.driverId, driverId),
-        eq(s.salaryConfirmations.year, year),
-        eq(s.salaryConfirmations.month, month),
-      )).limit(1);
-  }
-
   return {
-    ...attendance,
-    baseSalary,
-    socialInsurance,
-    dailyRate,
-    totalTripSalary,
-    adjustment,
-    supplementPay,
-    leaveDeduction,
-    totalPenalties,
-    netSalary,
-    confirmationStatus: confirmationRow?.status ?? 'DRAFT',
-    confirmedBy: confirmationRow?.confirmedBy ?? null,
-    confirmedAt: confirmationRow?.confirmedAt ?? null,
+    ...await computeLiveSalary(driverId, year, month, confirmationMap, executor),
+    salarySnapshotState: confirmation?.status === 'CONFIRMED' ? 'UNAVAILABLE' as const : 'LIVE' as const,
+    salaryReconciliationRequired: confirmation?.status === 'CONFIRMED',
   };
 }
 
@@ -492,6 +510,7 @@ export async function computeAllDriverSalaries(year: number, month: number) {
     status: s.salaryConfirmations.status,
     confirmedBy: s.salaryConfirmations.confirmedBy,
     confirmedAt: s.salaryConfirmations.confirmedAt,
+    salarySnapshot: s.salaryConfirmations.salarySnapshot,
   }).from(s.salaryConfirmations)
     .where(and(
       eq(s.salaryConfirmations.year, year),
@@ -538,7 +557,7 @@ export async function confirmSalary(
     const now = new Date();
     await lockSalaryConfirmation(tx, driverId, year, month);
 
-    const [existing] = await tx.select({ id: s.salaryConfirmations.id })
+    const [existing] = await tx.select()
       .from(s.salaryConfirmations)
       .where(and(
         eq(s.salaryConfirmations.driverId, driverId),
@@ -547,10 +566,16 @@ export async function confirmSalary(
       ))
       .limit(1);
 
+    if (existing?.status === 'CONFIRMED') {
+      return { confirmation: existing, salary: await computeSalary(driverId, year, month, undefined, tx) };
+    }
+    const liveSalary = await computeLiveSalary(driverId, year, month, undefined, tx);
+    const salarySnapshot = JSON.parse(JSON.stringify({ ...liveSalary, snapshotVersion: 1 }));
     const [confirmation] = existing
       ? await tx.update(s.salaryConfirmations)
         .set({
           status: 'CONFIRMED',
+          salarySnapshot,
           confirmedBy: userId,
           confirmedAt: now,
           updatedAt: now,
@@ -563,6 +588,7 @@ export async function confirmSalary(
           year,
           month,
           status: 'CONFIRMED',
+          salarySnapshot,
           confirmedBy: userId,
           confirmedAt: now,
         })
@@ -605,6 +631,7 @@ export async function unconfirmSalary(
       await executor.update(s.salaryConfirmations)
         .set({
           status: 'DRAFT',
+          salarySnapshot: null,
           confirmedBy: null,
           confirmedAt: null,
           updatedAt: new Date(),

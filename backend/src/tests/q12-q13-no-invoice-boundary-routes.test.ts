@@ -39,8 +39,6 @@ let clerkToken: string;
 type BoundarySnapshot = {
   defaultCategoryAliases: string[];
   requiredScope: string;
-  financeLeadApprovalTitle: string;
-  directorApprovalTitle: string;
 };
 
 type BootstrapExpenseType = {
@@ -219,7 +217,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
     assert.ok((response.body.businessUnits as Array<{ name: string }>).length > 0);
   });
 
-  test('config CRUD persists policy-configurable approval titles and only bumps version on policy change', async () => {
+  test('config CRUD persists no-invoice policy limits and applies material policy changes directly', async () => {
     const create = await request('/api/forwarder-expense-types', {
       method: 'POST',
       token: managerToken,
@@ -232,8 +230,6 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
         noInvoiceEvidenceTypes: ['RECEIPT', 'SIGNED_CONFIRMATION'],
         noInvoicePerItemLimit: 400000,
         noInvoicePerDayLimit: 700000,
-        noInvoiceFinanceLeadApprovalTitle: 'DIRECTOR',
-        noInvoiceDirectorApprovalTitle: 'DIRECTOR',
       },
     });
     assert.equal(create.status, 201, JSON.stringify(create.body));
@@ -243,16 +239,13 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
       .limit(1);
     assert.ok(created);
     createdExpenseTypeIds.push(created.id);
-    assert.equal(created.noInvoiceFinanceLeadApprovalTitle, 'DIRECTOR');
-    assert.equal(created.noInvoiceDirectorApprovalTitle, 'DIRECTOR');
-    assert.equal(created.noInvoicePolicyVersion, 1);
+    assert.equal(Number(created.noInvoicePerItemLimit), 400000);
+    assert.equal(Number(created.noInvoicePerDayLimit), 700000);
 
     const bootstrap = await request('/api/catalogs/bootstrap', { token: adminToken });
     const createdType = (bootstrap.body.forwarderExpenseTypes as BootstrapExpenseType[])
       .find((item) => item.id === created.id);
     assert.ok(createdType);
-    assert.equal(createdType.noInvoicePolicySnapshot?.financeLeadApprovalTitle, 'DIRECTOR');
-    assert.equal(createdType.noInvoicePolicySnapshot?.directorApprovalTitle, 'DIRECTOR');
     assert.deepEqual(createdType.noInvoicePolicySnapshot?.defaultCategoryAliases, [created.name]);
     assert.equal(createdType.noInvoicePolicySnapshot?.requiredScope, NO_INVOICE_REQUIRED_SCOPE);
 
@@ -276,7 +269,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
     const [unchanged] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.id, created.id))
       .limit(1);
-    assert.equal(unchanged.noInvoicePolicyVersion, 1);
+    assert.equal(Number(unchanged.noInvoicePerItemLimit), 400000);
 
     const changed = await request(`/api/forwarder-expense-types/${created.id}`, {
       method: 'PUT',
@@ -286,35 +279,17 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
         'If-Unmodified-Since': unchanged.updatedAt.toISOString(),
       },
       body: {
-        ...unchanged,
-        createdAt: undefined,
-        updatedAt: undefined,
-        deletedAt: undefined,
-        noInvoiceFinanceLeadApprovalTitle: 'FINANCE_LEAD',
+        noInvoicePerItemLimit: 500000,
       },
     });
-    // Material policy change → governed → direct apply still bumps the policy
-    // version and records the APPROVED audit action.
+    // Material policy change → governed → direct apply records the APPROVED
+    // audit action.
     assert.equal(changed.status, 200, JSON.stringify(changed.body));
     assert.ok(!('actionKind' in changed.body), `expected direct row: ${JSON.stringify(changed.body)}`);
     const [updated] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.id, created.id))
       .limit(1);
-    assert.equal(updated.noInvoicePolicyVersion, 2);
-  });
-
-  test('invalid approval title is rejected at the config boundary', async () => {
-    const response = await request('/api/forwarder-expense-types', {
-      method: 'POST',
-      token: adminToken,
-      headers: { 'Idempotency-Key': `q12q13-invalid-${suffix}` },
-      body: {
-        code: `Q12Q13-BAD-${suffix}`.slice(0, 50),
-        name: 'Invalid title',
-        noInvoiceFinanceLeadApprovalTitle: 'BAD_TITLE',
-      },
-    });
-    assert.equal(response.status, 400);
+    assert.equal(Number(updated.noInvoicePerItemLimit), 500000);
   });
 
   test('forwarder catalog exposes the same no-invoice policy snapshot while config routes stay forbidden', async () => {

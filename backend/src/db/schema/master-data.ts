@@ -66,6 +66,10 @@ export const drivers = pgTable('drivers', {
   phone: varchar('phone', { length: 20 }),
   assignedTruckId: integer('assigned_truck_id'),
   baseSalary: numeric('base_salary', { precision: 15, scale: 0 }),
+  // Optional effective date for the baseSalary — when set, the salary
+  // computation uses baseSalary only from this date onward (first of a
+  // month is the typical value). Null means "effective immediately".
+  salaryEffectiveDate: date('salary_effective_date'),
   // BHXH/BHYT monthly contribution — tracked SEPARATELY for cost allocation; NOT part of daily_rate
   // or trip-salary auto-fill (Pete 2026-06: baseSalary only — base/std_days, no socialInsurance)
   socialInsurance: numeric('social_insurance', { precision: 15, scale: 0 }).default('0'),
@@ -414,11 +418,6 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   noInvoiceEvidenceTypes: jsonb('no_invoice_evidence_types').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   noInvoicePerItemLimit: numeric('no_invoice_per_item_limit', { precision: 15, scale: 0 }).notNull().default('1000000'),
   noInvoicePerDayLimit: numeric('no_invoice_per_day_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
-  noInvoiceFinanceLeadItemApprovalLimit: numeric('no_invoice_finance_lead_item_approval_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
-  noInvoiceDirectorDayApprovalLimit: numeric('no_invoice_director_day_approval_limit', { precision: 15, scale: 0 }).notNull().default('10000000'),
-  noInvoiceFinanceLeadApprovalTitle: varchar('no_invoice_finance_lead_approval_title', { length: 50 }).notNull().default('FINANCE_LEAD'),
-  noInvoiceDirectorApprovalTitle: varchar('no_invoice_director_approval_title', { length: 50 }).notNull().default('DIRECTOR'),
-  noInvoicePolicyVersion: integer('no_invoice_policy_version').notNull().default(1),
   defaultMarkup: boolean('default_markup').notNull().default(false),
   billingLabel: varchar('billing_label', { length: 120 }),
   vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.080'),

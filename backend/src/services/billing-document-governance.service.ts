@@ -139,10 +139,10 @@ async function loadCurrentExpenseSource(tx: Tx, expenseId: number): Promise<{
     .limit(1);
   if (!expense) return null;
   return {
-    version: expense.approvalStatus === 'APPROVED'
+    version: ['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
       ? buildExpenseSourceVersionToken(expense)
       : null,
-    baseAmount: expense.approvalStatus === 'APPROVED' ? Number(expense.sellAmount ?? 0) : 0,
+    baseAmount: ['RECORDED', 'APPROVED'].includes(expense.approvalStatus) ? Number(expense.sellAmount ?? 0) : 0,
   };
 }
 

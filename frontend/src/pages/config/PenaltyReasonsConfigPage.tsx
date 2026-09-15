@@ -8,13 +8,14 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { useCRUD } from '../../hooks/useCRUD';
 import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/UI';
+import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 
 /* ─── Page-scoped styles ─── */
 const pageStyles = `
-  /* ── Override KPI wireframe: solid white + smaller type ── */
+  /* Compact KPI surface with the shared metric hierarchy. */
   .penalty-reasons-page .kpi-grid .kpi {
     background: #fff;
     backdrop-filter: none;
@@ -27,14 +28,14 @@ const pageStyles = `
   }
   .penalty-reasons-page .kpi-grid .kpi__icon svg { width: 15px; height: 15px; }
   .penalty-reasons-page .kpi-grid .kpi__value {
-    font-size: 22px;
+    font-size: var(--text-metric-size);
     margin-bottom: 4px;
   }
   .penalty-reasons-page .kpi-grid .kpi__value-unit {
-    font-size: 13px;
+    font-size: var(--text-data-size);
   }
   .penalty-reasons-page .kpi-grid .kpi__meta {
-    font-size: var(--fs-xs);
+    font-size: var(--text-caption-size);
     line-height: 1.35;
   }
 
@@ -59,14 +60,12 @@ const pageStyles = `
     animation: pr-stagger 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   .pr-card:hover {
-    box-shadow: var(--sh-lg);
-    border-color: var(--accent-soft);
-    transform: translateY(-2px);
+    border-color: var(--line-2);
   }
   .pr-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .pr-card-title {
     font-family: var(--font-display);
-    font-size: 13.5px;
+    font-size: var(--text-data-size);
     font-weight: 700;
     letter-spacing: 0;
     white-space: normal;
@@ -78,16 +77,13 @@ const pageStyles = `
 
 
 
-  /* ── Hover actions ── */
+  /* ── Persistent record actions ── */
   .pr-card-actions {
-    position: absolute; top: 100%; right: 0; margin-top: 8px; z-index: 2;
+    margin-top: 6px;
     display: flex; gap: 4px;
-    opacity: 0; transform: translateY(-4px);
-    transition: 0.16s ease;
   }
-  .pr-card:hover .pr-card-actions { opacity: 1; transform: none; }
   .pr-act {
-    width: 30px; height: 30px;
+    width: 36px; height: 36px;
     border-radius: 8px;
     border: 1px solid var(--line);
     background: #fff;
@@ -102,6 +98,7 @@ const pageStyles = `
     line-height: 0;
   }
   .pr-act svg { width: 14px; height: 14px; }
+  .pr-act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .pr-act:hover { background: var(--surface-3); color: var(--ink); }
   .pr-act.del:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
 
@@ -112,18 +109,18 @@ const pageStyles = `
     margin-top: 14px; padding-top: 12px;
     border-top: 1px solid var(--line);
   }
-  .pr-fine .k { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pr-fine .k { font-size: var(--text-caption-size); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
   .pr-fine .v {
     font-family: var(--font-data);
-    font-size: 16px; font-weight: 700;
+    font-size: var(--text-data-size); font-weight: 700;
     letter-spacing: 0;
     color: var(--ink);
   }
-  .pr-fine .v .cur { font-size: 12px; color: var(--ink-3); margin-left: 2px; }
+  .pr-fine .v .cur { font-size: var(--text-caption-size); color: var(--ink-3); margin-left: 2px; }
   .pr-usage { text-align: right; }
-  .pr-usage .k { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .pr-usage .v { font-size: 12px; font-weight: 600; color: var(--ink-2); }
-  .pr-usage .v b { font-family: var(--font-data); color: var(--accent); font-size: 14px; }
+  .pr-usage .k { font-size: var(--text-caption-size); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pr-usage .v { font-size: var(--text-caption-size); font-weight: 600; color: var(--ink-2); }
+  .pr-usage .v b { font-family: var(--font-data); color: var(--accent); font-size: var(--text-data-size); }
   .pr-usage.zero .v b { color: var(--ink-3); }
 
   /* ── Animations ── */
@@ -138,7 +135,6 @@ const pageStyles = `
     border: 1px solid var(--line);
     border-radius: var(--r);
     padding: 10px 12px;
-    font-size: 13.5px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     outline: none;
     background: #fff;
@@ -150,7 +146,7 @@ const pageStyles = `
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 80px 20px;
     color: var(--ink-3); gap: 14px;
-    font-size: 13px;
+    font-size: var(--text-data-size);
   }
   .pr-spinner {
     width: 28px; height: 28px;
@@ -162,17 +158,14 @@ const pageStyles = `
   @media (max-width: 560px) {
     .pr-grid { grid-template-columns: 1fr; }
   }
+  @media (pointer: coarse) {
+    .pr-act { width: 44px; height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pr-card, .pr-spinner { animation: none; }
+    .pr-card, .pr-act { transition: none; }
+  }
 `;
-
-/* ─── Severity helpers ─── */
-type Severity = 'low' | 'mid' | 'high';
-const SEV_OPTIONS: { value: Severity; label: string; color: string }[] = [
-  { value: 'low', label: 'Nhẹ', color: 'var(--ink-3)' },
-  { value: 'mid', label: 'Trung bình', color: 'var(--warning)' },
-  { value: 'high', label: 'Nghiêm trọng', color: 'var(--danger)' },
-];
-const sevLabel: Record<string, string> = { high: 'Nghiêm trọng', mid: 'Trung bình', low: 'Nhẹ' };
-const sevPill: Record<string, string> = { high: 'danger', mid: 'warn', low: 'neutral' };
 
 function PenaltyReasonForm({
   saving, item, onSave, onCancel, existingReasons,
@@ -185,6 +178,10 @@ function PenaltyReasonForm({
 }) {
   const [reason, setReason] = useState(item?.reasonText || '');
   const [amount, setAmount] = useState(item?.defaultAmount?.toString() || '');
+  // Negative or blank fines are rejected visibly: the field explains itself
+  // and Save stays disabled until the value is a non-negative number.
+  const amountNum = Number(amount);
+  const amountInvalid = amount.trim() === '' || !Number.isFinite(amountNum) || amountNum < 0;
   const [severity, setSeverity] = useState<Severity>(item?.severity || 'mid');
 
   const isDuplicate =
@@ -213,7 +210,15 @@ function PenaltyReasonForm({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0"
+          min="0"
+          aria-invalid={amountInvalid || undefined}
+          aria-describedby={amountInvalid ? 'pr-amount-error' : undefined}
         />
+        {amountInvalid && (
+          <p id="pr-amount-error" role="alert" style={{ margin: '6px 0 0', fontSize: 'var(--text-caption-size)', color: 'var(--danger)' }}>
+            Mức phạt phải là số không âm (VNĐ). Hãy nhập lại để bật nút lưu.
+          </p>
+        )}
       </FormGroup>
       <FormGroup label="Mức độ nghiêm trọng">
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -230,7 +235,7 @@ function PenaltyReasonForm({
                 background: severity === opt.value ? `${opt.color}12` : 'var(--surface)',
                 color: severity === opt.value ? opt.color : 'var(--ink-2)',
                 fontWeight: 600,
-                fontSize: '13px',
+
                 cursor: 'pointer',
                 transition: '0.15s ease',
               }}
@@ -245,10 +250,10 @@ function PenaltyReasonForm({
         <Btn
           variant="primary"
           onClick={() => {
-            if (!reason.trim() || isDuplicate) return;
-            onSave({ reasonText: reason.trim(), defaultAmount: Number(amount) || 0, severity });
+            if (!reason.trim() || isDuplicate || amountInvalid) return;
+            onSave({ reasonText: reason.trim(), defaultAmount: amountNum, severity });
           }}
-          disabled={saving || !reason.trim() || isDuplicate}
+          disabled={saving || !reason.trim() || isDuplicate || amountInvalid}
         >
           {saving ? 'Đang lưu...' : item ? 'Lưu thay đổi' : 'Thêm mới'}
         </Btn>
@@ -320,13 +325,13 @@ export default function PenaltyReasonsConfigPage() {
     [items, crud.editingId]
   );
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, expectedUpdatedAt?: string) => {
     const ok = await confirm('Bạn có chắc chắn muốn xóa lỗi vi phạm này?', {
       variant: 'danger',
       confirmLabel: 'Xóa',
     });
     if (ok) {
-      await crud.doDelete(id);
+      await crud.doDelete(id, expectedUpdatedAt);
       crud.cancelForm();
     }
   };
@@ -348,10 +353,10 @@ export default function PenaltyReasonsConfigPage() {
   return (
     <div ref={pageRef} className="penalty-reasons-page" style={{ minHeight: '100%' }}>
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <PageHeader 
-        title="Danh mục lỗi vi phạm" 
-        description="Quản lý các loại lỗi vi phạm của lái xe và quy định mức phạt mặc định để áp dụng nhanh chóng." 
-        onBack={handleBack} 
+      <PageHeader
+        title="Danh mục lỗi vi phạm"
+        description="Quản lý các loại lỗi vi phạm của lái xe và quy định mức phạt mặc định để áp dụng nhanh chóng."
+        onBack={handleBack}
         iconName="alert"
         action={
           <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}>
@@ -401,7 +406,7 @@ export default function PenaltyReasonsConfigPage() {
             <span className="kpi__label">Phổ biến nhất</span>
             <div className="kpi__icon kpi--danger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg></div>
           </div>
-          <div className="kpi__value" style={{ fontSize: topReasonText.length > 15 ? '18px' : '24px', letterSpacing: '-0.02em' }} title={topReasonText}>
+          <div className="kpi__value" style={{ letterSpacing: 0 }} title={topReasonText}>
             {topReasonText}
           </div>
           <div className="kpi__meta" style={{ fontFamily: 'var(--font-data)' }}>
@@ -476,7 +481,7 @@ export default function PenaltyReasonsConfigPage() {
                     <span className={`pill pill--${sevPill[sev]}`} style={{ flexShrink: 0 }}>
                       <span className="dot" />{sevLabel[sev]}
                     </span>
-                    <PenaltyReasonActions name={d.reasonText} onEdit={() => crud.setEditingId(d.id)} onDelete={() => handleDelete(d.id)} />
+                    <PenaltyReasonActions name={d.reasonText} onEdit={() => crud.setEditingId(d.id)} onDelete={() => handleDelete(d.id, d.updatedAt)} />
                   </div>
                 </div>
 

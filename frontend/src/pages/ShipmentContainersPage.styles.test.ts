@@ -31,7 +31,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toContain('.shipments-detail-filters__meta');
     expect(ledgerSource).toMatch(/<SummaryRail\s/);
     expect(ledgerSource).not.toContain('shipment-container-summary');
-    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*20px;/);
+    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*var\(--text-section-size\);/);
     expect(railCss).toMatch(/\.summary-rail__item--warning dd\s*\{\s*color:\s*var\(--warning-text\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*var\(--ops-table-header-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);/);
@@ -87,7 +87,7 @@ describe('shipment detail workboard styling', () => {
     // column than the old single-badge 7%; notes gave up 2% to fund it.
     expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*12%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*11%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*11px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {
@@ -162,10 +162,10 @@ describe('shipment detail workboard styling', () => {
     // side by side inside the schedule tray — giờ leads (f495a3c4 order), so
     // the narrow giờ column comes first and the date keeps the wide track.
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid--schedule\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.8fr\)\s*minmax\(0, 1\.2fr\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;[^}]*border-top:\s*1px solid var\(--line-2\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding-inline:\s*12px;/);
-    expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-error\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.shipment-container-ledger__recovery\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*44px;[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
@@ -194,14 +194,14 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
     // Status chips are UUI badges: the component owns fill, ring, and geometry;
     // page CSS only tunes type so a chip can never read as a button.
-    expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).not.toMatch(/__plate--missing\s*\{[^}]*border/);
-    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*color:\s*var\(--warning-text\);/);
     expect(ledgerSource).toMatch(/<BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">/);
     expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state">/);
     expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap">/);
-    expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*width:\s*fit-content;[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*width:\s*fit-content;[^}]*font-size:\s*var\(--text-caption-size\);/);
     // The triage summary is one compact amber chip — a count disclosure that
     // expands to jump-to-editor buttons. The list wraps at the chip's own
     // 10px size (no shrinking for density) and the DOM text stays comma-free.
@@ -209,7 +209,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipment-container-ledger__missing-fields-toggle\s*\{[^}]*background:\s*none;[^}]*cursor:\s*pointer;/);
     expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-item\s*\{[^}]*font-size:\s*10px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-item\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 12px;/);
     // Structural classification chips stay neutral — accent fills are state-only.
     expect(css).toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*background:\s*var\(--surface-3\);[^}]*color:\s*var\(--ink-2\);/);

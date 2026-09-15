@@ -14,7 +14,6 @@ import {
 import { assembleDisbursementsForPeriod } from '../services/disbursement-assembly.service';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
-import { applyBillingDocumentGovernanceAction } from '../services/billing-document-governance.service';
 import { applyDirectMoneyGovernanceAction } from '../services/governance-transition.service';
 import { requestBillingDocumentAdjustment } from '../services/billing-document-governance.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';

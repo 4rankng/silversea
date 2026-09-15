@@ -73,6 +73,14 @@ before(async () => {
   containerTypeId = ct.id;
 });
 
+// ── KP-058 container PATCH boundary matrix ──────────────────────────────────
+// Path                 | valid save        | invalid reject         | canonical normalize         | partial-write rollback
+// ---------------------|-------------------|------------------------|-----------------------------|------------------------
+// batch (this file)    | 'valid ISO...'    | FORMAT/CHECK DIGIT/dup | separator/lowercase accepted| 'rejected batch leaves...untouched'
+// driver edit          | driver-container-routes 'spaced valid persists NORMALIZED' | driver-container-routes 'ABC'/wrong-digit | same | driver-container-routes 'writes nothing'
+// CUS correction       | cus-shipment-workspace 'number-only add saves' | cus-shipment-workspace ISO-gate rejects | validContainerNumber construction | cus-shipment-workspace 'rejected correction writes nothing'
+// Shared gate: refactor 2f2e4433 routes every path through one ISO 6346
+// schema; these pins keep each mutation boundary independently provable.
 describe('M10.2 slice 1 — container-number validation', () => {
   test('valid ISO 6346 numbers are accepted (format + check digit)', async () => {
     const shipment = await mkShipment();

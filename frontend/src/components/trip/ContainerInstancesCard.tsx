@@ -280,7 +280,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                       {deletingPhotos[row._key]?.[field] ? <Loader2 size={11} className="spin" /> : <X size={11} />}
                     </button>
                     {isPending && (
-                      <span className="ci-photo-slot__pending" role="status" aria-live="polite" title="Chưa lưu — sẽ tải lên khi bấm Lưu cập nhật">
+                      <span className="ci-photo-slot__pending" role="status" aria-live="polite" title="Chưa lưu — sẽ tải lên khi biểu mẫu được gửi (Tạo lệnh hoặc Lưu cập nhật)">
                         chưa lưu
                       </span>
                     )}
@@ -581,7 +581,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
           <Plus size={16} aria-hidden="true" /> Thêm container
         </button>
-        <span>Dữ liệu container được lưu cùng nút “Lưu cập nhật” ở cuối biểu mẫu.</span>
+        <span>Dữ liệu container được gửi cùng nút hành động ở cuối biểu mẫu — “Tạo lệnh” khi tạo mới, “Lưu cập nhật” khi chỉnh sửa.</span>
       </div>
 
       {scanner && <ContainerScanner onCapture={handleCapture} onClose={() => setScanner(null)} />}

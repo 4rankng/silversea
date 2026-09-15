@@ -50,13 +50,12 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     });
   });
 
-  it('renders the four cards with the server-computed formula', async () => {
+  it('distinguishes recorded expense money from the server-computed balance', async () => {
     renderPage();
     expect(await screen.findByText(/1\.560\.000/)).toBeInTheDocument();
-    // Card labels also appear in the history status column — assert presence.
-    expect(screen.getAllByText('Đã duyệt').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Chờ duyệt').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Bị từ chối').length).toBeGreaterThan(0);
+    expect(screen.getByText('Chi phí đã ghi nhận')).toBeInTheDocument();
+    expect(screen.getByText('350.000 ₫')).toBeInTheDocument();
+    expect(screen.getAllByText('Đã trả lại').length).toBeGreaterThan(0);
   });
 
   it('flags entries without photos as Nợ chứng từ', async () => {
@@ -72,7 +71,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
     fireEvent.change(amountInput, { target: { value: '500000' } });
     fireEvent.change(screen.getByLabelText(/Lý do \/ Ghi chú/), { target: { value: 'ứng phí cảng' } });
-    fireEvent.click(screen.getByRole('button', { name: /Gửi yêu cầu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Lưu tạm ứng/ }));
 
     await waitFor(() => {
       expect(apiPost).toHaveBeenCalledWith('/ops/wallet/advance-requests', {
@@ -106,4 +105,56 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
       }));
     });
   });
+  it('reports query failures instead of empty money/history and lets the user retry', async () => {
+    apiGet.mockRejectedValue(new Error('Unavailable'));
+    renderPage();
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(4));
+    expect(screen.queryByText('Chưa có khoản chi nào.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chưa có phiếu nào.')).not.toBeInTheDocument();
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('/summary')
+      ? { balance: '123000', totalAdvance: '123000', returned: '0', approved: '0' }
+      : { items: [] }));
+    fireEvent.click(within(screen.getAllByRole('alert')[0]).getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('123.000 ₫')).toBeInTheDocument();
+  });
+
+  it('opens settlement detail immediately and keeps a dismissible error state', async () => {
+    let rejectDetail!: (reason: Error) => void;
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/ops/settlements/12') return new Promise((_resolve, reject) => { rejectDetail = reject; });
+      if (url.startsWith('/ops/settlements')) return Promise.resolve({ items: [{ id: 12, code: 'QT-12', status: 'RECORDED', totalAmount: '1000', createdAt: '2026-09-15' }] });
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem' }));
+    const detail = await screen.findByRole('dialog', { name: 'Phiếu quyết toán 12' });
+    expect(within(detail).getByRole('status')).toHaveTextContent('Đang tải chi tiết quyết toán');
+    await waitFor(() => expect(rejectDetail).toBeDefined());
+    rejectDetail(new Error('Unavailable'));
+    expect(await within(detail).findByRole('alert')).toHaveTextContent('Không tải được chi tiết quyết toán');
+    fireEvent.click(within(detail).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['VOIDED', null],
+    ['REJECTED', null],
+    ['RECORDED', 12],
+  ])('keeps receipt viewing read-only for a %s expense linked to %s', async (approvalStatus, opsSettlementId) => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/wallet/expenses')) return Promise.resolve({ items: [expense({ approvalStatus, opsSettlementId, hasPhoto: true })] });
+      if (url === '/ops/expenses/1/photos') return Promise.resolve({ items: [{ id: 91, storageKey: 'receipt.png', url: '/api/photos/receipt.png' }] });
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    await screen.findByText('SS-1');
+    expect(screen.queryByRole('button', { name: /Sửa khoản chi/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Xóa khoản chi/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ảnh' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Ảnh biên lai' });
+    expect(await within(dialog).findByRole('button', { name: 'Xem ảnh 1' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Xóa ảnh/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Lưu|Thêm ảnh/ })).not.toBeInTheDocument();
+  });
+
 });

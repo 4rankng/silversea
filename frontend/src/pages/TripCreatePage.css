@@ -8,7 +8,7 @@
 .tc-create-wrap {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 12px 28px 0;
+  padding: 0;
   width: 100%;
 }
 
@@ -18,8 +18,8 @@
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 24px 28px;
-  margin-bottom: 22px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -34,15 +34,17 @@
 .tc-hero-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
 .tc-hero-top {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
 }
+.tc-hero-title-block { flex: 1; min-width: 0; }
+.tc-create-hero .tc-back-btn { flex: 0 0 auto; }
 /* Re-skin the shared header primitives for the light hero surface */
 .tc-create-hero .tc-back-btn {
   background: var(--surface-2);
@@ -82,7 +84,7 @@
 
 /* ── Hero widgets container ── side-by-side estimate + checklist */
 .tc-hero-widgets {
-  margin-top: 22px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -94,10 +96,11 @@
 }
 .tc-hero-widgets .tc-summary-card,
 .tc-hero-widgets .tc-checklist {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px 20px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px 0 0;
   margin-bottom: 0;
 }
 
@@ -179,7 +182,7 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 24px;
   align-items: start;
-  padding: 28px;
+  padding: 16px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -195,17 +198,22 @@
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .tc-create-hero {
-    padding: 20px;
+    padding: 14px 16px;
   }
   .tc-create-bento { grid-template-columns: 1fr; }
   .tc-create-bento > * { grid-column: span 1; }
 }
 @media (max-width: 640px) {
-  .tc-create-wrap { padding: 8px 12px 0; }
-  .tc-create-hero { padding: 16px; margin-bottom: 14px; }
-  .tc-hero-top { gap: 12px; flex-wrap: wrap; }
+  .tc-create-wrap { padding: 0; }
+  .tc-create-hero { padding: 10px; margin-bottom: 10px; }
+  .tc-hero-top { gap: 10px; flex-wrap: nowrap; }
   .tc-hero-widgets {
     display: none;
   }
-  .tc-create-bento { padding: 16px; margin-bottom: 100px; gap: 16px; }
+  .tc-create-bento { padding: 10px; margin-bottom: 100px; gap: 16px; }
 }
+.tc-create-summary { min-width: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tc-create-summary > summary { padding: 10px 0; cursor: pointer; font-size: var(--text-body-size); font-weight: 600; }
+.tc-create-summary > summary span { display: inline; margin-left: 8px; color: var(--fg-2); font-weight: 400; }
+.tc-create-summary > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tc-create-summary[open] .tc-hero-widgets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin: 0 0 10px; }

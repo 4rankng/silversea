@@ -13,7 +13,7 @@ export function XeNgoaiBadge() {
     <span
       aria-label="Xe ngoài (đối tác vận tải)"
       style={{
-        fontSize: 12,
+        fontSize: 'var(--text-body-size)',
         lineHeight: 1.35,
         fontWeight: 700,
         color: 'var(--info-text)',

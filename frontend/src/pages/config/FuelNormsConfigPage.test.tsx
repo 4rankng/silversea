@@ -7,11 +7,11 @@ import { describe, expect, it, vi } from 'vitest';
 // validation behaviour. The CrudTable mock stashes the renderForm callback
 // into `lastRenderForm` whenever the page renders.
 type SaveSpy = ReturnType<typeof vi.fn> & ((data: Record<string, unknown>) => void);
-let lastRenderForm: ((p: any) => ReactNode) | null = null;
+let lastRenderForm: ((p: Record<string, unknown>) => ReactNode) | null = null;
 let lastOnSave: SaveSpy | null = null;
 
 vi.mock('../../components/config/CrudTable', () => ({
-  CrudTable: (_: any) => null,
+  CrudTable: (_: Record<string, unknown>) => null,
 }));
 // CrudTable is imported as a named export and used as <CrudTable />; intercept
 // the JSX path by replacing the component module before the page imports it.
@@ -19,7 +19,7 @@ vi.mock('../../components/config/CrudTable', () => ({
 vi.mock('../../components/config/CrudTable', async () => {
   const React = await import('react');
   return {
-    CrudTable: (props: any) => {
+    CrudTable: (props: { renderForm: (p: Record<string, unknown>) => ReactNode }) => {
       lastRenderForm = props.renderForm;
       return React.createElement('div', { 'data-testid': 'crud-table' });
     },

@@ -83,4 +83,13 @@ describe('PortalShipmentDetailPage containers sort headers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Trọng lượng (kg)' }));
     expect(columnByLabel('Trọng lượng (kg)')).toEqual(['1000', '3000', '—']);
   });
+  it('keeps a back action while loading and recovers detail errors without leaving the route', async () => {
+    apiMock.get.mockRejectedValueOnce(new Error('Unavailable'));
+    renderPage();
+    expect(screen.getByRole('link', { name: 'Danh sách lô hàng' })).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không thể tải chi tiết lô hàng');
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByRole('heading', { name: 'BL-99' })).toBeInTheDocument();
+  });
+
 });

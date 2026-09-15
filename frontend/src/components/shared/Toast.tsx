@@ -26,7 +26,7 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook, not a component
+ 
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used within ToastProvider');
@@ -186,8 +186,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      {toasts.length > 0 && (
-        <div ref={containerRef} className="toast-container">
+      {/* Keep the region mounted before messages arrive so assistive technology
+          observes additions; announcements never move focus out of the form. */}
+        <div
+          ref={containerRef}
+          className="toast-container"
+          role="log"
+          aria-label="Thông báo"
+          aria-live="polite"
+          aria-relevant="additions text"
+          aria-atomic="false"
+        >
           {toasts.map(t => {
             const Icon = ICONS[t.kind];
             return (
@@ -198,8 +207,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   else toastRefs.current.delete(t.id);
                 }}
                 className={`toast toast--${t.kind}`}
+                aria-atomic="true"
               >
-                <Icon size={18} className="toast__icon" />
+                <Icon size={18} className="toast__icon" aria-hidden="true" />
                 <div className="toast__body">
                   <div className="toast__message">{t.message}</div>
                 </div>
@@ -215,7 +225,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
-      )}
     </ToastContext.Provider>
   );
 }

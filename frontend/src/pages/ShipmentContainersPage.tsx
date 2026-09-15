@@ -131,6 +131,9 @@ export default function ShipmentContainersPage() {
   const totalContainers = detail.data?.total ?? 0;
   const customers = detail.data?.filterOptions.customers ?? [];
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus);
+  const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus].filter(Boolean).length;
+  // Phone/tablet: secondary criteria collapse so records start higher.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const resetFilters = () => {
     appliedSearchRef.current = '';
@@ -194,7 +197,15 @@ export default function ShipmentContainersPage() {
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
             <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
-            <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
+            <button
+              type="button"
+              className="cus-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              Bộ lọc nâng cao{activeDetailFilterCount > 0 ? ` · ${activeDetailFilterCount} đang áp dụng` : ''}
+            </button>
+            <div className="shipments-detail-filters__group shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
               <BufferedUuiDateInput label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
               <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             </div>

@@ -157,7 +157,7 @@ function anomalyFor(reading: PumpReading): { code: string | null; reason: string
   if (reading.mismatch) {
     return {
       code: 'TOTAL_MISMATCH',
-      reason: 'Tổng tiền trên ảnh không khớp với lít x đơn giá. Kế toán phải kiểm tra thủ công.',
+      reason: 'Tổng tiền trên ảnh không khớp với lít x đơn giá. Đối chiếu ảnh gốc khi nhập số liệu.',
     };
   }
   if (reading.litres == null || reading.unitPrice == null || reading.total == null) {
@@ -168,7 +168,7 @@ function anomalyFor(reading: PumpReading): { code: string | null; reason: string
   }
   return {
     code: 'UNSPECIFIED',
-    reason: 'Ảnh bơm cần kế toán xác nhận thủ công.',
+    reason: 'Ảnh bơm có số liệu OCR chưa xác minh.',
   };
 }
 
@@ -197,7 +197,8 @@ function toView(row: FuelEvidenceReviewRow): FuelEvidenceReviewView {
     ocrOutcome: row.ocrOutcome,
     reviewStatus: row.reviewStatus,
     confidence: row.confidence,
-    reviewRequired: row.reviewRequired,
+    // Compatibility property: evidence is saved immediately; no approval queue.
+    reviewRequired: false,
     litres: row.litres,
     unitPrice: row.unitPrice,
     totalAmount: row.totalAmount,
@@ -405,7 +406,7 @@ export async function persistFuelEvidenceReviewForDriver(
     ocrOutcome: args.ocr.outcome,
     reviewStatus: 'PENDING',
     confidence: args.confidence ?? null,
-    reviewRequired: true,
+    reviewRequired: false,
     litres: args.ocr.litres != null ? String(args.ocr.litres) : null,
     unitPrice: args.ocr.unitPrice != null ? String(Math.round(args.ocr.unitPrice)) : null,
     totalAmount: args.ocr.total != null ? String(Math.round(args.ocr.total)) : null,
@@ -452,61 +453,4 @@ export async function persistFuelEvidenceReviewForDriver(
     throw new ApiError(404, 'Không thể đọc lại ảnh nhiên liệu vừa lưu.');
   }
   return { review: row, ownsStorageKey: true };
-}
-
-type DecideFuelEvidenceReviewArgs = {
-  reviewId: number;
-  reviewerId: number;
-  expectedVersion: number;
-  decision: 'CONFIRMED' | 'REJECTED';
-  reviewNote?: string | null;
-};
-
-async function decideFuelEvidenceReviewInTx(
-  args: DecideFuelEvidenceReviewArgs,
-  tx: Tx,
-): Promise<FuelEvidenceReviewView> {
-    const [current] = await tx.select({
-      id: s.fuelEvidenceReviews.id,
-      version: s.fuelEvidenceReviews.version,
-      reviewStatus: s.fuelEvidenceReviews.reviewStatus,
-    }).from(s.fuelEvidenceReviews)
-      .where(eq(s.fuelEvidenceReviews.id, args.reviewId))
-      .limit(1)
-      .for('update');
-    if (!current) {
-      throw new ApiError(404, 'Không tìm thấy kết quả OCR nhiên liệu.');
-    }
-    if (current.version !== args.expectedVersion) {
-      throw new ApiError(409, 'Kết quả OCR đã thay đổi. Vui lòng tải lại danh sách.');
-    }
-    if (current.reviewStatus !== 'PENDING') {
-      throw new ApiError(409, 'Kết quả OCR này đã được xử lý.');
-    }
-
-    await tx.update(s.fuelEvidenceReviews)
-      .set({
-        reviewStatus: args.decision,
-        reviewRequired: false,
-        reviewerId: args.reviewerId,
-        reviewedAt: new Date(),
-        reviewNote: args.reviewNote?.trim() ? args.reviewNote.trim() : null,
-        updatedAt: new Date(),
-        version: current.version + 1,
-      })
-      .where(eq(s.fuelEvidenceReviews.id, args.reviewId));
-
-    const row = await loadFuelEvidenceReviewRow(args.reviewId, tx);
-    if (!row) {
-      throw new ApiError(404, 'Không tìm thấy kết quả OCR sau khi cập nhật.');
-    }
-    return row;
-}
-
-export async function decideFuelEvidenceReview(
-  args: DecideFuelEvidenceReviewArgs,
-  tx?: Tx,
-): Promise<FuelEvidenceReviewView> {
-  if (tx) return decideFuelEvidenceReviewInTx(args, tx);
-  return db.transaction((client) => decideFuelEvidenceReviewInTx(args, client));
 }

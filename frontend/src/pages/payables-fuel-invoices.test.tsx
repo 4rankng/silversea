@@ -246,7 +246,7 @@ describe('FuelInvoicesPanel', () => {
     expect(screen.getByRole('dialog', { name: 'Tạo hóa đơn nhiên liệu' })).toBeTruthy();
   });
 
-  it('keeps MANAGER in read-and-approve mode and disables approval for incomplete allocation', () => {
+  it('keeps MANAGER read only and explains incomplete allocation', () => {
     setRole(Role.MANAGER);
 
     renderPanel();
@@ -256,11 +256,11 @@ describe('FuelInvoicesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
 
     expect(screen.getByRole('alert').textContent ?? '').toMatch(/Còn thiếu 40 lít/i);
-    expect(screen.queryByRole('button', { name: /Sửa bản nháp/i })).toBeNull();
-    expect((screen.getByRole('button', { name: /Gửi yêu cầu duyệt/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Sửa \/ hoàn tất hóa đơn/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
   });
 
-  it('shows computed line amounts and lets MANAGER submit a governed approval request when complete', () => {
+  it('shows complete allocation amounts without offering an approval flow', () => {
     setRole(Role.MANAGER);
     const approveMutateAsync = vi.fn();
     useApproveFuelInvoiceMock.mockReturnValue({ isPending: false, mutateAsync: approveMutateAsync });
@@ -332,27 +332,20 @@ describe('FuelInvoicesPanel', () => {
     expect(screen.getByText('1.320.000 ₫')).toBeTruthy();
     expect(screen.getByText('880.000 ₫')).toBeTruthy();
     expect(screen.queryByText(/Còn thiếu 40 lít/i)).toBeNull();
-    fireEvent.change(screen.getByRole('textbox', { name: /Lý do đề nghị duyệt/i }), {
-      target: { value: 'Đã đối soát hóa đơn và phiếu bơm' },
-    });
-    expect((screen.getByRole('button', { name: /Gửi yêu cầu duyệt/i }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: /Gửi yêu cầu duyệt/i }));
-    expect(approveMutateAsync).toHaveBeenCalledWith({
-      id: 1,
-      expectedVersion: 3,
-      reason: 'Đã đối soát hóa đơn và phiếu bơm',
-    });
+    expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
+    expect(approveMutateAsync).not.toHaveBeenCalled();
   });
-
   it('passes the current version when saving an edited draft invoice', () => {
     setRole(Role.ACCOUNTANT);
-    const updateMutateAsync = vi.fn().mockResolvedValue(makeInvoice());
+    const completeInvoice = makeInvoice({ totalLiters: '60', totalAmount: '1320000' });
+    useFuelInvoiceMock.mockReturnValue({ data: completeInvoice, isLoading: false, error: null, refetch: vi.fn() });
+    const updateMutateAsync = vi.fn().mockResolvedValue(completeInvoice);
     useUpdateFuelInvoiceMock.mockReturnValue({ isPending: false, mutateAsync: updateMutateAsync });
 
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
-    fireEvent.click(screen.getByRole('button', { name: /Sửa bản nháp/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Sửa \/ hoàn tất hóa đơn/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     expect(updateMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
       id: 1,

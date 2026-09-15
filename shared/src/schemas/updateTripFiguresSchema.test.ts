@@ -101,3 +101,41 @@ test('bulkUpdateTripFiguresSchema rejects empty batches', () => {
   const result = bulkUpdateTripFiguresSchema.safeParse({ updates: [] });
   assert.strictEqual(result.success, false);
 });
+
+test('QA066 accepts an optional empty journey but rejects malformed entered legs', () => {
+  assert.strictEqual(updateTripFiguresSchema.safeParse({ legs: [], fuelMode: FuelMode.AUTO }).success, true);
+  for (const invalid of [{ ...validLegs[0], destination: '' }, { ...validLegs[0], km: Infinity }, { ...validLegs[0], km: -1 }]) {
+    assert.strictEqual(updateTripFiguresSchema.safeParse({ legs: [invalid], fuelMode: FuelMode.AUTO }).success, false);
+  }
+});
+
+test('accepts expectedVersion as a deliberate alias for version (card 20260914_40)', () => {
+  const data = {
+    ...validBase,
+    expectedVersion: 7,
+  };
+
+  const result = updateTripFiguresSchema.parse(data);
+  assert.strictEqual(result.version, 7);
+});
+
+test('prefers version when both version and expectedVersion are sent', () => {
+  const data = {
+    ...validBase,
+    version: 3,
+    expectedVersion: 99,
+  };
+
+  const result = updateTripFiguresSchema.parse(data);
+  assert.strictEqual(result.version, 3);
+});
+
+test('version-only payloads are unchanged', () => {
+  const data = {
+    ...validBase,
+    version: 5,
+  };
+
+  const result = updateTripFiguresSchema.parse(data);
+  assert.strictEqual(result.version, 5);
+});

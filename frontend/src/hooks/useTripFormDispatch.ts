@@ -14,6 +14,7 @@ import type { PricingTable, TripDetail, TripLeg, PaginatedResponse } from '@ting
 import { tripClient } from '../api/tripClient';
 import { businessDateISO } from '../lib/format';
 import { configClient } from '../api/configClient';
+import { useTrailerAutoPin } from './useTrailerAutoPin';
 import { qk } from '../api/keys';
 
 import type { TripOptions, RouteOption } from './useTripOptions';
@@ -24,12 +25,12 @@ import { useTripFormPhotos } from './useTripFormPhotos';
 import type { OcrResultHandler, UploadingState, ContainerPhotoUploadResult } from './useTripFormPhotos';
 import type { UseTripFormStateReturn, CompletionStatus } from './useTripFormState';
 import {
-  createFallbackLegsFromRouteName,
   resolveContainerCount,
 } from './tripFormDispatchUtils';
 import { usePersistedContainerType } from './usePersistedContainerType';
 import { moneyInputToNumber } from '../lib/moneyInput';
 import { useTripFormSubmit } from './use-trip-form-submit';
+import type { SubmitOptions } from './use-trip-form-submit';
 
 const FUEL_PRICE_PER_LITER = FUEL_PRICE_PER_LITER_FALLBACK;
 const LOADED_RATE = FUEL_LOADED_NORM_FALLBACK;
@@ -80,7 +81,7 @@ export interface UseTripFormDispatchReturn {
   legsValid: boolean;
   uploading: UploadingState;
   ocrResult: OcrSignal | null;
-  handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
+  handleSubmit: (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined>;
   selectedRouteData: RouteOption | null;
   driverBaseSalary: number;
   roadAllowanceBaseApplied?: number;
@@ -155,7 +156,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     s.setCargoTypeId(existingTrip.cargoTypeId != null ? String(existingTrip.cargoTypeId) : '');
     s.setCustomerReference(existingTrip.customerReference ?? '');
     s.setContainerCount(existingTrip.containerCount != null ? String(existingTrip.containerCount) : '1');
-    s.setCompletedAt(existingTrip.completedAt ? existingTrip.completedAt.slice(0, 10) : '');
+    s.setCompletedAt(existingTrip.completedAt ? businessDateISO(new Date(existingTrip.completedAt)) : '');
 
     s.setRouteId(String(existingTrip.routeId));
     s.setFuelMode(existingTrip.fuelMode);
@@ -212,7 +213,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
         loadingType: leg.loadingType as LoadingType,
       })));
     } else {
-      setLegs(createFallbackLegsFromRouteName(existingTrip.route?.name));
+      setLegs([]);
     }
 
     lastPopulatedTripId.current = existingTrip.id;
@@ -220,19 +221,9 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, existingTrip, s.resetToggle]);
 
-  useEffect(() => {
-    if (s.truckId && options?.trucks && options?.trailers) {
-      const selectedTruck = options.trucks.find(t => t.id === Number(s.truckId));
-      if (selectedTruck?.currentTrailerId) {
-        const trailer = options.trailers.find(t => t.id === selectedTruck.currentTrailerId);
-        if (trailer) {
-          s.setTrailerType(trailer.type === '20FT' ? '20FT' : '40FT');
-        }
-      }
-    }
-    // 's' omitted: individual s.* fields listed are the correct granularity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.truckId, options?.trucks, options?.trailers]);
+  // Auto-suggest the trailer type from the truck's current trailer — at most
+  // once per selected truck (extracted hook; see useTrailerAutoPin).
+  useTrailerAutoPin({ truckId: s.truckId, setTrailerType: s.setTrailerType, trucks: options?.trucks, trailers: options?.trailers });
 
   const pricingQuery = useQuery({
     queryKey: qk.trips.suggestedPrice(Number(s.customerId) || 0, Number(s.routeId) || 0, s.departureDate),

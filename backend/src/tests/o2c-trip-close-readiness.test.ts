@@ -335,12 +335,16 @@ async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripId
 }
 
 describe('O2C trip close readiness authority', () => {
-  test('rejects no e-POD and every non-accepted current e-POD state', async () => {
-    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
-    for (const status of ['DRAFT', 'SUBMITTED', 'REJECTED'] as const) {
+  test('rejects missing, draft, and rejected e-POD; a saved submission passes the gate', async () => {
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
+    for (const status of ['DRAFT', 'REJECTED'] as const) {
       await replacePod(status);
-      await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
+      await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
     }
+    // Internal approval removed: a saved submission clears the e-POD gate —
+    // the flow proceeds to the next precondition (Ops expense scopes).
+    await replacePod('SUBMITTED');
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Ops chưa xác nhận/);
   });
 
   test('accepted e-POD still requires general and every container expense scope', async () => {
@@ -380,7 +384,7 @@ describe('O2C trip close readiness authority', () => {
       reviewedAt: new Date(),
       rejectionReason: 'Phiên mới bị từ chối',
     });
-    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
   });
 
   test('synthetic LCL scope completion keeps submitted or accepted e-POD trips running (expense stage retired)', async () => {
@@ -582,28 +586,41 @@ describe('O2C trip close readiness authority', () => {
     }), /không được vượt quá 100/);
   });
 
-  test('direct shipment close rejects the same account that checked the POD dossier', async () => {
-    await prepareReadyForDirectClose();
-    await replacePod('ACCEPTED', 1, userIds[2]);
-    const [currentShipment] = await db.select({ version: s.shipments.version })
-      .from(s.shipments)
-      .where(eq(s.shipments.id, shipmentId))
-      .limit(1);
-
-    await assert.rejects(() => completeShipmentDirect({
-      shipmentId,
-      expectedVersion: currentShipment!.version,
-      vatRate: 0.08,
-      trips: [{ tripId, expectedVersion: 1 }],
-      idempotencyKey: `same-account-close-${Date.now()}`,
-      actor: {
-        userId: userIds[2],
-        username: 'close-reviewer',
-        email: null,
-        fullName: 'Close Reviewer',
-        role: Role.ACCOUNTANT,
-      },
-    }), /khác tài khoản CUS\/CLERK/);
+  test('direct shipment close needs no second actor but retains physical POD and expense readiness', async () => {
+    for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
+      const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'LCL', submissionStatus });
+      try {
+        await prepareFixtureForDirectClose(fixture.shipment.id, fixture.trip.id);
+        await db.update(s.tripPodSubmissions).set({
+          reviewedBy: submissionStatus === 'ACCEPTED' ? userIds[1] : null,
+          reviewedAt: submissionStatus === 'ACCEPTED' ? new Date() : null,
+        }).where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+        const args = {
+          shipmentId: fixture.shipment.id,
+          expectedVersion: fixture.shipment.version,
+          vatRate: 0.08,
+          confirmNoPhoto: true,
+          trips: [{ tripId: fixture.trip.id, expectedVersion: fixture.trip.version }],
+          idempotencyKey: `direct-no-checker-${submissionStatus}-${fixture.trip.id}`,
+          actor: { userId: userIds[1], username: 'close-accountant', email: null, fullName: 'Close Accountant', role: Role.ACCOUNTANT },
+        };
+        await applyTripPatch(db, fixture.trip.id, { podRecoveredAt: null });
+        await assert.rejects(() => completeShipmentDirect(args), /Chưa thu hồi POD gốc/);
+        await applyTripPatch(db, fixture.trip.id, { podRecoveredAt: new Date() });
+        await db.update(s.tripExpenseCompletionScopes).set({ status: 'IN_PROGRESS' })
+          .where(eq(s.tripExpenseCompletionScopes.tripId, fixture.trip.id));
+        await assert.rejects(() => completeShipmentDirect(args), /Ops chưa xác nhận/);
+        await db.update(s.tripExpenseCompletionScopes).set({ status: 'COMPLETED' })
+          .where(eq(s.tripExpenseCompletionScopes.tripId, fixture.trip.id));
+        const result = await completeShipmentDirect(args);
+        assert.equal(result.shipment.status, 'COMPLETED');
+        assert.deepEqual(result.completedTripIds, [fixture.trip.id]);
+        const [pod] = await db.select().from(s.tripPodSubmissions)
+          .where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+        assert.equal(pod.status, submissionStatus, 'completion does not fabricate an approval');
+        assert.equal(pod.reviewedBy, submissionStatus === 'ACCEPTED' ? userIds[1] : null);
+      } finally { await fixture.cleanup(); }
+    }
   });
 
   test('direct multi-trip close rolls back every posting when strict AP capture fails', async () => {

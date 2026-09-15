@@ -10,3 +10,5 @@
 @import "./layout/sidebar-overlay.css";
 @import "./layout/bottom-nav.css";
 @import "./layout/responsive.css";
+.profile-form { gap: 12px; }
+.profile-form .field { margin-bottom: 0; }

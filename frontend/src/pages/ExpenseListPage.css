@@ -7,20 +7,19 @@
 
 .expense-filter-bar {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 20px;
+  border-block: 1px solid var(--line);
+  padding: 12px 0;
+  margin-bottom: 12px;
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.9fr) minmax(160px, 0.8fr) auto minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto;
-  align-items: center;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
   gap: 12px;
   transition: box-shadow 0.2s ease;
 }
 
-.expense-filter-bar:focus-within {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
+.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; }
+.expense-filter-bar__field > span { color: var(--ink-2); font-size: var(--text-label-size); font-weight: 600; }
+.expense-filter-bar__reset { justify-self: start; }
 
 .expense-filter-bar__select,
 .expense-filter-bar__date {
@@ -289,7 +288,7 @@
 
 @media (max-width: 1023px) {
   .expense-filter-bar {
-    padding: 12px;
+    padding: 10px 0;
     gap: 10px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -303,13 +302,7 @@
     display: none;
   }
 
-  /* The trailing date lands alone at half-width — the divider before it is
-     display:none (which still counts for :nth-child) and the reset button is
-     conditional. Span the last date across both columns so the bar never
-     shows a half-filled row. */
-  .expense-filter-bar > input[type='date']:last-of-type {
-    grid-column: 1 / -1;
-  }
+  .expense-filter-bar > .ds-uui-select:first-child { grid-column: 1 / -1; }
 
   .expense-filter-bar__reset {
     justify-content: center;
@@ -337,13 +330,13 @@
   }
 
   .expense-list-page .page-title {
-    font-size: var(--fs-xl);
+    font-size: var(--text-title-size);
     line-height: 1.35;
     letter-spacing: 0;
   }
 
   .expense-list-page .page-subtitle {
-    font-size: 14px;
+    font-size: var(--text-caption-size);
   }
 
   .expense-list-page .page-actions,
@@ -364,9 +357,9 @@
   }
 
   .expense-list-page .expense-filter-bar {
-    padding: 10px;
+    padding: 8px 0;
     gap: 8px;
-    border-radius: 14px;
+    border-radius: 0;
     margin-bottom: 12px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -427,7 +420,7 @@
 
   .expense-list-page .m-card__meta {
     margin-bottom: 8px;
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     line-height: 1.35;
   }
 
@@ -446,7 +439,7 @@
     gap: 5px;
     min-width: 0;
     color: var(--ink-2);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 650;
     text-align: right;
   }
@@ -454,13 +447,13 @@
   .expense-list-page .expense-mobile-card__component {
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     line-height: 1.35;
   }
 
   .expense-list-page .expense-mobile-card__muted {
     color: var(--ink-3);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 600;
   }
 
@@ -473,22 +466,22 @@
   }
 
   .expense-list-page .m-card__row-label {
-    font-size: 12px;
+    font-size: var(--text-label-size);
   }
 
   .expense-list-page .m-card__row-value {
     justify-self: end;
     text-align: right;
-    font-size: 13px;
+    font-size: var(--text-data-size);
   }
 
   .expense-list-page .m-card__row-value.expense-amount {
-    font-size: 16px;
+    font-size: var(--text-section-size);
     line-height: 1.35;
   }
 
   .expense-list-page .expense-mobile-card__summary .expense-amount {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
     line-height: 1.35;
   }
 
@@ -500,7 +493,7 @@
   }
 
   .expense-list-page .expense-plate {
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     padding: 3px 8px;
   }
 }

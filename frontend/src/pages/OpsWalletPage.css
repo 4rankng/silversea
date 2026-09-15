@@ -18,65 +18,52 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 20px;
+  font-size: var(--text-title-size);
   margin: 0;
 }
 
 .ops-wallet__cards {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 10px;
-}
-
-@media (max-width: 900px) {
-  .ops-wallet__cards {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .ops-wallet__cards {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .ops-wallet-card {
-  border: 1px solid var(--line, #e3ded5);
-  border-radius: 12px;
-  background: var(--bg-1, #fff);
-  padding: 14px 16px;
+  min-width: 0;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.ops-wallet-card--balance {
-  background: var(--ink, #1c1c1c);
-  border-color: var(--ink, #1c1c1c);
-  color: #fff;
-}
+.ops-wallet-card + .ops-wallet-card { border-inline-start: 1px solid var(--line); }
+.ops-wallet-card small { color: var(--ink-3); font-size: var(--text-caption-size); }
+.ops-wallet-card strong { overflow-wrap: anywhere; }
 
-.ops-wallet-card--balance small {
-  color: rgba(255, 255, 255, 0.72);
+@media (max-width: 560px) {
+  .ops-wallet__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-wallet-card { padding: 8px; }
+  .ops-wallet-card--balance { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+  .ops-wallet-card--balance + .ops-wallet-card { border-inline-start: 0; }
 }
 
 .ops-wallet-card__label {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--fg-3, #6b7280);
 }
 
-.ops-wallet-card--balance .ops-wallet-card__label {
-  color: rgba(255, 255, 255, 0.8);
-}
+.ops-wallet-card--balance .ops-wallet-card__label { color: var(--ink-2); }
 
 .ops-wallet-card strong {
-  font-size: 20px;
+  font-size: var(--text-title-size);
 }
 
 .ops-wallet-card--balance strong {
-  font-size: 24px;
+  font-size: var(--text-metric-size);
 }
 
 .ops-wallet__section {
@@ -94,7 +81,7 @@
 }
 
 .ops-wallet__section-head h2 {
-  font-size: 16px;
+  font-size: var(--text-section-size);
   margin: 0;
 }
 
@@ -109,7 +96,7 @@
   background: var(--bg-1, #fff);
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   cursor: pointer;
   color: var(--fg-2, #555);
   min-height: 32px;
@@ -122,6 +109,8 @@
 }
 
 .ops-wallet__scroll {
+  container-type: inline-size;
+  min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--line, #e3ded5);
   border-radius: 12px;
@@ -130,19 +119,21 @@
 
 .ops-wallet__table {
   width: 100%;
-  min-width: 880px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .ops-wallet__table th,
 .ops-wallet__table td {
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   text-align: left;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .ops-money {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .ops-doc-state {
@@ -152,7 +143,7 @@
   border: none;
   background: transparent;
   color: var(--ok, #16a34a);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   cursor: pointer;
   min-height: 32px;
@@ -164,11 +155,12 @@
 
 .ops-reject-reason {
   color: var(--fg-3, #6b7280);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .ops-row-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   justify-content: flex-end;
 }
@@ -254,25 +246,25 @@
 .ops-photo-grid__loading,
 .ops-photo-grid__empty {
   color: var(--fg-3, #6b7280);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 /* ── Settlement sheet (screen + A4 print) ───────────────────────────────── */
 
 .ops-settlement-sheet h3 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: var(--text-section-size);
 }
 
 .ops-settlement-sheet > p {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-2, #555);
 }
 
 .ops-settlement-sheet h4 {
   margin: 12px 0 6px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .ops-settlement-sheet__table {
@@ -284,7 +276,7 @@
 .ops-settlement-sheet__table td {
   border-bottom: 1px solid var(--line, #eee);
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   text-align: left;
 }
 
@@ -294,13 +286,13 @@
 
 .ops-settlement-sheet__group-total {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   margin: 4px 0 8px;
 }
 
 .ops-settlement-sheet__grand {
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   margin: 10px 0;
 }
 
@@ -315,7 +307,7 @@
   flex-direction: column;
   gap: 28px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .ops-settlement-sheet__signatures small {
@@ -340,4 +332,24 @@
     width: 100%;
     padding: 24px;
   }
+}
+
+.ops-wallet__filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .ops-wallet__filters button, .ops-doc-state { min-height: var(--control-touch-h); }
+}
+@container (max-width: 700px) {
+  .ops-wallet__table, .ops-wallet__table tbody { display: block; width: 100%; }
+  .ops-wallet__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ops-wallet__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 10px; border-bottom: 1px solid var(--line); }
+  .ops-wallet__row:last-child { border-bottom: 0; }
+  .ops-wallet__row--advance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ops-wallet__row--advance > .ops-wallet__advance-status { grid-column: 3; grid-row: 1; }
+  .ops-wallet__row--draft { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-wallet__row--draft > .ops-wallet__advance-status { grid-column: 1 / -1; grid-row: auto; }
+  .ops-wallet__table .ops-wallet__row > td { display: block; min-width: 0; padding: 0; border: 0; }
+  .ops-wallet__row > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--ink-3); font-size: var(--text-label-size); font-weight: 500; }
+  .ops-wallet__row > .ops-wallet__wide { grid-column: 1 / -1; }
+  .ops-wallet__table .ops-wallet__row > .ops-row-actions { display: flex; align-items: end; }
+  .ops-wallet__empty { display: block; width: 100%; }
 }

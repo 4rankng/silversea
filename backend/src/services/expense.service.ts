@@ -129,7 +129,21 @@ async function lockAndValidateExpenseReferences(tx: Tx, data: Pick<
   return category;
 }
 
+function validateExpenseAmount(value: string): void {
+  const amount = Number(value);
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 999_999_999_999_999) {
+    throw new ApiError(400, 'Số tiền chi phí phải là số nguyên dương VND hợp lệ.');
+  }
+}
+
+async function assertExpenseHasNoPaymentAllocations(tx: Tx, expenseId: number): Promise<void> {
+  const [allocation] = await tx.select({ id: s.expensePaymentAllocations.id })
+    .from(s.expensePaymentAllocations).where(eq(s.expensePaymentAllocations.expenseId, expenseId)).limit(1);
+  if (allocation) throw new ApiError(409, 'Chi phí đã được thanh toán một phần hoặc toàn bộ: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+}
+
 async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
+  validateExpenseAmount(data.amount);
   const category = await lockAndValidateExpenseReferences(tx, data);
 
   if (category.isRenewable && !data.validTo) {
@@ -158,7 +172,7 @@ export async function createExpense(
   governanceApproved = false,
 ) {
   if (!governanceApproved) {
-    throw new ApiError(403, 'Chi phí công ty chỉ được ghi nhận sau khi hoàn tất phê duyệt');
+    throw new ApiError(403, 'Chi phí công ty cần được ghi nhận qua thao tác có quyền tài chính');
   }
   const category = await validateExpenseInput(tx, data);
 
@@ -181,9 +195,7 @@ export async function createExpense(
     note: data.note ?? null,
     // This path only runs after governance approval (auto-apply adapter or
     // seed) — the row lands posted with its ledger entry below.
-    approvalStatus: 'APPROVED',
-    approvedBy: userId ?? null,
-    approvedAt: new Date(),
+    approvalStatus: 'RECORDED',
     createdBy: userId ?? null,
   }).returning();
 
@@ -202,10 +214,9 @@ export async function createExpense(
   return expense;
 }
 
-/** Dual-control submission: insert the expense as PENDING with NO ledger
- *  entry — the supplier debt only exists once a checker and a different
- *  approver complete review. The reason the submitter typed rides the note
- *  so the pending request explains itself. */
+/** KP-149/KP-150: submit the expense directly — supplier debt posts
+ *  immediately, no PENDING→APPROVED lifecycle. The reason rides the note
+ *  for audit. Guard against marking PAID without supplier payment preserved. */
 export async function submitExpense(
   tx: Tx,
   data: ExpenseCreateInput,
@@ -219,7 +230,6 @@ export async function submitExpense(
   }
   const category = await validateExpenseInput(tx, data);
   const trimmedReason = reason.trim();
-  if (!trimmedReason) throw new ApiError(400, 'Lý do là bắt buộc');
   const [expense] = await tx.insert(s.expenses).values({
     expenseDate: data.expenseDate,
     supplierId: data.supplierId,
@@ -231,111 +241,26 @@ export async function submitExpense(
     validFrom: data.validFrom ? new Date(data.validFrom) : null,
     validTo: data.validTo ? new Date(data.validTo) : null,
     receiptId: data.receiptId ?? null,
-    note: data.note ? `${data.note}\nLý do: ${trimmedReason}` : `Lý do: ${trimmedReason}`,
-    approvalStatus: 'PENDING',
+    note: [data.note, trimmedReason ? `Lý do: ${trimmedReason}` : null].filter(Boolean).join('\n') || null,
+    approvalStatus: 'RECORDED',
     createdBy: userId ?? null,
   }).returning();
+  // Post supplier debt immediately (no approval gate).
+  if (data.paymentStatus === 'UNPAID') {
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.VENDOR_EXPENSE,
+      txnId: expense.id,
+      entityType: 'VENDOR',
+      entityId: data.supplierId,
+      debit: 0,
+      credit: Number(data.amount),
+      note: `Chi phí ${category.name}`,
+    });
+  }
   return { expense, category };
 }
 
-const CHECKER_ROLES = new Set(['ADMIN', 'MANAGER', 'ACCOUNTANT']);
-const APPROVER_ROLES = new Set(['ADMIN', 'MANAGER']);
-
-/** Review lifecycle: CHECK (submitter excluded) moves PENDING → CHECKED;
- *  APPROVE (actor ≠ checker, ADMIN/MANAGER) posts the supplier debt ledger
- *  entry exactly once and finalizes; REJECT is terminal with no posting.
- *  The row is locked FOR UPDATE so a double-click approve cannot race the
- *  status transition into two ledger entries. */
-export async function reviewExpense(input: {
-  expenseId: number;
-  action: 'CHECK' | 'APPROVE' | 'REJECT';
-  actorId: number;
-  actorRole: string;
-  reason?: string;
-  transaction?: Tx;
-}) {
-  const execute = async (tx: Tx) => {
-    const [expense] = await tx.select().from(s.expenses)
-      .where(and(eq(s.expenses.id, input.expenseId), isNull(s.expenses.deletedAt)))
-      .limit(1)
-      .for('update');
-    if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
-
-    if (input.action === 'CHECK') {
-      if (!CHECKER_ROLES.has(input.actorRole)) {
-        throw new ApiError(403, 'Chỉ ADMIN/MANAGER/ACCOUNTANT được kiểm tra chi phí.');
-      }
-      if (expense.createdBy === input.actorId) {
-        throw new ApiError(403, 'Người gửi không được tự kiểm tra chi phí của mình.');
-      }
-      if (expense.approvalStatus !== 'PENDING') {
-        throw new ApiError(409, 'Chỉ chi phí đang chờ kiểm tra mới được kiểm tra.');
-      }
-      const [updated] = await tx.update(s.expenses).set({
-        approvalStatus: 'CHECKED',
-        checkedBy: input.actorId,
-        checkedAt: new Date(),
-        updatedAt: new Date(),
-      }).where(eq(s.expenses.id, expense.id)).returning();
-      return updated;
-    }
-
-    if (input.action === 'REJECT') {
-      const reviewer = CHECKER_ROLES.has(input.actorRole) || APPROVER_ROLES.has(input.actorRole);
-      if (!reviewer) throw new ApiError(403, 'Bạn không có quyền xem xét chi phí.');
-      if (expense.createdBy === input.actorId) {
-        throw new ApiError(403, 'Người gửi không được tự xử lý chi phí của mình.');
-      }
-      if (expense.approvalStatus !== 'PENDING' && expense.approvalStatus !== 'CHECKED') {
-        throw new ApiError(409, 'Chi phí đã được xử lý.');
-      }
-      const [updated] = await tx.update(s.expenses).set({
-        approvalStatus: 'REJECTED',
-        rejectionReason: input.reason?.trim() || null,
-        updatedAt: new Date(),
-      }).where(eq(s.expenses.id, expense.id)).returning();
-      return updated;
-    }
-
-    // APPROVE
-    if (!APPROVER_ROLES.has(input.actorRole)) {
-      throw new ApiError(403, 'Chỉ ADMIN/MANAGER được phê duyệt chi phí.');
-    }
-    if (expense.approvalStatus === 'PENDING') {
-      throw new ApiError(409, 'Chi phí cần một người kiểm tra trước khi phê duyệt.');
-    }
-    if (expense.approvalStatus !== 'CHECKED') {
-      throw new ApiError(409, 'Chi phí không ở trạng thái chờ phê duyệt.');
-    }
-    if (expense.checkedBy === input.actorId) {
-      throw new ApiError(403, 'Người kiểm tra và người phê duyệt phải là hai người khác nhau.');
-    }
-    // Post the supplier debt exactly once — the CHECKED guard above plus the
-    // row lock make a repeated click or concurrent approve a 409, never a
-    // second ledger entry.
-    if (expense.paymentStatus === 'UNPAID') {
-      const [category] = await tx.select({ name: s.expenseCategories.name })
-        .from(s.expenseCategories).where(eq(s.expenseCategories.id, expense.categoryId)).limit(1);
-      await LedgerService.postEntry(tx, {
-        txnType: TxnType.VENDOR_EXPENSE,
-        txnId: expense.id,
-        entityType: 'VENDOR',
-        entityId: expense.supplierId,
-        debit: 0,
-        credit: Number(expense.amount),
-        note: `Chi phí ${category?.name ?? expense.categoryId}`,
-      });
-    }
-    const [updated] = await tx.update(s.expenses).set({
-      approvalStatus: 'APPROVED',
-      approvedBy: input.actorId,
-      approvedAt: new Date(),
-      updatedAt: new Date(),
-    }).where(eq(s.expenses.id, expense.id)).returning();
-    return updated;
-  };
-  return runInTx(input.transaction, execute);
-}
+// KP-150: reviewExpense removed — expenses post supplier debt directly at creation.
 
 export function isGovernedCompanyExpenseMutation(
   existing: typeof s.expenses.$inferSelect,
@@ -432,6 +357,9 @@ export async function requestCompanyExpenseGovernance(input: {
     }
     const existing = await loadExpenseForGovernance(tx, input.expenseId);
     assertExpectedUpdatedAt(existing.updatedAt, input.expectedUpdatedAt);
+    if (existing.paymentStatus !== 'UNPAID' && (input.mutation === 'DELETE' || (input.patch && isGovernedCompanyExpenseMutation(existing, input.patch)))) {
+      throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+    }
     const beforeSnapshot = normalizeExpenseSnapshot(existing);
     const afterSnapshot = input.mutation === 'DELETE'
       ? { deletedAt: true }
@@ -500,9 +428,16 @@ export async function updateExpense(
   if (isGovernedCompanyExpenseMutation(existing, data) && !governanceApproved) {
     throw new ApiError(
       403,
-      'Thay đổi tài chính của chi phí công ty chỉ được áp dụng sau phê duyệt',
+      'Thay đổi tài chính cần thao tác ghi nhận có quyền tài chính',
     );
   }
+
+  if (existing.paymentStatus !== 'UNPAID' && isGovernedCompanyExpenseMutation(existing, data)) {
+    throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+  }
+
+  if (data.amount !== undefined) validateExpenseAmount(data.amount);
+  if (isGovernedCompanyExpenseMutation(existing, data)) await assertExpenseHasNoPaymentAllocations(tx, id);
 
   const relationshipChanged = data.supplierId !== undefined
     || data.categoryId !== undefined
@@ -519,6 +454,15 @@ export async function updateExpense(
     })
     : null;
 
+  const isUnposted = ['DRAFT', 'PENDING', 'CHECKED'].includes(existing.approvalStatus);
+  if (['VOIDED', 'REJECTED'].includes(existing.approvalStatus)) throw new ApiError(409, 'Khoản chi không ghi sổ chỉ được xem trong lịch sử.');
+  if (isUnposted) {
+    await validateExpenseInput(tx, { ...existing, ...data, amount: data.amount ?? existing.amount, validFrom: data.validFrom !== undefined ? data.validFrom : existing.validFrom?.toISOString(), validTo: data.validTo !== undefined ? data.validTo : existing.validTo?.toISOString() });
+    if (existing.paymentStatus !== 'UNPAID') throw new ApiError(409, 'Khoản chi chưa ghi sổ nhưng có trạng thái thanh toán không hợp lệ.');
+    const prior = await tx.select({ id: s.ledger.id }).from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.VENDOR_EXPENSE), eq(s.ledger.txnId, id))).limit(1);
+    if (prior.length) throw new ApiError(409, 'Khoản chi có bút toán lịch sử không khớp trạng thái. Đối chiếu sổ trước khi ghi nhận.');
+    await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, txnId: id, entityType: 'VENDOR', entityId: data.supplierId ?? existing.supplierId, debit: 0, credit: Number(data.amount ?? existing.amount), note: 'Ghi nhận khoản chi được hoàn thiện từ bản nháp' });
+  }
   const originalAmount = Number(existing.amount);
   const wasUnpaid = existing.paymentStatus === 'UNPAID';
   if (data.paymentStatus !== undefined && data.paymentStatus !== existing.paymentStatus) {
@@ -528,7 +472,7 @@ export async function updateExpense(
   }
   const newAmount = Number(data.amount ?? existing.amount);
   const newSupplierId = data.supplierId ?? existing.supplierId;
-  const financialFieldsChanged = wasUnpaid && (
+  const financialFieldsChanged = !isUnposted && wasUnpaid && (
     (data.amount !== undefined && Number(data.amount) !== originalAmount) ||
     (data.supplierId !== undefined && data.supplierId !== existing.supplierId)
   );
@@ -568,6 +512,7 @@ export async function updateExpense(
   }
 
   const updateValues: Record<string, unknown> = {
+    ...(isUnposted ? { approvalStatus: 'RECORDED' } : {}),
     updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
   };
   if (data.expenseDate !== undefined) updateValues.expenseDate = data.expenseDate;
@@ -605,7 +550,7 @@ export async function deleteExpense(
   governanceApproved = false,
 ) {
   if (!governanceApproved) {
-    throw new ApiError(403, 'Chi phí công ty chỉ được xóa sau khi hoàn tất phê duyệt');
+    throw new ApiError(403, 'Xóa chi phí cần thao tác có quyền tài chính');
   }
   const [existing] = await tx.select()
     .from(s.expenses)
@@ -618,7 +563,12 @@ export async function deleteExpense(
   }
   assertExpectedUpdatedAt(existing.updatedAt, expectedUpdatedAt);
 
-  if (existing.paymentStatus === 'UNPAID') {
+  if (existing.paymentStatus !== 'UNPAID') {
+    throw new ApiError(409, 'Chi phí đã thanh toán phải được điều chỉnh hoặc hoàn tác giao dịch liên quan trước.');
+  }
+  await assertExpenseHasNoPaymentAllocations(tx, id);
+  const isRecorded = existing.approvalStatus === 'RECORDED' || existing.approvalStatus === 'APPROVED';
+  if (isRecorded) {
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
       txnId: id,
@@ -723,44 +673,7 @@ export async function applyCompanyExpenseGovernanceAction(
   if (afterSnapshot.note !== undefined) patch.note = afterSnapshot.note == null ? null : String(afterSnapshot.note);
 
   if (deltaSnapshot.applicationMode === 'FINALIZED_REPLACEMENT') {
-    const original = await loadExpenseForGovernance(tx, action.subjectId);
-    assertExpectedUpdatedAt(original.updatedAt, expectedUpdatedAt);
-    if (original.paymentStatus === 'UNPAID') {
-      throw new ApiError(409, 'Chi phí nguồn không còn ở trạng thái đã quyết toán');
-    }
-    const replacement = await createExpense(tx, {
-      expenseDate: String(afterSnapshot.expenseDate),
-      supplierId: Number(afterSnapshot.supplierId),
-      categoryId: Number(afterSnapshot.categoryId),
-      truckId: afterSnapshot.truckId == null ? null : Number(afterSnapshot.truckId),
-      vehicleComponent: afterSnapshot.vehicleComponent == null
-        ? null
-        : afterSnapshot.vehicleComponent as ExpenseCreateInput['vehicleComponent'],
-      amount: String(afterSnapshot.amount),
-      paymentStatus: String(afterSnapshot.paymentStatus),
-      validFrom: afterSnapshot.validFrom == null ? null : String(afterSnapshot.validFrom),
-      validTo: afterSnapshot.validTo == null ? null : String(afterSnapshot.validTo),
-      receiptId: afterSnapshot.receiptId == null ? null : String(afterSnapshot.receiptId),
-      note: afterSnapshot.note == null ? null : String(afterSnapshot.note),
-    }, action.makerId, true);
-    await deleteExpense(
-      tx,
-      original.id,
-      expectedUpdatedAt,
-      action.approverId ?? undefined,
-      true,
-    );
-    return {
-      applicationResult: {
-        subjectType: 'COMPANY_EXPENSE',
-        subjectId: original.id,
-        mutation: 'UPDATE',
-        applicationMode: 'FINALIZED_REPLACEMENT',
-        replacementSubjectId: replacement.id,
-        originalPreserved: true,
-        sourceEvidenceRetained: true,
-      },
-    };
+    throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
   }
 
   const updated = await updateExpense(
@@ -1068,61 +981,167 @@ export async function getRenewalReminders(dbOrTx: typeof db | Tx) {
 
 
 /**
- * Settle expenses against a posted supplier payment (QA-089). Each listed
- * expense must belong to the payment's supplier, be APPROVED and currently
- * UNPAID — anything else 409s so the caller learns the linkage is wrong
- * before any money moves. Rows flip to PAID recording settledByPaymentId,
- * making paid-status ledger-backed. Expenses NOT listed stay UNPAID even if
- * the payment more than covers them (partial-payment semantics).
+ * KP-079: Settle expenses against a posted supplier payment using explicit
+ * allocation amounts. Each allocation records how much of the payment is
+ * applied to a specific expense.
+ *
+ * Validates:
+ * - Same supplier as the payment
+ * - Expense exists, not deleted, APPROVED status
+ * - Positive allocation amount
+ * - Allocation ≤ remaining expense balance (expense amount − prior allocations)
+ * - Total allocations ≤ unallocated payment amount
+ *
+ * Creates allocation records and marks expenses PAID only when fully allocated.
+ * Returns the list of expense IDs that were fully settled.
  */
 export async function settleExpensesForPayment(input: {
-  expenseIds: number[];
+  allocations: Array<{ expenseId: number; amount: number }>;
   supplierId: number;
   paymentLedgerId: number;
+  paymentAmount: number;
   transaction: Tx;
-}) {
-  if (input.expenseIds.length === 0) return;
+}): Promise<number[]> {
+  if (input.allocations.length === 0) return [];
+
+  // Deduplicate: merge multiple allocations for the same expense.
+  const mergedByExpense = new Map<number, number>();
+  for (const alloc of input.allocations) {
+    if (!Number.isFinite(alloc.amount) || alloc.amount <= 0) {
+      throw new ApiError(400, `Số tiền phân bổ cho khoản chi ${alloc.expenseId} phải lớn hơn 0.`);
+    }
+    mergedByExpense.set(alloc.expenseId, (mergedByExpense.get(alloc.expenseId) ?? 0) + alloc.amount);
+  }
+
+  const expenseIds = [...mergedByExpense.keys()];
   const rows = await input.transaction.select().from(s.expenses)
-    .where(and(inArray(s.expenses.id, input.expenseIds), isNull(s.expenses.deletedAt)))
+    .where(and(inArray(s.expenses.id, expenseIds), isNull(s.expenses.deletedAt)))
     .for('update');
   const byId = new Map(rows.map((row) => [row.id, row]));
-  for (const id of input.expenseIds) {
+
+  // Validate each expense and compute already-allocated amounts.
+  const existingAllocs = await input.transaction.select({
+    expenseId: s.expensePaymentAllocations.expenseId,
+    total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(inArray(s.expensePaymentAllocations.expenseId, expenseIds))
+    .groupBy(s.expensePaymentAllocations.expenseId);
+  const priorAllocated = new Map(existingAllocs.map((r) => [r.expenseId, Number(r.total)]));
+
+  for (const id of expenseIds) {
     const row = byId.get(id);
     if (!row) throw new ApiError(409, `Khoản chi ${id} không tồn tại — không thể ghi thanh toán.`);
     if (row.supplierId !== input.supplierId) {
       throw new ApiError(409, `Khoản chi ${id} không thuộc nhà cung cấp của phiếu thanh toán.`);
     }
-    if (row.approvalStatus !== 'APPROVED') {
+    if (!['RECORDED', 'APPROVED'].includes(row.approvalStatus)) {
       throw new ApiError(409, `Khoản chi ${id} chưa được phê duyệt — không thể ghi trả.`);
     }
-    if (row.paymentStatus !== 'UNPAID') {
-      throw new ApiError(409, `Khoản chi ${id} đã được ghi trả.`);
+    const expenseAmount = Number(row.amount);
+    const alreadyAllocated = priorAllocated.get(id) ?? 0;
+    const remaining = expenseAmount - alreadyAllocated;
+    const newAlloc = mergedByExpense.get(id)!;
+    if (newAlloc > remaining + 0.001) {
+      throw new ApiError(409, `Khoản chi ${id}: số tiền phân bổ ${newAlloc.toLocaleString('vi-VN')}₫ vượt số dư còn lại ${remaining.toLocaleString('vi-VN')}₫.`);
     }
   }
-  await input.transaction.update(s.expenses).set({
-    paymentStatus: 'PAID',
-    settledByPaymentId: input.paymentLedgerId,
-    updatedAt: new Date(),
-  }).where(inArray(s.expenses.id, input.expenseIds));
+
+  // Validate total allocations ≤ unallocated payment amount.
+  const existingPaymentAllocs = await input.transaction.select({
+    total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+  const alreadyUsedForPayment = Number(existingPaymentAllocs[0]?.total ?? '0');
+  const totalNewAllocations = [...mergedByExpense.values()].reduce((a, b) => a + b, 0);
+  const unallocatedPaymentAmount = input.paymentAmount - alreadyUsedForPayment;
+  if (totalNewAllocations > unallocatedPaymentAmount + 0.001) {
+    throw new ApiError(409, `Tổng số tiền phân bổ ${totalNewAllocations.toLocaleString('vi-VN')}₫ vượt số tiền chưa phân bổ ${unallocatedPaymentAmount.toLocaleString('vi-VN')}₫.`);
+  }
+
+  // Insert allocation records.
+  for (const [expenseId, amount] of mergedByExpense) {
+    await input.transaction.insert(s.expensePaymentAllocations).values({
+      expenseId,
+      paymentLedgerId: input.paymentLedgerId,
+      amount: String(amount),
+    }).onConflictDoUpdate({
+      target: [s.expensePaymentAllocations.expenseId, s.expensePaymentAllocations.paymentLedgerId],
+      set: { amount: sql`excluded.amount` },
+    });
+  }
+
+  // Recompute total allocated per expense and mark PAID if fully allocated.
+  const fullySettledIds: number[] = [];
+  for (const id of expenseIds) {
+    const expenseAmount = Number(byId.get(id)!.amount);
+    const prior = priorAllocated.get(id) ?? 0;
+    const newAlloc = mergedByExpense.get(id)!;
+    const totalAllocated = prior + newAlloc;
+    if (totalAllocated >= expenseAmount - 0.001) {
+      await input.transaction.update(s.expenses).set({
+        paymentStatus: 'PAID',
+        settledByPaymentId: input.paymentLedgerId,
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, id));
+      fullySettledIds.push(id);
+    }
+  }
+
+  return fullySettledIds;
 }
 
 /**
- * Reversal counterpart (QA-089): restore UNPAID for the expenses THIS
- * payment settled — but only those still pointing at it. If another payment
- * has since re-settled a row (settledByPaymentId moved on), that row keeps
- * its PAID state; restoring it would break the newer settlement's truth.
+ * KP-079: Reversal counterpart — remove allocation records for this payment
+ * and recompute payment status for affected expenses. An expense that was
+ * fully settled only by this payment returns to UNPAID; one still covered
+ * by other allocations keeps its PAID state.
  */
 export async function restoreExpensesForPaymentReversal(input: {
   paymentLedgerId: number;
   transaction: Tx;
 }) {
-  const restored = await input.transaction.update(s.expenses).set({
-    paymentStatus: 'UNPAID',
-    settledByPaymentId: null,
-    updatedAt: new Date(),
-  }).where(and(
-    eq(s.expenses.settledByPaymentId, input.paymentLedgerId),
-    eq(s.expenses.paymentStatus, 'PAID'),
-  )).returning({ id: s.expenses.id });
-  return restored.map((row) => row.id);
+  // Find all expenses that had allocations from this payment.
+  const affected = await input.transaction.select({
+    expenseId: s.expensePaymentAllocations.expenseId,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+  const affectedIds = [...new Set(affected.map((r) => r.expenseId))];
+  if (affectedIds.length === 0) return [];
+
+  // Delete the allocation records for this payment.
+  await input.transaction.delete(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+
+  // Recompute: for each affected expense, check if remaining allocations
+  // still cover the full amount.
+  const restoredIds: number[] = [];
+  for (const expenseId of affectedIds) {
+    const [expense] = await input.transaction.select({ amount: s.expenses.amount })
+      .from(s.expenses)
+      .where(eq(s.expenses.id, expenseId))
+      .limit(1);
+    if (!expense) continue;
+
+    const [remaining] = await input.transaction.select({
+      total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+    })
+      .from(s.expensePaymentAllocations)
+      .where(eq(s.expensePaymentAllocations.expenseId, expenseId));
+
+    const totalAllocated = Number(remaining?.total ?? '0');
+    const expenseAmount = Number(expense.amount);
+    if (totalAllocated < expenseAmount - 0.001) {
+      await input.transaction.update(s.expenses).set({
+        paymentStatus: 'UNPAID',
+        settledByPaymentId: null,
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, expenseId));
+      restoredIds.push(expenseId);
+    }
+  }
+
+  return restoredIds;
 }

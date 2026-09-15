@@ -48,7 +48,6 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'payables', type: 'page', label: 'Công nợ phải trả',        path: '/payables',  iconName: 'payables' },
   { id: 'expenses', type: 'page', label: 'Chi phí phát sinh',       path: '/expenses',  iconName: 'expense' },
   { id: 'treasury', type: 'page', label: 'Sổ quỹ / ngân hàng',      path: '/finance/treasury', iconName: 'cashflow' },
-  { id: 'governance-actions', type: 'page', label: 'Trung tâm phê duyệt', path: '/governance-actions', iconName: 'checklist' },
   { id: 'advances', type: 'page', label: 'Tạm ứng & hoàn ứng',      path: '/advances',  iconName: 'advances' },
 
   { id: 'customers', type: 'page', label: 'Khách hàng',             path: '/customers', iconName: 'customer' },
@@ -75,9 +74,7 @@ export const CONFIG_ITEMS: SearchItem[] = [
   { id: 'pricing-tables',         type: 'config', label: 'Bảng giá cước',                 description: 'Bảng giá cước chi tiết thỏa thuận với từng đối tác khách hàng trên mỗi tuyến.',                  path: '/config/pricing-tables',      iconName: 'pricing-rate', action: 'Sửa' },
   { id: 'fuel-price-periods',     type: 'config', label: 'Giá dầu DO theo kỳ',            description: 'Giá dầu DO Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.',                 path: '/config/fuel-price-periods',  iconName: 'fuel',         action: 'Sửa' },
   { id: 'freight-rate-terms',     type: 'config', label: 'Điều khoản cước theo tuyến',    description: 'Hệ số chia sẻ, km tính cước, giá gốc dầu và ngưỡng điều chỉnh giá dầu cho từng khách hàng × tuyến.', path: '/config/freight-rate-terms',  iconName: 'pricing-rate', action: 'Sửa' },
-  { id: 'fuel-price-periods',     type: 'config', label: 'Giá dầu DO theo kỳ',           description: 'Giá dầu Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.',                    path: '/config/fuel-price-periods',  iconName: 'pricing-rate', action: 'Sửa' },
-  { id: 'freight-rate-terms',      type: 'config', label: 'Điều khoản cước theo tuyến',  description: 'Điều khoản hợp đồng theo khách hàng × tuyến: % chia sẻ, km, giá gốc dầu, lag, ngưỡng.',          path: '/config/freight-rate-terms',  iconName: 'pricing-rate', action: 'Sửa', adminOnly: true },
-  { id: 'salary-periods',         type: 'config', label: 'Kỳ lương',                      description: 'Cấu hình kỳ lương hàng tháng. Mặc định: ngày 26 tháng trước đến ngày 25 tháng này.',               path: '/config/salary-periods',      iconName: 'salary-period', action: 'Sửa' },
+  { id: 'salary-periods',         type: 'config', label: 'Kỳ lương',                      description: 'Cấu hình kỳ lương hàng tháng. Mặc định: ngày 1 đến cuối tháng.',               path: '/config/salary-periods',      iconName: 'salary-period', action: 'Sửa' },
   { id: 'business-calendar',      type: 'config', label: 'Lịch ngày làm việc',             description: 'Ngày nghỉ lễ và ngày làm việc bù dùng để điều chỉnh hạn thanh toán, quá hạn và lịch nhắc.',        path: '/config/business-calendar',   iconName: 'salary-period', action: 'Sửa', adminOnly: true },
   { id: 'expense-categories',     type: 'config', label: 'Hạng mục chi phí',              description: 'Phân loại chi phí vận hành. Bật định kỳ để theo dõi ngày gia hạn bảo hiểm, đăng kiểm, bảo dưỡng.', path: '/config/expense-categories',  iconName: 'expense-category', action: 'Sửa' },
   { id: 'forwarder-expense-types',type: 'config', label: 'Loại chi phí giao nhận',       description: 'Danh mục các khoản chi phí phát sinh do nhân viên giao nhận nhập (nâng hạ, hải quan, cân xe, kiểm tra…).', path: '/config/forwarder-expense-types', iconName: 'forwarder-expense', action: 'Sửa' },

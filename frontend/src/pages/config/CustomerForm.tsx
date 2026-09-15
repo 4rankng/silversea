@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Truck } from 'lucide-react';
+import './config-page.css';
 import { UuiSelectField } from '../../design-system';
 import {
   buildCustomerDebitNoteModeOptions,
@@ -62,8 +63,8 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
   const debitNoteModeDescription = describeCustomerDebitNoteMode(debitNoteMode);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+    <div className="customer-form">
+      <div className="cfg-form-columns">
         <Field label="Tên khách hàng *">
           <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên…" required />
         </Field>
@@ -72,7 +73,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cfg-form-columns">
         <Field label="Tên ngắn">
           <input className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên viết tắt dùng trong vận hành…" />
         </Field>
@@ -81,7 +82,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cfg-form-columns">
         <Field label="Người liên hệ">
           <input className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Tên người liên hệ…" />
         </Field>
@@ -90,7 +91,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cfg-form-columns">
         <Field label="Kế toán liên hệ">
           <input className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên kế toán…" />
         </Field>
@@ -99,7 +100,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cfg-form-columns">
         <Field label="Hạn mức tín dụng">
           <input className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
         </Field>
@@ -117,7 +118,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="cfg-form-columns">
         <UuiSelectField
           label="Trạng thái"
           value={status}
@@ -139,7 +140,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
             }))}
           />
           {debitNoteModeDescription ? (
-            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
+            <div style={{ marginTop: 6, fontSize: 'var(--text-caption-size)', lineHeight: 1.4, color: 'var(--ink-3)' }}>
               {debitNoteModeDescription}
             </div>
           ) : null}

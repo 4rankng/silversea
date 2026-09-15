@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import './Tabs.css';
 
 /**
@@ -42,6 +42,9 @@ export interface TabsProps {
 }
 
 export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, className }: TabsProps) {
+  const groupId = useId();
+  const tabbableId = tabs.find((tab) => tab.id === value && !tab.disabled)?.id
+    ?? tabs.find((tab) => !tab.disabled)?.id;
   const variantClass = variant === 'boxed' ? 'd-tabs-boxed' : variant === 'bordered' ? 'd-tabs-border' : '';
   const cls = ['ds-tabs', `ds-tabs--${variant}`, variantClass, className].filter(Boolean).join(' ');
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -74,9 +77,9 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
             key={t.id}
             type="button"
             role="tab"
-            id={`ds-tab-${t.id}`}
+            id={`ds-tab-${groupId}-${t.id}`}
             aria-selected={isActive}
-            tabIndex={isActive ? 0 : -1}
+            tabIndex={t.id === tabbableId ? 0 : -1}
             disabled={t.disabled}
             className={`ds-tabs__btn d-tab${isActive ? ' ds-tabs__btn--active' : ''}`}
             onClick={() => !t.disabled && onChange(t.id)}

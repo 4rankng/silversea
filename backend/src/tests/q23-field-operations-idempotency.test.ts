@@ -570,12 +570,12 @@ describe('Q23 field operations replay boundary', () => {
     const first = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000001' },
+      body: { containerNumber: 'DRVA0000002' },
     });
     const replay = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000001' },
+      body: { containerNumber: 'DRVA0000002' },
     });
     assert.equal(first.status, 201, JSON.stringify(first.body));
     assert.deepEqual(replay, first);
@@ -583,7 +583,7 @@ describe('Q23 field operations replay boundary', () => {
     const conflict = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000002' },
+      body: { containerNumber: 'DRVA0000018' },
     });
     assert.equal(conflict.status, 409);
   });
@@ -709,6 +709,52 @@ describe('Q23 field operations replay boundary', () => {
     });
     assert.equal(stale.status, 200, JSON.stringify(stale.body));
     assert.equal(stale.body.removed, 2);
+  });
+
+  it('rechecks current driver after concurrent reassignment before deleting evidence or enqueuing cleanup', async () => {
+    const photos = await seedDriverPhotos([`driver-photos/${suffix}-reassigned.jpg`]);
+    const jobsForPhoto = () => db.select().from(s.durableEffectJobs).where(sql`${s.durableEffectJobs.payload}->>'storageKey' = ${photos[0].storageKey}`);
+    const jobsBefore = await jobsForPhoto();
+    const key = `q23-reassigned-photo-delete-${suffix}`;
+    let release!: () => void;
+    let locked!: (pid: number) => void;
+    const lockReady = new Promise<number>(resolve => { locked = resolve; });
+    const releaseLock = new Promise<void>(resolve => { release = resolve; });
+    const reassignment = db.transaction(async tx => {
+      await tx.update(s.trips).set({ driverId: otherDriverId }).where(eq(s.trips.id, tripId));
+      const [connection] = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+      locked(connection.pid);
+      await releaseLock;
+    });
+    let deletion: ReturnType<typeof jsonRequest> | undefined;
+    try {
+      const pid = await lockReady;
+      deletion = jsonRequest(`/api/driver/me/trips/${tripId}/photos/container?container_id=${tripContainerId}`, {
+        method: 'DELETE', idempotencyKey: key,
+      });
+      let waiting = false;
+      const deadline = Date.now() + 5000;
+      while (!waiting && Date.now() < deadline) {
+        const [row] = await db.execute<{ waiting: boolean }>(sql`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE ${pid} = ANY(pg_blocking_pids(pid))) AS waiting`);
+        waiting = row.waiting;
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      assert.equal(waiting, true, 'destructive command must wait on the trip ownership lock');
+      release(); await reassignment;
+      const result = await deletion;
+      assert.equal(result.status, 404);
+      const remaining = await db.select().from(s.tripPhotos).where(eq(s.tripPhotos.id, photos[0].id));
+      assert.equal(remaining.length, 1);
+      const jobsAfter = await jobsForPhoto();
+      assert.deepEqual(jobsAfter.map(row => row.id), jobsBefore.map(row => row.id));
+      const keys = await db.select().from(s.idempotencyKeys).where(eq(s.idempotencyKeys.idempotencyKey, key));
+      assert.equal(keys.length, 0);
+    } finally {
+      release(); await reassignment;
+      await deletion;
+      await db.update(s.trips).set({ driverId }).where(eq(s.trips.id, tripId));
+      await db.delete(s.tripPhotos).where(eq(s.tripPhotos.id, photos[0].id));
+    }
   });
 
   it('requires the current version on mutable field writes', async () => {
@@ -1222,6 +1268,9 @@ describe('Q23 field operations replay boundary', () => {
     });
     assert.equal(invalidFilter.status, 400);
 
+    // Preserve an old database flag as history while the API projects no required review.
+    await db.update(s.fuelEvidenceReviews).set({ reviewRequired: true })
+      .where(eq(s.fuelEvidenceReviews.id, Number(first.body.id)));
     const listed = await jsonRequest('/api/ocr/fuel-evidence-reviews?status=PENDING', {
       method: 'GET',
     });
@@ -1230,37 +1279,27 @@ describe('Q23 field operations replay boundary', () => {
       .find((item) => Number(item.tripId) === tripId && Number(item.ownerDriverId) === driverId);
     assert.ok(review);
 
+    assert.equal(first.body.reviewRequired, false, 'saved OCR never creates a required approval');
+    assert.equal(review.reviewRequired, false, 'historical pending OCR is exposed as advisory');
+    const [evidenceBefore] = await db.select().from(s.fuelEvidenceReviews)
+      .where(eq(s.fuelEvidenceReviews.id, Number(review.id)));
+    const tripBefore = await db.select().from(s.trips).where(eq(s.trips.id, tripId));
+    const ledgerBefore = await db.select().from(s.ledger).where(eq(s.ledger.txnId, tripId));
+    // Saturating OCR quota must not block the response-only retired endpoint.
+    await getRedis()?.set(OCR_RATE_LIMIT_KEY, '99', 'EX', 5);
+    for (const decision of ['CONFIRMED', 'REJECTED']) {
+      for (let replay = 0; replay < 2; replay++) {
+        const response = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review.id}/decision`, {
+          method: 'POST', body: { expectedVersion: Number(review.version), decision },
+        });
+        assert.equal(response.status, 410, JSON.stringify(response.body));
+      }
+    }
+    const [evidenceAfter] = await db.select().from(s.fuelEvidenceReviews)
+      .where(eq(s.fuelEvidenceReviews.id, Number(review.id)));
+    assert.deepEqual(evidenceAfter, evidenceBefore);
+    assert.deepEqual(await db.select().from(s.trips).where(eq(s.trips.id, tripId)), tripBefore);
+    assert.deepEqual(await db.select().from(s.ledger).where(eq(s.ledger.txnId, tripId)), ledgerBefore);
     await clearOcrWindow();
-    const decided = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
-      method: 'POST',
-      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
-      body: {
-        expectedVersion: Number(review!.version),
-        decision: 'CONFIRMED',
-      },
-    });
-    assert.equal(decided.status, 200, JSON.stringify(decided.body));
-    assert.equal(decided.body.reviewStatus, 'CONFIRMED');
-
-    const replayedDecision = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
-      method: 'POST',
-      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
-      body: {
-        expectedVersion: Number(review!.version),
-        decision: 'CONFIRMED',
-      },
-    });
-    assert.deepEqual(replayedDecision, decided);
-
-    await clearOcrWindow();
-    const changedDecision = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
-      method: 'POST',
-      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
-      body: {
-        expectedVersion: Number(review!.version),
-        decision: 'REJECTED',
-      },
-    });
-    assert.equal(changedDecision.status, 409);
   });
 });

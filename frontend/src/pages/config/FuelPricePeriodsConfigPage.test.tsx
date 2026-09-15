@@ -3,12 +3,12 @@ import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-let lastRenderForm: ((p: any) => ReactNode) | null = null;
+let lastRenderForm: ((p: Record<string, unknown>) => ReactNode) | null = null;
 
 vi.mock('../../components/config/CrudTable', async () => {
   const React = await import('react');
   return {
-    CrudTable: (props: any) => {
+    CrudTable: (props: { renderForm: (p: Record<string, unknown>) => ReactNode }) => {
       lastRenderForm = props.renderForm;
       return React.createElement('div', { 'data-testid': 'crud-table' });
     },
@@ -33,7 +33,7 @@ function renderForm(props: Record<string, unknown> = {}) {
   if (!lastRenderForm) throw new Error('renderForm not captured');
   return render(
     <div data-testid="form-host">
-      {lastRenderForm({ saving: false, onSave: vi.fn(), onCancel: vi.fn(), ...props } as any) as ReactNode}
+      {lastRenderForm({ saving: false, onSave: vi.fn(), onCancel: vi.fn(), ...props }) as ReactNode}
     </div>,
   );
 }

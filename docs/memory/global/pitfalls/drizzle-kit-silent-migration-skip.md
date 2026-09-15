@@ -29,3 +29,6 @@ Read-only. Staging: before QA handoff. Prod: after cutover, alongside the bare `
 
 ## Fix path
 Manual: psql apply 0067 + insert `__drizzle_migrations` journal row, backup first. Structural: upgrade drizzle-kit past 0.31.10 and re-verify `make migrate` applies 0067 cleanly on a scratch DB — treat any future silent-exit as a red gate. See [[testing-and-deploy-environments]] for deploy rails.
+
+## 2026-09-15 addendum — empty-DB apply can skip `CREATE EXTENSION`
+`make setup` on a recreated (empty) DB applied all 86 journal migrations, journal reached HEAD, qa-dev-ready green — yet `pg_extension` had no `vector` despite `0000_flexible-baseline.sql` opening with `CREATE EXTENSION IF NOT EXISTS "vector"`. Mechanism unconfirmed (suspect drizzle-kit 0.31.10 empty-DB apply path); manual `CREATE EXTENSION IF NOT EXISTS vector;` + re-run of `make migrate` (clean no-op) resolved it. **Rule: after any db-recreate/setup from empty, verify `pg_extension` matches migration 0000's expectations, not just the journal count.** Related: the `vector` type only exists on the pgvector compose image; the absence is invisible to journal-count checks because no current schema table carries a vector column.

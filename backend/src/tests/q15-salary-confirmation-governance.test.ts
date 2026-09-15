@@ -16,6 +16,7 @@ import {
   applySalaryReopenAction,
 } from '../services/salary-confirmation-governance.service';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { confirmSalary, computeSalary, syncTripWorkDays, unconfirmSalary } from '../services/attendance.service';
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -278,5 +279,44 @@ describe('Q15 salary confirmation governance', () => {
       .limit(1);
     assert.equal(confirmation?.status, 'DRAFT');
     assert.equal(confirmation?.confirmedBy, null);
+  });
+});
+
+
+describe('confirmed individual salary snapshots', () => {
+  it('keeps the confirmed payslip fixed after a later driver rate and locked-period attendance update', async () => {
+    const accountant = await mkUser(Role.ACCOUNTANT, 'snapshot');
+    const driver = await mkDriver('snapshot');
+    const before = (await confirmSalary(driver.id, year, month, accountant.id)).salary;
+    await createClosedPeriodLock(accountant.id);
+    await db.update(s.drivers).set({ baseSalary: '19000000' }).where(eq(s.drivers.id, driver.id));
+    await syncTripWorkDays(driver.id, 990001, periodRange.start, periodRange.start, accountant.id);
+    const operationalDay = await db.select().from(s.driverWorkDays).where(eq(s.driverWorkDays.driverId, driver.id));
+    assert.equal(operationalDay[0]?.status, 'TRIP_DAY', 'late driver completion may still record the operational fact');
+    const after = await computeSalary(driver.id, year, month);
+    assert.equal(after.salarySnapshotState, 'CONFIRMED');
+    assert.equal(after.salaryReconciliationRequired, true);
+    assert.equal(after.netSalary, before.netSalary);
+    assert.equal(after.baseSalary, before.baseSalary);
+    assert.deepEqual(after.workDays, before.workDays);
+    assert.equal(after.tripDays, before.tripDays);
+  });
+
+  it('marks unsnapshotted historical confirmations as reference data and snapshots again only after an explicit reopen', async () => {
+    const accountant = await mkUser(Role.ACCOUNTANT, 'legacy-snapshot');
+    const driver = await mkDriver('legacy-snapshot');
+    await db.insert(s.salaryConfirmations).values({ driverId: driver.id, year, month, status: 'CONFIRMED', confirmedBy: accountant.id });
+    const legacy = await computeSalary(driver.id, year, month);
+    assert.equal(legacy.salarySnapshotState, 'UNAVAILABLE');
+    assert.equal(legacy.salaryReconciliationRequired, true);
+    await unconfirmSalary(driver.id, year, month);
+    await db.update(s.drivers).set({ baseSalary: '17000000' }).where(eq(s.drivers.id, driver.id));
+    const reopened = await computeSalary(driver.id, year, month);
+    assert.equal(reopened.salarySnapshotState, 'LIVE');
+    assert.equal(reopened.baseSalary, 17000000);
+    const captured = (await confirmSalary(driver.id, year, month, accountant.id)).salary;
+    assert.equal(captured.salarySnapshotState, 'CONFIRMED');
+    assert.equal(captured.salaryReconciliationRequired, false);
+    assert.equal(captured.baseSalary, 17000000);
   });
 });

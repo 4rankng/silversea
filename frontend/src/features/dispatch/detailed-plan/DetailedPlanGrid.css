@@ -1,4 +1,4 @@
-/* "Kế hoạch Chi tiết" container-level grid — 7 multi-line columns per spec.
+/* "Kế hoạch Chi tiết" container-level grid — 9 multi-line columns per spec.
    Unbounded worksheet like /shipments: sticky thead pins against the app-body
    scrollport and cells wrap instead of owning a horizontal rail. Follows the
    dispatch-plan-page__* BEM conventions. */
@@ -52,7 +52,7 @@
   border-radius: 999px;
   background: var(--background-color-brand-primary, #e6f6ec);
   color: var(--color-fg-brand-primary, #005a2d);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1;
 }
@@ -74,7 +74,7 @@
 
 .detailed-plan-filters__label {
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -186,7 +186,7 @@
   border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
   border-radius: 8px;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: var(--fs-xs, 12px);
+  font-size: var(--text-control-compact-size);
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -267,7 +267,7 @@
   outline: 0;
   background: transparent;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
   line-height: 1.4;
   padding: 0;
 }
@@ -310,7 +310,7 @@
   gap: 8px;
   padding: 8px 12px;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.35;
   cursor: pointer;
   user-select: none;
@@ -354,7 +354,7 @@
 .detailed-plan-filters__point-feedback {
   padding: 16px 12px;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
   text-align: center;
 }
@@ -370,7 +370,7 @@
 }
 
 .detailed-plan-filters__point-footer-text {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
 }
@@ -380,7 +380,7 @@
   border: 0;
   background: transparent;
   color: var(--color-fg-brand-primary, #005a2d);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   border-radius: 4px;
   cursor: pointer;
@@ -400,7 +400,7 @@
   align-items: center;
   gap: 6px;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 13px;
+  font-size: var(--text-control-compact-size);
 }
 
 .detailed-plan-filters__hour-control {
@@ -424,7 +424,7 @@
 .detailed-plan-filter-panel__title {
   margin: 0;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 14px;
+  font-size: var(--text-section-size);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -445,7 +445,7 @@
   border-radius: 8px;
   background: var(--background-color-success-primary, #ecfdf5);
   color: var(--color-fg-success-primary, #065f46);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .detailed-plan-grid__lot-banner button {
@@ -479,12 +479,13 @@
    saved value; a 5% share at the normal 1076px dispatch canvas made it wrap
    letter by letter. */
 .detailed-plan-grid__col--schedule { width: 13%; }
-.detailed-plan-grid__col--route { width: 19%; }
-.detailed-plan-grid__col--documents { width: 13%; }
+.detailed-plan-grid__col--route { width: 14%; }
+.detailed-plan-grid__col--ports { width: 7%; }
+.detailed-plan-grid__col--documents { width: 11%; }
 .detailed-plan-grid__col--container { width: 12%; }
 .detailed-plan-grid__col--assignment { width: 12%; }
 .detailed-plan-grid__col--classification { width: 8%; }
-.detailed-plan-grid__col--notes { width: 23%; }
+.detailed-plan-grid__col--notes { width: 16%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -510,6 +511,7 @@
 /* This two-word decision header is intentionally kept intact at desktop
    canvases. The 900px container query below changes the table to labelled
    records before this column needs a mobile wrapping fallback. */
+.detailed-plan-grid thead th:nth-child(8),
 .detailed-plan-grid thead th:last-child {
   white-space: nowrap;
   overflow-wrap: normal;
@@ -632,7 +634,7 @@
 }
 
 .detailed-plan-grid__note-full {
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.55;
   color: var(--text-primary, #101828);
   white-space: pre-wrap;
@@ -654,7 +656,7 @@
   background: #4A9E7D;
   border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -770,11 +772,11 @@
   .detailed-plan-filters__select,
   .detailed-plan-filters__multi-trigger {
     min-height: 44px;
-    font-size: 14px;
+    font-size: var(--text-control-compact-size);
   }
 }
 
-/* Seven operational columns no longer have a usable decision width below
+/* Nine operational columns no longer have a usable decision width below
    this measure. Match the master-plan workspace and switch to labelled
    records before badges and notes can collide. */
 @container (max-width: 900px) {
@@ -835,7 +837,7 @@
     margin: 0 6px 0 0;
     color: var(--text-secondary, #64748b);
     content: attr(data-label);
-    font-size: 10px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.6;
@@ -871,6 +873,8 @@
   .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
   .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--border-color, #eef2f7); }
   .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--ports { grid-column: 1 / -1; display: inline-block; padding: 2px 10px; border: 0; }
+  .detailed-plan-grid__cell--ports + .detailed-plan-grid__cell--ports { padding-left: 0; }
   .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--border-color, #eef2f7); }
 
   /* The interactive dispatch decision and the notes stay full-width. */
@@ -928,7 +932,7 @@
   .detailed-plan-grid__cell::before {
     display: inline;
     margin: 0 6px 0 0;
-    font-size: 10px;
+    font-size: var(--text-label-size);
   }
 
   /* Each field is an atomic unit: lines break BETWEEN fields, never inside
@@ -942,12 +946,13 @@
 
   .detailed-plan-grid__cell--schedule,
   .detailed-plan-grid__cell--route,
+  .detailed-plan-grid__cell--ports,
   .detailed-plan-grid__cell--notes,
   .detailed-plan-grid__cell--editable {
     grid-column: 1 / -1;
   }
 
-  .detailed-plan-grid__cell--schedule {
+  .detailed-plan-grid__row td.detailed-plan-grid__cell--schedule {
     padding-right: 76px;
     border-bottom: 1px solid var(--border-color, #eef2f7);
   }
@@ -972,7 +977,7 @@
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
-  .detailed-plan-grid__cell--classification {
+  .detailed-plan-grid__row td.detailed-plan-grid__cell--classification {
     position: absolute;
     top: 6px;
     right: 10px;
@@ -984,13 +989,14 @@
   }
 }
 
+
 @media (max-width: 767px) {
   .drawer.detailed-plan-filter-drawer { max-width: 100%; }
 
   .detailed-plan-filter-drawer .detailed-plan-filters__today,
   .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { min-height: 44px; }
 
-  .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: 14px; }
+  .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: var(--text-control-compact-size); }
 }
 
 /* Classification column (Phân loại): every saved value uses one neutral,
@@ -1028,7 +1034,7 @@
   width: 100%;
   min-height: 38px;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--text-secondary, #475467);
   background: var(--surface-white, #fff);
   border: 1px solid var(--border-medium, #d0d5dd);
@@ -1072,4 +1078,28 @@
 .detailed-plan-grid__pair-btn {
   margin-top: 6px;
   white-space: nowrap;
+}
+
+/* Keep the two port cells and two cargo cells paired after the schedule and
+   customer identity; explicit rows prevent auto-placement leaving a blank
+   left half beside both the documents and container. */
+@container (max-width: 640px) {
+  .detailed-plan-grid__cell--schedule { grid-row: 1; }
+  .detailed-plan-grid__cell--route { grid-row: 2; }
+  .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
+  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
+  .detailed-plan-grid__cell--documents { grid-row: 4; grid-column: 1; }
+  .detailed-plan-grid__cell--container { grid-row: 4; grid-column: 2; }
+  .detailed-plan-grid__cell--editable { grid-row: 5; }
+  .detailed-plan-grid__cell--notes { grid-row: 6; }
+}
+
+/* The Ghi chú cell must wrap like every other notes surface (user report
+   2026-09-15): the table's nowrap inheritance and any clamp bypass left it
+   on one line. pre-wrap keeps the tags/text two-line note format. */
+.detailed-plan-grid [class*='__cell--notes'],
+.detailed-plan-grid [class*='__cell--notes'] .detailed-plan-grid__note,
+.detailed-plan-grid .detailed-plan-grid__note-clamp {
+  white-space: pre-wrap;
+  word-break: break-word;
 }

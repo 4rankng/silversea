@@ -55,7 +55,7 @@ export default function AdvanceWorkspacePage() {
         <PageHeader
           title="Tạm ứng & hoàn ứng"
           iconName="advances"
-          description="Quản lý yêu cầu tạm ứng và phiếu hoàn ứng trong một nơi. Quyết định duyệt hoặc từ chối được áp dụng ngay khi gửi."
+          description="Theo dõi tạm ứng, phiếu hoàn ứng và chi phí hiện trường. Thay đổi hợp lệ được ghi nhận trực tiếp."
         />
       </div>
 
@@ -80,10 +80,10 @@ export default function AdvanceWorkspacePage() {
           </h2>
           <p>
             {activeView === 'requests'
-              ? 'Xem yêu cầu của giao nhận và gửi đề nghị duyệt hoặc từ chối.'
+              ? 'Theo dõi khoản tạm ứng đã ghi sổ và xử lý bản nháp còn thiếu thông tin.'
               : activeView === 'settlements'
                 ? 'Đối chiếu chi phí, số tiền hoàn lại và xử lý phiếu theo thẩm quyền.'
-                : 'Duyệt/từ chối khoản chi hiện trường của Ops và chốt đề nghị thanh toán.'}
+                : 'Đối chiếu khoản chi hiện trường của Ops và lập phiếu thanh toán.'}
           </p>
         </div>
 

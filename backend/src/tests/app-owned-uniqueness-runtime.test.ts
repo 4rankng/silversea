@@ -20,7 +20,6 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTripIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdPartnerIds: number[] = [];
 const geotagEntityIds: number[] = [];

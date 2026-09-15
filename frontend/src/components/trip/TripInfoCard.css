@@ -2,6 +2,12 @@
   align-items: start;
 }
 
+/* Column gap already separates fields. Nested select wrappers must not
+   add the shared standalone field margin a second time. */
+.trip-info-card__layout .field {
+  margin-bottom: 0;
+}
+
 .trip-info-card__container-grid {
   display: grid;
   grid-column: 1 / -1;
@@ -32,22 +38,24 @@
 
 @container (max-width: 620px) {
   .trip-info-card__container-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
   }
 
   .trip-info-card__container-type {
-    grid-column: auto;
-    grid-row: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 
 @container (max-width: 430px) {
   .trip-info-card__container-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
   }
 
   .trip-info-card__container-type {
-    grid-column: auto;
-    grid-row: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }

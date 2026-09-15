@@ -43,7 +43,7 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
   if (items.length === 0) {
     return (
       <div style={dropdownStyle}>
-        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.45 }}>
+        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-body-size)', lineHeight: 1.45 }}>
           <EmptyIllustration name="empty-search" width={118} height={96} style={{ margin: '0 auto 8px', display: 'block' }} />
           <div>Không có kết quả</div>
         </div>
@@ -70,6 +70,7 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
             const isActive = flatIdx === activeIndex;
             return (
               <button
+                type="button"
                 key={`${item.type}-${item.id}`}
                 ref={el => { itemRefs.current[flatIdx] = el; }}
                 style={{
@@ -83,12 +84,12 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
                   <AssetIcon name={item.iconName} size={18} />
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.35 }}>
+                  <div style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.35 }}>
                     {highlightText(item.label, query)}
                   </div>
                   {item.description && (
                     <div style={{
-                      fontSize: 12.5,
+                      fontSize: 'var(--text-caption-size)',
                       lineHeight: 1.35,
                       color: 'var(--fg-3)',
                       marginTop: 2,
@@ -115,10 +116,12 @@ const dropdownStyle: React.CSSProperties = {
   position: 'absolute',
   top: 'calc(100% + 6px)',
   left: 0,
-  minWidth: 340,
-  maxWidth: 480,
-  maxHeight: 360,
+  width: '100%',
+  minWidth: 0,
+  maxWidth: 'min(480px, calc(100vw - 32px))',
+  maxHeight: 'min(360px, calc(100dvh - 120px))',
   overflowY: 'auto',
+  overscrollBehavior: 'contain',
   background: 'var(--bg-1)',
   border: '1px solid var(--line)',
   borderRadius: 12,
@@ -128,7 +131,7 @@ const dropdownStyle: React.CSSProperties = {
 };
 
 const groupHeaderStyle: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 'var(--text-caption-size)',
   lineHeight: 1.35,
   fontWeight: 700,
   letterSpacing: '0.1em',

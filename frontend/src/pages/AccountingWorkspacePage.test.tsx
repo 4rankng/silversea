@@ -49,7 +49,7 @@ describe('AccountingWorkspacePage', () => {
           dueAt: null, freshnessAt: '2026-08-22T01:00:00.000Z',
           blockers: [
             { code: 'POD_ACCEPTANCE', label: 'Thiếu POD đã chấp nhận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
-            { code: 'EXPENSE_APPROVAL', label: 'Chi phí đang chờ duyệt', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
+            { code: 'EXPENSE_APPROVAL', label: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
             { code: 'SETTLEMENT', label: 'Quyết toán chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Nhân viên vận hành' },
             { code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
           ],
@@ -130,8 +130,8 @@ describe('AccountingWorkspacePage', () => {
       .toBe('/accounting?view=transport&search=C-009');
 
     expect(screen.getByText('Thiếu POD đã chấp nhận')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Chi phí đang chờ duyệt' }).getAttribute('href'))
-      .toBe('/expenses?tripId=10');
+    expect(screen.getByRole('link', { name: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ' }).getAttribute('href'))
+      .toBe('/trips/10');
     expect(screen.getByRole('link', { name: 'Quyết toán chưa hoàn tất' }).getAttribute('href'))
       .toBe('/advances?view=settlements&tripId=10');
     expect(screen.getByRole('link', { name: 'Thiếu ảnh chụp lợi nhuận' }).getAttribute('href'))
@@ -152,7 +152,7 @@ describe('AccountingWorkspacePage', () => {
 
     expect((await screen.findByRole('alert')).textContent).toContain('Không thể tải nhóm này');
     expect(await screen.findByText('C-010')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Chi phí đang chờ duyệt' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ' })).toBeTruthy();
   });
 
   it('retains the existing overview as a secondary workspace', async () => {

@@ -20,17 +20,16 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                       value={form.expenseDate}
                       onChange={(value) => set('expenseDate', value)}
                     />
-                    {errors.expenseDate && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.expenseDate}</p>}
+                    {errors.expenseDate && <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--danger)', marginTop: 4 }}>{errors.expenseDate}</p>}
                   </div>
 
                   {/* A4 / A10 — system-stamped entry date, read-only. Distinct from the
                       user-editable "Ngày phát sinh chi phí" above. Auto-recorded on save,
                       so it is unknown (placeholder) until the row exists. */}
                   <div className="expense-group">
-                    <span className="expense-label">Ngày nhập dữ liệu</span>
+                    <span className="expense-label expense-label--static">Ngày nhập dữ liệu</span>
                     <div
-                      className="expense-input"
-                      style={{ color: 'var(--ink-3)', background: 'rgba(0,0,0,0.03)', cursor: 'default', display: 'flex', alignItems: 'center' }}
+                      className="expense-readonly"
                       title="Hệ thống tự ghi ngày nhập, không chỉnh sửa được"
                     >
                       {isEdit && existingExpense?.createdAt
@@ -48,7 +47,7 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                     {isEdit ? (
                       <>
                         <label className="expense-label" htmlFor="paymentStatus-ro">Trạng thái thanh toán</label>
-                        <div id="paymentStatus-ro" className="expense-input" aria-readonly="true" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
+                        <div id="paymentStatus-ro" className="expense-readonly">
                           {existingExpense?.paymentStatus === 'PAID' ? 'Đã trả (theo phiếu thanh toán)' : 'Ghi nợ'}
                         </div>
                         <p className="expense-hint">
@@ -66,7 +65,7 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                         options={[{ value: 'UNPAID', label: 'Ghi nợ' }]}
                         error={errors.paymentStatus}
                         wrapperClassName="expense-group"
-                        controlClassName="expense-input"
+                        controlClassName="expense-select"
                       />
                     )}
                   </div>
@@ -92,8 +91,8 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                 <div className="expense-layout__aside">
                   <div className="expense-panel expense-panel--photo">
                     <div className="expense-panel__header">
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>Ảnh hóa đơn</h3>
-                      <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 4 }}>Đính kèm biên lai / chứng từ nếu có</p>
+                      <h3 className="expense-panel__title">Ảnh hóa đơn</h3>
+                      <p className="expense-panel__subtitle">Đính kèm biên lai / chứng từ nếu có</p>
                     </div>
                     <div className="expense-panel__body expense-photo-body">
                       {photos.length > 0 && (
@@ -140,32 +139,24 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                         </div>
                       )}
 
-                      {isEdit ? (
                         <label className="expense-upload-zone" style={{ pointerEvents: uploading ? 'none' : 'auto', opacity: uploading ? 0.7 : 1 }}>
                           {uploading ? (
-                            <><Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} /> <span style={{ fontSize: 14, marginTop: 8 }}>Đang tải ảnh lên…</span></>
+                            <><Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} /> <span style={{ fontSize: 'var(--text-body-size)', marginTop: 8 }}>Đang tải ảnh lên…</span></>
                           ) : (
                             <>
                               <Upload size={28} style={{ color: 'var(--accent)', marginBottom: 6 }} />
-                              <span style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>Nhấn để tải lên ảnh hóa đơn</span>
-                              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 400 }}>JPG, PNG · tối đa 5MB</span>
+                              <span style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink)', fontWeight: 500 }}>Nhấn để tải lên ảnh hóa đơn</span>
+                              <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 400 }}>JPG, PNG, HEIC · tối đa 15 MB</span>
                             </>
                           )}
                           <input
                             type="file"
                             accept="image/*"
-                            style={{ display: 'none' }}
+                            className="sr-only" aria-label="Chọn ảnh hóa đơn"
                             onChange={e => e.target.files && handlePhotoUpload(e.target.files)}
                             disabled={uploading}
                           />
                         </label>
-                      ) : (
-                        <div className="expense-upload-zone" style={{ cursor: 'default', opacity: 0.7 }}>
-                          <Upload size={28} style={{ color: 'var(--ink-3)', marginBottom: 6 }} />
-                          <span style={{ fontSize: 14, color: 'var(--ink-3)', fontWeight: 500 }}>Gửi duyệt trước khi đính kèm ảnh hóa đơn</span>
-                          <span style={{ fontSize: 12, color: 'var(--ink-4)', fontWeight: 400 }}>Ảnh được thêm sau khi khoản chi được phê duyệt</span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -187,7 +178,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                       ) : isEdit ? (
                         <><Check size={18} /> Cập nhật</>
                       ) : (
-                        <><Plus size={18} /> Gửi duyệt chi phí</>
+                        <><Plus size={18} /> Lưu chi phí</>
                       )}
                     </button>
                   </div>

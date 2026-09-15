@@ -14,6 +14,7 @@ import orderExchangeRoutes from './order-exchange';
 import containersRoutes from './containers';
 import expensesRoutes from './expenses';
 import advancesRoutes from './advances';
+import advanceDraftRoutes from '../financial/advance-drafts.routes';
 import photosRoutes from './photos';
 import typesRoutes from './types';
 
@@ -26,6 +27,7 @@ router.use('/', orderExchangeRoutes);
 router.use('/', containersRoutes);
 router.use('/', expensesRoutes);
 router.use('/', advancesRoutes);
+router.use('/', advanceDraftRoutes);
 router.use('/', photosRoutes);
 router.use('/', typesRoutes);
 

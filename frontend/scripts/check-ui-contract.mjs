@@ -47,8 +47,8 @@ if (!tokenCss.includes('--status-strip-width: 3px;')
   || !tokenCss.includes('--status-strip-height: 20px;')) {
   failures.push('styles/tokens.css: canonical status strip must remain 3x20px');
 }
-if (!tokenCss.includes('--fs-status-pill: 11px;')) {
-  failures.push('styles/tokens.css: compact status pill text must remain 11px');
+if (!tokenCss.includes('--fs-status-pill: var(--text-caption-size);') || !tokenCss.includes('--text-caption-size: 11px;')) {
+  failures.push('styles/tokens.css: status pill text must use the shared 11px caption role');
 }
 if (!tokenCss.includes('--sb-gradient-start:')
   || !tokenCss.includes('--sb-gradient-end:')) {
@@ -76,11 +76,11 @@ if (!/\.input:focus-visible\s*\{[^}]*outline:\s*2px\s+solid\s+var\(--accent-2\)/
 }
 
 const pillCss = await readFile(new URL('../src/components/Pill.css', import.meta.url), 'utf8');
-if (!/\.pill\s*\{[^}]*font-size:\s*var\(--fs-status-pill\)/i.test(pillCss)) {
-  failures.push('components/Pill.css: default status pills must use the compact typography token');
+if (!/\.pill\s*\{[^}]*font-size:\s*var\(--text-caption-size\)/i.test(pillCss)) {
+  failures.push('components/Pill.css: default status pills must use the shared 11px caption role');
 }
-if (!/\.pill--md\s*\{[^}]*font-size:\s*var\(--fs-xs\)/i.test(pillCss)) {
-  failures.push('components/Pill.css: medium status pills must remain larger than the compact default');
+if (!/\.pill--md\s*\{[^}]*font-size:\s*var\(--text-caption-size\)/i.test(pillCss)) {
+  failures.push('components/Pill.css: medium status pills must retain the same shared 11px caption role');
 }
 
 const responsiveCss = await readFile(
@@ -90,25 +90,27 @@ const responsiveCss = await readFile(
 const phoneBlockStart = responsiveCss.indexOf('@media (max-width: 640px)');
 const phoneCss = phoneBlockStart >= 0 ? responsiveCss.slice(phoneBlockStart) : '';
 const phoneControlSelectors = [
-  '#root button',
-  '#root [role="button"]',
-  '#root a[href]',
+  ':where(#root) button',
+  ':where(#root) [role="button"]',
+  ':where(#root) a[href]',
   '#root input:not([type="checkbox"]):not([type="radio"])',
   '#root select',
 ];
 const universalPhoneRule = phoneCss.match(
-  /#root button,[\s\S]*?#root select\s*\{[^}]*min-height:\s*44px\s*;/i,
+  /:where\(#root\) button,[\s\S]*?#root select\s*\{[^}]*min-height:\s*30px\s*;/i,
 )?.[0] ?? '';
 for (const selector of phoneControlSelectors) {
   if (!universalPhoneRule.includes(selector)) {
     failures.push(`styles/responsive.css: missing universal phone selector ${selector}`);
   }
 }
-for (const selector of ['.wf-link', '.wf-btn', '.stab-pill']) {
+// The PM selected compact phone controls. Preserve low specificity so larger
+// semantic controls (save/close/touch fields) keep their own sizing.
+for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44], ['.stab-pill', 30]]) {
   const escapedSelector = selector.replace('.', '\\.');
-  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*44px`, 'i');
+  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*${height}px`, 'i');
   if (!rule.test(phoneCss)) {
-    failures.push(`styles/responsive.css: ${selector} must remain at least 44px on phones`);
+    failures.push(`styles/responsive.css: ${selector} must retain its ${height}px phone minimum`);
   }
 }
 

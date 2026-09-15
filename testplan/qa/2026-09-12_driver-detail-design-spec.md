@@ -1,5 +1,8 @@
 # Regression spec — 20260912_6 driver trip-detail design consistency
 
+> Typography update (2026-09-14): earlier numeric font-size expectations in this document are superseded by `testplan/qa/2026-09-14_typography-coherence.md`: 12px body/data/controls/actions, 11px labels/captions, 14px section titles, 16px overlay titles, 18px page titles and 20px principal metrics. Other behavior and layout requirements remain unchanged. Historical measurements below are retained as evidence.
+
+
 **Source:** `/Users/dev/My Drive/SilverSea/Kanban/TODO/20260912_6.docx`
 **Binding spec:** `docs/driver-trip-detail-design-spec.md`
 **Date:** 2026-09-12

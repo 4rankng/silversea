@@ -21,25 +21,9 @@ export function AncillaryMobileTotals({ buy, sell }: { buy: number; sell: number
 }
 
 export function AncillaryEmptyState() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 24px', gap: 12, textAlign: 'center' }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="5" y="3" width="18" height="22" rx="2.5" stroke="#16a34a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="9" y1="10" x2="19" y2="10" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-          <line x1="9" y1="15" x2="19" y2="15" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-          <line x1="9" y1="20" x2="15" y2="20" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-          <circle cx="22" cy="23" r="6" fill="#dcfce7" stroke="#16a34a" strokeWidth="1.5"/>
-          <line x1="22" y1="20" x2="22" y2="26" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-          <line x1="19" y1="23" x2="25" y2="23" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: '#14532d' }}>Chưa có dịch vụ đi kèm</div>
-      <div style={{ fontSize: 13, color: '#4b7a5a', maxWidth: 320, lineHeight: 1.5 }}>
-        Thêm phí nâng/hạ, hải quan, cân hàng… để lên giấy báo nợ và theo dõi công nợ phải thu.
-      </div>
-    </div>
-  );
+  return <p style={{ margin: 0, padding: '8px 0', fontSize: 'var(--text-body-size)', color: 'var(--fg-2)' }}>
+    Chưa có dịch vụ đi kèm. Thêm phí nâng/hạ, hải quan hoặc cân hàng khi phát sinh.
+  </p>;
 }
 
 export interface AncillaryFeesCardProps {

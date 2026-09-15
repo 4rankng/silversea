@@ -1,0 +1,16 @@
+/* A combobox has one field boundary. Native-input touch rules must not add
+   another height floor or vertical padding inside its value wrapper. */
+@media (max-width: 640px), (pointer: coarse) {
+  .uui-combobox [data-combobox-value] input[role='combobox'],
+  #root .uui-combobox [data-combobox-value] input[role='combobox'] {
+    min-height: 0;
+    height: auto;
+    padding-block: 0;
+  }
+
+  /* Small direct-use fields occupy 44px including the outer border. More
+     specific operational adapter rules retain their compact phone geometry. */
+  .uui-combobox[data-size='sm'] [data-combobox-value] {
+    min-height: calc(var(--control-touch-h) - 2px);
+  }
+}

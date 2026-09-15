@@ -513,24 +513,6 @@ export interface ShipmentDocumentReplacementResponse extends ShipmentDocument {
   shipmentVersion: number;
 }
 
-export interface ReviewShipmentPodRequest {
-  expectedVersion: number;
-  resolution: 'ACCEPT' | 'REJECT';
-  rejectionReason?: string | null;
-  /** O2C C1: required when ACCEPT — confirms paper POD is in hand. */
-  podRecovered?: boolean;
-}
-
-export interface ReviewShipmentPodResponse {
-  shipment: Shipment;
-  submissionId: number;
-  submissionStatus: TripPodStatus;
-  tripId: number;
-  tripStatus: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
-  shipmentVersion: number;
-  replayed: boolean;
-}
-
 export interface CompleteShipmentRequest {
   expectedVersion: number;
   vatRate: 0 | 0.05 | 0.08 | 0.1;
@@ -560,15 +542,6 @@ export interface CancelShipmentFulfillmentResponse {
   replacementFulfillmentId: number | null;
   shipmentVersion: number;
   replayed: boolean;
-}
-
-export interface ShipmentChangeRequestReviewResponse {
-  shipment: Shipment;
-  resolution: 'APPLIED' | 'REJECTED';
-  changeRequestId: number;
-  shipmentVersion: number;
-  notificationDelivered: boolean;
-  message: string;
 }
 
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
@@ -882,38 +855,18 @@ export async function updateShipmentDeclaration(
   return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
 }
 
-export async function reviewShipmentChangeRequest(
-  shipmentId: number,
-  requestId: number,
-  resolution: 'APPLIED' | 'REJECTED',
-): Promise<ShipmentChangeRequestReviewResponse> {
-  return api.post<ShipmentChangeRequestReviewResponse>(
-    `/shipments/${shipmentId}/change-requests/${requestId}/review`,
-    { resolution },
-  );
-}
-
-export async function requestShipmentDelete(
+export async function deleteCusShipment(
   shipmentId: number,
   version: number,
   reason: string,
-): Promise<{ pendingApproval: boolean }> {
-  return api.post<{ pendingApproval: boolean }>(
-    `/shipments/cus-workspace/${shipmentId}/delete-request`,
-    { version, reason },
-  );
-}
-
-export async function reviewShipmentPod(
-  shipmentId: number,
-  submissionId: number,
-  body: ReviewShipmentPodRequest,
-  idempotencyKey: string,
-): Promise<ReviewShipmentPodResponse> {
-  return api.post<ReviewShipmentPodResponse>(
-    `/shipments/${shipmentId}/pod-reviews/${submissionId}/review`,
-    body,
-    { headers: { 'Idempotency-Key': idempotencyKey } },
+  idempotencyKey?: string,
+): Promise<void> {
+  await api.delete(
+    `/shipments/cus-workspace/${shipmentId}`,
+    {
+      body: JSON.stringify({ version, reason }),
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    },
   );
 }
 

@@ -1,111 +1,56 @@
 # PRD — TTransport / Silver Sea
 
-Tài liệu đặc tả nghiệp vụ đang có hiệu lực. Mỗi tệp ghi rõ nguồn (`.docx` yêu cầu
-từ khách hàng) ở đầu trang.
+Tài liệu yêu cầu sản phẩm từ góc nhìn khách hàng, chủ sản phẩm và người sử dụng. Mỗi tài liệu mô tả người dùng cần làm gì, quy trình mong muốn, quy tắc nghiệp vụ và tiêu chí nghiệm thu. Nguồn yêu cầu khách hàng được ghi ở đầu tài liệu liên quan.
+
+Silver Sea hỗ trợ toàn bộ công việc từ tiếp nhận lô hàng, lập kế hoạch vận chuyển, thực hiện giao nhận đến quản lý chi phí, hồ sơ và công nợ. Người dùng phải nhận biết được việc cần làm, dữ liệu còn thiếu và kết quả của hành động ngay tại nơi làm việc; không phải nhập lại cùng thông tin hoặc đối chiếu những trạng thái mâu thuẫn giữa các màn hình.
 
 | Tài liệu | Phạm vi | Nguồn |
 |----------|---------|-------|
-| [`QuyTrinhO2C.md`](QuyTrinhO2C.md) | Quy trình end-to-end: Chứng từ → Điều vận → Lái xe → Chốt hồ sơ | tổng hợp |
-| [`MasterDataNhaMay.md`](MasterDataNhaMay.md) | Quan hệ Khách hàng – Nhà máy – Tuyến – Vị trí; cascading + auto-fill; **lệnh chạy ngoài + lưu trữ hỗn hợp** | `2026.9.6_Logic_nghiep_vu.docx` Phần 1 |
-| [`LoHangKepKetHop.md`](LoHangKepKetHop.md) | Lô hàng Kẹp & Kết hợp: định nghĩa, mô hình dữ liệu, thuật toán chống nhân đôi chi phí | `2026.9.6_Logic_nghiep_vu.docx` Phần 2 |
-| [`OpsVanHanh.md`](OpsVanHanh.md) | 3 màn hình nhân viên hiện trường: kế hoạch làm hàng, theo dõi phương tiện, ví tạm ứng | `2026.9.6_Man_hinh_ops.docx` |
-| [`ManHinhLaiXe.md`](ManHinhLaiXe.md) | App Lái xe: cấu trúc thẻ 2 lớp, luồng nhận lệnh, e-POD bắt buộc | `2026.8.27_Man_hinh_lai_xe.docx` |
-| [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md) | **Bảng cước phí — thiết kế logic:** công thức, tham số, bảng cước thành phẩm, quy tắc làm tròn | `18.7 - BG Long Minh T7.xlsx` |
-| [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) | **Bảng cước phí — thiết kế DB schema:** 5 bảng mới + thuật toán `resolveFreightRate()` + snapshot *(APPROVED DIRECTION — 10/09)* | dẫn xuất từ `CuocPhiPhuPhiDau.md` |
-| [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) | **Phương án tính cước tự động:** 5 mục docx KH ↔ engine/schema; mapping 4 nhóm tham số A-D, 3-step engine, debit-note override, fuel-price entry | `Phương án tính cước tự động.docx` (KH gửi 09/09) |
-| [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) | **5 câu hỏi nghiệp vụ cần khách hàng Long Minh trả lời** trước khi triển khai | — |
+| [QuyTrinhO2C.md](QuyTrinhO2C.md) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Tổng hợp yêu cầu nghiệp vụ |
+| [MasterDataNhaMay.md](MasterDataNhaMay.md) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | `2026.9.6_Logic_nghiep_vu.docx` Phần 1 |
+| [LoHangKepKetHop.md](LoHangKepKetHop.md) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | `2026.9.6_Logic_nghiep_vu.docx` Phần 2 |
+| [OpsVanHanh.md](OpsVanHanh.md) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | `2026.9.6_Man_hinh_ops.docx` |
+| [ManHinhLaiXe.md](ManHinhLaiXe.md) | Hành trình lái xe: nhận lệnh, đọc thông tin, thực hiện, bổ sung ảnh/chứng từ và hoàn thành | `2026.8.27_Man_hinh_lai_xe.docx` và yêu cầu màn hình bổ sung |
+| [CuocPhiPhuPhiDau.md](CuocPhiPhuPhiDau.md) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | `18.7 - BG Long Minh T7.xlsx` và trả lời khách hàng |
+| [CuocPhiThietKeDB.md](CuocPhiThietKeDB.md) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Yêu cầu cước và phương án khách hàng |
+| [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | `Phương án tính cước tự động.docx` |
+| [CauHoiKhachHang_CuocPhi_2026-09-08.md](CauHoiKhachHang_CuocPhi_2026-09-08.md) | Các câu trả lời đã có và thông số hợp đồng còn cần khách hàng xác định | Trao đổi về bảng cước Long Minh |
 
-`archive/` chứa 12 tệp `Module*.docx` gốc — giữ để tra cứu, **không** phải nguồn chân lý hiện hành.
+## Người dùng và kết quả cần đạt
 
-> **Trạng thái tài liệu (2026-09-10):** tất cả PRD trong bảng trên là **đặc tả đang
-> có hiệu lực**. [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) đã chuyển từ `ĐỀ XUẤT`
-> sang **APPROVED DIRECTION** sau khi wave spec (`run-1788968588650-mctezn`) khóa 3
-> quyết định KH (Câu 1=B, 2=A, 4=A) và anchor = Ngày vận chuyển (đóng item 2b).
-> [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) là tài liệu mới cho wave
-> auto-pricing, neo 5 mục docx KH ↔ engine/schema hiện có. Còn **4 open items** theo
-> dõi trong ticket `e3873fbc` — xem chi tiết tại [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md)
-> §4 và [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §6.2 (Còn mở).
+| Vai trò | Nhu cầu chính |
+|---------|---------------|
+| Quản trị | Quản lý tài khoản, phạm vi quyền và danh mục nhất quán; người ngừng hoạt động không được nhận công việc mới, hồ sơ lịch sử vẫn đọc được |
+| Quản lý | Nắm tiến độ, việc tồn đọng và tình hình tài chính bằng số liệu có ý nghĩa rõ; thực hiện các điều chỉnh thuộc thẩm quyền |
+| Chứng từ / CUS | Nhập lô nhanh, lưu được thông tin chưa đầy đủ, bổ sung đúng lúc, chuyển dữ liệu chính xác sang điều vận và kế toán |
+| Điều vận | Nhận biết phần chưa phân bổ, chọn nguồn lực phù hợp, phát lệnh và xử lý thay đổi mà không gây trùng lịch hoặc mất công việc |
+| Lái xe | Nhìn thấy đúng lệnh được giao, hiểu việc cần làm và thông tin liên hệ, cập nhật chứng từ và hoàn thành với ít thao tác cần thiết |
+| Nhân viên hiện trường / Ops | Xem kế hoạch, phối hợp tại cảng/nhà máy, ghi tiền thực nhận/thực chi, bổ sung chứng từ và đối chiếu quỹ |
+| Kế toán | Đối chiếu hồ sơ và số tiền, lập bảng kê, ghi nhận thanh toán/phân bổ, quản lý lương và khóa kỳ trong phạm vi được cấp |
+| Khách hàng | Theo dõi lô hàng của mình, hiểu tiến độ và các thông tin được chia sẻ; xác nhận thực tế giao nhận khi thuộc quy trình của mình |
 
----
+Tên vai trò không đồng nghĩa được truy cập mọi dữ liệu hoặc thực hiện mọi hành động. Mỗi màn hình chỉ cung cấp thông tin và thao tác trong phạm vi người dùng; cùng một nghiệp vụ phải có ý nghĩa thống nhất giữa các vai trò.
 
 ## Thay đổi có hiệu lực gần nhất
 
-**2026-09-10 — Wave auto-pricing (`run-1788968588650-mctezn`): tài liệu mới + flip status.**
-PRD mới [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) neo 5 mục của docx
-`Phương án tính cước tự động.docx` (KH gửi 09/09) vào engine/schema hiện có:
-(1) công thức cước cốt lõi,
-(2) 4 nhóm tham số A-D (lag, threshold pct/abs, activation trigger, transport-date anchor),
-(3) 3-step engine + snapshot no-retro,
-(4) debit-note override + reason rule,
-(5) fuel-price entry + RBAC.
-[`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) chuyển từ `ĐỀ XUẤT` → **APPROVED
-DIRECTION** sau khi KH chốt Câu 1=B / 2=A / 4=A và docx §2D đóng item 2b
-(anchor = Ngày vận chuyển). Testplan
-[`flows/12-cuocphi-phuphi-dau.md`](../../testplan/flows/12-cuocphi-phuphi-dau.md)
-mở rộng với `TC-CUOC-009..025` (lock-at-create, supersede, threshold pct/abs/XOR,
-ratchet, MANUAL fallback 15T, override reason, config RBAC) — tất cả **BLOCKED —
-pending T1**, Phase-2 evidence. Matrix coverage mới ở §5 của
-[`2026-09-09-docx-trilogy.md`](../../testplan/matrix/2026-09-09-docx-trilogy.md). Còn
-4 open items (Câu 5, lag ASKEY/SUNRISE+SJ, giá gốc 15T ×3 tuyến, threshold X/Z) — track
-ticket `e3873fbc`. Wiring/config/UI/tests thuộc ticket T1 (`cf5f4e29`), T2 (`a7f6740f`),
-T3 (`06b1a41f`), T4 (`28002a59`), T6 (`2b5b9b5d`).
+**14/09/2026 — Thao tác trực tiếp, cần Internet, trải nghiệm gọn trên mọi thiết bị.**
 
-**2026-09-09 — Đối chiếu trọn bộ 3 docx (trilogy reconciliation).** Toàn bộ yêu cầu
-của `Man_hinh_lai_xe` / `Logic_nghiep_vu` / `Man_hinh_ops` đã được đối chiếu code,
-đóng gap, và neo test: ma trận 55 dòng
-[`testplan/matrix/2026-09-09-docx-trilogy.md`](../../testplan/matrix/2026-09-09-docx-trilogy.md).
-Gap đã đóng: nhãn `Giờ đóng / trả:` + CTA ≥48px trên thẻ app lái xe (`7a098f28`),
-tag `[KẸP]/[KẾT HỢP]` trên chi tiết lô CUS (`90a17e65`), micro-ledger gom cùng mã lô
-nhiều người chi trên tab kế toán (`cda12f57`), **duyệt 2 đường cho khoản thiếu ảnh**
-(ảnh hợp lệ HOẶC kiểm chứng giấy tận tay `inPersonCheck=true` + ghi chú bắt buộc, ghi
-audit log — `723c7fd2`). Deviation đã ghi nhận: đẩy lệnh cho lái xe = poll 15s (không
-FCM push); in hoá đơn = modal + `@media print` (không có route in riêng); PDF = browser
-print-to-PDF (server-side PDF hoãn). **Chờ quyết định USER:** nhãn `Chạy ngoài` trên
-danh sách lô (PRD-only, hoãn) và snapshot chữ ký nhà máy tại lúc phát lệnh (open design,
-cần migration) — xem [`MasterDataNhaMay.md`](MasterDataNhaMay.md) §2 và §4.
+- Người có quyền lưu, phát hành, điều chỉnh hoặc hủy trực tiếp sau khi đáp ứng quy tắc nghiệp vụ. Ứng dụng không có quy trình gửi duyệt, người duyệt, chờ duyệt theo cấp tiền hoặc tự động duyệt. Quyền thao tác, kiểm tra dữ liệu, lý do điều chỉnh, lịch sử và khóa kỳ vẫn được giữ.
+- Lái xe nhận lệnh và khách hàng xác nhận thực tế giao hàng là các sự kiện nghiệp vụ cần giữ. Xác nhận một thao tác của chính người dùng, chẳng hạn xác nhận hủy, không phải bước phê duyệt của người khác.
+- Ứng dụng cần Internet để làm việc. Khi mất kết nối, thông báo rõ chưa thể lưu; giữ nội dung đang nhập trong màn hình khi còn có thể và cho người dùng chủ động tiếp tục khi kết nối trở lại. Không hứa lưu ngoại tuyến hoặc tự gửi lại thay người dùng.
+- Giao diện dùng tốt trên điện thoại, máy tính bảng và máy tính. Ưu tiên thông tin và thao tác hữu ích trên mỗi màn hình; tránh chữ quá lớn, khối quá cao, lề dư và thẻ trang trí lồng nhau.
+- Ghi nhận chi phí, thiếu chứng từ, hoàn thành vận chuyển, đã thanh toán và đã khóa kỳ là những tình trạng khác nhau. Mỗi nhãn phải nói đúng sự kiện đã xảy ra, không dùng một trạng thái chung để suy ra tất cả.
 
-**2026-09-08 — Cước cơ bản + phụ phí dầu (KH Long Minh).** Nguồn chân lý là file
-`18.7 - BG Long Minh T7.xlsx`. Công thức: `cước = giá gốc × (1 + % chia sẻ) + (giá dầu
-kỳ − giá dầu mốc) × lít định mức khứ hồi`. **Làm tròn đến từng đồng.**
-⚠️ **Hai xung đột chặn với code hiện tại** (chi tiết
-[`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §1):
-(1) `computeFuelSurcharge()` đang nhân `% chia sẻ` vào **phụ phí dầu**, trong khi Excel
-nhân vào **giá cước gốc** và thu phụ phí 100 %;
-(2) `customers.fuel_surcharge_share_pct` lưu **1 giá trị/khách hàng**, nhưng riêng Long
-Minh đã có **3 mức theo tuyến** (2 % / 2,5 % / 4 %) ⇒ schema hiện tại **không biểu diễn
-được hợp đồng thật**. Thiết kế bảng đề xuất đã tái tạo đúng **48/48 mức cước** của file
-gốc, sai số 0 đồng.
+Các quyết định cước đã được khách hàng xác nhận vẫn có hiệu lực: kẹp phụ phí dầu về 0, không hồi tố cước đã chốt, luôn tính km khứ hồi theo hợp đồng và chọn Ngày vận chuyển làm mốc. Giá trị, phạm vi và điều kiện cụ thể nằm trong các tài liệu cước; thông số chưa được khách hàng xác định không được tự thay bằng số minh họa.
 
-**2026-09-07 — Chốt: đơn vị thẻ app lái xe = 1 CONTAINER.** Quyết định sản phẩm: **docx
-là chuẩn**. Thẻ Lớp 1 = 1 container / thẻ (không phải 1 chuyến / thẻ), tab con
-`Lệnh mới` / `Đã nhận` / `Lịch sử`, không badge trạng thái trên thẻ. Migration board
-theo mô hình container-card **đã land** (09-07, hoàn tất gap 09-09) — thẻ ghép Kẹp/
-Kết hợp dính liền + khóa nối tiếp KẾT HỢP. Chi tiết: [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.1.
+## Chất lượng trải nghiệm cần đạt
 
-**2026-09-07 — Lệnh chạy ngoài (ad-hoc orders).** Bổ sung phần còn thiếu của
-`Logic_nghiep_vu.docx` Phần 1: **lưu trữ hỗn hợp** (chọn danh mục ⇒ lưu ID; gõ text tự
-do ⇒ ID `null` + `Raw_*`), **guardrail không tự thêm vào danh mục gốc**, checkbox
-`Lệnh chạy ngoài (Tối ưu xe rỗng)` bypass validation cước phí, và **Combobox
-(Creatable Select)** cho 5 trường master data. Ràng buộc cascading/khoá read-only nay
-chỉ áp dụng cho **luồng chuẩn**. Chi tiết: [`MasterDataNhaMay.md`](MasterDataNhaMay.md) §2.1 và §4.
+- **Dễ nhận biết:** người dùng biết mình đang ở đâu, đang xem lô/công việc/kỳ nào, dữ liệu nào còn thiếu và hành động tiếp theo. Tên gọi, ngày, số tiền và trạng thái thống nhất trên danh sách, chi tiết và chứng từ.
+- **Ít nhập lại:** thông tin đã biết được kế thừa đúng nơi; chọn nhà máy, xe hoặc công việc điền dữ liệu liên quan phù hợp. Đổi lựa chọn cập nhật các trường phụ thuộc mà không âm thầm mất nội dung đang sửa.
+- **Lưu đáng tin cậy:** bấm nhiều lần không tạo bản trùng hoặc phát sinh tiền trùng. Nếu chưa rõ thao tác đã thành công, ứng dụng giúp người dùng xác định kết quả trước khi thử lại. Khi có người khác sửa cùng dữ liệu, người dùng được xem thay đổi và quyết định cách tiếp tục; không bị ghi đè mà không biết.
+- **Tận dụng diện tích:** bảng trên máy tính hỗ trợ so sánh; màn hình nhỏ ưu tiên định danh, lịch, trạng thái, số liệu chính và hành động. Thông tin phụ có thể mở thêm nhưng các mã quan trọng không bị cắt hoặc ngắt thành từng ký tự. Các nhóm trường dùng khoảng cách và tiêu đề rõ, tránh nhiều lớp khung.
+- **Thao tác thuận tiện:** điều khiển dễ chạm, dùng được bằng bàn phím; chữ dễ đọc, lỗi nằm cạnh trường, nút lưu/đóng luôn tiếp cận được kể cả khi bàn phím điện thoại mở. Thông tin không chỉ phân biệt bằng màu hoặc chỉ xem được khi rê chuột.
+- **Phản hồi rõ và ổn định:** đang tải, không có dữ liệu, lỗi tải, đang lưu và đã lưu có cách thể hiện khác nhau. Không đưa số 0 thay cho lỗi. Chuyển động nhẹ, tôn trọng nhu cầu giảm chuyển động; cập nhật dữ liệu không làm nhảy hàng hoặc nút đang dùng.
+- **Giữ ngữ cảnh:** quay lại danh sách giữ bộ lọc, trang và vị trí phù hợp; đổi tài khoản không để lại dữ liệu của người trước. Lỗi kết nối tạm thời không khiến người dùng bị đăng xuất khỏi phiên còn hợp lệ.
 
-**2026-09-06 — Định nghĩa lại Kẹp / Kết hợp.** Hai khái niệm đã **hoán đổi bản chất
-thời gian** so với PRD trước đó (Kẹp = đồng thời, Kết hợp = nối tiếp). Chi tiết và
-danh sách acceptance criteria bị ảnh hưởng: [`LoHangKepKetHop.md`](LoHangKepKetHop.md).
-
----
-
-## Bản đồ sang test plan
-
-| PRD | Test plan tương ứng |
-|-----|---------------------|
-| `MasterDataNhaMay.md` §1–§3 (luồng chuẩn) | `testplan/flows/01-cus-create-shipment.md` §1.10 (`TC-CUS-CREATE-021`…`-024`) |
-| `MasterDataNhaMay.md` §2.1, §4 (lệnh chạy ngoài) | `testplan/flows/09-kep-kethop-ghep-chuyen.md` §9.5 (`TC-ADHOC-001`…`-004`), `testplan/roles/01-cus.md` `CUS-SHIP-10`…`-16` |
-| `LoHangKepKetHop.md` | `testplan/flows/09-kep-kethop-ghep-chuyen.md`, `testplan/roles/02-dieuvan.md` |
-| `OpsVanHanh.md` | `testplan/flows/05-ops-quy-chi-phi.md`, `testplan/roles/06-vanhanh.md` Flow 7–9 |
-| `ManHinhLaiXe.md` §1–§3 (điều hướng, thẻ 2 lớp) | `testplan/flows/03-laixe-nhan-lenh.md` §3.7 (`TC-LX-NHANLENH-014`…`-020`) |
-| `ManHinhLaiXe.md` §4 (e-POD) | `testplan/flows/04-laixe-tien-do-epod.md` §4.5 (`TC-LX-TIENDO-018`…`-022`) |
-| `ManHinhLaiXe.md` (tổng thể) | `testplan/roles/03-laixe.md` |
-| `CuocPhiPhuPhiDau.md` §1–§2 (công thức), §10 (làm tròn) | `testplan/flows/01-cus-create-shipment.md` §1.1 — **đã sửa công thức phụ phí dầu 2026-09-08** |
-| `CuocPhiThietKeDB.md` | *chưa có test plan* — cần bổ sung khi triển khai |
-| Toàn bộ 3 docx (ma trận đối chiếu) | `testplan/matrix/2026-09-09-docx-trilogy.md` |
+Tiêu chí cụ thể của từng quy trình nằm ngay trong tài liệu tương ứng. Sản phẩm cần đáp ứng cả luồng thông thường và các tình huống thiếu dữ liệu, nhập sai, mất kết nối, thay đổi đồng thời, tên/mã dài và nhiều bản ghi. Các quyết định nghiệp vụ còn thiếu được nêu rõ tại nơi sử dụng, cùng hành vi khi chưa đủ dữ liệu; không tự đặt thêm điều khoản để lấp chỗ trống.

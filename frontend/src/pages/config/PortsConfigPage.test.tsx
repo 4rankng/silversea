@@ -74,7 +74,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
       ],
     });
     apiGetMock.mockImplementation(async (path: string) => {
-      if (path === '/ports') {
+      if (path.split('?')[0] === '/ports') {
         return { items: [], total: 0, page: 1, pageSize: 50 };
       }
       if (path === '/dispatch-zones/active') {
@@ -85,7 +85,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
           ],
         };
       }
-      if (path === '/dispatch-zones') {
+      if (path.split('?')[0] === '/dispatch-zones') {
         return {
           items: [
             { id: 1, code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, isActive: true },

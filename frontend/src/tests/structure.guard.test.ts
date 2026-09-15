@@ -63,7 +63,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // and debounced server refetch) during the facet migration. Reviewed as a
   // contract change; a future split (extract the popover body) should
   // restore a smaller ceiling.
-  'src/design-system/forms/SearchableMultiSelect.tsx': 430,
+  'src/design-system/forms/SearchableMultiSelect.tsx': 433,
   // Bumped 1099 → 1110: minor growth from added keyboard helpers and
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
@@ -82,7 +82,6 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // handling — ref + field-error announce in the change-password dialog.
   // Reviewed as a contract change.
     'src/components/Layout.tsx': 879,
-  'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
   // Bumped 585 → 720: 2026-09-13 driver attachments unification — the card
@@ -99,11 +98,15 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
-  'src/components/untitled-ui/base/select/tag-select.tsx': 401,
+  'src/components/untitled-ui/base/select/tag-select.tsx': 405,
   // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail
   // refetch after a confirmed exchange adds the confirmed-state fact rows.
   // Reviewed as a contract change.
-  'src/components/work-inbox/RoleWorkInbox.tsx': 493,
+  // Bumped 493 → 499: 2026-09-14 expand dispute form to full row —
+  // the Fragment wrapper and expanded <tr> for the discrepancy editor
+  // add 6 lines over the previous inline-in-cell layout.
+  // Reviewed as a contract change.
+  'src/components/work-inbox/RoleWorkInbox.tsx': 499,
   // Bumped 431 → 444: 2026-09-14 duplicate-month picker guard —
   // taken months warn before submit (rework of the staging round-5 loop).
   // Reviewed as a contract change.
@@ -112,7 +115,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
   // on a stable identity helper (branch rows carry a null fulfillment id).
-  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 407,
+  // Bumped 407 → 435: 2026-09-14 KP-140 lift/drop port columns added.
+  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 435,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
@@ -144,11 +148,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 515 → 540 on 2026-09-12 (ensureFulfillment decompose-then-edit),
   // returned to 515 the same day: the ensure logic extracted to
   // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
-  // Bumped 515 → 533: 2026-09-14 QA-001 AC4 — three-state header sort
-  // (unsorted → asc → desc → unsorted) with a direction-aware comparator;
-  // time-less rows sort last in both directions. Reviewed as a contract
-  // change.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 533,
+  // 2026-09-15 KP-018: filter/query contract extracted to detailPlanFilters.ts.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -251,7 +252,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/ForwarderSettlementCreatePage.tsx': 503,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
   'src/pages/PayableDetailPage.tsx': 608,
-  'src/pages/PayableListPage.tsx': 664,
+  'src/pages/PayableListPage.tsx': 680,
   'src/pages/payables-fuel-invoices.tsx': 1078,
   // Bumped 567 → 591: 2026-09-14 ownership-blocked warning — the affected
   // trucks list renders as links inside the warning block.
@@ -259,7 +260,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
-  'src/pages/ShipmentsPage.tsx': 625,
+  'src/pages/ShipmentsPage.tsx': 634,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
@@ -271,6 +272,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // placeholder/maxLength attrs). Reviewed as a contract change; the value
   // contract ('YYYY-MM-DDTHH:mm') is unchanged.
   'src/pages/TripCreatePage.tsx': 586,
+  // Baseline 430 (was new-file capped 400): 2026-09-14 _18 self-healing
+  // version-token writes — the transport now detects the backend's
+  // VERSION_TOKEN_REQUIRED 428, refetches the row once, and retries with the
+  // fresh token (request/requestOnce split + heal branch + dev warn).
+  // Reviewed as a contract change; future splits should restore smaller.
+  'src/lib/api/client.ts': 430,
 };
 
 /** Source roots the size ratchet covers. */

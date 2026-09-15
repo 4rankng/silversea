@@ -461,3 +461,7 @@ export async function assertActiveExpenseTypeCode(tx: Tx | typeof db, code: stri
     throw new ApiError(400, `Loại chi phí "${code}" không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí trong danh sách.`);
   }
 }
+
+export async function validateActiveExpenseTypeCode(code: string): Promise<void> {
+  return assertActiveExpenseTypeCode(db, code);
+}

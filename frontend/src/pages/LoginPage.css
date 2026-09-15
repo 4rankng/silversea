@@ -78,7 +78,7 @@
 .login-brand__copy strong {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: 800;
   line-height: 1.25;
 }
@@ -87,7 +87,7 @@
   min-width: 0;
   overflow: visible;
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1.4;
   text-overflow: clip;
@@ -101,7 +101,7 @@
   gap: 7px;
   flex: 0 0 auto;
   color: var(--success-text);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
 }
 
@@ -122,7 +122,7 @@
 .login-eyebrow {
   margin: 0 0 12px;
   color: var(--accent-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -132,7 +132,7 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(32px, 3.2vw, 44px);
+  font-size: var(--text-title-size);
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.12;
@@ -155,7 +155,7 @@
   display: block;
   margin-bottom: 8px;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--text-label-size);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -179,7 +179,7 @@
   border-color: var(--line-2);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.94);
-  font-size: var(--fs-sm);
+  font-size: var(--control-field-font-size);
 }
 
 .login-form .input-icon:focus-within > svg {
@@ -232,7 +232,7 @@
   padding: 11px 13px;
   border: 1px solid transparent;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -269,7 +269,7 @@
 .login-help {
   margin: 17px 0 0;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.55;
   text-align: center;
 }
@@ -281,7 +281,7 @@
   padding: 20px clamp(28px, 4vw, 60px);
   border-top: 1px solid var(--line);
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -328,7 +328,7 @@
   gap: 9px;
   margin: 0 0 16px;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -347,7 +347,7 @@
   margin: 0;
   color: #fff;
   font-family: var(--font-display);
-  font-size: clamp(34px, 4vw, 62px);
+  font-size: var(--text-metric-size);
   font-weight: 750;
   letter-spacing: -0.045em;
   line-height: 1.08;
@@ -376,7 +376,7 @@
   position: relative;
   padding-left: 14px;
   color: rgba(255, 255, 255, 0.86);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
 }
 
@@ -431,7 +431,7 @@
   }
 
   .login-visual h2 {
-    font-size: clamp(32px, 4.5vw, 48px);
+    font-size: var(--text-metric-size);
   }
 
   .login-capabilities {
@@ -496,7 +496,7 @@
 
   .login-subtitle {
     margin-top: 10px;
-    font-size: 14px;
+    font-size: var(--text-body-size);
     line-height: 1.55;
   }
 
@@ -507,7 +507,7 @@
   .login-form .input {
     height: 50px;
     min-height: 50px;
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
 
   .login-submit {
@@ -540,12 +540,12 @@
 
   .login-visual__eyebrow {
     margin-bottom: 8px;
-    font-size: 10px;
+    font-size: var(--text-label-size);
   }
 
   .login-visual h2 {
     max-width: 420px;
-    font-size: clamp(22px, 7vw, 30px);
+    font-size: var(--text-metric-size);
     letter-spacing: -0.03em;
   }
 
@@ -579,7 +579,7 @@
   }
 
   .login-visual h2 {
-    font-size: var(--fs-2xl);
+    font-size: var(--text-metric-size);
   }
 
   .login-auth-panel {

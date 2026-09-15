@@ -37,7 +37,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
         padding: 14,
         background: "var(--bg-1)",
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--fg-1)", marginBottom: 8 }}>
+        <div style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: "var(--fg-1)", marginBottom: 8 }}>
           Ảnh đính kèm
         </div>
 
@@ -52,7 +52,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
           ))}
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44, border: "1px dashed var(--fg-3)", borderRadius: "var(--app-radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44, border: "1px dashed var(--fg-3)", borderRadius: "var(--app-radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 'var(--text-label-size)' }}>
           {uploading.OTHER ? (
             <Loader2 size={16} className="spin" />
           ) : (

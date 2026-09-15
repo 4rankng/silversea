@@ -1,11 +1,20 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../lib/api';
-import { driverOfflineCommandQueue } from '../../features/driver/useOfflineCommandQueue';
 import { RoleWorkInbox } from './RoleWorkInbox';
 
 const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
+
+function renderInbox(ui: React.ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../lib/api')>(),
   api: { get: apiGet, post: apiPost },
@@ -82,13 +91,12 @@ describe('RoleWorkInbox', () => {
     apiGet.mockReset();
     apiPost.mockReset();
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
-    driverOfflineCommandQueue.clear();
   });
 
   it('renders loading, populated desktop table facts, tabs, and empty state', async () => {
     let resolve!: (value: unknown) => void;
     apiGet.mockReturnValueOnce(new Promise((done) => { resolve = done; })).mockResolvedValueOnce(response([]));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     expect(screen.getByText('Đang tải công việc…')).toBeTruthy();
     resolve(response([operationsItem]));
     const table = await screen.findByRole('table');
@@ -103,7 +111,7 @@ describe('RoleWorkInbox', () => {
     apiGet.mockRejectedValueOnce(new Error('offline'));
     apiGet.mockResolvedValueOnce(response([operationsItem], '2026-01-01T00:00:00.000Z'));
     apiGet.mockRejectedValueOnce(new Error('offline again'));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     expect(await screen.findByText('Không thể tải công việc.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(await screen.findByText('Dữ liệu đã cũ. Hãy làm mới trước khi xử lý.')).toBeTruthy();
@@ -115,7 +123,7 @@ describe('RoleWorkInbox', () => {
   it('shows the offline truth and never reports a queued role command as complete', async () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     apiGet.mockResolvedValue(response([operationsItem]));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     expect(await screen.findByText(/chỉ hiển thị hoàn tất sau khi máy chủ xác nhận/)).toBeTruthy();
   });
 
@@ -123,7 +131,7 @@ describe('RoleWorkInbox', () => {
     apiGet.mockResolvedValue(response([customerItem]));
     apiPost.mockResolvedValue({ replayed: false });
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('11111111-1111-4111-8111-111111111111');
-    render(<MemoryRouter><RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
     expect(await screen.findByText('Tài xế báo đã giao')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/portal/work-inbox?view=ACTION&page=1&limit=100&customerId=7');
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận đã nhận hàng' }));
@@ -132,13 +140,13 @@ describe('RoleWorkInbox', () => {
       { expectedVersion: 3, decision: 'CONFIRMED', reason: undefined },
       { idempotencyKey: '11111111-1111-4111-8111-111111111111' },
     ));
-    expect(await screen.findByText('Đã đồng bộ xác nhận nhận hàng.')).toBeTruthy();
+    expect(await screen.findByText('Đã ghi nhận xác nhận nhận hàng.')).toBeTruthy();
   });
 
   it('requires a dispute reason and preserves the draft on a 409 conflict', async () => {
     apiGet.mockResolvedValue(response([customerItem]));
     apiPost.mockRejectedValue(new ApiError(409, { error: 'version' }, 'Phiên bản đã thay đổi'));
-    render(<MemoryRouter><RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
     await screen.findByText('Tài xế báo đã giao');
     fireEvent.click(screen.getByRole('button', { name: 'Báo sai lệch' }));
     fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
@@ -150,9 +158,27 @@ describe('RoleWorkInbox', () => {
     expect((draft as HTMLTextAreaElement).value).toBe('Thiếu một kiện hàng');
   });
 
+  it('keeps the full-row dispute draft locked until the save completes', async () => {
+    apiGet.mockResolvedValue(response([customerItem]));
+    let finish: (() => void) | undefined;
+    apiPost.mockImplementation(() => new Promise(resolve => { finish = () => resolve({}); }));
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
+    await screen.findByText('Tài xế báo đã giao');
+    fireEvent.click(screen.getByRole('button', { name: 'Báo sai lệch' }));
+    const reason = screen.getByLabelText('Lý do sai lệch');
+    expect(reason.closest('td')?.getAttribute('colspan')).toBe('6');
+    fireEvent.change(reason, { target: { value: 'Thiếu kiện' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
+    expect((reason as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Hủy' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(apiPost).toHaveBeenCalledTimes(1);
+    finish?.();
+    await waitFor(() => expect(screen.queryByLabelText('Lý do sai lệch')).toBeNull());
+  });
+
   it('loads each tab from its server-scoped page and supports Arrow, Home, and End keyboard navigation', async () => {
     apiGet.mockResolvedValue(response([]));
-    render(<MemoryRouter><RoleWorkInbox role="driver" title="Việc hôm nay" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="driver" title="Việc hôm nay" description="Mô tả" />);
     const first = await screen.findByRole('tab', { name: /Cần làm/ });
     first.focus();
     fireEvent.keyDown(first, { key: 'ArrowRight' });
@@ -167,7 +193,7 @@ describe('RoleWorkInbox', () => {
 
   it('paginates a state instead of silently hiding work beyond the first 100 rows', async () => {
     apiGet.mockResolvedValueOnce({ ...response([operationsItem]), total: 101, totalPages: 2 }).mockResolvedValueOnce({ ...response([]), page: 2, total: 101, totalPages: 2 });
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     await screen.findByText('SHP-14');
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/forwarder/me/work-inbox?view=ACTION&page=2&limit=100'));
@@ -177,7 +203,7 @@ describe('RoleWorkInbox', () => {
     const preTrip = { ...operationsItem, id: 'shipment:14:pretrip', entityType: 'shipment_order_exchange', entityId: 14, tripId: null, targetRoute: '/my-orders', nextAction: { label: 'Bắt đầu đổi lệnh', targetRoute: '/my-orders' }, orderExchangeState: 'PENDING', paperOrderState: 'PENDING' };
     apiGet.mockResolvedValue(response([preTrip]));
     apiPost.mockResolvedValue({ version: 6 });
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu đổi lệnh' }));
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/forwarder/me/shipments/14/order-exchange/start', { expectedVersion: 5 }, expect.objectContaining({ idempotencyKey: expect.any(String) })));
     expect(await screen.findByText('Máy chủ đã xác nhận bắt đầu đổi lệnh.')).toBeTruthy();
@@ -190,7 +216,7 @@ describe('RoleWorkInbox', () => {
       if (path.includes('view=WAITING')) resolveWaiting = resolve;
       else resolveAction = resolve;
     }));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     fireEvent.click(screen.getByRole('tab', { name: /Đang chờ/ }));
     const waitingItem = { ...operationsItem, id: 'shipment:15:trip:42', title: 'SHP-WAITING', state: 'WAITING' };
     await act(async () => { resolveWaiting(response([waitingItem])); });
@@ -200,13 +226,13 @@ describe('RoleWorkInbox', () => {
     expect(screen.queryByText('SHP-14')).toBeNull();
   });
 
-  it('does not loop role-level replay after a persistent network failure', async () => {
+  it('shows an error message when a network failure occurs during order exchange', async () => {
     const preTrip = { ...operationsItem, id: 'shipment:14:pretrip', entityType: 'shipment_order_exchange', entityId: 14, tripId: null, targetRoute: '/my-orders', nextAction: { label: 'Bắt đầu đổi lệnh', targetRoute: '/my-orders' }, orderExchangeState: 'PENDING', paperOrderState: 'PENDING' };
     apiGet.mockResolvedValue(response([preTrip]));
     apiPost.mockRejectedValue(new TypeError('offline'));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu đổi lệnh' }));
-    await screen.findByText('Đã lưu lệnh ngoại tuyến; chưa được xem là hoàn tất.');
+    await screen.findByText('Mất kết nối. Vui lòng thử lại.');
   });
 
   // P0-W5: the cross-branch workflow gate. Each row now carries a "Mốc nghiệp
@@ -216,7 +242,7 @@ describe('RoleWorkInbox', () => {
   // row is the proof that dispatch already happened.
   it('renders the cross-branch gate for the operations role (Đã phân xe ✓ + Đã đổi lệnh ✓)', async () => {
     apiGet.mockResolvedValue(response([operationsItem])); // operationsItem: paperOrderState IN_PROGRESS, orderExchangeState COMPLETED
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     const table = await screen.findByRole('table');
     const gateCells = within(table).getAllByRole('list', { name: /Mốc nghiệp vụ/ });
     expect(gateCells.length).toBeGreaterThan(0);
@@ -231,7 +257,7 @@ describe('RoleWorkInbox', () => {
   it('flags the dispatch branch as pending when the lô has no plate yet (ops view)', async () => {
     const unassigned = { ...operationsItem, id: 'shipment:99', driverName: null, truckPlate: null };
     apiGet.mockResolvedValue(response([unassigned]));
-    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     const table = await screen.findByRole('table');
     const gateList = within(table).getAllByRole('list', { name: /Mốc nghiệp vụ/ })[0];
     const dispatchItem = within(gateList).getAllByRole('listitem')[0];
@@ -241,7 +267,7 @@ describe('RoleWorkInbox', () => {
 
   it('hides the cross-branch gate column for the customer role (not relevant to their workflow)', async () => {
     apiGet.mockResolvedValue(response([customerItem]));
-    render(<MemoryRouter><RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} />);
     const table = await screen.findByRole('table');
     expect(within(table).queryByRole('list', { name: /Mốc nghiệp vụ/ })).toBeNull();
   });
@@ -251,7 +277,7 @@ describe('RoleWorkInbox', () => {
       { ...customerItem, id: 'shipment:21', entityId: 21, title: 'SHP-21', shipmentId: 21, state: 'WAITING', deliveryTruth: 'NO_REPORT', subtitle: 'Đang theo dõi', nextAction: null, deliveryResponseRequired: false },
       { ...customerItem, id: 'shipment:22', entityId: 22, title: 'SHP-22', shipmentId: 22, state: 'WAITING', deliveryTruth: 'IN_TRANSIT', subtitle: 'Đang theo dõi', nextAction: null, deliveryResponseRequired: false },
     ]));
-    render(<MemoryRouter><RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} /></MemoryRouter>);
+    renderInbox(<RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} />);
 
     // The tablist tuple reads neutral: the active-work bucket is no longer
     // labeled "Đang vận chuyển". (Tab names carry a count span — regex.)

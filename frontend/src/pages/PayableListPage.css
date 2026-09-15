@@ -65,7 +65,7 @@
 }
 .aging-card__label strong {
   font-family: var(--font-data);
-  font-size: var(--fs-sm, 13px);
+  font-size: var(--text-body-size);
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -73,7 +73,7 @@
   color: var(--ink-1, #1F2937);
 }
 .aging-card__label small {
-  font-size: 10px;
+  font-size: var(--text-label-size);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -96,7 +96,7 @@
 /* Currency unit / compact suffix rendered at subtitle size */
 .aging-card__unit {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--ink-3, #8B919B);
   white-space: nowrap;
@@ -177,7 +177,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: var(--fs-sm, 14px);
+  font-size: var(--control-field-font-size);
   line-height: 1.35;
   min-height: 32px;
   color: var(--ink, #0A0A0A);
@@ -201,7 +201,7 @@
   .payables-page .desktop-only { display: none !important; }
   .payables-page .mobile-only { display: block; }
   .payables-page .m-card { padding: 12px 14px; }
-  .payables-page .m-card__title { font-size: 14px; }
+  .payables-page .m-card__title { font-size: var(--text-body-size); }
   .payables-page .m-card-list { gap: 8px; }
 }
 
@@ -337,7 +337,7 @@
   border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
   background: var(--surface-2, #fff);
   color: var(--fg-2, #475569);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
   line-height: 1.35;
   min-height: var(--filter-control-h);
@@ -383,14 +383,14 @@
 
 .commission-form .field label {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--text-label-size);
   font-weight: 700;
   line-height: 1.25;
 }
 
 .commission-form .input {
   height: var(--control-default-h);
-  font-size: var(--fs-sm);
+  font-size: var(--control-field-font-size);
 }
 
 .commission-form__error {
@@ -399,7 +399,7 @@
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
 }
 
 .commission-form .req {
@@ -414,7 +414,7 @@
 
   .commission-form .input {
     height: 46px;
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
 }
 
@@ -425,4 +425,55 @@
     gap: 6px;
     flex-wrap: wrap;
   }
+}
+
+.payables-fuel-secondary {
+  margin: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* One comparison rail above a flat record surface; keep data visible without
+   repeated decorative cards around cards. */
+.payables-aging-grid {
+  gap: 0;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+}
+.payables-aging-grid > .aging-card {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-inline-end: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  transform: none;
+  gap: 4px;
+}
+.payables-aging-grid > .aging-card:last-child { border-inline-end: 0; }
+.payables-aging-grid > .aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }
+.payables-aging-grid .aging-card__value { font-size: var(--text-metric-size); flex-wrap: wrap; overflow-wrap: anywhere; }
+.payables-aging-grid .aging-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.payables-data-card { border: 0; border-radius: 0; background: transparent; backdrop-filter: none; box-shadow: none; padding: 0; }
+@media (max-width: 1023px) {
+  .payables-aging-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .payables-aging-grid > .aging-card:nth-child(2) { border-inline-end: 0; }
+  .payables-aging-grid > .aging-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .payables-aging-grid > .aging-card { padding: 8px; }
+  .payables-aging-grid .aging-card__value { font-size: var(--text-metric-size); }
+  .payables-data-card { padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .payables-aging-grid *, .payables-aging-grid > .aging-card { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .payables-page .page-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .payables-page .page-actions > :only-child { grid-column: 1 / -1; }
+  .payables-page .m-card { padding: 10px 8px; }
+  .payables-page .m-card__meta { margin-bottom: 0; }
 }

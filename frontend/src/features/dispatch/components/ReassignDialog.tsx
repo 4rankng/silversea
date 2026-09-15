@@ -27,14 +27,14 @@ export function ReassignDialog({
         <button
           type="button"
           onClick={() => setReassignState(s => ({ ...s, carrierType: 'OWN' }))}
-          style={{ flex: 1, padding: '4px', fontSize: 12, borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'OWN' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'OWN' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'OWN' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'OWN' ? 'var(--brand-dark)' : 'var(--text-2)' }}
         >
           Xe nhà
         </button>
         <button
           type="button"
           onClick={() => setReassignState(s => ({ ...s, carrierType: 'EXTERNAL' }))}
-          style={{ flex: 1, padding: '4px', fontSize: 12, borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-dark)' : 'var(--text-2)' }}
         >
           Xe ngoài
         </button>
@@ -103,7 +103,7 @@ export function ReassignDialog({
               value={reassignState.externalPlateNumber} 
               onChange={(e) => setReassignState(s => ({ ...s, externalPlateNumber: e.target.value }))}
               disabled={reassignState.loading}
-              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
+              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 'var(--control-field-font-size)' }}
             />
           </div>
           <div className="row">
@@ -113,7 +113,7 @@ export function ReassignDialog({
               value={reassignState.externalDriverName} 
               onChange={(e) => setReassignState(s => ({ ...s, externalDriverName: e.target.value }))}
               disabled={reassignState.loading}
-              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
+              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 'var(--control-field-font-size)' }}
             />
             <input 
               type="text" 
@@ -121,7 +121,7 @@ export function ReassignDialog({
               value={reassignState.externalDriverPhone} 
               onChange={(e) => setReassignState(s => ({ ...s, externalDriverPhone: e.target.value }))}
               disabled={reassignState.loading}
-              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
+              style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 'var(--control-field-font-size)' }}
             />
           </div>
         </>

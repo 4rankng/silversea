@@ -5,6 +5,7 @@ import {
   ShieldCheck, KeyRound, Loader2, Save, User, Eye, EyeOff,
   Mail, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
+import { isValidOptionalEmail } from '../../../lib/optional-email';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
@@ -78,7 +79,7 @@ export function EditPanel({
   // Validation
   const nameValid = fullName.trim().length > 0;
   const usernameValid = username.trim().length > 0;
-  const emailError = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailError = !isValidOptionalEmail(email);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const customerScopeRequired = role === Role.CUSTOMER && status !== 'INACTIVE';
@@ -116,7 +117,7 @@ export function EditPanel({
   const handleSubmit = async () => {
     // Field validation with visible labels first — invalid email/password
     // never reaches the server, so no English schema banner can appear.
-    const nextEmailMsg = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    const nextEmailMsg = !isValidOptionalEmail(email)
       ? 'Email chưa đúng định dạng (ví dụ nva@cty.vn)' : null;
     const nextPwMsg = password.length > 0 && password.length < 6
       ? 'Mật khẩu mới phải có tối thiểu 6 ký tự' : null;
@@ -126,7 +127,7 @@ export function EditPanel({
     if (nextPwMsg != null) { pwInputRef.current?.focus(); return; }
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
-    const payload: EditData = { fullName, username, email, phone, employeeCode, role, status, password };
+    const payload: EditData = { fullName, username, email: email.trim(), phone, employeeCode, role, status, password };
     if (role === Role.DRIVER) {
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
@@ -224,7 +225,7 @@ export function EditPanel({
             />
           </FormGroup>
           {emailMsg && (
-            <p id="user-email-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="user-email-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
               {emailMsg}
             </p>
           )}
@@ -376,7 +377,7 @@ export function EditPanel({
             />
           </FormGroup>
           {pwMsg && (
-            <p id="user-pw-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="user-pw-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
               {pwMsg}
             </p>
           )}

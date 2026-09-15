@@ -10,17 +10,17 @@
 .accounting-work-inbox__shortcuts a,
 .accounting-work-inbox__action,
 .accounting-work-inbox__state button,
-.accounting-work-inbox__pagination button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-compact-h, 34px); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-1); font-size: 12px; font-weight: 700; text-decoration: none; }
+.accounting-work-inbox__pagination button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-compact-h, 34px); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-1); font-size: var(--text-caption-size); font-weight: 700; text-decoration: none; }
 .accounting-work-inbox__shortcuts a:first-child,
 .accounting-work-inbox__action { border-color: var(--brand); color: var(--brand); }
-.accounting-work-inbox__batch-note { margin: -3px 0 2px; color: var(--fg-3); font-size: 12px; }
+.accounting-work-inbox__batch-note { margin: -3px 0 2px; color: var(--fg-3); font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane { min-width: 0; overflow: hidden; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
 .accounting-work-inbox__lane > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border-1); }
-.accounting-work-inbox__lane > header h2 { margin: 0; color: var(--fg-1); font-size: 15px; }
-.accounting-work-inbox__lane > header h2 span { display: inline-flex; min-width: 20px; justify-content: center; margin-left: 4px; border-radius: 999px; background: var(--bg-3); padding: 2px 6px; font-size: 11px; }
-.accounting-work-inbox__lane > header p { margin: 3px 0 0; color: var(--fg-3); font-size: 12px; }
+.accounting-work-inbox__lane > header h2 { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); }
+.accounting-work-inbox__lane > header h2 span { display: inline-flex; min-width: 20px; justify-content: center; margin-left: 4px; border-radius: 999px; background: var(--bg-3); padding: 2px 6px; font-size: var(--text-caption-size); }
+.accounting-work-inbox__lane > header p { margin: 3px 0 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane > header button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-2); }
-.accounting-work-inbox__notice { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-bottom: 1px solid var(--border-1); color: var(--warning-text, #785000); font-size: 12px; }
+.accounting-work-inbox__notice { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-bottom: 1px solid var(--border-1); color: var(--warning-text, #785000); font-size: var(--text-caption-size); }
 
 /* Cell content — the record-table base owns the grid, this styles payloads. */
 .accounting-work-inbox td > strong { display: block; color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); }
@@ -46,7 +46,7 @@
 .accounting-work-inbox__clear { color: var(--success); font-weight: 700; }
 .accounting-work-inbox__state { display: flex; min-height: 92px; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: var(--fg-3); }
 .accounting-work-inbox__state.is-error { color: var(--danger); }
-.accounting-work-inbox__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: 12px; }
+.accounting-work-inbox__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); }
 .accounting-work-inbox__pagination button:disabled { opacity: .45; }
 
 @media (max-width: 640px) {
@@ -58,4 +58,29 @@
   .accounting-work-inbox__lane > header { align-items: start; padding: 12px; }
   .accounting-work-inbox__lane > header button { width: 32px; height: 32px; }
   .accounting-work-inbox__action { width: 100%; }
+}
+
+/* A lane already groups its records; keep the inner table and record rows flat. */
+.accounting-work-inbox__lane .record-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+@container (max-width: 1100px) {
+  .accounting-work-inbox__lane .record-table tbody tr:not(:has(td[colspan])) {
+    border-inline: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (max-width: 640px) {
+  .accounting-work-inbox__lane { border-inline: 0; border-radius: 0; }
+  .accounting-work-inbox__lane > header { padding: 10px 8px; }
+  .accounting-work-inbox__lane > header button { min-width: 44px; min-height: 44px; }
+}
+
+/* QA-101: an empty lane is a compact status row (count + refresh live in
+   the lane header) so the first nonempty queue leads the page instead of
+   a tall centered empty panel pushing records below the fold. */
+.accounting-work-inbox__state.is-empty {
+  min-height: 0;
+  padding: 8px 14px;
+  justify-content: flex-start;
+  font-size: var(--text-caption-size);
 }

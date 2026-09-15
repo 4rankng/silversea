@@ -79,7 +79,7 @@ export async function assembleDisbursementsForPeriod(
 
   for (const e of expenses) {
     const desc = `${e.expenseType} — chuyến ${e.tripCode ?? e.tripId}`;
-    if (e.approvalStatus === 'APPROVED') {
+    if (['RECORDED', 'APPROVED'].includes(e.approvalStatus)) {
       approved.push({
         id: e.id, tripId: e.tripId, tripCode: e.tripCode,
         expenseType: e.expenseType, buyAmount: e.buyAmount,

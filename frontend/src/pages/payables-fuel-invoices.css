@@ -47,7 +47,7 @@
 }
 
 .fuel-invoice-metric__label {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   color: var(--ink-3, #8b919b);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -56,7 +56,7 @@
 }
 
 .fuel-invoice-metric__value {
-  font-size: 18px;
+  font-size: var(--text-metric-size);
   font-weight: 700;
   color: var(--fg-1);
 }
@@ -111,7 +111,7 @@
 
 .fuel-invoice-cell-subtitle {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--ink-3, #8b919b);
 }
 
@@ -125,7 +125,7 @@
   gap: 6px;
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
 }
 
@@ -176,7 +176,7 @@
 
 .fuel-invoice-detail__hero h3 {
   margin: 6px 0 4px;
-  font-size: 24px;
+  font-size: var(--text-metric-size);
 }
 
 .fuel-invoice-detail__hero p,
@@ -185,7 +185,7 @@
 }
 
 .fuel-invoice-detail__eyebrow {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   color: var(--ink-3, #8b919b);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -229,7 +229,7 @@
   display: block;
   margin-top: 4px;
   color: var(--ink-3, #8b919b);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .fuel-invoice-allocation-card__amount {
@@ -241,7 +241,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 16px;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--fg-2);
 }
 
@@ -289,7 +289,7 @@
   border-radius: 12px;
   background: var(--bg-1, #f7f8fa);
   color: var(--fg-2);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
 }
 
@@ -350,7 +350,7 @@
   border-radius: 12px;
   background: var(--bg-1, #f7f8fa);
   color: var(--fg-2);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .fuel-invoice-editor__row-note {
@@ -390,20 +390,20 @@
   display: block;
   margin-top: 4px;
   color: var(--ink-3, #8b919b);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .fuel-invoice-mobile-card__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .fuel-invoice-mobile-card__warning {
   margin-top: 12px;
   color: var(--danger, #e32434);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -465,4 +465,46 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* On phones, one divided metric band leaves room for invoice records. */
+@media (max-width: 640px) {
+  .fuel-invoices-panel__summary,
+  .fuel-invoice-detail__metrics,
+  .fuel-invoice-editor__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    border-block: 1px solid var(--line);
+    margin-block: 10px;
+  }
+  .fuel-invoice-metric {
+    min-width: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .fuel-invoice-metric > div { min-width: 0; }
+  .fuel-invoice-metric:nth-child(even) { border-inline-start: 1px solid var(--line); }
+  .fuel-invoice-metric:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .fuel-invoice-metric:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .fuel-invoice-metric__icon { display: none; }
+  .fuel-invoice-metric__label { font-size: var(--text-label-size); letter-spacing: 0; text-transform: none; margin-bottom: 3px; }
+  .fuel-invoice-metric__value { font-size: var(--fs-md); overflow-wrap: anywhere; }
+  .fuel-invoice-metric--warn .fuel-invoice-metric__value { color: var(--warning-text); }
+  .fuel-invoice-metric--danger .fuel-invoice-metric__value { color: var(--danger-text); }
+  .fuel-invoice-metric--success .fuel-invoice-metric__value { color: var(--success-text); }
+  .fuel-invoice-allocation-card,
+  .fuel-invoice-editor__row {
+    padding: 10px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .fuel-invoice-allocation-list { gap: 0; }
+  .fuel-invoice-editor__row + .fuel-invoice-editor__row { margin-top: 0; }
+  .fuel-invoice-allocation-card__head,
+  .fuel-invoice-editor__row-head { margin-bottom: 8px; gap: 6px; }
+  .fuel-invoice-editor__row-meta { padding: 8px 0; border-radius: 0; background: transparent; }
 }

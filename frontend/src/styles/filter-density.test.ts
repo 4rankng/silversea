@@ -10,8 +10,7 @@ describe('global filter density contract', () => {
 
     expect(tokens).toContain('--filter-control-h: var(--control-compact-h);');
     expect(tokens).toContain('--filter-control-font-size: var(--control-compact-font-size);');
-    // Compact mobile contract (ticket 6770b9cb): phones use the 32px/11px
-    // scale instead of the old 44px touch override.
+    // Compact geometry is independent of the shared text roles.
     expect(tokens).toMatch(/@media \(max-width: 640px\)[\s\S]*--filter-control-h: var\(--control-mobile-h\);/);
   });
 
@@ -22,7 +21,10 @@ describe('global filter density contract', () => {
     const debt = read('src/pages/DebtListPage.css');
     const tripList = read('src/pages/trip-list/filters.css');
 
-    for (const stylesheet of [filterBar, accounting, expense, debt, tripList]) {
+    expect(filterBar).toContain('var(--filter-control-h)');
+    expect(filterBar).toContain('var(--control-field-font-size)');
+    expect(filterBar).toContain('var(--text-control-compact-size)');
+    for (const stylesheet of [accounting, expense, debt, tripList]) {
       expect(stylesheet).toContain('var(--filter-control-h)');
       expect(stylesheet).toContain('var(--filter-control-font-size)');
     }

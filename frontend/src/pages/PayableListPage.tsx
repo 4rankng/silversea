@@ -1,3 +1,4 @@
+import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
@@ -147,7 +148,7 @@ export function CommissionModal({
         )}
         <UuiSelectField
           id="commission-supplier"
-          label="Nhà cung cấp *"
+          label="Nhà cung cấp"
           required
           value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
           onChange={e => setForm(f => ({ ...f, supplierId: e.target.value === '' ? '' : Number(e.target.value) }))}
@@ -246,6 +247,8 @@ export default function PayableListPage() {
 
   /* ── Commission modal ── */
   const [commissionOpen, setCommissionOpen] = useState(false);
+  // Fuel-invoice capture/lookup is secondary here: debt lookup leads.
+  const [fuelOpen, setFuelOpen] = useState(false);
   const postCommission = usePostCommission();
   const commissionError = postCommission.error
     ? (postCommission.error as Error).message
@@ -280,7 +283,7 @@ export default function PayableListPage() {
   // set; headline numbers (totalOutstanding/totalSuppliers/overdueSuppliers)
   // are always full-set.
   const serverTotals = data?.totals;
-  const totals = {
+  const totals = useMemo(() => ({
     total: apiTotal ? parseFloat(apiTotal) : 0,
     current: serverTotals?.current ?? 0,
     d30: serverTotals?.d30 ?? 0,
@@ -292,7 +295,7 @@ export default function PayableListPage() {
     over90Count: serverTotals?.over90Count ?? 0,
     supplierCount: apiSupplierCount,
     overdueCount: apiOverdueCount,
-  };
+  }), [apiTotal, serverTotals, apiSupplierCount, apiOverdueCount]);
 
   // Search + pagination happen server-side; rows render the current window.
   const effectivePage = Math.min(page, data?.totalPages ?? 1);
@@ -383,8 +386,6 @@ export default function PayableListPage() {
         }
       />
 
-      <FuelInvoicesPanel />
-
       {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
       <SummaryRail
         ariaLabel="Tóm tắt công nợ phải trả"
@@ -395,7 +396,7 @@ export default function PayableListPage() {
         ]}
       />
 
-      {/* ── Zone 2: Aging Distribution (semantic O2C state lanes per P0-W6) ── */}
+      <AgingDisclosure label="Tuổi nợ nhà cung cấp · mở chi tiết">
       <div className="payables-aging-grid">
         {/* Trong hạn (0–30) */}
         <div className="aging-card aging-card--ok">
@@ -469,6 +470,7 @@ export default function PayableListPage() {
           </div>
         </div>
       </div>
+      </AgingDisclosure>
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">
@@ -538,7 +540,7 @@ export default function PayableListPage() {
                       <ClickableCard key={`${d.kind ?? 'vendor'}-${d.supplier.id}`} to={rowHref(d)} className="m-card">
                         <div className="m-card__top">
                           <span className="m-card__title">{d.supplier.name}</span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 13.5 }}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -556,7 +558,7 @@ export default function PayableListPage() {
                             {d.maxOverdueDays > 0 && (
                               <div className="m-card__row">
                                 <span className="m-card__row-label">Quá hạn lớn nhất</span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>
@@ -598,7 +600,7 @@ export default function PayableListPage() {
                           <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, color: 'var(--fg-1)' }}>
                             {d.supplier.name}
                           </div>
-                          <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>
+                          <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>
                             {d.supplier.phone || '—'}
                           </div>
                         </td>
@@ -608,16 +610,16 @@ export default function PayableListPage() {
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>
-                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 13, color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
+                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
                           {d.aging.current > 0 ? formatCurrency(d.aging.current) : '—'}
                         </td>
-                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 13, color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 13, color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
+                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
                           {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
                         </td>
-                        <td data-label=">90 ngày" className="num" style={{ fontSize: 13, color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
+                        <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
                           {d.aging.over90 > 0 ? formatCurrency(d.aging.over90) : '—'}
                         </td>
                         <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>
@@ -643,6 +645,20 @@ export default function PayableListPage() {
             </div>
           </>
         )}
+      </div>
+
+      {/* ── Fuel invoices: secondary capture/lookup, collapsed by default so
+          debt totals, search and the payable queue lead the initial view ── */}
+      <div className="payables-fuel-secondary">
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          aria-expanded={fuelOpen}
+          onClick={() => setFuelOpen((o) => !o)}
+        >
+          Hóa đơn nhiên liệu nhiều xe {fuelOpen ? '— ẩn' : '— mở'}
+        </button>
+        {fuelOpen && <FuelInvoicesPanel />}
       </div>
 
       {/* ── Commission posting modal ── */}

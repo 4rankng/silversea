@@ -1,17 +1,18 @@
-import { useEffect, useRef } from 'react';
-import { animate, stagger, createScope, utils } from 'animejs';
+import { useLayoutEffect, useRef } from 'react';
+import { animate, createScope } from 'animejs';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
+import { entranceDelay, visibleEntranceTargets } from './operational-entrance';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
 export interface UsePageAnimationsOptions {
   /** Enable staggered entrance (default: true) */
   stagger?: boolean;
-  /** Stagger delay in ms (default: 60) */
+  /** Stagger delay in ms (default: 20); total delay is bounded to 80ms. */
   staggerDelay?: number;
-  /** Base delay before first animation (default: 50) */
+  /** Base delay before first animation (default: 0) */
   startDelay?: number;
-  /** Element selectors to animate with fadeUp, in phase order */
+  /** Element selectors for independent section entrances */
   selectors?: string[];
   /** Data is loaded and ready to animate */
   ready: boolean;
@@ -31,10 +32,8 @@ const DEFAULT_SELECTORS = [
 /* ─── Hook ───────────────────────────────────────────────────────────────── */
 
 /**
- * Generic page entrance animation — fadeUp with optional stagger for sections.
- *
- * Animates page sections (header, KPIs, panels, tables) with a fadeUp
- * entrance (opacity 0→1, translateY 12→0) in staggered phases.
+ * Brief entrance for independent visible sections. Nested panels and sticky
+ * tables must not receive compounded movement or persistent compositor layers.
  *
  * Follows the Vantai design philosophy: subtle, "barely visible" motion.
  * Respects prefers-reduced-motion.
@@ -45,8 +44,8 @@ const DEFAULT_SELECTORS = [
  */
 export function usePageAnimations({
   stagger: useStagger = true,
-  staggerDelay = 60,
-  startDelay = 50,
+  staggerDelay = 20,
+  startDelay = 0,
   selectors = DEFAULT_SELECTORS,
   ready,
 }: UsePageAnimationsOptions) {
@@ -55,7 +54,7 @@ export function usePageAnimations({
   const hasAnimated = useRef(false);
   const prefersReduced = usePrefersReducedMotion();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ready || hasAnimated.current) return;
 
     const root = rootRef.current;
@@ -64,50 +63,15 @@ export function usePageAnimations({
     hasAnimated.current = true;
 
     const scope = createScope({ root }).add(() => {
-      // Collect all existing elements matching selectors
-      const phaseElements: Element[] = [];
-      selectors.forEach((sel) => {
-        const els = root.querySelectorAll(sel);
-        els.forEach((el) => phaseElements.push(el));
+      if (prefersReduced) return;
+      const elements = visibleEntranceTargets(selectors.flatMap(selector => [...root.querySelectorAll(selector)]));
+      if (!elements.length) return;
+      animate(elements, {
+        opacity: [0.7, 1],
+        delay: (_element: unknown, index: number) => entranceDelay(useStagger ? index : 0, staggerDelay, startDelay),
+        duration: 160,
+        ease: 'out(2)',
       });
-
-      if (phaseElements.length === 0) {
-        // Fallback: just fade the root
-        utils.set(root, { opacity: 1 });
-        return;
-      }
-
-      if (prefersReduced) {
-        utils.set(phaseElements, { opacity: 1, translateY: 0, scale: 1 });
-        return;
-      }
-
-      // Set initial hidden state
-      utils.set(phaseElements, {
-        opacity: 0,
-        translateY: 12,
-        willChange: 'opacity, transform',
-      });
-
-      if (useStagger) {
-        // Staggered entrance: all matched elements animate in sequence
-        animate(phaseElements, {
-          opacity: [0, 1],
-          translateY: [12, 0],
-          delay: stagger(staggerDelay, { start: startDelay }),
-          duration: 450,
-          ease: 'out(3)',
-        });
-      } else {
-        // Single-phase entrance: all at once with slight delay
-        animate(phaseElements, {
-          opacity: [0, 1],
-          translateY: [12, 0],
-          delay: startDelay,
-          duration: 450,
-          ease: 'out(3)',
-        });
-      }
     });
 
     scopeRef.current = scope;

@@ -14,7 +14,6 @@ import {
   isGovernedCompanyExpenseMutation,
   requestCompanyExpenseGovernance,
   submitExpense,
-  reviewExpense,
   getExpensePhotoList,
   EXPENSE_LIST_SORT_KEYS,
 } from '../services/expense.service';
@@ -28,8 +27,6 @@ import * as s from '../db/schema';
 import { storageService } from '../services/storage.service';
 import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
-import { requireRoles } from '../middleware/casbin';
-import { Role } from '@tingting/shared';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { ApiError } from '../errors';
 import { throwValidation } from '../lib/validation';
@@ -222,10 +219,9 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = requireIdempotencyKey(req);
   const validatedData = expenseSchema.parse(req.body);
   const actor = getUser(req);
-  const reason = governanceReasonSchema.parse(req.body).reason;
+  const reason = z.string().trim().max(1000).optional().parse(req.body.reason) ?? '';
   const input = { ...validatedData, amount: String(validatedData.amount) };
-  // Dual-control: submission parks the expense as PENDING with NO ledger
-  // entry — nothing posts until a checker and a different approver review.
+  // Record expense and supplier debt atomically with the authenticated actor.
   const { result, replayed } = await runIdempotent({
     endpoint: 'expenses.submit',
     idempotencyKey,
@@ -241,36 +237,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-// ─── Dual-control review: a checker first, then a DIFFERENT approver ────────
-
-router.post('/:id/check', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const expense = await reviewExpense({ expenseId: id, action: 'CHECK', actorId: actor.userId, actorRole: actor.role });
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
-
-router.post('/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const expense = await reviewExpense({ expenseId: id, action: 'APPROVE', actorId: actor.userId, actorRole: actor.role });
-  await invalidateExpenseCreateReports(false);
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
-
-router.post('/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
-  const expense = await reviewExpense({ expenseId: id, action: 'REJECT', actorId: actor.userId, actorRole: actor.role, reason });
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
+// KP-150: check/approve/reject endpoints removed — expenses post directly.
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);
@@ -288,10 +255,8 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   if (!existing) {
     return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
   }
-  if (existing.approvalStatus === 'PENDING' || existing.approvalStatus === 'CHECKED') {
-    return res.status(409).json({ error: 'Chi phí đang chờ duyệt — hoàn tất kiểm tra/phê duyệt trước khi chỉnh sửa.' });
-  }
-  if (isGovernedCompanyExpenseMutation(existing, serviceData)) {
+
+  if (isGovernedCompanyExpenseMutation(existing, serviceData) || ['DRAFT', 'PENDING', 'CHECKED'].includes(existing.approvalStatus)) {
     const reason = governanceReasonSchema.parse(req.body).reason;
     const { result, replayed } = await runIdempotent({
       endpoint: 'expenses.governed-update',

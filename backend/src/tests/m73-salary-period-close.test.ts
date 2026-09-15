@@ -47,6 +47,8 @@ const createdLedgerIds: number[] = [];
 const createdExclusionIds: number[] = [];
 const createdAdjustmentIds: number[] = [];
 const createdClosePeriods = new Set<string>();
+let fixturePayrollUnitId = 0;
+let savedPayrollUnitValue: string | null = null;
 let testCatalogs: {
   customer: { id: number };
   route: { id: number };
@@ -64,7 +66,30 @@ async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER' | 'DRIVER', tag: 
   return user;
 }
 
+async function ensureFixturePayrollUnit() {
+  if (fixturePayrollUnitId > 0) return;
+  // Hermetic payroll-unit scope: the readiness driver query scopes to the
+  // unit configured in app_settings — pin the setting to a fixture unit and
+  // link every fixture driver's user to it, whatever the shared dev DB held.
+  const [prior] = await db.select()
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'))
+    .limit(1);
+  savedPayrollUnitValue = prior?.value ?? null;
+  const [unit] = await db.insert(s.businessUnits).values({
+    code: `M73-${suffix.slice(-6).toUpperCase()}`,
+    name: `M73 payroll unit ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  fixturePayrollUnitId = unit.id;
+  await db.update(s.appSettings).set({
+    value: String(unit.id),
+    updatedAt: new Date(),
+  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+}
+
 async function mkDriver(tag: string) {
+  await ensureFixturePayrollUnit();
   const user = await mkUser('DRIVER', tag);
   const [driver] = await db.insert(s.drivers).values({
     name: `M73 driver ${tag} ${suffix}`,
@@ -73,6 +98,10 @@ async function mkDriver(tag: string) {
     baseSalary: '12000000',
   }).returning();
   createdDriverIds.push(driver.id);
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: user.id,
+    businessUnitId: fixturePayrollUnitId,
+  });
   return driver;
 }
 
@@ -137,6 +166,19 @@ async function postDriverSalary(tripId: number, driverId: number, amount: number
 }
 
 after(async () => {
+  try {
+    if (fixturePayrollUnitId > 0 && savedPayrollUnitValue !== null) {
+      await db.update(s.appSettings).set({
+        value: savedPayrollUnitValue,
+        updatedAt: new Date(),
+      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      await db.delete(s.userBusinessUnitLinks)
+        .where(eq(s.userBusinessUnitLinks.businessUnitId, fixturePayrollUnitId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixturePayrollUnitId));
+    }
+  } catch (unitCleanupError) {
+    console.warn('[m73] payroll-unit cleanup skipped:', (unitCleanupError as Error).message);
+  }
   try {
     if (createdExclusionIds.length > 0) {
       await db.delete(s.salaryPeriodExclusions).where(inArray(s.salaryPeriodExclusions.id, createdExclusionIds));
@@ -301,7 +343,9 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
   });
   createdClosePeriods.add(PERIOD);
   assert.equal(closed.status, 'CLOSED');
-  assert.equal(closed.scope, 'COMPANY');
+  // The suite pins the payroll unit in app_settings, so the close runs in
+  // BUSINESS_UNIT scope (COMPANY only when no unit is configured).
+  assert.equal(closed.scope, 'BUSINESS_UNIT');
   assert.equal(closed.periodTotalSalary, 7_200_000, 'salary close sums by trip completion period, not departure date');
   assert.equal(closed.excludedDriverIds?.includes(excludedDriver.id), true);
 
@@ -410,7 +454,7 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
 test('Q10 adjustment-mode exclusions stay completable after the approved adjustment exists', async () => {
   const admin = await mkUser('ADMIN', 'adj-admin');
   const accountant = await mkUser('ACCOUNTANT', 'adj-acct');
-  const manager = await mkUser('MANAGER', 'adj-mgr');
+  await mkUser('MANAGER', 'adj-mgr');
   const driver = await mkDriver('adj-driver');
   const sourcePeriod = `${periodYear + 2}-03`;
   const sourceDay = `${sourcePeriod}-15`;

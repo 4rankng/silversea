@@ -22,7 +22,6 @@ import {
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
 import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePricingQueries';
-import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
 import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
@@ -44,10 +43,6 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canReviewPod = user?.role === Role.CUS;
-  const canCompleteShipment = user?.role === Role.ACCOUNTANT;
-  const canSeePodReview = canReviewPod || canCompleteShipment || user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
     && Boolean(user?.capabilities?.includes('shipments.write'));
@@ -128,7 +123,7 @@ export default function ShipmentDetailPage() {
     );
   }
 
-  const { shipment, containers, documents, declarations, statusHistory, podReviews } = data;
+  const { shipment, containers, documents, declarations, statusHistory } = data;
   const shipmentLabel = shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng';
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
@@ -194,12 +189,12 @@ export default function ShipmentDetailPage() {
             <div className="shipment-detail__field--wide"><dt>Ghi chú cho lái xe</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-2)', paddingTop: 16, display: 'grid', gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>Ghi nhận giá theo cấu hình hiện hành</strong>
+            <strong style={{ fontSize: 'var(--text-body-size)' }}>Ghi nhận giá theo cấu hình hiện hành</strong>
             <p style={{ margin: 0, color: shipment.pricingProjection?.readiness === 'READY' ? 'var(--fg-2)' : 'var(--warn, #b45309)' }}>
               {shipment.pricingProjection?.message ?? 'Chưa có dữ liệu giá dự kiến.'}
             </p>
             {shipment.pricingProjection?.freightFormula && (
-              <p style={{ margin: 0, color: 'var(--fg-3)', fontSize: 13 }}>
+              <p style={{ margin: 0, color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)' }}>
                 Công thức cước: {shipment.pricingProjection.freightFormula}
               </p>
             )}
@@ -221,19 +216,6 @@ export default function ShipmentDetailPage() {
             emptyLabel="Chưa phân nhà xe"
           />
         </section>
-
-        {canSeePodReview && (
-          <TripPodReviewPanel
-            shipmentId={shipment.id}
-            shipmentVersion={shipment.version}
-            shipmentStatus={shipment.status}
-            items={podReviews}
-            canReview={canReviewPod}
-            canComplete={canCompleteShipment}
-            canResolveCancellation={canResolveCancellation}
-            onChanged={fetchDetail}
-          />
-        )}
 
         {coordinationActive && (
           <ShipmentCoordinationPanel shipmentId={shipment.id} canWrite={canWriteCoordination} />

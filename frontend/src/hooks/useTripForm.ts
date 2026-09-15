@@ -10,6 +10,7 @@ import { useTripFormState } from './useTripFormState';
 import { useTripFormDispatch } from './useTripFormDispatch';
 import type { OcrSignal } from './useTripFormDispatch';
 import type { UploadingState, ContainerPhotoUploadResult } from './useTripFormPhotos';
+import type { SubmitOptions } from './use-trip-form-submit';
 
 export type { FuelMode } from '@tingting/shared';
 export type { FormLeg } from './useTripFormLegs';
@@ -141,7 +142,7 @@ export interface UseTripFormReturn {
   ocrResult: OcrSignal | null;
   error: string;
   setError: (v: string) => void;
-  handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
+  handleSubmit: (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined>;
 
   tripId?: number;
   tripStatus?: TripStatus;

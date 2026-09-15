@@ -31,7 +31,6 @@ import {
 import { addCalendarDays } from '../services/business-calendar.service';
 import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
-import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -263,24 +262,23 @@ async function mkTripArAdjustment(
 ) {
   const maker = await mkUser('ACCOUNTANT');
   await mkUser('MANAGER');
-  const approver = await mkUser('ADMIN');
+  await mkUser('ADMIN');
   const [trip] = await db.select({ version: s.trips.version })
     .from(s.trips)
     .where(and(eq(s.trips.id, tripId), eq(s.trips.customerId, customerId)))
     .limit(1);
   assert.ok(trip);
-  const approved = await autoApplyGovernanceAction({
-    make: () => createAdjustment({
-      tripId,
-      amount,
-      note: `M57 trip AR adjustment ${tripId}`,
-      signedAgreementRef: `M57-${suffix}-${tripId}`,
-      makerId: maker.id,
-      makerRole: Role.ACCOUNTANT,
-      expectedTripVersion: trip.version,
-    }),
-    actorId: approver.id,
-    actorRole: Role.ADMIN,
+  // KP-149/MC-4: createAdjustment self-applies in-request — wrapping it in
+  // another autoApplyGovernanceAction double-applies the version bump and
+  // trips the outer apply's stale guard.
+  const approved = await createAdjustment({
+    tripId,
+    amount,
+    note: `M57 trip AR adjustment ${tripId}`,
+    signedAgreementRef: `M57-${suffix}-${tripId}`,
+    makerId: maker.id,
+    makerRole: Role.ACCOUNTANT,
+    expectedTripVersion: trip.version,
   });
   assert.ok(approved.ledgerEntryId != null);
   const [entry] = await db.select().from(s.ledger)

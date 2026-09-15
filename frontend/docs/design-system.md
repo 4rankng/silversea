@@ -36,6 +36,17 @@ import {
 | `hooks/useTableQueryState.ts` | All-in-one state for paginated list pages |
 | `hooks/useSalaryPeriod.ts` | Re-export of the salary-period query |
 
+## Responsive navigation and overlays
+
+- The app shell uses 8px phone and 12px tablet outer insets, with safe-area protection. Each full-bleed driver screen owns its single inset; the shell does not add another layer.
+- Generic button defaults have low specificity. A shared control's explicit touch height and type hierarchy must survive the global responsive stylesheet.
+- Journey state switches use the shared `Tabs` primitive, including arrow/Home/End navigation and one keyboard tab stop. Related driver jobs share one enclosing boundary and row separators.
+- `DataTable` keeps its scrollable table on small screens unless a real `mobileRender` is provided. Interactive controls inside a row perform their own action without opening the row.
+- `Pagination` uses a bounded previous/page-entry/next control on a small canvas. Pages must not hide middle children or replace its responsive sizing.
+- Drawers and dialogs keep title and actions visible while their body scrolls. Safe-area spacing belongs to the overlay stylesheet at every viewport size, with compact phone padding.
+- The driver account menu is one flat, labelled dialog on phone/tablet, with a visible close action, trapped focus, internal scrolling, and focus return to its trigger. Desktop uses the sidebar menu.
+- Motion must respect reduced-motion preferences and must not delay the appearance or hit area of actions.
+
 ## When to add a primitive here
 
 Add a primitive to `design-system/` when:
@@ -91,8 +102,10 @@ override their height, internal padding, font size, or icon size. Choose the
 semantic `size` prop instead. This keeps legacy controls and Untitled UI inputs,
 selects, and buttons on the same rhythm across routes.
 
-Compact field typography is shared too: `sm` fields use 12px on desktop and
-14px at narrow widths, while retaining the 44px touch target. Page styles must
+Field typography is shared too: compact and ordinary fields use 12px for
+typed values, placeholders, selected values and options on every device.
+Field labels and supporting metadata use 11px. Density follows the PM
+reference of Moomoo, with clear action hierarchy informed by Grab. Page styles must
 not override that type scale with `font`, `font-size`, or `line-height`; correct
 the shared Untitled UI primitive when a compact field is inconsistent. Dense
 operational forms should choose `sm` as a complete semantic variant instead of
@@ -330,25 +343,39 @@ values, captions, and metadata step consistently WITHIN a card AND ACROSS
 sibling cards/pages. Randomly larger headings or shrunken values are a
 violation.
 
-Two reference scales:
+Use semantic roles from `styles/tokens.css`; sizes stay stable across device
+widths. This is the final PM decision of 14 September 2026 and supersedes the
+intermediate 13px compact / 14px default / 16px touch proposal in earlier QA
+reports. Those reports preserve historical evidence, not current sizing rules.
+Wrap or rearrange content instead of shrinking the same role on phones.
 
-```css
-/* Compact operational fields. */
-:root {
-  --control-compact-font-size: 12px;
-  --control-compact-line-height: 1.45;
-  --control-compact-touch-font-size: 14px;     /* narrow / coarse pointer */
-  --control-compact-touch-line-height: 1.4;
-}
+| Role | Token | Size |
+| --- | --- | ---: |
+| Caption, metadata | `--text-caption-size` | 11px |
+| Field label | `--text-label-size` | 11px |
+| Dense record value | `--text-data-size` | 12px |
+| Body, button and action label | `--text-body-size`, `--text-control-size` | 12px |
+| Compact desktop field | `--text-control-compact-size` | 12px |
+| Touch field value, selected text and options | `--text-input-touch-size` | 12px |
+| Section heading | `--text-section-size` | 14px |
+| Dialog / drawer heading | `--text-dialog-title-size` | 16px |
+| Page heading | `--text-title-size` | 18px |
+| Principal metric | `--text-metric-size` | 20px |
 
-/* Operational table body. */
-:root {
-  --ops-table-primary-size: 13.5px;
-  --ops-table-primary-weight: 600;
-  --ops-table-meta-size: 11.5px;
-  --ops-table-note-size: 12.5px;
-}
-```
+`--fs-*`, Untitled UI's utility theme and `--ops-table-*` resolve to this same
+scale. Table primary/supporting values are 12px; headers and metadata are 11px.
+Use weight, color and spacing for emphasis rather than fractional font sizes.
+Page headings use weight 700, sections and metrics 600, labels 500–600 and
+body text 400. Keep line heights around 1.3 for headings and 1.4–1.5 for text.
+
+Typed values, placeholders and selected values inherit the same control size.
+Dropdown menus keep option text aligned with their trigger's size variant.
+Do not apply a root-scoped miniature font rule to input, select or label
+descendants. The PM selected 12px primary text and 11px secondary text across device
+sizes. This replaces inconsistent 11px, 13px, 14px and 16px values within
+equivalent fields. Preserve browser pinch zoom; mobile Safari may zoom a
+focused field with text below 16px, so physical-device focus behavior remains
+an explicit verification item.
 
 Page styles must NOT override the type scale with `font`, `font-size`, or
 `line-height` on shared Untitled UI primitives. If a compact field is
@@ -372,7 +399,7 @@ all read as one product. The reference chrome:
   `border-radius: var(--r-sm)`, `--control-compact-font-size`.
 - **Card** — `border-radius: var(--app-radius-md)`, 1px `var(--line)` border,
   `var(--surface)` background, 8-10px gap between rows.
-- **Chip** — pill, 4px vertical / 8-10px horizontal padding, 11-12px font,
+- **Chip** — pill, 4px vertical / 8-10px horizontal padding, 11px font,
   neutral foreground, `--radius-xs` to `--r-sm` corner radius.
 - **Divider** — `1px solid var(--line)`, no decorative strokes.
 
@@ -440,3 +467,12 @@ Reference incident: `qa/2026-09-09_master-plan-600-900-notes-fix.log`
 (post-commit verification section). Pinned by future contract: any agent
 who commits a frontend fix while a wave is in flight MUST run the served-
 bundle check before responding "done" to the team.
+
+
+### Operational polish refinements (15 September 2026)
+
+- SummaryRail uses two columns through tablet widths and one horizontal strip on desktop. Values use the 14px section scale; long amounts wrap instead of clipping.
+- FormGroup owns a single 6px label/control gap. Do not add label margins inside it. Help and validation feedback must be linked to the actual control; custom field adapters forward standard aria-invalid and aria-describedby attributes.
+- Phone dialog fields share the 32px phone token across native input and select adapters. Multiline notes retain their own height; primary save/cancel actions retain their separate action sizing.
+- Operational page/list entrances are short fades for new, visible, independent surfaces: 160–180ms duration and at most 80ms delay. A poll or filter update must not hide records that are already being read. Respect reduced motion and avoid nested animation targets.
+- Empty states use a neutral, compact surface without a decorative inner card. Omit decorative record previews on phones; retain the message and recovery action.

@@ -211,8 +211,9 @@ appSettingsRouter.get(
   }),
 );
 
+// KP-147: request endpoint removed — policy applies immediately.
 appSettingsRouter.post(
-  '/financial-reporting/policy/requests',
+  '/financial-reporting/policy',
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const body = financialReportingPolicyRequestSchema.parse(req.body);
@@ -254,8 +255,9 @@ appSettingsRouter.get(
   }),
 );
 
+// KP-147: request endpoint removed — truck profiles apply immediately.
 appSettingsRouter.post(
-  '/financial-reporting/truck-profiles/requests',
+  '/financial-reporting/truck-profiles',
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const body = truckFinancialProfileRequestSchema.parse(req.body);

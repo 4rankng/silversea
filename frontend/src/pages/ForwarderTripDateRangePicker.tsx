@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
 import { DOW_LABELS } from '../features/salary-attendance/salary-attendance-constants';
 import './ForwarderTripDateRangePicker.css';
 
@@ -27,6 +29,7 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
   const fromTriggerRef = useRef<HTMLButtonElement>(null);
   const toTriggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
   const [activeDate, setActiveDate] = useState<ActiveDate>('from');
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(dateFrom ? new Date(`${dateFrom}T12:00:00`) : new Date()));
@@ -39,8 +42,8 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
 
   const close = useCallback(() => {
     setOpen(false);
-    window.requestAnimationFrame(() => (activeDate === 'from' ? fromTriggerRef : toTriggerRef).current?.focus({ preventScroll: true }));
-  }, [activeDate]);
+    window.requestAnimationFrame(() => openerRef.current?.focus({ preventScroll: true }));
+  }, []);
   useEffect(() => {
     if (!open || typeof window.matchMedia !== 'function' || !window.matchMedia('(max-width: 767px)').matches) return;
     const previousOverflow = document.body.style.overflow;
@@ -49,10 +52,11 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
   }, [open]);
   useEffect(() => {
     if (!open) return;
+    registerOverlay();
     dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-    const dismissOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    const dismissOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } };
     document.addEventListener('keydown', dismissOnEscape);
-    return () => document.removeEventListener('keydown', dismissOnEscape);
+    return () => { document.removeEventListener('keydown', dismissOnEscape); unregisterOverlay(); };
   }, [close, open]);
 
   const trapDialogFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -78,6 +82,7 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
     }
   };
   const openFor = (target: ActiveDate) => {
+    openerRef.current = (target === 'from' ? fromTriggerRef : toTriggerRef).current;
     setActiveDate(target);
     const value = target === 'from' ? dateFrom : dateTo;
     setViewMonth(startOfMonth(value ? new Date(`${value}T12:00:00`) : new Date()));
@@ -96,7 +101,7 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
           <span>Đến ngày</span><strong>{displayDate(dateTo)}</strong>
         </button>
       </div>
-      {open && <>
+      {open && createPortal(<>
         <button type="button" className="ftrip-date-picker__backdrop" aria-label="Đóng chọn khoảng ngày" onClick={close} />
         <section ref={dialogRef} id={dialogId} className="ftrip-date-picker__dialog" role="dialog" aria-modal="true" aria-label="Chọn khoảng ngày" onKeyDown={trapDialogFocus}>
           <header>
@@ -112,7 +117,7 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
           <div className="ftrip-date-picker__days">{days.map((date, index) => date ? <button key={isoDate(date)} type="button" className={`${selected === isoDate(date) ? 'is-selected' : ''}${dateFrom && dateTo && isoDate(date) >= dateFrom && isoDate(date) <= dateTo ? ' is-in-range' : ''}`} onClick={() => select(isoDate(date))}>{date.getDate()}</button> : <span key={`blank-${index}`} />)}</div>
           <footer><button type="button" className="btn btn--primary" onClick={close}>Áp dụng khoảng ngày</button></footer>
         </section>
-      </>}
+      </>, document.body)}
     </div>
   );
 }

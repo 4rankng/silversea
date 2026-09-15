@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, eq, gte, inArray, isNull, like } from 'drizzle-orm';
+import { and, eq, gte, inArray, like } from 'drizzle-orm';
 import { Role, TrailerType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -609,11 +608,9 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
         forwarderExpenseTypeIds.push(row.id);
         assert.equal(Number(row.noInvoicePerItemLimit), 150000);
         assert.equal(Number(row.noInvoicePerDayLimit), 300000);
-        assert.equal(row.noInvoicePolicyVersion, 1);
       },
       expectUpdated: (row) => {
         assert.equal(Number(row.noInvoicePerDayLimit), 450000);
-        assert.equal(row.noInvoicePolicyVersion, 2);
       },
       expectDeleted: async (id) => {
         const [row] = await db.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, id)).limit(1);

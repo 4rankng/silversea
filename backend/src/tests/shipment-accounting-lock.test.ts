@@ -326,7 +326,7 @@ describe('shipment accounting lock', () => {
         input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Không được tạo.' },
         actor,
       }),
-      /phải được phê duyệt trước khi xác nhận tài chính/,
+      /phải được ghi nhận đầy đủ trước khi xác nhận tài chính/,
     );
     const actions = await db.select({ id: s.shipmentFinanceActions.id }).from(s.shipmentFinanceActions).where(and(
       eq(s.shipmentFinanceActions.shipmentId, shipment.id),

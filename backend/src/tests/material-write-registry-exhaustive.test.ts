@@ -52,6 +52,36 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['expense.ts|POST|/:id/reject', 'Dual-control review state transition (REJECT); idempotent by status guard — re-rejecting a REJECTED expense is a no-op. No financial mutation.'],
 ]);
 
+// Explicitly retired endpoints must remain response-only. Unlike an unscoped
+// exemption, this allowlist verifies the complete handler statement exactly.
+const RETIRED_RESPONSE_ONLY_ROUTES = new Set([
+  'ocr.ts|POST|/fuel-evidence-reviews/:id/decision',
+  'financial/debt-offsets.routes.ts|POST|/finance/debt-offsets/:id/approve',
+  'trips/expenses.ts|POST|/:id/expenses/:eid/approve',
+  'trips/expenses.ts|POST|/:id/expenses/:eid/reject',
+  'shipments/coordination.routes.ts|POST|/:id/change-requests/:requestId/review',
+]);
+
+function assertRetiredResponseOnly(route: { sourceKey: string; sourceBody: string }): boolean {
+  if (!RETIRED_RESPONSE_ONLY_ROUTES.has(route.sourceKey)) return false;
+  const parsed = ts.createSourceFile('retired.ts', route.sourceBody, ts.ScriptTarget.Latest, true);
+  const statement = parsed.statements[0];
+  assert.ok(statement && ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression));
+  const declaration = statement.expression;
+  assert.ok(declaration.arguments.length === 2 || declaration.arguments.length === 3, `${route.sourceKey}: unexpected middleware or handler`);
+  if (declaration.arguments.length === 3) {
+    assert.match(declaration.arguments[1].getText(parsed), /^requireRoles\(Role\.[A-Z_]+(?:, Role\.[A-Z_]+)*\)$/,
+      `${route.sourceKey}: only static role authorization may precede the retired handler`);
+  }
+  const handler = declaration.arguments[declaration.arguments.length - 1];
+  assert.ok(ts.isArrowFunction(handler) && ts.isBlock(handler.body));
+  assert.equal(handler.body.statements.length, 1, `${route.sourceKey}: retired route gained side effects`);
+  assert.match(handler.body.statements[0].getText(parsed),
+    /^res\.status\(410\)\.json\(\{ error: '[^']+' \}\);$/,
+    `${route.sourceKey}: must only send a constant410 error`);
+  return true;
+}
+
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   serviceFile: string;
   marker: string;
@@ -155,10 +185,6 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   ['portal/index.ts|POST|/shipments/:id/customer-events/:eventId/delivery-response', {
     serviceFile: path.resolve(process.cwd(), 'src/services/customer-delivery-response.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DELIVERY_RESPONSE',
-  }],
-  ['ocr.ts|POST|/fuel-evidence-reviews/:id/decision', {
-    serviceFile: path.resolve(process.cwd(), 'src/routes/ocr.ts'),
-    marker: 'ocr.fuel-evidence-reviews.decision',
   }],
   ['shipments/coordination.routes.ts|POST|/:id/customer-events', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),
@@ -679,6 +705,7 @@ describe('material-write registry coverage', () => {
     const uncovered: string[] = [];
     for (const route of extractMountedMutationRoutes()) {
       if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      if (assertRetiredResponseOnly(route)) continue;
       if (!matchDeclaredMaterialWrite(route.method, route.routePath)) {
         uncovered.push(`${route.sourceKey} => ${route.method} ${route.routePath}`);
       }
@@ -689,6 +716,7 @@ describe('material-write registry coverage', () => {
   test('every inventoried material mutation reaches a reviewed durable command boundary', () => {
     for (const route of extractMountedMutationRoutes()) {
       if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      if (assertRetiredResponseOnly(route)) continue;
       const delegated = REVIEWED_SERVICE_DURABLE_BOUNDARIES.get(route.sourceKey);
       if (delegated) {
         const source = fs.readFileSync(delegated.serviceFile, 'utf8');
@@ -704,6 +732,15 @@ describe('material-write registry coverage', () => {
         `${route.sourceKey}: no reviewed durable command boundary`,
       );
     }
+  });
+
+  test('all explicitly retired endpoints remain mounted as response-only410 handlers', () => {
+    const retired = extractMountedMutationRoutes().filter(assertRetiredResponseOnly);
+    for (const route of retired) {
+      assert.equal(matchDeclaredMaterialWrite(route.method, route.routePath), null,
+        `${route.sourceKey}: retired route must not require a mutation idempotency key`);
+    }
+    assert.deepEqual(new Set(retired.map(route => route.sourceKey)), RETIRED_RESPONSE_ONLY_ROUTES);
   });
 
   test('declares every current HTTP runIdempotent command endpoint', () => {

@@ -29,7 +29,6 @@ const expenseCategoryIds: number[] = [];
 let actorIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
-let makerId = 0;
 
 async function api(
   method: string,
@@ -70,7 +69,6 @@ before(async () => {
   const [maker] = await db.insert(s.users).values([
     { username: `material-gov-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
   ]).returning({ id: s.users.id }) as Array<{ id: number }>;
-  makerId = maker!.id;
   actorIds = [maker!.id];
 
   const app = express();
@@ -240,8 +238,6 @@ describe('direct-apply governance for material config updates', () => {
       noInvoiceEvidenceTypes: [],
       noInvoicePerItemLimit: 1000000,
       noInvoicePerDayLimit: 5000000,
-      noInvoiceFinanceLeadItemApprovalLimit: 5000000,
-      noInvoiceDirectorDayApprovalLimit: 10000000,
       defaultMarkup: false,
       billingLabel: null,
       vatRate: '0.080',
@@ -266,8 +262,6 @@ describe('direct-apply governance for material config updates', () => {
         noInvoiceEvidenceTypes: (expenseType.noInvoiceEvidenceTypes ?? []) as unknown[],
         noInvoicePerItemLimit: Number(expenseType.noInvoicePerItemLimit),
         noInvoicePerDayLimit: Number(expenseType.noInvoicePerDayLimit),
-        noInvoiceFinanceLeadItemApprovalLimit: Number(expenseType.noInvoiceFinanceLeadItemApprovalLimit),
-        noInvoiceDirectorDayApprovalLimit: Number(expenseType.noInvoiceDirectorDayApprovalLimit),
         defaultMarkup: expenseType.defaultMarkup,
         billingLabel: expenseType.billingLabel,
         vatRate: expenseType.vatRate,

@@ -37,14 +37,14 @@ describe("TruckFormModal desktop density", () => {
     );
     expect(styles).toContain("--fleet-form-row-gap: 24px");
     expect(styles).toContain("min-height: var(--control-compact-h)");
-    expect(styles).toContain("font-size: var(--control-compact-font-size)");
+    expect(styles).toContain("font-size: var(--text-control-compact-size)");
     expect(operationalStyles).toContain("calc(var(--control-compact-h) - 2px)");
     expect(operationalStyles).toContain(
       ".ds-uui-select--operational .ds-uui-select__control > button > span p",
     );
     expect(operationalStyles).toContain(
       // Compact mobile contract (ticket 6770b9cb): the phone operational
-      // select scales to the 11px token instead of the 16px touch font.
+      // select follows the shared mobile field text role.
       "font-size: var(--control-mobile-font-size)",
     );
     expect(operationalStyles).toContain(

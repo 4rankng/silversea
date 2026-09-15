@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../lib/api';
+import { loadOpsOwnerOptions } from './ops-owner-options';
 import { opsClient } from '../../api/opsClient';
 import { qk } from '../../api/keys';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 import './ops-modal.css';
-import { useOpsModalDismiss } from './useOpsModalDismiss';
-interface UserOption {
-  id: number;
-  fullName: string | null;
-  username: string | null;
-}
-
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 /**
  * Admin control "Ops phụ trách" (OpsVanHanh §2/§4): assigns the single active
  * Ops owner of a truck. Empty selection clears the assignment.
@@ -26,17 +21,20 @@ export function AssignOpsDialog({
   currentOpsName: string | null;
   onClose: () => void;
 }) {
-  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const queryClient = useQueryClient();
   const [choice, setChoice] = useState('__KEEP__');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: usersData } = useQuery<{ items: UserOption[] }>({
+  const { data: usersData, isPending, isFetching, isError, refetch } = useQuery({
     queryKey: qk.ops.opsUsers,
-    queryFn: () => api.get('/users?role=OPS&limit=100'),
-    staleTime: 60_000,
+    queryFn: loadOpsOwnerOptions,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    retry: false,
   });
+  const close = () => { if (!saving) onClose(); };
+
 
   useEffect(() => {
     setChoice('__KEEP__');
@@ -45,6 +43,7 @@ export function AssignOpsDialog({
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
+    if (saving || choice === '__KEEP__') return;
     setSaving(true);
     setError(null);
     try {
@@ -61,14 +60,17 @@ export function AssignOpsDialog({
     }
   }
 
-  const options = usersData?.items ?? [];
+  // KP-090: only show active, non-deleted staff in the picker
+  const options = (usersData ?? []).filter((user) => user.status === 'ACTIVE');
+  const noOpsStaff = !isPending && !isError && options.length === 0;
+  const excludedCount = (usersData?.length ?? 0) - options.length;
 
   return (
-    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Gán Ops phụ trách xe ${truck.licensePlate}`}>
+    <OpsModalBackdrop onClose={close} ariaLabel={`Gán Ops phụ trách xe ${truck.licensePlate}`}>
       <form className="ops-modal" onSubmit={handleSave}>
         <header className="ops-modal__head">
           <h2>Ops phụ trách — {truck.licensePlate}</h2>
-          <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
+          <button type="button" aria-label="Đóng" onClick={close} disabled={saving}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
           <p className="ops-form-photos__hint">
@@ -78,6 +80,7 @@ export function AssignOpsDialog({
           <UuiSelectField
             label="Ops phụ trách"
             value={choice}
+            disabled={saving || isPending || isError}
             onChange={(event) => setChoice(event.target.value)}
             ariaLabel="Chọn Ops phụ trách"
             options={[
@@ -85,22 +88,29 @@ export function AssignOpsDialog({
               { value: '', label: '— Bỏ gán —' },
               ...options.map((user) => ({
                 value: String(user.id),
-                label: user.fullName?.trim() || user.username || `#${user.id}`,
+                label: [user.fullName?.trim(), user.username].filter(Boolean).join(' · ') || `#${user.id}`,
               })),
             ]}
           />
+          {isPending && <p role="status" className="ops-form-photos__hint">Đang tải nhân viên vận hành…</p>}
+          {isError && <div role="alert">
+            <p>Không tải được danh sách nhân viên vận hành. Lựa chọn của bạn vẫn được giữ.</p>
+            <button type="button" className="btn-secondary" disabled={isFetching} onClick={() => void refetch()}>{isFetching ? 'Đang tải…' : 'Thử lại'}</button>
+          </div>}
+          {excludedCount > 0 && <p className="ops-form-photos__hint">{excludedCount} tài khoản ngừng hoạt động không thể nhận phân công mới.</p>}
           {error && <p className="ops-reject-reason" role="alert">{error}</p>}
+          {noOpsStaff && <p className="ops-form-photos__hint" style={{ color: 'var(--warn, #d97706)' }}>Không tìm thấy nhân viên vận hành nào đang hoạt động.</p>}
         </div>
         <footer className="ops-modal__foot">
           <div />
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={saving || choice === '__KEEP__'}>
+            <button type="submit" className="btn-primary" disabled={saving || isPending || isError || choice === '__KEEP__'}>
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>
         </footer>
       </form>
-    </div>
+    </OpsModalBackdrop>
   );
 }

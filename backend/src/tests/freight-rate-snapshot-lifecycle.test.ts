@@ -233,8 +233,6 @@ let customerA = 0;
 let routeA = 0;
 let containerType40Id = 0;
 let autoShipmentId = 0;
-let manualShipmentId = 0;
-let adhocShipmentId = 0;
 
 before(async () => {
   await initEnforcer();
@@ -519,7 +517,6 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     await mkTerms(customer.id, route.id);
 
     const shipment = await mkShipment({ customerId: customer.id, routeId: route.id });
-    manualShipmentId = shipment.id;
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
@@ -578,7 +575,6 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
       routeId: routeA,
       cargoMode: 'FCL',
     });
-    adhocShipmentId = shipment.id;
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,

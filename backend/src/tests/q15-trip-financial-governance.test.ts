@@ -60,6 +60,9 @@ async function api(
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+  }).catch((error: unknown) => {
+    const failure = error as { cause?: { code?: string; message?: string } };
+    throw new Error(`Test HTTP ${method} ${baseUrl}${path} failed: ${failure.cause?.code ?? failure.cause?.message ?? String(error)}`, { cause: error });
   });
   return {
     status: response.status,
@@ -341,106 +344,23 @@ after(async () => {
 });
 
 describe('Q15 trip financial governance', () => {
-  it('governs office trip-expense approval/rejection and preserves final evidence guards', async () => {
+  it('retires office expense approval routes without mutating recorded or incomplete evidence', async () => {
     const trip = await createTripFixture(TripStatus.IN_TRANSIT);
-    const expense = await createOfficeTripExpense({ tripId: trip.id });
-    const requestBody = {
-      expectedVersion: expense.version,
-      reason: 'Đề nghị duyệt chi phí văn phòng cho chuyến',
-      evidence: {
-        reviewNote: 'Đã đối chiếu hóa đơn và số tiền',
-        attachmentRefs: ['INV-Q15'],
-      },
-    };
-    const viewer = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${expense.id}/approve`,
-      requestBody,
-      3,
-      `q15-office-viewer-${suffix}`,
-    );
-    assert.equal(viewer.status, 403);
-
-    const requestKey = `q15-office-request-${suffix}`;
-    const requested = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${expense.id}/approve`,
-      requestBody,
-      0,
-      requestKey,
-    );
-    assert.equal(requested.status, 200, JSON.stringify(requested.body));
-    assert.equal(requested.body.actionKind, 'TRIP_EXPENSE_APPROVAL');
-    // 2026-09-11 maker-checker removed: the create response IS the applied
-    // record — no staged pending window remains.
-    assert.equal(requested.body.status, 'APPROVED');
-    assert.ok(requested.body.applicationResult);
-    const replay = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${expense.id}/approve`,
-      requestBody,
-      0,
-      requestKey,
-    );
-    assert.equal(replay.status, 200);
-    assert.equal(replay.body.id, requested.body.id);
-    assert.equal(replay.body.replayed, true);
-    const drift = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${expense.id}/approve`,
-      { ...requestBody, reason: 'Nội dung khác' },
-      0,
-      requestKey,
-    );
-    assert.equal(drift.status, 409);
-
-    // The decision applied in-request — the expense is final, and trip-expense
-    // decisions mutate the expense row only (ledger posting happens at trip
-    // close, not at expense decision time).
-    const [applied] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, expense.id)).limit(1);
-    assert.equal(applied.approvalStatus, 'APPROVED');
-    assert.equal(applied.version, expense.version + 1);
-    assert.equal((await ledgerRows(trip.id)).length, 0);
-
-    // The reject route applies REJECTED in-request the same way.
-    const rejectExpense = await createOfficeTripExpense({ tripId: trip.id });
-    const rejection = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${rejectExpense.id}/reject`,
-      { ...requestBody, expectedVersion: rejectExpense.version },
-      0,
-      `q15-office-reject-${suffix}`,
-    );
-    assert.equal(rejection.status, 200, JSON.stringify(rejection.body));
-    assert.equal(rejection.body.status, 'APPROVED');
-    assert.ok(rejection.body.applicationResult);
-    const [rejectedRow] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, rejectExpense.id)).limit(1);
-    assert.equal(rejectedRow.approvalStatus, 'REJECTED');
-
-    // The missing-evidence guard still applies in-request: an
-    // invoice-required expense without receipts returns for evidence.
-    const incomplete = await createOfficeTripExpense({
-      tripId: trip.id,
-      requiresInvoice: false,
-      completeEvidence: false,
-    });
-    const incompleteRequest = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${incomplete.id}/approve`,
-      { ...requestBody, expectedVersion: incomplete.version },
-      0,
-      `q15-office-incomplete-${suffix}`,
-    );
-    assert.equal(incompleteRequest.status, 200);
-    assert.equal(
-      (incompleteRequest.body.applicationResult as Record<string, unknown>).outcome,
-      'RETURN_FOR_EVIDENCE',
-    );
-    const [returnedByFinalGuard] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, incomplete.id)).limit(1);
-    assert.equal(returnedByFinalGuard.approvalStatus, 'RETURN_FOR_EVIDENCE');
+    for (const completeEvidence of [true, false]) {
+      const expense = await createOfficeTripExpense({ tripId: trip.id, completeEvidence });
+      for (const action of ['approve', 'reject']) {
+        for (const actor of [0, 3]) {
+          const result = await api('POST', `/api/trips/${trip.id}/expenses/${expense.id}/${action}`,
+            { expectedVersion: expense.version, reason: 'Retired action probe' }, actor,
+            `q15-retired-${expense.id}-${action}-${actor}-${suffix}`);
+          assert.equal(result.status, 410);
+        }
+      }
+      const [unchanged] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
+      assert.equal(unchanged.approvalStatus, expense.approvalStatus);
+      assert.equal(unchanged.version, expense.version);
+      assert.equal((await ledgerRows(trip.id)).length, 0);
+    }
   });
 
   it('applies governed close, completed-trip change, and cancellation in-request', async () => {
@@ -522,9 +442,8 @@ describe('Q15 trip financial governance', () => {
       governanceReason: 'Điều chỉnh doanh thu theo biên bản đối soát',
     }, 2, `q15-change-${suffix}`);
     assert.equal(change.status, 200, JSON.stringify(change.body));
-    assert.equal(change.body.actionKind, 'TRIP_FINANCIAL_CHANGE');
-    assert.equal(change.body.status, 'APPROVED');
-    assert.ok(change.body.applicationResult);
+    // Status-removal tail: the actuals write applies directly — no governance
+    // envelope on the response; the readback + audit trail carry the proof.
     assert.ok(await waitForAuditEvent(
       actors[2]!.id,
       ['TRIP_FINANCIAL_CHANGE_REQUESTED', 'TRIP_UPDATED_ACTUALS'],
@@ -651,7 +570,7 @@ describe('Q15 trip financial governance', () => {
     assert.equal((await ledgerRows(trip.id)).length, canceledLedger.length);
   });
 
-  it('rejects direct service completion without an approved governance action', async () => {
+  it('rejects direct service completion outside an authorized atomic financial action', async () => {
     const trip = await createTripFixture(TripStatus.IN_TRANSIT);
     await assert.rejects(
       transitionTripStatus(
@@ -660,7 +579,7 @@ describe('Q15 trip financial governance', () => {
         actors[0]!.id,
         actors[0]!.role,
       ),
-      /phê duyệt quản trị/,
+      /giao dịch có kiểm tra quyền và dữ liệu/,
     );
     const [unchanged] = await db.select().from(s.trips)
       .where(eq(s.trips.id, trip.id)).limit(1);
@@ -700,12 +619,12 @@ describe('Q15 trip financial governance', () => {
           });
           assert.throws(
             () => assertActiveApprovalApplication(approvalTx, approvalAction.id + 1),
-            /phê duyệt quản trị/,
+            /giao dịch có kiểm tra quyền và dữ liệu/,
           );
           await db.transaction(async (differentTx) => {
             assert.throws(
               () => assertActiveApprovalApplication(differentTx, approvalAction.id),
-              /phê duyệt quản trị/,
+              /giao dịch có kiểm tra quyền và dữ liệu/,
             );
           });
           throw new Error('hostile adapter forced rollback');
@@ -722,7 +641,7 @@ describe('Q15 trip financial governance', () => {
     assert.ok(retainedActionId);
     assert.throws(
       () => assertActiveApprovalApplication(retainedTx!, retainedActionId!),
-      /phê duyệt quản trị/,
+      /giao dịch có kiểm tra quyền và dữ liệu/,
       'apply authority must be cleared after the adapter throws and the transaction rolls back',
     );
 

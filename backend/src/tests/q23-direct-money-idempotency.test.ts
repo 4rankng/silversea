@@ -39,9 +39,6 @@ const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];
 
 let makerUserId = 0;
-let makerActor = { id: 0, role: '' as string };
-let checkerActor = { id: 0, role: '' as string };
-let approverActor = { id: 0, role: '' as string };
 let makerToken = '';
 let checkerToken = '';
 let approverToken = '';
@@ -372,9 +369,6 @@ before(async () => {
   makerToken = sign(maker);
   checkerToken = sign(checker);
   approverToken = sign(approver);
-  makerActor = { id: maker.id, role: maker.role };
-  checkerActor = { id: checker.id, role: checker.role };
-  approverActor = { id: approver.id, role: approver.role };
 });
 
 after(async () => {

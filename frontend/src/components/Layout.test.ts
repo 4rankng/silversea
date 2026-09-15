@@ -140,19 +140,19 @@ describe('getNavItems', () => {
 
   it('orders sidebar sections around each office role workflow per spec', () => {
     // Spec §III.1 — ADMIN/MANAGER section order:
-    // Vận hành → Báo cáo & Phê duyệt → Công nợ & Dòng tiền → Nhân sự → Danh mục → Hệ thống
+    // Vận hành → Báo cáo → Công nợ & Dòng tiền → Nhân sự → Danh mục → Hệ thống
     expect(getNavSections(Role.ADMIN).map((section) => section.label)).toEqual([
-      'Vận hành', 'Báo cáo & Phê duyệt', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
+      'Vận hành', 'Báo cáo', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
     ]);
     expect(getNavSections(Role.MANAGER).map((section) => section.label)).toEqual([
-      'Vận hành', 'Báo cáo & Phê duyệt', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
+      'Vận hành', 'Báo cáo', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
     ]);
     // Spec §III.2 — ACCOUNTANT:
-    // Công nợ & Dòng tiền → Báo cáo & Phê duyệt → Vận hành liên quan → Hệ thống.
+    // Công nợ & Dòng tiền → Báo cáo → Vận hành liên quan → Hệ thống.
     // Nhân sự + Danh mục are gone: all their ACCOUNTANT items were
     // adminOnly-bounced dead links, so the sections went with them.
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.label)).toEqual([
-      'Công nợ & Dòng tiền', 'Báo cáo & Phê duyệt', 'Vận hành liên quan', 'Hệ thống',
+      'Công nợ & Dòng tiền', 'Báo cáo', 'Vận hành liên quan', 'Hệ thống',
     ]);
   });
 
@@ -221,7 +221,11 @@ describe('getNavItems', () => {
     expect(items.some((item) => item.key === 'audit-logs' && item.path === '/audit-logs')).toBe(true);
   });
 
-  it('includes the dedicated credit-override approval queue for office roles only', () => {
+  it('does not advertise internal approval workflows in role navigation', () => {
+    for (const role of Object.values(Role)) {
+      expect(getNavSections(role).some(section => /phê duyệt/i.test(section.label)), role).toBe(false);
+      expect(getNavItems(role).some(item => /approval|approve|phê duyệt/i.test(`${item.path} ${item.label}`)), role).toBe(false);
+    }
   });
 
   it('uses one canonical advance workspace item for office roles', () => {

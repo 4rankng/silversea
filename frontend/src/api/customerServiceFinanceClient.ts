@@ -26,7 +26,7 @@ export interface RecoverableCost {
   sellAmount: number;
   recoverablePrincipalAmount: number | null;
   serviceFeeAmount: number | null;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus: 'RECORDED' | 'DRAFT' | 'VOIDED' | 'RETURN_FOR_EVIDENCE' | 'PENDING' | 'APPROVED' | 'REJECTED';
   invoiceNumber: string | null;
   invoiceDate: string | null;
   noInvoiceEvidenceTypes: string[];
@@ -105,12 +105,6 @@ export const customerServiceFinanceClient = {
     if (params.sortBy) query.set('sortBy', params.sortBy);
     if (params.sortDir) query.set('sortDir', params.sortDir);
     return api.get<{ items: RecoverableCost[]; total: number; page: number; limit: number }>(`/recoverable-costs?${query}`);
-  },
-  requestRecoverableCost(id: number, body: {
-    decision: 'APPROVED' | 'REJECTED'; reason: string; expectedVersion: number;
-    evidence: { reviewNote: string; attachmentRefs: string[] };
-  }, idempotencyKey: string) {
-    return api.post(`/recoverable-costs/${id}/request`, body, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
   getTreasuryPosition: (params?: { sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
     const query = new URLSearchParams();

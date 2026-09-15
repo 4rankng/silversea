@@ -22,11 +22,11 @@
   flex-wrap: wrap;
 }
 .driver-trip-card__route {
-  font-weight: 600; font-size: var(--fs-sm); color: var(--fg-1);
+  font-weight: 600; font-size: var(--text-section-size); color: var(--fg-1);
 }
 .driver-trip-card__meta {
   display: flex; align-items: center; gap: 16px;
-  font-size: var(--fs-xs); color: var(--fg-3);
+  font-size: var(--text-caption-size); color: var(--fg-3);
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -36,7 +36,7 @@
 }
 .driver-trip-card__salary { text-align: right; flex-shrink: 0; }
 .driver-trip-card__salary-value {
-  font-size: 15px; font-weight: 700; color: var(--fg-1);
+  font-size: var(--text-data-size); font-weight: 700; color: var(--fg-1);
   font-family: var(--font-data);
 }
 .driver-trip-card__arrow { color: var(--fg-3); flex-shrink: 0; }
@@ -52,7 +52,7 @@
 
 .driver-trip-card__plate-badge {
   font-family: var(--font-data);
-  font-weight: 600; font-size: var(--fs-xs);
+  font-weight: 600; font-size: var(--text-data-size);
   color: var(--ink);
   background: var(--surface-2);
   padding: 4px 10px;

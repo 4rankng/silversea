@@ -42,7 +42,7 @@ export default function TripDetailPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('reassign');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [page.openReassign, page.permissions.canReassign, page.trip, searchParams, setSearchParams]);
+  }, [page, searchParams, setSearchParams]);
 
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {
@@ -127,7 +127,7 @@ export default function TripDetailPage() {
 
       <Modal
         isOpen={governanceIntent !== null}
-        title={governanceIntent === 'complete' ? 'Đề nghị hoàn thành chuyến' : 'Đề nghị hủy chuyến'}
+        title={governanceIntent === 'complete' ? 'Hoàn thành chuyến' : 'Hủy chuyến'}
         onClose={() => setGovernanceIntent(null)}
         maxWidth={480}
         footer={
@@ -152,7 +152,7 @@ export default function TripDetailPage() {
                 ));
               }}
             >
-              {governanceIntent === 'complete' ? 'Gửi đề nghị hoàn thành' : 'Gửi đề nghị hủy'}
+              {governanceIntent === 'complete' ? 'Hoàn thành chuyến' : 'Hủy chuyến'}
             </button>
           </>
         }
@@ -162,12 +162,12 @@ export default function TripDetailPage() {
             Lý do <span className="tdp-governance-asterisk">*</span>
           </span>
           <textarea
-            aria-label="Lý do đề nghị"
+            aria-label="Lý do thay đổi"
             className="input"
             rows={4}
             value={governanceReason}
             onChange={(event) => setGovernanceReason(event.target.value)}
-            placeholder="Nêu căn cứ và nội dung đề nghị"
+            placeholder="Nêu căn cứ và nội dung thay đổi"
             autoFocus
           />
         </label>
@@ -184,16 +184,16 @@ export default function TripDetailPage() {
         {/* ── Main column — operational story ─────────────────────────── */}
         <div className="trip-col trip-col--main">
 
-          <div className="anim d3 tdp-card tdp-m2">
-            <ServiceCostsCard tripId={trip.id} readOnly={effectivePermissions.readOnly} />
-          </div>
-
           <div className="anim d3 tdp-card tdp-m3">
             <BasicInfoCard trip={trip} />
           </div>
 
           <div className="anim d4 tdp-card tdp-m4">
             <ContainersCard tripId={trip.id} />
+          </div>
+
+          <div className="anim d4 tdp-card tdp-m2">
+            <ServiceCostsCard tripId={trip.id} readOnly={effectivePermissions.readOnly} />
           </div>
 
           {trip.notes && (
@@ -398,8 +398,10 @@ export default function TripDetailPage() {
             <div className="tdp-adjustments-title">
               Đã phát hành
             </div>
-            {(adjustments as Array<{ note: string; amount: string | number }>).map((a, i) => {
-              const amount = Number(a.amount);
+            {(adjustments as Array<{ note: string; debit: string | number | null; credit: string | number | null }>).map((a, i) => {
+              // The API returns ledger columns only — derive the signed amount
+              // from debit − credit instead of a missing `amount` field.
+              const amount = Number(a.debit ?? 0) - Number(a.credit ?? 0);
               const isPos = amount >= 0;
               return (
                 <div key={i} className="tdp-adjustment-row">

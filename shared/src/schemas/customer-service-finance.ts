@@ -47,7 +47,7 @@ export const RECOVERABLE_COST_SORT_KEYS = [
 
 export const recoverableCostListQuerySchema = z.object({
   customerId: z.coerce.number().int().positive().optional(),
-  approvalStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  approvalStatus: z.enum(['DRAFT', 'RECORDED', 'VOIDED', 'PENDING', 'APPROVED', 'REJECTED']).optional(),
   sortBy: z.enum(RECOVERABLE_COST_SORT_KEYS).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().min(1).default(1),

@@ -4,25 +4,34 @@ import {
   useOpsSettlements,
   useCreateOpsSettlement,
   useOpsSettlement,
+  useFinalizeOpsSettlement,
+  useReopenOpsSettlementDraft,
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { OpsQueryFeedback } from './OpsQueryFeedback';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'Chờ kế toán', color: 'var(--warn, #d97706)' },
+  DRAFT: { label: 'Bản nháp cần hoàn tất', color: 'var(--warn, #d97706)' },
+  RECORDED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },
+  VOIDED: { label: 'Đã hủy', color: 'var(--err, #dc2626)' },
+  PENDING: { label: 'Bản nháp từ dữ liệu cũ', color: 'var(--warn, #d97706)' },
   APPROVED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },
   REJECTED: { label: 'Bị trả về', color: 'var(--err, #dc2626)' },
 };
 
 /**
- * Đề nghị thanh toán (OpsVanHanh §5.4): tạo phiếu gom các khoản đang mở, xem
+ * Phiếu quyết toán (OpsVanHanh §5.4): tạo phiếu gom các khoản đang mở, xem
  * bảng kê theo lô (2 rổ hóa đơn), tải Excel, in A4.
  */
 export function OpsSettlementsPanel() {
-  const { data, isLoading } = useOpsSettlements();
+  const { data, isLoading, isError, refetch } = useOpsSettlements();
   const createSettlement = useCreateOpsSettlement();
+  const finalizeSettlement = useFinalizeOpsSettlement();
+  const reopenDraft = useReopenOpsSettlementDraft();
   const { toast } = useToast();
   const [detailId, setDetailId] = useState<number | null>(null);
   const detail = useOpsSettlement(detailId);
@@ -31,7 +40,7 @@ export function OpsSettlementsPanel() {
   async function handleCreate() {
     try {
       const created = await createSettlement.mutateAsync(undefined);
-      toast({ kind: 'success', message: `Đã tạo đề nghị thanh toán ${created.code}.` });
+      toast({ kind: 'success', message: `Đã tạo phiếu quyết toán ${created.code}.` });
       setDetailId(created.id);
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tạo phiếu thất bại.' });
@@ -39,15 +48,16 @@ export function OpsSettlementsPanel() {
   }
 
   return (
-    <section className="ops-wallet__section" aria-label="Đề nghị thanh toán">
+    <section className="ops-wallet__section" aria-label="Phiếu quyết toán">
       <header className="ops-wallet__section-head">
-        <h2>Đề nghị thanh toán</h2>
+        <h2>Phiếu quyết toán</h2>
         <button type="button" className="btn-primary" onClick={() => void handleCreate()} disabled={createSettlement.isPending}>
           {createSettlement.isPending ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
-          Tạo Đề Nghị Thanh Toán
+          Lập phiếu quyết toán
         </button>
       </header>
 
+      <p className="ops-modal-hint">Phiếu ghi nhận đối chiếu các khoản chi, không xác nhận việc chuyển tiền.</p>
       <div className="ops-wallet__scroll">
         <table className="tt-table ops-wallet__table">
           <thead>
@@ -63,36 +73,40 @@ export function OpsSettlementsPanel() {
             {items.map((item) => {
               const status = STATUS_LABELS[item.status];
               return (
-                <tr key={item.id}>
-                  <td className="ops-money">{item.code}</td>
-                  <td>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
-                  <td className="ops-money">{formatVnd(item.totalAmount)}</td>
-                  <td><span style={{ color: status.color }}>{status.label}</span></td>
-                  <td>
+                <tr key={item.id} className="ops-wallet__row">
+                  <td className="ops-money" data-label="Mã phiếu">{item.code}</td>
+                  <td data-label="Ngày lập">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td className="ops-money" data-label="Tổng">{formatVnd(item.totalAmount)}</td>
+                  <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
+                  <td className="ops-row-actions ops-wallet__wide">
                     <button type="button" className="btn-secondary" onClick={() => setDetailId(item.id)}>
                       Xem
                     </button>
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn-primary" disabled={finalizeSettlement.isPending} onClick={() => void finalizeSettlement.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã ghi nhận phiếu quyết toán.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Hoàn tất phiếu</button>}
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn-secondary" disabled={reopenDraft.isPending} onClick={() => void reopenDraft.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã mở các khoản chi. Vào Lịch sử chi để bổ sung và lập lại phiếu.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Mở khoản chi để bổ sung</button>}
                   </td>
                 </tr>
               );
             })}
-            {!isLoading && items.length === 0 && (
+            {!isLoading && !isError && items.length === 0 && (
               <tr><td colSpan={5} className="ops-wallet__empty">Chưa có phiếu nào.</td></tr>
             )}
           </tbody>
         </table>
+        <OpsQueryFeedback loading={isLoading} error={isError} label="phiếu quyết toán" onRetry={refetch} />
       </div>
 
-      {detailId != null && detail.data && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Đề nghị thanh toán ${detail.data.settlement.code}`}>
+      {detailId != null && (
+        <OpsModalBackdrop onClose={() => setDetailId(null)} ariaLabel={`Phiếu quyết toán ${detail.data?.settlement.code ?? detailId}`}>
           <div className="ops-modal">
             <header className="ops-modal__head">
-              <h2>{detail.data.settlement.code}</h2>
+              <h2>{detail.data?.settlement.code ?? "Chi tiết quyết toán"}</h2>
               <div className="ops-modal__head-actions">
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => void opsClient
+                  disabled={!detail.data}
+                  onClick={() => detail.data && void opsClient
                     .downloadSettlementExport(detailId, detail.data.settlement.code)
                     .catch((error: unknown) => toast({
                       kind: 'error',
@@ -101,22 +115,23 @@ export function OpsSettlementsPanel() {
                 >
                   <Download size={14} /> Excel
                 </button>
-                <button type="button" className="btn-secondary" onClick={() => window.print()}>
+                <button type="button" className="btn-secondary" disabled={!detail.data} onClick={() => window.print()}>
                   <Printer size={14} /> In
                 </button>
                 <button type="button" aria-label="Đóng" onClick={() => setDetailId(null)}>✕</button>
               </div>
             </header>
             <div className="ops-modal__body">
-              <OpsSettlementSheet grouping={detail.data.grouping} meta={{
+              <OpsQueryFeedback loading={detail.isLoading} error={detail.isError} label="chi tiết quyết toán" onRetry={detail.refetch} />
+              {detail.data && <OpsSettlementSheet grouping={detail.data.grouping} meta={{
                 code: detail.data.settlement.code,
                 createdAt: detail.data.settlement.createdAt,
                 opsName: detail.data.settlement.opsUserName,
                 note: detail.data.settlement.note,
-              }} />
+              }} />}
             </div>
           </div>
-        </div>
+        </OpsModalBackdrop>
       )}
     </section>
   );
@@ -129,7 +144,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
 }) {
   return (
     <div className="ops-settlement-sheet">
-      <h3>ĐỀ NGHỊ THANH TOÁN {meta.code}</h3>
+      <h3>PHIẾU QUYẾT TOÁN {meta.code}</h3>
       <p>Người lập: {meta.opsName ?? '—'} · Ngày: {new Date(meta.createdAt).toLocaleDateString('vi-VN')}</p>
       {meta.note && <p>Ghi chú: {meta.note}</p>}
       {grouping.groups.map((group) => (
@@ -172,7 +187,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
       </p>
       <div className="ops-settlement-sheet__signatures">
         <span>Người lập (Ops)<small>(Ký, ghi rõ họ tên)</small></span>
-        <span>Kế toán duyệt<small>(Ký, ghi rõ họ tên)</small></span>
+        <span>Người nhận đối chiếu<small>(Ký, ghi rõ họ tên)</small></span>
       </div>
     </div>
   );

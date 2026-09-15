@@ -192,7 +192,7 @@
   background: var(--success-soft);
   color: var(--success);
   border: 1px solid rgba(0, 177, 79, 0.16);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
 }
 

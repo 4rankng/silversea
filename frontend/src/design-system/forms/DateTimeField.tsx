@@ -75,6 +75,7 @@ export function DateTimeField({
         maxLength={16}
         autoComplete="off"
         disabled={disabled}
+        required={required}
         className="ds-field__input"
         aria-invalid={input['aria-invalid'] ?? Boolean(error)}
         aria-describedby={describedBy}

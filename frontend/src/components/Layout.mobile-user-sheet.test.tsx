@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -125,5 +125,72 @@ describe('Layout — driver mobile account sheet vs the global dropdown-dismiss 
 
     expect(logoutMock).not.toHaveBeenCalled();
     expect(document.querySelector('.mobile-user-sheet-overlay')).toBeNull();
+  });
+
+  it('announces the current route and account dialog, traps focus, and returns it on Escape', async () => {
+    renderDriverShell();
+    const account = screen.getByRole('button', { name: 'Tài khoản' });
+    const journey = screen.getByRole('button', { name: 'Hành trình' });
+    expect(journey.getAttribute('aria-current')).toBe('page');
+    expect(account.getAttribute('aria-expanded')).toBe('false');
+
+    account.focus();
+    openAccountSheet();
+    const dialog = screen.getByRole('dialog', { name: 'Tài khoản' });
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(account.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector('.app-main')?.hasAttribute('inert')).toBe(true);
+    const close = within(dialog).getByRole('button', { name: 'Đóng tài khoản' });
+    const logout = within(dialog).getByRole('button', { name: 'Đăng xuất' });
+    expect(document.activeElement).toBe(close);
+
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(logout);
+    fireEvent.keyDown(logout, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Tài khoản' })).toBeNull();
+    expect(document.querySelector('.app-main')?.hasAttribute('inert')).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(account));
+  });
+
+  it('opens the profile action immediately without a duplicate sidebar menu', async () => {
+    renderDriverShell();
+    openAccountSheet();
+    expect(document.querySelector('.sidebar-user-dropdown')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thông tin cá nhân' }));
+    expect(screen.queryByRole('dialog', { name: 'Tài khoản' })).toBeNull();
+    expect(await screen.findByRole('dialog', { name: 'Thông tin cá nhân' })).toBeTruthy();
+  });
+
+  it.each(['Thông tin cá nhân', 'Đổi mật khẩu'])('returns focus to the account trigger after closing %s', async (title) => {
+    renderDriverShell();
+    const account = screen.getByRole('button', { name: 'Tài khoản' });
+    account.focus();
+    openAccountSheet();
+    fireEvent.click(screen.getByRole('button', { name: title }));
+    const dialog = await screen.findByRole('dialog', { name: title });
+    expect(document.querySelector('.mobile-user-sheet-overlay')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: title })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(account));
+  });
+
+  it('renders only the desktop account menu at a desktop viewport', () => {
+    const media = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: () => false,
+    }));
+    renderDriverShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu người dùng' }));
+    expect(document.querySelector('.sidebar-user-dropdown')).toBeTruthy();
+    expect(document.querySelector('.mobile-user-sheet-overlay')).toBeNull();
+    media.mockRestore();
   });
 });

@@ -61,7 +61,7 @@ function BusinessCalendarForm({
           alignItems: 'center',
           gap: 9,
           cursor: 'pointer',
-          fontSize: 13,
+          fontSize: 'var(--text-label-size)',
           fontWeight: 600,
         }}
       >

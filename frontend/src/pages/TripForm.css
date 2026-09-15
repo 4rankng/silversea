@@ -40,7 +40,7 @@
 .tc-title-wrap { flex: 1; min-width: 0; }
 .tc-page-title {
   margin: 0;
-  font-size: var(--fs-2xl);
+  font-size: var(--text-title-size);
   font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-tight);
   color: var(--fg-1);
@@ -57,8 +57,8 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  margin-bottom: 32px;
-  padding-bottom: 32px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--border-1);
 }
 .tc-card:last-child {
@@ -77,7 +77,7 @@
 }
 .tc-card-text { flex: 1; min-width: 0; }
 .tc-card-title {
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: var(--fw-bold);
   color: var(--fg-1);
 }
@@ -182,18 +182,18 @@
   .tc-form-col { gap: 12px; }
   .tc-form-col .input,
   .tc-form-row .input {
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
   .tc-page-head { padding: 16px 14px 8px; flex-wrap: wrap; gap: 12px; }
-  .tc-page-title { font-size: var(--fs-xl); line-height: 1.35; }
+  .tc-page-title { font-size: var(--text-title-size); line-height: 1.35; }
   .tc-page-sub { font-size: var(--fs-xs); }
   .tc-back-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
   .tc-form-row,
   .tc-form-row--three { grid-template-columns: 1fr; }
-  .tc-card { margin-bottom: 24px; padding-bottom: 24px; border-radius: 0; }
+  .tc-card { margin-bottom: 16px; padding-bottom: 16px; border-radius: 0; }
   .tc-card-head { padding: 0 0 12px 0; gap: 10px; }
   .tc-card-num { display: none; }
-  .tc-card-title { font-size: var(--fs-sm); }
+  .tc-card-title { font-size: var(--text-section-size); }
   .tc-card-sub { font-size: var(--fs-xs); }
   .tc-card-body { padding: 0; }
   .tc-badge-required, .tc-badge-optional { font-size: var(--fs-2xs); padding: 2px 6px; }

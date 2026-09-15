@@ -43,7 +43,6 @@ let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
 
 let adminToken: string;
 let managerToken: string;
-let accountantToken: string;
 let customerToken: string;
 let driverToken: string;
 let forwarderToken: string;
@@ -197,7 +196,6 @@ before(async () => {
 
   const admin = await mkUser(Role.ADMIN);
   const manager = await mkUser(Role.MANAGER);
-  const accountant = await mkUser(Role.ACCOUNTANT);
   const customer = await mkUser(Role.CUSTOMER, { customerId: scopedCustomer.id });
   const driver = await mkUser(Role.DRIVER);
   const forwarder = await mkUser(Role.OPS);
@@ -205,7 +203,6 @@ before(async () => {
 
   adminToken = sign(admin);
   managerToken = sign(manager);
-  accountantToken = sign(accountant);
   customerToken = sign(customer);
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);
@@ -359,7 +356,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
     const customerScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',
-      token: accountantToken,
+      token: managerToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-override-${suffix}`),
       body: {
         customerId: createdCustomer.id,

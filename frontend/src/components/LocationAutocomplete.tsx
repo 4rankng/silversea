@@ -15,6 +15,8 @@ interface LocationAutocompleteProps {
   className?: string;
   style?: React.CSSProperties;
   required?: boolean;
+  /** Accessible name — placeholders are not reliable accessible names. */
+  ariaLabel?: string;
 }
 
 interface MergedSuggestion {
@@ -31,6 +33,7 @@ export function LocationAutocomplete({
   className,
   style,
   required,
+  ariaLabel,
 }: LocationAutocompleteProps) {
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -171,6 +174,7 @@ export function LocationAutocomplete({
         className={className}
         style={style}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => {
@@ -201,7 +205,7 @@ export function LocationAutocomplete({
                 style={{
                   padding: '8px 12px',
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 'var(--text-data-size)',
                   borderBottom: '1px solid var(--border-1, var(--line))',
                   color: 'var(--fg-1, var(--ink))',
                   display: 'flex',
@@ -215,7 +219,7 @@ export function LocationAutocomplete({
                     {s.description}
                   </div>
                   {s.hint && (
-                    <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
+                    <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
                       {s.hint}
                     </div>
                   )}
@@ -223,7 +227,7 @@ export function LocationAutocomplete({
                 {s.source === 'port' && (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 'var(--text-body-size)',
                       padding: '2px 6px',
                       borderRadius: 999,
                       background: 'rgba(16,185,129,0.15)',

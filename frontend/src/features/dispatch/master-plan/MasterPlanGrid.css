@@ -13,7 +13,7 @@
 .master-plan-filters__zones-error {
   align-self: center;
   color: var(--warning-text, #b45309);
-  font-size: 12.5px;
+  font-size: var(--text-data-size);
 }
 
 /* UUI inputs/selects carry their own borders, focus rings, and sizing;
@@ -30,7 +30,7 @@
 
 .master-plan-filters__label {
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -144,7 +144,7 @@
   place-items: center;
   background: var(--accent);
   color: var(--surface);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1;
 }
@@ -162,7 +162,7 @@
 .master-plan-filters__drawer-title {
   margin: 0 0 12px;
   color: var(--fg-1);
-  font-size: 14px;
+  font-size: var(--text-section-size);
   font-weight: 650;
 }
 
@@ -299,7 +299,7 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
   color: var(--fg-1);
   outline: none;
 }
@@ -335,7 +335,7 @@
   padding: 16px 12px;
   text-align: center;
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .master-plan-filters__facet-option {
@@ -364,7 +364,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--text-label-size);
   color: var(--fg-1);
 }
 
@@ -386,7 +386,7 @@
 }
 
 .master-plan-filters__facet-footer-text {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3);
 }
 
@@ -395,7 +395,7 @@
   background: transparent;
   border: 0;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-xs);
@@ -417,7 +417,7 @@
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--app-radius-md);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-2);
 }
 
@@ -729,7 +729,7 @@
   border-radius: var(--radius-xs, 4px);
   background: var(--surface);
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 100ms var(--ease), border-color 100ms var(--ease);
@@ -818,7 +818,7 @@
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--app-radius-md);
-  font-size: 13.5px;
+  font-size: var(--text-body-size);
   line-height: 1.6;
   color: var(--fg-1);
   white-space: pre-wrap;
@@ -955,7 +955,7 @@
     margin-bottom: 4px;
     color: var(--fg-3);
     content: attr(data-label);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.3;
@@ -1013,7 +1013,7 @@
     display: block;
     margin-bottom: 4px;
     color: var(--fg-3);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.3;

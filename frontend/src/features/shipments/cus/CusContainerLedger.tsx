@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { formatDateTimeShort } from '../../../lib/format';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
 import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
-import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
-import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
-  dispatchStatusLabel,
   idempotencySignature,
   lineDraft,
   lineOperationalSignature,
@@ -79,180 +74,8 @@ function buildContainerPatch(
   };
 }
 
-function ContainerLineRow({
-  detail,
-  line,
-  draft,
-  dirty,
-  onDraftChange,
-  idPrefix,
-  editing,
-  onCompleteExternalTrip,
-  completing,
-}: {
-  detail: ShipmentCusWorkspaceDetail;
-  line: ShipmentCusWorkspaceContainerLine;
-  draft: ContainerLineDraft;
-  dirty: boolean;
-  onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
-  idPrefix: string;
-  editing: boolean;
-  /** Staff close for external-carrier trips (external drivers don't use the
-   *  app) — absent when the line has no completable external trip. */
-  onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
-  completing?: boolean;
-}) {
-  const [, setSelectOpen] = useState(false);
-  const [appointmentOpen, setAppointmentOpen] = useState(false);
-  const appointmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const p = line.permissions;
-  const carrierEditable = editing && p.carrierEditable, plateEditable = editing && p.plateEditable;
-  const containerTypeEditable = editing && p.containerTypeEditable;
-  const routeEditable = editing && p.routeEditable;
-  const liftSiteEditable = editing && p.liftSiteEditable, dropoffSiteEditable = editing && p.dropoffSiteEditable;
-  const customerAppointmentEditable = editing && p.customerAppointmentEditable;
-
-  const carrierOptions = [
-    { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
-    ...detail.selectors.externalCarriers.map((carrier) => ({
-      value: `EXTERNAL:${carrier.id}`,
-      label: carrier.label,
-      searchText: carrier.shortName ?? undefined,
-    })),
-  ];
-  const selectedContainerType = detail.selectors.containerTypes.find((option) => String(option.id) === draft.containerTypeId);
-  const selectedRoute = detail.selectors.routes.find((option) => String(option.id) === draft.routeId);
-  const selectedCarrier = carrierOptions.find((option) => option.value === draft.carrierKey);
-  const selectedLiftPort = detail.selectors.ports.find((option) => String(option.id) === draft.liftSiteId);
-  const selectedDropoffPort = detail.selectors.ports.find((option) => String(option.id) === draft.dropoffSiteId);
-
-  return (
-    <tr
-      className={`cus-container-row${dirty ? ' cus-container-row--dirty' : ''}`}
-      aria-labelledby={`${idPrefix}-container-${line.id}`}
-    >
-      <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
-        <div className="cus-container-cell__identity-inner">
-          <span className="cus-container-row__ordinal">{line.ordinal}</span>
-          <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
-        </div>
-      </th>
-      {containerTypeEditable ? (
-        <ShipmentContainerCell
-          label="Loại cont"
-          value={selectedContainerType?.code ?? ''}
-          placeholder="Chọn loại cont"
-          displayTitle={selectedContainerType ? `${selectedContainerType.code} — ${selectedContainerType.name}` : undefined}
-          className="cus-container-cell"
-        >
-          <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => onDraftChange({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Loại cont" className="cus-container-cell"><strong>{line.containerTypeLabel || '—'}</strong></td>}
-      {routeEditable ? (
-        <ShipmentContainerCell
-          label="Tuyến"
-          value={selectedRoute?.label ?? ''}
-          placeholder="Chọn tuyến"
-          className="cus-container-cell"
-        >
-          <label className="sr-only" htmlFor={`${idPrefix}-route-${line.id}`}>Tuyến đường của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => onDraftChange({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="Chọn tuyến" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Tuyến" className="cus-container-cell"><strong>{line.routeName || '—'}</strong></td>}
-      <td data-label="Điều vận" className="cus-container-cell">
-        <div className="cus-container-dispatch-group">
-          <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
-          {onCompleteExternalTrip && (
-            <button
-              type="button"
-              className="cus-container-dispatch-complete"
-              onClick={() => onCompleteExternalTrip(line)}
-              disabled={completing}
-              aria-label={`Hoàn thành chuyến xe ngoài của container ${line.containerNumber || line.ordinal}`}
-              title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên CS/điều vận chốt thay"
-            >
-              {completing ? 'Đang…' : 'Hoàn thành'}
-            </button>
-          )}
-        </div>
-      </td>
-      {carrierEditable ? (
-        <ShipmentContainerCell
-          label="Nhà xe"
-          value={draft.carrierKey === 'NEW_EXTERNAL' ? draft.newCarrierName : selectedCarrier?.label ?? ''}
-          placeholder={draft.carrierKey === 'NEW_EXTERNAL' ? 'Nhập nhà xe mới' : 'Chọn nhà xe'}
-          className="cus-container-cell cus-container-cell--carrier"
-        >
-          <div className="cus-carrier-editor">
-            {draft.carrierKey === 'NEW_EXTERNAL' ? (
-              <>
-                <label className="sr-only" htmlFor={`${idPrefix}-new-carrier-${line.id}`}>Tên nhà xe mới</label>
-                <input id={`${idPrefix}-new-carrier-${line.id}`} value={draft.newCarrierName} maxLength={255} placeholder="Tên nhà xe mới" onChange={(event) => onDraftChange({ newCarrierName: event.target.value })} />
-                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: '', newCarrierName: '', plateNumber: '' })}>Chọn sẵn có</button>
-              </>
-            ) : (
-              <>
-                <label className="sr-only" htmlFor={`${idPrefix}-carrier-${line.id}`}>Nhà xe của container {line.containerNumber || line.ordinal}</label>
-                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => onDraftChange({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
-                {plateEditable && <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>}
-              </>
-            )}
-          </div>
-        </ShipmentContainerCell>
-      ) : <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier"><strong>{line.carrierName || '—'}</strong></td>}
-      {plateEditable ? (
-        <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
-          <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
-          <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
-          <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
-        </ShipmentContainerCell>
-      ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
-      {liftSiteEditable ? (
-        <ShipmentContainerCell label="Nâng" value={selectedLiftPort?.name ?? ''} displayTitle={selectedLiftPort ? `${selectedLiftPort.code ?? ''} — ${selectedLiftPort.name}` : undefined} placeholder="Chọn cảng nâng" className="cus-container-cell">
-          <label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => onDraftChange({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng nâng" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Nâng" className="cus-container-cell"><strong>{line.liftSite || '—'}</strong></td>}
-      {dropoffSiteEditable ? (
-        <ShipmentContainerCell label="Hạ" value={selectedDropoffPort?.name ?? ''} displayTitle={selectedDropoffPort ? `${selectedDropoffPort.code ?? ''} — ${selectedDropoffPort.name}` : undefined} placeholder="Chọn cảng hạ" className="cus-container-cell">
-          <label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
-      {customerAppointmentEditable ? (
-        <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
-          <button
-            ref={appointmentTriggerRef}
-            id={`${idPrefix}-customer-appointment-${line.id}`}
-            type="button"
-            className={`cus-appointment-trigger${appointmentOpen ? ' cus-appointment-trigger--active' : ''}`}
-            onClick={() => setAppointmentOpen((current) => !current)}
-            aria-haspopup="dialog"
-            aria-expanded={appointmentOpen}
-            aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chưa có'}`}
-            title="Nhấn để chọn giờ hẹn đóng/trả"
-          >
-            <Calendar size={13} className="cus-appointment-trigger__icon" aria-hidden="true" />
-            <span className={draft.customerAppointmentAt ? 'cus-appointment-trigger__text' : 'cus-appointment-trigger__text cus-appointment-trigger__text--empty'}>
-              {draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
-            </span>
-          </button>
-          <CusAppointmentPopover
-            isOpen={appointmentOpen}
-            value={draft.customerAppointmentAt}
-            containerLabel={line.containerNumber || `Cont ${line.ordinal}`}
-            onClose={() => setAppointmentOpen(false)}
-            onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
-            idPrefix={`${idPrefix}-apt-${line.id}`}
-            triggerRef={appointmentTriggerRef}
-          />
-        </td>
-      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
-    </tr>
-  );
-}
-
+// ContainerLineRow lives in CusContainerLedgerRow.tsx (ceiling extraction).
+import { ContainerLineRow } from './CusContainerLedgerRow';
 export function ContainerLedger({
   detail,
   onLineSaved,
@@ -264,6 +87,7 @@ export function ContainerLedger({
   onSavingChange,
   actionsRef,
   onExternalTripCompleted,
+  onAppointmentSavedAndExit,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
@@ -276,6 +100,10 @@ export function ContainerLedger({
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
   /** Detail refetch after a staff close — completion advances the shipment. */
   onExternalTripCompleted?: () => void;
+  /** Fires once after an appointment commit settles successfully — the host
+   *  closes the detail surface so Enter returns the user to the list, matching
+   *  the drawer footer's save-then-close behavior. */
+  onAppointmentSavedAndExit?: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
@@ -312,6 +140,22 @@ export function ContainerLedger({
   }, [detail.containers, drafts]);
 
   const isDirty = dirtyLineIds.size > 0;
+
+  // Ref mirror for deferred callbacks: effects flush after timers, so a
+  // timeout-scheduled exit would otherwise read a stale dirty set and trip
+  // the host's discard-confirm instead of closing the drawer.
+  const dirtyLineIdsRef = useRef<Set<number>>(dirtyLineIds);
+  useEffect(() => {
+    dirtyLineIdsRef.current = new Set(dirtyLineIds);
+  }, [dirtyLineIds]);
+
+  // _42: the settle-poll exit must also wait for the saving flag to clear —
+  // an exit fired during the saving teardown hits the host's while-saving
+  // guard (stranded mid-exit) instead of closing the drawer cleanly.
+  const savingRef = useRef(saving);
+  useEffect(() => {
+    savingRef.current = saving;
+  }, [saving]);
 
   const onDirtyChangeRef = useRef(onDirtyChange);
   const onSavingChangeRef = useRef(onSavingChange);
@@ -400,6 +244,68 @@ export function ContainerLedger({
     }
   }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
 
+  /** Persist a single container's appointment directly — bypasses the draft
+   *  dirty-tracking so the Enter key in the popover saves immediately without
+   *  waiting for a React re-render cycle. */
+
+  // Enter-save exits must wait for the saved line's draft reset (refetch +
+  // effect flush loses the race against a bare timeout), then take the
+  // host's guarded close. Bounded at 2s worst-case.
+  const scheduleExit = useCallback(() => {
+    let attempt = 0;
+    const tryExit = () => {
+      // Settle on BOTH clean drafts and a cleared saving flag — closing
+      // mid-teardown is what occasionally left the rung on a broken surface.
+      if ((dirtyLineIdsRef.current.size === 0 && !savingRef.current) || attempt >= 60) {
+        onAppointmentSavedAndExit?.();
+        return;
+      }
+      attempt += 1;
+      setTimeout(tryExit, 50);
+    };
+    setTimeout(tryExit, 0);
+  }, [onAppointmentSavedAndExit]);
+
+  /** _34: dismissal without commit — revert the line's appointment draft to
+   *  its base so Escape/outside never leak the abandoned value on reopen. */
+  const revertAppointmentDraft = useCallback((lineId: number) => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    if (!line) return;
+    updateLineDraft(lineId, { customerAppointmentAt: lineDraft(line).customerAppointmentAt });
+  }, [detail.containers, updateLineDraft]);
+
+  const commitAppointment = useCallback(async (lineId: number, value: string): Promise<boolean> => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    // _34: a non-saveable line is an error the popover must show — a silent
+    // false made the popover close as if saved, with zero POSTs.
+    if (!line || !line.permissions.customerAppointmentEditable) throw new Error('Không thể lưu giờ hẹn cho container này.');
+    setSaving(true);
+    let saved = false;
+    try {
+      const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
+      const patch = {
+        expectedShipmentVersion: expectedVersion,
+        customerAppointmentAt: value ? localDateTimeToIso(value) : null,
+      };
+      const signature = idempotencySignature('container', detail.summary.id, line.id, expectedVersion);
+      const idempotencyKey = getIdempotencyKey(signature);
+      const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, patch, idempotencyKey);
+      clearIdempotencyKey(signature);
+      if (result?.line) {
+        await onLineSaved(result.line);
+      }
+      toast({ kind: 'success', message: 'Đã lưu giờ hẹn.' });
+      saved = true;
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không thể lưu giờ hẹn.') });
+    } finally {
+      setSaving(false);
+    }
+    if (saved) scheduleExit();
+    return saved;
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
+
+
   useEffect(() => {
     if (actionsRef) actionsRef.current = { saveAll, discardAll };
     return () => {
@@ -433,9 +339,16 @@ export function ContainerLedger({
           className="cus-container-table-scroll"
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing || saving || !isDirty) return;
+            // _34: the appointment popover owns its own Enter (commit path);
+            // table-level Enter only saves TABLE drafts.
+            if ((event.target as HTMLElement).closest('.cus-appointment-popover, .cus-appointment-backdrop')) return;
+            // Bare Enter inside a multiline notes textarea must insert a
+            // newline, not submit the ledger — same contract as the inline
+            // editor (ShipmentContainerLedger). Ctrl/Cmd+Enter still saves.
+            if (event.target instanceof HTMLTextAreaElement && !event.ctrlKey && !event.metaKey) return;
             if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
               event.preventDefault();
-              void saveAll();
+              void saveAll().then((saved) => { if (saved) scheduleExit(); });
             } else if (event.key === 'Escape') {
               event.preventDefault();
               discardAll();
@@ -479,6 +392,8 @@ export function ContainerLedger({
                   editing={editing}
                   onCompleteExternalTrip={externalCloseForLine(line)}
                   completing={completing}
+                  onAppointmentCommit={(val) => commitAppointment(line.id, val)}
+                  onAppointmentCancel={() => revertAppointmentDraft(line.id)}
                 />
               ))}
             </tbody>

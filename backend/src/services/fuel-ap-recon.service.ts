@@ -1,3 +1,4 @@
+import { inArray } from 'drizzle-orm';
 /**
  * Wave 3 M6.1 (slice 1) — Fuel-AP reconciliation report.
  *
@@ -77,12 +78,12 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   // trips_composite query, so the composite pass re-derives the same
   // business-date expression over the view's completedAt.
   const completionBusinessDateComposite = sql<string>`(${s.tripsComposite.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
-  const approvedSettlementAdjustedBuyAmount = sql<string | null>`(
+  const recordedSettlementAdjustedBuyAmount = sql<string | null>`(
     SELECT se.adjusted_buy_amount::text
     FROM ${s.settlementExpenses} se
     INNER JOIN ${s.advanceSettlements} aset ON aset.id = se.settlement_id
     WHERE se.trip_expense_id = ${s.tripExpenses.id}
-      AND aset.status = 'APPROVED'
+      AND aset.status IN ('RECORDED', 'APPROVED')
     ORDER BY coalesce(aset.approved_at, aset.updated_at) DESC, se.id DESC
     LIMIT 1
   )`;
@@ -132,15 +133,15 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
     });
   }
 
-  // ── Pass 2a: approved fuel-invoice allocations per (supplier, truck) ──
+  // ── Pass 2a: recorded fuel-invoice allocations per (supplier, truck) ──
   // This is the accepted Q06 model: one invoice header, many truck lines,
   // each line backed by actual voucher/log litres and priced at the invoice
-  // unit price. Only APPROVED headers contribute to invoiced totals.
+  // unit price. Only recorded headers contribute to invoiced totals.
   const effectiveApprovedInvoices = [];
   let fuelInvoiceCursor: string | undefined;
   do {
     const page = await listFuelInvoices({
-      status: 'APPROVED',
+      status: 'RECORDED',
       limit: 100,
       cursor: fuelInvoiceCursor,
     });
@@ -179,7 +180,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   const legacyExpenseRows = await db.select({
     supplierId: s.tripExpenses.supplierId,
     truckId: s.trips.truckId,
-    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${approvedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})), 0)`,
+    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${recordedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})), 0)`,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
@@ -188,7 +189,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
       sql`${s.tripExpenses.supplierId} IS NOT NULL`,
       sql`${s.fuelInvoiceAllocations.id} IS NULL`,
       sql`lower(${s.tripExpenses.expenseType}) LIKE '%fuel%'`,
-      eq(s.tripExpenses.approvalStatus, 'APPROVED'),
+      inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       or(
         and(
           sql`${s.tripExpenses.invoiceDate} IS NOT NULL`,

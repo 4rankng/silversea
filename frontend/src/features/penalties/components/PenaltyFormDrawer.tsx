@@ -180,11 +180,11 @@ export function PenaltyFormDrawer({
             );
             if (!match) return null;
             return (
-              <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--brand)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--text-body-size)', lineHeight: 1.35, color: 'var(--brand)', marginTop: 4 }}>
                 Đã có lý do tương tự:{' '}
                 <button
                   type="button"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontWeight: 600, padding: 0, fontSize: 12, lineHeight: 1.35, textDecoration: 'underline' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontWeight: 600, padding: 0, fontSize: 'var(--text-control-size)', lineHeight: 1.35, textDecoration: 'underline' }}
                   onClick={() => { setFormCustomReason(match.reasonText); if (match.defaultAmount) setFormAmount(match.defaultAmount); }}
                 >
                   "{match.reasonText}"

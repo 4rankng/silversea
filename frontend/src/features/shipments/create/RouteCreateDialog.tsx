@@ -3,6 +3,7 @@ import type { Route } from '@tingting/shared';
 import { configClient } from '../../../api/configClient';
 import { Modal } from '../../../components/UI';
 import { UTextField } from './uui-fields';
+import './RouteCreateDialog.css';
 
 interface RouteCreateDialogProps {
   isOpen: boolean;
@@ -76,10 +77,10 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
       onConfirm={() => void submit()}
       maxWidth={560}
     >
-      <div className="csc-route-dialog">
-        <p>Tuyến mới sẽ được thêm vào danh mục và chọn ngay cho lô hàng này.</p>
-        {error && <div role="alert" className="csc-route-dialog__error">{error}</div>}
-        <div className="csc-route-dialog__grid">
+      <div className="route-create-dialog">
+        <p>Tuyến mới sẽ được thêm vào danh mục và tự động chọn sau khi lưu.</p>
+        {error && <div role="alert" className="route-create-dialog__error">{error}</div>}
+        <div className="route-create-dialog__grid">
           <UTextField
             label="Tên đầy đủ"
             value={name}
@@ -97,8 +98,8 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
             disabled={saving}
           />
         </div>
-        <div className="csc-route-dialog__distance-action">
-          <div className="csc-route-dialog__distance-field">
+        <div className="route-create-dialog__distance-action">
+          <div className="route-create-dialog__distance-field">
             <UTextField
               label="Khoảng cách (km)"
               type="number"
@@ -110,7 +111,7 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
               disabled={saving}
             />
           </div>
-          <button type="button" className="btn btn--primary csc-route-dialog__submit" onClick={() => void submit()} disabled={saving}>
+          <button type="button" className="btn btn--primary route-create-dialog__submit" onClick={() => void submit()} disabled={saving}>
             {saving ? 'Đang lưu…' : 'Thêm tuyến đường'}
           </button>
         </div>

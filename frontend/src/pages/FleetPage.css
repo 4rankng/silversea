@@ -38,7 +38,7 @@
 }
 
 .fleet-page .kpi__value {
-  font-size: var(--fs-xl);
+  font-size: var(--text-metric-size);
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -74,12 +74,20 @@
 
 .fleet-page .fleet-kpi-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   min-width: 0;
 }
 
+.fleet-page .fleet-kpi-meta__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .fleet-page .fleet-kpi-dot {
+  flex: 0 0 auto;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -160,7 +168,7 @@
 }
 
 .fleet-page .fleet-card-title {
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: 700;
   color: var(--ink);
   display: flex;
@@ -170,7 +178,7 @@
 
 .fleet-page .count-pill {
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -179,7 +187,7 @@
 }
 
 .fleet-page .fleet-card-sub {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   margin-top: 1px;
 }
@@ -196,7 +204,7 @@
   align-items: center;
   font-family: var(--font-data);
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink);
 }
 
@@ -205,7 +213,7 @@
   color: var(--fg-on-brand);
   padding: 3px 6px;
   border-radius: 4px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   letter-spacing: 0.5px;
   margin-right: 6px;
 }
@@ -232,13 +240,13 @@
 .fleet-page .fleet-assigned .name {
   font-weight: 600;
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
 }
 
 .fleet-page .fleet-unassigned {
   color: var(--ink-3);
   font-style: italic;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 /* Trailer type chip */
@@ -251,7 +259,7 @@
   border: 1px solid var(--line);
   color: var(--ink-2);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -278,7 +286,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-2);
   padding: 3px 8px;
   background: var(--surface-2);
@@ -304,7 +312,7 @@
   border-radius: 8px;
   background: color-mix(in srgb, var(--fleet-green-end) 65%, transparent);
   color: var(--accent-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   text-decoration: none;
   transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease), transform 140ms var(--ease);
@@ -328,7 +336,7 @@
   background: var(--surface);
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 800;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-2) 80%, transparent);
 }
@@ -343,7 +351,7 @@
 /* Phone display */
 .fleet-page .fleet-phone {
   font-family: var(--font-data);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink-2);
   letter-spacing: 0.3px;
 }
@@ -351,13 +359,13 @@
 /* Salary display */
 .fleet-page .fleet-salary {
   font-family: var(--font-data);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink);
   font-weight: 600;
 }
 
 .fleet-page .fleet-salary .unit {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   font-weight: 500;
   margin-left: 3px;
@@ -382,7 +390,7 @@
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--text-control-size);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -420,7 +428,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
 }
 
@@ -482,7 +490,7 @@
 .fleet-page .fleet-driver-card__name {
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-size: var(--fs-md);
+  font-size: var(--text-body-size);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -490,7 +498,7 @@
 .fleet-page .fleet-driver-card__phone {
   color: var(--ink-3);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.4;
 }
 
@@ -530,7 +538,7 @@
 /* compact inputs inside the edit row */
 .fleet-page .fleet-edit-row .input--sm {
   padding: 5px 8px;
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   height: 32px;
   width: 100%;
 }
@@ -620,7 +628,7 @@
 .fleet-detail__label {
   margin-bottom: 7px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-label-size);
   font-weight: 700;
   letter-spacing: 0.05em;
   line-height: 1.2;
@@ -629,7 +637,7 @@
 
 .fleet-detail__primary {
   color: var(--ink);
-  font-size: var(--fs-lg);
+  font-size: var(--text-section-size);
   font-weight: 750;
   line-height: 1.25;
 }
@@ -658,7 +666,7 @@
 
 .fleet-detail__value {
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   line-height: 1.45;
 }
 
@@ -678,7 +686,7 @@
   border-radius: 4px;
   background: var(--ink);
   color: var(--fg-on-brand);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   letter-spacing: 0.5px;
   line-height: 1.25;
 }
@@ -702,7 +710,7 @@
 
 .fleet-detail .fleet-unassigned {
   color: var(--ink-3);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   font-style: italic;
 }
 
@@ -727,7 +735,7 @@
   background: var(--surface-3);
   color: var(--ink-2);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -756,7 +764,7 @@
   justify-content: space-between;
   gap: 10px;
   color: var(--ink-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 .fleet-tire-detail__head strong {
@@ -791,7 +799,7 @@
   overflow: hidden;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -800,7 +808,7 @@
 .fleet-tire-detail__position {
   overflow: hidden;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -812,7 +820,7 @@
   justify-content: flex-end;
   gap: 7px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   white-space: nowrap;
 }
 
@@ -861,7 +869,7 @@
 .fleet-form__section-head h4 {
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   font-weight: 750;
   line-height: 1.2;
 }
@@ -869,7 +877,7 @@
 .fleet-form__section-head p {
   margin: 4px 0 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -913,7 +921,7 @@
   gap: 8px;
   margin-bottom: 8px;
   color: var(--ink-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -937,7 +945,7 @@
   padding: 0 10px;
   border-radius: var(--r-sm);
   color: var(--ink);
-  font-size: var(--control-compact-font-size);
+  font-size: var(--text-control-compact-size);
   line-height: var(--control-compact-line-height);
 }
 
@@ -963,7 +971,7 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-2) 88%, transparent);
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.5;
 }
 
@@ -996,22 +1004,22 @@
   }
 
   .fleet-page .kpi__label {
-    font-size: var(--fs-xs);
+    font-size: var(--text-label-size);
     letter-spacing: 0.045em;
     line-height: 1.35;
   }
 
   .fleet-page .kpi__value {
-    font-size: 24px;
+    font-size: var(--text-metric-size);
     margin-bottom: 6px;
   }
 
   .fleet-page .kpi__value-unit {
-    font-size: 13px;
+    font-size: var(--text-label-size);
   }
 
   .fleet-page .kpi__meta {
-    font-size: var(--fs-xs);
+    font-size: var(--text-caption-size);
     gap: 4px 6px !important;
     line-height: 1.35;
     align-items: center;
@@ -1019,12 +1027,17 @@
 
   .fleet-page .fleet-kpi-meta {
     display: flex !important;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     width: 100%;
   }
 
   .fleet-page .fleet-kpi-meta > span {
     min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .fleet-page .fleet-kpi-meta__sep {
+    display: none;
   }
 
   .fleet-page .fleet-kpi-meta__good,
@@ -1159,7 +1172,7 @@
   margin-bottom: 8px;
 }
 .truck-alert-badge {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
@@ -1204,7 +1217,7 @@
 
 .truck-oil-helper__hint {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -1282,7 +1295,7 @@
   .fleet-form .input {
     min-height: var(--control-touch-h);
     height: var(--control-touch-h);
-    font-size: var(--control-compact-touch-font-size);
+    font-size: var(--text-input-touch-size);
     line-height: var(--control-compact-touch-line-height);
   }
 
@@ -1291,7 +1304,7 @@
   .modal__body .fleet-form .field .input {
     min-height: var(--control-touch-h);
     height: var(--control-touch-h);
-    font-size: var(--control-compact-touch-font-size);
+    font-size: var(--text-input-touch-size);
     line-height: var(--control-compact-touch-line-height);
   }
 
@@ -1303,4 +1316,33 @@
     flex: 1 1 0;
     justify-content: center;
   }
+}
+
+/* Keep operational identifiers intact: wrap between plate/type units only. */
+.fleet-page .fleet-plate,
+.fleet-page .fleet-plate-tag,
+.fleet-page .fleet-type-chip,
+.fleet-detail .fleet-plate,
+.fleet-detail .fleet-plate-tag,
+.fleet-detail .fleet-type-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.fleet-page .fleet-pair {
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+.fleet-page .kpi__meta { overflow: visible; }
+.fleet-page .fleet-kpi-meta { gap: 4px 10px; line-height: 1.45; }
+.fleet-page .fleet-kpi-meta > span:not(.fleet-kpi-meta__sep) {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .fleet-page .kpi { min-width: 0; height: auto; }
+  .fleet-page .kpi__watermark { display: none; }
+  .fleet-page .fleet-kpi-meta { gap: 4px 8px; }
 }

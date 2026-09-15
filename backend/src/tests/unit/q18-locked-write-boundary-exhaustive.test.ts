@@ -148,22 +148,30 @@ describe('Q18 executable locked-entity boundary inventory', () => {
         boundary.directMutationBoundary,
         `${boundary.entity}: direct mutation boundary`,
       );
-      assert.match(
-        guard,
-        /\b(throw|governance|Governance|assert|originalVersion|beforeSnapshot)\b/,
-        `${boundary.entity}: mutation boundary has no rejection/governance guard`,
-      );
+      if (boundary.createOnly) {
+        assert.match(guard, /runInTx/, `${boundary.entity}: creation must be atomic`);
+        assert.equal(boundary.governedActions.length, 0, 'Create-only records must not expose review actions');
+      } else {
+        assert.match(guard, /\b(throw|governance|Governance|assert|originalVersion|beforeSnapshot)\b/,
+          `${boundary.entity}: mutation boundary has no rejection guard`);
+      }
       assertExecutableProof(
         boundary.directMutationProof,
         `${boundary.entity}: direct mutation proof`,
       );
+      if (boundary.draftRecovery) {
+        const recovery = assertDeclarationBinding(boundary.draftRecovery.boundary, `${boundary.entity}: unposted draft recovery`);
+        assert.match(recovery, /status !== 'DRAFT'/, 'Recovery must reject every non-draft state');
+        assert.match(recovery, /expectedVersion/, 'Recovery must compare the current source version');
+        assertExecutableProof(boundary.draftRecovery.proof, `${boundary.entity}: draft recovery proof`);
+      }
     }
   });
 
   test('binds each governed action to entity-specific immutable evidence and executable proof', () => {
     const knownActions = new Set<string>(GOVERNANCE_ACTION_KINDS);
     for (const boundary of LOCKED_ENTITY_BOUNDARIES) {
-      assert.ok(boundary.governedActions.length > 0, `${boundary.entity}: governed actions`);
+      assert.ok(boundary.createOnly || boundary.governedActions.length > 0, `${boundary.entity}: correction actions or explicit create-only contract`);
       for (const governedAction of boundary.governedActions) {
         assert.ok(
           knownActions.has(governedAction.actionKind),
@@ -212,12 +220,9 @@ describe('Q18 executable locked-entity boundary inventory', () => {
     }
   });
 
-  test('binds the shared checker, approver, and applied reference persistence path', () => {
-    // 2026-09-11 maker-checker removal: the row machine (check/approve fn
-    // pair) is gone; the single in-request engine now performs every stage —
-    // check policy, evidence completeness, approve policy, apply adapter —
-    // and stamps checker/approver/applied + ledger references on the
-    // transient record.
+  test('binds direct financial application to durable evidence and atomic retry proof', () => {
+    // Adapter compatibility fields remain transient. The completed operation's
+    // durable authority is its in-transaction audit entry, never a review queue.
     const directApply = assertDeclarationBinding(
       {
         file: 'services/governance-action-core.service.ts',
@@ -234,12 +239,22 @@ describe('Q18 executable locked-entity boundary inventory', () => {
           'ledgerEntryId',
           'applicationResult',
           'enqueueDurableEffects',
+          'auditLogs',
+          'FINANCIAL_ACTION_APPLIED',
+          'beforeSnapshot',
+          'afterSnapshot',
+          'deltaSnapshot',
         ],
       },
       'shared governance checker',
     );
     assert.match(directApply, /throw new ApiError/);
-    assert.match(directApply, /PENDING_APPROVAL/);
+    assert.match(directApply, /FINANCIAL_ACTION_APPLIED/);
+    assertExecutableProof({
+      file: 'tests/direct-financial-audit.test.ts',
+      testName: 'direct financial action atomically persists original evidence and retries once after audit serialization failure',
+      requiredFragments: ['assert.rejects(command()', 'audits.length, 1', 'evidence.beforeSnapshot', 'evidence.ledgerEntryId'],
+    }, 'direct financial atomic evidence');
   });
 
   test('never exposes a reopen action for entities whose terminal state is irreversible', () => {

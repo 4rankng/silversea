@@ -515,3 +515,42 @@ test('commission reduces EXTERNAL trip grossProfit and management margin', () =>
   assert.strictEqual(r.externalMargin, 4100000);     // recorded revenue 9.5M − hire cost 5.4M
   assert.strictEqual(r.grossProfit, 4100000);
 });
+
+// --- Road allowance override predicate (KP-157) -----------------------------
+
+// Using defaultBaseInput: computed roadAllowance = 1740000 + 300000 − 100000 = 1940000
+// fuelCost = 85 × 20000 = 1700000; tollCost = 2 × 55000 = 110000
+// totalCost = fuel + road + toll + tollsDiscount + salary = fuel + road + 110000 + 100000 + 800000
+
+test('roadAllowanceOverride=null uses automatic computed allowance', () => {
+  const result = computeTripTotals({ ...defaultBaseInput, roadAllowanceOverride: null });
+  // null → fall through to computed: 1940000
+  assert.strictEqual(result.totalRoadAllowance, 1940000);
+  assert.strictEqual(result.totalCost, 1700000 + 1940000 + 110000 + 100000 + 800000);
+  assert.strictEqual(result.grossProfit, 4000000 - 4650000);
+});
+
+test('roadAllowanceOverride=undefined uses automatic computed allowance', () => {
+  const result = computeTripTotals({ ...defaultBaseInput });
+  // undefined → fall through to computed: 1940000
+  assert.strictEqual(result.totalRoadAllowance, 1940000);
+  assert.strictEqual(result.totalCost, 1700000 + 1940000 + 110000 + 100000 + 800000);
+  assert.strictEqual(result.grossProfit, 4000000 - 4650000);
+});
+
+test('roadAllowanceOverride=0 uses explicit zero (not computed fallback)', () => {
+  const result = computeTripTotals({ ...defaultBaseInput, roadAllowanceOverride: 0 });
+  // 0 is a valid explicit override → totalRoadAllowance = 0
+  assert.strictEqual(result.totalRoadAllowance, 0);
+  // totalCost = 1700000 + 0 + 110000 + 100000 + 800000 = 2710000
+  assert.strictEqual(result.totalCost, 1700000 + 0 + 110000 + 100000 + 800000);
+  assert.strictEqual(result.grossProfit, 4000000 - 2710000);
+});
+
+test('roadAllowanceOverride=positive uses the override value', () => {
+  const result = computeTripTotals({ ...defaultBaseInput, roadAllowanceOverride: 500000 });
+  assert.strictEqual(result.totalRoadAllowance, 500000);
+  // totalCost = 1700000 + 500000 + 110000 + 100000 + 800000 = 3210000
+  assert.strictEqual(result.totalCost, 1700000 + 500000 + 110000 + 100000 + 800000);
+  assert.strictEqual(result.grossProfit, 4000000 - 3210000);
+});

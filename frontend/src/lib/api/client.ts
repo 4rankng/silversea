@@ -1,4 +1,6 @@
+import { MUTATION_METHODS, hasIdempotencyKey, ensureMutationTransactionKey } from './mutation-identity';
 import { ApiError } from './errors';
+import { assertConnectionForMutation } from '../connection';
 import { notifySessionExpired } from './session';
 import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../token';
 
@@ -13,7 +15,6 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 type RequestInitWithSkip = RequestInit & MutationOptions;
 type UploadOptions = MutationOptions;
 
-const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const RETRYABLE_COMMAND_KEY_TTL_MS = 5 * 60 * 1000;
 
 type GeneratedCommandKey = {
@@ -21,36 +22,7 @@ type GeneratedCommandKey = {
   key: string;
 };
 
-export function fileCommandFingerprint(file: File): string {
-  return [
-    file.name,
-    file.size,
-    file.type,
-    file.lastModified,
-  ].join(':');
-}
-
-/**
- * Every client mutation carries a transaction identifier. Domain clients that
- * need retry/replay semantics may supply their own stable Idempotency-Key; the
- * transport only generates one when the caller did not provide it.
- */
-function hasIdempotencyKey(headers: Record<string, string>): boolean {
-  return Object.keys(headers).some(
-    (name) => name.toLowerCase() === 'idempotency-key',
-  );
-}
-
-function ensureMutationTransactionKey(
-  method: string | undefined,
-  headers: Record<string, string>,
-  generatedKey?: string,
-): void {
-  if (!method || !MUTATION_METHODS.has(method.toUpperCase())) return;
-  if (!hasIdempotencyKey(headers)) {
-    headers['Idempotency-Key'] = generatedKey ?? crypto.randomUUID();
-  }
-}
+export { fileCommandFingerprint } from './mutation-identity';
 
 /**
  * Thin wrapper around `fetch` for the project's REST API. Knows nothing
@@ -61,6 +33,13 @@ function ensureMutationTransactionKey(
  * Token storage is delegated to `lib/token` so all auth
  * state flows through a single source of truth.
  */
+/** Marker that prevents the self-heal from looping on a single request. */
+const HEALED_VERSION_TOKEN = Symbol('healedVersionToken');
+
+/** The backend's machine-readable marker for "no If-Unmodified-Since at all"
+ *  — distinct from a genuine stale-token 409. See crud-factory.ts. */
+const VERSION_TOKEN_REQUIRED = 'VERSION_TOKEN_REQUIRED';
+
 class ApiClient {
   private readonly updatedAtByPath = new Map<string, string>();
   private readonly retryableCommandKeys = new Map<string, {
@@ -97,6 +76,50 @@ class ApiClient {
     options?: RequestInitWithSkip,
     skipContentType = false,
   ): Promise<T> {
+    try {
+      return await this.requestOnce<T>(path, options, skipContentType);
+    } catch (error) {
+      // Self-heal the crud-factory token omission class: a 428 whose body
+      // carries VERSION_TOKEN_REQUIRED means NO version token was sent at
+      // all. Refetch the row once and retry with its fresh token — clients
+      // that already send explicit tokens (units, base-salary modal) never
+      // enter this path (AC: no double-send), and genuine stale-token 409s
+      // are untouched. The marker prevents any loop.
+      const healable = error instanceof ApiError
+        && error.status === 428
+        && (error.raw as { code?: string } | null)?.code === VERSION_TOKEN_REQUIRED
+        && options?.method
+        && ['PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())
+        && !options?.expectedUpdatedAt
+        && !(options as RequestInitWithSkip & { [HEALED_VERSION_TOKEN]?: boolean })[HEALED_VERSION_TOKEN];
+      if (!healable) throw error;
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[api] ${options?.method} ${path} omitted expectedUpdatedAt — self-healed from a fresh row fetch.`
+          + ' Pass expectedUpdatedAt explicitly (see version-token.guard.test).',
+        );
+      }
+      const fresh = await this.get<{ updatedAt?: string }>(path);
+      if (!fresh?.updatedAt) throw error;
+      return this.requestOnce<T>(path, {
+        ...options,
+        headers: {
+          ...(options?.headers as Record<string, string> | undefined),
+          'If-Unmodified-Since': fresh.updatedAt,
+        },
+        [HEALED_VERSION_TOKEN]: true,
+      } as RequestInitWithSkip, skipContentType);
+    }
+  }
+
+  private async requestOnce<T>(
+    path: string,
+    options?: RequestInitWithSkip,
+    skipContentType = false,
+  ): Promise<T> {
+    if (options?.method && MUTATION_METHODS.has(options.method.toUpperCase())) {
+      assertConnectionForMutation();
+    }
     const token = getToken();
     const headers: Record<string, string> = {
       ...(skipContentType ? {} : { 'Content-Type': 'application/json' }),
@@ -127,16 +150,31 @@ class ApiClient {
       }
       throw error;
     }
-    if (generatedCommandKey) {
-      if (res.status < 500) {
-        this.releaseMutationTransactionKey(generatedCommandKey);
-      } else {
+    this.handleSessionExpiry(res, token);
+    if (!res.ok) {
+      // Non-server HTTP errors still mean the server processed the request;
+      // release the key so it doesn't block future mutations.
+      if (generatedCommandKey) {
+        if (res.status >= 500) this.retainMutationTransactionKeyForRetry(generatedCommandKey);
+        else this.releaseMutationTransactionKey(generatedCommandKey);
+      }
+      throw await ApiError.fromResponse(res);
+    }
+    let result: T;
+    try {
+      result = (await res.json()) as T;
+    } catch (error) {
+      // Malformed JSON — retain the key so a retry can reuse it.
+      if (generatedCommandKey) {
         this.retainMutationTransactionKeyForRetry(generatedCommandKey);
       }
+      throw error;
     }
-    this.handleSessionExpiry(res, token);
-    if (!res.ok) throw await ApiError.fromResponse(res);
-    const result = (await res.json()) as T;
+    // Release the command key only after the response is fully parsed —
+    // a JSON parse failure before this point keeps the key retryable.
+    if (generatedCommandKey) {
+      this.releaseMutationTransactionKey(generatedCommandKey);
+    }
     this.rememberUpdatedAt(path, options?.method, result);
     return result;
   }
@@ -244,8 +282,8 @@ class ApiClient {
     notifySessionExpired();
   }
 
-  get<T>(path: string) {
-    return this.request<T>(path);
+  get<T>(path: string, options?: Pick<RequestInit, 'signal'>) {
+    return this.request<T>(path, options);
   }
   post<T>(
     path: string,
@@ -279,7 +317,7 @@ class ApiClient {
       ...opts,
     });
   }
-  delete<T>(path: string, opts?: MutationOptions) {
+  delete<T>(path: string, opts?: MutationOptions & { body?: BodyInit }) {
     return this.request<T>(path, { method: 'DELETE', ...opts });
   }
 
@@ -315,6 +353,7 @@ class ApiClient {
 
   /** POST JSON body and receive a binary blob response. */
   async postForBlob(url: string, body: unknown): Promise<Blob> {
+    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -336,6 +375,7 @@ class ApiClient {
 
   /** POST JSON body and receive a text response (e.g. HTML). */
   async postForText(url: string, body: unknown): Promise<string> {
+    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

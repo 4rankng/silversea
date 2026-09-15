@@ -21,7 +21,7 @@ export function AccountingLockBanner({ lock }: { lock: ShipmentAccountingLockSum
       <strong style={{ display: 'block', color: 'var(--danger)', marginBottom: 4 }}>
         Đã khóa kế toán · Debit Note {documentLabel}
       </strong>
-      <span style={{ display: 'block', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-2)' }}>
+      <span style={{ display: 'block', fontSize: 'var(--text-data-size)', lineHeight: 1.5, color: 'var(--fg-2)' }}>
         {actor}{activatedAt ? ` khóa lúc ${activatedAt}` : ''}. {lock.reason}
         {' '}Mọi thao tác sửa đổi đã được vô hiệu hóa.
       </span>

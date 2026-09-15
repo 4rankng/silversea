@@ -60,17 +60,13 @@ const completionBusinessDate = sql<string>`to_char(
   'YYYY-MM-DD'
 )`;
 
-// Decision-ready e-POD state per trip: the accepted submission's id/version
-// and its acceptance timestamp, or nulls when no submission is ACCEPTED.
-// Aggregated (not a raw join) so multiple PENDING/REJECTED submissions never
-// multiply register rows, and so a blocked trip — no accepted e-POD — still
-// appears in the reconciliation list (QA-036 family: the old INNER accepted
-// condition hid the very rows the work-queue links to).
+// KP-151: e-POD state per trip — any submission counts (ACCEPTED filter
+// removed). Aggregated so multiple submissions never multiply register rows.
 const podDecisionProjection = db.select({
   tripId: s.tripPodSubmissions.tripId,
-  acceptedSubmissionId: sql<number | null>`max(${s.tripPodSubmissions.id}) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_submission_id'),
-  acceptedVersion: sql<number | null>`max(${s.tripPodSubmissions.submissionVersion}) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_version'),
-  acceptedAt: sql<string | null>`max(coalesce(${s.tripPodSubmissions.reviewedAt}, ${s.tripPodSubmissions.submittedAt})) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_at'),
+  acceptedSubmissionId: sql<number | null>`max(${s.tripPodSubmissions.id})`.as('accepted_submission_id'),
+  acceptedVersion: sql<number | null>`max(${s.tripPodSubmissions.submissionVersion})`.as('accepted_version'),
+  acceptedAt: sql<string | null>`max(coalesce(${s.tripPodSubmissions.reviewedAt}, ${s.tripPodSubmissions.submittedAt}))`.as('accepted_at'),
 }).from(s.tripPodSubmissions)
   .groupBy(s.tripPodSubmissions.tripId)
   .as('accounting_transport_pod_decisions');

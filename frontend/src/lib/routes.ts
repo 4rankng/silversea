@@ -21,6 +21,7 @@
  */
 import { PAGE_CATALOG } from '@tingting/shared';
 import { BRAND } from '../brand';
+import { CONFIG_ITEMS } from '../data/searchRegistry';
 
 export const routes = {
   /* ── Top-level admin / manager pages ────────────────────────────────── */
@@ -199,8 +200,8 @@ const ROLE_BRANCHED_TITLES: Record<string, (role: string) => string> = {
 
 // Order is load-bearing precedence (first match wins). The title strings are
 // sourced from PAGE_CATALOG so they can't drift from the sidebar; only the
-// generic `/config/*` fallback ("Cấu hình") stays a literal since no single
-// catalog entry owns it.
+// configuration hub labels are used for their destinations; specialist
+// configuration pages keep their own explicit title before that fallback.
 const titleRules: TitleRule[] = [
   { test: p => p === routes.dashboard, title: PAGE_CATALOG.dashboard.title },
   { test: p => p === routes.dispatchDetailPlan, title: PAGE_CATALOG.dispatchDetailPlan.title },
@@ -238,7 +239,13 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.configRoutes) || p.startsWith(routes.legacy.routes), title: PAGE_CATALOG.configRoutes.title },
   { test: p => p.startsWith(routes.configDebitNoteTemplates), title: PAGE_CATALOG.configDebitNoteTemplates.title },
   { test: p => p === routes.config, title: PAGE_CATALOG.config.title },
-  { test: p => p.startsWith(routes.config), title: 'Cấu hình' },
+  { test: p => /^\/config\/trucks\/\d+\/owners$/.test(p), title: 'Sở hữu xe' },
+  { test: p => p === '/config/fuel-norms', title: 'Định mức nhiên liệu' },
+  { test: p => p === '/config/weight-pricing-tiers', title: 'Bảng giá theo trọng lượng' },
+  { test: p => p === '/config/lift-pricing', title: 'Bảng giá nâng/hạ container' },
+  { test: p => p === '/config/ancillary-revenue', title: 'Doanh thu phi-vận-tải' },
+  { test: p => p === '/config/ports', title: 'Cảng / Bãi' },
+  { test: p => p.startsWith(routes.config), title: p => CONFIG_ITEMS.find(item => item.path.startsWith('/config/') && (p === item.path || p.startsWith(`${item.path}/`)))?.label ?? 'Cấu hình' },
   { test: p => p === routes.users, title: PAGE_CATALOG.users.title },
   { test: p => p === routes.auditLogs, title: PAGE_CATALOG.auditLogs.title },
   { test: p => p === routes.adminCenter, title: PAGE_CATALOG.adminCenter.title },
@@ -251,6 +258,9 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myPayslips), title: PAGE_CATALOG.myPayslips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
+  { test: p => p === routes.opsWallet, title: PAGE_CATALOG.opsWallet.title },
+  { test: p => p === routes.opsOrders, title: PAGE_CATALOG.opsOrders.title },
+  { test: p => p === routes.opsFleetTracking, title: PAGE_CATALOG.opsFleetTracking.title },
   { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },
   { test: p => p.startsWith(routes.myForwarderTrips), title: PAGE_CATALOG.myForwarderTrips.title },
   { test: p => p.startsWith(routes.myAdvances), title: PAGE_CATALOG.myAdvances.title },

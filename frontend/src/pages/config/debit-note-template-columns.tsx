@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw } from 'lucide-react';
-import { UuiSelectField } from '../../design-system';
+import { useEffect, useRef, useState } from 'react';
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Plus, RotateCcw } from 'lucide-react';
+import { SearchableSelect, UuiSelectField } from '../../design-system';
 import type { DebitNoteColumnVariable, DebitNoteTemplateColumn } from '@tingting/shared';
 import { cloneStarterColumns, variableLabel, variableMap, VARIABLES, makeColumn } from './debit-note-template-editor-utils';
 import { Field } from './debit-note-template-preview';
@@ -17,6 +17,11 @@ export function ColumnTable({
   onChange: (columns: DebitNoteTemplateColumn[]) => void;
 }) {
   const [selectedColumnId, setSelectedColumnId] = useState(columns[0]?.id ?? '');
+  // Phone/tablet: the properties inspector sits below the whole column list —
+  // after an explicit selection change, bring it into view (skipping the
+  // initial mount so first paint never jumps).
+  const inspectorRef = useRef<HTMLElement | null>(null);
+  const lastSeenColumnRef = useRef<string>('');
   const update = (index: number, patch: Partial<DebitNoteTemplateColumn>) => {
     onChange(columns.map((column, idx) => idx === index ? { ...column, ...patch } : column));
   };
@@ -50,6 +55,20 @@ export function ColumnTable({
       setSelectedColumnId(columns[0].id);
     }
   }, [columns, selectedColumnId]);
+
+  useEffect(() => {
+    if (lastSeenColumnRef.current === '') {
+      lastSeenColumnRef.current = selectedColumnId;
+      return;
+    }
+    if (selectedColumnId === lastSeenColumnRef.current) return;
+    lastSeenColumnRef.current = selectedColumnId;
+    if (window.matchMedia('(max-width: 899px)').matches) {
+      requestAnimationFrame(() => {
+        inspectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [selectedColumnId]);
 
   return (
     <section className="debit-editor-table-wrap">
@@ -142,7 +161,7 @@ export function ColumnTable({
         </div>
 
         {selectedColumn && (
-          <aside className="debit-editor-column-inspector">
+          <aside ref={inspectorRef} className="debit-editor-column-inspector">
             <div className="debit-editor-column-stack">
               <div className="debit-editor-column-inspector__header">
                 <div>
@@ -233,6 +252,7 @@ export function ColumnPropertyPanel({
   onChange,
   onSelectColumn,
   onToggleColumnVisibility,
+  onReorder,
 }: {
   column: DebitNoteTemplateColumn;
   columns: DebitNoteTemplateColumn[];
@@ -240,42 +260,45 @@ export function ColumnPropertyPanel({
   onChange: (patch: Partial<DebitNoteTemplateColumn>) => void;
   onSelectColumn: (columnId: string) => void;
   onToggleColumnVisibility: (column: DebitNoteTemplateColumn) => void;
+  onReorder: (columns: DebitNoteTemplateColumn[]) => void;
 }) {
+  const selectedIndex = columns.findIndex(item => item.id === column.id);
+  const move = (direction: -1 | 1) => {
+    const target = selectedIndex + direction;
+    if (selectedIndex < 0 || target < 0 || target >= columns.length) return;
+    const ordered = [...columns];
+    [ordered[selectedIndex], ordered[target]] = [ordered[target], ordered[selectedIndex]];
+    onReorder(ordered);
+  };
   return (
     <section className="debit-editor-selected-panel">
-      <div className="debit-editor-column-picker" aria-label="Chọn cột">
-        {columns.map((item, index) => {
-          const visible = item.width > 0;
-          const isActive = item.id === column.id;
-          return (
-            <div key={item.id} className={`debit-editor-column-picker__card ${isActive ? 'is-active' : ''} ${visible ? '' : 'is-hidden'}`}>
-              <button
-                type="button"
-                className="debit-editor-column-picker__select"
-                onClick={() => onSelectColumn(item.id)}
-                disabled={disabled}
-                aria-pressed={isActive}
-              >
-                <span>{item.label || `Cột ${index + 1}`}</span>
-                <small>{visible ? `Hiện · ${variableLabel(item.variable)}` : `Ẩn · ${variableLabel(item.variable)}`}</small>
-              </button>
-              <button
-                type="button"
-                className="debit-editor-column-picker__visibility"
-                onClick={() => onToggleColumnVisibility(item)}
-                disabled={disabled}
-                aria-label={visible ? `Ẩn cột ${item.label || `Cột ${index + 1}`}` : `Hiện cột ${item.label || `Cột ${index + 1}`}`}
-                title={visible ? 'Ẩn cột' : 'Hiện cột'}
-              >
-                {visible ? <Eye size={16} /> : <EyeOff size={16} />}
-              </button>
-            </div>
-          );
-        })}
+      <div className="debit-editor-column-navigation">
+        <label htmlFor="template-selected-column">Cột đang chỉnh</label>
+        <SearchableSelect
+          id="template-selected-column"
+          value={column.id}
+          onChange={onSelectColumn}
+          clearable={false}
+          disabled={disabled}
+          placeholder="Chọn cột"
+          searchPlaceholder="Tìm cột theo tên hoặc dữ liệu"
+          options={columns.map((item, index) => ({
+            value: item.id,
+            label: `${index + 1}. ${item.label || 'Chưa đặt tên'}${item.width === 0 ? ' · Ẩn' : ''}`,
+            searchText: `${item.label} ${variableLabel(item.variable)}`,
+          }))}
+        />
+        <div className="debit-editor-column-order">
+          <button type="button" className="btn btn--ghost" disabled={disabled || selectedIndex <= 0} onClick={() => move(-1)}><ArrowUp size={14} /> Đưa lên trước</button>
+          <button type="button" className="btn btn--ghost" disabled={disabled || selectedIndex >= columns.length - 1} onClick={() => move(1)}><ArrowDown size={14} /> Đưa xuống sau</button>
+        </div>
       </div>
 
       <div className="debit-editor-selected-group">
-        <strong>Thuộc tính cột</strong>
+        <strong>Thuộc tính cột — {column.label || 'Chưa đặt tên'}</strong>
+        <Field label="Tiêu đề cột">
+          <input className="input" value={column.label} disabled={disabled} onChange={event => onChange({ label: event.target.value })} />
+        </Field>
         <UuiSelectField
           label="Biến dữ liệu"
           value={column.variable}
@@ -316,7 +339,7 @@ export function ColumnPropertyPanel({
               type="checkbox"
               checked={column.width > 0}
               disabled={disabled}
-              onChange={event => onChange({ width: event.target.checked ? 14 : 0 })}
+              onChange={() => onToggleColumnVisibility(column)}
             />
           </label>
           <label>

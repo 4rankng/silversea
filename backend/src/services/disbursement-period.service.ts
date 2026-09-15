@@ -41,7 +41,7 @@ export async function checkDisbursementAllocation(
     throw new ApiError(404, 'Không tìm thấy chi phí');
   }
 
-  const approved = expense.approvalStatus === 'APPROVED';
+  const approved = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus);
 
   // 2. Check if this expense is already on an active billing document line.
   const [existingLine] = await db.select({

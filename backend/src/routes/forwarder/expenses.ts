@@ -22,14 +22,13 @@ import {
 import {
   tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema,
 } from '@tingting/shared';
-import { db } from '../../db';
-import { assertActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
+import { validateActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
 
 const router = Router();
 
 router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
-  await assertActiveExpenseTypeCode(db, req.body?.expenseType);
+  await validateActiveExpenseTypeCode(req.body?.expenseType);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, forwarderId: forwarder.id });
   if (!parsed.success) throwValidation(parsed.error);
   const idempotencyKey = requireForwarderIdempotencyKey(req);
@@ -47,7 +46,7 @@ router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) =
   const parsed = tripExpensePatchSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   if (parsed.data.expenseType !== undefined) {
-    await assertActiveExpenseTypeCode(db, parsed.data.expenseType);
+    await validateActiveExpenseTypeCode(parsed.data.expenseType);
   }
   const idempotencyKey = requireForwarderIdempotencyKey(req);
   const expectedUpdatedAt = requireExpectedUpdatedAt(

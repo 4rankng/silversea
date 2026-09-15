@@ -34,6 +34,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
         <LocationAutocomplete
           className="input input--sm"
           placeholder="Điểm đi"
+          ariaLabel={`Chặng ${leg.sequence}: điểm đi`}
           value={leg.origin}
           onChange={(val) => onUpdate('origin', val)}
           required={legTouched}
@@ -42,6 +43,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
         <LocationAutocomplete
           className="input input--sm"
           placeholder="Điểm đến"
+          ariaLabel={`Chặng ${leg.sequence}: điểm đến`}
           value={leg.destination}
           onChange={(val) => onUpdate('destination', val)}
           required={legTouched}
@@ -54,6 +56,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
             className="input input--sm"
             type="number"
             placeholder="Km"
+            aria-label={`Chặng ${leg.sequence}: cự ly (km)`}
             value={leg.km}
             onChange={(e) => onUpdate('km', e.target.value)}
           />

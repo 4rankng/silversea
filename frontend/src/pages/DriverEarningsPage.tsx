@@ -125,7 +125,16 @@ export default function DriverEarningsPage() {
   const tripIncomeNum = parseFloat(earnings.productionSalary) + parseFloat(earnings.roadAllowance);
   const adjustmentLabel = adjustmentNum >= 0 ? 'Thưởng công' : 'Trừ công';
   const adjustmentValue = `${adjustmentNum >= 0 ? '+' : '-'}${formatNumber(Math.abs(adjustmentNum))}`;
-  const payableLabel = payableNum >= 0 ? 'Lương chưa thanh toán' : 'Đã tạm ứng vượt';
+  // KP-172: negative balance can be from excess advances, penalty
+  // deductions, or both. Compare pre-penalty income to advances to
+  // pick an accurate hero label.
+  const paidOrAdvancedNum2 = parseFloat(earnings.paidOrAdvanced ?? '0');
+  const incomeBeforePenalties = netNum + penaltyNum + tripIncomeNum;
+  const payableLabel = payableNum >= 0
+    ? 'Lương chưa thanh toán'
+    : (incomeBeforePenalties < paidOrAdvancedNum2
+        ? 'Số dư sổ lương'
+        : 'Khấu trừ vượt thu nhập');
 
   return (
     <div ref={rootRef} className="driver-earnings-page">
@@ -183,6 +192,13 @@ export default function DriverEarningsPage() {
         </div>
       </div>
 
+      {earnings.salaryReconciliationRequired && (
+        <p className="earnings-empty-note" role="status">
+          {earnings.salarySnapshotState === 'UNAVAILABLE'
+            ? 'Kỳ cũ chưa có bản lương đã chốt. Số liệu chỉ tham khảo; liên hệ kế toán để đối chiếu chứng từ gốc.'
+            : 'Ngày công được bổ sung sau khi chốt. Bản lương giữ nguyên; kế toán sẽ ghi điều chỉnh ở kỳ đang mở nếu có chênh lệch.'}
+        </p>
+      )}
       {/* ═══ Zone 2 — Payslip summary ═══ */}
       <div className="earnings-equation-card fade-up-2" aria-label="Tóm tắt thu nhập">
         <div className="earnings-equation-card__head">

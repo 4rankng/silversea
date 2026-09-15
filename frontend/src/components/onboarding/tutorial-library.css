@@ -1,10 +1,10 @@
 .drawer.tutorial-library { max-width: 560px; }
 .tutorial-library__body { display: grid; gap: 20px; }
 .tutorial-library__group { display: grid; gap: 8px; }
-.tutorial-library__group h3 { margin: 0; font-size: 13px; color: var(--fg-2); }
+.tutorial-library__group h3 { margin: 0; font-size: var(--text-data-size); color: var(--fg-2); }
 .tutorial-library__item { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
 .tutorial-library__copy { flex: 1; min-width: 0; }
-.tutorial-library__copy strong { display: block; font-size: 14px; }
-.tutorial-library__copy p, .tutorial-library__copy small { display: block; margin: 3px 0 0; color: var(--fg-2); font-size: 12px; line-height: 1.45; }
+.tutorial-library__copy strong { display: block; font-size: var(--text-body-size); }
+.tutorial-library__copy p, .tutorial-library__copy small { display: block; margin: 3px 0 0; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.45; }
 .tutorial-library__item .btn { min-height: 36px; white-space: nowrap; }
 @media (max-width: 640px) { .tutorial-library__item { flex-wrap: wrap; } .tutorial-library__item .btn { margin-left: 30px; } }

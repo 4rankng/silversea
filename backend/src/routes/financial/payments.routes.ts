@@ -4,8 +4,6 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   Role,
-  TripStatus,
-  NotificationType,
   createPaymentSchema,
   createAdjustmentSchema,
   vendorPaymentSchema,
@@ -17,7 +15,6 @@ import { db } from '../../db';
 import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { emitNotification } from '../../services/notification.service';
 import * as financialService from '../../services/financial.service';
 import {
   getCarrierPayableStatement,
@@ -28,8 +25,7 @@ import {
   normalizeDateParam,
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
-import { cacheInvalidatePattern } from '../../lib/redis';
-import { invalidateReportCaches, REPORT_CACHE_KEYS } from '../../lib/report-cache';
+import { invalidateReportCaches } from '../../lib/report-cache';
 import { getPayablesSummary, paginatePayablesSummary, payablesSummarySortQuerySchema } from '../../services/aging.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
@@ -49,10 +45,6 @@ import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
-import {
-  PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
-  runProfitDistributionWithSerializationRetry,
-} from '../../services/profit-distribution.service';
 import {
   getTreasuryPosition,
   requestTreasuryAccountSetup,
@@ -230,19 +222,16 @@ router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => 
     entityType: 'governance_action',
     responseStatusCode: 201,
     // 2026-09-11 maker-checker removal: apply directly in-request.
-    create: (tx) => autoApplyGovernanceAction({
-      make: (inner) => financialService.createAdjustment({
-        tripId: data.tripId,
-        amount: data.amount,
-        note: data.note,
-        signedAgreementRef: data.signedAgreementRef,
-        makerId: actor.userId,
-        makerRole: actor.role,
-        expectedTripVersion: data.expectedVersion,
-        transaction: inner,
-      }),
-      actorId: actor.userId,
-      actorRole: actor.role,
+    // createAdjustment already calls autoApplyGovernanceAction internally —
+    // wrapping again causes double-apply (version 7→8 then 8→9 mismatch).
+    create: (tx) => financialService.createAdjustment({
+      tripId: data.tripId,
+      amount: data.amount,
+      note: data.note,
+      signedAgreementRef: data.signedAgreementRef,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      expectedTripVersion: data.expectedVersion,
       transaction: tx,
     }),
     getEntityId: (action) => action.id,

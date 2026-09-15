@@ -1,14 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, AlertCircle } from 'lucide-react';
 import { EmptyState } from '../../design-system';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../../lib/api';
+import { fetchAllPaginated } from '../../lib/http/paginate';
 import { PageHeader, Panel, Modal, useConfirm } from '../UI';
 import { Alert } from '../shared/Alert';
 import { useCRUD } from '../../hooks/useCRUD';
-import type { PaginatedResponse } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import { configurationText, normalizeConfigurationText } from './config-search';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import '../../pages/config/config-page.css';
@@ -20,7 +20,13 @@ interface CrudColumn<T> {
   render: (item: T, index: number, isActive: boolean, allItems: T[]) => React.ReactNode;
 }
 
-interface CrudTableProps<T extends { id: number }> {
+function isInteractiveChild(target: EventTarget | null, row: HTMLTableRowElement) {
+  if (!(target instanceof Element)) return false;
+  const control = target.closest('a, button, input, select, textarea, [role="button"], [role="link"], [contenteditable="true"]');
+  return control !== null && control !== row;
+}
+
+interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   title: string;
   description: string;
   endpoint: string;
@@ -38,7 +44,7 @@ interface CrudTableProps<T extends { id: number }> {
   }) => React.ReactNode;
   colSpan: number;
   showDelete?: boolean;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: number, expectedUpdatedAt?: string) => void;
   /** Optional status chip (or any node) shown at the right of the edit-modal header. */
   modalChip?: (item: T) => React.ReactNode;
   sortFn?: (a: T, b: T) => number;
@@ -53,7 +59,7 @@ interface CrudTableProps<T extends { id: number }> {
   iconName?: import('../../components/AssetIcon').AssetIconName;
 }
 
-export function CrudTable<T extends { id: number }>({
+export function CrudTable<T extends { id: number; updatedAt?: string }>({
   title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
   showDelete = true, onDelete, modalChip, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
@@ -65,13 +71,11 @@ export function CrudTable<T extends { id: number }>({
 }: CrudTableProps<T>) {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
+  const [search, setSearch] = useState('');
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isError, isFetching } = useQuery({
     queryKey: qk.crud.entityList(endpoint, listQuery),
-    queryFn: async () => {
-      const r = await api.get<PaginatedResponse<T>>(`${endpoint}${listQuery}`);
-      return r.items;
-    },
+    queryFn: () => fetchAllPaginated<T>(endpoint, Object.fromEntries(new URLSearchParams(listQuery)), 5, { requireComplete: true }),
   });
 
   const refresh = useCallback(async () => { await refetch(); }, [refetch]);
@@ -96,7 +100,12 @@ export function CrudTable<T extends { id: number }>({
     return arr;
   })();
 
-  const handleDelete = onDelete ?? ((id: number) => crud.doDelete(id));
+  const normalizedSearch = normalizeConfigurationText(search);
+  const visibleItems = normalizedSearch ? items.filter((item, index) =>
+    columns.some(column => normalizeConfigurationText(configurationText(column.render(item, index, activeIds.has(item.id), items))).includes(normalizedSearch)),
+  ) : items;
+
+  const handleDelete = onDelete ?? ((id: number, expectedUpdatedAt?: string) => crud.doDelete(id, expectedUpdatedAt));
 
   const wrapperClass = ['fade-up', 'cfg-page', pageSlug ? `cfg-page--${pageSlug}` : ''].filter(Boolean).join(' ');
 
@@ -105,12 +114,15 @@ export function CrudTable<T extends { id: number }>({
       <PageHeader title={title} description={description} onBack={() => navigate(backTo)} iconName={iconName} showTitle />
       <Panel flush>
         <div className="toolbar">
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="cfg-catalogue-search">
+            <input className="input" type="search" aria-label={`Tìm trong ${title.toLowerCase()}`} placeholder="Tìm trong danh mục…" value={search} onChange={event => setSearch(event.target.value)} />
+          </div>
+          <div className="cfg-catalogue-summary" aria-live="polite">
             {toolbarLeft
               ? toolbarLeft({ totalItems: items.length, activeCount: activeIds.size })
               : items.length > 0 && (
                   <span className="cfg-page__summary">
-                    <strong>{items.length}</strong> mục
+                    <strong>{visibleItems.length}{normalizedSearch ? ` / ${items.length}` : ''}</strong> mục
                   </span>
                 )}
           </div>
@@ -118,6 +130,10 @@ export function CrudTable<T extends { id: number }>({
             <Plus size={14} /> Thêm mới
           </button>
         </div>
+        {isError && <div role="alert" className="cfg-catalogue-feedback">
+          <span>Không tải được danh mục.{items.length > 0 ? ' Dữ liệu đang hiển thị có thể chưa cập nhật.' : ' Hãy thử lại để kiểm tra dữ liệu hiện có.'}</span>
+          <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
+        </div>}
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table">
@@ -133,7 +149,8 @@ export function CrudTable<T extends { id: number }>({
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && !crud.showAddForm && (
+              {isLoading && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status">Đang tải danh mục…</div></td></tr>}
+              {!isLoading && !isError && items.length === 0 && !crud.showAddForm && (
                 <tr className="cfg-empty-row">
                   <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
@@ -149,14 +166,18 @@ export function CrudTable<T extends { id: number }>({
                   </td>
                 </tr>
               )}
-              {items.map((item, i) => {
+              {!isLoading && items.length > 0 && visibleItems.length === 0 && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status"><span>Không có mục phù hợp.</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearch('')}>Xóa tìm kiếm</button></div></td></tr>}
+              {visibleItems.map((item, i) => {
                 const isActive = activeIds.has(item.id);
                 return (
                   <tr
                     key={item.id}
                     style={{ cursor: 'pointer', ...rowStyle?.(item, isActive) }}
-                    onClick={() => crud.setEditingId(item.id)}
+                    onClick={(event) => {
+                      if (!isInteractiveChild(event.target, event.currentTarget)) crud.setEditingId(item.id);
+                    }}
                     onKeyDown={(event) => {
+                      if (isInteractiveChild(event.target, event.currentTarget)) return;
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         crud.setEditingId(item.id);
@@ -238,7 +259,8 @@ export function CrudTable<T extends { id: number }>({
               {renderForm({
                 item,
                 saving: crud.saving,
-                onSave: (d) => crud.doUpdate(item.id, d),
+                // KP-135: pass the caller-bound version from the loaded snapshot
+                onSave: (d) => crud.doUpdate(item.id, d, item.updatedAt),
                 onCancel: crud.cancelForm,
                 items,
                 onDelete: showDelete ? async () => {
@@ -247,7 +269,7 @@ export function CrudTable<T extends { id: number }>({
                     confirmLabel: 'Xóa'
                   });
                   if (ok) {
-                    await handleDelete(item.id);
+                    await handleDelete(item.id, item.updatedAt);
                     crud.cancelForm();
                   }
                 } : undefined,

@@ -116,7 +116,7 @@ export function DispatchAllocationDaySection({
                 }))}
               />
             </div>
-            <div role="cell" className="dispatch-allocation-popover__row-count">
+            <div role="cell" className="dispatch-allocation-popover__row-count" data-label="Container 20'">
               <UUIInput
                 className="dispatch-allocation-popover__count"
                 inputClassName="dispatch-allocation-popover__control"
@@ -131,7 +131,7 @@ export function DispatchAllocationDaySection({
                 inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
               />
             </div>
-            <div role="cell" className="dispatch-allocation-popover__row-count">
+            <div role="cell" className="dispatch-allocation-popover__row-count" data-label="Container 40'">
               <UUIInput
                 className="dispatch-allocation-popover__count"
                 inputClassName="dispatch-allocation-popover__control"

@@ -130,17 +130,6 @@ export function useUpdateFuelInvoice() {
   });
 }
 
-export function useApproveFuelInvoice() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
-      financialClient.approveFuelInvoice(id, expectedVersion, reason),
-    onSuccess: (action) => {
-      if (action.subjectId != null) invalidateFuelInvoiceQueries(qc, action.subjectId);
-    },
-  });
-}
-
 /** Records a manual commission payable owed to a supplier. */
 export function usePostCommission() {
   const qc = useQueryClient();

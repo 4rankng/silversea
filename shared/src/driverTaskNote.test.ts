@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { composeDriverTaskNote, parseDriverTaskNote } from './driverTaskNote';
+import { composeDriverTaskNote, parseDriverTaskNote, normalizeDriverTaskNote } from './driverTaskNote';
 
 const KNOWN = ['HẾT HẠN', 'ĐẢO VỎ', 'GỬI VỎ BÃI ĐĂNG KHOA'];
 
@@ -17,7 +17,7 @@ describe('composeDriverTaskNote / parseDriverTaskNote (format v2)', () => {
     assert.equal(composeDriverTaskNote(['HẾT HẠN'], ''), 'HẾT HẠN');
     assert.equal(composeDriverTaskNote([], 'ghi chú tay'), 'ghi chú tay');
     assert.equal(composeDriverTaskNote([], ''), '');
-    assert.equal(composeDriverTaskNote(['  ', 'HẾT HẠN  '], '  '), 'HẾT HẠN');
+    assert.equal(composeDriverTaskNote(['  ', 'HẾT HẠN  '], '  '), 'HẾT HẠN\n  ');
   });
 
   test('compose ∘ parse is the identity on well-formed notes', () => {
@@ -109,5 +109,13 @@ describe('composeDriverTaskNote / parseDriverTaskNote (format v2)', () => {
     assert.ok(note.endsWith('dòng 1\ndòng 2\ndòng 3'));
     const parsed = parseDriverTaskNote(note, FULL_TAG_POOL);
     assert.deepEqual(parsed, { selectedLabels: FULL_TAG_POOL, manualText: text });
+  });
+
+  test('normalizeDriverTaskNote trims manual text at save time', () => {
+    assert.equal(normalizeDriverTaskNote('HẾT HẠN\n  gọi lái xe  '), 'HẾT HẠN\ngọi lái xe');
+    assert.equal(normalizeDriverTaskNote('  chỉ ghi chú  '), 'chỉ ghi chú');
+    assert.equal(normalizeDriverTaskNote('HẾT HẠN\n  '), 'HẾT HẠN');
+    assert.equal(normalizeDriverTaskNote(null), '');
+    assert.equal(normalizeDriverTaskNote(''), '');
   });
 });

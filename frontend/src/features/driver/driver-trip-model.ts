@@ -1,4 +1,4 @@
-// Pure milestone/fuel-evidence/offline-command helpers for the driver trip detail surface.
+// Pure milestone/fuel-evidence helpers for the driver trip detail surface.
 // Split from pages/DriverTripDetailPage.tsx in the 2026-09-01 structural wave (move-only).
 import { DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../../lib/api';
@@ -6,37 +6,10 @@ import { formatDateTimeShort } from '../../lib/format';
 import { getLocationPermissionIssue, isGeolocationError } from '../../lib/gps/geolocation';
 import { useDriverTaskProgress } from '../../hooks/useDriverQueries';
 import type { DriverTaskDetail } from '../../api/driverClient';
-import type { OfflineCommand } from './useOfflineCommandQueue';
 
 export type MilestoneType = DriverProgressEventType.ORDER_RECEIVED;
 
-export type MilestoneCommandPayload = {
-  kind: 'milestone';
-  fulfillmentId: number;
-  eventType: MilestoneType;
-  occurredAt: string;
-  expectedVersion: number;
-};
-
-export type PodSubmitCommandPayload = {
-  kind: 'pod-submit';
-  fulfillmentId: number;
-  submissionId: number;
-  expectedVersion: number;
-};
-
-export type CompleteCommandPayload = {
-  kind: 'complete';
-  fulfillmentId: number;
-  expectedVersion: number;
-};
-
-export type DriverTaskCommandPayload =
-  | MilestoneCommandPayload
-  | PodSubmitCommandPayload
-  | CompleteCommandPayload;
-
-export type TimelineState = 'done' | 'pending' | 'retry' | 'conflict' | 'available' | 'locked';
+export type MilestoneActionState = 'done' | 'available' | 'locked';
 
 // Spec AC-DETAIL-003: BỎ HOÀN TOÀN 4 mốc thực hiện truyền thống. Only the
 // ORDER_RECEIVED action remains — the driver accepts the dispatch order in one
@@ -58,13 +31,13 @@ export const FUEL_EVIDENCE_OUTCOME_LABELS = {
   UNREADABLE: 'Ảnh mờ hoặc không đọc được',
   MULTI_SCREEN: 'Ảnh có nhiều màn hình',
   NON_PUMP: 'Ảnh không phải màn hình bơm',
-  ANOMALY: 'Số liệu cần kế toán soát',
+  ANOMALY: 'Số liệu OCR cần đối chiếu',
 } as const;
 
 export const FUEL_EVIDENCE_REVIEW_LABELS = {
-  PENDING: 'Chờ kế toán xác nhận',
-  CONFIRMED: 'Kế toán đã xác nhận',
-  REJECTED: 'Kế toán từ chối',
+  PENDING: 'OCR chưa xác minh',
+  CONFIRMED: 'Đã đối chiếu trước đây',
+  REJECTED: 'Không sử dụng (lịch sử)',
 } as const;
 
 export const formatDateTime = formatDateTimeShort;
@@ -127,38 +100,8 @@ export function getLatestMilestoneEvent(
     .find((item) => item.eventType === eventType);
 }
 
-export function isCommandPayload(
-  payload: Record<string, unknown> | null,
-): payload is DriverTaskCommandPayload {
-  return payload != null && typeof payload.kind === 'string' && typeof payload.fulfillmentId === 'number';
-}
-
-export function isMilestonePayload(payload: Record<string, unknown> | null): payload is MilestoneCommandPayload {
-  return isCommandPayload(payload)
-    && payload.kind === 'milestone'
-    && typeof payload.eventType === 'string'
-    && typeof payload.occurredAt === 'string'
-    && typeof payload.expectedVersion === 'number';
-}
-
-export function commandStateForMilestone(
-  commands: OfflineCommand[],
-  fulfillmentId: number,
-  eventType: MilestoneType,
-): OfflineCommand | null {
-  return commands.find((command) =>
-    command.endpoint === 'driver.task.milestone'
-    && isMilestonePayload(command.payload)
-    && command.payload.fulfillmentId === fulfillmentId
-    && command.payload.eventType === eventType,
-  ) ?? null;
-}
-
-export function timelineState(eventFound: boolean, command: OfflineCommand | null, nextMilestoneIndex: number, index: number): TimelineState {
+export function milestoneActionState(eventFound: boolean, nextMilestoneIndex: number, index: number): MilestoneActionState {
   if (eventFound) return 'done';
-  if (command?.status === 'CONFLICT') return 'conflict';
-  if (command?.status === 'FAILED') return 'retry';
-  if (command && (command.status === 'QUEUED' || command.status === 'IN_PROGRESS')) return 'pending';
   if (nextMilestoneIndex === index) return 'available';
   return 'locked';
 }

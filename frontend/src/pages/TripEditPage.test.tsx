@@ -43,6 +43,7 @@ vi.mock('../components/UI', () => ({
 
 // The loaded branch renders the full form; stub the section components so the
 // sanity case exercises the page shell without the form internals.
+vi.mock('../components/trip/TripEditConflictDialog', () => ({ TripEditConflictDialog: () => null }));
 vi.mock('../components/trip/FuelSection', () => ({ FuelSection: () => null }));
 vi.mock('../components/trip/AllowanceSection', () => ({ AllowanceSection: () => null }));
 vi.mock('../components/trip/TotalsPanel', () => ({ TotalsPanel: () => null }));

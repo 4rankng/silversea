@@ -6,8 +6,12 @@
  * shared) and migrate to v2 on the next composer save — compose ∘ parse is
  * the identity on well-formed notes, so an untouched reopen+save round-trips
  * byte-identical and never bumps the shipment version.
+ *
+ * `composeNote` preserves whitespace during editing; call `normalizeNote`
+ * at explicit save time to trim the manual-text portion.
  */
 export {
   composeDriverTaskNote as composeNote,
   parseDriverTaskNote as parseNote,
+  normalizeDriverTaskNote as normalizeNote,
 } from '@tingting/shared';

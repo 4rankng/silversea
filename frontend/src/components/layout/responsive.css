@@ -6,7 +6,7 @@
   /* Prevent KPI text truncation on mobile for driver portal */
   .is-driver .kpi__value {
     white-space: normal !important;
-    font-size: clamp(14px, 4.5vw, 18px) !important;
+    font-size: var(--text-metric-size) !important;
     word-break: break-all;
   }
 } /* end 640px */

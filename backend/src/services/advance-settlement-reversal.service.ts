@@ -1,3 +1,4 @@
+import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from './trip-expense-ledger-source';
 /**
  * Advance settlement corrections — accountant expense adjustment, reversal
  * governance, and rejection. Split from advance.service.ts; re-exported
@@ -6,7 +7,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
@@ -23,11 +24,7 @@ import {
   buildGovernanceAction,
 } from './governance-action-core.service';
 import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
-import {
-  assertExpectedVersion,
-  enrichSettlementWithRequests,
-  enrichWithNames,
-} from './advance-shared.service';
+import { assertExpectedVersion } from './advance-shared.service';
 
 export async function adjustSettlementExpense(
   settlementId: number,
@@ -59,9 +56,8 @@ export async function adjustSettlementExpense(
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     const version = patch.expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    const isApprovedCorrection = settlement.status === 'APPROVED';
-    if (!isApprovedCorrection && settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán hoặc tạo điều chỉnh cho phiếu đã duyệt');
+    if (settlement.status !== 'RECORDED') {
+      throw new AdvanceError(409, 'Chỉ được điều chỉnh phiếu đã ghi nhận');
     }
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
     const [linked] = await tx.select({
@@ -86,12 +82,6 @@ export async function adjustSettlementExpense(
         eq(s.settlementExpenses.tripExpenseId, expenseId),
       )).limit(1);
     if (!linked) throw new AdvanceError(404, 'Khoản chi không thuộc phiếu hoàn ứng này');
-
-    const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
-      .where(eq(s.trips.id, linked.tripId)).limit(1);
-    if (!isApprovedCorrection && (trip?.status === 'COMPLETED' || trip?.status === 'CANCELED')) {
-      throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã hoàn thành hoặc đã hủy');
-    }
 
     const currentSnapshot: Record<string, unknown> = {
       expenseType: linked.expenseType,
@@ -146,122 +136,66 @@ export async function adjustSettlementExpense(
         values.containerNumber = container.number;
       }
     }
-    if (isApprovedCorrection) {
-      if (!options.actorRole) {
-        throw new AdvanceError(403, 'Thiếu vai trò người tạo điều chỉnh');
-      }
-      assertCanMakeGovernanceAction('ADVANCE_SETTLEMENT_CORRECTION', options.actorRole);
-      const oldBuyAmount = Number(currentSnapshot.buyAmount ?? 0);
-      const newBuyAmount = Number(values.buyAmount ?? oldBuyAmount);
-      const correctedRefundAmount = round2dp(
-        Number(settlement.refundAmount) - (newBuyAmount - oldBuyAmount),
-      );
-      if (correctedRefundAmount < 0) {
-        throw new AdvanceError(
-          400,
-          'Điều chỉnh làm số hoàn lại âm; cần hoàn tác phiếu và lập phiếu mới',
-        );
-      }
-      const action = buildGovernanceAction({
-        subjectType: 'ADVANCE_SETTLEMENT',
-        subjectId: settlement.id,
-        subjectKey: `advance-settlement:${settlement.id}:expense:${expenseId}`,
-        actionKind: 'ADVANCE_SETTLEMENT_CORRECTION',
-        reason,
-        originalVersion: settlement.version,
-        beforeSnapshot: {
-          settlementStatus: settlement.status,
-          settlementVersion: settlement.version,
-          settlementExpenseId: linked.linkId,
-          tripExpenseId: linked.expenseId,
-          totalExpenseAmount: settlement.totalExpenseAmount,
-          expense: currentSnapshot,
-        },
-        afterSnapshot: {
-          expense: values,
-          refundAmount: String(correctedRefundAmount),
-        },
-        deltaSnapshot: {
-          oldBuyAmount: String(oldBuyAmount),
-          newBuyAmount: String(newBuyAmount),
-          oldRefundAmount: settlement.refundAmount,
-          newRefundAmount: String(correctedRefundAmount),
-          oldSellAmount: String(currentSnapshot.sellAmount ?? 0),
-          newSellAmount: String(values.sellAmount ?? 0),
-        },
-        makerId: actorId,
-        makerRole: options.actorRole,
-      });
-      const { action: applied } = await applyGovernanceActionDirect({
-        action,
-        actorId,
-        actorRole: options.actorRole,
-        apply: applyAdvanceSettlementGovernanceAction,
-        transaction: tx,
-      });
-      return {
-        item: {
-          id: linked.expenseId,
-          tripId: linked.tripId,
-          ...currentSnapshot,
-        },
-        governanceAction: applied,
-        totalExpenseAmount: settlement.totalExpenseAmount,
-        settlementCode: settlement.code,
-        forwarderId: settlement.forwarderId,
-        adjustmentReason: reason,
-      };
+    if (!options.actorRole) {
+      throw new AdvanceError(403, 'Thiếu vai trò người tạo điều chỉnh');
     }
-    const now = new Date();
-    const [latestAdjustment] = await tx.select({
-      sequence: s.settlementExpenseAdjustments.sequence,
-    }).from(s.settlementExpenseAdjustments)
-      .where(eq(s.settlementExpenseAdjustments.settlementExpenseId, linked.linkId))
-      .orderBy(desc(s.settlementExpenseAdjustments.sequence))
-      .limit(1);
-    const nextSequence = (latestAdjustment?.sequence ?? 0) + 1;
-    await tx.insert(s.settlementExpenseAdjustments).values({
-      settlementId,
-      settlementExpenseId: linked.linkId,
-      tripExpenseId: linked.expenseId,
-      sequence: nextSequence,
-      sourceVersion: nextSequence,
-      beforeSnapshot: currentSnapshot,
-      afterSnapshot: values,
+    assertCanMakeGovernanceAction('ADVANCE_SETTLEMENT_CORRECTION', options.actorRole);
+    const oldBuyAmount = Number(currentSnapshot.buyAmount ?? 0);
+    const newBuyAmount = Number(values.buyAmount ?? oldBuyAmount);
+    const correctedRefundAmount = round2dp(
+      Number(settlement.refundAmount) - (newBuyAmount - oldBuyAmount),
+    );
+    if (correctedRefundAmount < 0) {
+      throw new AdvanceError(
+        400,
+        'Điều chỉnh làm số hoàn lại âm; cần hoàn tác phiếu và lập phiếu mới',
+      );
+    }
+    const action = buildGovernanceAction({
+      subjectType: 'ADVANCE_SETTLEMENT',
+      subjectId: settlement.id,
+      subjectKey: `advance-settlement:${settlement.id}:expense:${expenseId}`,
+      actionKind: 'ADVANCE_SETTLEMENT_CORRECTION',
       reason,
-      adjustedBy: actorId,
-      adjustedAt: now,
+      originalVersion: settlement.version,
+      beforeSnapshot: {
+        settlementStatus: settlement.status,
+        settlementVersion: settlement.version,
+        settlementExpenseId: linked.linkId,
+        tripExpenseId: linked.expenseId,
+        totalExpenseAmount: settlement.totalExpenseAmount,
+        expense: currentSnapshot,
+      },
+      afterSnapshot: {
+        expense: values,
+        refundAmount: String(correctedRefundAmount),
+      },
+      deltaSnapshot: {
+        oldBuyAmount: String(oldBuyAmount),
+        newBuyAmount: String(newBuyAmount),
+        oldRefundAmount: settlement.refundAmount,
+        newRefundAmount: String(correctedRefundAmount),
+        oldSellAmount: String(currentSnapshot.sellAmount ?? 0),
+        newSellAmount: String(values.sellAmount ?? 0),
+      },
+      makerId: actorId,
+      makerRole: options.actorRole,
     });
-    const [updatedLink] = await tx.update(s.settlementExpenses).set({
-      adjustmentReason: reason,
-      adjustedBuyAmount: String(values.buyAmount),
-      adjustedSnapshot: values,
-      adjustedBy: actorId,
-      adjustedAt: now,
-    }).where(eq(s.settlementExpenses.id, linked.linkId)).returning();
-    const totals = await tx.select({ buyAmount: s.settlementExpenses.adjustedBuyAmount })
-      .from(s.settlementExpenses)
-      .where(eq(s.settlementExpenses.settlementId, settlementId));
-    const totalExpenseAmount = round2dp(totals.reduce((sum, row) => sum + Number(row.buyAmount), 0));
-    await tx.update(s.advanceSettlements).set({
-      status: 'PENDING',
-      checkedBy: null,
-      checkedAt: null,
-      totalExpenseAmount: String(totalExpenseAmount),
-      updatedAt: now,
-      version: sql`${s.advanceSettlements.version} + 1`,
-    }).where(and(
-      eq(s.advanceSettlements.id, settlementId),
-      eq(s.advanceSettlements.version, version),
-    ));
+    const { action: applied } = await applyGovernanceActionDirect({
+      action,
+      actorId,
+      actorRole: options.actorRole,
+      apply: applyAdvanceSettlementGovernanceAction,
+      transaction: tx,
+    });
     return {
       item: {
         id: linked.expenseId,
         tripId: linked.tripId,
-        ...values,
+        ...currentSnapshot,
       },
-      adjustment: updatedLink,
-      totalExpenseAmount: String(totalExpenseAmount),
+      governanceAction: applied,
+      totalExpenseAmount: settlement.totalExpenseAmount,
       settlementCode: settlement.code,
       forwarderId: settlement.forwarderId,
       adjustmentReason: reason,
@@ -307,8 +241,8 @@ export async function requestAdvanceSettlementReversal(input: {
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     assertExpectedVersion(settlement.version, input.expectedVersion, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'APPROVED') {
-      throw new AdvanceError(409, 'Chỉ phiếu đã duyệt mới được hoàn tác');
+    if (settlement.status !== 'RECORDED') {
+      throw new AdvanceError(409, 'Chỉ phiếu đã ghi nhận mới được hoàn tác');
     }
     return buildGovernanceAction({
       subjectType: 'ADVANCE_SETTLEMENT',
@@ -356,8 +290,8 @@ async function applyApprovedSettlementCorrection(
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
   assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
-  if (settlement.status !== 'APPROVED') {
-    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  if (settlement.status !== 'RECORDED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã ghi nhận');
   }
 
   const [linked] = await tx.select({
@@ -429,7 +363,7 @@ async function applyApprovedSettlementCorrection(
     version: sql`${s.advanceSettlements.version} + 1`,
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
-    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.status, 'RECORDED'),
     eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ id: s.advanceSettlements.id, version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
@@ -455,12 +389,7 @@ async function applyApprovedSettlementCorrection(
       paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
       paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
     }).from(s.ledger)
-      .where(and(
-        eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.entityId, linked.customerId),
-        eq(s.ledger.txnId, tripExpenseId),
-        inArray(s.ledger.txnType, [TxnType.SERVICE_FEE, TxnType.ADJUSTMENT]),
-      ));
+      .where(tripExpenseServiceLedgerCondition(tripExpenseId, linked.customerId));
     const posted = existingRows.reduce(
       (sum, row) => sum + Number(row.debit) - Number(row.credit),
       0,
@@ -480,6 +409,7 @@ async function applyApprovedSettlementCorrection(
       await LedgerService.postEntry(tx, {
         txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
         txnId: tripExpenseId,
+        receiptId: tripExpenseServiceReceiptId(tripExpenseId),
         entityType: 'CUSTOMER',
         entityId: linked.customerId,
         debit: sellDelta > 0 ? sellDelta : 0,
@@ -517,8 +447,8 @@ async function applyApprovedSettlementReversal(
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
   assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
-  if (settlement.status !== 'APPROVED') {
-    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  if (settlement.status !== 'RECORDED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã ghi nhận');
   }
   const now = action.approvedAt ?? new Date();
   const reversalAmount = round2dp(
@@ -539,7 +469,7 @@ async function applyApprovedSettlementReversal(
     version: sql`${s.advanceSettlements.version} + 1`,
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
-    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.status, 'RECORDED'),
     eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
@@ -572,46 +502,4 @@ export async function applyAdvanceSettlementGovernanceAction(
     return applyApprovedSettlementReversal(tx, action);
   }
   throw new AdvanceError(409, 'Loại điều chỉnh phiếu hoàn ứng không hợp lệ');
-}
-
-export async function rejectAdvanceSettlement(
-  id: number,
-  rejectedBy: number,
-  expectedVersion?: number,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const [settlement] = await tx.select()
-      .from(s.advanceSettlements)
-      .where(eq(s.advanceSettlements.id, id))
-      .for('update');
-    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
-    const version = expectedVersion ?? settlement.version;
-    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(409, `Cannot reject settlement with status ${settlement.status}`);
-    }
-
-    const now = new Date();
-    const [updated] = await tx.update(s.advanceSettlements)
-      .set({
-        status: 'REJECTED',
-        approvedBy: rejectedBy,
-        approvedAt: now,
-        updatedAt: now,
-        version: sql`${s.advanceSettlements.version} + 1`,
-      })
-      .where(and(
-        eq(s.advanceSettlements.id, id),
-        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
-        eq(s.advanceSettlements.version, version),
-      ))
-      .returning();
-    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
-
-    const [enriched] = await enrichWithNames([updated], tx);
-    return enrichSettlementWithRequests(enriched, tx);
-  };
-
-  return runInTx(transaction, execute);
 }

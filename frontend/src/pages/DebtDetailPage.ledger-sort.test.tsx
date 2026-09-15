@@ -167,3 +167,16 @@ describe('DebtDetailPage AR ledger column sorting', () => {
     expect(renderedTripOrder(container)).toEqual(['TRIP-MID', 'TRIP-NEW', 'TRIP-OLD', 'TRIP-PAY']);
   });
 });
+
+// FIN-POL-02a: secondary age buckets cannot hide the primary ledger by default.
+it('keeps aging details collapsed while the balance and ledger remain available', () => {
+  const { container } = renderPage();
+  const disclosure = container.querySelector('.dd-aging-disclosure') as HTMLDetailsElement;
+  expect(disclosure.open).toBe(false);
+  expect(screen.getByRole('region', { name: 'Tóm tắt công nợ' })).toBeVisible();
+  expect(renderedTripOrder(container)).toEqual(['TRIP-OLD', 'TRIP-MID', 'TRIP-PAY', 'TRIP-NEW']);
+  fireEvent.click(disclosure.querySelector('summary')!);
+  expect(disclosure.open).toBe(true);
+  fireEvent.click(disclosure.querySelector('summary')!);
+  expect(disclosure.open).toBe(false);
+});

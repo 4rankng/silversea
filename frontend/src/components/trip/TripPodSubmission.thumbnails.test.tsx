@@ -48,7 +48,6 @@ function renderSubmission(submission: DriverTaskPodSubmission) {
       tripVersion={3}
       currentSubmission={submission}
       history={[]}
-      pendingCommands={[]}
       creatingDraft={false}
       uploading={false}
       onEnsureDraft={vi.fn().mockResolvedValue(submission)}

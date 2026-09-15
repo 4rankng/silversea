@@ -2,7 +2,7 @@ import type {
   CustomerAccountType, TripStatus, ShipmentStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
-  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
+  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
   DispatchClassification,
 } from '../constants';
 
@@ -688,7 +688,7 @@ export interface Expense {
   note: string | null;
   /** Dual-control review state — undefined on legacy responses (treated
    *  as APPROVED/posted). Supplier debt only exists once APPROVED. */
-  approvalStatus?: 'PENDING' | 'CHECKED' | 'APPROVED' | 'REJECTED';
+  approvalStatus?: 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'CHECKED' | 'APPROVED' | 'REJECTED';
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
@@ -900,7 +900,7 @@ export interface TripExpense {
   declarationNumber: string | null;
   containerNumber: string | null;
   tripContainerId: number | null;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE';
+  approvalStatus: 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE';
   note: string | null;
   noInvoiceEvidenceTypes: NoInvoiceEvidenceType[];
   noInvoicePolicySnapshot: NoInvoicePolicySnapshot | null;
@@ -911,7 +911,6 @@ export interface TripExpense {
 }
 
 export interface NoInvoicePolicySnapshot {
-  version: number;
   expenseTypeCode: string;
   expenseTypeName: string;
   defaultCategoryAliases: string[];
@@ -919,10 +918,6 @@ export interface NoInvoicePolicySnapshot {
   allowedEvidenceTypes: NoInvoiceEvidenceType[];
   perItemLimit: string;
   perDayLimit: string;
-  financeLeadItemApprovalLimit: string;
-  directorDayApprovalLimit: string;
-  financeLeadApprovalTitle: NoInvoiceApprovalTitle;
-  directorApprovalTitle: NoInvoiceApprovalTitle;
   requiredScope: 'TRIP_OR_SHIPMENT';
   exceptionReasonRequiredWhenThresholdExceeded: boolean;
 }
@@ -1247,6 +1242,7 @@ export interface CreateTripRequest {
   containerTypeId: number;
   pricingRateKey?: string | null;
   creditApprovalRequestId?: number | null;
+  creditException?: { reason: string; expiresAt: string; scopeType: 'SHIPMENT'; exposureCeiling: number };
   fuelMode?: FuelMode;
   fuelSupplierId?: number | null;
   vatRate?: number;

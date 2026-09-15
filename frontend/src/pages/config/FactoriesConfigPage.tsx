@@ -88,7 +88,7 @@ export default function FactoriesConfigPage() {
   });
   const routes: Route[] = routesQuery.data ?? [];
 
-  const sites = sitesQuery.data ?? [];
+  const sites = useMemo(() => sitesQuery.data ?? [], [sitesQuery.data]);
   const customers = useMemo(() => {
     const seen = new Map<string, string>();
     for (const site of sites) seen.set(String(site.customerId), site.customerName);
@@ -201,8 +201,7 @@ export default function FactoriesConfigPage() {
                 <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={handleSort} />
                 <th>Loại</th>
                 <th>Tuyến</th>
-                <SortHeader label="Địa chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />
-                <th>Liên hệ</th>
+                <SortHeader label="Địa chỉ / Liên hệ" sortKey="address" sort={sort} onSortChange={handleSort} />
                 <th>Trạng thái</th>
                 <th style={{ width: 56 }}></th>
               </tr>
@@ -210,7 +209,7 @@ export default function FactoriesConfigPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={10} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
+                  <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
                       : 'Chưa có nhà máy / kho nào. Dùng nút "Tạo mới" hoặc form nhận lô của CUS.'}
@@ -225,11 +224,15 @@ export default function FactoriesConfigPage() {
                   <td data-label="Tên"><div className="row-strong">{site.name}</div></td>
                   <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
-                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address || '—'}</td>
-                  <td data-label="Liên hệ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>
-                    {site.contactName || site.contactPhone
-                      ? [site.contactName, site.contactPhone].filter(Boolean).join(' · ')
-                      : '—'}
+                  <td data-label="Chi tiết" className="factory-record-details">
+                    <details>
+                      <summary>Địa chỉ và liên hệ</summary>
+                      <dl>
+                        <div><dt>Địa chỉ</dt><dd>{site.address || '—'}</dd></div>
+                        <div><dt>Liên hệ</dt><dd>{site.contactName || '—'}</dd></div>
+                        <div><dt>Điện thoại</dt><dd>{site.contactPhone || '—'}</dd></div>
+                      </dl>
+                    </details>
                   </td>
                   <td data-label="Trạng thái">
                     {site.isActive
@@ -241,6 +244,7 @@ export default function FactoriesConfigPage() {
                       <button
                         className="row-action"
                         title="Sửa điểm vận hành"
+                        aria-label={`Sửa ${site.shortName || site.name}`}
                         onClick={() => openEdit(site)}
                       >
                         <Pencil size={14} />
@@ -266,8 +270,8 @@ export default function FactoriesConfigPage() {
         {editing && draft && (
           <form onSubmit={(e) => e.preventDefault()}>
             {error && <Alert variant="error" style="soft">{error}</Alert>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ gridColumn: 'span 2' }}>
+            <div className="cfg-form-columns">
+              <div className="cfg-form-columns__full">
                 <Field label="Tên điểm vận hành">
                   <input className="input" value={draft.name} required maxLength={255}
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
@@ -292,7 +296,7 @@ export default function FactoriesConfigPage() {
                   <input className="input" value="Kho lấy hàng (không dùng tuyến)" disabled />
                 </Field>
               )}
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Địa chỉ">
                   <input className="input" value={draft.address} required maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
@@ -306,39 +310,39 @@ export default function FactoriesConfigPage() {
                 <input className="input" value={draft.contactPhone} maxLength={30}
                   onChange={(e) => setDraft({ ...draft, contactPhone: e.target.value })} />
               </Field>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Liên kết Google Maps">
                   <input className="input" value={draft.googleMapsUrl} maxLength={2000}
                     placeholder="https://maps.google.com/…"
                     onChange={(e) => setDraft({ ...draft, googleMapsUrl: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin liên hệ kho">
                   <textarea className="input" rows={2} value={draft.warehouseContactInfo} maxLength={2000}
                     placeholder="Nhiều liên hệ, SĐT trong một ô..."
                     onChange={(e) => setDraft({ ...draft, warehouseContactInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin nâng/hạ">
                   <textarea className="input" rows={2} value={draft.liftInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, liftInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin hạ">
                   <textarea className="input" rows={2} value={draft.dropInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, dropInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin vệ sinh">
                   <textarea className="input" rows={2} value={draft.cleaningInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, cleaningInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Quy định tại điểm làm hàng">
                   <textarea className="input" rows={3} value={draft.strictRules} maxLength={8000}
                     onChange={(e) => setDraft({ ...draft, strictRules: e.target.value })} />

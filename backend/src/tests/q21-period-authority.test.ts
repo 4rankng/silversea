@@ -1,10 +1,11 @@
-import { after, describe, test, type TestContext } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
+import { insertTripComposite } from '../services/trip-composite.service';
+
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import {
   buildExpenseSourceVersionToken,
   generateDraft,
@@ -12,12 +13,6 @@ import {
   getDocument,
   deleteDocument,
 } from '../services/billing-document.service';
-import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
-import {
-  approveFuelInvoice,
-  applyFuelInvoiceGovernanceAction,
-  createFuelInvoice,
-} from '../services/fuel-invoice.service';
 import {
   assertFuelPeriodCanAbsorbLateApproval,
   closePeriodLock,
@@ -54,28 +49,6 @@ async function mkCustomer(overrides: Partial<typeof s.customers.$inferInsert> = 
   }).returning();
   createdCustomerIds.push(row.id);
   return row;
-}
-
-async function mkTrip(customerId: number, departureDate: string) {
-  const [route] = await db.insert(s.routes).values({
-    name: `Q21 route ${suffix}-${createdRouteIds.length}`,
-  }).returning({ id: s.routes.id });
-  createdRouteIds.push(route.id);
-  const [cargoType] = await db.insert(s.cargoTypes).values({
-    name: `Q21 cargo ${suffix}-${createdCargoTypeIds.length}`,
-  }).returning({ id: s.cargoTypes.id });
-  createdCargoTypeIds.push(cargoType.id);
-  const trip = await insertTripComposite(db, {
-    tripCode: `Q21-${suffix}-${createdTripIds.length}`.slice(0, 50),
-    customerId,
-    routeId: route.id,
-    cargoTypeId: cargoType.id,
-    status: 'CREATED',
-    departureDate,
-    carrierType: 'OWN',
-  });
-  createdTripIds.push(trip.id);
-  return trip;
 }
 
 async function mkBillableTrip(params: {
@@ -201,23 +174,6 @@ async function mkExpense(tripId: number, invoiceDate: string) {
   return expense;
 }
 
-async function mkSupplier() {
-  const [supplier] = await db.insert(s.suppliers).values({
-    name: `Q21 fuel supplier ${suffix}-${createdSupplierIds.length}`,
-    isFuelSupplier: true,
-  }).returning();
-  createdSupplierIds.push(supplier.id);
-  return supplier;
-}
-
-async function mkTruck() {
-  const [truck] = await db.insert(s.trucks).values({
-    licensePlate: `Q21-${suffix.slice(-8)}-${createdTruckIds.length}`,
-  }).returning();
-  createdTruckIds.push(truck.id);
-  return truck;
-}
-
 async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER', tag: string) {
   const [user] = await db.insert(s.users).values({
     username: `q21-${role}-${tag}-${suffix}-${createdUserIds.length}`,
@@ -248,70 +204,6 @@ async function confirmAllDriversForPeriod(year: number, month: number, actorId: 
     confirmedAt: new Date(),
   }))).onConflictDoNothing().returning({ id: s.salaryConfirmations.id });
   createdSalaryConfirmationIds.push(...inserted.map((row) => row.id));
-}
-
-async function withMockedNow<T>(
-  context: TestContext,
-  isoDateTime: string,
-  run: () => Promise<T>,
-): Promise<T> {
-  context.mock.timers.enable({
-    apis: ['Date'],
-    now: new Date(isoDateTime),
-  });
-  try {
-    return await run();
-  } finally {
-    context.mock.timers.reset();
-  }
-}
-
-async function mkFuelInvoiceForApproval(params: {
-  sourceDate: string;
-  tag: string;
-  creatorId: number;
-}) {
-  const supplier = await mkSupplier();
-  const truck = await mkTruck();
-  const trip = await mkTrip((await mkCustomer()).id, params.sourceDate);
-  await applyTripPatch(db, trip.id, {
-    truckId: truck.id,
-    fuelSupplierId: supplier.id,
-    totalFuelCost: '2200000',
-    updatedAt: new Date(),
-  });
-  const expense = await mkExpense(trip.id, params.sourceDate);
-  const voucherReference = `PXD-Q21-${params.tag}-${suffix}`;
-  await db.update(s.tripExpenses)
-    .set({
-      supplierId: supplier.id,
-      expenseDate: params.sourceDate,
-      invoiceNumber: voucherReference,
-      buyAmount: '2200000',
-      sellAmount: '0',
-      expenseType: 'FUEL_DIESEL',
-      createdBy: params.creatorId,
-    })
-    .where(eq(s.tripExpenses.id, expense.id));
-
-  const invoice = await createFuelInvoice({
-    supplierId: supplier.id,
-    invoiceNumber: `HD-Q21-${params.tag}-${suffix}`,
-    invoiceDate: params.sourceDate,
-    totalLiters: 100,
-    unitPrice: 22000,
-    note: 'Kiểm tra thẩm quyền kỳ tại lúc áp dụng phê duyệt',
-    allocations: [{
-      tripId: trip.id,
-      truckId: truck.id,
-      tripExpenseId: expense.id,
-      voucherReference,
-      voucherDate: params.sourceDate,
-      liters: 100,
-    }],
-  }, params.creatorId);
-  createdFuelInvoiceIds.push(invoice.id);
-  return invoice;
 }
 
 describe('Q21 period authority', () => {
@@ -530,200 +422,15 @@ describe('Q21 period authority', () => {
     );
   });
 
-  test('fuel invoice approval follows the Vietnam month boundary while preserving the locked source month', async (context) => {
-    const accountant = await mkUser('ACCOUNTANT', 'fuel-maker');
-    const manager = await mkUser('MANAGER', 'fuel-approver');
-    const supplier = await mkSupplier();
-    const truck = await mkTruck();
-    const lockedMay = await trackLock(resolveFuelPeriodAuthority('2026-05-12'));
-
-    const createLateInvoice = async (tag: string) => {
-      const trip = await mkTrip((await mkCustomer()).id, '2026-05-12');
-      await applyTripPatch(db, trip.id, { truckId: truck.id, fuelSupplierId: supplier.id, totalFuelCost: '2200000', updatedAt: new Date() });
-      const expense = await mkExpense(trip.id, '2026-05-12');
-      const voucherReference = `PXD-Q21-${tag}-${suffix}`;
-      await db.update(s.tripExpenses)
-        .set({
-          supplierId: supplier.id,
-          expenseDate: '2026-05-12',
-          invoiceNumber: voucherReference,
-          buyAmount: '2200000',
-          sellAmount: '0',
-          expenseType: 'FUEL_DIESEL',
-          createdBy: accountant.id,
-        })
-        .where(eq(s.tripExpenses.id, expense.id));
-
-      const invoice = await createFuelInvoice({
-        supplierId: supplier.id,
-        invoiceNumber: `HD-Q21-${tag}-${suffix}`,
-        invoiceDate: '2026-05-20',
-        totalLiters: 100,
-        unitPrice: 22000,
-        note: 'Không được ghi đè tháng đã khóa',
-        allocations: [{
-          tripId: trip.id,
-          truckId: truck.id,
-          tripExpenseId: expense.id,
-          voucherReference,
-          voucherDate: '2026-05-12',
-          liters: 100,
-        }],
-      }, accountant.id);
-      createdFuelInvoiceIds.push(invoice.id);
-      return invoice;
-    };
-
-    const beforeBoundaryInvoice = await createLateInvoice('before-boundary');
-    const beforeBoundaryAction = await withMockedNow(
-      context,
-      '2027-06-30T16:30:00.000Z',
-      () => approveFuelInvoice(
-        beforeBoundaryInvoice.id,
-        manager.id,
-        'MANAGER',
-        beforeBoundaryInvoice.version,
-        'Duyệt trước ranh giới tháng Việt Nam',
-      ),
-    );
-    assert.equal(
-      (beforeBoundaryAction.afterSnapshot as { targetPeriod?: string }).targetPeriod,
-      '2027-06',
-    );
-
-    await trackLock(resolveFuelPeriodAuthority('2027-06-15'));
-
-    const afterBoundaryInvoice = await createLateInvoice('after-boundary');
-    const action = await withMockedNow(
-      context,
-      '2027-06-30T17:30:00.000Z',
-      () => approveFuelInvoice(
-        afterBoundaryInvoice.id,
-        manager.id,
-        'MANAGER',
-        afterBoundaryInvoice.version,
-        'Duyệt hóa đơn tháng 5 vào kỳ mở tháng 7',
-      ),
-    );
-    const delta = action.deltaSnapshot as {
-      lateApprovalLinks?: Array<{ sourcePeriodLockId: number; sourcePeriod: string; targetPeriod: string }>;
-    };
-    const links = delta.lateApprovalLinks ?? [];
-    assert.equal(action.originalPeriodLockId, lockedMay.id);
-    assert.equal(action.reason, 'Duyệt hóa đơn tháng 5 vào kỳ mở tháng 7');
-    assert.equal(action.makerId, manager.id);
-    assert.equal(links.length, 1);
-    assert.equal(links[0]?.sourcePeriodLockId, lockedMay.id);
-    assert.equal(links[0]?.sourcePeriod, '2026-05');
-    assert.equal(links[0]?.targetPeriod, '2027-07');
-    assert.equal(
-      (action.afterSnapshot as { targetPeriod?: string }).targetPeriod,
-      '2027-07',
-    );
-
-    const storedInvoices = await db.select({
-      invoiceDate: s.fuelInvoices.invoiceDate,
-      totalLiters: s.fuelInvoices.totalLiters,
-      totalAmount: s.fuelInvoices.totalAmount,
-      approvalStatus: s.fuelInvoices.approvalStatus,
-    }).from(s.fuelInvoices)
-      .where(inArray(s.fuelInvoices.id, [beforeBoundaryInvoice.id, afterBoundaryInvoice.id]))
-      .orderBy(s.fuelInvoices.id);
-    assert.equal(storedInvoices.length, 2);
-    for (const invoice of storedInvoices) {
-      assert.equal(invoice.invoiceDate, '2026-05-20');
-      assert.equal(Number(invoice.totalLiters), 100);
-      assert.equal(Number(invoice.totalAmount), 2_200_000);
-      assert.equal(invoice.approvalStatus, 'PENDING');
-    }
-  });
-
-  test('delayed fuel approval revalidates a source period closed after the maker request', async (context) => {
-    const accountant = await mkUser('ACCOUNTANT', 'delayed-maker');
-    const manager = await mkUser('MANAGER', 'delayed-requester');
-    const admin = await mkUser('ADMIN', 'delayed-approver');
-    const invoice = await mkFuelInvoiceForApproval({
-      sourceDate: '2031-09-12',
-      tag: 'delayed-source-close',
-      creatorId: accountant.id,
-    });
-
-    const requested = await withMockedNow(
-      context,
-      '2031-10-15T04:00:00.000Z',
-      () => approveFuelInvoice(
-        invoice.id,
-        manager.id,
-        'MANAGER',
-        invoice.version,
-        'Duyệt trễ sau khi khóa kỳ nguồn',
-      ),
-    );
-    // 2026-09-11 (maker-checker removal): request and approval collapsed into
-    // one direct apply at the (mocked) approval instant — the source period
-    // closes in between, and the apply re-resolves the late links then.
-    const sourceLock = await trackLock(resolveFuelPeriodAuthority('2031-09-12'));
-    await withMockedNow(
-      context,
-      '2031-10-15T04:05:00.000Z',
-      () => applyGovernanceActionDirect({
-        action: requested,
-        actorId: admin.id,
-        actorRole: 'ADMIN',
-        apply: applyFuelInvoiceGovernanceAction,
-      }),
-    );
-
-    const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
-      .where(eq(s.fuelPeriodAdjustments.fuelInvoiceId, invoice.id));
-    assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
-    assert.equal(adjustment?.sourcePeriod, '2031-09');
-    assert.equal(adjustment?.targetPeriod, '2031-10');
-  });
-
-  test('delayed fuel approval re-resolves a stale maker target to the current open Vietnam month', async (context) => {
-    const accountant = await mkUser('ACCOUNTANT', 'stale-target-maker');
-    const manager = await mkUser('MANAGER', 'stale-target-requester');
-    const admin = await mkUser('ADMIN', 'stale-target-approver');
-    const sourceLock = await trackLock(resolveFuelPeriodAuthority('2032-05-12'));
-    const invoice = await mkFuelInvoiceForApproval({
-      sourceDate: '2032-05-12',
-      tag: 'stale-target',
-      creatorId: accountant.id,
-    });
-
-    const requested = await withMockedNow(
-      context,
-      '2032-07-15T04:00:00.000Z',
-      () => approveFuelInvoice(
-        invoice.id,
-        manager.id,
-        'MANAGER',
-        invoice.version,
-        'Duyệt trễ sang kỳ đang mở mới',
-      ),
-    );
-    await trackLock(resolveFuelPeriodAuthority('2032-07-15'));
-
-    // One direct apply at the mocked approval instant re-resolves the target
-    // to the currently open Vietnam month.
-    await withMockedNow(
-      context,
-      '2032-08-15T04:00:00.000Z',
-      () => applyGovernanceActionDirect({
-        action: requested,
-        actorId: admin.id,
-        actorRole: 'ADMIN',
-        apply: applyFuelInvoiceGovernanceAction,
-      }),
-    );
-
-    const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
-      .where(eq(s.fuelPeriodAdjustments.fuelInvoiceId, invoice.id));
-    assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
-    assert.equal(adjustment?.sourcePeriod, '2032-05');
-    assert.equal(adjustment?.targetPeriod, '2032-08');
-  });
+  // KP-152 (approval-removal arc): the three fuel late-approval scenarios
+  // that lived here (VN month-boundary crossing, delayed source-period
+  // revalidation, stale maker-target re-resolution) were properties of the
+  // governed approve flow whose maker (approveFuelInvoice) no longer exists —
+  // invoices are APPROVED at creation and resolve periods then. The apply
+  // machinery (applyFuelInvoiceGovernanceAction) remains reachable for
+  // replaying legacy persisted actions via adjustment-governance; minting new
+  // fuel-approval actions is no longer possible, so the scenarios are
+  // unconstructable rather than changed.
 
   test('salary close mirrors into the shared period-lock authority', async () => {
     const admin = await mkUser('ADMIN', 'salary');

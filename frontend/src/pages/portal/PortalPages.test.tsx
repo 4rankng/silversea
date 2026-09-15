@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as renderView, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
@@ -26,6 +28,11 @@ import { CustomerPortalScopeProvider } from './CustomerPortalScope';
 const portalPagesCss = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalPages.css'), 'utf8');
 const portalStatementSource = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalStatementPage.tsx'), 'utf8');
 const portalShipmentDetailSource = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalShipmentDetailPage.tsx'), 'utf8');
+
+function render(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return renderView(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 function portalInbox(items: Array<Record<string, unknown>>) {
   return {

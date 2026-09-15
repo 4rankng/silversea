@@ -1,22 +1,70 @@
 /**
  * Seed forwarder (OPS) money flows through domain services:
- *   - advance requests: PENDING / APPROVED (with OPS_ADVANCE ledger) / REJECTED
- *   - trip expenses owned by the forwarder (PENDING/ APPROVED approval states)
- *   - one advance settlement linking APPROVED advances + their expenses
+ *   - directly recorded advance requests and their ledger entries
+ *   - completed forwarder expenses with physical evidence
+ *   - one balanced settlement including the unused cash returned
  *
- * Idempotent: keyed on advance reason strings + settlement note.
+ * Idempotent: scoped to the fixture owner, exact advance plans and settlement note.
  *
  * Part of plans/260817-2148-seed-full-coverage.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import {
   createAdvanceRequest,
-  approveAdvanceRequest,
-  rejectAdvanceRequest,
   createAdvanceSettlement,
 } from '../services/advance.service';
+
+export const OPS_EXPENSE_PLANS = [
+  { ref: '105254549001', expenseType: 'LIFTING', buyAmount: '1650000', sellAmount: '1800000',
+    payeeName: 'Trạm nâng hạ cảng Đình Vũ', invoiceNumber: null,
+    noInvoiceEvidenceTypes: ['RECEIPT'], note: 'Phí nâng container cảng Đình Vũ' },
+  { ref: '105254549088', expenseType: 'OTHER', buyAmount: '820000', sellAmount: '900000',
+    payeeName: null, invoiceNumber: 'BOT-2026-008812',
+    noInvoiceEvidenceTypes: [], note: 'Phí cầu đường BOT QL5' },
+];
+
+/** Recover only unchanged, unclaimed demo fees after an interrupted seed. */
+export async function findUnsettledSeedExpenses(opsId: number) {
+  const result: { id: number; amount: string }[] = [];
+  for (const plan of OPS_EXPENSE_PLANS) {
+    const rows = await db.select({ id: s.tripExpenses.id, amount: s.tripExpenses.buyAmount })
+      .from(s.tripExpenses)
+      .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+      .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+      .where(and(
+        eq(s.tripExpenses.forwarderId, opsId),
+        // The original seeder omitted createdBy; do not reinterpret another maker's entry.
+        or(eq(s.tripExpenses.createdBy, opsId), isNull(s.tripExpenses.createdBy)),
+        eq(s.tripExpenses.approvalStatus, 'RECORDED'),
+        eq(s.tripExpenses.settlementMethod, 'OPS_ADVANCE'),
+        eq(s.tripExpenses.expenseDate, '2026-08-16'),
+        eq(s.tripExpenses.expenseType, plan.expenseType),
+        eq(s.tripExpenses.buyAmount, plan.buyAmount),
+        eq(s.tripExpenses.sellAmount, plan.sellAmount),
+        eq(s.tripExpenses.note, plan.note),
+        plan.payeeName === null ? isNull(s.tripExpenses.payeeName) : eq(s.tripExpenses.payeeName, plan.payeeName),
+        plan.invoiceNumber === null ? isNull(s.tripExpenses.invoiceNumber) : eq(s.tripExpenses.invoiceNumber, plan.invoiceNumber),
+        isNull(s.tripExpenses.tripContainerId),
+        eq(s.trips.status, 'COMPLETED'),
+        inArray(s.trips.createdBy, db.select({ id: s.users.id }).from(s.users).where(and(
+          eq(s.users.username, 'dieuvan'), eq(s.users.role, 'DISPATCHER'), isNull(s.users.deletedAt),
+        ))),
+        isNull(s.trips.deletedAt), isNull(s.shipments.deletedAt),
+        or(eq(s.shipments.blNumber, plan.ref), eq(s.shipments.bookingRef, plan.ref)),
+        inArray(s.trips.shipmentId, db.select({ id: s.userShipmentLinks.shipmentId })
+          .from(s.userShipmentLinks).where(eq(s.userShipmentLinks.userId, opsId))),
+        notInArray(s.tripExpenses.id, db.select({ id: s.settlementExpenses.tripExpenseId })
+          .from(s.settlementExpenses)
+          .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+          .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
+      ));
+    if (rows.length > 1) throw new Error(`Ambiguous OPS seed expense for ${plan.ref}; reconcile duplicates before seeding.`);
+    result.push(...rows);
+  }
+  return result;
+}
 
 export async function seedForwarderMoney(actors: {
   ops: number;
@@ -26,29 +74,27 @@ export async function seedForwarderMoney(actors: {
   await seedSettlement(actors, opsExpenseIds);
 }
 
-async function seedAdvances(actors: { ops: number; approver: number }) {
-  const plans = [
-    { reason: 'Tạm ứng phí cầu đường + xăng chuyến Hải Phòng - Bắc Giang 17/08', amount: 6000000, decision: 'APPROVE' as const },
-    { reason: 'Tạm ứng phí nâng hạ container cảng Đình Vũ 16/08', amount: 4500000, decision: 'APPROVE' as const },
-    { reason: 'Tạm ứng chi phí phát sinh tuần 33', amount: 2000000, decision: 'REJECT' as const },
-    { reason: 'Tạm ứng phí tolls + E5 theo tuyến NEWB 18/08', amount: 3500000, decision: 'PENDING' as const },
-  ];
+const SEED_ADVANCES = [
+    { reason: 'Tạm ứng phí cầu đường + xăng chuyến Hải Phòng - Bắc Giang 17/08', amount: 6000000 },
+    { reason: 'Tạm ứng phí nâng hạ container cảng Đình Vũ 16/08', amount: 4500000 },
+    { reason: 'Tạm ứng chi phí phát sinh tuần 33', amount: 2000000 },
+    { reason: 'Tạm ứng phí tolls + E5 theo tuyến NEWB 18/08', amount: 3500000 },
+];
 
+async function seedAdvances(actors: { ops: number; approver: number }) {
   let created = 0;
-  for (const plan of plans) {
+  for (const plan of SEED_ADVANCES) {
     const [existing] = await db.select({ id: s.advanceRequests.id })
-      .from(s.advanceRequests).where(eq(s.advanceRequests.reason, plan.reason)).limit(1);
+      .from(s.advanceRequests).where(and(
+        eq(s.advanceRequests.requesterId, actors.ops),
+        eq(s.advanceRequests.reason, plan.reason),
+      )).limit(1);
     if (existing) continue;
 
-    const request = await createAdvanceRequest(actors.ops, {
+    await createAdvanceRequest(actors.ops, {
       amount: plan.amount,
       reason: plan.reason,
     });
-    if (plan.decision === 'APPROVE') {
-      await approveAdvanceRequest(request.id, actors.approver, request.version);
-    } else if (plan.decision === 'REJECT') {
-      await rejectAdvanceRequest(request.id, actors.approver, request.version);
-    }
     created++;
   }
   console.log(`✅ Advance requests seeded! (${created} new)`);
@@ -56,25 +102,47 @@ async function seedAdvances(actors: { ops: number; approver: number }) {
 
 async function seedSettlement(actors: { ops: number; approver: number }, opsExpenseIds: number[]) {
   const SETTLEMENT_NOTE = 'Quyet toan tam ung dot 16-17/08 (seed)';
-  const [existing] = await db.select({ id: s.advanceSettlements.id })
-    .from(s.advanceSettlements).where(eq(s.advanceSettlements.note, SETTLEMENT_NOTE)).limit(1);
+  const [existing] = await db.select({ id: s.advanceSettlements.id, status: s.advanceSettlements.status })
+    .from(s.advanceSettlements).where(and(
+      eq(s.advanceSettlements.forwarderId, actors.ops),
+      eq(s.advanceSettlements.note, SETTLEMENT_NOTE),
+    )).limit(1);
   if (existing) {
+    if (existing.status !== 'RECORDED') {
+      console.warn(`  ⚠️ Settlement seed ${existing.id} already exists as ${existing.status}; left unchanged.`);
+      return;
+    }
     console.log('✅ Advance settlement already seeded.');
     return;
   }
-  const approvedRequests = await db.select({ id: s.advanceRequests.id })
+  const recordedRequests = await db.select({ id: s.advanceRequests.id, amount: s.advanceRequests.amount, reason: s.advanceRequests.reason })
     .from(s.advanceRequests)
     .where(and(
       eq(s.advanceRequests.requesterId, actors.ops),
-      eq(s.advanceRequests.status, 'APPROVED'),
+      eq(s.advanceRequests.status, 'RECORDED'),
+      or(...SEED_ADVANCES.map(plan => and(
+        eq(s.advanceRequests.reason, plan.reason), eq(s.advanceRequests.amount, String(plan.amount)),
+      ))),
+      notInArray(s.advanceRequests.id, db.select({ id: s.advanceSettlementRequests.advanceRequestId })
+        .from(s.advanceSettlementRequests)
+        .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
+        .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
     ));
-  if (approvedRequests.length === 0 || opsExpenseIds.length === 0) {
-    console.warn('  ⚠️ Settlement seed: no approved advances or trip expenses');
+  const expenseRows = (await findUnsettledSeedExpenses(actors.ops)).filter(row => opsExpenseIds.includes(row.id));
+  if (new Set(recordedRequests.map(row => row.reason)).size !== recordedRequests.length) {
+    throw new Error('Ambiguous OPS seed advances; reconcile duplicates before seeding.');
+  }
+  if (recordedRequests.length !== SEED_ADVANCES.length || expenseRows.length !== OPS_EXPENSE_PLANS.length) {
+    console.warn('  ⚠️ Settlement seed: exact unclaimed demo advances or trip expenses are incomplete; left unchanged.');
     return;
   }
+  const refundAmount = recordedRequests.reduce((sum, row) => sum + Number(row.amount), 0)
+    - expenseRows.reduce((sum, row) => sum + Number(row.amount), 0);
+  if (refundAmount < 0) throw new Error('Settlement demo advances must cover the selected expenses.');
   await createAdvanceSettlement(actors.ops, {
-    advanceRequestIds: approvedRequests.map(r => r.id),
-    tripExpenseIds: opsExpenseIds,
+    refundAmount,
+    advanceRequestIds: recordedRequests.map(r => r.id),
+    tripExpenseIds: expenseRows.map(row => row.id),
     note: SETTLEMENT_NOTE,
   });
   console.log('✅ Advance settlement seeded!');

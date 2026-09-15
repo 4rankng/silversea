@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
-import { and, eq, getTableName, isNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, eq, getTableName, isNull, ne, type SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { Role } from '@tingting/shared';
 import { db } from '../db';

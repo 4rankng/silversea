@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../lib/api';
 import { AuthProvider, useAuth } from './useAuth';
+import { qk } from '../api/keys';
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -150,7 +151,7 @@ describe('AuthProvider logout', () => {
     });
     expect(localStorage.getItem('token')).toBeNull();
     expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
-    expect(localStorage.getItem('pending_logout_tokens')).toContain(VALID_TEST_JWT);
+    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     // Re-tap while the revocation phase is in flight: the teardown is already
     // done, so this is a harmless no-op (token stays cleared).
     fireEvent.click(screen.getByRole('button', { name: 'logout' }));
@@ -197,14 +198,14 @@ describe('AuthProvider logout', () => {
       expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
     });
     expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('pending_logout_tokens')).toContain(VALID_TEST_JWT);
+    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     expect(queryClient.getQueryData(['customers', 'customer-a'])).toBeUndefined();
 
     window.dispatchEvent(new Event('online'));
     await waitFor(() => {
       expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     });
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('drops the token instead of retrying when the server already rejected it (401)', async () => {
@@ -342,5 +343,83 @@ describe('AuthProvider logout', () => {
     });
     expect(queryClient.getQueryData(['financial', 'previous-user'])).toBeUndefined();
     expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
+  });
+});
+
+describe('authentication recovery and overlapping accounts', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('localStorage', createStorageStub());
+    localStorage.setItem('token', VALID_TEST_JWT);
+    api.refreshTokenFromStorage();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
+    status, headers: { 'Content-Type': 'application/json' },
+  });
+  const user = { userId: 1, username: 'admin', email: null, phone: null, role: 'ADMIN' };
+
+  it.each([429, 502, 503])('retains credentials on HTTP %s and resumes via Retry', async (status) => {
+    const transport = vi.fn().mockResolvedValueOnce(json({ error: 'temporarily unavailable' }, status))
+      .mockResolvedValueOnce(json(user));
+    vi.stubGlobal('fetch', transport);
+    renderWithAuth(<AuthProbe />);
+    expect(await screen.findByText('Chưa kiểm tra được phiên đăng nhập')).toBeTruthy();
+    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
+    expect(screen.queryByTestId('auth-state')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
+    expect(transport).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves a mounted unsaved draft when a background auth refetch fails and then recovers', async () => {
+    function DraftProbe() {
+      const [draft, setDraft] = useState('');
+      return <><AuthProbe /><input aria-label="Unsaved expense note" value={draft} onChange={event => setDraft(event.target.value)} /></>;
+    }
+    const transport = vi.fn().mockResolvedValueOnce(json(user))
+      .mockResolvedValueOnce(json({ error: 'temporarily unavailable' }, 503))
+      .mockResolvedValueOnce(json(user));
+    vi.stubGlobal('fetch', transport);
+    const { queryClient, container } = renderWithAuth(<DraftProbe />);
+    await screen.findByTestId('auth-state');
+    const input = screen.getByLabelText('Unsaved expense note');
+    fireEvent.change(input, { target: { value: 'Receipt pending, keep this note' } });
+    await act(async () => { await queryClient.refetchQueries({ queryKey: qk.auth.me }); });
+    expect(await screen.findByText('Chưa kiểm tra được phiên đăng nhập')).toBeTruthy();
+    expect(screen.getByLabelText('Unsaved expense note')).toBe(input);
+    expect((input as HTMLInputElement).value).toBe('Receipt pending, keep this note');
+    expect(container.hasAttribute('inert')).toBe(true);
+    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
+    fireEvent.click(screen.getByRole('button', { name: /^Thử lại$/ }));
+    await waitFor(() => expect(screen.queryByText('Chưa kiểm tra được phiên đăng nhập')).toBeNull());
+    expect(screen.getByLabelText('Unsaved expense note')).toBe(input);
+    expect((input as HTMLInputElement).value).toBe('Receipt pending, keep this note');
+    expect(container.hasAttribute('inert')).toBe(false);
+  });
+
+  it('logs B out immediately while A revocation remains pending, without restoring either account', async () => {
+    const oldLogout = createDeferred<Response>();
+    const tokenB = VALID_TEST_JWT.replace('signature', 'signature-B');
+    const transport = vi.fn().mockResolvedValueOnce(json(user))
+      .mockImplementationOnce(() => oldLogout.promise)
+      .mockResolvedValueOnce(json({ token: tokenB, user: { ...user, userId: 2, username: 'next-user' } }))
+      .mockResolvedValueOnce(json({ success: true }));
+    vi.stubGlobal('fetch', transport);
+    const { queryClient } = renderWithAuth(<AuthProbe />);
+    await screen.findByTestId('auth-state');
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+    await waitFor(() => expect(screen.getByTestId('auth-state').textContent).toBe('signed-out'));
+    fireEvent.click(screen.getByRole('button', { name: 'login' }));
+    await waitFor(() => expect(localStorage.getItem('token')).toBe(tokenB));
+    queryClient.setQueryData(['private-B'], { secret: 'B' });
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+    await waitFor(() => expect(screen.getByTestId('auth-state').textContent).toBe('signed-out'));
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(queryClient.getQueryData(['private-B'])).toBeUndefined();
+    expect(transport.mock.calls.filter(([url]) => url === '/api/auth/logout')).toHaveLength(2);
+    oldLogout.resolve(json({ success: true }));
+    await waitFor(() => expect(localStorage.getItem('token')).toBeNull());
+    expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
   });
 });

@@ -6,8 +6,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
-  max-width: 1200px;
+  padding: 0;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -18,7 +18,7 @@
   gap: 10px;
   padding: 80px 16px;
   color: var(--fg-3);
-  font-size: 14px;
+  font-size: var(--text-body-size);
 }
 
 .shipment-detail__grid {
@@ -55,7 +55,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--fg-2);
 }
 
@@ -66,7 +66,7 @@
 
 .shipment-detail__version {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3);
   padding: 2px 8px;
   border-radius: 999px;
@@ -87,14 +87,14 @@
 }
 
 .shipment-detail__fields dt {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   color: var(--fg-3);
   font-weight: 500;
 }
 
 .shipment-detail__fields dd {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--fg-1);
   overflow-wrap: anywhere;
 }
@@ -107,7 +107,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--text-section-size);
   font-weight: 600;
   color: var(--fg-1);
   margin: 0 0 12px 0;
@@ -115,7 +115,7 @@
 
 .shipment-detail__empty {
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   margin: 0;
   padding: 12px 0;
 }
@@ -124,7 +124,7 @@
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-detail__table th,
@@ -147,7 +147,7 @@
 .shipment-detail__table th {
   font-weight: 600;
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -174,7 +174,7 @@
   padding: 8px 10px;
   background: var(--bg-2, #f9fafb);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-detail__doc-type {
@@ -185,7 +185,7 @@
 .shipment-detail__doc-key {
   color: var(--fg-3);
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -194,7 +194,7 @@
 
 .shipment-detail__doc-date {
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   flex-shrink: 0;
 }
 
@@ -202,7 +202,7 @@
   padding: 8px 10px;
   background: var(--bg-2, #f9fafb);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -210,12 +210,12 @@
 
 .shipment-detail__decl-meta {
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-detail__decl-note {
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   margin-top: 2px;
 }
 
@@ -230,7 +230,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-detail__timeline-transition {
@@ -246,12 +246,12 @@
 
 .shipment-detail__timeline-reason {
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-detail__timeline-date {
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-pod-review {
@@ -270,7 +270,7 @@
 .shipment-pod-review__subtitle {
   margin: -4px 0 0;
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-pod-review__list {
@@ -306,7 +306,7 @@
 .shipment-pod-review__meta {
   margin: 4px 0 0;
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-pod-review__meta-pill,
@@ -317,7 +317,7 @@
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -358,7 +358,7 @@
   flex-wrap: wrap;
   gap: 12px;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-pod-review__files {
@@ -385,13 +385,13 @@
 
 .shipment-pod-review__file strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-pod-review__file-meta {
   margin-top: 4px;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   overflow-wrap: anywhere;
 }
 
@@ -414,7 +414,7 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   border: 1px solid #fecaca;
   background: #fff7ed;
   color: #9a3412;
@@ -459,14 +459,14 @@
 .shipment-pod-review__completion-copy strong,
 .shipment-pod-review__vat-field > span {
   color: var(--fg-1);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
 }
 
 .shipment-pod-review__completion-copy span,
 .shipment-pod-review__complete-confirmation {
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .shipment-pod-review__vat-field {
@@ -542,7 +542,7 @@
   border: 1px solid var(--border-2, #e5e7eb);
   border-radius: 10px;
   background: var(--bg-2, #f9fafb);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-2);
 }
 
@@ -560,7 +560,7 @@
 
 .shipment-pod-review__cancel-options legend,
 .shipment-pod-review__cancel-reason > span {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
   color: var(--fg-1);
   margin-bottom: 6px;
@@ -580,7 +580,7 @@
 
 .shipment-pod-review__cancel-option strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-1);
 }
 
@@ -588,7 +588,7 @@
   display: block;
   margin-top: 2px;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .shipment-pod-review__cancel-option input {
@@ -621,7 +621,7 @@
     padding: 12px;
   }
   .shipment-detail__table {
-    font-size: 12px;
+    font-size: var(--text-caption-size);
   }
   .shipment-detail__table th,
   .shipment-detail__table td {
@@ -657,4 +657,11 @@
     grid-column: 1 / -1;
     justify-self: end;
   }
+}
+
+@media (max-width: 640px) {
+  .shipment-detail { gap: 10px; }
+  .shipment-detail__grid { gap: 10px; }
+  .shipment-detail__card { padding: 10px; }
+  .shipment-detail__status-line { flex-wrap: wrap; }
 }

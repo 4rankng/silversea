@@ -15,7 +15,7 @@
  * Only dispatches shipments still in READY_FOR_DISPATCH with fully specified
  * containers. Idempotent: shipments that already have a live trip are skipped.
  */
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { Role, TripStatus } from '@tingting/shared';
@@ -28,8 +28,8 @@ import {
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { createTripExpense } from '../services/forwarder.service';
 import { createPodSubmission, submitPod, attachPodFile } from '../services/trip-pod.service';
-import { reviewTripPodSubmission } from '../services/shipment.service';
 import { TripPodFileType } from '@tingting/shared';
+import { findUnsettledSeedExpenses, OPS_EXPENSE_PLANS } from './seed-forwarder-money';
 
 /** Demo actor ids resolved at runtime by username. */
 export interface SeedActorIds {
@@ -101,21 +101,64 @@ async function ensureTrailers() {
 
 /** Backfill drivers.user_id for demo drivers lacking the link. */
 async function ensureDriverUserLinks() {
+  // Orphan cleanup first: partial wipes preserve driver rows whose user_id
+  // points at users that no longer exist — the dispatch validity check joins
+  // the users table and 409s on such links, so they are worse than none.
+  await db.update(s.drivers)
+    .set({ userId: null })
+    .where(and(
+      isNotNull(s.drivers.userId),
+      notInArray(s.drivers.userId, db.select({ id: s.users.id }).from(s.users)),
+    ));
+
   const driverUsers = await db.select({ id: s.users.id, phone: s.users.phone })
     .from(s.users)
     .where(and(eq(s.users.role, Role.DRIVER), isNull(s.users.deletedAt)));
+  // The drivers_active_user_uniq_idx index allows ONE ACTIVE driver per user
+  // — a user already holding a link must never be re-linked.
+  const takenUsers = new Set((await db.select({ userId: s.drivers.userId })
+    .from(s.drivers)
+    .where(and(isNotNull(s.drivers.userId), isNull(s.drivers.deletedAt))))
+    .map((d) => d.userId));
   let linked = 0;
   for (const u of driverUsers) {
-    if (!u.phone) continue;
-    const updated = await db.update(s.drivers)
-      .set({ userId: u.id })
+    if (!u.phone || takenUsers.has(u.id)) continue;
+    const [candidate] = await db.select({ id: s.drivers.id })
+      .from(s.drivers)
       .where(and(
         eq(s.drivers.phone, u.phone),
         isNull(s.drivers.userId),
         isNull(s.drivers.deletedAt),
-      )).returning({ id: s.drivers.id });
-    linked += updated.length;
+      ))
+      .orderBy(s.drivers.id)
+      .limit(1);
+    if (!candidate) continue;
+    await db.update(s.drivers)
+      .set({ userId: u.id })
+      .where(eq(s.drivers.id, candidate.id));
+    takenUsers.add(u.id);
+    linked += 1;
   }
+
+  // Fresh-wipe databases: the demo DRIVER users carry synthetic phones that
+  // never match the seeded drivers, so the phone pass above can link nothing
+  // and the dispatch-order stage then 409s on driver validity. Pair whatever
+  // remains deterministically (id order on both sides) so a from-scratch
+  // reseed completes.
+  const stillUnlinked = await db.select({ id: s.drivers.id })
+    .from(s.drivers)
+    .where(and(isNull(s.drivers.userId), isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE')))
+    .orderBy(s.drivers.id);
+  const freeUsers = driverUsers.filter((u) => !takenUsers.has(u.id));
+  const pairs = Math.min(stillUnlinked.length, freeUsers.length);
+  for (let i = 0; i < pairs; i += 1) {
+    await db.update(s.drivers)
+      .set({ userId: freeUsers[i].id })
+      .where(eq(s.drivers.id, stillUnlinked[i].id));
+    takenUsers.add(freeUsers[i].id);
+    linked += 1;
+  }
+
   if (linked > 0) console.log(`✅ Driver↔user links backfilled! (${linked})`);
 }
 
@@ -274,10 +317,6 @@ export async function seedTrips(seedActors: SeedActors & {
 
   let created = 0;
   let skipped = 0;
-  const opsExpenseIds: number[] = [];
-  // The first two COMPLETED plans carry forwarder-owned expenses that later
-  // feed the advance settlement (scope must complete pre-close).
-  const OPS_EXPENSE_REFS = new Set(['105254549001', '105254549088']);
 
   for (const plan of TRIP_PLANS) {
     // Resolve the OWN-carrier fixtures before touching the shipment: on
@@ -410,21 +449,17 @@ export async function seedTrips(seedActors: SeedActors & {
       // Forwarder (OPS) books recoverable fees on the first two completed
       // chains while the trip is still open — expense creation resets the
       // completion scope, so they must land before the scope rows below.
-      if (seedActors.ops && OPS_EXPENSE_REFS.has(plan.ref)) {
-        const expense = await createTripExpense(db, {
+      const expensePlan = OPS_EXPENSE_PLANS.find(expense => expense.ref === plan.ref);
+      if (seedActors.ops && expensePlan) {
+        const { ref: _ref, ...expenseData } = expensePlan;
+        await createTripExpense(db, {
+          ...expenseData,
           tripId: order.trip.id,
           forwarderId: seedActors.ops.id,
-          expenseType: plan.ref === '105254549001' ? 'LIFTING' : 'OTHER',
+          createdBy: seedActors.ops.id,
           expenseDate: '2026-08-16',
-          buyAmount: plan.ref === '105254549001' ? '1650000' : '820000',
-          sellAmount: plan.ref === '105254549001' ? '1800000' : '900000',
           settlementMethod: 'OPS_ADVANCE',
-          payeeName: plan.ref === '105254549001' ? 'Trạm nâng hạ cảng Đình Vũ' : null,
-          invoiceNumber: plan.ref === '105254549001' ? null : 'BOT-2026-008812',
-          noInvoiceEvidenceTypes: plan.ref === '105254549001' ? ['RECEIPT'] : [],
-          note: plan.ref === '105254549001' ? 'Phí nâng container cảng Đình Vũ' : 'Phí cầu đường BOT QL5',
         } as never);
-        opsExpenseIds.push(expense.id);
         // Settlement validation joins expenses to the forwarder via
         // user_shipment_links on the trip's shipment.
         const [existingLink] = await db.select({ id: s.userShipmentLinks.id })
@@ -444,9 +479,8 @@ export async function seedTrips(seedActors: SeedActors & {
       //   1. Expense scopes complete (general + per container) while the
       //      trip is still IN_TRANSIT — the close readiness gate reads them.
       //   2. Driver e-POD: submission → required files → submit.
-      //   3. CUS accepts the e-POD (records POD recovery).
-      //   4. A DIFFERENT accountant performs the routine close (checker
-      //      separation forbids the same account accepting + closing).
+      //   3. Record physical return of the original POD for this fixture.
+      //   4. Accountant performs the routine close. No internal approval step.
       const tripContainers = await db.select({ id: s.tripContainers.id })
         .from(s.tripContainers).where(eq(s.tripContainers.tripId, order.trip.id));
       const now = new Date();
@@ -524,17 +558,18 @@ export async function seedTrips(seedActors: SeedActors & {
           expectedVersion: submission.version,
           idempotencyKey: `${key}:submit`,
         });
-        await reviewTripPodSubmission({
-          shipmentId: shipment.id,
-          submissionId: submitted.submission.id,
-          expectedVersion: submitted.submission.version,
-          resolution: 'ACCEPT',
-          idempotencyKey: `${key}:review`,
-          actor: cusActor,
-          podRecovered: true,
-        });
+        // Internal review removed — the seed marks the demo submission
+        // accepted directly (customer acknowledgement shape).
+        await db.update(s.tripPodSubmissions).set({
+          status: 'ACCEPTED',
+          updatedAt: new Date(),
+        }).where(eq(s.tripPodSubmissions.id, submitted.submission.id));
       }
 
+      // These completed demo chains represent originals returned to the office.
+      // Electronic submission alone must not satisfy the physical-paper guard.
+      await db.update(s.trips).set({ podRecoveredAt: now, updatedAt: now })
+        .where(eq(s.trips.id, order.trip.id));
       await transitionTripStatus(
         order.trip.id, TripStatus.COMPLETED, accountantActor.userId, accountantActor.role,
         true, // confirmZeroRevenue — seed trips carry no pricing-table match.
@@ -545,5 +580,21 @@ export async function seedTrips(seedActors: SeedActors & {
   }
 
   console.log(`✅ Trips seeded through dispatch chain! (${created} chains, ${skipped} skipped)`);
+  // Includes existing completed fixtures on reruns, without claiming unrelated
+  // fees or any expense already frozen into an active settlement.
+  const opsExpenseIds = seedActors.ops
+    ? (await findUnsettledSeedExpenses(seedActors.ops.id)).map(expense => expense.id) : [];
+  if (seedActors.ops && opsExpenseIds.length > 0) {
+    // The original seed supplied the OPS owner but omitted its maker field.
+    // Repair only these exact unclaimed fixtures; settlement still rejects
+    // unrelated legacy expenses whose maker cannot be established.
+    await db.update(s.tripExpenses).set({
+      createdBy: seedActors.ops.id, updatedAt: new Date(),
+      version: sql`${s.tripExpenses.version} + 1`,
+    }).where(and(
+      inArray(s.tripExpenses.id, opsExpenseIds), isNull(s.tripExpenses.createdBy),
+      eq(s.tripExpenses.forwarderId, seedActors.ops.id),
+    ));
+  }
   return { created, skipped, opsExpenseIds };
 }

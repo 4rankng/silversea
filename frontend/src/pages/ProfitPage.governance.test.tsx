@@ -100,7 +100,7 @@ describe('ProfitPage governance request UX', () => {
       return {
         id: 71,
         actionKind: 'PROFIT_DISTRIBUTION',
-        status: 'PENDING_CHECK',
+        status: 'APPLIED',
         version: 1,
         afterSnapshot: {
           quarter: 3,
@@ -110,14 +110,14 @@ describe('ProfitPage governance request UX', () => {
     });
   });
 
-  it('shows a pending-review result and never claims profit was distributed', async () => {
+  it('finalizes directly and refreshes persisted allocation without claiming a cash transfer', async () => {
     render(
       <MemoryRouter>
         <ProfitPage />
       </MemoryRouter>,
     );
 
-    const submit = await screen.findByRole('button', { name: 'Gửi duyệt phân bổ' });
+    const submit = await screen.findByRole('button', { name: 'Phân bổ lợi nhuận' });
     fireEvent.click(submit);
 
     await waitFor(() => {
@@ -127,17 +127,16 @@ describe('ProfitPage governance request UX', () => {
       });
     });
     expect(confirmMock).toHaveBeenCalledWith(
-      'Gửi yêu cầu phân chia lợi nhuận Quý 3/2026 để kiểm tra và phê duyệt?',
+      'Phân bổ lợi nhuận Quý 3/2026 ngay?',
     );
     expect(toastMock).toHaveBeenCalledWith({
       kind: 'success',
-      message: 'Đã gửi yêu cầu phân chia lợi nhuận để kiểm tra và phê duyệt.',
+      message: 'Đã phân bổ lợi nhuận.',
     });
-    expect(await screen.findByText('Đã gửi yêu cầu phân chia Quý 3 / 2026')).toBeTruthy();
-    expect(screen.getByText(/đang chờ kiểm tra/)).toBeTruthy();
-    expect(screen.getByText(/Chưa có khoản lợi nhuận nào được phân phối/)).toBeTruthy();
-    expect(screen.queryByText(/Đã phân chia lợi nhuận Quý/)).toBeNull();
-    expect(refetchHistoryMock).not.toHaveBeenCalled();
+    expect(await screen.findByText('Đã phân bổ Quý 3 / 2026')).toBeTruthy();
+    expect(screen.getByText(/không ghi nhận chuyển tiền/)).toBeTruthy();
+    expect(screen.queryByText(/đang chờ kiểm tra/)).toBeNull();
+    expect(refetchHistoryMock).toHaveBeenCalledOnce();
   });
 
   // Ownership-blocked warning (QA-069): the blocked truck's plate links

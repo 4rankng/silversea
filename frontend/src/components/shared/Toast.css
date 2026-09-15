@@ -45,7 +45,7 @@
 .toast__body { flex: 1; min-width: 0; }
 
 .toast__message {
-  font-size: 0.9375rem;
+  font-size: var(--text-body-size);
   line-height: 1.45;
   color: var(--ink);
   overflow-wrap: anywhere;

@@ -5,7 +5,6 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import { requestTripExpenseDecision, type ApprovalTransition, type TripExpenseDecisionEvidence } from './approval.service';
 import type { Tx } from './trip-shared';
 
 /** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
@@ -41,7 +40,7 @@ export interface RecoverableEligibilityInput {
 export interface RecoverableCostFilters {
   page: number;
   limit: number;
-  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus?: 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   customerId?: number;
   sortBy?: RecoverableCostSortKey;
   sortDir?: 'asc' | 'desc';
@@ -111,8 +110,7 @@ function eligibilityRankSortSql(): SQL {
         then 4
       else 3
     end
-    when ${s.tripExpenses.approvalStatus} = 'PENDING' then 0
-    when ${s.tripExpenses.approvalStatus} <> 'APPROVED' then 2
+    when ${s.tripExpenses.approvalStatus} not in ('RECORDED', 'APPROVED') then 2
     when ${s.tripExpenses.sellAmount} <= 0 then 2
     when ${s.tripExpenses.recoverablePrincipalAmount} is null
       or ${s.tripExpenses.serviceFeeAmount} is null then 2
@@ -164,11 +162,8 @@ export function evaluateRecoverableEligibility(
       blockedReason: 'Chi phí đã thuộc một giấy báo nợ.',
     };
   }
-  if (input.approvalStatus === 'PENDING') {
-    return { state: 'READY_FOR_REVIEW', blockedReason: null };
-  }
-  if (input.approvalStatus !== 'APPROVED') {
-    return { state: 'BLOCKED', blockedReason: 'Chi phí chưa được phê duyệt.' };
+  if (input.approvalStatus !== 'RECORDED' && input.approvalStatus !== 'APPROVED') {
+    return { state: 'BLOCKED', blockedReason: 'Khoản chi chưa được ghi nhận hợp lệ. Mở khoản chi để hoàn thiện dữ liệu và chứng từ.' };
   }
   if (!Number.isFinite(input.sellAmount) || input.sellAmount <= 0) {
     return { state: 'BLOCKED', blockedReason: 'Khoản thu lại khách hàng phải lớn hơn 0.' };
@@ -430,44 +425,4 @@ export async function getRecoverableCost(
   if (!row) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
   if (row.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
   return toRecoverableCost(row);
-}
-
-export async function requestRecoverableCostDecision(input: {
-  expenseId: number;
-  decision: ApprovalTransition;
-  reason: string;
-  evidence: TripExpenseDecisionEvidence;
-  expectedVersion: number;
-  actor: Pick<AuthUser, 'userId' | 'role'>;
-  transaction: Tx;
-}) {
-  const [source] = await input.transaction.select({
-    expenseId: s.tripExpenses.id,
-    tripId: s.tripExpenses.tripId,
-    shipmentId: s.trips.shipmentId,
-    customerId: s.trips.customerId,
-    responsibleUnitId: s.shipments.responsibleUnitId,
-  })
-    .from(s.tripExpenses)
-    .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
-    .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
-    .where(and(
-      eq(s.tripExpenses.id, input.expenseId),
-      isNull(s.trips.deletedAt),
-      isNull(s.shipments.deletedAt),
-    ))
-    .limit(1)
-    .for('update');
-  if (!source || source.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
-  return requestTripExpenseDecision({
-    tripId: source.tripId,
-    expenseId: source.expenseId,
-    decision: input.decision,
-    reason: input.reason,
-    evidence: input.evidence,
-    expectedExpenseVersion: input.expectedVersion,
-    makerId: input.actor.userId,
-    makerRole: input.actor.role,
-    transaction: input.transaction,
-  });
 }

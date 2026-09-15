@@ -1,12 +1,17 @@
 # Quy tắc tính cước & phụ phí dầu (Báo giá Long Minh)
 
-> **Nguồn chân lý:** `18.7 - BG Long Minh T7.xlsx` — 2 sheet: `18.7` (kỳ áp giá dầu
+> **Yêu cầu sản phẩm — cập nhật 14/09/2026.** Người có quyền thao tác trực tiếp,
+> không qua phê duyệt nội bộ; vẫn kiểm tra dữ liệu, quyền sửa, ngày hiệu lực và kỳ
+> đã khóa. Cần Internet để làm việc. Xem [mục lục PRD](README.md).
+
+> **Nguồn đối chiếu công thức:** `18.7 - BG Long Minh T7.xlsx` — 2 sheet: `18.7` (kỳ áp giá dầu
 > 18/7) và `11.7` (kỳ trước, giá dầu 11/7). Đây là **bảng báo giá khách hàng**, không
 > phải bảng lương/chi phí nội bộ.
 >
 > ⚠️ **File là bản MINH HOẠ LOGIC** — dùng để hiểu **cách tính**, không phải bộ dữ liệu
 > đầy đủ. Vài ô còn trống (khách chưa điền) là bình thường và **không ảnh hưởng công
-> thức**. Nơi nào code hiện tại khác file này thì **file này đúng**.
+> thức**. Công thức Excel cùng các quyết định khách hàng bổ sung bên dưới là căn cứ;
+> quyết định kẹp phụ phí về 0 ngày 09/09 được ưu tiên khi khác công thức Excel.
 >
 > **Phạm vi: cước cơ bản của DUY NHẤT 1 khách hàng — `LONG MINH`**
 > (`CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH`, mã `LONGMINH`).
@@ -38,7 +43,8 @@ Cột này **không phải một khoản phí thứ ba**.
 ### 1.1. Tách tham số tĩnh / động
 
 Đây là điểm cốt lõi khi đưa vào hệ thống: **cùng một bảng cước cơ bản, giá dầu thay
-đổi thì toàn bộ cước đổi theo — nhưng hợp đồng không đổi.**
+đổi thì kết quả tính mới đổi theo — nhưng hợp đồng không đổi.** Cước đã khóa hoặc
+đã phát hành không tự tính lại khi mở kỳ giá dầu mới.
 
 | Nhóm | Tham số | Đổi khi nào |
 |------|---------|-------------|
@@ -47,8 +53,9 @@ Cột này **không phải một khoản phí thứ ba**.
 | **Dẫn xuất** (không nhập tay) | `E` = lít/chuyến, `H` = phụ phí, `J` = cước chia sẻ, `K` = cước cuối, `L` = kiểm tra | Tự tính |
 
 ⇒ **Chỉ có đúng 1 ô đầu vào động cho cả 27 dòng cước.** Mọi con số cước trong file
-đều là hàm của `M1`. Hệ quả cho thiết kế: lưu **công thức + tham số**, không lưu
-cước đã chốt cứng (xem §8.1 — hệ thống hiện đang lưu cứng).
+đều là hàm của `M1`. Sản phẩm cần giữ **công thức và các đầu vào có ngày hiệu lực**
+để tính mới, đồng thời giữ **bản cước đã khóa** cùng giá gốc, điều khoản tuyến,
+định mức và kỳ dầu đã dùng. Không dùng tổng cước của kỳ cũ làm giá gốc cho kỳ mới.
 
 ---
 
@@ -124,10 +131,10 @@ Chỉ bù **phần chênh**, không tính lại toàn bộ tiền dầu, vì ti�
 > công ty **không** giảm cước cho khách khi dầu rẻ. Ví dụ NEWEB CONT40 (91 lít), dầu
 > 16.000 đ/l: H = 0, cước = 4.182.000 đ.
 >
-> ⚠️ **Lệch chủ ý so với công thức Excel:** file báo giá không có clamp (mọi kỳ trong
-> file đều trên mốc nên nhánh này chưa từng xuất hiện). Clamp là **quyết định kinh doanh
-> sau Excel** — nơi nào đối chiếu với file thì rule này thắng. Code hiện tại đã có
-> `Math.max(0, …)` trong `roundInt()` ⇒ hành vi này **đúng**, giữ nguyên.
+> ⚠️ **Lệch chủ ý so với công thức Excel:** file báo giá chưa kẹp phụ phí về 0 (mọi kỳ trong
+> file đều trên mốc nên trường hợp này chưa xuất hiện). Kẹp về 0 là **quyết định kinh doanh
+> sau Excel** — nơi nào đối chiếu với file thì quy tắc này thắng. Phép tính mục tiêu
+> phải kẹp phụ phí về 0 để cước cuối không thấp hơn phần giá gốc đã chia sẻ.
 
 ### 2.6. Giá cước đã chia sẻ
 
@@ -144,7 +151,7 @@ K (CƯỚC GỒM PHỤ PHÍ) = J + H
 L (PHỤ PHÍ THU)      = K − J   →  luôn = H
 ```
 
-### 2.8. Công thức rút gọn (dùng để lập trình)
+### 2.8. Công thức tổng hợp
 
 ```
 Cước 1 chuyến = GiáGốc × (1 + %ChiaSẻ)
@@ -152,6 +159,9 @@ Cước 1 chuyến = GiáGốc × (1 + %ChiaSẻ)
 ```
 
 > `max(0, …)` = chốt 2026-09-09 (Câu 1 = B). Km luôn `× 2` = chốt 2026-09-09 (Câu 4 = A).
+> `17.842,59` là số hiển thị rút gọn của `19270/1,08`. Giữ đủ độ chính xác của
+> giá dầu mốc, số lít và chênh lệch để không đổi kết quả tiền; chỉ làm tròn riêng
+> `J`, `H` đến đồng rồi cộng theo §10.
 
 ---
 
@@ -166,14 +176,11 @@ Mỗi sheet chứa **3 khối bảng giá**. Cả 3 đều thuộc khách hàng 
 | Dòng 12–20 | **ASKEY** | 100 | 200 | **4 %** | × 104 % |
 | Dòng 22–30 | **SUNRISE + SJ** | 120 | 240 | **2,5 %** | × 102,5 % |
 
-### 3.1. Đối chiếu với master data trong hệ thống
+### 3.1. Nhà máy và bên nhận hàng
 
-Đã kiểm chứng trong `backend/src/seed/data/`:
-
-- **Khách hàng:** `LONG MINH` — 1 bản ghi trong `customers.ts` (mã `LONGMINH`).
-- **Nhà máy:** toàn bộ NEWEB / ASKEY / SUNRISE / SJ TECH nằm trong `factories.ts`,
-  **tất cả đều mang `internalCode: "LONG MINH"`** ⇒ là nhà máy đích *của* Long Minh,
-  không phải khách hàng độc lập.
+Một khách hàng Long Minh có thể giao tới nhiều nhà máy và bên nhận hàng. Sản phẩm
+phải giúp người dùng chọn đúng nhóm tuyến của hợp đồng, không tạo ba khách hàng
+khác nhau chỉ vì bảng giá có ba khối:
 
 | Khối báo giá | Nhà máy thực tế trong hệ thống | Pháp nhân nhận hàng |
 |--------------|-------------------------------|---------------------|
@@ -184,7 +191,8 @@ Mỗi sheet chứa **3 khối bảng giá**. Cả 3 đều thuộc khách hàng 
 ⇒ **Quan hệ báo giá không phải 1–1 với nhà máy:** 1 khối giá có thể phủ **nhiều nhà
 máy** (NEWEB 3 kho; ASKEY 2 xưởng), thậm chí **nhiều pháp nhân** (SUNRISE và SJ TECH
 là 2 công ty riêng nhưng dùng chung 1 khối giá vì cùng khu công nghiệp ⇒ cùng cự ly).
-Khoá tra cước là **tuyến**, không phải nhà máy và cũng không phải người nhận hàng.
+Khi tính cước phải xác định đúng **khách hàng, tuyến, loại xe và ngày áp dụng**.
+Tên nhà máy hoặc bên nhận hàng không thay thế tuyến được thỏa thuận trong hợp đồng.
 
 ### 3.2. Quan sát về cấu trúc giá
 
@@ -235,7 +243,7 @@ Khoá tra cước là **tuyến**, không phải nhà máy và cũng không ph�
 
 > ⚠️ **Dòng 15T thiếu `GIÁ GỐC` ở cả 3 khối, cả 2 sheet.** Công thức vẫn chạy nên
 > `J = 0` và `K = H` — tức bảng đang báo giá 15T **chỉ bằng tiền phụ phí dầu**.
-> Đây là **lỗi dữ liệu**, không phải chính sách. Xem §8.
+> Đây là **dữ liệu còn thiếu**, không phải chính sách giá. Xem §9.
 
 ---
 
@@ -308,161 +316,92 @@ Chỉ khác kỳ 18/7 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chia s�
 
 ## 7. Cách vận hành khi giá dầu đổi
 
-1. Lấy giá dầu niêm yết mới (**chưa VAT**, hoặc lấy giá có VAT rồi chia `1,08`).
-2. Cập nhật **duy nhất ô `M1`** (hoặc trường `GiáDầuKỳ` trong hệ thống).
-3. Toàn bộ `H`, `K`, `L` của cả 3 tuyến tự tính lại.
-4. `F` (17.842,59), `I` (giá gốc), `% chia sẻ`, `km`, `định mức dầu` **giữ nguyên** —
-   chỉ đổi khi đàm phán lại hợp đồng.
-5. Ghi lại **ngày áp giá** (sheet mới, ví dụ `11.7` → `18.7`) để đối chiếu về sau.
-   Ghi chú `ÁP 4/7/2026` trong file cho thấy cước có **ngày hiệu lực**, không hồi tố.
+1. Kế toán/CUS được cấp quyền nhập giá dầu mới, ngày hiệu lực và nguồn công bố.
+   Phải biết đó là giá chưa VAT hay đã được quy đổi theo hợp đồng. Không tự đổi
+   mốc `19.270 / 1,08` chỉ vì giá thị trường hoặc chính sách thuế thay đổi.
+2. Lưu trực tiếp kỳ mới; người dùng nhìn thấy giá, ngày hiệu lực và kết quả lưu.
+   Kỳ tương lai được ghi rõ là chưa có hiệu lực. Không có bước gửi duyệt giá.
+3. Khi CUS/Điều vận nhập **Ngày vận chuyển**, sản phẩm chọn kỳ theo ngày này trừ
+   độ trễ của tuyến, áp điều khoản ngưỡng đã xác định, tính và khóa cước.
+4. Giá gốc, % chia sẻ, km, định mức và mốc dầu giữ theo hợp đồng. Mở kỳ dầu mới
+   không tự thay cước đã khóa hoặc số đã phát hành cho khách.
+5. Đổi Ngày vận chuyển khi hồ sơ còn được phép sửa phải cho thấy cước thay đổi
+   thế nào, giữ bản cũ và lý do. Chứng từ đã phát hành không bị âm thầm sửa theo.
 
-> **✅ ĐÃ CHỐT (2026-09-09, Câu 2 = A):** không hồi tố — cước đã phát hành giữ nguyên
-> khi kỳ giá dầu mới mở (snapshot + 4 id tham số truy vết). Kèm cơ chế **độ trễ theo
-> tuyến**: giá mới áp sau lag days (NEWEB = 1 ngày; ASKEY, SUNRISE+SJ chưa có số) —
-> chi tiết [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) Câu 2.
+**Đã ghi nhận:** không hồi tố theo Câu 2=A ngày 09/09; NEWEB áp giá sau **1 ngày**.
+Bản phương án khách hàng ngày 09/09, tổng hợp ngày 10/09, chốt **Ngày vận chuyển**
+là mốc chọn kỳ và khóa cước. Lag ASKEY/SUNRISE+SJ còn thiếu; xem
+[phương án tính cước](PhuongAnTinhCuocTuDong.md).
 
----
+## 8. Thông tin người dùng cần xem và sửa
 
-## 8. Hiện trạng trong hệ thống — và khoảng trống của tham số động
+- Xem giá gốc, % chia sẻ, cự ly tính cước, định mức, giá dầu mốc/kỳ, ngày áp dụng,
+  phụ phí và tổng cước trên cùng hồ sơ. Có thể giải thích số tiền cho khách mà
+  không phải tính lại ngoài bảng tính.
+- Phân biệt cước đang đề xuất, cước đã khóa, giá cuối đàm phán và chứng từ đã
+  phát hành. Kế toán có quyền sửa giá cuối trực tiếp với lý do; bản giá tự động
+  vẫn giữ để đối soát, không cần người khác duyệt.
+- Xem lịch sử thay đổi: ai sửa, khi nào, giá trị cũ/mới, lý do và ngày hiệu lực.
+  Nếu người khác đã sửa trong lúc đang mở biểu mẫu, phải đối chiếu trước khi
+  lưu; không ghi đè thay đổi mà người dùng chưa nhìn thấy.
+- Cùng một lần lưu không tạo hai bản cước hoặc hai khoản tiền khi bấm lại. Nếu
+  mất kết nối sau khi gửi mà chưa rõ kết quả, hiển thị trạng thái cần kiểm tra,
+  không báo đã lưu hoặc tự gửi lại. Khi chưa gửi được, giữ phần đang nhập trên
+  màn hình hiện tại và cho thử lại chủ động sau khi có Internet.
+- Bảng cước và lịch sử gọn, dễ so sánh theo tuyến/loại xe trên máy tính; số tiền,
+  nhãn và thao tác không bị cắt trên điện thoại/máy tính bảng. Thông tin phụ có
+  thể mở thêm; không đặt nhiều lớp thẻ hoặc hướng dẫn dài trước dữ liệu chính.
 
-### 8.1. Bảng cước này ĐÃ có trong hệ thống, nhưng ở dạng chốt cứng
+Chi tiết tại [yêu cầu dữ liệu và lịch sử cước](CuocPhiThietKeDB.md).
 
-`backend/src/seed/data/pricing.ts` đã chứa **đúng 27 dòng** = 3 tuyến × 9 loại xe,
-với các trường `route`, `sharePct`, `size`, `basePrice`, `withSurcharge`.
+## 9. Phân biệt thiếu dữ liệu và giá hợp lệ
 
-**Kiểm chứng:** áp công thức §2.8 ngược lại toàn bộ 27 dòng seed, **phần chênh giá dầu
-suy ra giống nhau ở cả 27 dòng: ≈ 7.917,41 đ/lít** (dao động ở chữ số thập phân thứ 4
-do `withSurcharge` trong seed đã làm tròn về đồng):
+Bảng Excel là bản minh hoạ logic, không phải danh sách giá đầy đủ cho mọi loại xe
+hoặc mọi hợp đồng. Các bảng số bên trên được giữ để đối chiếu, không phải thông
+báo giá dầu hiện hành.
 
-```
-(withSurcharge − basePrice × (1 + sharePct)) / (km × 2 × địnhMức)  =  7.917,41  (G − F)
-```
+| Trường hợp | Hành vi sản phẩm cần có |
+|---|---|
+| Giá gốc 15T còn trống ở cả 3 tuyến | Báo thiếu giá gốc. Không báo giá 0 hoặc lấy riêng tiền phụ phí làm tổng cước. Người có quyền có thể nhập giá có căn cứ khi cần. |
+| Chưa biết lag, ngưỡng hoặc kỳ dầu phù hợp | Nêu đúng phần còn thiếu; không dùng 0, số minh hoạ hay giá của tuyến/loại xe khác để thay thế. |
+| Chưa có Ngày vận chuyển | Có thể lưu thông tin lô; biểu diễn rõ chưa xác định cước, không đặt ngày giả. |
+| Giá trị tiền bằng 0 theo công thức đã đủ đầu vào | Hiển thị 0 đúng nghĩa; không nhầm với chưa có dữ liệu hoặc lỗi tải. |
+| Nhãn ngày trong file khác công thức | Đối chiếu đúng kỳ giá mà phép tính sử dụng; không dùng nhãn cũ để chọn sai kỳ. |
+| Ghi chú nháp ngoài bảng cước, như Lạch Huyện | Không tự biến thành biểu cước mới khi khách chưa có yêu cầu cụ thể. |
 
-> ⚠️ **`25.760` là số SUY NGƯỢC, không phải số của khách hàng.** Nó **không xuất hiện ở
-> bất kỳ đâu trong file `18.7 - BG Long Minh T7.xlsx`** — đã dò toàn bộ ô, công thức và
-> cả XML gốc: 0 kết quả.
->
-> Từ dữ liệu chỉ xác định được **phần chênh `G − F`**. Muốn tách ra `G` thì phải **giả
-> định** `F` không đổi: `7.917,41 + 17.842,59 = 25.760`. Nếu kỳ đó dùng giá dầu mốc
-> khác thì `G` cũng khác. Vì vậy **chỉ `G − F` là dữ kiện; `25.760` là suy luận có điều
-> kiện.**
+## 10. Quyết định đã chốt và điểm còn cần khách hàng làm rõ
 
-Hai kết luận:
+**Giữ nguyên:**
 
-1. **Công thức trong tài liệu này là đúng** — nó tái tạo chính xác từng dòng dữ liệu
-   thật đang có trong hệ thống.
-2. **Dữ liệu seed thuộc một kỳ giá dầu thứ ba** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 đ/l nếu
-   cùng mốc `F`), khác cả 2 sheet của file
-   này (11/7 = 21.740; 18/7 = 27.620) ⇒ **cước trong hệ thống đang cũ so với báo giá 18/7.**
+- Câu 1=B: phụ phí không âm. Câu 2=A: không hồi tố khi dầu đổi. Câu 4=A: luôn km×2.
+- NEWEB lag 1 ngày; Ngày vận chuyển quyết định kỳ giá và thời điểm khóa cước.
+- Làm tròn **riêng H và J đến từng đồng**, sau đó cộng K. Phần lẻ đúng nửa đồng
+  làm tròn lên. Giữ đủ độ chính xác của giá dầu mốc, chênh dầu và số lít để không
+  thay đổi kết quả; mở lại bản cước phải giải thích được cùng số tiền đã chốt.
 
-| Kỳ | Giá dầu | Nguồn | Loại dữ kiện |
-|----|--------:|-------|--------------|
-| Seed hệ thống hiện tại | ≈ 25.760 | `backend/src/seed/data/pricing.ts` (bàn giao 30/7, file gốc **không còn trong repo**) | **Suy ngược** — có điều kiện |
-| Sheet `11.7` | 21.740 | file báo giá của khách | Đọc trực tiếp |
-| Sheet `18.7` | 27.620 | file báo giá của khách (mới nhất) | Đọc trực tiếp |
+**Chưa chốt:**
 
-### 8.2. Khoảng trống: schema chưa có chỗ cho tham số động
+- Ba giá gốc 15T; lag ASKEY và SUNRISE+SJ.
+- Giá trị ngưỡng % hoặc số tiền/lít cho từng hợp đồng; áp khi **vượt** hay **đạt**
+  ngưỡng; lấy kỳ liền trước hay mốc đang áp qua nhiều kỳ; xử lý kỳ đầu và trường
+  hợp không dùng ngưỡng. Không coi ô trống là xác nhận “luôn áp giá mới”.
+- Khách khác có dùng cùng mô hình Long Minh hay biểu giá khác; phạm vi dùng chung
+  một nguồn giá dầu; lịch công bố, nguồn và cách quy đổi VAT cho các kỳ tương lai.
 
-Bảng `pricing_tables` (`backend/src/db/schema/pricing.ts`) hiện là:
+Đây là các điều khoản/dữ liệu khách hàng cần làm rõ, không phải phê duyệt nội bộ.
+Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md) và
+[quy trình tính cước](PhuongAnTinhCuocTuDong.md). Bỏ bước duyệt không cho phép tự
+chọn giá hoặc thay đổi hợp đồng chưa được khách xác nhận.
 
-```
-customerId, routeId, price, containerTypeId, rateKey, effectiveDate, …
-```
+## 11. Tiêu chí chấp nhận
 
-- `price` là **một số đã chốt** — tức `K` (cước gồm phụ phí) đã bị "nướng" cứng.
-- **Không có** cột nào cho `giá dầu kỳ`, `định mức dầu`, `km`, `% chia sẻ`, `giá gốc`.
-
-⇒ Mỗi lần giá dầu đổi, cách duy nhất hiện nay là **tính lại ngoài Excel rồi nạp đè
-toàn bộ bảng giá** — đúng như những gì file `18.7` / `11.7` đang phản ánh (mỗi kỳ một
-sheet mới). Không truy vết được cước đến từ giá dầu nào.
-
-Điểm tích cực: `effectiveDate` đã nằm trong unique index
-(`customerId, routeId, containerTypeId|rateKey, effectiveDate`) ⇒ **hệ thống đã hỗ trợ
-cước theo kỳ hiệu lực**, phù hợp với ghi chú `ÁP 4/7/2026` trong file.
-
-### 8.3. Hướng bổ sung tham số động (đề xuất — cần chốt)
-
-Để cước tự động theo giá dầu thay vì nạp đè, cần tách 3 nhóm dữ liệu:
-
-| Nhóm | Nội dung | Tần suất đổi |
-|------|----------|--------------|
-| **Tham số tuyến** | `km`, `% chia sẻ` | Theo hợp đồng |
-| **Tham số loại xe** | `định mức dầu/km` | Rất hiếm |
-| **Tham số kỳ** | `giá dầu kỳ`, `giá dầu mốc`, `ngày hiệu lực` | **Mỗi kỳ — 1 dòng cho cả bảng** |
-
-Khi đó `price` không lưu nữa mà **tính khi đọc**; hoặc vẫn lưu `price` như bản chốt
-(snapshot) nhưng **kèm khoá tham chiếu kỳ giá dầu** để truy vết được.
-
-> ⚠️ Đây là **đề xuất kỹ thuật, chưa được duyệt**. Việc đổi `pricing_tables` ảnh hưởng
-> tới cước đã phát hành ⇒ phải chốt §10 trước khi làm.
-
----
-
-## 9. Ghi chú về dữ liệu trong file
-
-> **File này là bản MINH HOẠ LOGIC, không phải bộ dữ liệu hoàn chỉnh.** Ô trống là bình
-> thường — nhiều khả năng khách hàng chưa điền. **Cái cần lấy từ file là công thức và
-> cấu trúc**, không phải tính đầy đủ của từng con số.
->
-> Vì vậy phần dưới **không phải danh sách lỗi cần sửa**, chỉ là ghi chú khi đọc file.
-
-### 9.1. Thiếu dữ liệu — bình thường, không ảnh hưởng logic
-
-| Điểm | Ghi chú |
-|------|---------|
-| Dòng `15T` không có `GIÁ GỐC` (cả 3 khối × 2 sheet) | Khách chưa điền. Công thức vẫn đúng; chỉ thiếu 1 tham số đầu vào. Hệ thống rơi về nhánh nhập tay cho tới khi có số. *(Đã lan sang `pricing.ts` dưới dạng `basePrice: 0` — cũng chỉ là dữ liệu trống.)* |
-| Tiêu đề cột `G` khối ASKEY / SUNRISE (sheet `18.7`) vẫn ghi `GIÁ DẦU NGÀY 3/4` | Nhãn cũ chưa sửa, nhưng **công thức đã trỏ đúng `$M$1`**. Là file làm việc nên nhãn lệch là bình thường — **lấy công thức, không lấy nhãn**. |
-| Sheet `11.7` gõ cứng `21.740` từng dòng thay vì tham chiếu 1 ô | Thói quen làm việc trên Excel. Sheet `18.7` đã chuyển sang `$M$1` — đó mới là cách làm chuẩn cần đưa vào hệ thống. |
-
-### 9.2. Điểm về cách đọc file
-
-| Điểm | Ghi chú |
-|------|---------|
-| `K` ra số lẻ (vd `1.580.212,59`) | Excel không làm tròn. **Đã chốt: hệ thống làm tròn đến từng đồng** (§10). |
-| `PHỤ PHÍ THU` (`L`) = `K − J` = `H` | Cột kiểm tra ngược, **không phải khoản phí thứ ba**. Không cần đưa vào DB. |
-
-### 9.3. Vùng nháp cuối sheet `18.7` (G32:H35)
-
-Không thuộc bảng cước chính — **là ghi chú nháp**, chép lại nguyên trạng để tra cứu:
-
-- `LẠCH HUYỆN 400`, `FIGHTING`
-- `GIÁ DẦU * 15` → `27.620 × 15 = 414.300`
-- `25.420 × 15 = 381.300` · `352.900 / 15 = 23.526,67` · `+23.320 × 15`
-- `ÁP 4/7/2026`
-
-Diễn giải khả dĩ: một tuyến/khoản khác (Lạch Huyện) dùng **định mức cố định 15 lít**
-thay cho `km × định mức`. **Nằm ngoài phạm vi bản minh hoạ này** — chỉ xử lý khi khách
-đưa yêu cầu cụ thể, không suy đoán để đưa vào thiết kế.
-
----
-
-## 10. Điểm cần chốt trước khi lập trình
-
-**Về nghiệp vụ cước:**
-
-1. ~~**Làm tròn**~~ — **ĐÃ CHỐT: làm tròn đến từng đồng (VND).** Làm tròn riêng `H` và
-   `J`, rồi cộng; đã kiểm chứng không lệch so với làm tròn `K`. Tham số công thức
-   (`F`, `G−F`, số lít) **không** làm tròn. Chi tiết:
-   [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §4.2.
-2. **Mốc `F` = 19.270/1,08:** VAT 8 % là cố định hay đổi theo chính sách thuế từng thời kỳ?
-3. ~~**Chiều rỗng: khi chuyến chỉ chạy 1 chiều, có tính `km × 2` không?**~~ —
-   **ĐÃ CHỐT (09/09): Câu 4 = A — luôn `km × 2`** (§2.1).
-4. ~~**Giá dầu giảm dưới mốc: `H` âm (giảm cước) hay chặn về 0?**~~ —
-   **ĐÃ CHỐT (09/09): Câu 1 = B — kẹp về 0, `H = max(0, …)`** (§2.5).
-
-**Về tham số động (giá dầu theo kỳ):**
-
-5. **Ai cập nhật giá dầu kỳ, và theo nguồn nào?** (giá niêm yết Petrolimex? khách hàng
-   thông báo? nhập tay?) — có cần duyệt trước khi áp không?
-6. **Kỳ áp giá dầu theo lịch cố định hay bất thường?** File cho thấy 11/7 → 18/7 = 1 tuần,
-   nhưng ghi chú `ÁP 4/7/2026` lại là ngày khác.
-7. ~~**Cước đã phát hành có bị tính lại khi giá dầu đổi không?** (hồi tố hay chỉ áp
-   cho lô mới)~~ — **ĐÃ CHỐT (09/09): Câu 2 = A — không hồi tố, snapshot khi phát
-   hành** (§7).
-8. **Phạm vi áp dụng của 1 lần đổi giá dầu:** dùng chung 1 giá cho mọi khách hàng /
-   mọi tuyến (như ô `M1` hiện nay), hay mỗi khách hàng một giá riêng?
-9. **Các khách hàng khác ngoài Long Minh** có dùng đúng mô hình này không (giá gốc ×
-   % chia sẻ + phụ phí dầu theo định mức)? Nếu khác thì cần mô hình cước tổng quát hơn.
-
-> Các ô dữ liệu còn trống trong file (vd giá gốc `15T`) **không nằm trong danh sách
-> này** — đó là dữ liệu khách chưa điền, không phải quyết định thiết kế (§9.1).
+1. Cước cho các dòng đủ giá gốc khớp bảng tham chiếu đúng kỳ; xem được giá gốc,
+   chia sẻ, phụ phí và tổng tiền. Dòng thiếu giá 15T được đánh dấu rõ.
+2. Dầu giảm dưới mốc cho phụ phí 0; chuyến một chiều vẫn km×2; làm tròn riêng
+   J/H không làm mất hoặc tăng một đồng do rút gọn đầu vào khi hiển thị.
+3. Ngày vận chuyển và độ trễ quyết định kỳ được áp; mở kỳ mới không làm thay
+   cước đã khóa hoặc chứng từ trước đó.
+4. Người có quyền lưu kỳ mới hoặc giá cuối trực tiếp, có lý do/lịch sử khi cần.
+   Sai dữ liệu, thiếu quyền và kỳ khóa được giải thích rõ, không thêm bước duyệt.
+5. Cùng hồ sơ cho cùng số tiền trên điện thoại, máy tính bảng và máy tính; số
+   không bị cắt. Bấm lại hoặc mất kết nối không tạo tiền trùng hay tự gửi lại.

@@ -8,41 +8,29 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
+import { useFocusTrap } from '../../../hooks/useFocusTrap';
+import { parseDateTime24 } from '../../../lib/format';
+import { getOffsetDateString, parseDateTimeParts } from './cusAppointmentUtils';
+import { DateTimePickerDialog } from '../../../design-system/forms/DateTimePickerPanels';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
+import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 
 export interface CusAppointmentPopoverProps {
   value: string | null | undefined;
   containerLabel: string;
   isOpen: boolean;
   onClose: () => void;
+  /** _34: dismissal without commit — the owner reverts the draft part so
+   *  Escape/outside never leak the abandoned value into the next open. */
+  onCancel?: () => void;
   onChange: (val: string) => void;
+  /** Called on confirmation or Enter — should validate and persist the value. Return false
+   *  to keep the popover open (e.g. validation failure). */
+  onCommit?: (val: string) => Promise<boolean> | boolean | void;
   idPrefix?: string;
   triggerRef?: RefObject<HTMLElement | null>;
   portal?: boolean;
-}
-
-function parseDateTimeParts(value: string | null | undefined): { date: string; time: string } {
-  if (!value) return { date: '', time: '' };
-  // Server values are instants (…Z / ±hh:mm) — prefill as Vietnam wall-clock,
-  // never the browser zone. Naive drafts from this popover's own onChange
-  // ("YYYY-MM-DDTHH:mm") round-trip verbatim.
-  if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
-    const input = formatVietnamDateTimeInput(value);
-    return input ? { date: input.slice(0, 10), time: input.slice(11, 16) } : { date: '', time: '' };
-  }
-  const [d = '', t = ''] = value.split('T');
-  return { date: d, time: t.slice(0, 5) };
-}
-
-function getOffsetDateString(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 export function CusAppointmentPopover({
@@ -50,19 +38,44 @@ export function CusAppointmentPopover({
   containerLabel,
   isOpen,
   onClose,
+  onCancel,
   onChange,
+  onCommit,
   idPrefix = 'cus-apt',
   triggerRef,
   portal,
 }: CusAppointmentPopoverProps) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const committing = useRef(false);
+  const session = useRef(0);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pickerTriggerRef = useRef<HTMLButtonElement>(null);
+  useClickOutside(panelRef, () => setPanelOpen(false), { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef] });
+  useFocusTrap(popoverRef, isOpen);
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const trigger = triggerRef?.current ?? document.activeElement as HTMLElement | null;
+    return () => { if (trigger?.isConnected) trigger.focus(); };
+  }, [isOpen, triggerRef]);
+
+  // A request may finish after this editor is dismissed and opened again.
+  // Its result must never close or unlock a newer editing session.
+  useLayoutEffect(() => {
+    session.current += 1;
+    committing.current = false;
+    setSaving(false);
+    return () => { session.current += 1; };
+  }, [isOpen]);
 
   // Sync state whenever opened or value changes
   useEffect(() => {
     if (isOpen) {
+      setSaveError('');
       const parts = parseDateTimeParts(value);
       setDate(parts.date || getOffsetDateString(0));
       setTime(parts.time || '08:00');
@@ -77,6 +90,7 @@ export function CusAppointmentPopover({
   const buffered = useBufferedDateTimeValue({
     value: date && time ? `${date}T${time}` : '',
     onChange: (next) => {
+      if (committing.current) return;
       const [nextDate, nextTime] = next ? next.split('T') : ['', ''];
       setDate(nextDate);
       setTime(nextTime.slice(0, 5));
@@ -90,52 +104,13 @@ export function CusAppointmentPopover({
     additionalRefs: triggerRef ? [triggerRef] : [],
   });
 
-  // Viewport-aware positioning relative to trigger
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef?.current;
-    if (!trigger) return;
+  const coords = usePopoverPosition(popoverRef, triggerRef, isOpen);
 
-    const updatePosition = () => {
-      const triggerRect = trigger.getBoundingClientRect();
-      const popoverEl = popoverRef.current;
-      const popoverWidth = popoverEl?.offsetWidth || 275;
-      const popoverHeight = popoverEl?.offsetHeight || 280;
-      const gap = 4;
-      const padding = 12;
-
-      const vh = window.innerHeight || 900;
-      const vw = window.innerWidth || 1440;
-
-      const spaceBelow = vh - triggerRect.bottom - gap - padding;
-      const spaceAbove = triggerRect.top - gap - padding;
-
-      let top: number;
-      if (popoverHeight <= spaceBelow || spaceBelow >= spaceAbove) {
-        top = triggerRect.bottom + gap;
-      } else {
-        top = triggerRect.top - gap - popoverHeight;
-      }
-      top = Math.max(padding, Math.min(top, vh - padding - popoverHeight));
-
-      let left = triggerRect.right - popoverWidth;
-      left = Math.max(padding, Math.min(left, vw - padding - popoverWidth));
-
-      setCoords({ top: Math.round(top), left: Math.round(left) });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [isOpen, triggerRef]);
 
   if (!isOpen) return null;
 
   const updateDateTime = (newDate: string, newTime: string) => {
+    if (committing.current) return;
     setDate(newDate);
     setTime(newTime);
     if (newDate) {
@@ -146,9 +121,49 @@ export function CusAppointmentPopover({
   };
 
   const handleClear = () => {
+    if (committing.current) return;
     setDate('');
     setTime('');
     onChange('');
+    onClose();
+  };
+
+  const commit = () => {
+    if (committing.current) return;
+    const input = popoverRef.current?.querySelector<HTMLInputElement>('.cus-appointment-input');
+    const raw = input?.value.trim() ?? '';
+    const composed = raw ? parseDateTime24(raw) : '';
+    if (composed === null) {
+      setSaveError('Nhập ngày giờ đầy đủ theo định dạng HH:mm DD/MM/YYYY.');
+      input?.focus();
+      return;
+    }
+    setSaveError('');
+    onChange(composed);
+    // _34: a missing commit path is a configuration error — surface it in
+    // the popover instead of silently closing as if the save happened.
+    if (!onCommit) { setSaveError('Không thể lưu: phiên chỉnh sửa không còn đường lưu.'); return; }
+    const saveSession = session.current;
+    committing.current = true;
+    setSaving(true);
+    const save = async () => {
+      try {
+        const ok = await onCommit(composed);
+        if (session.current === saveSession && ok !== false) onClose();
+      } catch {
+        if (session.current === saveSession) setSaveError('Chưa lưu được giờ hẹn. Vui lòng thử lại.');
+      } finally {
+        if (session.current === saveSession) {
+          committing.current = false;
+          setSaving(false);
+        }
+      }
+    };
+    void save();
+  };
+
+  const dismissWithoutCommit = () => {
+    onCancel?.();
     onClose();
   };
 
@@ -156,10 +171,13 @@ export function CusAppointmentPopover({
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      onClose();
+      dismissWithoutCommit();
     } else if (event.key === 'Enter') {
+      event.stopPropagation();
+      // Buttons retain native keyboard activation (including date/time presets).
+      if ((event.target as HTMLElement).closest('button')) return;
       event.preventDefault();
-      onClose();
+      commit();
     }
   };
 
@@ -174,8 +192,11 @@ export function CusAppointmentPopover({
       <div
         className="cus-appointment-backdrop"
         style={coords ? { zIndex: 1040 } : undefined}
+        data-escape-boundary="true"
         onClick={(e) => {
           e.stopPropagation();
+          // Outside-click KEEPS the draft part (the explicit save commits it);
+          // only the Escape key reverts (see dismissWithoutCommit).
           onClose();
         }}
         onPointerDown={(e) => {
@@ -186,6 +207,7 @@ export function CusAppointmentPopover({
       />
       <div
         ref={popoverRef}
+        data-escape-boundary="true"
         className="cus-appointment-popover"
         style={coords ? {
           position: 'fixed',
@@ -199,6 +221,7 @@ export function CusAppointmentPopover({
         aria-modal="true"
         aria-label={`Chọn giờ hẹn đóng/trả cho container ${containerLabel}`}
         onKeyDown={handleKeyDown}
+        aria-busy={saving}
       >
         <div className="cus-appointment-popover__header">
           <div className="cus-appointment-popover__title">
@@ -222,6 +245,7 @@ export function CusAppointmentPopover({
           <button
             type="button"
             className={`cus-quick-pill${date === todayStr ? ' is-active' : ''}`}
+            disabled={saving}
             onClick={() => updateDateTime(todayStr, time || '08:00')}
           >
             Hôm nay
@@ -229,6 +253,7 @@ export function CusAppointmentPopover({
           <button
             type="button"
             className={`cus-quick-pill${date === tomorrowStr ? ' is-active' : ''}`}
+            disabled={saving}
             onClick={() => updateDateTime(tomorrowStr, time || '08:00')}
           >
             Ngày mai
@@ -236,32 +261,60 @@ export function CusAppointmentPopover({
           <button
             type="button"
             className={`cus-quick-pill${date === dayAfterStr ? ' is-active' : ''}`}
+            disabled={saving}
             onClick={() => updateDateTime(dayAfterStr, time || '08:00')}
           >
             Ngày kia
           </button>
         </div>
 
-        {/* Time and Date Inputs — giờ trước ngày, khớp định dạng "20:45 8/9/26" của cột bảng.
-            Native time/date inputs render per browser UI locale (12h AM/PM) and element lang
-            cannot override it, so this types into the same buffered 24h text input as
-            /shipments/new ("HH:mm DD/MM/YYYY"); the pills below stay the fast path. */}
+        {/* Keep the visible value in 24h format; the clipped native input only opens the picker. */}
         <div className="cus-appointment-popover__inputs">
           <div className="cus-appointment-input-wrap">
             <label htmlFor={`${idPrefix}-datetime`}>Ngày giờ</label>
-            <input
-              ref={buffered.ref}
-              id={`${idPrefix}-datetime`}
-              type="text"
-              inputMode="numeric"
-              className="cus-appointment-input"
-              placeholder={DATE_TIME_24_PLACEHOLDER}
-              maxLength={16}
-              autoComplete="off"
-              defaultValue={buffered.defaultValue}
-              onChange={buffered.onChange}
-              onBlur={buffered.onBlur}
-            />
+            <div className="cus-appointment-input-row">
+              <input
+                ref={buffered.ref}
+                id={`${idPrefix}-datetime`}
+                type="text"
+                inputMode="numeric"
+                className="cus-appointment-input"
+                disabled={saving}
+                placeholder={DATE_TIME_24_PLACEHOLDER}
+                maxLength={16}
+                autoComplete="off"
+                defaultValue={buffered.defaultValue}
+                onChange={buffered.onChange}
+                onBlur={buffered.onBlur}
+              />
+              <button
+                type="button"
+                ref={pickerTriggerRef}
+                className="cus-appointment-picker-btn"
+                aria-label="Chọn ngày giờ từ lịch"
+                aria-haspopup="dialog"
+                aria-expanded={panelOpen}
+                disabled={saving}
+                title="Mở lịch chọn ngày giờ"
+                onClick={() => setPanelOpen((v) => !v)}
+              >
+                <Calendar size={14} aria-hidden="true" />
+              </button>
+              {panelOpen && (
+                <div ref={panelRef} className="dtp-dialog-host cus-appointment-dtp">
+                  <DateTimePickerDialog
+                    title={`Giờ hẹn đóng/trả — ${containerLabel}`}
+                    value={date && time ? `${date}T${time}` : ''}
+                    onConfirm={(composed) => {
+                      const [d = '', t = ''] = composed.split('T');
+                      updateDateTime(d, t);
+                      setPanelOpen(false);
+                    }}
+                    onClose={() => setPanelOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -276,26 +329,37 @@ export function CusAppointmentPopover({
               key={presetTime}
               type="button"
               className={`cus-time-pill${time === presetTime ? ' is-active' : ''}`}
-              onClick={() => updateDateTime(date || todayStr, presetTime)}
+              disabled={saving}
+            onClick={() => updateDateTime(date || todayStr, presetTime)}
             >
               {presetTime}
             </button>
           ))}
         </div>
 
-        {/* Footer: Clear button and dismiss hint */}
+        {saveError && <p className="cus-appointment-popover__error" role="alert">{saveError}</p>}
+        {/* Touch and keyboard share the same commit path. */}
         <div className="cus-appointment-popover__footer">
           {value ? (
             <button
               type="button"
               className="cus-appointment-popover__clear"
+              disabled={saving}
               onClick={handleClear}
               title="Xóa giờ hẹn đã chọn"
             >
               Xóa hẹn
             </button>
           ) : <span />}
-          <span className="cus-appointment-popover__hint">Bấm ra ngoài để đóng</span>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={saving}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={commit}
+          >
+            {saving ? 'Đang lưu…' : 'Xác nhận'}
+          </button>
         </div>
       </div>
     </>

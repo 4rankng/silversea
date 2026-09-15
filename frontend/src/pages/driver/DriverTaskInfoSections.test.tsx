@@ -18,6 +18,7 @@ function makeTrip(overrides: {
   invoiceMaster?: DriverTaskDetail['invoiceMaster'];
   invoiceFactory?: DriverTaskDetail['invoiceFactory'];
   routeName?: string | null;
+  tradeDirection?: string | null;
 } = {}): DriverTaskDetail {
   return {
     id: 55,
@@ -25,6 +26,7 @@ function makeTrip(overrides: {
     tripCode: 'TRIP-55',
     status: TripStatus.IN_TRANSIT,
     departureDate: '2026-08-01',
+    tradeDirection: overrides.tradeDirection ?? null,
     routeName: overrides.routeName !== undefined ? overrides.routeName : 'Cảng Cát Lái → Nhà máy Bình Dương',
     truckPlate: '51C-12345',
     trailerPlate: '51R-55555',
@@ -81,7 +83,7 @@ const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver
   ?.querySelector('.driver-task-fact__value')?.textContent;
 
 describe('DriverTaskInfoSections', () => {
-  it('renders the full fact-grid order: schedule+factory, factory block, warehouse phone, container, ports, route, contacts', () => {
+  it('renders the full fact-grid order: schedule+factory, factory block, contact, warehouse phone, container, seal, ports, route', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
@@ -89,13 +91,12 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'Số điện thoại liên hệ',
       'Container / lô hàng',
+      'Seal',
       'Cảng nâng',
       'Cảng hạ',
       'Tuyến',
-      'Người liên hệ',
-      'Số điện thoại',
     ]);
   });
 
@@ -146,18 +147,33 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Tên nhà máy')).toBe('—');
   });
 
-  it('renders the warehouse-phone row as a tel link when the site has a phone', () => {
+  it('no longer renders a standalone warehouse-phone row (the combined contact row carries the number)', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    const link = screen.getByText('0901234567');
-    expect(link.getAttribute('href')).toBe('tel:0901234567');
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+  });
+  it('renders contact name + phone grouped as Số điện thoại liên hệ beneath factory address', () => {
+    render(<DriverTaskInfoSections trip={makeTrip()} />);
+
+    const contactValue = valueOf('Số điện thoại liên hệ');
+    expect(contactValue).toContain('Anh Minh');
+    expect(contactValue).toContain('0909000001');
+    // Phone is a tel link
+    const contactLink = screen.getByText('0909000001');
+    expect(contactLink.getAttribute('href')).toBe('tel:0909000001');
   });
 
-  it('keeps the warehouse-phone row visible with "—" when the site has no phone', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null } })} />);
+  it('renders only phone in Số điện thoại liên hệ when contact name is absent', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null } })} />);
 
-    expect(labels()).toContain('SĐT kho');
-    expect(valueOf('SĐT kho')).toBe('—');
+    const contactLink = screen.getByText('0909000001');
+    expect(contactLink.getAttribute('href')).toBe('tel:0909000001');
+  });
+
+  it('renders "—" in Số điện thoại liên hệ when both name and phone are absent', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
+
+    expect(valueOf('Số điện thoại liên hệ')).toBe('—');
   });
 
   it('renders route text on Tuyến — the factory address never leaks into it', () => {
@@ -206,10 +222,17 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.getByText('CTY Vệ Sinh Container · 9 Phạm Ngũ Lão')).toBeTruthy();
   });
 
-  it('hides the invoice section when neither invoice info nor master data rides the wire', () => {
+  it('explains missing invoice configuration for the displayed factory instead of silently hiding it', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    expect(screen.queryByText('Thông tin xuất hóa đơn')).toBeNull();
+    expect(screen.getByText('Thông tin xuất hóa đơn')).toBeTruthy();
+    expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
+  });
+
+  it('identifies missing factory invoice fields without borrowing customer values', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ invoiceFactory: { name: 'Factory Legal Name', address: null, taxCode: null }, invoiceMaster: { companyName: 'Customer', address: 'Customer billing address', taxCode: '123' } })} />);
+    expect(screen.getByText('Nhà máy chưa cấu hình: địa chỉ xuất hóa đơn, mã số thuế.')).toBeTruthy();
+    expect(screen.getByText('Customer billing address')).toBeTruthy();
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -245,7 +268,7 @@ describe('DriverTaskInfoSections', () => {
     expect(mstValues).toEqual(['2300540419']);
   });
 
-  it('renders the empty-container return depot as its own row between Cảng hạ and Tuyến', () => {
+  it('renders the empty-container return depot as Trả cont rỗng for EXPORT when distinct from Cảng hạ', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
@@ -253,34 +276,108 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'Số điện thoại liên hệ',
       'Container / lô hàng',
+      'Seal',
       'Cảng nâng',
       'Cảng hạ',
       'Trả cont rỗng',
       'Tuyến',
-      'Người liên hệ',
-      'Số điện thoại',
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
     expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
   });
 
-  it('renders the container line in booking quantity format', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+  it('hides the return depot row when it equals the drop point (EXPORT)', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Sóng Thần' } })} />);
 
-    // "1 x <type>" — the booking idiom from the mobile sketch; container
-    // numbers stay in front, seals stay attached.
-    expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 1 x 40G1 · Seal SEAL-9');
+    expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('renders the wire drop point authoritatively — "—" when the chain resolves null, ignoring legacy local fallbacks', () => {
+  it('hides the return depot row when returnDepotName is null', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: null } })} />);
+
+    expect(labels()).not.toContain('Trả cont rỗng');
+  });
+
+  it('KP-063: without tradeDirection (EXPORT-like), Cảng hạ is the drop port and return depot renders separately', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS', dropPortName: 'Nhà máy Samsung' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Nhà máy Samsung');
+    expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
+  });
+
+  it('KP-063: IMPORT direction swaps Cảng hạ to return depot and shows actual delivery separately', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS', dropPortName: 'Nhà máy Samsung' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Bãi JJ LOGISTICS');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
+    expect(labels()).not.toContain('Trả cont rỗng');
+  });
+
+  it('P1_5: IMPORT with no return depot shows drop port as Cảng hạ and delivery row', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { returnDepotName: null, dropPortName: 'Nhà máy Samsung' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Nhà máy Samsung');
+    // P1_5: always show delivery address for IMPORT when data exists
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
+  });
+
+  it('P1_5: IMPORT with return depot equal to drop port still shows delivery row', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { returnDepotName: 'Sóng Thần', dropPortName: 'Sóng Thần' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
+    // P1_5 regression fix: always show delivery address for IMPORT when data exists
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Sóng Thần');
+    expect(labels()).not.toContain('Trả cont rỗng');
+  });
+
+  it('renders each container number paired with its type code (KP-191)', () => {
+    render(<DriverTaskInfoSections trip={makeTrip()} />);
+
+    // Each container number is paired with its own type code.
+    expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 40G1');
+    // Seals render on their own row.
+    expect(valueOf('Seal')).toBe('Seal SEAL-9');
+  });
+
+  it('falls back to dropWarehouseName when dropPortName is null', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: 'Legacy Kho',
       lclWarehouseName: 'Legacy LCL',
     } })} />);
 
+    expect(valueOf('Cảng hạ')).toBe('Legacy Kho');
+  });
+
+  it('shows "—" when both dropPortName and dropWarehouseName are null', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+      dropPortName: null,
+      dropWarehouseName: null,
+      lclWarehouseName: null,
+    } })} />);
+
     expect(valueOf('Cảng hạ')).toBe('—');
   });
+});
+
+
+it('renders a legacy task without a container array without crashing', () => {
+  const trip = makeTrip();
+  trip.containers = null as unknown as DriverTaskDetail['containers'];
+  render(<DriverTaskInfoSections trip={trip} />);
+  expect(screen.getByText('Container / lô hàng')).toBeTruthy();
+  expect(screen.getByText('FCL')).toBeTruthy();
 });

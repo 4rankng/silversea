@@ -1,0 +1,37 @@
+.connection-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: max(8px, env(safe-area-inset-top)) 8px 8px;
+  background: rgb(255 255 255 / 64%);
+}
+.connection-gate__content {
+  width: min(100%, 520px);
+  padding: 12px;
+  background: var(--surface, white);
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: var(--r-md, 8px);
+  color: var(--ink, #1f2937);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-body-size, 12px);
+}
+.connection-gate__content strong { font-size: var(--text-section-size, 14px); }
+.connection-gate__content p { margin: 6px 0; line-height: 1.5; }
+.connection-gate__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.connection-gate__actions button {
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: var(--r-sm, 6px);
+  background: var(--surface, white);
+  color: var(--ink, #1f2937);
+  font: inherit;
+  cursor: pointer;
+}
+.connection-gate__actions button:focus-visible { outline: 2px solid var(--brand, #047857); outline-offset: 2px; }
+.auth-recovery { max-width: 520px; margin: 24px auto; padding: 12px; font-size: var(--text-body-size, 12px); }
+.retired-offline-notice { position: fixed; bottom: max(8px, env(safe-area-inset-bottom)); left: 8px; right: 8px; z-index: 2000; padding: 8px; background: var(--surface); border: 1px solid var(--line); font-size: var(--text-body-size); }
+.retired-offline-notice button { margin-left: 8px; min-height: 44px; font: inherit; }

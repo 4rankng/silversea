@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { NotificationType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
@@ -35,7 +35,6 @@ import { applyBillingDocumentGovernanceAction } from './billing-document-governa
 import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
 import { applyDebtOffsetGovernanceAction } from './debtOffset.service';
 import {
-  applyAdvanceRequestGovernanceAction,
   applyAdvanceSettlementGovernanceAction,
 } from './advance.service';
 import { applyCompanyExpenseGovernanceAction } from './expense.service';
@@ -52,7 +51,6 @@ import { persistNotificationInTx } from './notification.service';
 import {
   createFinancialPosting,
   getActiveFinancialPosting,
-  getFinancialPostingForGovernanceAction,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 
@@ -447,9 +445,6 @@ async function applyGovernanceAction(
   }
   if (action.subjectType === 'DEBT_OFFSET') {
     return applyDebtOffsetGovernanceAction(tx, action);
-  }
-  if (action.subjectType === 'ADVANCE_REQUEST') {
-    return applyAdvanceRequestGovernanceAction(tx, action);
   }
   if (action.subjectType === 'ADVANCE_SETTLEMENT') {
     return applyAdvanceSettlementGovernanceAction(tx, action);

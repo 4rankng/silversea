@@ -26,7 +26,6 @@ import {
   appointmentGroupFactorySegment,
   derivePrimaryShipmentSignal,
   directionLabel,
-  displayNote,
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
@@ -165,8 +164,10 @@ export function CusShipmentRow({
           aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
           onClick={() => onStartQuickEdit(item, 'notes')}
         >
-          {customerNoteLines.length > 0 && <span className="cus-note-preview__customer">{displayNote(customerNoteLines.join(' '))}</span>}
-          {operationalNoteLines.length > 0 && <span className="cus-note-internal">{displayNote(operationalNoteLines.join(' '))}</span>}
+          {/* User-ruled defect: note lines joined with ' - '/space rendered
+              typed breaks away. Pre-wrap + 2-line clamp keeps the breaks. */}
+          {customerNoteLines.length > 0 && <span className="cus-note-preview__customer cus-note-clamp">{customerNoteLines.join('\n')}</span>}
+          {operationalNoteLines.length > 0 && <span className="cus-note-internal cus-note-clamp">{operationalNoteLines.join('\n')}</span>}
           {customerNoteLines.length === 0 && operationalNoteLines.length === 0 && <span className="cus-note-preview__customer cus-note-preview__customer--empty">—</span>}
         </button>
       </td>
@@ -182,7 +183,7 @@ export function CusShipmentRow({
                 size="sm"
                 color="secondary"
                 className="cus-dashboard-delete"
-                aria-label={`Yêu cầu xóa lô hàng ${identity}`}
+                aria-label={`Xóa lô hàng ${identity}`}
                 onPress={() => onOpenAction(item, 'delete')}
                 isDisabled={editing}
                 iconLeading={<Trash2 size={16} aria-hidden="true" />}

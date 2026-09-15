@@ -219,32 +219,21 @@ async function createApprovedAdvanceRequest(requesterId: number, amount: number)
     requesterId,
     amount: String(amount),
     reason: `Q23 approved request ${suffix}-${advanceRequestIds.length}`,
-    status: 'APPROVED',
+    status: 'RECORDED',
   }).returning();
   advanceRequestIds.push(request.id);
   return request;
 }
 
-async function createPendingAdvanceRequest(requesterId: number, amount: number) {
-  const [request] = await db.insert(s.advanceRequests).values({
-    requesterId,
-    amount: String(amount),
-    reason: `Q23 pending request ${suffix}-${advanceRequestIds.length}`,
-    status: 'PENDING',
-  }).returning();
-  advanceRequestIds.push(request.id);
-  return request;
-}
-
-async function createSettlement(forwarderId: number, requestIds: number[], note: string, status: 'PENDING' | 'CHECKED_BY_ACCOUNTANT' = 'PENDING') {
+async function createSettlement(forwarderId: number, requestIds: number[], note: string) {
   const [settlement] = await db.insert(s.advanceSettlements).values({
     code: `Q23-STL-${suffix}-${advanceSettlementIds.length}`.slice(0, 20),
     forwarderId,
     totalExpenseAmount: '0',
     refundAmount: '500000',
-    status,
-    checkedBy: status === 'CHECKED_BY_ACCOUNTANT' ? actor.id : null,
-    checkedAt: status === 'CHECKED_BY_ACCOUNTANT' ? new Date('2026-07-27T09:00:00.000Z') : null,
+    status: 'DRAFT',
+    checkedBy: null,
+    checkedAt: null,
     note,
   }).returning();
   advanceSettlementIds.push(settlement.id);
@@ -492,8 +481,10 @@ describe('Q23 approved financial route idempotency', () => {
       body: { ...changedBody, expectedVersion: settlement.version + 1 },
       idempotencyKey: secondKey,
     });
-    assert.equal(second.status, 200);
-    assert.equal(second.data.note, 'ghi chu thay doi');
+    assert.equal(second.status, 409, 'a recorded settlement cannot replace its source list');
+    const [recorded] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(recorded.status, 'RECORDED');
+    assert.equal(recorded.note, 'ghi chu lan 1');
 
     const replay = await requestJson(`/advance-settlements/${settlement.id}`, {
       method: 'PUT',
@@ -515,93 +506,6 @@ describe('Q23 approved financial route idempotency', () => {
     );
     assert.ok(auditRows.some((row) => row.outcome === 'REPLAYED'));
     assert.ok(auditRows.some((row) => row.statusCode === 409 && row.idempotencyKeyPresent === true));
-  });
-
-  test('advance request approval is first-winner under concurrent distinct keys', async () => {
-    const requester = await createUser(Role.OPS, 'q23-approve-forwarder');
-    const request = await createPendingAdvanceRequest(requester.id, 275000);
-
-    // 2026-09-10 (phê duyệt removed): the approve route applies immediately —
-    // two concurrent distinct-key approvals: the first applies (201), the
-    // second finds the request already APPROVED and 409s.
-    const [first, second] = await Promise.all([
-      requestJson(`/advance-requests/${request.id}/approve`, {
-        body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
-        idempotencyKey: `q23-advance-approve-a-${request.id}`,
-        userId: managerActor.id,
-      }),
-      requestJson(`/advance-requests/${request.id}/approve`, {
-        body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
-        idempotencyKey: `q23-advance-approve-b-${request.id}`,
-        userId: managerActor.id,
-      }),
-    ]);
-    assert.deepEqual([first.status, second.status].sort((a, b) => a - b), [201, 409]);
-    const winner = first.status === 201 ? first : second;
-    assert.equal(winner.data.actionKind, 'ADVANCE_REQUEST_APPROVAL');
-
-    const winnerKey = winner === first
-      ? `q23-advance-approve-a-${request.id}`
-      : `q23-advance-approve-b-${request.id}`;
-    const replay = await requestJson(`/advance-requests/${request.id}/approve`, {
-      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
-      idempotencyKey: winnerKey,
-      userId: managerActor.id,
-    });
-    assert.equal(replay.status, 200);
-    assert.equal(replay.data.replayed, true);
-
-    const conflict = await requestJson(`/advance-requests/${request.id}/approve`, {
-      body: { expectedVersion: request.version, reason: 'Đổi lý do' },
-      idempotencyKey: winnerKey,
-      userId: managerActor.id,
-    });
-    assert.equal(conflict.status, 409);
-
-    const [updated] = await db.select({ status: s.advanceRequests.status })
-      .from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, request.id))
-      .limit(1);
-    assert.equal(updated?.status, 'APPROVED');
-
-    const ledgerRows = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(and(
-        eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
-        eq(s.ledger.txnId, request.id),
-      ));
-    ledgerIds.push(...ledgerRows.map((row) => row.id));
-    assert.equal(ledgerRows.length, 1);
-  });
-
-  test('advance request rejection applies immediately with no ledger effect (phê duyệt removed)', async () => {
-    const requester = await createUser(Role.OPS, 'q15-reject-forwarder');
-    const request = await createPendingAdvanceRequest(requester.id, 315000);
-    const rejected = await requestJson(`/advance-requests/${request.id}/reject`, {
-      body: { expectedVersion: request.version, reason: 'Chứng từ tạm ứng không hợp lệ' },
-      idempotencyKey: `q15-advance-reject-${request.id}`,
-      userId: managerActor.id,
-    });
-    assert.equal(rejected.status, 201, JSON.stringify(rejected.data));
-    assert.equal(rejected.data.actionKind, 'ADVANCE_REQUEST_REJECTION');
-
-    const [row] = await db.select().from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, request.id))
-      .limit(1);
-    assert.ok(row);
-    // Applied in ONE call: the request is REJECTED and the transient action
-    // record returned by the route is APPROVED with the single actor making
-    // and applying the decision.
-    assert.equal(row.status, 'REJECTED');
-    assert.equal(row.approvedBy, managerActor.id);
-    assert.equal(rejected.data.status, 'APPROVED');
-    assert.equal(rejected.data.makerId, rejected.data.approverId);
-    assert.equal(rejected.data.subjectId, request.id);
-    const ledgerAfter = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
-      eq(s.ledger.txnId, request.id),
-    ));
-    assert.equal(ledgerAfter.length, 0);
   });
 
   test('debt offset create applies immediately; cancel applies with reversal entries (phê duyệt removed)', async () => {
@@ -641,13 +545,13 @@ describe('Q23 approved financial route idempotency', () => {
     ledgerIds.push(...approveEntries.map((row) => row.id));
     assert.equal(approveEntries.length, 2);
 
-    // The approve endpoint is now a dead path on an applied offset: 409.
+    // The retired approve endpoint always returns410 and never reposts the offset.
     const approveAfter = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
       body: { expectedVersion: 2, reason: 'Trình duyệt đối trừ' },
       idempotencyKey: `q23-offset-approve-after-${offsetId}`,
       userId: managerActor.id,
     });
-    assert.equal(approveAfter.status, 409);
+    assert.equal(approveAfter.status, 410);
 
     // Cancel applies immediately: CANCELED with the reversing pair (4 total).
     const cancelApplied = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {

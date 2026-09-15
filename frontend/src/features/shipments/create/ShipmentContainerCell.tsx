@@ -65,7 +65,10 @@ export function ShipmentContainerCell({
     const target = event.target as HTMLElement;
     if (!target.matches('input:not([role="combobox"]), textarea')) return;
 
-    if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (event.key === 'Enter' && !event.altKey) {
+      // Multiline note cells: bare Enter inserts a newline natively; only
+      // Ctrl/Cmd+Enter commits the cell.
+      if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
       target.blur();
       return;

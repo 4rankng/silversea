@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -97,6 +97,20 @@ beforeEach(() => {
 });
 
 describe('CustomersConfigPage client-side sorting', () => {
+  it('keeps all summary metrics and customer fields in the compact layout', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An');
+    const summary = screen.getByRole('group', { name: 'Tổng quan khách hàng' });
+    for (const label of ['Tổng khách hàng', 'Đang hoạt động', 'Top 4 chiếm', 'Tạm khoá']) {
+      expect(within(summary).getByText(label)).toBeInTheDocument();
+    }
+    const row = container.querySelector('.cfg-customer-table tbody tr') as HTMLTableRowElement;
+    expect(row.querySelectorAll('td[data-label]:not(.record-table__action)')).toHaveLength(12);
+    fireEvent.click(within(row).getByRole('button', { name: 'Tùy chọn' }));
+    expect(within(row).getByRole('button', { name: 'Sửa' })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Xoá' })).toBeInTheDocument();
+  });
+
   it('keeps the fetch order until a header is used', async () => {
     const { container } = renderPage();
     await screen.findByText('Khách hàng An');

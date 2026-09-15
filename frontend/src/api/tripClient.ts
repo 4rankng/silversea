@@ -42,9 +42,6 @@ export interface CatalogData {
     noInvoiceEvidenceTypes?: string[];
     noInvoicePerItemLimit?: string | null;
     noInvoicePerDayLimit?: string | null;
-    noInvoiceFinanceLeadItemApprovalLimit?: string | null;
-    noInvoiceDirectorDayApprovalLimit?: string | null;
-    noInvoicePolicyVersion?: number;
     defaultMarkup?: boolean;
     billingLabel?: string | null;
     vatRate?: string | null;

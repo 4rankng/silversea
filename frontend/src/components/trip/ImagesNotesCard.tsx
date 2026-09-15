@@ -65,7 +65,7 @@ export function ImagesNotesCard({ collapsible, defaultCollapsed }: ImagesNotesCa
             {uploading.OTHER ? (
               <div style={{ padding: '20px 0' }}>
                 <Loader2 size={24} className="spin" style={{ color: 'var(--accent)' }} />
-                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--fg-2)' }}>Đang tải lên…</div>
+                <div style={{ marginTop: 8, fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>Đang tải lên…</div>
               </div>
             ) : (
               <>

@@ -17,6 +17,7 @@ import { PageHeader } from '../../components/UI';
 import { useDriverTwoOrders } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import './DriverSecondaryPages.css';
 
 interface TripSummary {
   id: number;
@@ -81,14 +82,14 @@ export default function DriverTwoOrdersPage() {
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (loading) return (
-    <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
+    <div className="driver-secondary-page" style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
       <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
       <p style={{ marginTop: 8 }}>Đang tải hai lệnh hôm nay…</p>
     </div>
   );
 
   if (error) return (
-    <div>
+    <div className="driver-secondary-page">
       <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
       <div className="empty-state">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
@@ -108,7 +109,7 @@ export default function DriverTwoOrdersPage() {
     : 'Lệnh đang chạy và lệnh tiếp theo trong ngày';
 
   if (!view || (!hasPersistedPair && allToday.length === 0)) return (
-    <div>
+    <div className="driver-secondary-page">
       <PageHeader title={pageTitle} description={pageDescription} />
       <div className="empty-state">
         <img src={resolveEmptyIllustration('empty-trips')} alt="No trips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -119,7 +120,7 @@ export default function DriverTwoOrdersPage() {
   );
 
   return (
-    <div ref={rootRef} className="driver-trips-page">
+    <div ref={rootRef} className="driver-secondary-page">
       <PageHeader
         title={pageTitle}
         description={hasPersistedPair ? `Cặp điều vận ngày ${view.date}` : `${allToday.length} lệnh trong ngày ${view.date}`}
@@ -139,7 +140,7 @@ export default function DriverTwoOrdersPage() {
           }}
         >
           <div style={{ fontWeight: 700, color: 'var(--ink)' }}>Cặp điều vận đã ghép</div>
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 13 }}>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 'var(--text-data-size)' }}>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Xe rỗng</div>
               <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
@@ -166,7 +167,7 @@ export default function DriverTwoOrdersPage() {
           data-testid="first-order-late-banner"
           style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', marginBottom: 16,
-            borderRadius: 8, background: 'rgba(217,119,6,0.08)', color: 'var(--warn, #d97706)', fontSize: 14,
+            borderRadius: 8, background: 'rgba(217,119,6,0.08)', color: 'var(--warn, #d97706)', fontSize: 'var(--text-body-size)',
           }}
         >
           <AlertTriangle size={18} />
@@ -189,7 +190,7 @@ export default function DriverTwoOrdersPage() {
             {view.active ? (
               <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
+              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
                 Chưa có lệnh nào đang chạy.
               </div>
             )}
@@ -197,7 +198,7 @@ export default function DriverTwoOrdersPage() {
             {view.next ? (
               <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
+              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
                 Không có lệnh tiếp theo.
               </div>
             )}
@@ -206,7 +207,7 @@ export default function DriverTwoOrdersPage() {
       </div>
 
       {!hasPersistedPair && allToday.length > 2 && (
-        <p style={{ marginTop: 16, color: 'var(--ink-3)', fontSize: 13 }}>
+        <p style={{ marginTop: 16, color: 'var(--ink-3)', fontSize: 'var(--text-data-size)' }}>
           Còn {allToday.length - 2} lệnh khác hôm nay — xem đầy đủ ở <Link to="/my-trips">Danh sách lệnh</Link>.
         </p>
       )}

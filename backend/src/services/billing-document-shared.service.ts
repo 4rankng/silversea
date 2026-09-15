@@ -162,11 +162,10 @@ export function buildTripBlockedReason(
   if (candidate.status !== 'COMPLETED') {
     return 'Chuyến chưa ở trạng thái hoàn thành.';
   }
+  // KP-151: any submission (SUBMITTED/ACCEPTED) satisfies the e-POD gate;
+  // the approval lifecycle is removed.
   if (!latestPod || latestPod.status == null || latestPod.status === 'DRAFT') {
-    return 'Chưa có e-POD đã duyệt.';
-  }
-  if (latestPod.status === 'SUBMITTED') {
-    return 'e-POD đang chờ duyệt.';
+    return 'Chưa có e-POD.';
   }
   if (latestPod.status === 'REJECTED') {
     return latestPod.rejectionReason?.trim()

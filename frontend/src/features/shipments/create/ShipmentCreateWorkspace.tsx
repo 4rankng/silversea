@@ -169,17 +169,6 @@ export function ShipmentCreateWorkspace() {
     };
   }, [loading]);
 
-  useEffect(() => {
-    if (!form.customerId) { setSites([]); return; }
-    let cancelled = false;
-    setSitesLoading(true);
-    listOperationalSites(Number(form.customerId))
-      .then((value) => { if (!cancelled) setSites(value); })
-      .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
-      .finally(() => { if (!cancelled) setSitesLoading(false); });
-    return () => { cancelled = true };
-  }, [form.customerId, sitesVersion]);
-
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
   const selectedOperationalSite = useMemo(
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
@@ -252,6 +241,17 @@ export function ShipmentCreateWorkspace() {
     customerNotes,
     onDuplicateConflict: reportServerConflict,
   });
+
+  useEffect(() => {
+    if (!form.customerId) { setSites([]); return; }
+    let cancelled = false;
+    setSitesLoading(true);
+    listOperationalSites(Number(form.customerId))
+      .then((value) => { if (!cancelled) setSites(value); })
+      .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
+      .finally(() => { if (!cancelled) setSitesLoading(false); });
+    return () => { cancelled = true };
+  }, [form.customerId, sitesVersion, reportError]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => key === 'tradeDirection'
@@ -686,7 +686,7 @@ export function ShipmentCreateWorkspace() {
                 error={issueByField.get('shipment-operational-site')}
                 {...(form.isAdHoc ? { onCustomValue: factoryCustomText } : {})}
                 hint={form.customerId && !sitesLoading && operationalSites.length === 0
-                    ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
+                    ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-control-size)' }}>Thêm mới</button></>
                     : undefined}
                 searchable
                 popoverPlacement="top"
@@ -946,7 +946,7 @@ export function ShipmentCreateWorkspace() {
                   disabled={!form.customerId || sitesLoading || Boolean(saving)}
                   error={issueByField.get('shipment-pickup-warehouse')}
                   hint={form.customerId && !sitesLoading && warehouseSites.length === 0
-                      ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
+                      ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-control-size)' }}>Thêm kho</button></>
                       : undefined}
                   searchable
                   popoverPlacement="top"

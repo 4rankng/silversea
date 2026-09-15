@@ -1,102 +1,104 @@
-// Self-heal stale-chunk load failures.
-//
-// After a deploy, an open tab may still hold an old app shell whose hashed JS
-// chunks no longer exist on the server — or the service worker may serve a
-// stale shell whose chunks fail to load. Two paths recover:
-//
-// 1. ErrorBoundary: React.lazy route chunks reject inside React's tree, so the
-//    boundary is the FIRST to see them. It calls recoverFromChunkFailure()
-//    and, while the reload is pending, renders a "nạp phiên bản mới" panel
-//    instead of the dead-end "Đã xảy ra lỗi" screen.
-// 2. Global listeners (this module): the safety net for eager imports, leaked
-//    rejections, vite:preloadError, and any chunk failure outside React's
-//    tree — purge service-worker caches and reload.
-//
-// Loop safety: at most one self-heal reload per cooldown window. A genuinely
-// broken deploy still fails after the reload, the window blocks a second
-// reload, and the user sees a "vui lòng tải lại trang" message instead of
-// looping forever. The window (not a one-shot flag) lets the NEXT deploy,
-// hours later, self-heal this same long-lived tab again.
+import { isolateInteractionGate } from './interaction-gate';
 
+/** Asset failure is not deployment evidence. Compare the served entry before refreshing. */
 const RELOAD_AT_KEY = 'tt-chunk-reload-at';
-// Long enough to cover a broken-deploy retry loop, short enough that a tab
-// open across the next deploy still self-heals.
 const RELOAD_COOLDOWN_MS = 4 * 60 * 60 * 1000;
-const CHUNK_FAIL_RE =
-  /(Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module)/i;
+const ANY_CHUNK_RE = /(Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module)/i;
+export type ChunkRecovery = 'reloading' | 'exhausted' | 'unavailable';
+let pending: Promise<ChunkRecovery> | undefined;
 
 export function isChunkFailureMessage(message: string): boolean {
-  return message.length > 0 && CHUNK_FAIL_RE.test(message);
+  return message.length > 0 && ANY_CHUNK_RE.test(message);
 }
 
-function messageFromErrorEvent(event: ErrorEvent): string {
-  return event.message || '';
+function entryAsset(doc: Document): string | null {
+  const src = doc.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute('src');
+  if (!src) return null;
+  const url = new URL(src, window.location.href);
+  const origin = new URL(window.location.href).origin;
+  return url.origin === origin && /^\/assets\/.+\.js$/.test(url.pathname) ? url.href : null;
 }
 
-function messageFromRejectionEvent(event: PromiseRejectionEvent): string {
-  const reason = event.reason;
-  if (reason instanceof Error) return reason.message;
-  return typeof reason === 'string' ? reason : '';
-}
-
-function renderFallback(): void {
-  const root = document.getElementById('root');
-  if (!root) return;
-  root.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;font-family:var(--font-body);text-align:center;padding:1.5rem;color:#1f2937">' +
-    '<div>' +
-    '<p style="font-size:1.05rem;font-weight:600;margin:0 0 .35rem">Phiên bản mới đã sẵn sàng.</p>' +
-    '<p style="margin:0;color:#6b7280">Vui lòng tải lại trang để tiếp tục.</p>' +
-    '</div></div>';
-}
-
-async function purgeCaches(): Promise<void> {
-  if (typeof caches === 'undefined') return;
+async function recover(): Promise<ChunkRecovery> {
+  if (!navigator.onLine) return 'unavailable';
+  const currentEntry = entryAsset(document);
+  if (!currentEntry) return 'unavailable';
   try {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((key) => caches.delete(key)));
-  } catch {
-    // Best effort — proceed to reload regardless of purge outcome.
-  }
+    const response = await fetch(new URL('/?app-version-check=1', window.location.href), {
+      cache: 'no-store', signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return 'unavailable';
+    const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+    const nextEntry = entryAsset(fresh);
+    if (!nextEntry || nextEntry === currentEntry) return 'unavailable';
+    const asset = await fetch(nextEntry, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5_000) });
+    if (!asset.ok || !/javascript|ecmascript/.test(asset.headers.get('content-type') || '')) return 'unavailable';
+    // Only verified deployment changes spend the allowance. If storage is
+    // blocked, manual retry is safer than an unbounded automatic reload.
+    const last = Number(sessionStorage.getItem(RELOAD_AT_KEY) || '0');
+    if (last && Date.now() - last < RELOAD_COOLDOWN_MS) return 'exhausted';
+    sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
+    window.location.reload();
+    return 'reloading';
+  } catch { return 'unavailable'; }
 }
 
-/**
- * Attempt the stale-chunk self-heal: purge caches and reload once, unless the
- * cooldown from a recent self-heal is still running. Callers decide how to
- * render while reloading / after exhaustion.
- */
-export function recoverFromChunkFailure(): 'reloading' | 'exhausted' {
-  const last = Number(sessionStorage.getItem(RELOAD_AT_KEY) || '0');
-  if (last && Date.now() - last < RELOAD_COOLDOWN_MS) return 'exhausted';
-  sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
-  void purgeCaches().finally(() => window.location.reload());
-  return 'reloading';
+export function recoverFromChunkFailure(): Promise<ChunkRecovery> {
+  if (!pending) pending = recover().finally(() => { pending = undefined; });
+  return pending;
 }
 
-function handleChunkFailure(): void {
-  if (recoverFromChunkFailure() === 'exhausted') renderFallback();
+function renderFallback(result: ChunkRecovery): (() => void) | undefined {
+  if (result === 'reloading' || document.querySelector('[data-chunk-error-panel]')) return;
+  const panel = document.createElement('section');
+  panel.dataset.chunkErrorPanel = 'true';
+  panel.className = 'connection-gate';
+  panel.setAttribute('role', 'alertdialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.setAttribute('aria-label', 'Không thể tải trang');
+  const content = document.createElement('div');
+  content.className = 'connection-gate__content';
+  const message = document.createElement('p');
+  message.textContent = result === 'exhausted'
+    ? 'Ứng dụng đã được cập nhật nhưng chưa tải được nội dung. Vui lòng thử tải lại.'
+    : 'Không thể tải nội dung. Kiểm tra kết nối internet và thử lại.';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'Tải lại trang';
+  button.onclick = () => window.location.reload();
+  const actions = document.createElement('div');
+  actions.className = 'connection-gate__actions';
+  actions.append(button);
+  content.append(message, actions);
+  panel.append(content);
+  document.body.append(panel);
+  const release = isolateInteractionGate(panel, 20, button);
+  return () => { release(); panel.remove(); };
+
 }
 
-/**
- * Install global listeners for failed dynamic imports / chunk loads. Safe to
- * call once at app boot (before React mounts). Idempotent in effect — repeated
- * installs only add listeners that short-circuit on the cooldown.
- */
-export function installChunkErrorHandler(): void {
-  window.addEventListener('vite:preloadError', (event) => {
-    handleChunkFailure();
+export function installChunkErrorHandler(): () => void {
+  let active = true;
+  let removeFallback: (() => void) | undefined;
+  const handle = (event: Event, message: string) => {
+    if (!isChunkFailureMessage(message)) return;
     event.preventDefault();
-  });
-  window.addEventListener('error', (event) => {
-    if (isChunkFailureMessage(messageFromErrorEvent(event))) {
-      handleChunkFailure();
-      event.preventDefault();
-    }
-  });
-  window.addEventListener('unhandledrejection', (event) => {
-    if (isChunkFailureMessage(messageFromRejectionEvent(event))) {
-      handleChunkFailure();
-      event.preventDefault();
-    }
-  });
+    void recoverFromChunkFailure().then((result) => {
+      if (active && !removeFallback) removeFallback = renderFallback(result);
+    });
+  };
+  const preload = (event: Event) => handle(event, 'Loading chunk failed');
+  const error = (event: ErrorEvent) => handle(event, event.message || '');
+  const rejection = (event: PromiseRejectionEvent) => handle(event,
+    event.reason instanceof Error ? event.reason.message : typeof event.reason === 'string' ? event.reason : '');
+  window.addEventListener('vite:preloadError', preload);
+  window.addEventListener('error', error);
+  window.addEventListener('unhandledrejection', rejection);
+  return () => {
+    active = false;
+    removeFallback?.();
+    window.removeEventListener('vite:preloadError', preload);
+    window.removeEventListener('error', error);
+    window.removeEventListener('unhandledrejection', rejection);
+  };
 }

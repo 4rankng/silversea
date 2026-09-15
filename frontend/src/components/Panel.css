@@ -36,14 +36,14 @@
 }
 .panel__title {
   font-family: var(--font-display);
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: 600;
   letter-spacing: 0;
   color: var(--ink);
   margin: 0;
 }
 .panel__subtitle {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   margin-top: 2px;
   line-height: 1.45;
@@ -70,12 +70,12 @@
 .card-header h3 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: 600;
   letter-spacing: 0;
   color: var(--ink);
 }
-.card-header p { margin: 3px 0 0; font-size: var(--fs-xs); color: var(--ink-3); }
+.card-header p { margin: 3px 0 0; font-size: var(--text-caption-size); color: var(--ink-3); }
 
 /* subsection-card — a soft-bordered block used INSIDE a panel for grouping
    related fields. Has a left accent bar + eyebrow title. */
@@ -109,7 +109,7 @@
   pointer-events: none;
 }
 .subsection-card__title {
-  font-size: var(--fs-2xs);
+  font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking-eyebrow);
@@ -169,7 +169,7 @@
 
   .panel__title,
   .card-header h3 {
-    font-size: var(--fs-sm);
+    font-size: var(--text-section-size);
     line-height: 1.35;
   }
 
@@ -188,7 +188,7 @@
 }
 
 .m-group__head-title {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   font-weight: 700;
   color: var(--ink-3);

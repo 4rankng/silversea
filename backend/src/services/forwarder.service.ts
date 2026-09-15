@@ -135,7 +135,7 @@ export async function setTripExpenseCompletion(
         .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
         .where(and(
           expenseScope,
-          notInArray(s.advanceSettlements.status, ['REJECTED']),
+          notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
         )).limit(1);
       if (activeSettlement) {
         throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể mở lại kê khai');
@@ -378,13 +378,9 @@ export async function createTripExpense(
   // Null counterparties remain allowed for receivables-only fees. Approved
   // COMPANY_DIRECT rows with a supplier now also feed supplier AP at completion.
 
-  // Authenticated actor-backed writes start pending: office creation is not
-  // approval and Q15 requires a distinct approver. Preserve the historical
-  // trusted/internal helper behavior for actor-less office imports; those
-  // legacy callers carry no maker authority and are not inferred from a
-  // payable counterparty.
-  const approvalStatus = data.approvalStatus
-    ?? (data.createdBy != null || data.forwarderId != null ? 'PENDING' : 'APPROVED');
+  // No approval lifecycle: validation and authorization precede a direct record.
+  const approvalStatus = data.approvalStatus === 'DRAFT' || data.approvalStatus === 'PENDING' || data.approvalStatus === 'RETURN_FOR_EVIDENCE'
+    ? 'DRAFT' : data.approvalStatus === 'VOIDED' || data.approvalStatus === 'REJECTED' ? 'VOIDED' : 'RECORDED';
   const noInvoicePolicySnapshot = await buildNoInvoicePolicySnapshotForExpenseInput(tx, {
     expenseType: data.expenseType,
     invoiceNumber: data.invoiceNumber ?? null,
@@ -430,6 +426,10 @@ export async function createTripExpense(
   if (trip.status === 'COMPLETED') {
     await SnapshotServices.markBothDirty(data.tripId, tx);
   }
+  if (approvalStatus === 'RECORDED') {
+    const { propagateExpenseApproval } = await import('./source-change.service.js');
+    await propagateExpenseApproval(tx, { expenseId: inserted.id });
+  }
   return inserted;
 }
 
@@ -455,14 +455,13 @@ export async function updateTripExpense(
     note?: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
   },
+  expectedTripId?: number,
 ): Promise<typeof s.tripExpenses.$inferSelect | null> {
   if (txOrDb === db) {
-    return db.transaction((tx) => updateTripExpense(tx, id, patch));
+    return db.transaction((tx) => updateTripExpense(tx, id, patch, expectedTripId));
   }
   await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
-  // Fetch existing to check forwarderId — if forwarder-owned and sellAmount
-  // is being updated, re-pend for manager review.
-  // Also check parent trip status (spec §4.9: completed trips are immutable).
+  // Preserve settlement and accounting locks while applying an authorized edit.
   const [existing] = await txOrDb
     .select({
       forwarderId: s.tripExpenses.forwarderId,
@@ -476,23 +475,23 @@ export async function updateTripExpense(
       noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
       declarationNumber: s.tripExpenses.declarationNumber,
       approvalStatus: s.tripExpenses.approvalStatus,
+      returnForEvidenceReason: s.tripExpenses.returnForEvidenceReason,
     })
     .from(s.tripExpenses)
     .where(eq(s.tripExpenses.id, id))
     .limit(1);
 
   if (!existing) return null;
+  if (expectedTripId !== undefined && existing.tripId !== expectedTripId) throw new ApiError(404, 'Không tìm thấy chi phí của chuyến xe');
+  if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy không thể sửa.');
   await assertTripShipmentAccountingUnlocked(txOrDb as Tx, existing.tripId);
-  if (existing.approvalStatus === 'APPROVED') {
-    throw new ApiError(409, 'Chi phí đã duyệt không được sửa trực tiếp; hãy lập yêu cầu điều chỉnh');
-  }
   if (existing.forwarderId != null) {
     const [activeLink] = await txOrDb.select({ id: s.settlementExpenses.id })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
       .where(and(
         eq(s.settlementExpenses.tripExpenseId, id),
-        notInArray(s.advanceSettlements.status, ['REJECTED']),
+        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
       )).limit(1);
     if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, chỉ được điều chỉnh trên phiếu hoàn ứng');
   }
@@ -520,7 +519,7 @@ export async function updateTripExpense(
   });
   if (requiredFieldError) throw new ApiError(400, requiredFieldError);
 
-  const setPatch: Record<string, unknown> = { ...patch, updatedAt: new Date() };
+  const setPatch: Record<string, unknown> = { ...patch, updatedAt: new Date(), version: sql`${s.tripExpenses.version} + 1` };
   const nextExpenseType = patch.expenseType ?? existing.expenseType;
   const nextInvoiceNumber = patch.invoiceNumber === undefined
     ? existing.invoiceNumber
@@ -539,14 +538,11 @@ export async function updateTripExpense(
   });
   setPatch.noInvoicePolicySnapshot = toNoInvoicePolicySnapshotValue(noInvoicePolicySnapshot);
 
-  if (patch.sellAmount !== undefined && existing.forwarderId != null) {
-    setPatch.approvalStatus = 'PENDING';
-  }
+  setPatch.approvalStatus = 'RECORDED';
   if (patch.noInvoiceEvidenceTypes !== undefined) {
     setPatch.noInvoiceEvidenceTypes = patch.noInvoiceEvidenceTypes ?? [];
   }
-  if (existing.approvalStatus === 'RETURN_FOR_EVIDENCE') {
-    setPatch.approvalStatus = 'PENDING';
+  if (existing.returnForEvidenceReason != null || existing.approvalStatus === 'RETURN_FOR_EVIDENCE') {
     setPatch.returnForEvidenceReason = null;
     setPatch.returnedForEvidenceAt = null;
     setPatch.returnedForEvidenceBy = null;
@@ -589,6 +585,8 @@ export async function updateTripExpense(
   if (trip?.status === 'COMPLETED') {
     await SnapshotServices.markBothDirty(existing.tripId, txOrDb);
   }
+  const { propagateExpenseApproval } = await import('./source-change.service.js');
+  await propagateExpenseApproval(txOrDb as Tx, { expenseId: id });
   return updated;
 }
 
@@ -613,7 +611,7 @@ export async function updateForwarderTripExpense(
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
       .where(and(
         eq(s.settlementExpenses.tripExpenseId, expenseId),
-        notInArray(s.advanceSettlements.status, ['REJECTED']),
+        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
       )).limit(1);
     if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
     return updateTripExpense(tx, expenseId, patch);
@@ -658,7 +656,7 @@ export async function updateForwarderTripExpenseInTx(
     .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
     .where(and(
       eq(s.settlementExpenses.tripExpenseId, expenseId),
-      notInArray(s.advanceSettlements.status, ['REJECTED']),
+      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
     )).limit(1);
   if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
   return updateTripExpense(tx, expenseId, patch);
@@ -706,12 +704,10 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     const [existing] = await tx.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, expenseId)).limit(1);
     if (!existing) return null;
+    if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.');
     if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
     await assertTripShipmentAccountingUnlocked(tx, existing.tripId);
     await assertForwarderMutableTripScope(existing.tripId, forwarderId, tx);
-    if (existing.approvalStatus === 'APPROVED') {
-      throw new ApiError(409, 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh');
-    }
     const scopeKey = existing.tripContainerId ?? -existing.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
@@ -726,7 +722,7 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
       .where(and(
         eq(s.settlementExpenses.tripExpenseId, expenseId),
-        notInArray(s.advanceSettlements.status, ['REJECTED']),
+        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
       )).limit(1);
     if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
     await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
@@ -756,6 +752,7 @@ export async function deleteTripExpenseInTx(
     .where(eq(s.tripExpenses.id, expenseId))
     .limit(1);
   if (!existing) return null;
+  if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.');
   if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
   await assertTripShipmentAccountingUnlocked(tx, existing.tripId);
   await assertForwarderMutableTripScope(existing.tripId, forwarderId, tx);
@@ -764,9 +761,6 @@ export async function deleteTripExpenseInTx(
     expectedUpdatedAt,
     'Chi phí đã thay đổi. Vui lòng tải lại trước khi xóa.',
   );
-  if (existing.approvalStatus === 'APPROVED') {
-    throw new ApiError(409, 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh');
-  }
   const scopeKey = existing.tripContainerId ?? -existing.tripId;
   await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
   const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
@@ -779,7 +773,7 @@ export async function deleteTripExpenseInTx(
     .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
     .where(and(
       eq(s.settlementExpenses.tripExpenseId, expenseId),
-      notInArray(s.advanceSettlements.status, ['REJECTED']),
+      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
     )).limit(1);
   if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
   await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
@@ -827,15 +821,11 @@ export async function deleteTripExpenseGuarded(
     if (!expense || expense.tripId !== tripId) {
       return { error: 'Không tìm thấy chi phí của chuyến xe', status: 404 };
     }
-    if (expense.approvalStatus === 'APPROVED') {
-      return {
-        error: 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh',
-        status: 409,
-      };
-    }
+    if (expense.approvalStatus === 'VOIDED' || expense.approvalStatus === 'REJECTED') return { error: 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.', status: 409 };
     const scopeKey = expense.tripContainerId ?? -expense.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    // Guard: trip must not be completed
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
+    // Preserve posted trip history.
     const [trip] = await tx.select({ status: s.trips.status })
       .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) return { error: 'Không tìm thấy chuyến xe', status: 404 };
@@ -862,7 +852,7 @@ export async function listUnlinkedTripExpenses(forwarderId: number) {
   const linked = await db.select({ tripExpenseId: s.settlementExpenses.tripExpenseId })
     .from(s.settlementExpenses)
     .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-    .where(notInArray(s.advanceSettlements.status, ['REJECTED']));
+    .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']));
   const linkedIds = new Set(linked.map(l => l.tripExpenseId));
 
   const rows = await db.select({
@@ -894,7 +884,7 @@ export async function listUnlinkedTripExpenses(forwarderId: number) {
     // they are not eligible for forwarder advance settlement.
     .where(and(
       eq(s.tripExpenses.forwarderId, forwarderId),
-      inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),
+      inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       sql<boolean>`EXISTS (
         SELECT 1
         FROM user_shipment_links scoped_assignment
@@ -1180,11 +1170,6 @@ export async function listForwarderExpenseTypeRows() {
     noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
     noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
     noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
-    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
-    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
-    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
   }).from(s.forwarderExpenseTypes)
     .orderBy(s.forwarderExpenseTypes.name);
 }

@@ -20,7 +20,11 @@
 }
 
 .ops-modal {
+  min-width: 0;
   width: min(640px, 100%);
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
   background: var(--bg-1, #fff);
   border-radius: 14px;
   display: flex;
@@ -29,19 +33,28 @@
 }
 
 .ops-modal__head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
   border-bottom: 1px solid var(--line, #e7e2d8);
+  gap: 8px;
 }
 
 .ops-modal__head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-dialog-title-size);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ops-modal__head button {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -49,6 +62,10 @@
 }
 
 .ops-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -57,16 +74,17 @@
 
 .ops-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 12px;
 }
 
 .ops-form-grid label,
 .ops-form-note {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   color: var(--fg-2, #444);
 }
@@ -74,10 +92,12 @@
 .ops-form-grid input,
 .ops-form-grid select,
 .ops-form-note textarea {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--line, #d8d3cb);
   border-radius: 9px;
   padding: 9px 10px;
-  font-size: 14px;
+  font-size: var(--control-field-font-size);
   font-weight: 400;
   background: var(--bg-1, #fff);
   color: var(--fg-1, #222);
@@ -92,7 +112,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--fg-2, #444);
 }
@@ -139,24 +159,27 @@
 
 .ops-form-photos__hint {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3, #6b7280);
 }
 
 .ops-modal__foot {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 12px 18px;
   border-top: 1px solid var(--line, #e7e2d8);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-2, #444);
+  flex-wrap: wrap;
 }
 
 .ops-modal__actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Modal action buttons — styled here (not page css) so the footer actions
@@ -169,7 +192,7 @@
   min-height: 40px;
   padding: 0 14px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   cursor: pointer;
 }
 
@@ -200,18 +223,50 @@
 }
 
 @media (max-width: 680px) {
+  .ops-modal-backdrop {
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+
+  .ops-modal {
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - max(8px, env(safe-area-inset-bottom, 0px)));
+  }
+
+  .ops-modal__head,
+  .ops-modal__body,
+  .ops-modal__foot { padding: 12px; }
+
   .ops-modal__foot {
-    flex-direction: column-reverse;
     align-items: stretch;
   }
 
   .ops-modal__actions {
-    flex-direction: column-reverse;
+    width: 100%;
   }
 
   .ops-modal__actions .btn-primary,
   .ops-modal__actions .btn-secondary {
-    width: 100%;
+    flex: 1 1 100px;
     justify-content: center;
   }
 }
+
+.ops-modal button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .ops-modal__head button,
+  .ops-modal__actions button,
+  .ops-form-photos__list button { min-width: 44px; min-height: 44px; }
+  .ops-form-grid input,
+  .ops-form-grid select,
+  .ops-form-note textarea { min-height: 44px; font-size: var(--control-field-font-size); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-modal .spin { animation: none; }
+}
+
+.ops-field-error { color: var(--danger-text); font-size: var(--text-label-size); font-weight: 500; }

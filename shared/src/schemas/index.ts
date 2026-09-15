@@ -7,7 +7,6 @@ import {
   OperationalSiteType, FulfillmentCancellationDisposition, TripPodFileType,
   DriverProgressEventType,
   DriverIncidentalCostType,
-  NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
   DISPATCH_CLASSIFICATIONS,
@@ -119,6 +118,13 @@ export const tripLegSchema = z.object({
   loadingType: z.nativeEnum(LoadingType),
 });
 
+const directCreditExceptionSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do ngoại lệ là bắt buộc').max(1000),
+  expiresAt: z.string().datetime(),
+  scopeType: z.literal('SHIPMENT'),
+  exposureCeiling: z.number().int().positive().max(999_999_999_999_999),
+});
+
 export const createTripSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   routeId: z.coerce.number().int().positive(),
@@ -138,6 +144,7 @@ export const createTripSchema = z.object({
   // and snapshots the shipment's containers into the trip.
   shipmentId: z.coerce.number().int().positive().optional().nullable(),
   creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
+  creditException: directCreditExceptionSchema.optional(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
   fuelSupplierId: z.coerce.number().int().positive().optional().nullable(),
   // Per-trip actual pump price (₫/lít). Optional — when blank the trip falls
@@ -216,8 +223,23 @@ export const createTripPairSchema = z.object({
   }
 });
 
-export const updateTripFiguresSchema = z.object({
-  legs: z.array(tripLegSchema).min(1),
+// Card 20260914_40: `version` is the canonical optimistic-locking field for
+// trip-figure writes. `expectedVersion` is accepted as a deliberate ALIAS
+// (mapped to `version` when `version` itself is absent) so an older API
+// consumer that sends the wrong field trips a real version check instead of
+// the misleading "expectedVersion không hợp lệ" deep-guard 400.
+export const updateTripFiguresSchema = z.preprocess(
+  (raw) => {
+    if (raw != null && typeof raw === 'object' && 'expectedVersion' in raw) {
+      const { expectedVersion, ...rest } = raw as Record<string, unknown>;
+      if (rest.version === undefined) {
+        return { ...rest, version: expectedVersion };
+      }
+    }
+    return raw;
+  },
+  z.object({
+  legs: z.array(tripLegSchema),
   customerId: z.coerce.number().int().positive().optional(),
   departureDate: z.string().optional(),
   completedAt: z.string().optional(),
@@ -279,7 +301,8 @@ export const updateTripFiguresSchema = z.object({
       path: ['revenue'],
     });
   }
-});
+}),
+);
 
 export const bulkUpdateTripFiguresSchema = z.object({
   updates: z.array(z.object({
@@ -977,7 +1000,9 @@ export const companyInfoSchema = z.object({
   bankAccount: z.string().trim().min(1, 'Số tài khoản là bắt buộc'),
   bankName: z.string().trim().min(1, 'Ngân hàng là bắt buộc'),
   phone: z.string().trim().default(''),
-  email: z.string().trim().default(''),
+  // Empty string stays legal — company info is optional-per-field and a
+  // blank email must not disable company setup (z.email() alone rejects '').
+  email: z.string().trim().email('Email không hợp lệ').or(z.literal('')).default(''),
   logoStorageKey: z.string().nullable().optional(),
 });
 
@@ -991,6 +1016,7 @@ export const driverSchema = z.object({
   name: z.string().min(1),
   phone: z.string().optional(),
   baseSalary: nonNegNumeric.optional(),
+  salaryEffectiveDate: isoDateOnlySchema.optional().nullable(),
   socialInsurance: nonNegNumeric.optional(),
   status: z.nativeEnum(DriverStatus).optional().default(DriverStatus.ACTIVE),
   // Identity + payroll-routing fields from DriverFormModal (drivers table
@@ -1119,11 +1145,13 @@ export const vendorPaymentSchema = z.object({
   amount: positiveNumeric,
   date: z.string().min(1),
   confirmOverpay: z.boolean().optional(),
-  /** QA-089: optional expense linkage — listed APPROVED/UNPAID expenses of
-   *  this supplier flip to PAID with the payment (ledger-backed status).
-   *  Unlisted expenses stay UNPAID even when over-covered (partial-payment
-   *  semantics: the supplier-level remainder stays unallocated). */
-  expenseIds: z.array(z.coerce.number().int().positive()).max(200).optional(),
+  /** KP-075: explicit per-expense allocations with amounts. Each allocation
+   *  records how much of this payment is applied to a specific expense.
+   *  An expense flips PAID only when its total allocations cover its amount. */
+  allocations: z.array(z.object({
+    expenseId: z.coerce.number().int().positive(),
+    amount: positiveNumeric,
+  })).max(200).optional(),
 });
 
 // ─── Forwarder catalogs ──────────────────────────────────────────────────────
@@ -1241,13 +1269,14 @@ export const tripContainerSchema = z.object({
   seals: z.lazy(() => z.array(tripContainerSealSchema)).optional(),
 });
 
-// ISO 6346 gate for container-number writes: the add-to-trip routes (driver
-// + forwarder) validate format + check digit on the NORMALIZED number so a
-// malformed identifier ('ABC') can never persist as a container or become a
-// cost-allocation group. The batch trip-edit form's check is FE-advisory, so
-// these chains are the strong boundaries. A bad check digit REJECTS —
-// correction is an explicit user action (the FE offers a one-tap suggestion),
-// never a silent auto-correct.
+// ISO 6346 gate for container-number writes: every surface that can put a
+// container number into the database (add-to-trip routes, the driver patch
+// path, and the batch trip-edit PUT) validates format + check digit on the
+// NORMALIZED number so a malformed identifier ('ABC') can never persist as a
+// container or become a cost-allocation group. The FE advisory stays as UX,
+// but the persistence boundary is strong on all routes. A bad check digit
+// REJECTS — correction is an explicit user action (the FE offers a one-tap
+// suggestion), never a silent auto-correct.
 
 
 /** Add-container payload with the shared ISO 6346 gate — the number is
@@ -1296,29 +1325,44 @@ export const tripContainerPatchSchema = z.object({
   addSeals: z.array(tripContainerSealSchema).optional(),
 });
 
+/** Optional-number ISO 6346 gate shared by every surface that may legally
+ *  omit or clear the container number (driver patch, batch trip-edit PUT):
+ *  blank/null stays legal, but any value present must pass format + check
+ *  digit on the normalized form. Refines see the POST-transform value — the
+ *  '' → null property transform runs first, so an empty string reads as a
+ *  clear, not a malformed value.
+ *
+ *  Generic stays ZodTypeAny with NO explicit return type: a narrower
+ *  constraint or a declared ZodEffects<...> return clamps the chained
+ *  refinement inference and breaks downstream consumers that read sibling
+ *  fields (containerTypeId/seals/…) off the parsed output. */
+function withOptionalContainerNumberGate<S extends z.ZodTypeAny>(schema: S) {
+  return schema
+    .refine(
+      (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
+      { path: ['containerNumber'], message: 'Số container không được để trống' },
+    )
+    .refine(
+      (container) => {
+        const value = container.containerNumber;
+        if (value == null || !value.trim()) return true;
+        return validateContainerFormat(value);
+      },
+      { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
+    )
+    .refine(
+      (container) => {
+        const value = container.containerNumber;
+        if (value == null || !value.trim()) return true;
+        return validateCheckDigit(normalizeContainerNumber(value));
+      },
+      { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
+    );
+}
+
 /** Patch-container payload with the same gate — number optional, but any
  *  value present must pass (clearing to null stays legal). */
-export const validatedTripContainerPatchSchema = tripContainerPatchSchema
-  .refine(
-    (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
-    { path: ['containerNumber'], message: 'Số container không được để trống' },
-  )
-  .refine(
-    (container) => {
-      const value = container.containerNumber;
-      if (value == null || !value.trim()) return true;
-      return validateContainerFormat(value);
-    },
-    { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
-  )
-  .refine(
-    (container) => {
-      const value = container.containerNumber;
-      if (value == null || !value.trim()) return true;
-      return validateCheckDigit(normalizeContainerNumber(value));
-    },
-    { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
-  );
+export const validatedTripContainerPatchSchema = withOptionalContainerNumberGate(tripContainerPatchSchema);
 
 
 // Batch upsert payload used by the trip-edit form: the client sends the full
@@ -1326,18 +1370,24 @@ export const validatedTripContainerPatchSchema = tripContainerPatchSchema
 // (insert new, update existing by id, delete the rest). Each container may
 // carry a full seals[] list, reconciled the same way by id. sealNumber
 // (scalar) is kept for back-compat — when seals[] is absent, backend writes
-// the scalar value as the container's first seal row.
+// the scalar value as the container's first seal row. The number is optional
+// (type-only rows are legal) but gated with the SAME shared refines as the
+// driver patch path — the batch endpoint is the admin/dispatch persistence
+// boundary and can no longer persist a malformed identifier that the
+// driver/forwarder surfaces would reject.
+const tripContainerBatchElementSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  containerTypeId: z.coerce.number().int().positive().optional().nullable(),
+  containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable().transform(v => (v === '' ? null : v)),
+  sealNumber: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  cargoWeightKg: nonNegNumeric.optional().nullable(),
+  notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  seals: z.array(tripContainerSealSchema).optional(),
+});
+
 export const tripContainerBatchSchema = z.object({
   expectedVersion: z.coerce.number().int().positive().optional(),
-  containers: z.array(z.object({
-    id: z.coerce.number().int().positive().optional(),
-    containerTypeId: z.coerce.number().int().positive().optional().nullable(),
-    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable().transform(v => (v === '' ? null : v)),
-    sealNumber: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-    cargoWeightKg: nonNegNumeric.optional().nullable(),
-    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-    seals: z.array(tripContainerSealSchema).optional(),
-  })),
+  containers: z.array(withOptionalContainerNumberGate(tripContainerBatchElementSchema)),
 });
 
 // Full reconcile payload for one container's seals. PUT /containers/:id/seals
@@ -1440,19 +1490,6 @@ export const forwarderExpenseTypeSchema = z.object({
     .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
       message: 'Ngưỡng mỗi ngày phải là số không âm',
     }),
-  noInvoiceFinanceLeadItemApprovalLimit: z.union([z.string(), z.number()]).optional()
-    .transform(v => v == null ? undefined : Number(v))
-    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
-      message: 'Ngưỡng duyệt của tài chính phải là số không âm',
-    }),
-  noInvoiceDirectorDayApprovalLimit: z.union([z.string(), z.number()]).optional()
-    .transform(v => v == null ? undefined : Number(v))
-    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
-      message: 'Ngưỡng ngày của giám đốc phải là số không âm',
-    }),
-  noInvoiceFinanceLeadApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
-  noInvoiceDirectorApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
-  noInvoicePolicyVersion: z.number().int().positive().optional(),
   defaultMarkup: z.boolean().optional(),
   billingLabel: z.string().max(120).nullable().optional(),
   vatRate: z.union([z.string(), z.number()]).optional()
@@ -1744,6 +1781,7 @@ export const dispatchShipmentSchema = z.object({
   customerReference: z.string().optional(),
   containerCount: z.coerce.number().int().min(1).max(10).optional(),
   creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
+  creditException: directCreditExceptionSchema.optional(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
 });
 

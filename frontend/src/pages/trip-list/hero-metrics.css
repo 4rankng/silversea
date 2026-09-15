@@ -34,7 +34,7 @@
 .trip-list-page .trip-list-page__crumbs {
   margin: 2px 0 10px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 .trip-list-page .trip-list-page__crumbs ul {
   /* daisyUI ships breadcrumbs with default list styles; tighten the gap so
@@ -113,7 +113,7 @@
 }
 .trip-list-page .metric-value {
   max-width: 100%;
-  font-size: clamp(18px, 1.85vw, var(--fs-2xl)); font-weight: 700;
+  font-size: var(--text-metric-size); font-weight: 700;
   line-height: 1.35; letter-spacing: 0;
   color: var(--ink);
 }

@@ -32,7 +32,7 @@ export function FreightPreviewCard({
   if (data.source === 'MANUAL') {
     return (
       <div data-freight-preview="manual"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: 'var(--ink-2)' }}>
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
         Thiếu giá gốc — nhập tay
       </div>
     );
@@ -40,7 +40,7 @@ export function FreightPreviewCard({
 
   return (
     <div data-freight-preview="auto"
-      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 13 }}>
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)' }}>
       <div style={{ fontFamily: 'var(--font-data)', color: 'var(--ink-2)', marginBottom: 6 }}>{data.formula}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: 'var(--ink-2)' }}>Cước gốc sau chia sẻ</span>

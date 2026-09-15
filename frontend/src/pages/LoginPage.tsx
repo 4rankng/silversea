@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowRight, Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { ApiError } from '../lib/api/errors';
 import { BRAND } from '../brand';
 import './LoginPage.css';
 
@@ -11,17 +12,24 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [credentialError, setCredentialError] = useState(false);
+  const busy = useRef(false);
+  const clearError = () => { setError(''); setCredentialError(false); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) return;
+    if (!username.trim() || !password || busy.current) return;
+    busy.current = true;
     setSubmitting(true);
-    setError('');
+    clearError();
     try {
-      await login(username, password);
-    } catch {
-      setError('Sai thông tin đăng nhập. Vui lòng thử lại.');
+      await login(username.trim(), password);
+    } catch (cause) {
+      const credentialsRejected = cause instanceof ApiError && cause.status === 401;
+      setCredentialError(credentialsRejected);
+      setError(credentialsRejected ? 'Sai thông tin đăng nhập. Vui lòng thử lại.' : cause instanceof ApiError ? cause.message : 'Không thể kết nối để đăng nhập. Vui lòng thử lại.');
     } finally {
+      busy.current = false;
       setSubmitting(false);
     }
   };
@@ -72,11 +80,11 @@ export default function LoginPage() {
                     name="username"
                     className="input"
                     value={username}
-                    onChange={e => setUsername(e.target.value)}
+                    onChange={e => { setUsername(e.target.value); clearError(); }}
                     placeholder="Nhập tên đăng nhập hoặc số điện thoại"
                     autoComplete="username"
                     autoCapitalize="none"
-                    aria-invalid={Boolean(error)}
+                    aria-invalid={credentialError}
                     aria-describedby={error ? 'login-error' : undefined}
                     required
                     autoFocus
@@ -94,10 +102,10 @@ export default function LoginPage() {
                     className="input"
                     type={showPw ? 'text' : 'password'}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => { setPassword(e.target.value); clearError(); }}
                     placeholder="Nhập mật khẩu"
                     autoComplete="current-password"
-                    aria-invalid={Boolean(error)}
+                    aria-invalid={credentialError}
                     aria-describedby={error ? 'login-error' : undefined}
                     required
                   />
@@ -122,7 +130,7 @@ export default function LoginPage() {
               <button
                 className="btn btn--primary btn--lg login-submit"
                 type="submit"
-                disabled={!username || !password || submitting}
+                disabled={!username.trim() || !password || submitting}
                 aria-busy={submitting}
               >
                 <span>{submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}</span>

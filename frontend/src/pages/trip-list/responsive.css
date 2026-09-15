@@ -182,14 +182,10 @@
   .trip-list-page .stats-strip { grid-template-columns: 1fr 1fr; gap: 10px; }
   .trip-list-page .section-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
 
-  /* Keep every status choice visible without horizontal swiping. The
-     segmented-control treatment (flat pills in one bordered strip) reads
-     fine as a horizontal row, but with 5 items wrapped into a 2-col grid
-     it collapses into unbounded text — each cell needs its own visible
-     boundary back so it still reads as a tappable button. */
+  /* Five visible choices fit two compact rows, preserving44px tap targets. */
   .trip-list-page .status-tabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     overflow: visible;
     padding: 0;
     gap: 6px;
@@ -199,9 +195,10 @@
   .trip-list-page .status-tabs .stab-pill {
     justify-content: center;
     min-width: 0;
-    padding: 6px 10px;
+    padding: 4px;
+    min-height: 44px;
     font-size: var(--fs-xs);
-    gap: 6px;
+    gap: 4px;
   }
   /* :not(.active) — equal-specificity tie with `.stab-pill.active` in
      filters.css would otherwise let this override win by source order,
@@ -289,3 +286,34 @@
 @media (max-width: 420px) {
   .trip-list-page .stats-strip { grid-template-columns: 1fr; }
 } /* end 420px */
+
+/* ── QA-031: records start in the first half of a 390px viewport ──
+   The featured status chart repeats the counts the status pills already
+   carry, and the hero/filter paddings stack ~a viewport of chrome above the
+   first card. Phone: drop the duplicate chart, tighten the chrome. */
+@media (max-width: 640px) {
+  .trip-list-page .hero {
+    padding: 8px;
+    margin-bottom: 10px;
+  }
+
+  .trip-list-page .hero-title-block,
+  .trip-list-page .metrics { display: none; }
+
+  .trip-list-page .metric.featured {
+    display: none;
+  }
+
+  .trip-list-page .metrics {
+    gap: 8px;
+  }
+
+  .trip-list-page .filters-card {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 359px) {
+  .trip-list-page .status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

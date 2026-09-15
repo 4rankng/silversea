@@ -55,7 +55,7 @@ export function Alert({
   return (
     <div
       role="alert"
-      className={`d-alert ${VARIANT_CLASS[variant]} ${STYLE_CLASS[style]} ${className}`.trim().replace(/\s+/g, ' ')}
+      className={`d-alert text-sm leading-[1.5] ${VARIANT_CLASS[variant]} ${STYLE_CLASS[style]} ${className}`.trim().replace(/\s+/g, ' ')}
       style={wrapperStyle}
     >
       {icon && <span aria-hidden="true">{icon}</span>}

@@ -50,7 +50,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tổng tiền đi đường (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tổng tiền đi đường (đ)</label>
           <InputWithPrefix
             value={tollsAddition}
             onChange={setTollsAddition}
@@ -62,7 +62,7 @@ export function AllowanceSection() {
           />
         </div>
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tiền vé (công ty) đã thanh toán (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tiền vé (công ty) đã thanh toán (đ)</label>
           <InputWithPrefix
             value={tollsDiscount}
             onChange={setTollsDiscount}
@@ -75,7 +75,7 @@ export function AllowanceSection() {
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: "var(--fg-2)", marginTop: -6, marginBottom: 14, fontWeight: 600, display: "flex", gap: 6 }}>
+      <div style={{ fontSize: 'var(--text-body-size)', color: "var(--fg-2)", marginTop: -6, marginBottom: 14, fontWeight: 600, display: "flex", gap: 6 }}>
         <span>Lái xe thực lĩnh:</span>
         <span style={{ color: "var(--brand, #10B981)", fontFamily: "var(--font-data)" }}>
           {(() => {
@@ -96,7 +96,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Số trạm thu phí (Trạm)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Số trạm thu phí (Trạm)</label>
           <input
             className="input"
             type="number"
@@ -121,7 +121,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Điều chỉnh tiền đi đường (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Điều chỉnh tiền đi đường (đ)</label>
           <div className="as-input-wrapper">
             <InputWithPrefix
               value={roadAllowanceOverride}
@@ -133,7 +133,7 @@ export function AllowanceSection() {
               style={{ width: "100%" }}
             />
             {computedRoadAllowanceHint !== null && (
-              <div style={{ fontSize: 12, lineHeight: 1.35, color: "var(--fg-3)", marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: "var(--fg-3)", marginTop: 4 }}>
                 Tự tính: {computedRoadAllowanceHint.toLocaleString("vi-VN")} đ
                 {roadAllowanceOverride && Number(roadAllowanceOverride) !== computedRoadAllowanceHint && (
                   <span style={{ color: "var(--warning)", marginLeft: 8 }}>
@@ -145,7 +145,7 @@ export function AllowanceSection() {
           </div>
         </div>
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tiền lương lái xe (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Tiền lương lái xe (đ)</label>
           <InputWithPrefix
             value={driverSalary}
             onChange={setDriverSalary}
@@ -160,7 +160,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Trả hàng 2 điểm (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Trả hàng 2 điểm (đ)</label>
           <div className="as-input-wrapper">
             <InputWithPrefix
               value={twoPointDeliveryBonus}
@@ -175,7 +175,7 @@ export function AllowanceSection() {
           </div>
         </div>
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Lưu ca xe (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Lưu ca xe (đ)</label>
           <div className="as-input-wrapper">
             <InputWithPrefix
               value={vehicleShiftAllowance}
@@ -193,7 +193,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Doanh thu đóng/ trả hàng (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Doanh thu đóng/ trả hàng (đ)</label>
           <div className="as-input-wrapper">
             <InputWithPrefix
               value={revenueEmptyReturn}
@@ -217,7 +217,7 @@ export function AllowanceSection() {
           </div>
         </div>
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Doanh thu kết hợp (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Doanh thu kết hợp (đ)</label>
           <InputWithPrefix
             value={revenueCombine}
             onChange={setRevenueCombine}
@@ -232,7 +232,7 @@ export function AllowanceSection() {
 
       <div className="as-row">
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Hoa hồng chi KH (đ)</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Hoa hồng chi KH (đ)</label>
           <InputWithPrefix
             value={customerCommission}
             onChange={setCustomerCommission}
@@ -244,7 +244,7 @@ export function AllowanceSection() {
           />
         </div>
         <div className="field">
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Số ngày tính lương</label>
+          <label style={{ display: "block", fontSize: 'var(--text-label-size)', fontWeight: 600, color: "var(--fg-2)", marginBottom: 6 }}>Số ngày tính lương</label>
           <div className="as-input-wrapper">
             <div style={{ display: "flex", gap: 6 }}>
               <input

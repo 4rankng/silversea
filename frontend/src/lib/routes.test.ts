@@ -1,13 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { CONFIG_ITEMS } from '../data/searchRegistry';
 import { homeForRole, routes, titleForPath } from './routes';
 
-/**
- * Golden title parity: every representative pathname must resolve to the SAME
- * Vietnamese title the hand-written titleRules produced before the catalog
- * refactor. If this breaks, a title string drifted or the precedence order
- * changed — both are regressions.
- */
-describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', () => {
+describe('titleForPath destination labels and route precedence', () => {
   const cases: Record<string, string> = {
     '/dashboard': 'Tổng quan',
     '/dispatch': 'Kế hoạch Tổng quát',
@@ -39,9 +34,9 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/config/debit-note-templates/new': 'Mẫu giấy báo nợ',
     '/config/debit-note-templates/7': 'Mẫu giấy báo nợ',
     '/config': 'Cấu hình hệ thống',
-    '/config/trucks': 'Cấu hình', // generic config catch-all (no specific rule)
-    '/config/fuel': 'Cấu hình',
-    '/config/salary-periods': 'Cấu hình',
+    '/config/trucks': 'Xe đầu kéo',
+    '/config/fuel': 'Định mức nhiên liệu',
+    '/config/salary-periods': 'Kỳ lương',
     '/users': 'Người dùng',
     '/audit-logs': 'Nhật ký người dùng',
     '/portal/shipments': 'Lô hàng của tôi',
@@ -119,4 +114,9 @@ describe('removed live-tracking route stays removed', () => {
     const offenders = flatten(routes).filter((v) => v.endsWith('/dispatch/live-tracking'));
     expect(offenders, `stale live-tracking route constants: ${offenders.join(', ')}`).toEqual([]);
   });
+});
+
+describe('specific navigation context', () => {
+  it.each(CONFIG_ITEMS.filter(item => item.path.startsWith('/config/') && !['/config/routes','/config/debit-note-templates'].includes(item.path)))('names $path from the registered configuration destination', item => { expect(titleForPath(item.path)).toBe(item.label); });
+  it('names OPS destinations rather than the brand fallback', () => { expect(titleForPath('/ops/wallet')).toBe('Quỹ tạm ứng'); expect(titleForPath('/ops/orders')).not.toBe('TransTing'); expect(titleForPath('/ops/fleet-tracking')).not.toBe('TransTing'); });
 });

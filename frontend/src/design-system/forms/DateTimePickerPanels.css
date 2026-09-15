@@ -1,0 +1,79 @@
+/* Designed date & time picker panels (card _39) — design tokens only.
+   Strictly 24h time: hours 00-23, no AM/PM anywhere. */
+
+.dtp-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  /* Never wider than the viewport (88 rung: 390px phones measured 432px) */
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 10px;
+  background: var(--bg-1, #fff);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+/* Date panel */
+.dtp-date { flex: 1 1 232px; width: 232px; max-width: 100%; font-size: var(--text-caption-size, 12px); }
+.dtp-date__head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.dtp-date__month { font-weight: 600; color: var(--ink, #1f2937); }
+.dtp-nav { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--line, #d1d5db); border-radius: 6px; background: var(--surface-2, #f9fafb); color: var(--ink-2, #4b5563); }
+.dtp-weekdays, .dtp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dtp-weekdays span { text-align: center; font-weight: 600; color: var(--ink-3, #6b7280); padding: 2px 0; }
+.dtp-day { display: grid; place-items: center; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--ink, #1f2937); font-size: var(--text-caption-size, 12px); }
+.dtp-day.is-outside { color: var(--ink-3, #6b7280); opacity: 0.55; }
+.dtp-day.is-today { box-shadow: inset 0 0 0 1px var(--accent, #2563eb); }
+.dtp-day.is-selected { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
+
+/* Time panel (24h only) */
+.dtp-time { flex: 1 1 168px; width: 168px; min-width: 148px; max-width: 100%; }
+.dtp-time__readout { text-align: center; font-family: var(--font-data, monospace); font-weight: 700; color: var(--ink, #1f2937); padding: 4px 0 6px; }
+.dtp-time__label { margin-top: 6px; margin-bottom: 3px; font-weight: 600; color: var(--ink-3, #6b7280); }
+.dtp-pills { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; max-height: 132px; overflow-y: auto; padding: 2px; border: 1px solid var(--line, #d1d5db); border-radius: 6px; }
+.dtp-pill { display: grid; place-items: center; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--ink, #1f2937); font-size: var(--text-caption-size, 12px); }
+.dtp-pill.is-active { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
+.dtp-pill:hover { background: var(--surface-3, #eef2f7); }
+
+/* Portaled variant: fixed to the viewport (computed from the trigger rect),
+   so scroll containers can never clip the panel. */
+.dtp-popover--portal {
+  position: fixed;
+  width: max-content;
+}
+
+/* Appointment-dialog design (card _43) */
+.dtp-dialog-host { position: fixed; z-index: 60; }
+.dtp-dialog { flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 24px)); }
+.dtp-dialog__head { display: flex; align-items: center; gap: 7px; color: var(--ink, #1f2937); }
+.dtp-dialog__title { font-size: var(--text-body-size, 14px); flex: 1; }
+.dtp-dialog__close { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3, #6b7280); }
+.dtp-dialog__section-label { margin-top: 2px; font-size: var(--text-caption-size, 12px); font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-3, #6b7280); }
+.dtp-dialog__pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.dtp-dialog__input-row { display: flex; align-items: center; gap: 6px; }
+.dtp-dialog__input { flex: 1; min-width: 0; border: 1px solid var(--line, #d1d5db); border-radius: 8px; padding: 8px 10px; font-family: var(--font-data, monospace); font-size: var(--text-body-size, 14px); color: var(--ink, #1f2937); }
+.dtp-dialog__input:focus { outline: none; border-color: var(--accent, #2563eb); }
+.dtp-dialog__error { margin: 0; font-size: var(--text-caption-size, 12px); color: var(--danger, #dc2626); }
+.dtp-dialog__confirm { align-self: flex-end; border: 0; border-radius: 8px; padding: 8px 18px; background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
+.dtp-dialog__confirm:hover { background: color-mix(in srgb, var(--accent, #2563eb) 88%, black); }
+
+/* ── P0 rework: compact split NGÀY/GIỜ dialog ─────────────────────────── */
+/* Scroll pin: fixed host, viewport-capped dialog — opening must never add
+   document height (88 pin: scrollingElement.scrollHeight === clientHeight). */
+.dtp-dialog { width: min(396px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; gap: 6px; padding: 10px; }
+.dtp-dialog__split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dtp-dialog__field { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 8px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; background: var(--bg-1, #fff); color: var(--ink, #1f2937); text-align: left; }
+.dtp-dialog__field.is-open { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent); }
+.dtp-dialog__field-label { font-size: var(--text-caption-size, 12px); font-weight: 700; color: var(--ink-3, #6b7280); }
+.dtp-dialog__field-value { flex: 1; text-align: right; font-family: var(--font-data, monospace); font-size: var(--text-body-size, 14px); }
+.dtp-dialog .dtp-date { width: 100%; }
+.dtp-dialog .dtp-day { height: 24px; }
+.dtp-strip-label { font-size: var(--text-caption-size, 12px); font-weight: 700; color: var(--ink-3, #6b7280); margin-right: 6px; }
+.dtp-dialog__strip { display: flex; align-items: center; }
+.dtp-dialog__strip .dtp-dialog__pills { flex: 1; }
+.dtp-dialog .dtp-pill { min-height: 22px; padding: 0 7px; }

@@ -31,6 +31,10 @@ export interface GovernedActionBinding {
 export interface LockedEntityBoundary {
   entity: string;
   terminalStates: readonly string[];
+  /** A posted advance has no update/delete/review command surface. */
+  createOnly?: boolean;
+  /** Explicit commands may resolve a pre-existing unposted draft, never a terminal row. */
+  draftRecovery?: { boundary: SourceDeclarationBinding; proof: ExecutableProofBinding };
   stateAuthority: SourceDeclarationBinding;
   directMutationBoundary: SourceDeclarationBinding;
   directMutationProof: ExecutableProofBinding;
@@ -152,14 +156,14 @@ const settlementCorrection = action(
     'afterSnapshot',
     'makerId',
   ),
-  // 2026-09-05: chi-phi rewrite scope. Proof test deleted along with the
-  // forwarder settlement workflow; template preserved awaiting rewrite.
   proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request approval is first-winner under concurrent distinct keys',
-    'Promise.all',
-    "status, 'APPROVED'",
-    'ledger',
+    'tests/transport-expense-direct-lifecycle.test.ts',
+    'recorded settlement correction preserves original snapshots and writes an applied audit action',
+    'adjustSettlementExpense',
+    'originalBuyAmount',
+    'adjustedBuyAmount',
+    'saved.version',
+    'audit',
   ),
 );
 
@@ -175,11 +179,12 @@ const settlementReversal = action(
     'makerId',
   ),
   proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request approval is first-winner under concurrent distinct keys',
-    'Promise.all',
-    "status, 'APPROVED'",
-    'ledger',
+    'tests/transport-expense-direct-lifecycle.test.ts',
+    'recorded settlement reversal retains audit and appends exactly one reversing ledger entry',
+    'requestAdvanceSettlementReversal',
+    'TxnType.ADJUSTMENT',
+    'reversals.length, 1',
+    'audit',
   ),
 );
 
@@ -195,11 +200,14 @@ const companyExpense = action(
     'makerId',
   ),
   proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request approval is first-winner under concurrent distinct keys',
-    'Promise.all',
-    "status, 'APPROVED'",
-    'ledger',
+    'tests/expense-approval.test.ts',
+    'direct financial action wrapper persists before after delta audit and rejects a stale expense correction',
+    'requestCompanyExpenseGovernance',
+    'beforeSnapshot',
+    'afterSnapshot',
+    'deltaSnapshot',
+    'finalAudits.length, 1',
+    'entries.length, 3',
   ),
 );
 
@@ -396,68 +404,6 @@ const profitDistribution = action(
   ),
 );
 
-const creditOverrideApproval = action(
-  'CREDIT_OVERRIDE_APPROVAL',
-  source(
-    'services/credit-limit.service.ts',
-    'createCreditOverrideRequest',
-    "actionKind: 'CREDIT_OVERRIDE_APPROVAL'",
-    'reason',
-    'beforeSnapshot',
-    'afterSnapshot',
-    'makerId',
-  ),
-  proof(
-    'tests/q01-credit-override-routes.test.ts',
-    'create requires a command key, replays exactly once, and blocks same-key payload drift',
-    "created.body.workflowStatus, 'APPROVED'",
-    'requiredTier',
-    'drift.status, 409',
-    'replayed, true',
-  ),
-);
-
-const advanceRequestApproval = action(
-  'ADVANCE_REQUEST_APPROVAL',
-  source(
-    'services/advance-request.service.ts',
-    'requestAdvanceRequestApprovalGovernance',
-    "actionKind: 'ADVANCE_REQUEST_APPROVAL'",
-    'reason',
-    'beforeSnapshot',
-    'afterSnapshot',
-    'makerId',
-  ),
-  proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request approval is first-winner under concurrent distinct keys',
-    'Promise.all',
-    "status, 'APPROVED'",
-    'ledger',
-  ),
-);
-
-const advanceRequestRejection = action(
-  'ADVANCE_REQUEST_REJECTION',
-  source(
-    'services/advance-request.service.ts',
-    'requestAdvanceRequestRejectionGovernance',
-    "actionKind: 'ADVANCE_REQUEST_REJECTION'",
-    'reason',
-    'beforeSnapshot',
-    'afterSnapshot',
-    'makerId',
-  ),
-  proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request rejection applies immediately with no ledger effect (phê duyệt removed)',
-    '/advance-requests/',
-    'rejected.data.actionKind',
-    "row.status, 'REJECTED'",
-    'ledgerAfter',
-  ),
-);
-
 /**
  * Q18's versioned inventory. Every row names:
  *  - the declaration that establishes the terminal state authority,
@@ -529,85 +475,52 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   },
   {
     entity: 'TRIP_EXPENSE',
-    terminalStates: ['APPROVED'],
-    stateAuthority: source(
-      'db/schema/costs.ts',
-      'tripExpenses', 'approvalStatus', "'APPROVED'"),
-    directMutationBoundary: source(
-      'services/forwarder.service.ts',
-      'updateTripExpense',
-      "existing.approvalStatus === 'APPROVED'",
-      'throw new ApiError',
-      'không được sửa trực tiếp',
-    ),
-    directMutationProof: proof(
-      // 2026-09-05: chi-phi rewrite scope. The original proof test was
-      // focused on forwarder-settlement-workflow which is gone. Holding the
-      // binding on q18-adjustment-governance as a placeholder until the
-      // rewrite supplies a dedicated trip-expense proof.
-      'tests/q18-adjustment-governance.test.ts',
-      'captures the trip-expense maker and prevents self-approval or approved rewrites',
-      'updateTripExpense',
-      'deleteTripExpenseGuarded',
-      'expectApiError',
-      "approvalStatus, 'APPROVED'",
-    ),
+    terminalStates: ['VOIDED'],
+    stateAuthority: source('services/forwarder.service.ts', 'updateTripExpense', "'VOIDED'"),
+    directMutationBoundary: source('services/forwarder.service.ts', 'updateTripExpense', 'activeLink', 'settlementExpenses', "'VOIDED'", 'throw new ApiError'),
+    directMutationProof: proof('tests/transport-expense-direct-lifecycle.test.ts',
+      'transport expense direct edits retain ownership and stale-version guards',
+      'updateForwarderTripExpenseInTx', 'assert.rejects', 'wrong owner', 'stale'),
     governedActions: [settlementCorrection],
     reopenPolicy: 'NEVER',
   },
   {
     entity: 'FUEL_INVOICE',
-    terminalStates: ['APPROVED', 'REJECTED'],
-    stateAuthority: source(
-      'routes/financial/fuel-invoices.routes.ts',
-      'listSchema',
-      "'PENDING'",
-      "'APPROVED'",
-      "'REJECTED'",
-    ),
-    directMutationBoundary: source(
-      'services/fuel-invoice.service.ts',
-      'updateFuelInvoice',
-      "existing.approvalStatus !== 'PENDING'",
-      'throw new ApiError',
-      'Chỉ được sửa',
-    ),
-    directMutationProof: proof(
-      'tests/q06-fuel-invoice-routes.test.ts',
+    terminalStates: ['REVERSED', 'VOIDED'],
+    stateAuthority: source('services/fuel-invoice.service.ts', 'updateFuelInvoice', "'REVERSED'", "'VOIDED'"),
+    directMutationBoundary: source('services/fuel-invoice.service.ts', 'updateFuelInvoice', 'fuelInvoiceVersion(existing.updatedAt)', "'VOIDED'", 'throw new ApiError'),
+    directMutationProof: proof('tests/q06-fuel-invoice-routes.test.ts',
       'adjustment and reversal materialize onto the approved invoice and apply immediately',
-      "method: 'PUT'",
-      'directUpdate.status, 409',
-      'corrections',
-    ),
+      'staleCorrection', 'reversal', 'corrections'),
     governedActions: [fuelInvoiceCorrection],
     reopenPolicy: 'NEVER',
   },
   {
+    entity: 'ADVANCE_REQUEST',
+    terminalStates: ['RECORDED', 'VOIDED'],
+    createOnly: true,
+    stateAuthority: source('db/schema/_enums.ts', 'advanceRequestStatusEnum', "'RECORDED'", "'VOIDED'"),
+    directMutationBoundary: source('services/advance-request.service.ts', 'createAdvanceRequest', "status: 'RECORDED'", 'LedgerService.postEntry', 'runInTx'),
+    directMutationProof: proof('tests/q23-forwarder-create-replay.test.ts',
+      'recorded advance is immutable through removed review and generic mutation endpoints',
+      'rejected.status, 404', 'assert.deepEqual(after, before)', 'entries.length, 1'),
+    draftRecovery: {
+      boundary: source('services/advance-draft.service.ts', 'resolveAdvanceDraft', "before.status !== 'DRAFT'", 'before.version !== input.expectedVersion', 'if (posted)', 'if (claimed)', 'LedgerService.postEntry', 'tx.insert(s.auditLogs)'),
+      proof: proof('tests/advance-draft-recovery.test.ts',
+        'authorized legacy draft recording posts exactly once with actor-bound replay and immutable terminal state',
+        "first.body.status, 'RECORDED'", 'saved.entries.length, 1', 'replay.body.replayed, true', 'assert.deepEqual(await state(row.id), saved)'),
+    },
+    governedActions: [],
+    reopenPolicy: 'NEVER',
+  },
+  {
     entity: 'ADVANCE_SETTLEMENT',
-    terminalStates: ['APPROVED', 'REJECTED', 'REVERSED'],
-    stateAuthority: source(
-      'db/schema/_enums.ts',
-      'advanceSettlementStatusEnum',
-      "'APPROVED'",
-      "'REJECTED'",
-      "'REVERSED'",
-    ),
-    directMutationBoundary: source(
-      'services/advance-settlement.service.ts',
-      'updateAdvanceSettlement',
-      "settlement.status !== 'PENDING'",
-      "settlement.status !== 'CHECKED_BY_ACCOUNTANT'",
-      'throw new AdvanceError',
-    ),
-    directMutationProof: proof(
-      // 2026-09-05: chi-phi rewrite scope. Held on q23-approved-financial
-      // until the rewrite supplies a fresh advance-settlement proof.
-      'tests/q23-approved-financial-idempotency.test.ts',
-      'advance request approval is first-winner under concurrent distinct keys',
-      'Promise.all',
-      "status, 'APPROVED'",
-      'ledger',
-    ),
+    terminalStates: ['RECORDED', 'VOIDED', 'REVERSED'],
+    stateAuthority: source('db/schema/_enums.ts', 'advanceSettlementStatusEnum', "'RECORDED'", "'VOIDED'", "'REVERSED'"),
+    directMutationBoundary: source('services/advance-settlement.service.ts', 'updateAdvanceSettlement', "settlement.status !== 'DRAFT'", 'throw new AdvanceError'),
+    directMutationProof: proof('tests/transport-expense-direct-lifecycle.test.ts',
+      'recorded settlement posts its ledger atomically and rejects direct replacement of settled sources',
+      'updateAdvanceSettlement', 'assert.rejects', 'entries.length, 1'),
     governedActions: [settlementCorrection, settlementReversal],
     reopenPolicy: 'NEVER',
   },
@@ -626,16 +539,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       '!governanceApproved',
       'throw new ApiError',
     ),
-    directMutationProof: proof(
-      // 2026-09-05: chi-phi rewrite scope. The original proof test was
-      // q23-expense-idempotency which is now deleted. Held on
-      // q23-approved-financial as a placeholder.
-      'tests/q23-approved-financial-idempotency.test.ts',
-      'advance request approval is first-winner under concurrent distinct keys',
-      'Promise.all',
-      "status, 'APPROVED'",
-      'ledger',
-    ),
+    directMutationProof: proof('tests/expense-approval.test.ts',
+      'paid expense rejects direct financial mutation and deletion without changing source or ledger',
+      'updateExpense', 'deleteExpense', 'assert.rejects'),
     governedActions: [companyExpense],
     reopenPolicy: 'NEVER',
   },
@@ -791,30 +697,20 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   },
   {
     entity: 'CREDIT_OVERRIDE',
-    terminalStates: ['APPROVED', 'REJECTED', 'CANCELED'],
-    stateAuthority: source(
-      'db/schema/_enums.ts',
-      'creditOverrideStatusEnum',
-      "'APPROVED'",
-      "'REJECTED'",
-      "'CANCELED'",
-    ),
+    createOnly: true,
+    terminalStates: ['AUTHORIZED', 'APPROVED', 'REJECTED', 'CANCELED'],
+    stateAuthority: source('db/schema/_enums.ts', 'creditOverrideStatusEnum', "'AUTHORIZED'", "'APPROVED'", "'REJECTED'", "'CANCELED'"),
     directMutationBoundary: source(
-      'services/credit-limit.service.ts',
-      'applyCreditOverrideGovernanceAction',
-      "request.status !== 'PENDING'",
-      'throw new ApiError',
-      'đã được xử lý',
+      'services/credit-limit.service.ts', 'createCreditOverrideRequest',
+      'runInTx', "status: 'AUTHORIZED'", 'auditLogs', 'requiredTier',
     ),
     directMutationProof: proof(
       'tests/q01-credit-override-routes.test.ts',
       'create requires a command key, replays exactly once, and blocks same-key payload drift',
-      "created.body.status, 'APPROVED'",
-      'drift.status, 409',
-      'replayed, true',
-      'Khóa giao dịch trùng',
+      "created.body.status, 'AUTHORIZED'", 'drift.status, 409', 'replayed, true',
+      'rejected.status, 404', 'assert.deepEqual(after, before)',
     ),
-    governedActions: [creditOverrideApproval],
+    governedActions: [],
     reopenPolicy: 'NEVER',
   },
   {
@@ -871,33 +767,6 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'module.applyProfitDistributionGovernanceAction',
     ),
     governedActions: [profitDistribution],
-    reopenPolicy: 'NEVER',
-  },
-  {
-    entity: 'ADVANCE_REQUEST',
-    terminalStates: ['APPROVED', 'REJECTED'],
-    stateAuthority: source(
-      'db/schema/_enums.ts',
-      'advanceRequestStatusEnum',
-      "'APPROVED'",
-      "'REJECTED'",
-    ),
-    directMutationBoundary: source(
-      'services/advance-request.service.ts',
-      'approveAdvanceRequest',
-      "request.status !== 'PENDING'",
-      'throw new AdvanceError',
-      'Cannot approve request',
-    ),
-    directMutationProof: proof(
-      'tests/q23-approved-financial-idempotency.test.ts',
-      'advance request approval is first-winner under concurrent distinct keys',
-      'Promise.all',
-      "status, 'APPROVED'",
-      'assert.equal',
-      'ledger',
-    ),
-    governedActions: [advanceRequestApproval, advanceRequestRejection],
     reopenPolicy: 'NEVER',
   },
 ] as const;

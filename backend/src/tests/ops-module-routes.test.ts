@@ -67,6 +67,26 @@ async function mkUser(username: string, role: Role) {
   return user;
 }
 
+/** Element shapes read off api() JSON bodies — fetch() has no response
+ *  typing, so callbacks annotate with these instead of implicit any. */
+type OpsRow = {
+  shipmentCode?: string;
+  containerCount?: number;
+  customerName?: string;
+  containerNumbers?: string[];
+  amount?: string;
+  hasPhoto?: boolean;
+  paidById?: number;
+  truckId?: number;
+  status?: string;
+  lastEventType?: string;
+};
+type OpsSettlementGroup = {
+  shipmentCode: string;
+  withInvoice: { total: string };
+  withoutInvoice: { total: string };
+};
+
 async function api(
   path: string,
   init: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {},
@@ -85,7 +105,7 @@ async function api(
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   const body = await response.json().catch(() => ({}));
-  return { status: response.status, body } as { status: number; body: any };
+  return { status: response.status, body };
 }
 
 before(async () => {
@@ -168,7 +188,7 @@ describe('ops module RBAC (PRD §2)', () => {
     assert.equal(forOps.status, 200);
   });
 
-  test('expense approvals require ADMIN/MANAGER/ACCOUNTANT; OPS cannot', async () => {
+  test('accounting records are readable by financial roles, not OPS', async () => {
     const res = await api('/admin/expenses', { token: opsToken });
     assert.equal(res.status, 403);
     const ok = await api('/admin/expenses', { token: accountantToken });
@@ -177,7 +197,6 @@ describe('ops module RBAC (PRD §2)', () => {
 });
 
 describe('ops orders + pins (PRD §3)', () => {
-  let shipmentId: number;
 
   before(async () => {
     const [customer] = await db.insert(s.customers).values({
@@ -195,7 +214,6 @@ describe('ops orders + pins (PRD §3)', () => {
       blNumber: `BL-${suffix}`,
     }).returning();
     createdShipmentIds.push(shipment.id);
-    shipmentId = shipment.id;
 
     const [canceled] = await db.insert(s.shipments).values({
       shipmentCode: `OPS-${suffix}-2`,
@@ -215,19 +233,19 @@ describe('ops orders + pins (PRD §3)', () => {
   test('lists today company-wide lots, skips canceled, exposes containers', async () => {
     const res = await api(`/orders?date=${isoDate}`, { token: opsToken });
     assert.equal(res.status, 200);
-    const codes = res.body.items.map((item: any) => item.shipmentCode);
+    const codes = res.body.items.map((item: OpsRow) => item.shipmentCode);
     assert.ok(codes.includes(`OPS-${suffix}-1`));
     assert.ok(!codes.includes(`OPS-${suffix}-2`));
-    const mine = res.body.items.find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+    const mine = res.body.items.find((item: OpsRow) => item.shipmentCode === `OPS-${suffix}-1`);
     assert.equal(mine.containerCount, 1);
     assert.equal(mine.customerName, `OPS Test KH ${suffix}`);
   });
 
   test('search matches container numbers', async () => {
     const mine = (await api(`/orders?date=${isoDate}`, { token: opsToken })).body.items
-      .find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+      .find((item: OpsRow) => item.shipmentCode === `OPS-${suffix}-1`);
     const res = await api(`/orders?date=${isoDate}&q=${mine.containerNumbers[0]}`, { token: opsToken });
-    const codes = res.body.items.map((item: any) => item.shipmentCode);
+    const codes = res.body.items.map((item: OpsRow) => item.shipmentCode);
     assert.ok(codes.includes(`OPS-${suffix}-1`));
   });
 
@@ -246,7 +264,7 @@ describe('ops orders + pins (PRD §3)', () => {
 
     // Other ops account does not see the pin.
     const other = (await api(`/orders?date=${isoDate}`, { token: ops2Token })).body.items;
-    const otherRow = other.find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+    const otherRow = other.find((item: OpsRow) => item.shipmentCode === `OPS-${suffix}-1`);
     assert.equal(otherRow.pinned, false);
 
     const off = await api(`/orders/shipment-pins/${createdShipmentIds[0]}`, { method: 'PUT', token: opsToken, body: { pinned: false } });
@@ -316,18 +334,15 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(badContainer.status, 404);
   });
 
-  test('lifecycle: create → approve blocked without photo → attach → approve', async () => {
+  test('recorded expenses retain receipt visibility and are editable by the owner until settled', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, shipmentContainerId: containerId, expenseTypeCode: withInvoiceCode, amount: '350000', paidAt: isoDate },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.approvalStatus, 'PENDING');
+    assert.equal(created.body.approvalStatus, 'RECORDED');
     assert.equal(created.body.paidById, opsUser.id);
     createdExpenseIds.push(created.body.id);
-
-    const noPhoto = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(noPhoto.status, 400);
 
     // Attach validates the key shape and owner segment.
     const foreignKey = await api(`/expenses/${created.body.id}/photos`, {
@@ -347,7 +362,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     });
     assert.equal(attached.status, 201);
 
-    // Receipt review: the approver can list the photos; another Ops cannot.
+    // Receipt review: an approver can list the photos; another Ops cannot.
     const photosForAccountant = await api(`/expenses/${created.body.id}/photos`, { token: accountantToken });
     assert.equal(photosForAccountant.status, 200);
     assert.equal(photosForAccountant.body.items.length, 1);
@@ -367,123 +382,78 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.notEqual(served.status, 400);
     assert.equal(served.status, 404);
 
-    const approved = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(approved.status, 200);
-    assert.equal(approved.body.approvalStatus, 'APPROVED');
-
-    // APPROVED is locked: author edit refused.
+    // Direct records stay editable until included in a settlement.
     const edit = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '1' },
+      method: 'PATCH', token: opsToken, body: { amount: '350000' },
     });
-    assert.equal(edit.status, 400);
+    assert.equal(edit.status, 200);
+    assert.equal(edit.body.amount, '350000');
+    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1' } });
+    assert.equal(forbiddenEdit.status, 404);
   });
 
-  test('reject requires reason; author must re-attach a photo before resend', async () => {
+  test('removed approval endpoints return 404; owner corrections record directly', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '80000', paidAt: isoDate, note: 'Cân xe' },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '90000', paidAt: isoDate, note: 'Cân xe' },
     });
     assert.equal(created.status, 201);
+    assert.equal(created.body.approvalStatus, 'RECORDED');
     createdExpenseIds.push(created.body.id);
 
-    const noReason = await api(`/admin/expenses/${created.body.id}/reject`, { method: 'POST', token: adminToken, body: {} });
-    assert.equal(noReason.status, 400);
+    // Both decision endpoints no longer exist (removed with the arc).
+    const approveAttempt = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: adminToken, body: {} });
+    assert.equal(approveAttempt.status, 404);
+    const rejectAttempt = await api(`/admin/expenses/${created.body.id}/reject`, { method: 'POST', token: adminToken, body: { reason: 'Ảnh mờ' } });
+    assert.equal(rejectAttempt.status, 404);
 
-    const rejected = await api(`/admin/expenses/${created.body.id}/reject`, {
-      method: 'POST', token: adminToken, body: { reason: 'Ảnh mờ' },
-    });
-    assert.equal(rejected.status, 200);
-    assert.equal(rejected.body.approvalStatus, 'REJECTED');
-
+    // Author correction does not require an approver.
     const edited = await api(`/expenses/${created.body.id}`, {
       method: 'PATCH', token: opsToken, body: { amount: '90000' },
     });
     assert.equal(edited.status, 200);
-    assert.equal(edited.body.amount, '90000');
 
-    // Resend without any receipt photo is refused (PRD §5.3).
-    const noPhotoResend = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
-    assert.equal(noPhotoResend.status, 400);
-
-    await api(`/expenses/${created.body.id}/photos`, {
+    // A receipt photo still attaches after creation.
+    const attached = await api(`/expenses/${created.body.id}/photos`, {
       method: 'POST', token: opsToken,
       body: { storageKey: `ops-expense-photos/${opsUser.id}/${'b'.repeat(32)}.png` },
     });
-    const resent = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
-    assert.equal(resent.status, 200);
-    assert.equal(resent.body.approvalStatus, 'PENDING');
+    assert.equal(attached.status, 201);
   });
 
-  test('receipt-less approve needs the in-person paper-check flag + note (two-path rule)', async () => {
-    // ops2 creates the receipt-less entry so opsUser's settlement-freeze
-    // totals asserted later in this describe stay untouched.
-    const created = await api('/expenses', {
-      method: 'POST', token: ops2Token,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '60000', paidAt: isoDate },
-    });
-    assert.equal(created.status, 201);
-    createdExpenseIds.push(created.body.id);
-
-    const blind = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(blind.status, 400);
-
-    const noNote = await api(`/admin/expenses/${created.body.id}/approve`, {
-      method: 'POST', token: accountantToken,
-      body: { inPersonCheck: true },
-    });
-    assert.equal(noNote.status, 400);
-
-    const inPerson = await api(`/admin/expenses/${created.body.id}/approve`, {
-      method: 'POST', token: accountantToken,
-      body: { inPersonCheck: true, note: 'Đã đối chiếu hóa đơn giấy tại quầy' },
-    });
-    assert.equal(inPerson.status, 200);
-    assert.equal(inPerson.body.approvalStatus, 'APPROVED');
-
-    const [auditRow] = await db.select().from(s.auditLogs)
-      .where(and(
-        eq(s.auditLogs.entityType, 'ops-expense-entries'),
-        eq(s.auditLogs.entityId, created.body.id),
-      ))
-      .limit(1);
-    assert.ok(auditRow, 'in-person check note is persisted for audit');
-    assert.equal((auditRow.payload as any)?.event, 'OPS_EXPENSE_APPROVE_IN_PERSON');
-    assert.equal((auditRow.payload as any)?.note, 'Đã đối chiếu hóa đơn giấy tại quầy');
-  });
-
-  test('wallet summary matches the PRD formula', async () => {
-    // 2,000,000 approved advance − (350,000 approved + 90,000 pending) = 1,560,000
+  test('wallet summary counts recorded advances and recorded expenses', async () => {
+    // 2,000,000 recorded advance − (350,000 + 90,000 recorded expenses) = 1,560,000
     const [advance] = await db.insert(s.advanceRequests).values({
       requesterId: opsUser.id,
       amount: '2000000',
       reason: `test ${suffix}`,
-      status: 'APPROVED',
+      status: 'RECORDED',
     }).returning();
     createdAdvanceIds.push(advance.id);
 
     const summary = await api('/wallet/summary', { token: opsToken });
     assert.equal(summary.status, 200);
     assert.equal(summary.body.totalAdvance, '2000000');
-    assert.equal(summary.body.approved, '350000');
-    assert.equal(summary.body.pending, '90000');
+    assert.equal(summary.body.approved, '440000');
+    assert.equal(summary.body.pending, '0');
     assert.equal(summary.body.balance, '1560000');
   });
 
   test('expense history flags missing photos (nợ chứng từ)', async () => {
     const res = await api('/wallet/expenses', { token: opsToken });
-    const withPhoto = res.body.items.find((item: any) => item.amount === '350000');
+    const withPhoto = res.body.items.find((item: OpsRow) => item.amount === '350000');
     assert.equal(withPhoto.hasPhoto, true);
-    const resentWithPhoto = res.body.items.find((item: any) => item.amount === '90000');
-    assert.equal(resentWithPhoto.hasPhoto, true, 'resend flow re-attached a receipt');
+    const withPhotoLater = res.body.items.find((item: OpsRow) => item.amount === '90000');
+    assert.equal(withPhotoLater.hasPhoto, true, 'photo attached after creation shows in history');
   });
 
-  test('advance request creation lands PENDING in the shared table', async () => {
+  test('advance request creation applies immediately (status-removal: no approval handoff)', async () => {
     const created = await api('/wallet/advance-requests', {
       method: 'POST', token: opsToken,
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'PENDING');
+    assert.equal(created.body.status, 'RECORDED', 'creation posts status + ledger in-tx');
     createdAdvanceIds.push(created.body.id);
   });
 
@@ -501,21 +471,21 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const res = await api('/admin/expenses', { token: accountantToken });
     assert.equal(res.status, 200);
-    const lotRows = res.body.items.filter((item: any) => item.shipmentCode === `OPS-CHI-${suffix}`);
-    const lotCodes = new Set(lotRows.map((item: any) => item.shipmentCode));
+    const lotRows = res.body.items.filter((item: OpsRow) => item.shipmentCode === `OPS-CHI-${suffix}`);
+    const lotCodes = new Set(lotRows.map((item: OpsRow) => item.shipmentCode));
     assert.equal(lotCodes.size, 1, 'all same-lot rows share exactly one mã lô');
 
     const indices = res.body.items
-      .map((item: any, index: number) => (item.shipmentCode === `OPS-CHI-${suffix}` ? index : -1))
+      .map((item: OpsRow, index: number) => (item.shipmentCode === `OPS-CHI-${suffix}` ? index : -1))
       .filter((index: number) => index >= 0);
     assert.equal(indices[indices.length - 1] - indices[0] + 1, indices.length,
       'same-lot rows are contiguous — clustered, not split by payer');
-    const payers = new Set(lotRows.map((item: any) => item.paidById));
+    const payers = new Set(lotRows.map((item: OpsRow) => item.paidById));
     assert.ok(payers.has(ops2.id), 'second Ops row kept its own paidById');
     assert.equal(payers.size, 2, 'both payers present under the one mã lô');
   });
 
-  test('settlement freeze → approve path; later entries stay open', async () => {
+  test('settlement freeze; later entries stay open (KP-149: batch decisions removed)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate },
@@ -524,11 +494,13 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Freshly created without any receipt → "Nợ chứng từ" until a photo lands.
     const history = await api('/wallet/expenses', { token: opsToken });
-    const debtEntry = history.body.items.find((item: any) => item.amount === '150000');
+    const debtEntry = history.body.items.find((item: OpsRow) => item.amount === '150000');
     assert.equal(debtEntry.hasPhoto, false);
 
     const settlement = await api('/settlements', { method: 'POST', token: opsToken, body: { note: 'cuối ngày' } });
     assert.equal(settlement.status, 201);
+    assert.equal(settlement.body.status, 'RECORDED');
+    assert.equal(settlement.body.approvedById, null);
     createdSettlementIds.push(settlement.body.id);
     assert.equal(settlement.body.totalAmount, '590000'); // 350k + 90k + 150k
 
@@ -536,13 +508,13 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1' } });
     assert.equal(edit.status, 400);
 
-    // Batch approval blocked while the 90k + 150k entries are still PENDING.
-    const blocked = await api(`/admin/settlements/${settlement.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(blocked.status, 400);
+    // Batch decision endpoints no longer exist (removed with the arc).
+    const approveAttempt = await api(`/admin/settlements/${settlement.body.id}/approve`, { method: 'POST', token: accountantToken });
+    assert.equal(approveAttempt.status, 404);
 
     const detail = await api(`/settlements/${settlement.body.id}`, { token: opsToken });
     assert.equal(detail.status, 200);
-    const group = detail.body.grouping.groups.find((g: any) => g.shipmentCode === `OPS-CHI-${suffix}`);
+    const group = detail.body.grouping.groups.find((g: OpsSettlementGroup) => g.shipmentCode === `OPS-CHI-${suffix}`);
     assert.ok(group, 'settlement groups by lô');
     assert.equal(group.withInvoice.total, '350000');
     assert.equal(group.withoutInvoice.total, '240000');
@@ -564,33 +536,6 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.match(exported.headers.get('content-type') ?? '', /spreadsheetml/);
     const bytes = await exported.arrayBuffer();
     assert.ok(bytes.byteLength > 1000, 'xlsx workbook is non-trivial');
-
-    // Batch reject: the frozen 10k entry returns to the open pool.
-    const second = await api('/settlements', { method: 'POST', token: opsToken });
-    assert.equal(second.status, 201);
-    createdSettlementIds.push(second.body.id);
-    assert.equal(second.body.totalAmount, '10000');
-
-    const rejectNoReason = await api(`/admin/settlements/${second.body.id}/reject`, {
-      method: 'POST', token: accountantToken, body: {},
-    });
-    assert.equal(rejectNoReason.status, 400);
-
-    const rejectedBatch = await api(`/admin/settlements/${second.body.id}/reject`, {
-      method: 'POST', token: accountantToken, body: { reason: 'Thiếu chứng từ gốc' },
-    });
-    assert.equal(rejectedBatch.status, 200);
-    assert.equal(rejectedBatch.body.status, 'REJECTED');
-
-    const reopened = await api('/wallet/expenses', { token: opsToken });
-    const reopenedEntry = reopened.body.items.find((item: any) => item.amount === '10000');
-    assert.equal(reopenedEntry.opsSettlementId, null);
-
-    // A new batch can pick the reopened entry up again.
-    const third = await api('/settlements', { method: 'POST', token: opsToken });
-    assert.equal(third.status, 201);
-    createdSettlementIds.push(third.body.id);
-    assert.equal(third.body.totalAmount, '10000');
   });
 });
 
@@ -658,13 +603,13 @@ describe('ops fleet tracking (PRD §4)', () => {
     // opsB now owns the truck; opsUser sees nothing.
     const fleetB = await api('/fleet', { token: ops2Token });
     assert.equal(fleetB.status, 200);
-    const rowB = fleetB.body.items.find((item: any) => item.truckId === truck.id);
+    const rowB = fleetB.body.items.find((item: OpsRow) => item.truckId === truck.id);
     assert.ok(rowB);
     assert.equal(rowB.status, 'IN_TRANSIT');
     assert.equal(rowB.shipmentCode, `OPS-FL-${suffix}`);
 
     const fleetA = await api('/fleet', { token: opsToken });
-    assert.equal(fleetA.body.items.find((item: any) => item.truckId === truck.id), undefined);
+    assert.equal(fleetA.body.items.find((item: OpsRow) => item.truckId === truck.id), undefined);
 
     // Driver-app action sync: the row's milestone comes from the driver's
     // latest progress event (PRD §4 — trạng thái đồng bộ từ thao tác lái xe).
@@ -677,7 +622,7 @@ describe('ops fleet tracking (PRD §4)', () => {
 
     const fleetB2 = await api('/fleet', { token: ops2Token });
     assert.equal(fleetB2.status, 200);
-    const rowB2 = fleetB2.body.items.find((item: any) => item.truckId === truck.id);
+    const rowB2 = fleetB2.body.items.find((item: OpsRow) => item.truckId === truck.id);
     assert.ok(rowB2);
     assert.equal(rowB2.lastEventType, 'PICKED_UP');
   });
@@ -686,4 +631,22 @@ describe('ops fleet tracking (PRD §4)', () => {
 test('unauthenticated requests are rejected', async () => {
   const res = await api('/orders');
   assert.equal(res.status, 401);
+});
+
+describe('legacy incomplete Ops settlement recovery', () => {
+  test('owner can release a draft batch for correction; strangers and recorded batches cannot', async () => {
+    const [batch] = await db.insert(s.opsSettlements).values({ code: `DR-${Date.now().toString(36)}`, opsUserId: opsUser.id, status: 'DRAFT', totalAmount: '1000' }).returning();
+    createdSettlementIds.push(batch.id);
+    const [expense] = await db.insert(s.opsExpenseEntries).values({ shipmentId: createdShipmentIds[0], paidById: opsUser.id, expenseTypeCode: createdExpenseTypeCodes[0], amount: '1000', paidAt: isoDate, approvalStatus: 'DRAFT', opsSettlementId: batch.id }).returning();
+    createdExpenseIds.push(expense.id);
+    assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: ops2Token })).status, 404);
+    assert.equal((await api(`/settlements/${batch.id}/finalize`, { method: 'POST', token: opsToken })).status, 400);
+    const result = await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.status, 'VOIDED');
+    const [released] = await db.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expense.id));
+    assert.equal(released.opsSettlementId, null);
+    assert.equal(released.approvalStatus, 'DRAFT', 'release must not silently post incomplete expense');
+    assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken })).status, 409);
+  });
 });

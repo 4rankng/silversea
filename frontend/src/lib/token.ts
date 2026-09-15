@@ -14,28 +14,7 @@
  */
 const STORAGE_KEY = 'token';
 
-// The service worker's periodic background sync (sw.js) needs the JWT to call
-// the API, but a worker cannot read localStorage. The page mirrors the token
-// into the SW's Cache under this synthetic URL; the SW reads it with
-// caches.match(). Must match the URL in sw.js.
-const SW_TOKEN_CACHE_URL = '/__auth-token';
-const SW_CACHE_NAME = 'tingting-shell-v2';
-
 let cachedToken: string | null | undefined; // undefined = not yet read
-
-/** Mirror the token into (or out of) the service worker's cache. Best-effort. */
-function mirrorTokenToServiceWorkerCache(next: string | null): void {
-  if (typeof caches === 'undefined') return; // SSR or unsupported browser
-  void caches.open(SW_CACHE_NAME)
-    .then(async (cache) => {
-      if (next === null) {
-        await cache.delete(SW_TOKEN_CACHE_URL);
-      } else {
-        await cache.put(SW_TOKEN_CACHE_URL, new Response(next));
-      }
-    })
-    .catch(() => { /* best-effort mirror; SW falls back to no auth header */ });
-}
 
 function readToken(): string | null {
   if (cachedToken !== undefined) return cachedToken;
@@ -49,7 +28,6 @@ function readToken(): string | null {
 
 function writeToken(next: string | null): void {
   cachedToken = next;
-  mirrorTokenToServiceWorkerCache(next);
   try {
     if (next === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, next);
@@ -77,13 +55,4 @@ export function clearToken(): void {
 /** Drop the in-memory cache so the next `getToken()` re-reads localStorage. */
 export function invalidateTokenCache(): void {
   cachedToken = undefined;
-}
-
-// Self-heal the service-worker mirror at app start: sessions logged in before
-// the mirror shipped (and any cache purge, e.g. a future CACHE-name bump in
-// sw.js) hold their JWT only in localStorage, which the worker cannot read —
-// their background-sync notifications would 401 silently forever. The mirror
-// is otherwise written only by setToken (login/logout).
-if (typeof window !== 'undefined') {
-  mirrorTokenToServiceWorkerCache(readToken());
 }

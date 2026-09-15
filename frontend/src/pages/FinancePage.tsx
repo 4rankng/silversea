@@ -151,7 +151,7 @@ export default function FinancePage() {
         description={`Báo cáo kết quả kinh doanh Tháng ${month} / ${year} · so sánh với Tháng ${month} / ${year - 1}`}
         action={
           <div className="page-actions">
-            <div className="date-chip" data-tour-id="finance-period" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, fontWeight: 600 }}>
+            <div className="date-chip" data-tour-id="finance-period" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 'var(--text-body-size)', fontWeight: 600 }}>
               <CalendarDays size={14} style={{ color: 'var(--brand)' }} />
               <span>Tháng {month} · <strong>{year}</strong></span>
             </div>
@@ -255,30 +255,30 @@ export default function FinancePage() {
             </div>
             <div className="body">
               {yearlyLoading ? (
-                <div style={{ padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, flex: 1 }}>
+                <div style={{ padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', flex: 1 }}>
                   Đang tải dữ liệu...
                 </div>
               ) : completedTripCount === 0 ? (
-                <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, gap: 8, flex: 1 }}>
+                <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
                   <EmptyIllustration name="empty-pricing" width={150} height={124} />
                   <div>
                     {chartView === 'day'
                       ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}`
                       : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
                   </div>
-                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
+                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
                 </div>
               ) : !hasChartData ? (
                 /* Completed trips exist but every series bucket is zero — an
                    accurate zero-value explanation, never a no-trip claim. */
-                <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, gap: 8, flex: 1 }}>
+                <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
                   <EmptyIllustration name="empty-pricing" width={150} height={124} />
                   <div>
                     {chartView === 'day'
                       ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`
                       : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
                   </div>
-                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này</div>
+                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này</div>
                 </div>
               ) : (
                 <RevenueTrendChart
@@ -297,7 +297,7 @@ export default function FinancePage() {
         <div className="panel" style={{ padding: '16px 20px', flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
           {/* Cost pie */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 12 }}>
+            <div style={{ fontSize: 'var(--text-data-size)', fontWeight: 600, color: 'var(--fg-2)', marginBottom: 12 }}>
               Cơ cấu chi phí {String(month).padStart(2, '0')}/{String(year).slice(-2)}
             </div>
             {loading ? (
@@ -329,7 +329,7 @@ export default function FinancePage() {
                           <text x={cx} y={cy + 11} textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-data)">{compactNum(total)}</text>
                         </svg>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, width: '100%' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 'var(--text-body-size)', width: '100%' }}>
                         {arcs.map((a, i) => (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                             <span style={{ width: 10, height: 10, background: a.fill, borderRadius: 2, flexShrink: 0 }} />
@@ -344,10 +344,10 @@ export default function FinancePage() {
                 })()}
               </div>
             ) : (
-              <div style={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 13, gap: 8 }}>
+              <div style={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', gap: 8 }}>
                 <EmptyIllustration name="empty-pie" width={126} height={104} />
                 <div>Chưa có dữ liệu chi phí</div>
-                <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu</div>
+                <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu</div>
               </div>
             )}
           </div>
@@ -357,13 +357,13 @@ export default function FinancePage() {
 
           {/* Top trucks */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 10 }}>
+            <div style={{ fontSize: 'var(--text-data-size)', fontWeight: 600, color: 'var(--fg-2)', marginBottom: 10 }}>
               Top xe theo lợi nhuận – {String(month).padStart(2, '0')}/{String(year).slice(-2)}
             </div>
             {loading ? (
               <div style={{ height: 80, background: 'var(--bg-2)', borderRadius: 6 }} />
             ) : topTrucks.length === 0 ? (
-              <div style={{ height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 12 }}>
+              <div style={{ height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)' }}>
                 Chưa có xe nào có chuyến hoàn thành trong tháng này
               </div>
             ) : (
@@ -591,7 +591,7 @@ export default function FinancePage() {
 
             {/* FINAL NET PROFIT */}
             <div className="pnl-row pnl-row--final">
-              <div className="pnl-row__label" style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: 12 }}>
+              <div className="pnl-row__label" style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: 'var(--text-caption-size)' }}>
                 Lợi nhuận ròng
               </div>
               <div className="pnl-row__amount">{formatNumber(netProfit)} ₫</div>
@@ -600,7 +600,7 @@ export default function FinancePage() {
             </div>
           </div>
 
-          <p style={{ fontSize: 12, color: 'var(--fg-3)', margin: '14px 0 24px', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: '14px 0 24px', lineHeight: 1.5 }}>
             * Lợi nhuận ròng kế toán: <strong>{formatNumber(netProfit)} ₫</strong>.
             {activeCapTable.length > 0
               ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit * p.pct / 100)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
@@ -926,7 +926,7 @@ export default function FinancePage() {
                                 <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
                                   <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />
                                 </div>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>
                                   {pct.toFixed(1)}%
                                 </span>
                               </div>

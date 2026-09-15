@@ -56,7 +56,7 @@ export function AuditLogWidget({ entries, navigate }: AuditLogWidgetProps) {
       </div>
       <div className="body">
         {normalized.length === 0 ? (
-          <div style={{ padding: '20px 16px', fontSize: 12, color: 'var(--wf-ink-3)', textAlign: 'center' }}>
+          <div style={{ padding: '20px 16px', fontSize: 'var(--text-caption-size)', color: 'var(--wf-ink-3)', textAlign: 'center' }}>
             Chưa có hoạt động nào được ghi nhận.
           </div>
         ) : (

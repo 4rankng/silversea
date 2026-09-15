@@ -50,7 +50,7 @@
 
 .billing-builder__title-block h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-title-size);
   line-height: 1.35;
   letter-spacing: 0;
   font-weight: 850;
@@ -136,7 +136,7 @@
 .billing-builder__action-spacer {
   visibility: hidden;
   min-height: 15px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   font-weight: 750;
   pointer-events: none;
@@ -150,7 +150,7 @@
 
 .billing-builder__date-input,
 .billing-builder__template-select {
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.35;
   font-weight: 650;
 }
@@ -260,14 +260,14 @@
 .billing-builder textarea.input.billing-builder__route-field {
   height: 44px;
   min-height: 44px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
 .billing-builder__containers,
 .billing-builder__type {
   color: #1f2937;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 550;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -275,7 +275,7 @@
 
 .billing-builder__unit {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -292,7 +292,7 @@
   box-shadow: none;
   text-align: right;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 34px;
   color: #111827;
 }
@@ -352,7 +352,7 @@
 .billing-builder__route-line strong {
   min-width: 0;
   color: var(--ink-2);
-  font-size: 12.5px;
+  font-size: var(--text-data-size);
   line-height: 1.35;
   font-weight: 600;
 }
@@ -374,7 +374,7 @@
 
 .billing-builder__route-metrics strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 850;
 }
 
@@ -396,7 +396,7 @@
 
 .billing-builder__container-summary strong {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
   color: var(--ink-2);
 }
@@ -411,7 +411,7 @@
 
 .billing-builder__subtotal {
   text-align: right;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 900;
   color: var(--ink);
   white-space: nowrap;
@@ -484,14 +484,14 @@
   align-content: center;
   gap: 12px;
   color: var(--ink-3);
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 650;
   text-align: center;
 }
 
 .billing-builder__state--empty strong {
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-dialog-title-size);
   line-height: 1.35;
 }
 
@@ -507,6 +507,30 @@
   gap: 10px;
   border-top: 1px solid var(--line);
   background: #fff;
+}
+
+/* Tablet wrap — between the desktop grid and the 680px mobile layout, the
+   5-column grid runs out of room and the two rightmost buttons overlap.
+   Switch to flex-wrap so "Lọc lại" and "Thêm dòng trình bày" each stay
+   fully readable and independently tappable at ≥44px targets. */
+@media (max-width: 880px) {
+  .billing-builder__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .billing-builder__controls label,
+  .billing-builder__controls .ds-uui-select {
+    flex: 1 1 168px;
+    min-width: 168px;
+  }
+
+  .billing-builder__controls .billing-builder__action-cell,
+  .billing-builder__controls > .btn {
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 980px) {
@@ -586,7 +610,7 @@
   }
 
   .billing-builder__title-block h2 {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
     line-height: 1.35;
     font-weight: 800;
   }
@@ -656,18 +680,18 @@
   .billing-builder__controls .input,
   .billing-builder__controls .btn,
   .billing-builder__footer .btn {
-    font-size: 12.5px;
+    font-size: var(--text-data-size);
     line-height: 1.35;
     font-weight: 700;
   }
 
   .billing-builder__controls .billing-builder__date-input {
-    font-size: 13.5px;
+    font-size: var(--text-body-size);
     font-weight: 750;
   }
 
   .billing-builder__controls .billing-builder__template-select {
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 650;
     letter-spacing: 0;
   }
@@ -683,7 +707,7 @@
     justify-self: center;
     width: auto;
     min-width: 112px;
-    font-size: 12.5px;
+    font-size: var(--text-data-size);
     border-color: transparent;
     background: transparent;
     box-shadow: none;
@@ -736,14 +760,14 @@
 
   .billing-builder__mobile-route > div > strong {
     color: var(--ink-2);
-    font-size: 12.5px;
+    font-size: var(--text-data-size);
     line-height: 1.35;
     font-weight: 600;
   }
 
   .billing-builder__mobile-route > strong {
     color: var(--ink);
-    font-size: 13px;
+    font-size: var(--text-data-size);
     font-weight: 850;
     white-space: nowrap;
   }
@@ -773,13 +797,13 @@
 
   .billing-builder__mobile-container-head strong {
     font-family: var(--font-data);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 650;
     color: var(--ink-2);
   }
 
   .billing-builder__mobile-container-head b {
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 900;
     color: var(--ink);
     white-space: nowrap;
@@ -819,7 +843,7 @@
 
   .billing-builder__mobile-row strong {
     color: #1f2937;
-    font-size: 13px;
+    font-size: var(--text-data-size);
     font-weight: 600;
     line-height: 1.35;
     overflow-wrap: anywhere;
@@ -852,7 +876,7 @@
   .billing-builder__note textarea {
     min-height: 92px;
     resize: none;
-    font-size: 13px;
+    font-size: var(--text-data-size);
     line-height: 1.45;
     font-weight: 500;
   }
@@ -870,14 +894,14 @@
 
   .billing-builder__state--empty strong {
     max-width: 310px;
-    font-size: 15px;
+    font-size: var(--text-body-size);
     line-height: 1.32;
     font-weight: 750;
   }
 
   .billing-builder__state--empty span {
     max-width: 300px;
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     line-height: 1.5;
     font-weight: 600;
   }

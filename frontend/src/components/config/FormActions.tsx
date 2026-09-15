@@ -15,7 +15,7 @@ export function FormActions({ saving, isedit, onsave, oncancel, ondelete, deleti
   return (
     <div style={{
       borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 14,
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%',
+      display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%',
     }}>
       {ondelete && (
         <button
@@ -29,11 +29,11 @@ export function FormActions({ saving, isedit, onsave, oncancel, ondelete, deleti
           Xóa cấu hình này
         </button>
       )}
-      <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginLeft: 'auto' }}>
         <button type="button" className="btn btn--secondary btn--sm" disabled={saving || deleting} onClick={oncancel}>
           <X size={12} /> Hủy
         </button>
-        <button className="btn btn--primary btn--sm" disabled={saving || deleting} onClick={onsave}>
+        <button type="button" className="btn btn--primary btn--sm" disabled={saving || deleting} onClick={onsave}>
           {saving ? <Loader2 size={12} className="spin" /> : <Save size={12} />}
           {isedit ? 'Cập nhật' : 'Thêm'}
         </button>

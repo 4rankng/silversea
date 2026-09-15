@@ -85,6 +85,39 @@ describe('CompanyInfoConfigPage save readiness', () => {
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' }).disabled).toBe(true);
   });
 
+  it('refuses to save a malformed email (save gate disabled, no save call)', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: 'not-an-email' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    // The shared companyInfoSchema email rule makes isCompanyInfoConfigured
+    // false for a malformed value — Lưu disables and save never fires.
+    expect(saveButton.disabled).toBe(true);
+    fireEvent.click(saveButton);
+    expect(saveCompanyInfoMock).not.toHaveBeenCalled();
+  });
+
+  it('allows saving when email is blank (optional)', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: '' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    expect(saveButton.disabled).toBe(false);
+  });
+
+  it('allows saving when email is valid', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: 'info@company.com' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    fireEvent.click(saveButton);
+
+    expect(saveCompanyInfoMock).toHaveBeenCalled();
+  });
+
   it('associates every company field with its visible Vietnamese label', async () => {
     // A11y contract: each control's accessible name comes from its visible
     // caption via label htmlFor + id — the pattern the two name fields
@@ -109,4 +142,18 @@ describe('CompanyInfoConfigPage save readiness', () => {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
   });
+  it('keeps saved comparison collapsed and separate from an edited draft, after the save action', () => {
+    const { container, rerender } = renderPage();
+    fireEvent.change(screen.getByLabelText('Tên đầy đủ'), { target: { value: 'Tên đang chỉnh' } });
+    const comparison = container.querySelector('details')!;
+    expect(comparison.open).toBe(false);
+    expect(comparison.textContent).toContain(validCompanyInfo.name);
+    expect(comparison.textContent).not.toContain('Tên đang chỉnh');
+    const save = screen.getByRole('button', { name: 'Lưu thông tin' });
+    expect(save.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    companyInfoState.data = { ...validCompanyInfo, shortName: 'Dữ liệu mới từ máy khác' };
+    rerender(<MemoryRouter><CompanyInfoConfigPage /></MemoryRouter>);
+    expect(screen.getByLabelText('Tên đầy đủ')).toHaveValue('Tên đang chỉnh');
+  });
+
 });

@@ -10,7 +10,7 @@ describe('Button', () => {
 
     expect(screen.getByRole('button', { name: 'Tìm kiếm' })).toHaveClass(
       'min-h-[34px]',
-      'text-xs',
+      'text-[length:var(--text-control-compact-size)]',
       'max-md:min-h-11',
       '*:data-icon:size-4',
     );

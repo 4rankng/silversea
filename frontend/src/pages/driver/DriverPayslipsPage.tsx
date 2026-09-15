@@ -12,8 +12,11 @@ import { useDriverPayslips } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import './DriverSecondaryPages.css';
 
 interface PayslipEarnings {
+  salarySnapshotState?: 'LIVE' | 'CONFIRMED' | 'UNAVAILABLE';
+  salaryReconciliationRequired?: boolean;
   netIncome: string;
   productionSalary: string;
   roadAllowance: string;
@@ -38,7 +41,7 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <span style={{
         display: 'inline-flex', alignItems: 'center', gap: 4,
-        padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
+        padding: '2px 8px', borderRadius: 12, fontSize: 'var(--text-caption-size)', fontWeight: 600,
         background: 'rgba(217,119,6,0.12)', color: 'var(--warn, #d97706)',
       }}>
         <AlertTriangle size={12} /> Mở lại
@@ -47,7 +50,7 @@ function StatusBadge({ status }: { status: string }) {
   }
   return (
     <span style={{
-      padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
+      padding: '2px 8px', borderRadius: 12, fontSize: 'var(--text-caption-size)', fontWeight: 600,
       background: 'rgba(22,163,74,0.12)', color: 'var(--ok, #16a34a)',
     }}>
       Đã chốt
@@ -69,10 +72,10 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
       style={{ '--strip': p.status === 'REOPENED' ? 'var(--warn, #d97706)' : 'var(--ok, #16a34a)', animationDelay: `${idx * 40}ms` } as React.CSSProperties}
     >
       <div className="dt-card__header">
-        <span className="dt-card__label" style={{ fontWeight: 700, fontSize: 16 }}>
+        <span className="dt-card__label" style={{ fontWeight: 700, fontSize: 'var(--text-section-size)' }}>
           {String(month).padStart(2, '0')}/{year}
         </span>
-        <StatusBadge status={p.status} />
+        {e.salarySnapshotState === 'UNAVAILABLE' ? <span>Cần đối chiếu bản gốc</span> : <StatusBadge status={p.status} />}
       </div>
 
       <div className="dt-card__meta" style={{ marginTop: 8 }}>
@@ -84,22 +87,28 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: 'var(--ink-3)' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <TrendingUp size={12} /> LSX: {formatCurrency(e.productionSalary)}
+      {e.salaryReconciliationRequired && <p role="status">{e.salarySnapshotState === 'UNAVAILABLE'
+        ? 'Số liệu tham khảo; chưa có bản lương đã chốt.'
+        : 'Có ngày công bổ sung sau chốt; bản lương giữ nguyên.'}</p>}
+      <div className="driver-payslip__metrics">
+        <span className="driver-payslip__metric">
+          <span><TrendingUp size={12} /> Lương sản xuất</span>
+          <strong>{formatCurrency(e.productionSalary)}</strong>
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Calendar size={12} /> Đường: {formatCurrency(e.roadAllowance)}
+        <span className="driver-payslip__metric">
+          <span><Calendar size={12} /> Tiền đường</span>
+          <strong>{formatCurrency(e.roadAllowance)}</strong>
         </span>
         {parseFloat(e.penalties) > 0 && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--danger)' }}>
-            <TrendingDown size={12} /> KL: {formatCurrency(e.penalties)}
+          <span className="driver-payslip__metric driver-payslip__metric--deduction">
+            <span><TrendingDown size={12} /> Kỷ luật</span>
+            <strong>{formatCurrency(e.penalties)}</strong>
           </span>
         )}
       </div>
 
       {p.note && (
-        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>
+        <div style={{ marginTop: 6, fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontStyle: 'italic' }}>
           {p.note}
         </div>
       )}
@@ -113,14 +122,14 @@ export default function DriverPayslipsPage() {
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (loading) return (
-    <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
+    <div className="driver-secondary-page" style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
       <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
       <p style={{ marginTop: 8 }}>Đang tải bảng lương…</p>
     </div>
   );
 
   if (error) return (
-    <div>
+    <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <div className="empty-state">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
@@ -133,7 +142,7 @@ export default function DriverPayslipsPage() {
   const items: PayslipPeriod[] = data?.items ?? [];
 
   if (items.length === 0) return (
-    <div>
+    <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <div className="empty-state">
         <img src={resolveEmptyIllustration('empty-trips')} alt="No payslips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -144,7 +153,7 @@ export default function DriverPayslipsPage() {
   );
 
   return (
-    <div ref={rootRef} className="driver-trips-page">
+    <div ref={rootRef} className="driver-secondary-page">
       <PageHeader title="Bảng lương" description={`${items.length} kỳ đã phát hành`} />
       <div className="driver-trips-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {items.map((p, idx) => (

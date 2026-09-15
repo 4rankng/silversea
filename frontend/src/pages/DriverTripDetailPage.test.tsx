@@ -3,37 +3,41 @@ import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-type MockOfflineCommand = {
-  id: string;
-  endpoint: string;
-  method: string;
-  path: string;
-  payload: Record<string, unknown>;
-  status: string;
-  retryCount: number;
-  lastError: string | null;
-  createdAt: string;
-  updatedAt: string;
+const getDriverTripMock = vi.hoisted(() => vi.fn());
+
+// Synchronous trip payload for the page's first render — the trip →
+// fulfillmentId resolution is seeded into the query cache so existing
+// tests keep their synchronous shape.
+const tripBasic88: Record<string, unknown> = {
+  id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+  departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+  routeName: null, truckPlate: null, customerName: null, notes: null,
 };
+function freshClient() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['driver-trip-basic', '88'], tripBasic88);
+  return client;
+}
+
+vi.mock('../api/driverClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/driverClient')>();
+  // getDriverTrip is replaced per-test via vi.spyOn in the resolution suite —
+  // the spy binds to THIS module instance, which the page also imports.
+  void getDriverTripMock;
+  return actual;
+});
 
 const {
   useDriverTaskDetailMock,
   useDriverTaskProgressMock,
   useDriverEvidenceStatusMock,
-  commandsMock,
-  enqueueMock,
-  drainMock,
-  removeMock,
   toastMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
   useDriverTaskProgressMock: vi.fn(),
   useDriverEvidenceStatusMock: vi.fn(),
-  commandsMock: vi.fn<() => MockOfflineCommand[]>(() => []),
-  enqueueMock: vi.fn(),
-  drainMock: vi.fn(),
-  removeMock: vi.fn(),
   toastMock: vi.fn(),
 }));
 
@@ -82,23 +86,12 @@ vi.mock('../components/trip/FuelRefillReportForm', () => ({
   default: () => <div data-testid="fuel-refill-report-form">Báo cáo đổ dầu</div>,
 }));
 
-vi.mock('../features/driver/useOfflineCommandQueue', () => ({
-  buildOfflineCommandKey: (...parts: Array<string | number>) => parts.join(':'),
-  useOfflineCommandQueue: () => {
-    const commands = commandsMock();
-    return {
-      commands,
-      enqueue: enqueueMock,
-      drain: drainMock,
-      remove: removeMock,
-      pendingCount: commands.filter((c) => c.status === 'PENDING').length,
-      failedCount: commands.filter((c) => c.status === 'FAILED').length,
-      conflictCount: commands.filter((c) => c.status === 'CONFLICT').length,
-    };
-  },
+vi.mock('../lib/idempotency', () => ({
+  buildIdempotencyKey: (...parts: Array<string | number>) => parts.join(':'),
 }));
 
 import DriverTripDetailPage from './DriverTripDetailPage';
+import { driverClient } from '../api/driverClient';
 
 /** Board cards the journey-board mock returns (default: none). */
 let boardItems: Array<Record<string, unknown>> = [];
@@ -181,12 +174,15 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
 }
 
 function renderPage() {
+  const client = freshClient();
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88']}>
-      <Routes>
-        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/my-trips/88']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -195,17 +191,20 @@ function renderPage() {
 // prove the driver lands on the RIGHT trip's e-POD screen (fulfillment id, not
 // trip.id — the regression Phần 4 fixed).
 function renderPageWithBoard() {
+  const client = freshClient();
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88']}>
-      <Routes>
-        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
-        <Route
-          path="/my-trips/:id/pod"
-          element={<PodRouteStub />}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/my-trips/88']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+          <Route
+            path="/my-trips/:id/pod"
+            element={<PodRouteStub />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -216,14 +215,13 @@ function PodRouteStub() {
 
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
+    getDriverTripMock.mockResolvedValue({
+      id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+      departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+      routeName: null, truckPlate: null, customerName: null, notes: null,
+    });
     boardItems = [];
-    commandsMock.mockReset();
-    commandsMock.mockReturnValue([]);
-    enqueueMock.mockReset();
-    drainMock.mockReset();
-    removeMock.mockReset();
     toastMock.mockReset();
-    drainMock.mockResolvedValue({ done: 0, failed: 0, conflicts: 0 });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -245,6 +243,17 @@ describe('DriverTripDetailPage', () => {
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
+  });
+
+  it.each(['COMPLETED', 'CANCELLED'])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Tác vụ tài xế');
+    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
   });
 
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
@@ -318,6 +327,8 @@ describe('DriverTripDetailPage', () => {
 
     const img = await screen.findByAltText('Ảnh nhiên liệu TRIP-55');
     expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
+    expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
+    expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
   });
 
   it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
@@ -331,106 +342,8 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Sau khi nhận lệnh, chuyến bắt đầu');
   });
 
-  // D1 fix: a terminal CONFLICT on the accept command must not dead-end the
-  // sticky bar. The reload action discards the stuck command for THIS
-  // fulfillment and refetches — the bar then returns to available.
-  // Acceptance-blocker identity (QA-047): the busy-trip reason PERSISTS in
-  // the sync banner (the toast expires) and links to the driver's own board
-  // card when the blocking trip is theirs; a foreign trip renders a handoff.
-  it('keeps the blocking trip reason visible in the banner after the conflict', async () => {
-    commandsMock.mockReturnValue([
-      {
-        id: 'cmd-busy-1',
-        endpoint: 'driver.task.milestone',
-        method: 'POST',
-        path: '/driver/me/fulfillments/88/progress',
-        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
-        status: 'CONFLICT',
-        retryCount: 0,
-        lastError: 'Xe đang chạy chuyến TRP-202609-0001. Vui lòng hoàn thành chuyến đó trước.',
-        createdAt: '2026-09-14T01:00:00.000Z',
-        updatedAt: '2026-09-14T01:00:00.000Z',
-      },
-    ]);
-    renderPage();
-
-    expect(await screen.findByText(/TRP-202609-0001/)).toBeTruthy();
-    expect(screen.getByText(/hoàn thành chuyến đó/i)).toBeTruthy();
-  });
-
-  it('links to the blocking trip when it is the driver\'s own board card', async () => {
-    boardItems = [{ id: 1, fulfillmentId: 55, tripCode: 'TRP-202609-0042', bucket: 'RUNNING', classification: 'SINGLE', linked: false, ordinal: 1, departureDate: '2026-09-14' }];
-    commandsMock.mockReturnValue([
-      {
-        id: 'cmd-busy-2',
-        endpoint: 'driver.task.milestone',
-        method: 'POST',
-        path: '/driver/me/fulfillments/88/progress',
-        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
-        status: 'CONFLICT',
-        retryCount: 0,
-        lastError: 'Xe đang chạy chuyến TRP-202609-0042. Vui lòng hoàn thành chuyến đó trước.',
-        createdAt: '2026-09-14T01:00:00.000Z',
-        updatedAt: '2026-09-14T01:00:00.000Z',
-      },
-    ]);
-    // The mock\'s board returns []; patch it to include the blocking card.
-    vi.mocked(await import('../hooks/useDriverQueries'));
-    renderPage();
-    const link = await screen.findByRole('link', { name: /Mở chuyến TRP-202609-0042/ });
-    expect(link.getAttribute('href')).toBe('/my-trips/55');
-  });
-
-  it('renders a dispatcher handoff when the blocking trip is not on the driver\'s board', async () => {
-    commandsMock.mockReturnValue([
-      {
-        id: 'cmd-busy-3',
-        endpoint: 'driver.task.milestone',
-        method: 'POST',
-        path: '/driver/me/fulfillments/88/progress',
-        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
-        status: 'CONFLICT',
-        retryCount: 0,
-        lastError: 'Xe đang chạy chuyến TRP-202609-0099. Vui lòng hoàn thành chuyến đó trước.',
-        createdAt: '2026-09-14T01:00:00.000Z',
-        updatedAt: '2026-09-14T01:00:00.000Z',
-      },
-    ]);
-    renderPage();
-    expect(await screen.findByText(/TRP-202609-0099/)).toBeTruthy();
-    expect(await screen.findByText(/liên hệ điều vận/)).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /Mở chuyến/ })).toBeNull();
-  });
-
-  it('recovers the accept bar from a terminal CONFLICT via the reload action', async () => {
-    commandsMock.mockReturnValue([
-      {
-        id: 'cmd-conflict-1',
-        endpoint: 'driver.task.milestone',
-        method: 'POST',
-        path: '/driver/me/fulfillments/88/progress',
-        payload: { kind: 'milestone', fulfillmentId: 88, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:00:00.000Z', expectedVersion: 3 },
-        status: 'CONFLICT',
-        retryCount: 1,
-        lastError: 'Xe đang chạy chuyến khác. Vui lòng hoàn thành chuyến đó trước.',
-        createdAt: '2026-08-29T02:00:00.000Z',
-        updatedAt: '2026-08-29T02:00:05.000Z',
-      },
-    ]);
-    renderPage();
-
-    const reloadBtn = await screen.findByRole('button', { name: /Tải lại để xử lý xung đột/ });
-    // The defect: this button used to be permanently disabled.
-    expect(reloadBtn.matches(':disabled')).toBe(false);
-    // No bypass banner while stuck — the driver cannot accept yet.
-    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
-
-    fireEvent.click(reloadBtn);
-    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('cmd-conflict-1'));
-    // Refetch ran so the bar re-derives from fresh server state.
-    const detailCalls = useDriverTaskDetailMock.mock.results.at(-1)?.value;
-    expect(detailCalls?.data).toBeTruthy();
-  });
+  // Offline queue and conflict recovery have been removed — the accept bar
+  // now uses a direct API call.  Conflict-banner tests are no longer applicable.
 
   // AC-DISPATCH-002 counterpart: once the order is accepted, the bypass
   // banner disappears (no longer acceptable — already running).
@@ -508,55 +421,6 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByTestId('pod-route-stub-88')).toBeTruthy();
     expect(screen.queryByTestId('pod-route-stub-55')).toBeNull();
 
-    // The trip detail no longer triggers the "complete" offline command on
-    // click — that's the pod page's job. The driver is on the trip detail
-    // until they actually submit the e-POD.
-    expect(drainMock).not.toHaveBeenCalled();
-    expect(enqueueMock).not.toHaveBeenCalled();
-  });
-
-  // Spec A7 (re-homed on the pod page): "Hoàn thành chuyến" auto-navigates off
-  // the pod screen once completion is confirmed online. On the trip detail
-  // page, the driver just sees the "Hoàn tất lệnh vận chuyển" CTA — actual completion
-  // lives at /my-trips/:id/pod (covered by DriverTripPodPage tests).
-  it('does not trigger any complete/enqueue command from the trip detail CTA', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        currentPod: {
-          id: 22,
-          tripId: 55,
-          fulfillmentId: 88,
-          submissionVersion: 1,
-          status: TripPodStatus.DRAFT,
-          version: 2,
-          createdAt: '2026-08-01T01:00:00.000Z',
-          updatedAt: '2026-08-01T01:00:00.000Z',
-          submittedAt: null,
-          reviewedAt: null,
-          rejectedAt: null,
-          rejectionReason: null,
-          acceptedAt: null,
-          supersedesSubmissionId: null,
-          files: [
-            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
-            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
-          ],
-        },
-      }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-
-    renderPage();
-
-    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
-    fireEvent.click(cta);
-
-    // The trip detail must NOT issue the complete offline command anymore
-    // (the pod page owns the completion lifecycle).
-    expect(drainMock).not.toHaveBeenCalled();
-    expect(enqueueMock).not.toHaveBeenCalled();
   });
 
   it('stays on the trip detail (the e-POD CTA is a navigation link, not a submit)', async () => {
@@ -605,7 +469,7 @@ describe('DriverTripDetailPage', () => {
   // with the factory (short name), then the working facts (container, ports)
   // — the Tuyến address line is demoted below them — and container number +
   // type + seal still share one line.
-  it('renders the bug5 field order: factory, container, ports, then Tuyến', async () => {
+  it('renders the bug5 field order: factory, contact, container, seal, ports, then Tuyến (no standalone phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
@@ -615,13 +479,12 @@ describe('DriverTripDetailPage', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'Số điện thoại liên hệ',
       'Container / lô hàng',
+      'Seal',
       'Cảng nâng',
       'Cảng hạ',
       'Tuyến',
-      'Người liên hệ',
-      'Số điện thoại',
     ]);
     // BUG 5: the fixture has no short name → the grid falls back to the
     // full factory name.
@@ -637,15 +500,15 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
-    expect(valueOf('SĐT kho')).toBe('—');
-    expect(screen.getByText('MSCU1234561 · 1 x 40G1 · Seal SEAL-9')).toBeTruthy();
-    expect(screen.queryByText('Loại container')).toBeNull();
-    expect(screen.queryByText('Số seal')).toBeNull();
+    // KP-191: container number paired with type code; seal on own row.
+    expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
+    expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
   });
 
   // KẾT HỢP / paired trips carry multiple containers — the one-line fact must
-  // separate them (a bare .map() renders adjacent text nodes with no gap).
-  it('separates multiple containers on the one-line container fact', async () => {
+  // KP-191: each container number paired with its own type code; seals on
+  // their own row.
+  it('separates multiple containers with number · type pairs and seals on a separate row', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         containers: [
@@ -659,14 +522,16 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('MSCU1234561 · MSCU7654321 · 2 x 40G1 · Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
+    expect(await screen.findByText('MSCU1234561 · 40G1 · MSCU7654321 · 40G1')).toBeTruthy();
+    expect(screen.getByText('Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
   });
 
-  it('renders the container card and hides the invoice block when there is no invoice info', async () => {
+  it('renders the container card and identifies missing factory invoice configuration', async () => {
     renderPage();
 
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
-    expect(screen.queryByText(/Thông tin xuất hóa đơn/)).toBeNull();
+    expect(screen.getByText(/Thông tin xuất hóa đơn/)).toBeTruthy();
+    expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
   it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
@@ -728,26 +593,6 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: /HOÀN THÀNH CHUYẾN/ })).toBeNull();
   });
 
-  it('queues the ORDER_RECEIVED milestone with the trip version and fulfillment id when sticky accept is clicked', async () => {
-    renderPage();
-
-    const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
-    fireEvent.click(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }));
-
-    await waitFor(() => expect(enqueueMock).toHaveBeenCalledTimes(1));
-    expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({
-      endpoint: 'driver.task.milestone',
-      method: 'POST',
-      path: '/driver/me/fulfillments/88/progress',
-      payload: {
-        kind: 'milestone',
-        fulfillmentId: 88,
-        eventType: DriverProgressEventType.ORDER_RECEIVED,
-        expectedVersion: 3,
-      },
-    });
-  });
-
   it('hides the sticky accept bar once the order has already been accepted', async () => {
     useDriverTaskProgressMock.mockReturnValue({
       data: {
@@ -805,37 +650,13 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
   });
 
-  // TC-DA-003 (superseded placement): the warehouse-phone row is always
-  // visible — "—" placeholder when the site has no phone (wireframe
-  // supersedes the old graceful-hide on this screen).
-  it('SĐT kho row stays visible with "—" when the site has no phone', async () => {
+  // _30: the standalone warehouse-phone row is removed at the source — the
+  // combined contact row carries the callable number.
+  it('renders no standalone SĐT liên hệ row', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
-    expect(labels).toContain('SĐT kho');
-    const khoRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho');
-    expect(khoRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('—');
-  });
-
-  it('TC-DA-003: renders the Kho row as a tel link when the site has a phone', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        fulfillment: {
-          ...makeTaskDetail().fulfillment!,
-          khoPhone: '0901234567',
-        },
-      }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-    renderPage();
-
-    await screen.findByText(/Số cont & seal/);
-    const khoLink = await screen.findByText('0901234567');
-    expect(khoLink.getAttribute('href')).toBe('tel:0901234567');
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
@@ -1071,6 +892,28 @@ describe('DriverTripDetailPage', () => {
     expect(note.textContent).not.toContain('KIỂM HÓA');
   });
 
+  it('_36: Tác vụ and Ghi chú render as separate labeled lines', async () => {
+    const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: tags,
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'KIỂM HÓA; QUAY ĐẦU\nghép cont với lô khác, cẩn thận seal',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    expect(await screen.findByText('Tác vụ')).toBeTruthy();
+    expect(screen.getByText('Ghi chú')).toBeTruthy();
+    const note = screen.getByTestId('driver-task-driver-notes');
+    expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
+  });
+
   // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
   // subordinate route line + customer; collapsing only hides the customer
   // name. Status pill + Đóng/Trả chip stay visible in both states.
@@ -1176,5 +1019,94 @@ describe('DriverTripDetailPage', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+
+describe('busy-trip recovery', () => {
+  it.each([true, false])('offers only an owned blocking-trip link (owned=%s)', async (owned) => {
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
+    const rejection = vi.spyOn(driverClient, 'recordProgress').mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'));
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
+    await waitFor(() => expect(board).toHaveBeenCalledOnce());
+    expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
+    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/99');
+    else {
+      expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
+      expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('Liên hệ điều vận');
+    }
+    rejection.mockRestore();
+    board.mockRestore();
+  });
+});
+
+describe('20260915_1: trip → fulfillmentId resolution', () => {
+  function bareClient() {
+    return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  }
+  function basicTrip(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 16, shipmentId: null, fulfillmentId: 31, tripCode: 'TRP-16',
+      departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+      routeName: null, truckPlate: null, customerName: null, notes: null,
+      ...overrides,
+    };
+  }
+  beforeEach(() => {
+    getDriverTripMock.mockReset();
+    getDriverTripMock.mockResolvedValue(basicTrip());
+    vi.spyOn(driverClient, 'getDriverTrip').mockImplementation(getDriverTripMock as unknown as typeof driverClient.getDriverTrip);
+    useDriverTaskDetailMock.mockReset();
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+    useDriverTaskProgressMock.mockReset();
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+  });
+  function bareRender(url: string, client: QueryClient) {
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[url]}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('pins fetch order: trips/{id} first, then fulfillment-scoped calls keyed by the payload fulfillmentId', async () => {
+    getDriverTripMock.mockResolvedValue(basicTrip());
+    const client = bareClient();
+    bareRender('/my-trips/16', client);
+    // The trip fetch precedes any fulfillment-scoped resolution.
+    await waitFor(() => expect(getDriverTripMock).toHaveBeenCalledWith(16));
+    await waitFor(() => expect(useDriverTaskDetailMock).toHaveBeenLastCalledWith(31));
+    await waitFor(() => expect(useDriverTaskProgressMock).toHaveBeenLastCalledWith(31));
+  });
+
+  it('renders ad-hoc trips (fulfillmentId null) without fulfillment-scoped calls', async () => {
+    getDriverTripMock.mockResolvedValue(basicTrip({ id: 23, fulfillmentId: null, tripCode: 'TRP-23-ADHOC' }));
+    const client = bareClient();
+    bareRender('/my-trips/23', client);
+    // Lean fulfillment-less detail instead of the hard 404 error.
+    expect(await screen.findByText(/chưa có đầu việc vận chuyển/)).toBeTruthy();
+    expect(getDriverTripMock).toHaveBeenCalledWith(23);
+  });
+
+  it('_36 rework: Tác vụ/Ghi chú rows are structural — they render even with no note data', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ knownTagLabels: [], fulfillment: { ...makeTaskDetail().fulfillment!, driverNotes: null } }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+    expect(await screen.findByText('Tác vụ')).toBeTruthy();
+    expect(screen.getByText('Không có tác vụ.')).toBeTruthy();
+    expect(screen.getByText('Ghi chú')).toBeTruthy();
+    expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
+    expect(screen.queryByTestId('operation-chips')).toBeNull();
   });
 });

@@ -39,7 +39,7 @@
 
 .advance-workspace__views {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   max-width: 720px;
   margin-bottom: 18px;
   border: 1px solid var(--line);
@@ -148,8 +148,8 @@
   }
 
   .advance-workspace__views .ds-tabs__btn {
-    min-height: 52px;
-    padding: 8px;
+    min-height: 44px;
+    padding: 6px;
     line-height: var(--lh-snug);
   }
 

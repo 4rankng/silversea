@@ -99,15 +99,15 @@ export enum TripPodStatus {
 }
 
 /**
- * Canonical Vietnamese labels for e-POD states. Unified 2026-09-01 (user
- * decision): reviewer and submitter surfaces render the same words —
- * 'Chờ duyệt' / 'Đã duyệt' — instead of per-audience phrasing.
+ * Vietnamese labels for e-POD states. The internal approval lifecycle is
+ * removed: SUBMITTED evidence is already usable, and ACCEPTED/REJECTED are
+ * purely the external customer's acknowledgement outcome.
  */
 export const TRIP_POD_STATUS_LABELS: Record<TripPodStatus, string> = {
   [TripPodStatus.DRAFT]: 'Đang chuẩn bị',
-  [TripPodStatus.SUBMITTED]: 'Chờ duyệt',
-  [TripPodStatus.ACCEPTED]: 'Đã duyệt',
-  [TripPodStatus.REJECTED]: 'Bị từ chối',
+  [TripPodStatus.SUBMITTED]: 'Chờ khách xác nhận',
+  [TripPodStatus.ACCEPTED]: 'Khách đã xác nhận',
+  [TripPodStatus.REJECTED]: 'Khách từ chối',
 };
 
 export enum TripPodFileType {
@@ -499,18 +499,6 @@ export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[]
 
 export const NO_INVOICE_REQUIRED_SCOPE = 'TRIP_OR_SHIPMENT' as const;
 
-export const NO_INVOICE_APPROVAL_TITLES = [
-  'FINANCE_LEAD',
-  'DIRECTOR',
-] as const;
-
-export type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
-
-export const NO_INVOICE_APPROVAL_TITLE_LABELS: Record<NoInvoiceApprovalTitle, string> = {
-  FINANCE_LEAD: 'Trưởng phòng Tài chính/Kế toán',
-  DIRECTOR: 'Giám đốc',
-};
-
 export const NO_INVOICE_DEFAULT_CATEGORY_ALIASES: Record<string, readonly string[]> = {
   LIFTING: ['Bốc xếp tại hiện trường', 'Lao động thời vụ tại hiện trường'],
   LOWERING: ['Hạ container tại hiện trường', 'Lao động thời vụ tại hiện trường'],
@@ -524,21 +512,18 @@ export const NO_INVOICE_DEFAULT_CATEGORY_ALIASES: Record<string, readonly string
 export const NO_INVOICE_POLICY_DEFAULTS = {
   perItemLimit: 1_000_000,
   perDayLimit: 5_000_000,
-  financeLeadItemApprovalLimit: 5_000_000,
-  directorDayApprovalLimit: 10_000_000,
 };
 
 export enum AdvanceRequestStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  RECORDED = 'RECORDED',
+  DRAFT = 'DRAFT',
+  VOIDED = 'VOIDED',
 }
 
 export enum AdvanceSettlementStatus {
-  PENDING = 'PENDING',
-  CHECKED_BY_ACCOUNTANT = 'CHECKED_BY_ACCOUNTANT',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  DRAFT = 'DRAFT',
+  RECORDED = 'RECORDED',
+  VOIDED = 'VOIDED',
   REVERSED = 'REVERSED',
 }
 
@@ -571,16 +556,15 @@ export const TRUCK_CAP_ROLE_LABELS: Record<TruckCapRole, string> = {
 };
 
 export const ADVANCE_REQUEST_STATUS_LABELS: Record<AdvanceRequestStatus, string> = {
-  [AdvanceRequestStatus.PENDING]: 'Chờ duyệt',
-  [AdvanceRequestStatus.APPROVED]: 'Đã duyệt',
-  [AdvanceRequestStatus.REJECTED]: 'Từ chối',
+  [AdvanceRequestStatus.RECORDED]: 'Đã ghi nhận',
+  [AdvanceRequestStatus.DRAFT]: 'Chưa ghi sổ',
+  [AdvanceRequestStatus.VOIDED]: 'Đã hủy',
 };
 
 export const ADVANCE_SETTLEMENT_STATUS_LABELS: Record<AdvanceSettlementStatus, string> = {
-  [AdvanceSettlementStatus.PENDING]: 'Chờ xử lý',
-  [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 'KT đã kiểm tra',
-  [AdvanceSettlementStatus.APPROVED]: 'Đã duyệt',
-  [AdvanceSettlementStatus.REJECTED]: 'Từ chối',
+  [AdvanceSettlementStatus.DRAFT]: 'Chưa hoàn tất',
+  [AdvanceSettlementStatus.RECORDED]: 'Đã ghi nhận',
+  [AdvanceSettlementStatus.VOIDED]: 'Đã hủy',
   [AdvanceSettlementStatus.REVERSED]: 'Đã hoàn tác',
 };
 

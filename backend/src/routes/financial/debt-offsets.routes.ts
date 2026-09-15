@@ -9,7 +9,6 @@ import {
   createDebtOffset,
   approveDebtOffset,
   listDebtOffsets,
-  requestDebtOffsetApprovalGovernance,
   requestDebtOffsetCancelGovernance,
 } from '../../services/debtOffset.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -64,39 +63,12 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/finance/debt-offsets/:id/approve',
-  requireRoles(Role.ADMIN, Role.MANAGER),
-  asyncHandler(async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id as string, 10);
-    const user = getUser(req);
-    const data = governanceActionDecisionSchema.parse(req.body);
-    const idempotencyKey = getRequestIdempotencyKey(req);
-    const { result, replayed } = await runIdempotent({
-      endpoint: IDEMPOTENCY_ENDPOINTS.DEBT_OFFSET_APPROVE,
-      idempotencyKey,
-      payload: { actorId: user.userId, actorRole: user.role, id, ...data },
-      createdBy: user.userId,
-      entityType: 'governance_action',
-      create: (tx) => autoApplyGovernanceAction({
-      make: (tx) => requestDebtOffsetApprovalGovernance({
-        debtOffsetId: id,
-        expectedVersion: data.expectedVersion,
-        reason: data.reason,
-        makerId: user.userId,
-        makerRole: user.role,
-        transaction: tx,
-      }),
-      // No approve override: DEBT_OFFSET_* kinds dispatch through the default
-      // adapter's applyDebtOffsetGovernanceAction; the direct-money adapter
-      // would reject them with 409.
-      actorId: user.userId,
-      actorRole: user.role,
-      transaction: tx,
-    }),
-    });
-    res.locals.auditEntityId = result.id;
-    res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
-  }),
+// Retired public approval action. Authorized creation already records the
+// offset atomically; legacy clients must not trigger another financial effect.
+router.post('/finance/debt-offsets/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER),
+  (_req: Request, res: Response) => {
+    res.status(410).json({ error: 'Luồng phê duyệt đã được loại bỏ. Đối trừ được ghi nhận trực tiếp khi tạo hợp lệ.' });
+  },
 );
 
 // M6.4 — cancel an APPROVED debt offset via reversing entries. Mirrors

@@ -1,4 +1,5 @@
 import type { Supplier, Tire, TirePosition } from '@tingting/shared';
+import { businessDateISO } from '../../lib/format';
 
 /** Editable tire fields. `cost` is a number on the wire (numeric(15,0)). */
 export type TirePatch = Partial<{
@@ -25,15 +26,14 @@ export type TireEditDraft = {
 };
 
 /**
- * Whole days from `fromISO` (parsed as local midnight) to `toISO` (or now when
- * `toISO` is null/omitted). Returns null when `fromISO` is missing/invalid, and
- * is clamped to ≥ 0. Shared by tire age + days-in-service so both stay on the
- * same local-midnight day math (no UTC drift).
+ * Calendar days in Vietnam, matching installation/removal business dates.
+ * Date-only values use UTC for subtraction so a browser's timezone or a
+ * daylight-saving transition cannot shorten a business day to 23 hours.
  */
 export function daysBetween(fromISO: string | null, toISO?: string | null): number | null {
   if (!fromISO) return null;
-  const start = new Date(`${fromISO}T00:00:00`).getTime();
-  const end = toISO ? new Date(`${toISO}T00:00:00`).getTime() : Date.now();
+  const start = new Date(`${fromISO}T00:00:00Z`).getTime();
+  const end = new Date(`${toISO || todayISO()}T00:00:00Z`).getTime();
   if (Number.isNaN(start) || Number.isNaN(end)) return null;
   return Math.max(0, Math.floor((end - start) / 86_400_000));
 }
@@ -43,10 +43,9 @@ export function tireAgeDays(purchasedAt: string | null): number | null {
   return daysBetween(purchasedAt, null);
 }
 
-/** Today's date as local 'YYYY-MM-DD' (no UTC drift). Mirrors the backend todayISO(). */
+/** Today's Vietnam business date, matching the backend on every device. */
 export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return businessDateISO();
 }
 
 export function cleanText(label: string): string {

@@ -78,7 +78,7 @@ export interface ShipmentNotesDraft {
 }
 
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
-// eslint-disable-next-line react-refresh/only-export-components -- shared badge vocabulary consumed by the page's Trạng thái filter
+ 
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
   PLANNED: { label: 'Đã phân xe', color: 'blue' },
@@ -100,7 +100,7 @@ const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
 
 // Shared with the missing-fields summary control, whose jump-to-editor
 // buttons reuse the same cell vocabulary.
-// eslint-disable-next-line react-refresh/only-export-components -- shared cell vocabulary consumed by the missing-fields summary
+ 
 export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   if (mode === 'identity') return 'khách hàng và lộ trình';
   if (mode === 'documents') return 'chứng từ và hãng tàu';
@@ -351,7 +351,9 @@ function InlineEditor({
         if (event.key !== 'Enter' || event.nativeEvent.isComposing || !dirty || saving) return;
         const target = event.target as HTMLElement;
         if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
-        if (event.shiftKey && target.tagName === 'TEXTAREA') return;
+        // Multiline notes: bare Enter inserts a newline; the modified
+        // Enter combo (Ctrl+Enter / Cmd+Enter) is what saves instead.
+        if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
         if (event.shiftKey) return;
         event.preventDefault();
         void save();

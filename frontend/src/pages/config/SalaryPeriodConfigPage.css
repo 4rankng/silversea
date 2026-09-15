@@ -13,37 +13,40 @@
 .sp-page-header h1 {
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-2xl);
-  font-weight: 800;
+  font-size: var(--text-title-size);
+  font-weight: var(--fw-bold);
   letter-spacing: 0;
 }
 
 .sp-page-header p {
   margin: 4px 0 0;
   color: var(--ink-3);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   line-height: 1.45;
 }
 
 /* ── Mode Selector Cards ── */
 .sp-mode-selector {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--line);
   margin-bottom: 8px;
 }
 
 .sp-mode-card {
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 0;
   background: var(--surface);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   position: relative;
 }
+.sp-mode-card + .sp-mode-card { border-left: 1px solid var(--line); }
+.sp-mode-card:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .sp-mode-card:hover {
   border-color: var(--line-2);
@@ -57,14 +60,14 @@
 }
 
 .sp-mode-card__title {
-  font-size: var(--fs-sm);
-  font-weight: 700;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-bold);
   color: var(--ink);
   margin-bottom: 4px;
 }
 
 .sp-mode-card__desc {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   line-height: 1.4;
 }
@@ -114,15 +117,15 @@
 }
 
 .sp-default-card__title {
-  font-size: var(--fs-sm);
-  font-weight: 700;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
   margin: 0 0 1px;
   letter-spacing: 0;
 }
 
 .sp-default-card__subtitle {
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   color: var(--ink-3);
   margin: 0;
 }
@@ -133,8 +136,8 @@
   gap: 5px;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.02em;
   white-space: nowrap;
   margin-left: auto;
@@ -168,8 +171,8 @@
   gap: 8px;
   padding: 9px 14px;
   border-radius: 8px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
   line-height: 1.4;
 }
 
@@ -204,39 +207,37 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 4px 0;
   min-width: 200px;
   align-self: flex-end;
   margin-bottom: 4px; /* align with inputs */
 }
 
 .sp-preview__label {
-  font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .sp-preview__value {
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
 }
 
 /* ── Save actions row ── */
 .sp-default-card__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
 .sp-save-success {
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
   color: var(--accent);
   animation: spFadeIn 200ms ease both;
 }
@@ -251,7 +252,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   padding-top: 4px;
   border-top: 1px solid var(--line);
@@ -259,12 +260,12 @@
 
 .sp-current-rule strong {
   color: var(--ink-2);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* ── Hints ── */
 .sp-hint {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   line-height: 1.5;
   margin: 0;
@@ -281,8 +282,8 @@
   padding: 3px 10px;
   border-radius: 6px;
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   background: var(--surface-3);
   color: var(--ink-2);
   letter-spacing: 0.02em;
@@ -290,7 +291,7 @@
 
 .sp-date-cell {
   font-family: var(--font-data);
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
 
   color: var(--ink-2);
 }
@@ -300,8 +301,8 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
   background: rgba(99, 102, 241, 0.1);
   color: #4338CA;
 }
@@ -317,11 +318,17 @@
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .sp-wrap { gap: 16px; }
-  .sp-page-header h1 { font-size: 24px; }
-  .sp-page-header p { font-size: var(--fs-xs); }
-  .sp-default-card__header { flex-wrap: wrap; }
+  .sp-page-header h1 { font-size: var(--text-title-size); }
+  .sp-page-header p { font-size: var(--text-body-size); }
+  .sp-default-card__header { flex-wrap: wrap; padding: 12px; }
+  .sp-default-card__body { padding: 12px; gap: 12px; }
   .sp-badge { margin-left: 0; }
   .sp-default-card__fields { flex-direction: column; align-items: stretch; }
   .sp-preview { min-width: unset; }
-  .sp-form-grid { grid-template-columns: 1fr 1fr; }
+  .sp-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-mode-card { transition: none; }
+  .sp-save-success { animation: none; }
 }

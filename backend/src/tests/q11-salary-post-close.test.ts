@@ -33,6 +33,8 @@ const GOVERNED_EXCLUSION_TARGET_PERIOD = `${periodYear}-09`;
 const SOURCE_EXCLUSION_TARGET_PERIOD = `${periodYear + 1}-02`;
 const GOVERNED_DAY = `${GOVERNED_PERIOD}-08`;
 const SOURCE_DAY = `${SOURCE_PERIOD}-12`;
+let fixturePayrollUnitId = 0;
+let savedPayrollUnitValue: string | null = null;
 const SOURCE_DAY_2 = `${SOURCE_PERIOD}-14`;
 const [, sourceMonth] = SOURCE_PERIOD.split('-').map(Number);
 
@@ -63,7 +65,29 @@ async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER' | 'DRIVER', tag: 
   return user;
 }
 
+async function ensureFixturePayrollUnit() {
+  if (fixturePayrollUnitId > 0) return;
+  // Hermetic payroll-unit scope (see m73/q10): pin the app_settings unit for
+  // the suite and link fixture drivers to it.
+  const [prior] = await db.select()
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'))
+    .limit(1);
+  savedPayrollUnitValue = prior?.value ?? null;
+  const [unit] = await db.insert(s.businessUnits).values({
+    code: `Q11-${suffix.slice(-6).toUpperCase()}`,
+    name: `Q11 payroll unit ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  fixturePayrollUnitId = unit.id;
+  await db.update(s.appSettings).set({
+    value: String(unit.id),
+    updatedAt: new Date(),
+  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+}
+
 async function mkDriver(tag: string) {
+  await ensureFixturePayrollUnit();
   const user = await mkUser('DRIVER', tag);
   const [driver] = await db.insert(s.drivers).values({
     name: `Q11 driver ${tag} ${suffix}`,
@@ -72,6 +96,10 @@ async function mkDriver(tag: string) {
     baseSalary: '12000000',
   }).returning();
   createdDriverIds.push(driver.id);
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: user.id,
+    businessUnitId: fixturePayrollUnitId,
+  });
   return driver;
 }
 
@@ -131,6 +159,19 @@ async function postDriverSalary(tripId: number, driverId: number, amount: number
 
 after(async () => {
   try {
+    if (fixturePayrollUnitId > 0 && savedPayrollUnitValue !== null) {
+      await db.update(s.appSettings).set({
+        value: savedPayrollUnitValue,
+        updatedAt: new Date(),
+      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      await db.delete(s.userBusinessUnitLinks)
+        .where(eq(s.userBusinessUnitLinks.businessUnitId, fixturePayrollUnitId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixturePayrollUnitId));
+    }
+  } catch (unitCleanupError) {
+    console.warn('[q11] payroll-unit cleanup skipped:', (unitCleanupError as Error).message);
+  }
+  try {
     if (adjustmentIds.length > 0) {
       await db.delete(s.salaryPeriodAdjustments).where(inArray(s.salaryPeriodAdjustments.id, adjustmentIds));
     }
@@ -170,9 +211,9 @@ after(async () => {
 
 test('Q15 salary period close and reopen require three distinct actors before the period state changes', async () => {
   const admin = await mkUser('ADMIN', 'gov-admin');
-  const admin2 = await mkUser('ADMIN', 'gov-admin2');
+  await mkUser('ADMIN', 'gov-admin2');
   const accountant = await mkUser('ACCOUNTANT', 'gov-acct');
-  const manager = await mkUser('MANAGER', 'gov-mgr');
+  await mkUser('MANAGER', 'gov-mgr');
   const manager2 = await mkUser('MANAGER', 'gov-mgr2');
   const driver = await mkDriver('governed');
 
@@ -225,7 +266,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     (err: Error & { statusCode?: number }) => err.statusCode === 409,
   );
 
-  const approvedClose = await closeSalaryPeriod({
+  await closeSalaryPeriod({
     period: GOVERNED_PERIOD,
     actorId: accountant.id,
     actorRole: 'ACCOUNTANT',
@@ -265,7 +306,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     (err: Error & { statusCode?: number }) => err.statusCode === 403,
   );
 
-  const approvedReopen = await reopenSalaryPeriod({
+  await reopenSalaryPeriod({
     period: GOVERNED_PERIOD,
     actorId: manager2.id,
     actorRole: 'MANAGER',

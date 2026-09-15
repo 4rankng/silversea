@@ -1,9 +1,13 @@
 .ds-table-wrap {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ds-table-scroll {
   overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
   border-radius: 12px;
   border: 1px solid var(--line-2);
   background: var(--surface);
@@ -23,7 +27,7 @@
 .ds-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
 }
 
 /* Non-frozen workspaces are comparison surfaces: columns stay bounded and
@@ -41,7 +45,7 @@
 
 .ds-table thead th {
   text-align: left;
-  font-size: 13px;
+  font-size: var(--text-label-size);
   font-weight: 700;
   /* Case and tracking owned by the global thead th rule in
      components/Table.css — never re-declared, even to opt out. */
@@ -111,7 +115,7 @@
 }
 
 .ds-table-empty {
-  padding: 32px;
+  padding: 0;
   text-align: center;
   color: var(--fg-3, var(--ink-3));
   border: 1px solid var(--line);
@@ -122,15 +126,23 @@
 .ds-mobile-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  border-block: 1px solid var(--line);
 }
 
 .ds-mobile-card {
   background: var(--surface, #fff);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 10px 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--ink, var(--fg));
+}
+
+.ds-mobile-card:last-child {
+  border-bottom: 0;
 }
 
 .ds-mobile-card.is-clickable {
@@ -160,5 +172,11 @@
   }
   .ds-table-wrap--mobile {
     display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-table__skeleton-bar {
+    animation: none;
   }
 }

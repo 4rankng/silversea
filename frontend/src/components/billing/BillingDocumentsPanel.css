@@ -24,7 +24,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 750;
 }
 
@@ -41,7 +41,7 @@
 .billing-panel__title small {
   padding-left: 4px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
   white-space: nowrap;
 }
@@ -70,7 +70,7 @@
 .billing-panel__empty {
   padding: 10px 2px 2px;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
 }
 
@@ -111,7 +111,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .billing-panel__doc span {
@@ -123,7 +123,7 @@
 
 .billing-panel__doc strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 800;
   white-space: nowrap;
 }

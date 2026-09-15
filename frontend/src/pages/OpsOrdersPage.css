@@ -1,11 +1,11 @@
-/* Ops portal — Kế hoạch làm hàng (OpsVanHanh §3). Tables stay tabular; the
-   wrapper scrolls horizontally below the 680px container floor (standing UI
-   rule — cards are a last resort). */
+/* Keep comparison columns where they fit; narrow workspaces use labelled,
+   divider-separated records so the expense action never leaves the screen. */
 
 .ops-orders {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .ops-orders__bar {
@@ -17,7 +17,7 @@
 }
 
 .ops-orders__bar h1 {
-  font-size: 20px;
+  font-size: var(--text-title-size);
   margin: 0;
 }
 
@@ -25,6 +25,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ops-orders__date,
@@ -38,6 +40,18 @@
   height: 40px;
   background: var(--bg-1, #fff);
   color: var(--fg-2, #555);
+  min-width: 0;
+}
+
+.ops-orders__date:focus-within,
+.ops-orders__search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ops-orders__date > svg,
+.ops-orders__search > svg {
+  flex-shrink: 0;
 }
 
 .ops-orders__date input,
@@ -45,22 +59,26 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--control-field-font-size);
   min-width: 0;
 }
 
 .ops-orders__search input {
   width: 220px;
+  max-width: 100%;
 }
 
 .ops-orders__meta {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3, #6b7280);
 }
 
 .ops-orders__scroll {
   overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
+  container-type: inline-size;
   border: 1px solid var(--line, #e3ded5);
   border-radius: 12px;
   background: var(--bg-1, #fff);
@@ -68,19 +86,29 @@
 
 .ops-orders__table {
   width: 100%;
-  min-width: 960px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .ops-orders__table th,
 .ops-orders__table td {
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   text-align: left;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .ops-orders__table tbody tr.is-pinned {
   background: color-mix(in srgb, var(--warn, #d97706) 7%, transparent);
+}
+
+.ops-orders__table tbody tr {
+  cursor: default;
+}
+
+.ops-orders__table tbody tr:not(.is-pinned):hover {
+  background: transparent;
 }
 
 .ops-orders__table .col-pin {
@@ -93,7 +121,8 @@
 
 .ops-orders__table .col-code {
   font-weight: 600;
-  white-space: nowrap;
+  width: 136px;
+  white-space: normal;
 }
 
 .ops-pin {
@@ -115,6 +144,13 @@
 
 .ops-orders__expense {
   min-height: 36px;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.ops-pin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .ops-orders__empty {
@@ -134,3 +170,127 @@
 /* Genuinely-missing route — an explicit data label (CUS vocabulary), never a
    bare dash that reads identical to "nothing here". */
 .ops-orders__route-missing { color: var(--text-secondary, #64748b); }
+
+@media (max-width: 640px) {
+  .ops-orders__bar {
+    gap: 8px;
+  }
+
+  .ops-orders__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 148px) minmax(0, 1fr);
+    width: 100%;
+    gap: 6px;
+  }
+
+  .ops-orders__date,
+  .ops-orders__search {
+    padding-inline: 8px;
+  }
+
+  .ops-orders__date input,
+  .ops-orders__search input {
+    width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .ops-orders__date,
+  .ops-orders__search,
+  .ops-orders__expense {
+    min-height: var(--control-touch-h);
+  }
+
+  .ops-pin {
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
+  }
+
+  .ops-orders__date input,
+  .ops-orders__search input {
+    font-size: var(--control-compact-touch-font-size);
+  }
+}
+
+@container (max-width: 900px) {
+  .ops-orders__table,
+  .ops-orders__table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .ops-orders__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ops-orders__table .ops-orders__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ops-orders__table .ops-orders__row:last-child {
+    border-bottom: 0;
+  }
+
+  .ops-orders__table .ops-orders__row > td {
+    display: block;
+    min-width: 0;
+    width: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .ops-orders__table .ops-orders__row > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 2px;
+  }
+
+  .ops-orders__table .ops-orders__row > .col-code {
+    grid-column: 1 / -1;
+    padding-right: 48px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    font-size: var(--fs-sm);
+  }
+
+  .ops-orders__table .ops-orders__row > td.col-code::before {
+    display: none;
+  }
+
+  .ops-orders__table .ops-orders__row > .col-pin {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+  }
+
+  .ops-orders__table .col-customer,
+  .ops-orders__table .col-route {
+    grid-column: 1 / -1;
+  }
+
+  .ops-orders__table .ops-orders__row > .col-actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+
+  .ops-orders__empty {
+    display: block;
+    width: 100%;
+  }
+}

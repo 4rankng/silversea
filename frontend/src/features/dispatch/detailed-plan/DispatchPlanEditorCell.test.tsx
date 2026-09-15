@@ -155,20 +155,6 @@ function issueButton(): HTMLButtonElement {
     .find((b) => b.classList.contains('dispatch-assignment-dialog__issue-btn')) as HTMLButtonElement;
 }
 
-function setIssueTimes(start: string, end: string) {
-  const [startDate, startTime] = start.split('T');
-  const [, endTime] = end.split('T');
-  if (startDate) {
-    fireEvent.change(document.getElementById('dispatch-issue-date-101')!, { target: { value: startDate } });
-  }
-  if (startTime) {
-    fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: startTime } });
-  }
-  if (endTime) {
-    fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: endTime } });
-  }
-}
-
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
@@ -291,20 +277,17 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
-  it('pre-fills issue times from the row schedule instead of the wall clock', async () => {
+  it('renders no date/time inputs — the customer ruling removed the picker', async () => {
     const onIssueOrder = vi.fn();
     renderCell(row(), { onIssueOrder });
     await openDialog();
-    const startInput = document.getElementById('dispatch-issue-start-101') as HTMLInputElement;
-    const endInput = document.getElementById('dispatch-issue-end-101') as HTMLInputElement;
-    const dateInput = document.getElementById('dispatch-issue-date-101') as HTMLInputElement;
-    expect(startInput.value).toBe('08:00');
-    expect(endInput.value).toBe('10:00');
-    expect(dateInput.value).toBe('2026-08-20');
+    expect(document.getElementById('dispatch-issue-start-101')).toBeNull();
+    expect(document.getElementById('dispatch-issue-end-101')).toBeNull();
+    expect(document.getElementById('dispatch-issue-date-101')).toBeNull();
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
-  it('issues an OWN order with the resolved truck/driver and closes the dialog', async () => {    const onIssueOrder = vi.fn().mockResolvedValue({
+  it('issues an OWN order with schedule-derived times, resolved truck/driver, and closes the dialog', async () => {    const onIssueOrder = vi.fn().mockResolvedValue({
       fulfillmentId: 101, version: 4,
       trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
       notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
@@ -312,7 +295,6 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     });
     renderCell(row(), { onIssueOrder });
     await openDialog();
-    setIssueTimes('2026-08-30T08:00', '2026-08-30T12:00');
     fireEvent.click(issueButton());
     await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
     const [item, body] = onIssueOrder.mock.calls[0];
@@ -321,8 +303,8 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(body.truckId).toBe(154);
     expect(body.driverId).toBe(8);
     expect(body.endTimeConfirmed).toBe(true);
-    expect(Number.isNaN(Date.parse(body.plannedStartAt))).toBe(false);
-    expect(Number.isNaN(Date.parse(body.plannedEndAt))).toBe(false);
+    // Planned times derive from the row's CUS-locked schedule (2026-08-20 08:00 +2h).
+    expect(body.plannedStartAt).toBe(new Date('2026-08-20T08:00').toISOString());
     expect(new Date(body.plannedEndAt).getTime()).toBeGreaterThan(new Date(body.plannedStartAt).getTime());
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
@@ -331,20 +313,25 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     const onIssueOrder = vi.fn().mockRejectedValue(new Error('Tài xế không còn hiệu lực để nhận lệnh.'));
     renderCell(row(), { onIssueOrder });
     await openDialog();
-    setIssueTimes('2026-08-30T08:00', '2026-08-30T12:00');
     fireEvent.click(issueButton());
     await waitFor(() => expect(screen.getByText(/Tài xế không còn hiệu lực để nhận lệnh/)).toBeTruthy());
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 
-  it('validates locally that the end time follows the start time', async () => {
-    const onIssueOrder = vi.fn();
-    renderCell(row(), { onIssueOrder });
+  it('end-after-start still holds when the row has no schedule hour (clock fallback)', async () => {
+    const onIssueOrder = vi.fn().mockResolvedValue({
+      fulfillmentId: 101, version: 4,
+      trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
+      notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+      replayed: false,
+    });
+    const unscheduled = { ...row(), time: { deliveryDate: null, runHour: null } };
+    renderCell(unscheduled, { onIssueOrder });
     await openDialog();
-    setIssueTimes('2026-08-30T08:00', '2026-08-30T07:00');
     fireEvent.click(issueButton());
-    await waitFor(() => expect(screen.getByText(/Giờ kết thúc phải sau giờ chạy/)).toBeTruthy());
-    expect(onIssueOrder).not.toHaveBeenCalled();
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    const [, body] = onIssueOrder.mock.calls[0];
+    expect(new Date(body.plannedEndAt).getTime()).toBeGreaterThan(new Date(body.plannedStartAt).getTime());
   });
 
   it('closes the dialog upon successful save', async () => {

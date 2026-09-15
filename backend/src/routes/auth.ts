@@ -101,7 +101,7 @@ async function lockRowVersion(
   const updatedAt = await lookup();
   if (!updatedAt) throw new ApiError(404, notFoundMessage);
   if (updatedAt.getTime() !== expected.getTime()) {
-    throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+    throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.', undefined, { code: 'STALE_VERSION' });
   }
 }
 

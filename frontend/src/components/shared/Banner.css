@@ -8,7 +8,7 @@
   box-sizing: border-box;
   z-index: var(--z-sticky);
   font-family: var(--font-body);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   line-height: var(--lh-snug);
   border: 1px solid transparent;
   border-radius: var(--r-lg);

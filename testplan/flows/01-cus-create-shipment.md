@@ -1,5 +1,8 @@
 # Luồng 1: Tạo Lô hàng — Nhân viên Chứng từ (CUS)
 
+> Typography update (2026-09-14): earlier numeric font-size expectations in this document are superseded by `testplan/qa/2026-09-14_typography-coherence.md`: 12px body/data/controls/actions, 11px labels/captions, 14px section titles, 16px overlay titles, 18px page titles and 20px principal metrics. Other behavior and layout requirements remain unchanged. Historical measurements below are retained as evidence.
+
+
 > **Vai trò sở hữu:** CUS (CLERK) — Nhân viên Chứng từ / CSKH
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `CUS` → username phù hợp (local: `CUS`; staging: prod-mirror như `thanhdc`).
 > **Route chính:** `/shipments/new`, `/shipments`, `/shipments/:id`

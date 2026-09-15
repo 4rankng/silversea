@@ -457,10 +457,13 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         value={editingNotesValue}
                         onChange={(e) => setEditingNotesValue(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                             e.preventDefault();
                             saveNotesEdit(item);
+                            return;
                           }
+                          // Bare Enter falls through to the textarea's native
+                          // newline so dispatch notes keep their line breaks.
                           if (e.key === 'Escape') cancelNotesEdit();
                         }}
                         rows={2}

@@ -26,7 +26,11 @@ describe('canvas-fit responsive polish contract', () => {
     // 7th column was clipped to 0px and min-width was 1050px).
     const css = read('src/components/work-inbox/RoleWorkInbox.css');
     expect(css).toMatch(/@media \(max-width: 1145px\) \{\s*\.role-work-inbox__table-wrap \{ overflow: visible;/);
-    expect(css).toContain('.role-work-inbox__tabs { flex-wrap: wrap; gap: 6px; }');
+    // Three queue tabs must stay in one row; narrow/large-count cases scroll
+    // within the tablist instead of creating an ambiguous second row.
+    expect(css).toMatch(/\.role-work-inbox__tabs \{[^}]*flex-wrap: nowrap;[^}]*overflow-x: auto;/);
+    expect(css).toMatch(/\.role-work-inbox__tabs button \{[^}]*min-height: 44px;[^}]*min-width: max-content;/);
+    expect(css).not.toContain('.role-work-inbox__refresh { width: 100%; }');
   });
 
   it('finance truck-trip table compresses instead of scrolling below 1345px', () => {

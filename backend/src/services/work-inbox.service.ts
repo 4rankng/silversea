@@ -183,13 +183,12 @@ export async function driverWorkInbox(driverId: number, query: InboxQuery) {
     const latestProgress = latestProgressByTrip.get(row.tripId);
     const latestPod = latestPodByTrip.get(row.tripId);
     const delivered = latestProgress?.eventType === 'DELIVERED';
-    const acceptedPod = latestPod?.status === 'ACCEPTED';
-    const podWaitingReview = latestPod?.status === 'SUBMITTED';
-    const nextLabel = delivered ? acceptedPod ? 'Hoàn tất chuyến' : podWaitingReview ? null : latestPod?.status === 'REJECTED' ? 'Bổ sung POD' : 'Nộp POD' : latestProgress ? 'Cập nhật tiến độ' : 'Xác nhận đã nhận lệnh';
-    const milestone = done ? null : delivered ? acceptedPod ? 'Hoàn tất chuyến' : podWaitingReview ? 'Chờ duyệt POD' : latestPod?.status === 'REJECTED' ? 'Bổ sung POD giao hàng' : 'Nộp POD giao hàng' : latestProgress?.eventType === 'LOADING_OR_RETURNING' ? 'Báo đã giao hàng' : latestProgress?.eventType === 'PICKED_UP' ? 'Báo đang trả hoặc xếp hàng' : latestProgress?.eventType === 'ORDER_RECEIVED' ? 'Báo đã lấy hàng' : 'Xác nhận đã nhận lệnh gốc';
-    const state = done ? 'DONE' : waiting || podWaitingReview ? 'WAITING' : 'ACTION';
-    const blockers = waiting ? [{ code: 'PAPER_ORDER', label: 'Chưa giao lệnh gốc', ownerRole: 'OPS', ownerLabel: 'Điều hành' }] : podWaitingReview ? [{ code: 'POD_REVIEW', label: 'POD đang chờ duyệt', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' }] : emptyParty;
-    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: row.code ?? `Chuyến #${row.tripId}`, subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting || podWaitingReview ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.fulfillmentId}` }, targetRoute: row.fulfillmentId ? `/my-trips/${row.fulfillmentId}` : `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
+    const acceptedPod = latestPod?.status === 'ACCEPTED' || latestPod?.status === 'SUBMITTED';
+    const nextLabel = delivered ? acceptedPod ? 'Hoàn tất chuyến' : latestPod?.status === 'REJECTED' ? 'Bổ sung POD' : 'Nộp POD' : latestProgress ? 'Cập nhật tiến độ' : 'Xác nhận đã nhận lệnh';
+    const milestone = done ? null : delivered ? acceptedPod ? 'Hoàn tất chuyến' : latestPod?.status === 'REJECTED' ? 'Bổ sung POD giao hàng' : 'Nộp POD giao hàng' : latestProgress?.eventType === 'LOADING_OR_RETURNING' ? 'Báo đã giao hàng' : latestProgress?.eventType === 'PICKED_UP' ? 'Báo đang trả hoặc xếp hàng' : latestProgress?.eventType === 'ORDER_RECEIVED' ? 'Báo đã lấy hàng' : 'Xác nhận đã nhận lệnh gốc';
+    const state = done ? 'DONE' : waiting ? 'WAITING' : 'ACTION';
+    const blockers = waiting ? [{ code: 'PAPER_ORDER', label: 'Chưa giao lệnh gốc', ownerRole: 'OPS', ownerLabel: 'Điều hành' }] : emptyParty;
+    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: row.code ?? `Chuyến #${row.tripId}`, subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.tripId}` }, targetRoute: `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
   });
   return pageWorkInboxItems(items, query);
 }
@@ -235,7 +234,7 @@ export async function financialWorkInbox(query: InboxQuery) {
   const tripIds = rows.map((row) => row.id);
   const [podRows, pendingExpenseRows, settlementRows, snapshotRows, attemptRows, responseRows] = tripIds.length === 0 ? [[], [], [], [], [], []] as const : await Promise.all([
     db.select({ tripId: s.tripPodSubmissions.tripId, id: s.tripPodSubmissions.id, status: s.tripPodSubmissions.status, version: s.tripPodSubmissions.submissionVersion }).from(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.tripId, tripIds)).orderBy(desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id)),
-    db.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(and(inArray(s.tripExpenses.tripId, tripIds), eq(s.tripExpenses.approvalStatus, 'PENDING'))),
+    db.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(and(inArray(s.tripExpenses.tripId, tripIds), inArray(s.tripExpenses.approvalStatus, ['DRAFT', 'PENDING', 'RETURN_FOR_EVIDENCE']))),
     db.select({ tripId: s.tripExpenses.tripId, expenseId: s.tripExpenses.id, settlementStatus: s.advanceSettlements.status }).from(s.tripExpenses).leftJoin(s.settlementExpenses, eq(s.settlementExpenses.tripExpenseId, s.tripExpenses.id)).leftJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId)).where(and(inArray(s.tripExpenses.tripId, tripIds), eq(s.tripExpenses.settlementMethod, 'OPS_ADVANCE'))),
     db.select({ tripId: s.profitabilitySnapshots.tripId }).from(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, tripIds)),
     db.select({ id: s.deliveryAttempts.id, tripId: s.deliveryAttempts.tripId }).from(s.deliveryAttempts).where(inArray(s.deliveryAttempts.tripId, tripIds)),
@@ -251,12 +250,16 @@ export async function financialWorkInbox(query: InboxQuery) {
     const tripSettlementRows = settlementRows.filter((expense) => expense.tripId === row.id);
     const attempts = attemptRows.filter((attempt) => attempt.tripId === row.id);
     const responses = responseRows.filter((response) => response.tripId === row.id);
-    const acceptedPodReady = latestPod?.status === 'ACCEPTED';
-    const settlementComplete = tripSettlementRows.every((expense) => expense.settlementStatus === 'APPROVED');
+    // Internal e-POD approval removed: a saved submission (not a draft, not
+    // customer-rejected) is ready evidence for accounting reconciliation.
+    const acceptedPodReady = latestPod?.status != null
+      && latestPod.status !== 'DRAFT'
+      && latestPod.status !== 'REJECTED';
+    const settlementComplete = tripSettlementRows.every((expense) => expense.settlementStatus === 'RECORDED');
     const profitabilitySnapshotReady = snapshotTripIds.has(row.id) && !row.dirty;
     const blockers = [];
-    if (!acceptedPodReady) blockers.push({ code: 'POD', label: 'Thiếu POD đã chấp nhận', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
-    if (pendingExpenseTripIds.has(row.id)) blockers.push({ code: 'EXPENSE_APPROVAL', label: 'Chi phí đang chờ phê duyệt', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
+    if (!acceptedPodReady) blockers.push({ code: 'POD', label: 'Chưa có e-POD hợp lệ', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
+    if (pendingExpenseTripIds.has(row.id)) blockers.push({ code: 'EXPENSE_APPROVAL', label: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
     if (!settlementComplete) blockers.push({ code: 'SETTLEMENT', label: 'Quyết toán tạm ứng chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
     if (!profitabilitySnapshotReady) blockers.push({ code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận hiện hành', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
     const disputed = responses.some((response) => response.decision === 'DISPUTED');

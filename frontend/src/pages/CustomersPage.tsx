@@ -435,7 +435,7 @@ export default function CustomersPage() {
             placeholder="Tìm theo tên, MST…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', minHeight: 44, padding: '10px 11px 10px 32px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 13, lineHeight: 1.35 }}
+            style={{ width: '100%', minHeight: 44, padding: '10px 11px 10px 32px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--control-field-font-size)', lineHeight: 1.35 }}
           />
         </div>
       </div>
@@ -464,7 +464,7 @@ export default function CustomersPage() {
                       <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
                     )}
                     {c.isCarrier && (
-                      <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ marginLeft: 6, fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Truck size={11} aria-hidden="true" /> Xe ngoài
                       </span>
                     )}
@@ -541,7 +541,7 @@ export default function CustomersPage() {
               {loading && (
                 <tr><td colSpan={9} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
-                  <p style={{ fontSize: 13 }}>Đang tải…</p>
+                  <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
@@ -603,11 +603,11 @@ export default function CustomersPage() {
                             ? { bottom: '100%', marginBottom: 4 }
                             : { top: '100%' }),
                         }} onClick={(e) => e.stopPropagation()}>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
                             onClick={() => { setEditingId(c.id); setShowAddForm(false); }}>
                             <Pencil size={13} /> Sửa
                           </button>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
                             disabled={deleting === c.id}
                             onClick={() => doDelete(c.id)}>
                             {deleting === c.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá

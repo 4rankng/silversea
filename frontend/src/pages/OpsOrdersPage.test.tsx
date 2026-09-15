@@ -5,8 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
 import type { OpsOrderItem } from '../api/opsClient';
 import OpsOrdersPage from './OpsOrdersPage';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
+const pageStyles = readFileSync(resolve(process.cwd(), 'src/pages/OpsOrdersPage.css'), 'utf8');
+
+const { apiGet, apiPost, apiPut, apiUpload } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn(), apiUpload: vi.fn() }));
+vi.mock('../lib/imageCompression', () => ({ compressImageFile: vi.fn(async (file: File) => file) }));
 vi.mock('../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/api')>(),
   api: {
@@ -15,7 +20,7 @@ vi.mock('../lib/api', async (importOriginal) => ({
     put: apiPut,
     patch: vi.fn(),
     delete: vi.fn(),
-    upload: vi.fn(),
+    upload: apiUpload,
   },
 }));
 
@@ -57,6 +62,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    apiUpload.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/orders')) return Promise.resolve(makeItems());
       if (url.startsWith('/ops/expense-types')) {
@@ -95,6 +101,41 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.getByText(/TSTU1111111/)).toBeInTheDocument();
     expect(screen.getByText('Sẵn sàng phát lệnh')).toBeInTheDocument();
     expect(screen.getByText('Đang vận chuyển')).toBeInTheDocument();
+  });
+
+  it('retains all shipment fields and both actions in the labelled narrow-screen record', async () => {
+    renderPage();
+    const row = (await screen.findByText('SS-A')).closest('tr')!;
+    const fields = Array.from(row.querySelectorAll('td[data-label]')).map((cell) => [cell.getAttribute('data-label'), cell.textContent]);
+    expect(fields).toEqual([
+      ['Mã lô', 'SS-A'],
+      ['Khách hàng', 'Khách A'],
+      ['Tuyến', 'HP-BN'],
+      ['Container', '1 · TSTU1111111'],
+      ['Bill / Booking', 'BL-001'],
+      ['Trạng thái', 'Sẵn sàng phát lệnh'],
+    ]);
+    expect(row.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim SS-A');
+    expect(row.querySelector('.ops-orders__expense')).toHaveTextContent('Khai chi phí');
+  });
+
+  it('keeps the narrow records flat and removes the forced horizontal table floor', () => {
+    expect(pageStyles).not.toMatch(/min-width:\s*960px/);
+    expect(pageStyles).toContain('@container (max-width: 900px)');
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
+    expect(pageStyles).toMatch(/\.ops-orders__controls\s*\{[^}]*grid-template-columns:\s*minmax\(0, 148px\) minmax\(0, 1fr\);/);
+    expect(pageStyles).toContain('.ops-orders__search:focus-within');
+    expect(pageStyles).toContain('@media (pointer: coarse)');
+  });
+
+  it('preserves debounced search and selected-date filtering', async () => {
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-09-20' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
   });
 
   it('optimistically pins a row to the top and puts the new state', async () => {
@@ -149,4 +190,51 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
   });
+  it('shows the rejected negative amount and explains how to recover before saving', async () => {
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    const amount = screen.getByLabelText(/Số tiền \(VND\)/);
+    fireEvent.change(amount, { target: { value: '-123000' } });
+    expect(amount).toHaveValue('-123.000');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Số tiền phải là số dương');
+    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(submit).toBeDisabled();
+    expect(apiPost).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '123000' } });
+    expect(submit).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('waits for the receipt upload before creating the expense with its storage key', async () => {
+    let finishUpload!: (value: { storageKey: string; url: string }) => void;
+    apiUpload.mockReturnValue(new Promise((resolve) => { finishUpload = resolve; }));
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VND\)/), { target: { value: '123000' } });
+    const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
+    const form = dialog.querySelector('form')!;
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    fireEvent.change(form.querySelector('input[type="file"]')!, {
+      target: { files: [new File(['receipt'], 'receipt.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(apiUpload).toHaveBeenCalledTimes(1));
+    expect(submit).toBeDisabled();
+    fireEvent.submit(form);
+    expect(apiPost).not.toHaveBeenCalled();
+    finishUpload({ storageKey: 'ops/receipt.png', url: '/api/photos/ops%2Freceipt.png' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.submit(form);
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/ops/expenses', expect.objectContaining({
+      amount: '123000', photoStorageKeys: ['ops/receipt.png'],
+    })));
+    expect(apiPost).toHaveBeenCalledTimes(1);
+  });
+
 });

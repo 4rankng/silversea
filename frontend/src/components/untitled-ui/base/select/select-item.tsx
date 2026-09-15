@@ -1,3 +1,4 @@
+import { fieldTextSizes, fieldHintText } from "../control-typography";
 
 import { isValidElement, useContext } from "react";
 import { Check } from "@untitledui/icons";
@@ -13,21 +14,21 @@ import { SelectContext } from "./select-shared";
 const sizes = {
     sm: {
         root: "p-1.5 pr-2 gap-1.5 *:data-icon:size-3.5 *:data-icon:stroke-[2.25px]",
-        text: "text-xs",
+        text: fieldTextSizes.sm,
         textContainer: "gap-x-1",
         check: "size-3.5 stroke-[2.25px]",
         checkbox: "sm" as const,
     },
     md: {
         root: "p-2 pr-2.5 gap-2 *:data-icon:size-5",
-        text: "text-md",
+        text: fieldTextSizes.md,
         textContainer: "gap-x-2",
         check: "size-5",
         checkbox: "sm" as const,
     },
     lg: {
         root: "p-2.5 pl-2 gap-2 *:data-icon:size-5",
-        text: "text-md",
+        text: fieldTextSizes.lg,
         textContainer: "gap-x-2",
         check: "size-5",
         checkbox: "md" as const,
@@ -85,7 +86,7 @@ export const SelectItem = ({
             {(state) => (
                 <div
                     className={cx(
-                        "flex cursor-pointer items-center rounded-md outline-hidden select-none",
+                        "flex cursor-pointer items-center rounded-md outline-hidden select-none max-md:min-h-11 [@media(pointer:coarse)]:min-h-11",
                         (state.isFocused || state.isHovered || (state.isSelected && selectionIndicator !== "checkbox")) && "bg-primary_hover",
                         state.isDisabled && "cursor-not-allowed opacity-50",
                         state.isFocusVisible && "ring-2 ring-focus-ring ring-inset",
@@ -109,12 +110,12 @@ export const SelectItem = ({
                     ) : null}
 
                     <div className={cx("flex w-full min-w-0 flex-1 flex-wrap", sizes[size].textContainer)}>
-                        <AriaText slot="label" className={cx("truncate font-medium whitespace-nowrap text-primary", sizes[size].text)}>
+                        <AriaText slot="label" className={cx("min-w-0 break-words font-medium whitespace-normal text-primary", sizes[size].text)}>
                             {label || (typeof children === "function" ? children(state) : children)}
                         </AriaText>
 
                         {supportingText && (
-                            <AriaText slot="description" className={cx("whitespace-nowrap text-tertiary", sizes[size].text)}>
+                            <AriaText slot="description" className={cx("min-w-0 break-words whitespace-normal text-tertiary", fieldHintText)}>
                                 {supportingText}
                             </AriaText>
                         )}

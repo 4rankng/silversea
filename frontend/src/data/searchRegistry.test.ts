@@ -62,6 +62,14 @@ describe('admin search icon assignments', () => {
 });
 
 describe('role-aware search destinations', () => {
+  it('never advertises the retired approval center to any role', () => {
+    for (const role of ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DISPATCHER', 'CUS', 'FORWARDER', 'DRIVER']) {
+      const items = getSearchItems(role, ['treasury.read', 'executive_dashboard.read']);
+      expect(items.some(item => item.path === '/governance-actions')).toBe(false);
+      expect(filterItems(items, 'phê duyệt')).toEqual([]);
+    }
+  });
+
   it('uses the accountant workspace as home without advertising blocked routes', () => {
     const items = getSearchItems('ACCOUNTANT', ['treasury.read']);
     expect(items.some(item => item.id === 'accounting' && item.path === '/accounting' && item.label === 'Tổng Quan')).toBe(true);

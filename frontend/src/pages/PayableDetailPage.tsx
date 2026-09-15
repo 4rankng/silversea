@@ -182,6 +182,8 @@ export default function PayableDetailPage() {
   );
 
   const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
+  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
+  const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
 
   const totalOutstanding = typedStatement?.totalOutstanding ?? 0;
 
@@ -255,7 +257,7 @@ export default function PayableDetailPage() {
           </div>
         </div>
         <div className="dd-summary">
-          <p style={{ color: 'var(--danger)', fontSize: 14 }}>{error || 'Không tìm thấy dữ liệu'}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)' }}>{error || 'Không tìm thấy dữ liệu'}</p>
         </div>
       </div>
     );
@@ -377,38 +379,34 @@ export default function PayableDetailPage() {
           </div>
         </div>
 
-        {/* Aging bar */}
-        <div className="dd-aging-bar">
-          {effectiveAging.map((amt, i) => {
-            const pct = agingTotal > 0 ? (amt / agingTotal) * 100 : 0;
-            return pct > 0
-              ? <i key={i} className={`dd-seg-${i}`} style={{ width: `${pct}%` }} />
-              : null;
-          })}
-        </div>
-
-        {/* Aging grid */}
-        <div className="dd-aging-grid">
-          {AGING_RANGES.map((range, i) => {
-            const amt = effectiveAging[i];
-            const isActive = i === activeAgingIdx;
-            const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;
-            return (
-              <div key={i} className={`dd-aging-cell${isActive ? ' dd-aging-cell--active' : ''}`}>
-                <div className="dd-ac-head">
-                  <span className="dd-ac-dot" style={{ background: range.dotColor }} />
-                  {range.label}
+        {/* QA-102: aging collapses into a disclosure strip so the ledger
+            leads the page; every bucket, amount and share stays available on
+            expand. Summary line shows the active bucket + amount. */}
+        <details className="dd-aging-disclosure">
+          <summary>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${formatCurrency(activeAgingAmount).replace(' ₫', '')}đ` : 'Không còn nợ'}</span></summary>
+          <div className="dd-aging-bar">
+            {effectiveAging.map((amt, i) => {
+              const pct = agingTotal > 0 ? (amt / agingTotal) * 100 : 0;
+              return pct > 0
+                ? <i key={i} className={`dd-seg-${i}`} style={{ width: `${pct}%` }} />
+                : null;
+            })}
+          </div>
+          <div className="dd-aging-grid">
+            {AGING_RANGES.map((range, i) => {
+              const amt = effectiveAging[i];
+              const isActive = i === activeAgingIdx;
+              const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;
+              return (
+                <div key={i} className={`dd-aging-cell${isActive ? ' dd-aging-cell--active' : ''}`}>
+                  <div className="dd-ac-head"><span className="dd-ac-dot" style={{ background: range.dotColor }} />{range.label}</div>
+                  <div className={`dd-ac-val${amt === 0 ? ' dd-ac-val--zero' : ''}`}>{formatCurrency(amt).replace(' ₫', '')}đ</div>
+                  <div className="dd-ac-share">{amt > 0 ? `${pct}% tổng công nợ` : 'Không phát sinh'}</div>
                 </div>
-                <div className={`dd-ac-val${amt === 0 ? ' dd-ac-val--zero' : ''}`}>
-                  {formatCurrency(amt).replace(' ₫', '')}đ
-                </div>
-                <div className="dd-ac-share">
-                  {amt > 0 ? `${pct}% tổng công nợ` : 'Không phát sinh'}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </details>
       </section>
 
       {/* Ledger Card */}
@@ -596,7 +594,7 @@ export default function PayableDetailPage() {
             onChange={e => setPaymentReceiptId(e.target.value)}
             placeholder="Ví dụ: PT-20260531-01"
           />
-          <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
+          <p style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
             Bắt buộc để đối chiếu sao kê ngân hàng / phiếu chi.
           </p>
         </div>

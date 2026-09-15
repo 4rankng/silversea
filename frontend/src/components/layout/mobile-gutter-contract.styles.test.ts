@@ -13,7 +13,7 @@ const shipmentDetail = readFileSync(resolve(root, 'src/pages/ShipmentContainersP
 describe('mobile gutter contract', () => {
   it('gives every authenticated screen one safe outer gutter token', () => {
     expect(tokens).toMatch(/--app-body-pad-x:\s*24px;/);
-    expect(responsive).toMatch(/@media \(max-width: 640px\)[\s\S]*?--app-body-pad-x:\s*12px;/);
+    expect(responsive).toMatch(/@media \(max-width: 640px\)[\s\S]*?--app-body-pad-x:\s*8px;/);
     expect(shell).toMatch(/padding:\s*var\(--app-body-pad-t, 24px\) var\(--app-body-pad-x\) 32px;/);
     expect(shell).toMatch(/padding-inline:\s*max\(var\(--app-body-pad-x\), env\(safe-area-inset-left, 0px\)\) max\(var\(--app-body-pad-x\), env\(safe-area-inset-right, 0px\)\);/);
   });

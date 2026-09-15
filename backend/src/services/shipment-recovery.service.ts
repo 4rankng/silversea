@@ -141,8 +141,8 @@ async function loadRecoverySource(tx: Tx, expenseId: number) {
     .for('update', { of: s.tripExpenses });
 
   if (!source) throw new ApiError(404, 'Không tìm thấy chi phí cần theo dõi thu hồi.');
-  if (source.approvalStatus !== 'APPROVED') {
-    throw new ApiError(409, 'Chỉ được theo dõi thu hồi từ chi phí đã được phê duyệt.');
+  if (!['RECORDED', 'APPROVED'].includes(source.approvalStatus)) {
+    throw new ApiError(409, 'Chỉ được theo dõi thu hồi từ chi phí đã ghi nhận.');
   }
   if (source.expenseTripContainerId != null && source.tripContainerId == null) {
     throw new ApiError(409, 'Liên kết container của chi phí không còn hợp lệ.');

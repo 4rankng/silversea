@@ -32,7 +32,7 @@
    without ellipsis; the .table-scroll wrapper provides horizontal
    scrolling on narrow containers. */
 .ancillary-fees__table { min-width: 720px; table-layout: fixed; width: 100%; }
-.ancillary-fees__table thead th { padding: 8px 6px; font-size: var(--fs-xs); }
+.ancillary-fees__table thead th { padding: 8px 6px; font-size: var(--text-caption-size); }
 .ancillary-fees__table thead th {
   background: var(--surface-2);
   color: var(--ink-2);
@@ -47,8 +47,8 @@
 .ancillary-fees__table tbody tr:hover {
   background: color-mix(in srgb, var(--accent-soft) 38%, white);
 }
-.ancillary-fees__table tbody td { padding: 8px 6px; font-size: var(--fs-xs); vertical-align: top; }
-.ancillary-fees__table tbody td.num { font-size: var(--fs-xs); }
+.ancillary-fees__table tbody td { padding: 8px 6px; font-size: var(--text-data-size); vertical-align: top; }
+.ancillary-fees__table tbody td.num { font-size: var(--text-data-size); }
 .ancillary-fees__table thead th:nth-child(1) { width: 30%; }   /* Loại phí */
 .ancillary-fees__table thead th:nth-child(2) { width: 14%; }   /* Gốc */
 .ancillary-fees__table thead th:nth-child(3) { width: 14%; }   /* Báo khách */
@@ -150,7 +150,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--text-control-size);
   line-height: 1.35;
   color: var(--fg-1);
   text-align: left;
@@ -173,7 +173,7 @@
 .ancillary-fees__table tfoot td {
   padding: 10px 5px;
   font-weight: 700;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   /* Match body .num cells: clip long totals so they
      never bleed into the next column on narrow viewports. */
   white-space: normal;
@@ -187,7 +187,7 @@
   border-radius: 6px;
   padding: 8px 12px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   cursor: pointer;
   text-align: center;
   transition: border-color 120ms ease, color 120ms ease;
@@ -254,14 +254,14 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
   color: var(--ink);
   line-height: 1.3;
 }
 .ancillary-fee-card__badge {
   display: inline-flex;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--ink-3);
   background: var(--surface-2);
@@ -286,14 +286,14 @@
   gap: 2px;
 }
 .ancillary-fee-card__label {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .ancillary-fee-card__value {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink);
 }
 .ancillary-fee-card__value--margin {
@@ -306,7 +306,7 @@
   gap: 4px 8px;
   padding-top: 8px;
   border-top: 1px solid var(--line);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   line-height: 1.4;
 }
@@ -357,7 +357,7 @@
   border: 1px solid var(--line);
 }
 .ancillary-fees__mobile-totals-label {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
@@ -367,7 +367,7 @@
   gap: 16px;
   flex: 1;
   justify-content: flex-end;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink);
 }
 .ancillary-fees__mobile-totals-nums > div {
@@ -390,7 +390,7 @@
   border-radius: 10px;
   background: transparent;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.12s ease, color 0.12s ease;
@@ -402,13 +402,13 @@
 }
 
 
-/* Base table styles — the global operational density contract (11/12/13px
+/* Base table styles — the global operational density contract (12/13/14px
    scale, 10x12 cell padding) mirroring record-table.css so every list screen
    shares the /shipments rhythm. Pages may override per-grid as always. */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ops-table-supporting-size);
+  font-size: var(--text-data-size);
   min-width: 900px;
 }
 thead th {
@@ -417,7 +417,7 @@ thead th {
   background: var(--surface-2);
   border-bottom: 2px solid var(--line-2);
   font-family: var(--font-sans);
-  font-size: var(--ops-table-header-size);
+  font-size: var(--text-label-size);
   /* letter-spacing/weight/color kept from the original global rule — the
      frozen CUS/điều vận headers inherit them; only density moves. */
   font-weight: 700;
@@ -465,7 +465,7 @@ tbody tr:last-child td { border-bottom: none; }
   padding: 12px 16px;
   background: var(--surface-2);
   border-top: 1px solid var(--line);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
 }
 .page-btn {
@@ -474,7 +474,7 @@ tbody tr:last-child td { border-bottom: none; }
   padding: 7px 10px;
   border-radius: 8px;
   color: var(--ink-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 500;
   font-family: var(--font-data);
   line-height: 1.35;
@@ -486,11 +486,11 @@ tbody tr:last-child td { border-bottom: none; }
 .page-btn.is-active { background: var(--ink); color: var(--fg-on-brand); }
 
 /* Premium .tt-table */
-.tt-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.tt-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: var(--text-data-size); table-layout: fixed; }
 .tt-table thead th {
   text-align: left;
   font-family: var(--font-data);
-  font-size: var(--ops-table-header-size);
+  font-size: var(--text-label-size);
   font-weight: var(--ops-table-header-weight);
   color: var(--ink-2);
   padding: 10px 12px;
@@ -527,8 +527,8 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* Misc table helpers */
-.row-strong { font-weight: 600; color: var(--ink); font-size: 13px; }
-.row-meta { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
+.row-strong { font-weight: 600; color: var(--ink); font-size: var(--text-data-size); }
+.row-meta { font-size: var(--text-caption-size); color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
 
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
 /* Compact desktop row actions; responsive.css restores the 44px touch

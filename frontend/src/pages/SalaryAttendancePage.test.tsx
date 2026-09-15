@@ -283,4 +283,17 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     await waitFor(() => expect(screen.getByText('Từ kỳ 2026-07')).toBeTruthy());
     expect(screen.getByText(/Bổ sung chuyến hoàn tất/)).toBeTruthy();
   });
+  it('labels a legacy unsnapshotted salary as reference data requiring reconciliation', () => {
+    salaryQueriesMock.useDriverSalary.mockReturnValue({ data: { ...baseSalary, salarySnapshotState: 'UNAVAILABLE', salaryReconciliationRequired: true }, isLoading: false });
+    renderPage();
+    expect(screen.getByText(/Số liệu dưới đây chỉ tham khảo/)).toBeInTheDocument();
+    expect(screen.getByText('Cần đối chiếu')).toBeInTheDocument();
+  });
+
+  it('explains a late operational attendance update without replacing the confirmed payslip', () => {
+    salaryQueriesMock.useDriverSalary.mockReturnValue({ data: { ...baseSalary, salarySnapshotState: 'CONFIRMED', salaryReconciliationRequired: true }, isLoading: false });
+    renderPage();
+    expect(screen.getByText(/Bản lương giữ nguyên; ghi điều chỉnh vào kỳ đang mở/)).toBeInTheDocument();
+  });
+
 });

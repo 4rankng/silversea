@@ -30,7 +30,7 @@ import {
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 import { getClosedPeriodLock, resolveSalaryPeriodAuthority } from '../services/period-lock.service';
 import * as s from '../db/schema';
-import { eq, inArray, and } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getRequestIdempotencyKey as readRequestIdempotencyKey } from './utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';

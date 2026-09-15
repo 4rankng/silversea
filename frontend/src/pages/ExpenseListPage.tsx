@@ -1,8 +1,7 @@
-import { useMemo, useState, type MouseEvent } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
-import { useAuth } from '../hooks/useAuth';
 import { configClient } from '../api/configClient';
 import { formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
@@ -77,29 +76,6 @@ export default function ExpenseListPage() {
     isLoading, error: queryError, query,
   } = table;
   const refetch = query.refetch;
-  const { user } = useAuth();
-  const role = user?.role;
-  const canCheck = role === 'ADMIN' || role === 'MANAGER' || role === 'ACCOUNTANT';
-  const canApprove = role === 'ADMIN' || role === 'MANAGER';
-
-  // Dual-control review actions (server enforces the actor-distinct rules;
-  // the buttons are convenience-gated by role only).
-  const [reviewingId, setReviewingId] = useState<number | null>(null);
-  const reviewExpense = async (event: MouseEvent, id: number, action: 'check' | 'approve' | 'reject') => {
-    // The row's onClick routes to the edit page — a review click must not
-    // also navigate away mid-request.
-    event.stopPropagation();
-    setReviewingId(id);
-    try {
-      await api.post(`${FINANCIAL.EXPENSES}/${id}/${action}`, action === 'reject' ? { reason: 'Từ chối từ danh sách' } : {});
-      await refetch();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Không thể xử lý yêu cầu.');
-    } finally {
-      setReviewingId(null);
-    }
-  };
-
   // Server-side column sort: state rides the filters bag (setFilters resets
   // the page automatically); the endpoint speaks sortBy/sortDir.
   const sort: TableSortState | null = filters.sortBy
@@ -152,7 +128,7 @@ export default function ExpenseListPage() {
     const totalAmount = items.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
     // Pending-review rows carry no supplier debt yet — they must not count
     // toward the unpaid aggregates.
-    const posted = items.filter((e) => (e.approvalStatus ?? 'APPROVED') !== 'PENDING' && (e.approvalStatus ?? 'APPROVED') !== 'CHECKED' && e.approvalStatus !== 'REJECTED');
+    const posted = items.filter(e => ['RECORDED', 'APPROVED'].includes(e.approvalStatus ?? 'APPROVED'));
     const unpaidItems = posted.filter((e) => e.paymentStatus === 'UNPAID');
     const paidItems = posted.filter((e) => e.paymentStatus === 'PAID');
     const unpaidAmount = unpaidItems.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
@@ -164,14 +140,14 @@ export default function ExpenseListPage() {
 
   const renderStatusBadge = (expense: ExpenseWithRefs) => {
     const approval = expense.approvalStatus ?? 'APPROVED';
-    if (approval === 'PENDING') {
-      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Chờ kiểm tra</span>;
+    if (approval === 'DRAFT' || approval === 'PENDING') {
+      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Cần hoàn thiện</span>;
     }
     if (approval === 'CHECKED') {
-      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Chờ duyệt</span>;
+      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Cần hoàn thiện</span>;
     }
-    if (approval === 'REJECTED') {
-      return <span className="expense-status expense-status--paid"><span className="expense-status__dot" /> Từ chối</span>;
+    if (approval === 'VOIDED' || approval === 'REJECTED') {
+      return <span className="expense-status expense-status--paid"><span className="expense-status__dot" /> Không ghi sổ</span>;
     }
     return expense.paymentStatus === 'PAID' ? (
       <span className="expense-status expense-status--paid">
@@ -234,7 +210,6 @@ export default function ExpenseListPage() {
         <UuiSelectField
           id="expense-supplier-filter"
           label="Nhà cung cấp"
-          inline
           value={filters.supplierId == null ? '' : String(filters.supplierId)}
           disabled={loadingExpenseCatalogs}
           onChange={e => setFilter('supplierId', e.target.value ? Number(e.target.value) : undefined)}
@@ -248,7 +223,6 @@ export default function ExpenseListPage() {
         <UuiSelectField
           id="expense-category-filter"
           label="Hạng mục"
-          inline
           value={filters.categoryId == null ? '' : String(filters.categoryId)}
           disabled={loadingExpenseCatalogs}
           onChange={e => setFilter('categoryId', e.target.value ? Number(e.target.value) : undefined)}
@@ -262,7 +236,6 @@ export default function ExpenseListPage() {
         <UuiSelectField
           id="expense-truck-filter"
           label="Xe"
-          inline
           value={filters.truckId == null ? '' : String(filters.truckId)}
           onChange={e => setFilter('truckId', e.target.value ? Number(e.target.value) : undefined)}
           controlClassName="expense-filter-bar__select"
@@ -272,8 +245,8 @@ export default function ExpenseListPage() {
           ]}
         />
 
-        <div className="expense-filter-bar__divider" />
-
+        <label className="expense-filter-bar__field">
+          <span>Từ ngày</span>
         <DateInput
           name="expenseDateFrom"
           aria-label="Từ ngày"
@@ -282,6 +255,9 @@ export default function ExpenseListPage() {
           onChange={(value) => setFilter('fromDate', value || undefined)}
           placeholder="Từ ngày"
         />
+        </label>
+        <label className="expense-filter-bar__field">
+          <span>Đến ngày</span>
         <DateInput
           name="expenseDateTo"
           aria-label="Đến ngày"
@@ -290,6 +266,7 @@ export default function ExpenseListPage() {
           onChange={(value) => setFilter('toDate', value || undefined)}
           placeholder="Đến ngày"
         />
+        </label>
 
         {hasFilters && (
           <button className="expense-filter-bar__reset" onClick={resetFilters}>
@@ -369,15 +346,6 @@ export default function ExpenseListPage() {
                     {renderStatusBadge(e)}
                   </td>
                   <td data-label="" className="record-table__action expense-record-table__action">
-                    {e.approvalStatus === 'PENDING' && canCheck && (
-                      <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'check')}>Kiểm tra</button>
-                    )}
-                    {e.approvalStatus === 'CHECKED' && canApprove && (
-                      <>
-                        <button type="button" className="btn btn--primary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'approve')}>Duyệt</button>
-                        <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'reject')}>Từ chối</button>
-                      </>
-                    )}
                     <ChevronRight size={14} className="expense-record-table__chevron" />
                   </td>
                 </tr>

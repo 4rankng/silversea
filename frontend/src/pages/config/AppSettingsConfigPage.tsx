@@ -39,11 +39,8 @@ import './config-page.css';
  *  report the OUTCOME the server returned, never a hardcoded
  *  "nothing changed" — a changed current version must never sit beside an
  *  unchanged-configuration message. */
-function governedConfigOutcomeMessage(status: unknown, label: string): string {
-  if (status === 'PENDING' || status === 'PENDING_CHECK' || status === 'PENDING_APPROVAL') {
-    return `Đã gửi yêu cầu ${label} — đang chờ kiểm tra/phê duyệt. Cấu hình hiện tại chưa thay đổi; sau khi được duyệt hệ thống sẽ áp dụng.`;
-  }
-  return `Đã phê duyệt và áp dụng ${label} — có hiệu lực ngay.`;
+function governedConfigOutcomeMessage(_status: unknown, label: string): string {
+  return `Đã lưu ${label} — có hiệu lực ngay.`;
 }
 
 export default function AppSettingsConfigPage() {
@@ -207,7 +204,7 @@ export default function AppSettingsConfigPage() {
       // stale-data tells the user a reload actually helps.
       setPolicyError(
         message.includes('đã có phiên bản')
-          ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử đã duyệt hoặc chọn tháng khác.'
+          ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử phiên bản hoặc chọn tháng khác.'
           : message,
       );
     }
@@ -286,11 +283,11 @@ export default function AppSettingsConfigPage() {
   const financeState = activeFinanceTab === 'policy' ? financialPolicy.data : truckProfiles.data;
   const financePendingRequest = financeState?.pendingRequest ?? null;
   const policySubmitLabel = financialPolicy.data?.status === 'UNCONFIGURED'
-    ? 'Tạo yêu cầu đầu tiên'
-    : 'Gửi yêu cầu phê duyệt';
+    ? 'Tạo chính sách đầu tiên'
+    : 'Lưu chính sách';
   const truckSubmitLabel = truckProfiles.data?.status === 'UNCONFIGURED'
     ? 'Tạo hồ sơ cho xe'
-    : 'Gửi yêu cầu phê duyệt';
+    : 'Lưu hồ sơ xe';
 
   const handleTruckSelectionChange = async (nextTruckId: number) => {
     const truckDraftDirty = Boolean(
@@ -320,7 +317,7 @@ export default function AppSettingsConfigPage() {
     <div ref={pageRef} className="cfg-page cfg-page--app-settings">
       <PageHeader
         title="Chính sách tài chính"
-        description="Thiết lập chính sách báo cáo và hồ sơ tài chính xe theo tháng hiệu lực. Bản đã duyệt không thể sửa."
+        description="Thiết lập chính sách báo cáo và hồ sơ tài chính xe theo tháng hiệu lực."
         onBack={() => navigate('/config')}
         iconName="app-settings"
       />
@@ -332,9 +329,8 @@ export default function AppSettingsConfigPage() {
         </div>
         {financePendingRequest ? (
           <div className="cfg-finance-strip__meta">
-            <span>Đang chờ kiểm tra và phê duyệt cho {formatViMonth(financePendingRequest.effectiveFrom)}</span>
+            <span>Đang xử lý cho {formatViMonth(financePendingRequest.effectiveFrom)}</span>
             <span>{financePendingRequest.requestedByName}</span>
-            <a href={financePendingRequest.queuePath}>Xem yêu cầu chờ phê duyệt</a>
           </div>
         ) : (
           <div className="cfg-finance-strip__meta">

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { api, fileCommandFingerprint } from '../lib/api';
 
 type PhotoType = 'CONTAINER' | 'SEAL' | 'OTHER';
@@ -53,6 +53,15 @@ export type OcrResultHandler = (
  *  button (and vice-versa). */
 export type UploadingState = Record<PhotoType, boolean>;
 
+export class PendingPhotoUploadError extends Error {
+  constructor(readonly pendingCount: number) {
+    super(`Còn ${pendingCount} ảnh chưa tải lên. Ảnh vẫn được giữ trong biểu mẫu này; kiểm tra kết nối rồi bấm Lưu để thử lại.`);
+    this.name = 'PendingPhotoUploadError';
+  }
+}
+
+export type PhotoUploadedHandler = (previewUrl: string, persistedUrl: string) => void;
+
 /** True when any zone is currently uploading. Use this for save/submit
  *  disable checks where any in-flight upload should block the action. */
 export function isAnyUploading(uploading: UploadingState): boolean {
@@ -80,6 +89,13 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
   // Per-container OCR photos buffered until the row has a server id — see
   // uploadContainerPhoto / flushPendingContainerPhotos / revokeRowPhotos.
   const pendingContainerPhotosRef = useRef<PendingContainerPhoto[]>([]);
+  const retiredPreviews = useRef<string[]>([]);
+
+  // React has committed the replacement URLs before effects run. Revoking at
+  // network completion would invalidate a blob that can still be on screen.
+  useEffect(() => {
+    retiredPreviews.current.splice(0).forEach(url => URL.revokeObjectURL(url));
+  });
 
   const uploadPhotos = useCallback(async (files: FileList, tripId?: number, type: PhotoType = 'OTHER') => {
     setUploading(prev => ({ ...prev, [type]: true }));
@@ -156,7 +172,6 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
   const flushPendingPhotos = useCallback(async (tripId: number): Promise<string[]> => {
     const pending = pendingRef.current;
     if (pending.length === 0) return photoUrls;
-    pendingRef.current = [];
 
     const objToReal = new Map<string, string>();
     for (const p of pending) {
@@ -169,13 +184,22 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
         p.file,
         [p.type, tripId, p.objectUrl],
       );
-      const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
-      objToReal.set(p.objectUrl, result.url);
-      URL.revokeObjectURL(p.objectUrl);
+      try {
+        const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
+        if (result.url && !result.url.startsWith('blob:')) {
+          objToReal.set(p.objectUrl, result.url);
+          pendingRef.current = pendingRef.current.filter(item => item !== p);
+          retiredPreviews.current.push(p.objectUrl);
+          setPhotoUrls(previous => previous.map(url => url === p.objectUrl ? result.url : url));
+        }
+        // Missing URL in response: keep photo in pending buffer for retry.
+      } catch {
+        // Upload failed: keep photo in pending buffer for retry.
+      }
     }
 
     const finalUrls = photoUrls.map(u => objToReal.get(u) ?? u);
-    setPhotoUrls(finalUrls);
+    if (pendingRef.current.length > 0) throw new PendingPhotoUploadError(pendingRef.current.length);
     return finalUrls;
   }, [photoUrls]);
 
@@ -239,16 +263,17 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
   const flushPendingContainerPhotos = useCallback(async (
     tripId: number,
     rowKeyToContainerId: Map<string, number>,
+    onUploaded?: PhotoUploadedHandler,
   ): Promise<Map<string, string>> => {
     const pending = pendingContainerPhotosRef.current;
     if (pending.length === 0) return new Map();
-    pendingContainerPhotosRef.current = [];
 
     const swaps = new Map<string, string>();
     for (const p of pending) {
       const containerId = rowKeyToContainerId.get(p.rowKey);
       if (!containerId) {
-        URL.revokeObjectURL(p.objectUrl);
+        // Deletion explicitly calls revokeRowPhotos. A missing response ID
+        // alone is not proof of deletion, so keep the only retryable file.
         continue;
       }
       const formData = new FormData();
@@ -261,12 +286,23 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
         p.file,
         [p.type, tripId, p.rowKey, containerId, p.objectUrl],
       );
-      const result = await api.upload('/ocr/persist-only', formData, { retryFingerprint }) as OcrResponse;
-      if (result.photoUrl) {
-        swaps.set(p.objectUrl, result.photoUrl);
+      try {
+        const result = await api.upload('/ocr/persist-only', formData, { retryFingerprint }) as OcrResponse;
+        if (result.photoUrl && !result.photoUrl.startsWith('blob:')) {
+          swaps.set(p.objectUrl, result.photoUrl);
+          pendingContainerPhotosRef.current = pendingContainerPhotosRef.current.filter(item => item !== p);
+          if (onUploaded) {
+            retiredPreviews.current.push(p.objectUrl);
+            onUploaded(p.objectUrl, result.photoUrl);
+          }
+        }
+        // Missing photoUrl: keep in pending buffer for retry.
+      } catch {
+        // Upload failed: keep in pending buffer for retry.
       }
-      URL.revokeObjectURL(p.objectUrl);
     }
+
+    if (pendingContainerPhotosRef.current.length > 0) throw new PendingPhotoUploadError(pendingContainerPhotosRef.current.length);
     return swaps;
   }, []);
 

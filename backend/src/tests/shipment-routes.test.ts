@@ -86,7 +86,6 @@ let cargoTypeId: number;
 let secondaryCargoTypeId: number;
 let containerTypeId: number;
 let adminUserId: number;
-let managerUserId: number;
 let accountantUserId: number;
 let clerkUserId: number;
 let driverUserId: number;
@@ -96,9 +95,8 @@ let secondaryClerkBusinessUnitId: number;
 let server: http.Server;
 let baseUrl: string;
 
-// Approval workflow parked (customer undecided 2026-09-08): write paths no
-// longer open change requests, but the review surface still ships. Seed a
-// pending request row directly so review lifecycle coverage survives.
+// Historical request rows remain preserved; retired endpoint probes must never
+// apply or delete their saved changes or emit decision notifications.
 async function seedPendingPlanRequest(shipmentId: number, before: unknown, after: unknown): Promise<number> {
   const [shipment] = await db.select().from(s.shipments)
     .where(eq(s.shipments.id, shipmentId)).limit(1);
@@ -319,7 +317,6 @@ before(async () => {
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);
   adminUserId = admin.id;
-  managerUserId = manager.id;
   accountantUserId = accountant.id;
   clerkUserId = clerk.id;
   driverUserId = driver.id;
@@ -4035,226 +4032,55 @@ describe('POST /:id/complete', () => {
   });
 });
 
-describe('POST /:id/change-requests/:requestId/review', () => {
-  test('rejects an approved container change after a trip was issued and preserves the source container', async () => {
-    const accepted = await createAcceptedFulfillmentFixture();
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const [current] = await db.select().from(s.shipments)
-      .where(eq(s.shipments.id, accepted.shipment.id)).limit(1);
-    const dispatched = await transitionShipmentStatus(current.id, ShipmentStatus.DISPATCHED, { changedBy: managerUserId });
-    await db.update(s.shipments).set({ responsibleUnitId: clerkBusinessUnitId })
-      .where(eq(s.shipments.id, current.id));
-    const [sourceContainer] = await db.select().from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, current.id)).limit(1);
-    assert.ok(sourceContainer);
-
-    const requestId = await seedPendingContainerRequest(current.id,
-      sourceContainer.id,
-      sourceContainer.containerNumber ?? null,
-      'SEAL-AFTER-ISSUE',
-      dispatched.version);
-
-    const trip = await insertTripComposite(db, {
-      tripCode: `SR-CHANGE-${suffix}-${createdTripIds.length}`.slice(0, 50),
-      customerId,
-      routeId,
-      departureDate: '2026-08-04',
-      shipmentId: current.id,
-      fulfillmentId: accepted.fulfillmentId,
-      status: 'CREATED',
-      carrierType: 'OWN',
-    });
-    createdTripIds.push(trip.id);
-
-    const review = await testFetch(`/${current.id}/change-requests/${requestId}/review`, {
-      method: 'POST',
-      token: managerToken,
-      body: { resolution: 'APPLIED' },
-    });
-    assert.equal(review.status, 409);
-
-    const [preservedContainer] = await db.select().from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.id, sourceContainer.id)).limit(1);
-    assert.equal(preservedContainer?.sealNumber, sourceContainer.sealNumber);
-    const [pendingRequest] = await db.select().from(s.shipmentChangeRequests)
-      .where(eq(s.shipmentChangeRequests.id, requestId)).limit(1);
-    assert.ok(pendingRequest, 'rejected apply keeps the request available for an explicit rejection');
-  });
-
-  test('applying a pre-issuance container change cancels stale fulfillments before reconciliation', async () => {
-    const accepted = await createAcceptedFulfillmentFixture();
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const [current] = await db.select().from(s.shipments)
-      .where(eq(s.shipments.id, accepted.shipment.id)).limit(1);
-    const dispatched = await transitionShipmentStatus(current.id, ShipmentStatus.DISPATCHED, { changedBy: managerUserId });
-    await db.update(s.shipments).set({ responsibleUnitId: clerkBusinessUnitId })
-      .where(eq(s.shipments.id, current.id));
-    const [sourceContainer] = await db.select().from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, current.id)).limit(1);
-    assert.ok(sourceContainer);
-
-    const requestId = await seedPendingContainerRequest(current.id,
-      sourceContainer.id,
-      sourceContainer.containerNumber ?? null,
-      'SEAL-PRE-ISSUE',
-      dispatched.version);
-
-    const review = await testFetch(`/${current.id}/change-requests/${requestId}/review`, {
-      method: 'POST',
-      token: managerToken,
-      body: { resolution: 'APPLIED' },
-    });
-    assert.equal(review.status, 200, JSON.stringify(review.data));
-    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
-      .where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId)).limit(1);
-    assert.ok(fulfillment?.canceledAt);
-    assert.equal(fulfillment?.cancellationDisposition, 'REPLACED');
-    const [updatedContainer] = await db.select().from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.id, sourceContainer.id)).limit(1);
-    assert.equal(updatedContainer?.sealNumber, 'SEAL-PRE-ISSUE');
-  });
-
-  test('MANAGER can apply a pending request and bump the shipment version', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkClerkScopedShipmentViaService({
-      pickupLocation: 'Kho cũ',
-      closingAt: '2026-08-04T08:00:00.000Z',
-    });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
+describe('POST /:id/change-requests/:requestId/review is retired', () => {
+  test('apply and reject return410 for authorized roles without changing historical records', async () => {
+    const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho gốc' });
     const requestId = await seedPendingPlanRequest(shipment.id,
-      { pickupLocation: 'Kho cũ' },
-      { pickupLocation: 'Kho mới' });
-
-    const review = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
-      method: 'POST',
-      token: managerToken,
-      body: { resolution: 'APPLIED' },
-    });
-    assert.equal(review.status, 200, JSON.stringify(review.data));
-    assert.equal(review.data.resolution, 'APPLIED');
-    assert.equal(review.data.shipmentVersion, dispatched.version + 1);
-
-    const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
-    assert.equal(detail.data.shipment.pickupLocation, 'Kho mới');
-    assert.equal(detail.data.pendingChangeRequests.length, 0);
-  });
-
-  test('stale apply conflicts but stale reject closes the request and targets only its requester', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkClerkScopedShipmentViaService({
-      pickupLocation: 'Kho nguồn',
-      closingAt: '2026-08-04T08:00:00.000Z',
-    });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestId = await seedPendingPlanRequest(shipment.id,
-      { pickupLocation: 'Kho nguồn' },
-      { pickupLocation: 'Kho đề xuất' });
-
-    const directUpdate = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: adminToken,
-      body: {
-        expectedVersion: dispatched.version,
-        contactName: 'Điều phối cập nhật',
-      },
-    });
-    assert.equal(directUpdate.status, 200);
-    assert.equal(directUpdate.data.version, dispatched.version + 1);
-
-    const staleApply = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
-      method: 'POST',
-      token: managerToken,
-      body: { resolution: 'APPLIED' },
-    });
-    assert.equal(staleApply.status, 409);
-
-    const staleReject = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
-      method: 'POST',
-      token: managerToken,
-      body: { resolution: 'REJECTED' },
-    });
-    assert.equal(staleReject.status, 200);
-    assert.equal(staleReject.data.resolution, 'REJECTED');
-    assert.equal(staleReject.data.shipmentVersion, dispatched.version + 1);
-
-    const pending = await db.select({ id: s.shipmentChangeRequests.id })
-      .from(s.shipmentChangeRequests)
+      { pickupLocation: 'Kho gốc' }, { pickupLocation: 'Không được áp dụng' });
+    const [before] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const [requestBefore] = await db.select().from(s.shipmentChangeRequests)
       .where(eq(s.shipmentChangeRequests.id, requestId));
-    assert.equal(pending.length, 0);
-
-    const decisionRows = await db.select({ userId: s.notifications.userId })
-      .from(s.notifications)
-      .where(and(
-        eq(s.notifications.relatedEntityType, 'shipments'),
-        eq(s.notifications.relatedEntityId, shipment.id),
-        eq(s.notifications.title, 'Yêu cầu thay đổi lô hàng đã bị từ chối'),
-      ));
-    assert.deepEqual(decisionRows.map((row) => row.userId), [clerkUserId]);
-    assert.ok(!decisionRows.some((row) => row.userId === accountantUserId));
-  });
-
-  test('ADMIN and MANAGER first-decision review has exactly one winner', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkClerkScopedShipmentViaService({
-      deliveryLocation: 'Điểm cũ',
-      closingAt: '2026-08-04T08:00:00.000Z',
-    });
-    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestId = await seedPendingPlanRequest(shipment.id,
-      { deliveryLocation: 'Điểm cũ' },
-      { deliveryLocation: 'Điểm mới' });
-
-    const [apply, reject] = await Promise.all([
-      testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
-        method: 'POST',
-        token: managerToken,
-        body: { resolution: 'APPLIED' },
-      }),
-      testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
-        method: 'POST',
-        token: adminToken,
-        body: { resolution: 'REJECTED' },
-      }),
-    ]);
-    assert.deepEqual([apply.status, reject.status].sort(), [200, 404]);
-
-    const pending = await db.select({ id: s.shipmentChangeRequests.id })
-      .from(s.shipmentChangeRequests)
+    for (const resolution of ['APPLIED', 'REJECTED']) {
+      for (const token of [adminToken, managerToken]) {
+        for (let replay = 0; replay < 2; replay++) {
+          const response = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+            method: 'POST', token, body: { resolution },
+          });
+          assert.equal(response.status, 410, JSON.stringify(response.data));
+        }
+      }
+    }
+    const [after] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const [requestAfter] = await db.select().from(s.shipmentChangeRequests)
       .where(eq(s.shipmentChangeRequests.id, requestId));
-    assert.equal(pending.length, 0);
-    const decisionRows = await db.select({ id: s.notifications.id })
-      .from(s.notifications)
-      .where(and(
-        eq(s.notifications.relatedEntityType, 'shipments'),
-        eq(s.notifications.relatedEntityId, shipment.id),
-        inArray(s.notifications.title, [
-          'Yêu cầu thay đổi lô hàng đã được áp dụng',
-          'Yêu cầu thay đổi lô hàng đã bị từ chối',
-        ]),
-      ));
-    assert.equal(decisionRows.length, 1);
+    assert.deepEqual(after, before);
+    assert.deepEqual(requestAfter, requestBefore);
+    const decisions = await db.select().from(s.notifications).where(and(
+      eq(s.notifications.relatedEntityType, 'shipments'),
+      eq(s.notifications.relatedEntityId, shipment.id),
+    ));
+    assert.equal(decisions.length, 0);
   });
 
-  test('ACCOUNTANT cannot review a shipment change request', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkClerkScopedShipmentViaService({
-      pickupLocation: 'Kho A',
-      closingAt: '2026-08-04T08:00:00.000Z',
+  test('retired container review cannot cancel fulfillments or reconcile source containers', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const containersBefore = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id));
+    const [fulfillmentBefore] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fixture.fulfillmentId));
+    const first = containersBefore[0];
+    assert.ok(first);
+    const requestId = await seedPendingContainerRequest(fixture.shipment.id, first.id,
+      first.containerNumber, 'RETIRED-SEAL', fixture.shipment.version);
+    const response = await testFetch(`/${fixture.shipment.id}/change-requests/${requestId}/review`, {
+      method: 'POST', token: managerToken, body: { resolution: 'APPLIED' },
     });
-    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestId = await seedPendingPlanRequest(shipment.id,
-      { pickupLocation: 'Kho A' },
-      { pickupLocation: 'Kho B' });
-
-    const denied = await testFetch(
-      `/${shipment.id}/change-requests/${requestId}/review`,
-      {
-        method: 'POST',
-        token: accountantToken,
-        body: { resolution: 'REJECTED' },
-      },
-    );
-    assert.equal(denied.status, 403);
+    assert.equal(response.status, 410);
+    assert.deepEqual(await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id)), containersBefore);
+    const [fulfillmentAfter] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fixture.fulfillmentId));
+    assert.deepEqual(fulfillmentAfter, fulfillmentBefore);
   });
 });
 

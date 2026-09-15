@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Supplier, Tire, TirePosition } from '@tingting/shared';
 import {
   buildPositionLabels,
@@ -6,9 +6,25 @@ import {
   positionPayloadFromLabel,
   supplierIdFromText,
   textMatches,
+  daysBetween,
+  todayISO,
 } from './tireUtils';
 
 describe('tireUtils', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('uses Vietnam calendar days around midnight regardless of browser timezone', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-14T16:59:59Z'));
+    expect(todayISO()).toBe('2026-09-14');
+    expect(daysBetween('2026-09-14')).toBe(0);
+    vi.setSystemTime(new Date('2026-09-14T17:00:00Z'));
+    expect(todayISO()).toBe('2026-09-15');
+    expect(daysBetween('2026-09-14')).toBe(1);
+    expect(daysBetween('2026-09-15', '2026-09-15')).toBe(0);
+    expect(daysBetween('2026-03-07', '2026-03-09')).toBe(2);
+    expect(daysBetween('bad-date')).toBeNull();
+  });
   it('matches Vietnamese text regardless of case and accents', () => {
     expect(textMatches('Trước trái', 'truoc')).toBe(true);
     expect(textMatches('Đuôi phải', 'duoi')).toBe(true);

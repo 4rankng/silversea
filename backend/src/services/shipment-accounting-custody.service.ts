@@ -8,7 +8,6 @@ import type {
   ShipmentCusDocumentCustodyUpdateInput,
   ShipmentCusLockInput,
   ShipmentCusReopenRequestInput,
-  ShipmentCusReopenDecisionInput,
 } from '@tingting/shared';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
@@ -18,7 +17,6 @@ import type { Tx } from './trip-shared';
 import { persistNotificationInTx } from './notification.service';
 import {
   SHIPMENT_ACCOUNTING_LOCKED_MESSAGE,
-  readNumber,
   lockShipment,
   loadActiveLockForUpdate,
   mapConfirmationSummary,
@@ -163,7 +161,7 @@ export async function requestShipmentReopen(args: {
   transaction?: Tx;
 }) {
   if (args.actor.role !== Role.CUS) {
-    throw new ApiError(403, 'Chỉ CUS được gửi đề nghị điều chỉnh lô đã khóa.');
+    throw new ApiError(403, 'Chỉ CUS được mở lại lô đã khóa trong phạm vi được phân công.');
   }
 
   // 2026-09-10 user directive: the phê duyệt step is removed — a reopen
@@ -174,7 +172,7 @@ export async function requestShipmentReopen(args: {
   const execute = async (tx: Tx) => {
     const shipment = await lockShipment(tx, args.shipmentId);
     if (shipment.version !== args.input.expectedShipmentVersion) {
-      throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi gửi đề nghị.');
+      throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi mở lại.');
     }
 
     const activeLock = await loadActiveLockForUpdate(tx, shipment.id);

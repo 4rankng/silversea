@@ -27,6 +27,8 @@ vi.mock('./pages/AccountingWorkspacePage', () => ({
   default: () => <div>Không gian kế toán</div>,
 }));
 
+vi.mock('./pages/DriverTripsPage', () => ({ default: () => <div>Hành trình lái xe</div> }));
+
 vi.mock('./components/Layout', () => {
   const MockLayout = ({ children }: { children: ReactNode }) => {
     const { logout } = useAuthMock();
@@ -83,6 +85,20 @@ describe('unauthenticated route handling', () => {
 
     expect((await screen.findByTestId('location')).textContent).toBe('/login');
     expect(await screen.findByText('Đăng nhập')).toBeTruthy();
+  });
+
+  it('takes a newly authenticated driver from login to their own home instead of 404', async () => {
+    useAuthMock.mockReturnValue({ isAuthenticated: true, user: { userId: 2, role: 'DRIVER' }, loading: false, logout: vi.fn() });
+    render(<MemoryRouter initialEntries={['/login']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/my-trips'));
+    expect(screen.queryByText('Không tìm thấy trang')).not.toBeInTheDocument();
+  });
+
+  it('explains genuine unknown addresses without silently discarding the requested URL', async () => {
+    useAuthMock.mockReturnValue({ isAuthenticated: true, user: { userId: 1, role: 'ADMIN' }, loading: false, logout: vi.fn() });
+    render(<MemoryRouter initialEntries={['/unknown-page']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>);
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
+    expect(screen.getByTestId('location')).toHaveTextContent('/unknown-page');
   });
 
   it('redirects an accountant without executive dashboard access to the accounting home', async () => {

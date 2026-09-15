@@ -3,6 +3,7 @@ import { Modal, FormGroup } from '../UI';
 import { Alert } from '../shared/Alert';
 import { User, Mail, Phone, UserCheck, AlertCircle } from 'lucide-react';
 import type { ProfileModalProps } from './types';
+import { BuildVersion } from '../shared/BuildVersion';
 
 function ProfileModal({
   isOpen,
@@ -40,7 +41,7 @@ function ProfileModal({
           {error}
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="profile-form grid grid-cols-1 sm:grid-cols-2">
         <FormGroup label="Tên đăng nhập">
           <div className="input-icon">
             <User size={16} />
@@ -87,6 +88,7 @@ function ProfileModal({
           </div>
         </FormGroup>
       </div>
+      {isOpen && <BuildVersion />}
     </Modal>
   );
 }

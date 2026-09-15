@@ -58,7 +58,14 @@ export function OperationalPolicySection({
             value={creditWarningPercent}
             onChange={(event) => setCreditWarningPercent(event.target.value)}
             disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
+            aria-invalid={!creditThresholdValid || undefined}
+            aria-describedby={!creditThresholdValid ? 'credit-threshold-error' : undefined}
           />
+          {!creditThresholdValid && (
+            <p id="credit-threshold-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
+              Ngưỡng cảnh báo phải từ 1% đến 99%.
+            </p>
+          )}
           <p className="cfg-field-hint">
             Dùng chung khi khách hàng chưa cấu hình riêng. Hiện tại: {creditThresholdValid
               ? `${creditWarningPercent}%`
@@ -95,7 +102,7 @@ export function OperationalPolicySection({
           hint="Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó."
         />
         <div className="field">
-          <label htmlFor="credit-tier-one-amount-cap">Ngưỡng tiền duyệt cấp 1 (VND)</label>
+          <label htmlFor="credit-tier-one-amount-cap">Ngưỡng vượt hạn mức cấp 1 (VND)</label>
           <input
             id="credit-tier-one-amount-cap"
             className="input"
@@ -105,9 +112,16 @@ export function OperationalPolicySection({
             value={creditTierOneCap}
             onChange={(event) => setCreditTierOneCap(event.target.value)}
             disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
+            aria-invalid={!creditTierCapValid || undefined}
+            aria-describedby={!creditTierCapValid ? 'credit-tier-cap-error' : undefined}
           />
+          {!creditTierCapValid && (
+            <p id="credit-tier-cap-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
+              Ngưỡng vượt hạn mức cấp 1 phải là số nguyên VND không âm.
+            </p>
+          )}
           <p className="cfg-field-hint">
-            Cấp 1 chỉ được duyệt phần vượt không quá {creditTierCapValid
+            Quyền cấp 1 chỉ được ghi nhận phần vượt không quá {creditTierCapValid
               ? formatCurrency(Number(creditTierOneCap))
               : 'một số nguyên không âm'}.
           </p>
@@ -128,16 +142,6 @@ export function OperationalPolicySection({
           {saveAppSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
           {saveAppSettings.isPending ? 'Đang lưu…' : 'Lưu cài đặt'}
         </button>
-        {!creditThresholdValid && (
-          <span role="alert" className="cfg-form-error">
-            Ngưỡng cảnh báo phải từ 1% đến 99%.
-          </span>
-        )}
-        {creditThresholdValid && !creditTierCapValid && (
-          <span role="alert" className="cfg-form-error">
-            Ngưỡng tiền duyệt cấp 1 phải là số nguyên VND không âm.
-          </span>
-        )}
         {saveAppSettings.error && (
           <span role="alert" className="cfg-form-error">
             {saveAppSettings.error instanceof Error ? saveAppSettings.error.message : 'Không thể lưu cài đặt.'}

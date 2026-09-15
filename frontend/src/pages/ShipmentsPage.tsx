@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react';
 import {
@@ -21,6 +21,7 @@ import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '..
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
+import { CusFilterSummary } from '../features/shipments/cus/CusFilterSummary';
 import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
@@ -39,7 +40,6 @@ import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
 const BUCKETS = Object.values(ShipmentCusBucket);
-
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -62,7 +62,7 @@ export default function ShipmentsPage() {
     ? rawSortBy as ShipmentCusWorkspaceSortKey
     : null;
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
-  const sort: TableSortState | null = sortKey ? { by: sortKey, dir: sortDir } : null;
+  const sort: TableSortState | null = useMemo(() => sortKey ? { by: sortKey, dir: sortDir } : null, [sortKey, sortDir]);
 
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -181,7 +181,8 @@ export default function ShipmentsPage() {
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
-
+  // Phone/tablet: secondary criteria collapse so records start higher.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const exportWorksheet = async () => {
     setExporting(true);
     ws.setError(null);
@@ -280,6 +281,18 @@ export default function ShipmentsPage() {
               {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
 
+            <button
+              type="button"
+              className="cus-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              Bộ lọc nâng cao{activeFilterCount > 0 ? ` · ${activeFilterCount} đang áp dụng` : ''}
+            </button>
+            {activeFilterCount > 0 && !advancedOpen && (
+              <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
+            )}
+            <div className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
             <UuiSelectField
               label="Xuất / Nhập"
               value={direction}
@@ -321,6 +334,7 @@ export default function ShipmentsPage() {
               wrapperClassName="shipment-uui-field cus-plan-status-filter"
               controlClassName="shipment-uui-select"
             />
+            </div>
           </div>
 
           <div className="cus-worksheet-toolbar__actions" aria-label="Thao tác lô hàng">
@@ -565,7 +579,7 @@ export default function ShipmentsPage() {
                 </div>
               </section>
 
-              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} />
+              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} />
             </>
           )}
         </div>
@@ -587,7 +601,7 @@ export default function ShipmentsPage() {
 
       <Modal
         isOpen={Boolean(actions.actionItem && actions.actionMode)}
-        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Yêu cầu xóa lô hàng' : 'Đề nghị điều chỉnh'}
+        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Điều chỉnh lô hàng'}
         onClose={actions.closeAction}
         onConfirm={() => void actions.submitAction()}
         footer={(
@@ -595,7 +609,7 @@ export default function ShipmentsPage() {
             <button type="button" className="btn btn--ghost" onClick={actions.closeAction} disabled={actions.submitting}>Hủy</button>
             <button type="button" className="btn btn--primary" onClick={() => void actions.submitAction()} disabled={actions.submitting || !actions.reason.trim()}>
               {actions.submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Gửi yêu cầu xóa' : 'Gửi đề nghị'}
+              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Gửi điều chỉnh'}
             </button>
           </>
         )}
@@ -603,11 +617,11 @@ export default function ShipmentsPage() {
         {actions.actionMode === 'confirm' ? (
           <p>Xác nhận này chụp lại phiên bản Debit Note, chuyến xe và chi phí hiện hành. Nếu nguồn thay đổi, xác nhận sẽ hết hiệu lực.</p>
         ) : actions.actionMode === 'lock' ? (
-          <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Dữ liệu chỉ được mở lại qua yêu cầu được Quản trị viên duyệt.</p>
+          <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Chỉ người có quyền mở khóa mới có thể mở lại dữ liệu.</p>
         ) : actions.actionMode === 'delete' ? (
-          <p>Yêu cầu xóa lô hàng sẽ gửi đến Quản trị viên để phê duyệt. Nếu lô hàng chưa phát sinh nghiệp vụ, có thể xóa ngay lập tức.</p>
+          <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu. Thao tác không thể hoàn tác.</p>
         ) : (
-          <p>Ghi rõ nội dung cần sửa để Quản trị viên có đủ căn cứ xem xét mở lại lô hàng.</p>
+          <p>Ghi rõ lý do điều chỉnh.</p>
         )}
         <label className="cus-action-reason">
           <span>{actions.actionMode === 'confirm' ? 'Lý do xác nhận' : actions.actionMode === 'lock' ? 'Lý do khóa' : actions.actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>

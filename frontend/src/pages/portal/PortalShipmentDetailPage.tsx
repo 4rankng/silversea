@@ -76,6 +76,7 @@ export default function PortalShipmentDetailPage() {
   }, [searchParams, selectedCustomerId]);
   const [data, setData] = useState<PortalShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [eventError, setEventError] = useState<string | null>(null);
   const [events, setEvents] = useState<CustomerVisibleEvent[]>([]);
@@ -113,7 +114,7 @@ export default function PortalShipmentDetailPage() {
         if (active) setEventError('Tạm thời chưa tải được các cập nhật từ Customer Service.');
       });
     return () => { active = false; };
-  }, [customerScopeReady, id, selectedCustomerId]);
+  }, [customerScopeReady, id, selectedCustomerId, retryKey]);
 
   // Containers are a small unpaginated sub-list inside one shipment, so the
   // full set is already client-side; sorting happens locally (empty cells
@@ -131,11 +132,11 @@ export default function PortalShipmentDetailPage() {
   );
   const applyContainerSort = (key: string) => setContainerSort((current) => nextTableSort(current, key));
 
-  if (loading) return <div className="portal-page"><div className="portal-panel portal-state" role="status">Đang tải chi tiết lô hàng…</div></div>;
+  if (loading) return <div className="portal-page"><Link to={returnListHref} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link><div className="portal-state" role="status">Đang tải chi tiết lô hàng…</div></div>;
   if (error || !data) return (
     <div className="portal-page">
-      <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Quay lại danh sách</Link>
-      <div className="portal-panel"><EmptyState title={error ?? 'Không có dữ liệu'} /></div>
+      <Link to={returnListHref} className="portal-back"><ArrowLeft size={16} /> Quay lại danh sách</Link>
+      <div role="alert"><EmptyState title={error ?? 'Không có dữ liệu'} action={<button type="button" className="portal-button" onClick={() => setRetryKey((current) => current + 1)}>Thử lại</button>} /></div>
     </div>
   );
 
@@ -162,10 +163,12 @@ export default function PortalShipmentDetailPage() {
   return (
     <div className="portal-page">
       <Link to={returnListHref} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
-      <header className="portal-page__header">
-        <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
-        <h1>{customerShipmentReference}</h1>
-        <p>Trạng thái hiện tại: <span className="portal-status">{SHIPMENT_STATUS_LABELS[shipment.status as keyof typeof SHIPMENT_STATUS_LABELS]}</span></p>
+      <header className="portal-page__header portal-page__header--detail">
+        <div className="portal-page__title">
+          <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
+          <h1>{customerShipmentReference}</h1>
+          <p>Trạng thái hiện tại: <span className="portal-status">{SHIPMENT_STATUS_LABELS[shipment.status as keyof typeof SHIPMENT_STATUS_LABELS]}</span></p>
+        </div>
       </header>
 
       <div className="portal-panel">
@@ -174,8 +177,8 @@ export default function PortalShipmentDetailPage() {
           <dl className="portal-detail-grid">
             <div><dt>Mã đặt chỗ</dt><dd>{bookingNumber ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{billNumber ?? '—'}</dd></div>
-            <div><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
-            <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
+            <div className="portal-detail-grid__wide"><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
+            <div className="portal-detail-grid__wide"><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
           </dl>
         </section>
 

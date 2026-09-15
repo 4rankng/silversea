@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,8 +9,6 @@ const listAllAdvanceRequests = vi.fn();
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: {
     listAllAdvanceRequests: (...args: unknown[]) => listAllAdvanceRequests(...args),
-    approveAdvanceRequest: vi.fn(),
-    rejectAdvanceRequest: vi.fn(),
   },
 }));
 
@@ -55,22 +53,20 @@ function makeRequest(id: number, status: AdvanceRequestStatus, requesterName: st
 // loaded page.
 const envelope = {
   items: [
-    makeRequest(1, AdvanceRequestStatus.PENDING, 'An Nguyễn'),
-    makeRequest(2, AdvanceRequestStatus.APPROVED, 'Bình Trần'),
+    makeRequest(1, AdvanceRequestStatus.RECORDED, 'An Nguyễn'),
+    makeRequest(2, AdvanceRequestStatus.VOIDED, 'Bình Trần'),
   ],
   page: 1,
   limit: 50,
   total: 120,
   totalPages: 3,
   statusCounts: {
-    [AdvanceRequestStatus.PENDING]: 7,
-    [AdvanceRequestStatus.APPROVED]: 5,
-    [AdvanceRequestStatus.REJECTED]: 2,
+    [AdvanceRequestStatus.RECORDED]: 7,
+    [AdvanceRequestStatus.VOIDED]: 5,
   },
   statusAmounts: {
-    [AdvanceRequestStatus.PENDING]: 7_000_000,
-    [AdvanceRequestStatus.APPROVED]: 5_000_000,
-    [AdvanceRequestStatus.REJECTED]: 2_000_000,
+    [AdvanceRequestStatus.RECORDED]: 7_000_000,
+    [AdvanceRequestStatus.VOIDED]: 5_000_000,
   },
 };
 
@@ -111,21 +107,21 @@ describe('AdminAdvancesPage server-driven listing', () => {
     const { container } = renderPage();
     expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
 
-    // KPI values 7/5/2 — the loaded page only holds 2 rows, so these can only
-    // come from the full-set envelope aggregates.
+    // KPI values 7/5/0 (RECORDED/VOIDED/balances) — the
+    // loaded page only holds 2 rows, so these can only come from the
+    // full-set envelope aggregates.
     const kpiValues = Array.from(container.querySelectorAll('.adv-kpi__value')).map(
       (el) => el.textContent,
     );
-    expect(kpiValues).toEqual(['7', '5', '2', '0']);
+    expect(kpiValues).toEqual(['7', '5', '0']);
 
     // KPI meta amounts come from statusAmounts (vi-VN grouping).
     expect(screen.getAllByText('7.000.000 ₫').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('5.000.000 ₫').length).toBeGreaterThan(0);
 
-    // Filter pills carry full-set counts, including the "all" total (7+5+2).
+    // Filter pills carry full-set counts, including the "all" total (7+5).
     // (Pill label + count spans concatenate without a space in the accname.)
-    expect(screen.getByRole('button', { name: 'Chờ duyệt7' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tất cả14' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đã ghi nhận7' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tất cả12' })).toBeTruthy();
   });
 
   it('renders Pagination with the server total and navigates pages', async () => {
@@ -151,16 +147,16 @@ describe('AdminAdvancesPage server-driven listing', () => {
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 2 }));
 
     // Switching the status filter must send the filter and reset the page.
-    screen.getByRole('button', { name: 'Chờ duyệt7' }).click();
+    screen.getByRole('button', { name: 'Đã ghi nhận7' }).click();
     await waitFor(() =>
-      expect(lastCallParams()).toMatchObject({ status: 'PENDING', page: 1 }),
+      expect(lastCallParams()).toMatchObject({ status: 'RECORDED', page: 1 }),
     );
 
     // Going back to "all" drops the status param: the unfiltered page-1 query
     // is already cached (staleTime), so no new call fires — assert the filter
     // state reset (the "all" pill is active again) and that every status
     // call the endpoint saw stayed on page 1.
-    const allPill = screen.getByRole('button', { name: 'Tất cả14' });
+    const allPill = screen.getByRole('button', { name: 'Tất cả12' });
     allPill.click();
     await waitFor(() => expect(allPill.className).toContain('is-active'));
     for (const call of listAllAdvanceRequests.mock.calls) {
@@ -190,4 +186,20 @@ describe('AdminAdvancesPage server-driven listing', () => {
       expect(lastCallParams()).toMatchObject({ sortBy: 'amount', sortDir: 'desc', page: 1 }),
     );
   });
+});
+
+// FIN-POL-03a: the phone control must use the same empty/all value as desktop.
+it('labels the mobile all-status selection and never submits a literal all filter', async () => {
+  const { container } = renderPage();
+  await screen.findAllByText('An Nguyễn');
+  const mobile = container.querySelector('.adv-mobile-filter') as HTMLElement;
+  const trigger = within(mobile).getByRole('button');
+  expect(trigger).toHaveTextContent('Tất cả (12)');
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole('option', { name: 'Đã ghi nhận (7)' }));
+  await waitFor(() => expect(lastCallParams().status).toBe('RECORDED'));
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole('option', { name: 'Tất cả (12)' }));
+  await waitFor(() => expect(trigger).toHaveTextContent('Tất cả (12)'));
+  expect(listAllAdvanceRequests.mock.calls.every(([params]) => params.status !== 'all')).toBe(true);
 });

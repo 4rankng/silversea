@@ -1,0 +1,4 @@
+.not-found-page { width: min(100%, 480px); margin: 32px auto; padding: 8px; text-align: center; }
+.not-found-page__code { font-size: var(--text-caption-size); color: var(--ink-3); margin: 0 0 8px; }
+.not-found-page h1 { font-size: var(--text-title-size); margin: 0 0 10px; }
+.not-found-page > p:not(.not-found-page__code) { color: var(--ink-2); line-height: 1.5; margin-bottom: 16px; }

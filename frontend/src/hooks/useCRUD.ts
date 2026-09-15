@@ -67,20 +67,23 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi lưu'); } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
-  const doUpdate = useCallback(async (id: number, body: Record<string, unknown>) => {
+  // KP-135: Each mutation carries the caller-bound version token from the
+  // snapshot the user loaded, not the ApiClient's generic updatedAtByPath
+  // cache which may have been refreshed by a more recent GET.
+  const doUpdate = useCallback(async (id: number, body: Record<string, unknown>, expectedUpdatedAt?: string) => {
     setSaving(true);
     try {
-      await api.put(`${apiPath}/${id}`, body);
+      await api.put(`${apiPath}/${id}`, body, expectedUpdatedAt ? { expectedUpdatedAt } : undefined);
       setEditingId(null);
       await refreshAll();
       handleMutationSuccess('update');
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi cập nhật'); } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
-  const doDelete = useCallback(async (id: number) => {
+  const doDelete = useCallback(async (id: number, expectedUpdatedAt?: string) => {
     setDeleting(id);
     try {
-      await api.delete(`${apiPath}/${id}`);
+      await api.delete(`${apiPath}/${id}`, expectedUpdatedAt ? { expectedUpdatedAt } : undefined);
       await refreshAll();
       handleMutationSuccess('delete');
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi xóa'); } finally { setDeleting(null); }

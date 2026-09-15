@@ -24,6 +24,9 @@
  */
 
 export const qk = {
+  support: {
+    serverBuild: ['support', 'server-build'] as const,
+  },
   auth: {
     me: ['auth', 'me'],
   },
@@ -190,6 +193,7 @@ export const qk = {
     trips: ['driver-trips'],
     tripDetail: (tripId: number | string | undefined) => ['driver-trip-detail', String(tripId ?? '')] as const,
     tripProgress: (tripId: number | string | undefined) => ['driver-trip-progress', String(tripId ?? '')] as const,
+    tripBasic: (tripId: number | string | undefined) => ['driver-trip-basic', String(tripId ?? '')] as const,
     evidenceStatus: (tripId: number | string | undefined) => ['driver-trip-evidence', String(tripId ?? '')] as const,
     earnings: (month: number, year: number) =>
       ['driver-earnings', month, year] as const,
@@ -386,9 +390,6 @@ export const qk = {
     tripSelector: (driverId: string | null, search: string) =>
       [...qk.trips.all, 'penalty-selector', driverId, search] as const,
   },
-
-  /* ── Governance actions (approval inbox) ───────────────────────────── */
-
 
   /* ── Fuel-evidence review queue ────────────────────────────────────── */
 

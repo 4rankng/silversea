@@ -19,7 +19,8 @@ import { useCapTable, useDashboardWidgets, useDistributionHistory, usePnlReport 
 import { useToast } from '../components/shared/Toast';
 import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
-import { TruckCapRole, TRUCK_CAP_ROLE_LABELS } from '@tingting/shared';
+import type { TruckCapRole } from '@tingting/shared';
+import { RoleTag } from '../components/finance/ProfitPartnerRole';
 import './ProfitPage.css';
 import './WorkflowFinance.css';
 import '../styles/record-table.css';
@@ -28,15 +29,6 @@ import { ProfitabilityReportPanel } from '../components/finance/ProfitabilityRep
 import { useAuth } from '../hooks/useAuth';
 import { UuiSelectField } from '../design-system';
 
-/** B2 — render a partner-role tag. Driver-contributors get a distinct "Lái xe"
- * label so investors and drivers are visually distinguishable in the per-truck
- * breakdown and distribution tables. Returns null for the default investor
- * role so legacy investor-only views stay uncluttered. */
-function RoleTag({ role }: { role?: TruckCapRole | string | null }) {
-  if (!role || role === TruckCapRole.INVESTOR) return null;
-  const label = TRUCK_CAP_ROLE_LABELS[TruckCapRole.DRIVER];
-  return <span className="profit-role-tag">{label}</span>;
-}
 
 interface DistributionResult {
   quarter: number;
@@ -68,7 +60,7 @@ interface DistributionResult {
 interface ProfitDistributionRequest {
   id: number;
   actionKind: 'PROFIT_DISTRIBUTION';
-  status: 'PENDING_CHECK';
+  status: 'APPROVED'; // Transaction adapter value; this direct save has no approval stage.
   version: number;
   afterSnapshot: {
     quarter: number;
@@ -78,7 +70,7 @@ interface ProfitDistributionRequest {
 
 export default function ProfitPage() {
   const user = useAuth()?.user;
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { toast: showToast } = useToast();
 
@@ -96,7 +88,7 @@ export default function ProfitPage() {
   const { data: dashboardWidgets } = useDashboardWidgets(selectedMonth, selectedYear);
 
   const { data: capTable = [], error: capError } = useCapTable();
-  const { data: history = [] } = useDistributionHistory();
+  const { data: history = [], refetch: refetchHistory } = useDistributionHistory();
 
   const error = reportError || capError ? 'Không thể tải báo cáo phân chia lợi nhuận.' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
@@ -133,6 +125,7 @@ export default function ProfitPage() {
     async function loadQuarterPreview() {
       setPreviewing(true);
       setPreview(null);
+
       try {
         const res = await api.post<DistributionResult>('/reports/distribute-profit/preview', {
           quarter: selectedQuarter,
@@ -155,7 +148,8 @@ export default function ProfitPage() {
   }, [selectedQuarter, distQuarterYear, showToast]);
 
   const handleDistributeProfit = async () => {
-    if (!await confirm(`Gửi yêu cầu phân chia lợi nhuận Quý ${selectedQuarter}/${distQuarterYear} để kiểm tra và phê duyệt?`)) {
+    if (distributing || previewing || !preview) return;
+    if (!await confirm(`Phân bổ lợi nhuận Quý ${selectedQuarter}/${distQuarterYear} ngay?`)) {
       return;
     }
 
@@ -168,9 +162,10 @@ export default function ProfitPage() {
       });
       setDistributionRequest(res);
       setPreview(null);
-      showToast({ kind: 'success', message: 'Đã gửi yêu cầu phân chia lợi nhuận để kiểm tra và phê duyệt.' });
+      void refetchHistory();
+      showToast({ kind: 'success', message: 'Đã phân bổ lợi nhuận.' });
     } catch (err) {
-      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi gửi yêu cầu phân chia lợi nhuận.' });
+      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi phân bổ lợi nhuận.' });
     } finally {
       setDistributing(false);
     }
@@ -432,7 +427,7 @@ export default function ProfitPage() {
                     disabled={distributing}
                   >
                     <CheckSquare size={14} />
-                    {distributing ? 'Đang gửi...' : 'Gửi duyệt phân bổ'}
+                    {distributing ? 'Đang xử lý...' : 'Phân bổ lợi nhuận'}
                   </button>
                 </div>
               </div>
@@ -549,10 +544,10 @@ export default function ProfitPage() {
               {distributionRequest && (
                 <div className="profit-settlement__request">
                   <h4 className="profit-settlement__request-title">
-                    Đã gửi yêu cầu phân chia Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
+                    Đã phân bổ Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
                   </h4>
                   <p className="profit-settlement__request-body">
-                    Yêu cầu phân chia lợi nhuận đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
+                    Lợi nhuận đã được phân bổ theo tỷ lệ cổ phần. Thao tác này không ghi nhận chuyển tiền.
                   </p>
                 </div>
               )}

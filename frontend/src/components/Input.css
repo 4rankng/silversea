@@ -9,7 +9,7 @@
   height: var(--control-default-h);
   padding: 0 12px;
   font-family: var(--font-body);
-  font-size: var(--fs-md);
+  font-size: var(--control-field-font-size);
   line-height: 1.35;
   background: var(--surface);
   border: 1px solid var(--line-2);
@@ -34,6 +34,14 @@
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
   border-color: var(--accent);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.input[aria-invalid="true"]:focus-visible {
+  outline-color: var(--danger);
 }
 
 .input-icon { position: relative; }
@@ -64,18 +72,12 @@ select.input {
   line-height: 1.35;
 }
 
-@media (min-width: 641px) {
-  .input {
-    font-size: var(--fs-sm);
-  }
-}
-
 @media (max-width: 640px) {
   .input {
     min-height: var(--control-mobile-h);
     height: var(--control-mobile-h);
     border-radius: 11px;
-    font-size: var(--fs-3xs);
+    font-size: var(--text-input-touch-size);
   }
 
   textarea.input {

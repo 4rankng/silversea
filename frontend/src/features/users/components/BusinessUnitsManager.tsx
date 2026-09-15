@@ -36,8 +36,12 @@ export function BusinessUnitsManager({
   }
 
   function isVersionConflict(err: unknown): boolean {
-    const status = (err as { status?: number }).status;
-    return status === 428 || status === 409;
+    const e = err as { status?: number; code?: string };
+    return (e.status === 428 || e.status === 409) && e.code !== 'DUPLICATE_CODE';
+  }
+
+  function isDuplicateCode(err: unknown): boolean {
+    return (err as { code?: string }).code === 'DUPLICATE_CODE';
   }
 
   async function handleSaveBusinessUnit() {
@@ -65,7 +69,9 @@ export function BusinessUnitsManager({
       setEditingUnitId(null);
       await onRefresh();
     } catch (err) {
-      if (editingUnitId != null && isVersionConflict(err)) {
+      if (editingUnitId != null && isDuplicateCode(err)) {
+        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại. Vui lòng chọn mã/tên khác.');
+      } else if (editingUnitId != null && isVersionConflict(err)) {
         // Conflict: reload the authoritative rows for a fresh token but keep
         // the admin's draft for review — never a blind retry loop.
         setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Kiểm tra thông tin rồi lưu lại.');
@@ -90,7 +96,9 @@ export function BusinessUnitsManager({
       }
       await onRefresh();
     } catch (err) {
-      if (isVersionConflict(err)) {
+      if (isDuplicateCode(err)) {
+        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại.');
+      } else if (isVersionConflict(err)) {
         setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
         await onRefresh();
       } else {

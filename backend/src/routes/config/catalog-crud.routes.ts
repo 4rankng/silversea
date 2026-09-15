@@ -477,13 +477,13 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
   },
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'forwarder-expense-type.code', value: data.code, table: s.forwarderExpenseTypes, column: s.forwarderExpenseTypes.code, message: 'Mã loại chi phí giao nhận đã tồn tại' });
-    return H.withForwarderExpenseTypePolicyVersion(null, data, tx);
+    return H.withForwarderExpenseTypePolicyDefaults(null, data, tx);
   },
   beforeUpdate: async (id, data, _req, tx) => {
     if (data.code !== undefined) {
       await H.assertUniqueCatalogString({ tx, scope: 'forwarder-expense-type.code', value: data.code, id, table: s.forwarderExpenseTypes, column: s.forwarderExpenseTypes.code, message: 'Mã loại chi phí giao nhận đã tồn tại' });
     }
-    return H.withForwarderExpenseTypePolicyVersion(id, data, tx);
+    return H.withForwarderExpenseTypePolicyDefaults(id, data, tx);
   },
 }));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, {

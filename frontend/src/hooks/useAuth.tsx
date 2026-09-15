@@ -5,6 +5,7 @@ import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { getToken } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
+import { AuthRecoveryGate } from '../components/shared/AuthRecoveryGate';
 
 export interface AuthUser {
   userId: number;
@@ -24,6 +25,17 @@ export interface AuthUser {
   capabilities?: string[];
 }
 
+type AuthUserWire = Omit<AuthUser, 'userId'> & { id?: number; userId?: number };
+
+/** Login/profile endpoints use id; the application context uses userId. */
+function normalizeAuthUser(user: AuthUserWire): AuthUser {
+  const userId = user.id ?? user.userId;
+  if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
+    throw new Error('Không thể xác định tài khoản. Vui lòng tải lại.');
+  }
+  return { ...user, userId };
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   login: (identifier: string, password: string) => Promise<void>;
@@ -35,7 +47,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>(null!);
-const PENDING_LOGOUT_TOKENS_KEY = 'pending_logout_tokens';
 const AUTH_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 function clearUserScopedQueries(queryClient: ReturnType<typeof useQueryClient>): void {
@@ -43,29 +54,6 @@ function clearUserScopedQueries(queryClient: ReturnType<typeof useQueryClient>):
   queryClient.removeQueries({
     predicate: (query) => query.queryHash !== authMeHash,
   });
-}
-
-function readPendingLogoutTokens(): string[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PENDING_LOGOUT_TOKENS_KEY) ?? '[]');
-    return Array.isArray(parsed)
-      ? [...new Set(parsed.filter((value): value is string => typeof value === 'string' && value.length > 0))]
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function writePendingLogoutTokens(tokens: readonly string[]): void {
-  if (tokens.length === 0) {
-    localStorage.removeItem(PENDING_LOGOUT_TOKENS_KEY);
-    return;
-  }
-  localStorage.setItem(PENDING_LOGOUT_TOKENS_KEY, JSON.stringify([...new Set(tokens)]));
-}
-
-function enqueuePendingLogoutToken(token: string): void {
-  writePendingLogoutTokens([...readPendingLogoutTokens(), token]);
 }
 
 async function revokeToken(token: string): Promise<void> {
@@ -77,15 +65,12 @@ async function revokeToken(token: string): Promise<void> {
     },
     body: '{}',
     // A revocation that can't reach the server must not hold the logout
-    // (or the pending queue) hostage — abort and let the retry queue pick
-    // the token back up on the next mount/online event.
+    // hostage — abort after a bounded timeout.
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) {
     // 401/403 means the token is already expired or revoked server-side —
-    // the revocation goal is met, so treat it as done. Retrying such a
-    // token can never succeed and only generates endless 401 noise.
-    // Network faults and 5xx stay retryable via the pending queue.
+    // the revocation goal is met, so treat it as done.
     if (response.status === 401 || response.status === 403) return;
     throw new Error(`Logout revocation failed with HTTP ${response.status}`);
   }
@@ -108,34 +93,40 @@ export function isTokenExpired(token: string): boolean {
   }
 }
 
-async function fetchAuthUser(): Promise<AuthUser | null> {
+async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
   const token = getToken();
   if (!token || isTokenExpired(token)) {
     api.clearToken();
     return null;
   }
   try {
-    return await api.get<AuthUser>('/auth/me');
+    return normalizeAuthUser(await api.get<AuthUserWire>('/auth/me', { signal }));
   } catch (err) {
-    // Any failure to validate the token (network, 401, malformed) means
-    // the user is effectively logged out — drop the bad token.
-    if (err instanceof ApiError) api.clearToken();
-    return null;
+    // Only clear credentials on genuine auth failures (401/403 = invalid,
+    // expired, or revoked). Transient server/network errors (502/503/429)
+    // must NOT evict a valid session — the query will retry on next refetch.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      if (getToken() === token) api.clearToken();
+      return null;
+    }
+    throw err;
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [sessionExpired, setSessionExpired] = useState(false);
-  const logoutInFlightRef = useRef<Promise<void> | null>(null);
-  const pendingRevocationInFlightRef = useRef<Promise<void> | null>(null);
+  /** Tracks the token currently being revoked so a second logout for the
+   *  same token is idempotent, while a different account can still log out. */
+  const revokingTokenRef = useRef<string | null>(null);
 
   // Cached at the TanStack level: login/logout invalidates the key, not the
   // entire app. The previous useEffect+fetch approach bypassed the cache
   // entirely, so every page mount re-fetched /auth/me.
-  const { data: user = null, isLoading } = useQuery({
+  const { data: user = null, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: qk.auth.me,
-    queryFn: fetchAuthUser,
+    queryFn: ({ signal }) => fetchAuthUser(signal),
+    networkMode: 'always',
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: false,
@@ -143,85 +134,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (identifier: string, password: string) => {
-      const res = await api.post<{ token: string; user: AuthUser }>('/auth/login', {
+      const res = await api.post<{ token: string; user: AuthUserWire }>('/auth/login', {
         identifier,
         password,
       });
+      await queryClient.cancelQueries({ queryKey: qk.auth.me });
       clearUserScopedQueries(queryClient);
       api.setToken(res.token);
       setSessionExpired(false);
-      queryClient.setQueryData(qk.auth.me, res.user);
+      queryClient.setQueryData(qk.auth.me, normalizeAuthUser(res.user));
     },
     [queryClient],
   );
 
   const finalizeLocalLogout = useCallback(() => {
+    void queryClient.cancelQueries({ queryKey: qk.auth.me });
     api.clearToken();
     clearUserScopedQueries(queryClient);
     queryClient.setQueryData(qk.auth.me, null);
   }, [queryClient]);
 
-  const retryPendingRevocations = useCallback(() => {
-    if (pendingRevocationInFlightRef.current) return pendingRevocationInFlightRef.current;
-    pendingRevocationInFlightRef.current = (async () => {
-      const pending = readPendingLogoutTokens();
-      const failed: string[] = [];
-      for (const token of pending) {
-        try {
-          await revokeToken(token);
-        } catch {
-          failed.push(token);
-        }
-      }
-      writePendingLogoutTokens(failed);
-    })().finally(() => {
-      pendingRevocationInFlightRef.current = null;
-    });
-    return pendingRevocationInFlightRef.current;
-  }, []);
-
   const logout = useCallback((opts?: { revoke?: boolean }) => {
-    // Idempotent: useAuthedQuery invokes logout() on any 401/403, so during a
-    // logout teardown several in-flight queries may race to log out again.
-    if (logoutInFlightRef.current) return;
     const token = getToken();
     if (!token) {
       finalizeLocalLogout();
       return;
     }
     // Local teardown happens IMMEDIATELY — a revocation request that hangs
-    // (mobile network with no fetch timeout) must never keep the user signed
-    // in, and the in-flight guard must not swallow re-taps while it runs.
-    // Failed server revocations stay in the pending queue and are retried
-    // when connectivity returns (mount/online listeners below).
+    // must never keep the user signed in.
     finalizeLocalLogout();
-    // Skip the revocation queue when the caller already revoked the token
-    // server-side (change-password does it in the same request) or when the
-    // JWT is expired client-side — the server would only 401 both, seeding a
-    // permanent retry loop instead of a clean local teardown.
+    // Skip revocation when the caller already revoked server-side (e.g.
+    // change-password) or when the JWT is expired client-side.
     const shouldRevoke = opts?.revoke !== false && !isTokenExpired(token);
     if (!shouldRevoke) return;
-    logoutInFlightRef.current = (async () => {
-      try {
-        enqueuePendingLogoutToken(token);
-        await retryPendingRevocations();
-        if (readPendingLogoutTokens().includes(token)) {
-          await retryPendingRevocations();
-        }
-      } finally {
-        logoutInFlightRef.current = null;
+    // Idempotent per token: if this exact token is already being revoked,
+    // don't fire a duplicate. A *different* token (new account logout while
+    // a previous revocation is pending) proceeds normally.
+    if (revokingTokenRef.current === token) return;
+    revokingTokenRef.current = token;
+    // Bounded single attempt. Clear locally regardless of outcome so the
+    // user is never held hostage. If revocation fails the remote session
+    // may still be alive — callers accepting this trade-off pass revoke:false.
+    revokeToken(token).catch(() => {
+      console.warn('[auth] server-side token revocation failed; remote session may still be active');
+    }).finally(() => {
+      if (revokingTokenRef.current === token) {
+        revokingTokenRef.current = null;
       }
-    })();
-  }, [finalizeLocalLogout, retryPendingRevocations]);
-
-  useEffect(() => {
-    void retryPendingRevocations();
-    const handleOnline = () => {
-      void retryPendingRevocations();
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [retryPendingRevocations]);
+    });
+  }, [finalizeLocalLogout]);
 
   useEffect(
     () => onSessionExpired(() => {
@@ -257,12 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {(!error || !getToken() || user) && children}
+      {error && getToken() && <AuthRecoveryGate pending={isFetching}
+        retry={() => void refetch()} logout={() => logout()} />}
     </AuthContext.Provider>
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook co-located with its Provider; splitting would fragment a standard React context pattern
+ 
 export function useAuth() {
   return useContext(AuthContext);
 }

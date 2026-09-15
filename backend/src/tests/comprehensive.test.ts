@@ -566,7 +566,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
 
   // 2. Fetch Dashboard metrics
   const dashboardRes = await testFetch('/api/reports/dashboard', { token: adminToken });
-  assert.strictEqual(dashboardRes.status, 200);
+  assert.strictEqual(dashboardRes.status, 200, JSON.stringify(dashboardRes.data));
   assert.ok(dashboardRes.data.revenue !== undefined);
   assert.ok(dashboardRes.data.executive !== undefined, 'authorized dashboard route must include executive aggregates');
 
@@ -630,6 +630,21 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
     })
   });
   assert.strictEqual(adjustRes.status, 201);
+
+  // 4b. Replay protection: same key + different payload → 409
+  const adjustConflict = await testFetch('/api/adjustments', {
+    method: 'POST',
+    token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-adjustment-${tripId}` },
+    body: JSON.stringify({
+      tripId: tripId,
+      expectedVersion: adjustmentTrip.version,
+      amount: -200000, // different amount
+      note: 'Khác nội dung',
+      signedAgreementRef: 'AGR-2026-001'
+    })
+  });
+  assert.strictEqual(adjustConflict.status, 409, 'same key + different payload must conflict');
 
   // 5. Customer FIFO statements
   const stmtRes = await testFetch(`/api/ledger/customers/${customerId}/statement`, { token: adminToken });

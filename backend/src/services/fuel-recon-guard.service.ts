@@ -189,7 +189,7 @@ export async function assertFuelReconClear(
     supplierId: expense.supplierId,
   });
   const row = report.suppliers.find(r => r.supplierId === expense.supplierId);
-  const candidateAmount = expense.approvalStatus === 'APPROVED'
+  const candidateAmount = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     ? 0
     : Number(expense.buyAmount ?? 0);
   const expected = row?.expectedFuelCost ?? 0;

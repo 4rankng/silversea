@@ -91,7 +91,6 @@ describe('SuppliersView server-side sort headers', () => {
     ];
     for (const [label, key] of sortKeys) {
       fireEvent.click(screen.getByRole('button', { name: label }));
-      // eslint-disable-next-line no-await-in-loop -- sequential clicks each await their own render
       await waitFor(() => expect(lastCall().sort).toEqual({ by: key, dir: 'asc' }));
     }
   });

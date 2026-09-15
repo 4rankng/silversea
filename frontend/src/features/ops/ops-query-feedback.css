@@ -1,0 +1,14 @@
+.ops-query-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 64px;
+  padding: 12px 8px;
+  color: var(--ink-3);
+  font-size: var(--text-data-size);
+}
+
+.ops-query-feedback--error { color: var(--danger-text); }
+.ops-query-feedback > span { min-width: 0; overflow-wrap: anywhere; }

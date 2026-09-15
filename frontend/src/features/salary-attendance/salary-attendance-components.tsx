@@ -79,9 +79,16 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
       <div className="salary-summary-dark__topline">
         <h3 className="salary-summary-dark__label">Tổng kết lương tháng</h3>
         <span className={`salary-summary-dark__status ${salary.confirmationStatus === 'CONFIRMED' ? 'is-confirmed' : ''}`}>
-          {salary.confirmationStatus === 'CONFIRMED' ? 'Đã chốt' : 'Bản nháp'}
+          {salary.salarySnapshotState === 'UNAVAILABLE' ? 'Cần đối chiếu' : salary.confirmationStatus === 'CONFIRMED' ? 'Đã chốt' : 'Bản nháp'}
         </span>
       </div>
+      {salary.salaryReconciliationRequired && (
+        <p role="status" className="salary-summary-dark__mini">
+          {salary.salarySnapshotState === 'UNAVAILABLE'
+            ? 'Kỳ cũ chưa lưu bản lương đã chốt. Số liệu dưới đây chỉ tham khảo; cần đối chiếu chứng từ gốc trước khi thanh toán.'
+            : 'Ngày công vận hành đã thay đổi sau khi chốt. Bản lương giữ nguyên; ghi điều chỉnh vào kỳ đang mở nếu có chênh lệch.'}
+        </p>
+      )}
       <div className="salary-summary-dark__big mono">
         <Money value={salary.netSalary} />
       </div>
@@ -94,7 +101,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
           </span>
           <span className="salary-summary-dark__row-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Money value={salary.baseSalary} />
-            <button
+            {onEditBaseSalary && <button
               type="button"
               className="salary-edit-link"
               title="Sửa lương cứng"
@@ -102,7 +109,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
               aria-label={`Sửa lương cứng ${driverName ?? ''}`}
             >
               <Edit size={10} />
-            </button>
+            </button>}
           </span>
         </div>
 
@@ -180,7 +187,7 @@ export interface MobileDayListProps {
   parseLocalDate: (s: string) => Date;
 }
 
-export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isConfirmed, onCycle, parseLocalDate }: MobileDayListProps) {
+export function MobileDayList({ dates, workDayMap, isUpdating, isConfirmed, onCycle, parseLocalDate }: MobileDayListProps) {
   return (
     <div className="mobile-day-list">
       {dates.map(dateStr => {
@@ -193,12 +200,26 @@ export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isCo
         const workDay = workDayMap.get(dateStr);
         const status = workDay?.status ?? (isSun ? 'WEEKLY_OFF' : 'STANDBY');
         const cfg = STATUS_CONFIG[status];
-        const isClickable = !isConfirmed && status !== 'TRIP_DAY';
+        const isClickable = !isUpdating && !isConfirmed && status !== 'TRIP_DAY';
+        const stateLabel = workDay?.trip?.tripCode
+          ? `${workDay.trip.tripCode} – ${workDay.trip.routeName || ''}`
+          : cfg?.label || '';
+        const ariaLabel = `${day}/${cellMonth} — ${stateLabel}`;
 
         return (
           <div
             key={dateStr}
+            role="button"
+            tabIndex={isClickable ? 0 : undefined}
+            aria-disabled={!isClickable}
+            aria-label={ariaLabel}
             onClick={() => isClickable && onCycle(dateStr, workDay)}
+            onKeyDown={(e) => {
+              if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onCycle(dateStr, workDay);
+              }
+            }}
             className={`mobile-day-row status-${status.toLowerCase()} ${isClickable ? 'is-clickable' : ''}`}
           >
             {/* Date column */}
@@ -269,9 +290,9 @@ export function PostCloseAdjustmentList({
                 <Money value={Math.abs(item.amount)} sign={incoming ? '+' : '-'} />
               </span>
             </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
-            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>Duyệt bởi {item.approvedByName || 'Người dùng không xác định'}</span>
+            <div style={{ marginTop: 6, fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>{item.reason}</div>
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
+              <span>Ghi nhận bởi {item.approvedByName || 'Người dùng không xác định'}</span>
               <span>{new Date(item.approvedAt).toLocaleDateString('vi-VN')}</span>
             </div>
           </div>
@@ -337,7 +358,7 @@ export function PostCloseAdjustmentModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo khoản điều chỉnh liên kỳ">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+        <div style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>
           Kỳ nguồn: <strong>{sourcePeriod}</strong>. Kỳ cũ giữ nguyên snapshot, khoản điều chỉnh sẽ đi vào kỳ đích đang mở.
         </div>
         <label className="input-group">
@@ -352,7 +373,7 @@ export function PostCloseAdjustmentModal({
           <span>Lý do điều chỉnh</span>
           <textarea className="input" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Ví dụ: bổ sung công chuyến hoàn tất sau khi đã phát hành phiếu lương" />
         </label>
-        {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
+        {error && <div style={{ fontSize: 'var(--text-body-size)', color: 'var(--danger)' }}>{error}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button className="btn btn--secondary" onClick={onClose} disabled={submitting}>Hủy</button>
           <button className="btn btn--primary" onClick={() => { void handleSubmit(); }} disabled={submitting}>

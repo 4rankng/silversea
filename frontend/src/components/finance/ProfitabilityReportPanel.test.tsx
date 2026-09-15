@@ -81,6 +81,21 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
     expect(screen.queryByText('Biên lợi nhuận gồm chi phí đội xe được phân bổ.')).toBeNull();
   });
 
+  it('explains empty low-margin results and restores all groups without losing the period', async () => {
+    const configured = await getProfitabilityMock();
+    getProfitabilityMock.mockImplementation(async ({ lowMarginOnly }) => ({
+      ...configured, items: lowMarginOnly ? [] : configured.items,
+      totalGroups: lowMarginOnly ? 0 : 1,
+    }));
+    renderPanel(8, 2026);
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Chỉ hiện nhóm biên lợi nhuận thấp' }));
+    expect(await screen.findByText('Không có nhóm biên lợi nhuận thấp trong kỳ này.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem tất cả nhóm' }));
+    expect(await screen.findByText('Khách hàng A')).toBeInTheDocument();
+    expect(getProfitabilityMock).toHaveBeenLastCalledWith(expect.objectContaining({ month: 8, year: 2026, lowMarginOnly: false, page: 1 }));
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Tóm tắt lợi nhuận vận hành' })).toHaveTextContent('1.000.000 ₫'));
+  });
+
   it('clears an impossible low-margin filter when navigating to an unconfigured period', async () => {
     const configured = await getProfitabilityMock();
     getProfitabilityMock.mockResolvedValueOnce(configured);

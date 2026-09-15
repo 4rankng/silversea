@@ -3,8 +3,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { SelectField } from './SelectField';
 import { UuiSelectField } from './UuiSelectField';
 import { TextField } from './TextField';
+import { DateField } from './DateField';
+import { DateTimeField } from './DateTimeField';
 
 describe('form field accessibility', () => {
+  it('preserves disabled options and announces the associated validation error', async () => {
+    const onChange = vi.fn();
+    render(<SelectField id="customer-choice" label="Khách hàng" value="" onChange={onChange} error="Chọn khách hàng đang hoạt động."><option value="">Chọn khách hàng</option><option value="closed" disabled>Đã ngừng hoạt động</option><option value="open">Đang hoạt động</option></SelectField>);
+    const trigger = screen.getByRole('button', { name: /Khách hàng/ });
+    expect(trigger).toHaveAccessibleDescription('Chọn khách hàng đang hoạt động.');
+    fireEvent.click(trigger);
+    const closed = await screen.findByRole('option', { name: 'Đã ngừng hoạt động' });
+    expect(closed).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(closed);
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('option', { name: 'Đang hoạt động' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: 'open' }) }));
+  });
+
+  it('exposes required date inputs to native form validation while optional dates remain optional', () => {
+    render(<><DateField label="Ngày bắt buộc" value="" onChange={vi.fn()} required /><DateTimeField label="Giờ bắt buộc" value="" onChange={vi.fn()} required /><DateField label="Ngày dự kiến" value="" onChange={vi.fn()} /></>);
+    expect(screen.getByLabelText(/Ngày bắt buộc/)).toBeRequired();
+    expect(screen.getByLabelText(/Ngày bắt buộc/)).toBeInvalid();
+    expect(screen.getByLabelText(/Giờ bắt buộc/)).toBeRequired();
+    expect(screen.getByLabelText(/Giờ bắt buộc/)).toBeInvalid();
+    expect(screen.getByLabelText('Ngày dự kiến')).not.toBeRequired();
+  });
   it('associates a stable TextField id with its label and error', () => {
     render(<TextField id="booking-ref" label="Số Bill/Book" error="Nhập số Bill hoặc số Booking." />);
     const input = screen.getByLabelText('Số Bill/Book');

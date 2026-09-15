@@ -77,7 +77,7 @@ export default function ForwarderSettlementCreatePage() {
   const createSettlement = useCreateAdvanceSettlement();
 
   const allRequests = ((requestsData?.items ?? requestsData ?? []) as AdvanceRequestWithRefs[]);
-  const approvedRequests = allRequests.filter(r => r.status === 'APPROVED');
+  const approvedRequests = allRequests.filter(r => r.status === 'RECORDED');
   const unlinkedExpenses = useMemo(() => (unlinkedData?.items ?? []) as Array<{
     id: number; tripId: number; expenseType: string; buyAmount: string; approvalStatus?: string; completionStatus?: ExpenseEntryStatus; note: string | null; createdAt: string; tripCode: string | null; departureDate: string | null; truckPlate: string | null; containerNumbers: string | null;
   }>, [unlinkedData]);
@@ -236,7 +236,7 @@ export default function ForwarderSettlementCreatePage() {
       <PageHeader
         title="Tạo phiếu thanh toán"
         iconName="settlement"
-        description="Chọn tạm ứng đã duyệt và chi phí phát sinh để tạo phiếu quyết toán"
+        description="Chọn tạm ứng đã ghi nhận và chi phí phát sinh để tạo phiếu quyết toán"
       />
 
       <form onSubmit={handleSubmit} className="fset-create-form fade-up">
@@ -247,7 +247,7 @@ export default function ForwarderSettlementCreatePage() {
             {approvedRequests.length === 0 ? (
               <div className="fset-empty-inline fset-empty-inline--advance">
                 <EmptyIllustration name="/assets/illustrations/forwarder-approved-advance-v1.png" className="fset-empty-inline__asset" />
-                <span>Không có tạm ứng đã duyệt nào chưa quyết toán</span>
+                <span>Không có tạm ứng đã ghi nhận nào chưa quyết toán</span>
               </div>
             ) : (
               <div className="fset-check-list">

@@ -43,7 +43,7 @@ interface BadgeProps {
  *
  * @example
  * <Badge variant="success">2 chiều</Badge>
- * <Badge variant="warning">Chờ duyệt</Badge>
+ * <Badge variant="warning">Chưa hoàn tất</Badge>
  */
 export function Badge({ variant = 'neutral', children, style, className }: BadgeProps) {
   return (
@@ -52,7 +52,7 @@ export function Badge({ variant = 'neutral', children, style, className }: Badge
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        fontSize: 12,
+        fontSize: 'var(--text-caption-size)',
         fontWeight: 700,
         borderRadius: 4,
         padding: '1px 5px',

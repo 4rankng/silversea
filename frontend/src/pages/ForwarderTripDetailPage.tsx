@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Truck, Calendar, MapPin, Package, Plus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatDate } from '../lib/format';
@@ -20,12 +20,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useOnline } from '../hooks/useOnline';
-import { useAuth } from '../hooks/useAuth';
-import {
-  buildOfflineCommandKey,
-  useOfflineCommandQueue,
-} from '../features/driver/useOfflineCommandQueue';
-import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
+import { buildIdempotencyKey } from '../lib/idempotency';
 import { expensePhotoUploadErrorMessage } from '../features/forwarder/forwarder-expense-model';
 import { ForwarderExpenseForm } from '../features/forwarder/ForwarderExpenseForm';
 import { useForwarderContainerForm } from '../features/forwarder/use-forwarder-container-form';
@@ -50,8 +45,6 @@ interface ForwarderTripWorkspaceProps {
 export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: ForwarderTripWorkspaceProps) {
   const navigate = useNavigate();
   const online = useOnline();
-  const auth = useAuth();
-  const user = auth?.user ?? null;
 
   const { data: trip, isLoading: loading, error: queryError } = useForwarderTripDetail(tripId);
   const queryClient = useQueryClient();
@@ -60,10 +53,6 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const completionMut = useSetForwarderExpenseCompletion();
   const deleteExpenseMut = useDeleteForwarderExpense();
   const geolocation = useGeolocation();
-  const { commands, enqueue, drain } = useOfflineCommandQueue({
-    maxPending: 12,
-    storageScope: user ? `${user.role}:${user.userId}` : null,
-  });
 
   const { data: catalogs } = useCatalogs();
   const forwarderExpenseTypeOptions = catalogs?.forwarderExpenseTypes ?? [];
@@ -85,18 +74,6 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
 
-  const drainPaperHandoffs = async () => {
-    const result = await drain(sendRoleOfflineCommand);
-    if (result.done > 0) {
-      await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(tripId) });
-    }
-    return result;
-  };
-
-  useEffect(() => {
-    if (!online || !commands.some((command) => command.fulfillmentScopeKey === `trip:${tripId}` && command.status !== 'CONFLICT')) return;
-    void drainPaperHandoffs();
-  }, [commands.length, drainPaperHandoffs, online, tripId]);
   const handleBack = () => embedded ? onClose?.() : navigate('/my-forwarder-trips');
   const isDirty = () => containerFormCtrl.isDirty || expenseFormCtrl.isDirty;
   useBackShortcut(handleBack, {
@@ -200,25 +177,13 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   ];
 
   async function handleCollectPaperOrder() {
-    if (!trip) return;
+    if (!trip || !online) return;
     setPaperOrderSubmitting(true);
     try {
-      const idempotencyKey = buildOfflineCommandKey('forwarder', 'paper-handoff', tripId, 'version', trip.version);
-      enqueue({
-        id: idempotencyKey,
-        endpoint: 'forwarder.paper-order.collection',
-        method: 'POST',
-        path: `/forwarder/me/trips/${tripId}/paper-order-collection`,
-        fulfillmentScopeKey: `trip:${tripId}`,
-        expectedVersion: trip.version,
-        actionKind: 'PAPER_ORDER_HANDOFF',
-        payload: { kind: 'paper-handoff', tripId, expectedVersion: trip.version },
-      });
-      const result = await drainPaperHandoffs();
-      const currentStatus = result.statusById?.[idempotencyKey];
-      if (currentStatus === 'DONE') toast({ kind: 'success', message: 'Máy chủ đã xác nhận giao lệnh gốc cho tài xế.' });
-      else if (currentStatus === 'CONFLICT' || currentStatus === 'REJECTED') toast({ kind: 'error', message: result.messageById?.[idempotencyKey] ?? 'Máy chủ từ chối lệnh. Bản lệnh được giữ để bạn kiểm tra lại.' });
-      else toast({ kind: 'info', message: 'Đã lưu lệnh bàn giao ngoại tuyến; chưa được xem là hoàn tất.' });
+      const idempotencyKey = buildIdempotencyKey('forwarder', 'paper-handoff', tripId, 'version', trip.version);
+      await forwarderClient.collectPaperOrder(tripId, trip.version, idempotencyKey);
+      await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(tripId) });
+      toast({ kind: 'success', message: 'Máy chủ đã xác nhận giao lệnh gốc cho tài xế.' });
     } catch (error) {
       toast({
         kind: 'error',

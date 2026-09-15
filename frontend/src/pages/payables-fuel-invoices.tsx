@@ -13,7 +13,6 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table
 import { useAuth } from '../hooks/useAuth';
 import { useAllSuppliers } from '../hooks/useCatalogQueries';
 import {
-  useApproveFuelInvoice,
   useCreateFuelInvoice,
   useFuelInvoice,
   useFuelInvoices,
@@ -61,16 +60,21 @@ type CompletionSummary = {
 };
 
 const STATUS_META: Record<FuelInvoiceStatus, { label: string; className: string; icon: typeof ClipboardList }> = {
-  PENDING: { label: 'Chờ duyệt', className: 'fuel-invoice-status fuel-invoice-status--pending', icon: ClipboardList },
-  APPROVED: { label: 'Đã duyệt', className: 'fuel-invoice-status fuel-invoice-status--approved', icon: CheckCircle2 },
-  REJECTED: { label: 'Từ chối', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
+  DRAFT: { label: 'Bản nháp', className: 'fuel-invoice-status fuel-invoice-status--pending', icon: ClipboardList },
+  RECORDED: { label: 'Đã ghi nhận', className: 'fuel-invoice-status fuel-invoice-status--approved', icon: CheckCircle2 },
+  VOIDED: { label: 'Đã hủy', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
+  REVERSED: { label: 'Đã hoàn tác', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
+  PENDING: { label: 'Bản nháp cũ', className: 'fuel-invoice-status fuel-invoice-status--pending', icon: ClipboardList },
+  APPROVED: { label: 'Đã ghi nhận (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--approved', icon: CheckCircle2 },
+  REJECTED: { label: 'Từ chối (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
 };
 
 const STATUS_OPTIONS: Array<{ value: '' | FuelInvoiceStatus; label: string }> = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'PENDING', label: 'Chờ duyệt' },
-  { value: 'APPROVED', label: 'Đã duyệt' },
-  { value: 'REJECTED', label: 'Từ chối' },
+  { value: 'DRAFT', label: 'Bản nháp' },
+  { value: 'RECORDED', label: 'Đã ghi nhận' },
+  { value: 'VOIDED', label: 'Đã hủy' },
+  { value: 'REVERSED', label: 'Đã hoàn tác' },
 ];
 
 let rowSequence = 0;
@@ -251,7 +255,7 @@ function FuelInvoiceDetailBody({
 
       {!completion.isComplete && (
         <div className="fuel-invoice-warning" role="alert">
-          <strong>Chưa thể duyệt.</strong> Còn thiếu {formatNumber(completion.remainingLiters)} lít
+          <strong>Chưa đủ phân bổ.</strong> Còn thiếu {formatNumber(completion.remainingLiters)} lít
           tương ứng {formatCurrency(Math.max(0, completion.remainingAmount))}. Không chia đều tự động;
           phải phân bổ theo lít thực tế từng chuyến.
         </div>
@@ -320,7 +324,7 @@ function TripExpenseReferenceSelect({
   const options = useMemo(() => {
     if (!tripExpensesQuery.data || supplierId == null) return [];
     return tripExpensesQuery.data.filter((expense) =>
-      expense.approvalStatus === 'APPROVED'
+      !['REJECTED', 'VOIDED'].includes(expense.approvalStatus ?? '')
       && expense.supplierId === supplierId
       && expense.expenseType.toLocaleLowerCase('vi').includes('fuel'));
   }, [supplierId, tripExpensesQuery.data]);
@@ -334,25 +338,25 @@ function TripExpenseReferenceSelect({
   }
 
   if (tripExpensesQuery.error) {
-    return <div className="fuel-invoice-editor__helper fuel-invoice-editor__helper--error">Không tải được danh sách chi phí đã duyệt.</div>;
+    return <div className="fuel-invoice-editor__helper fuel-invoice-editor__helper--error">Không tải được danh sách chi phí đã ghi nhận.</div>;
   }
 
   if (options.length === 0) {
     return (
       <div className="fuel-invoice-editor__helper fuel-invoice-editor__helper--error">
-        Chuyến này chưa có chi phí nhiên liệu đã duyệt khớp nhà cung cấp để làm căn cứ phân bổ.
+        Chuyến này chưa có chi phí nhiên liệu đã ghi nhận khớp nhà cung cấp để làm căn cứ phân bổ.
       </div>
     );
   }
 
   return (
     <UuiSelectField
-      label="Liên kết chi phí nhiên liệu đã duyệt"
+      label="Liên kết chi phí nhiên liệu đã ghi nhận"
       hideLabel
       value={value === null || value === undefined ? '' : String(value)}
       onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)}
-      aria-label="Liên kết chi phí nhiên liệu đã duyệt"
-      options={[{ value: '', label: 'Chọn chi phí nhiên liệu đã duyệt' }, ...options.map((expense) => ({
+      aria-label="Liên kết chi phí nhiên liệu đã ghi nhận"
+      options={[{ value: '', label: 'Chọn chi phí nhiên liệu đã ghi nhận' }, ...options.map((expense) => ({
         value: String(expense.id),
         label: `${formatDate(expense.expenseDate ?? expense.createdAt)} · ${formatCurrency(expense.buyAmount)}`
       }))]}
@@ -475,7 +479,7 @@ function FuelInvoiceEditor({
       </div>
 
       <div className="fuel-invoice-editor__banner">
-        Một hóa đơn có thể gắn nhiều chuyến và nhiều xe. Hệ thống chỉ cho duyệt khi tổng lít phân bổ khớp
+        Một hóa đơn có thể gắn nhiều chuyến và nhiều xe. Hệ thống chỉ lưu khi tổng lít phân bổ khớp
         chính xác số lít trên hóa đơn; không có tuỳ chọn chia đều.
       </div>
 
@@ -586,7 +590,7 @@ function FuelInvoiceEditor({
                   />
                 </div>
                 <div className="field">
-                  <label>Chi phí nhiên liệu đã duyệt</label>
+                  <label>Chi phí nhiên liệu liên kết</label>
                   <TripExpenseReferenceSelect
                     tripId={row.tripId ? Number(row.tripId) : null}
                     supplierId={form.supplierId ? Number(form.supplierId) : null}
@@ -626,7 +630,6 @@ function FuelInvoiceEditor({
 export function FuelInvoicesPanel() {
   const { user } = useAuth();
   const canCreateOrEdit = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
-  const canApprove = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FuelInvoiceStatus | ''>('');
@@ -640,7 +643,6 @@ export function FuelInvoicesPanel() {
   const [form, setForm] = useState<FuelInvoiceFormState>(emptyForm);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [approvalReason, setApprovalReason] = useState('');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const suppliersQuery = useAllSuppliers();
@@ -652,7 +654,6 @@ export function FuelInvoicesPanel() {
   const detailQuery = useFuelInvoice(detailInvoiceId);
   const createMutation = useCreateFuelInvoice();
   const updateMutation = useUpdateFuelInvoice();
-  const approveMutation = useApproveFuelInvoice();
 
   const suppliers = useMemo(
     () => (suppliersQuery.data ?? []).filter((supplier) => supplier.isFuelSupplier || (supplier.types ?? []).includes(SupplierType.FUEL)),
@@ -662,7 +663,7 @@ export function FuelInvoicesPanel() {
     () => new Map(suppliers.map((supplier) => [supplier.id, supplier.name])),
     [suppliers],
   );
-  const tripOptions = tripsQuery.data ?? [];
+  const tripOptions = useMemo(() => tripsQuery.data ?? [], [tripsQuery.data]);
   const tripOptionsById = useMemo(
     () => new Map(tripOptions.map((trip) => [trip.id, trip])),
     [tripOptions],
@@ -690,7 +691,7 @@ export function FuelInvoicesPanel() {
     let incomplete = 0;
     let totalAmount = 0;
     for (const invoice of invoices) {
-      if (invoice.approvalStatus === 'PENDING') pending += 1;
+      if (invoice.approvalStatus === 'DRAFT' || invoice.approvalStatus === 'PENDING') pending += 1;
       const completion = computeCompletion(invoice.totalLiters, invoice.unitPrice, invoice.allocations ?? []);
       if (!completion.isComplete) incomplete += 1;
       totalAmount += completion.totalAmount;
@@ -717,7 +718,6 @@ export function FuelInvoicesPanel() {
   const openDetail = (invoiceId: number) => {
     setActionError(null);
     setActionNotice(null);
-    setApprovalReason('');
     setDetailInvoiceId(invoiceId);
   };
 
@@ -746,13 +746,13 @@ export function FuelInvoicesPanel() {
       const hasAnyValue = row.tripId || row.voucherReference.trim() || row.liters;
       if (!hasAnyValue) continue;
       if (!row.tripId || !row.voucherReference.trim() || !row.voucherDate || !Number.isFinite(Number(row.liters)) || Number(row.liters) <= 0 || row.tripExpenseId == null) {
-        setSubmitError('Mỗi dòng phân bổ phải có chuyến, phiếu đổ dầu, ngày đổ, số lít thực tế và chi phí nhiên liệu đã duyệt làm căn cứ.');
+        setSubmitError('Mỗi dòng phân bổ phải có chuyến, phiếu đổ dầu, ngày đổ, số lít thực tế và chi phí nhiên liệu đã ghi nhận làm căn cứ.');
         return;
       }
     }
 
-    if (editorCompletion.allocatedLiters > editorCompletion.totalLiters) {
-      setSubmitError(`Tổng lít phân bổ ${formatNumber(editorCompletion.allocatedLiters)} vượt số lít hóa đơn ${formatNumber(editorCompletion.totalLiters)}.`);
+    if (!editorCompletion.isComplete) {
+      setSubmitError(`Tổng lít phân bổ ${formatNumber(editorCompletion.allocatedLiters)} phải khớp số lít hóa đơn ${formatNumber(editorCompletion.totalLiters)}.`);
       return;
     }
 
@@ -802,39 +802,20 @@ export function FuelInvoicesPanel() {
         response = await createMutation.mutateAsync(payload);
       }
       setEditorState(null);
+      setActionNotice('Đã ghi nhận hóa đơn. Thanh toán nhà cung cấp được ghi riêng.');
       setDetailInvoiceId(response.id);
     } catch (error) {
       setSubmitError((error as Error).message || 'Không thể lưu hóa đơn nhiên liệu.');
     }
   };
 
-  const submitApprove = async () => {
-    if (!detailQuery.data) return;
-    const reason = approvalReason.trim();
-    if (!reason) {
-      setActionError('Cần nhập lý do đề nghị duyệt.');
-      return;
-    }
-    setActionError(null);
-    try {
-      await approveMutation.mutateAsync({
-        id: detailQuery.data.id,
-        expectedVersion: detailQuery.data.version,
-        reason,
-      });
-      setApprovalReason('');
-      setActionNotice('Đã gửi yêu cầu vào hàng chờ kiểm tra. Hóa đơn chưa phát sinh công nợ phải trả.');
-    } catch (error) {
-      setActionError((error as Error).message || 'Không thể duyệt hóa đơn nhiên liệu.');
-    }
-  };
 
   return (
     <>
       <Panel
         className="fuel-invoices-panel"
         title="Hóa đơn nhiên liệu nhiều xe"
-        subtitle="Quản lý một header hóa đơn và nhiều dòng phân bổ theo chuyến/xe. Số tiền mỗi dòng luôn bằng số lít thực tế × đơn giá hóa đơn."
+        subtitle="Quản lý hóa đơn và nhiều dòng phân bổ theo chuyến/xe. Số tiền mỗi dòng luôn bằng số lít thực tế × đơn giá hóa đơn."
         action={canCreateOrEdit ? (
           <button type="button" className="btn btn--primary btn--sm" onClick={openCreate}>
             <Plus size={14} aria-hidden="true" />
@@ -844,7 +825,7 @@ export function FuelInvoicesPanel() {
       >
         <div className="fuel-invoices-panel__summary">
           <FuelInvoiceSummaryMetric icon={ClipboardList} label="Tổng hóa đơn" value={formatNumber(summary.total)} />
-          <FuelInvoiceSummaryMetric icon={ShieldCheck} label="Chờ duyệt" value={formatNumber(summary.pending)} tone={summary.pending > 0 ? 'warn' : 'success'} />
+          <FuelInvoiceSummaryMetric icon={ShieldCheck} label="Bản nháp" value={formatNumber(summary.pending)} tone={summary.pending > 0 ? 'warn' : 'success'} />
           <FuelInvoiceSummaryMetric icon={Droplets} label="Cần xử lý" value={formatNumber(summary.incomplete)} tone={summary.incomplete > 0 ? 'danger' : 'success'} />
           <FuelInvoiceSummaryMetric icon={Truck} label="Giá trị hóa đơn" value={formatCurrency(summary.totalAmount)} />
         </div>
@@ -980,7 +961,7 @@ export function FuelInvoicesPanel() {
                       </div>
                       {!completion.isComplete && (
                         <div className="fuel-invoice-mobile-card__warning">
-                          Còn thiếu {formatNumber(Math.max(0, completion.remainingLiters))} lít, chưa được duyệt.
+                          Còn thiếu {formatNumber(Math.max(0, completion.remainingLiters))} lít, chưa ghi nhận.
                         </div>
                       )}
                     </button>
@@ -999,31 +980,13 @@ export function FuelInvoicesPanel() {
         maxWidth={960}
         footer={
           <div className="fuel-invoice-modal__footer">
-            {detailQuery.data?.approvalStatus === 'PENDING' && canCreateOrEdit && (
+            {detailQuery.data && !['VOIDED', 'REVERSED', 'REJECTED'].includes(detailQuery.data.approvalStatus) && canCreateOrEdit && (
               <button type="button" className="btn btn--secondary btn--sm" onClick={openEditFromDetail}>
                 <FilePenLine size={14} aria-hidden="true" />
-                Sửa bản nháp
+                Sửa / hoàn tất hóa đơn
               </button>
             )}
-            {detailQuery.data?.approvalStatus === 'PENDING' && canApprove && (
-              <>
-                <input
-                  className="form-input"
-                  aria-label="Lý do đề nghị duyệt"
-                  value={approvalReason}
-                  onChange={(event) => setApprovalReason(event.target.value)}
-                  placeholder="Lý do đề nghị duyệt"
-                />
-                <button
-                  type="button"
-                  className="btn btn--primary btn--sm"
-                  onClick={submitApprove}
-                  disabled={approveMutation.isPending || !approvalReason.trim() || !detailQuery.data || !computeCompletion(detailQuery.data.totalLiters, detailQuery.data.unitPrice, detailQuery.data.allocations ?? []).isComplete}
-                >
-                  {approveMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu duyệt'}
-                </button>
-              </>
-            )}
+
             <button type="button" className="btn btn--ghost btn--sm" onClick={closeDetail}>
               Đóng
             </button>
@@ -1059,7 +1022,7 @@ export function FuelInvoicesPanel() {
               onClick={submitEditor}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending || updateMutation.isPending ? 'Đang lưu…' : editorState?.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu bản nháp'}
+              {createMutation.isPending || updateMutation.isPending ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>
         }

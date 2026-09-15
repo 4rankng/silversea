@@ -16,7 +16,7 @@ const STALE_AFTER_MS = 5 * 60 * 1000;
 
 function blockerRoute(item: AccountantWorkInboxItem, code: string): string {
   const trip = encodeURIComponent(String(item.tripId));
-  if (code === 'EXPENSE_APPROVAL') return `/expenses?tripId=${trip}`;
+  if (code === 'EXPENSE_APPROVAL') return `/trips/${trip}`;
   if (code === 'SETTLEMENT') return `/advances?view=settlements&tripId=${trip}`;
   if (code === 'PROFITABILITY') return `/profit?tripId=${trip}`;
   return `${item.targetRoute}`;
@@ -30,8 +30,8 @@ function formatTime(value: string): string {
 
 function ReadinessFacts({ item }: { item: AccountantWorkInboxItem }) {
   const facts = [
-    ['POD', item.acceptedPod ? 'Đã duyệt' : 'Còn thiếu'],
-    ['Chi phí', item.expenseApprovalPending ? 'Chờ duyệt' : 'Đã duyệt'],
+    ['POD', item.acceptedPod ? 'Đã nộp' : 'Còn thiếu'],
+    ['Chi phí', item.expenseApprovalPending ? 'Chờ xử lý' : 'Đã xử lý'],
     ['Quyết toán', item.settlementComplete ? 'Hoàn tất' : 'Chưa hoàn tất'],
     ['Lợi nhuận', item.profitabilitySnapshotReady ? 'Đã chụp' : 'Còn thiếu'],
   ];
@@ -78,7 +78,7 @@ function InboxLane({
       ) : query.isError ? (
         <div className="accounting-work-inbox__state is-error" role="alert"><AlertTriangle size={18} /> Không thể tải nhóm này.<button type="button" onClick={() => void query.refetch()}>Thử lại</button></div>
       ) : !data?.items.length ? (
-        <div className="accounting-work-inbox__state"><CheckCircle2 size={18} /> Không có hồ sơ trong nhóm này.</div>
+        <div className="accounting-work-inbox__state is-empty" role="status"><CheckCircle2 size={15} /> Không có hồ sơ trong nhóm này.</div>
       ) : (
         <div className="record-table-wrap accounting-work-inbox__table-wrap">
           <table className="record-table ops-table accounting-work-inbox__table">
@@ -118,7 +118,7 @@ export function AccountingWorkInbox({ transportViewHref }: { transportViewHref: 
         <Link to={transportViewHref}>Đối chiếu vận tải</Link>
         <Link to="/debt">Giấy báo nợ</Link>
         <Link to="/payables">Phải trả</Link>
-        <Link to="/accounting/fuel-evidence">Duyệt bằng chứng</Link>
+        <Link to="/accounting/fuel-evidence">Chứng từ nhiên liệu</Link>
       </nav>
       <p className="accounting-work-inbox__batch-note">Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải sau khi máy chủ xác nhận các dòng sẵn sàng và cùng một khách hàng.</p>
       <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Đã đủ POD, chi phí, quyết toán và ảnh chụp lợi nhuận." />

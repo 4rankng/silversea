@@ -3,7 +3,7 @@
  * Pre-flight: assert the local dev stack is ready before any QA run.
  *
  * Checks (all must pass for exit 0):
- *   1. Docker containers: silversea-db + silversea-redis running
+ *   1. Docker containers: ss-prod-db + ss-prod-redis running
  *   2. Postgres reachable on 5441 + can read public schema
  *   3. Redis reachable on 6391 + responds to PING
  *   4. Backend health on 3001/api/health returns 200
@@ -29,8 +29,8 @@ import { health } from "./lib/http.mjs";
 const REPO_ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
 const FRONTEND = process.env.FRONTEND ?? "http://localhost:7174";
 const BACKEND = process.env.BACKEND ?? "http://localhost:3001/api";
-const DB_CONTAINER = process.env.DB_CONTAINER ?? "silversea-db";
-const REDIS_CONTAINER = process.env.REDIS_CONTAINER ?? "silversea-redis";
+const DB_CONTAINER = process.env.DB_CONTAINER ?? "ss-prod-db";
+const REDIS_CONTAINER = process.env.REDIS_CONTAINER ?? "ss-prod-redis";
 const DB_USER = process.env.DB_USER ?? "postgres";
 const DB_NAME = process.env.DB_NAME ?? "silversea";
 const ARTIFACTS = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_dev-ready`;

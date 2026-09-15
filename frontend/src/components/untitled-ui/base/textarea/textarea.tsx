@@ -1,3 +1,4 @@
+import { fieldTextSizes } from "../control-typography";
 
 import type { ReactNode, Ref } from "react";
 import React from "react";
@@ -31,8 +32,9 @@ export const TextAreaBase = ({ className, size = "md", ...props }: TextAreaBaseP
                 cx(
                     "w-full scroll-py-3 rounded-lg border border-primary bg-primary text-primary outline-focus-ring transition duration-100 ease-linear placeholder:text-placeholder autofill:rounded-lg autofill:text-primary",
 
-                    size === "sm" && "p-3 text-xs max-md:text-sm",
-                    size === "md" && "px-3.5 py-3 text-md",
+                    size === "sm" && "p-3",
+                    size === "md" && "px-3.5 py-3",
+                    fieldTextSizes[size],
 
                     // Resize handle
                     "[&::-webkit-resizer]:bg-(image:--resize-handle-bg) [&::-webkit-resizer]:bg-contain dark:[&::-webkit-resizer]:bg-(image:--resize-handle-bg-dark)",

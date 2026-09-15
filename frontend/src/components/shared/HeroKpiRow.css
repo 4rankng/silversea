@@ -47,7 +47,7 @@
 
 .hero-kpi-card__eyebrow {
   display: block;
-  font-size: var(--fs-xs, 12px);
+  font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -57,7 +57,7 @@
 
 .hero-kpi-card__amount {
   font-family: var(--font-display);
-  font-size: var(--fs-2xl);
+  font-size: var(--text-metric-size);
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.35;
@@ -66,14 +66,14 @@
 }
 
 .hero-kpi-card__subtitle {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink-2);
   line-height: 1.4;
 }
 
 /* Currency unit rendered at subtitle size next to the hero amount digits */
 .hero-kpi-card__currency {
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   font-weight: 600;
   color: var(--ink-2);
   margin-left: 6px;
@@ -162,7 +162,7 @@
 
 .hero-kpi-mini__value {
   font-family: var(--font-data);
-  font-size: var(--fs-lg);
+  font-size: var(--text-metric-size);
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.35;
@@ -174,7 +174,7 @@
 }
 
 .hero-kpi-mini__label {
-  font-size: var(--fs-xs, 12px);
+  font-size: var(--text-label-size);
   font-weight: 500;
   color: var(--ink-3, #8B919B);
   margin-top: 2px;
@@ -193,7 +193,7 @@
     gap: 10px;
   }
   .hero-kpi-mini__value {
-    font-size: 16px;
+    font-size: var(--text-metric-size);
   }
   .hero-kpi-mini__watermark svg {
     width: 28px;

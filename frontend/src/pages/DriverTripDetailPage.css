@@ -15,9 +15,12 @@
 }
 
 /* Extra bottom clearance so the last sections don't sit under the fixed
-   accept bar (and, on mobile, the driver bottom-nav it's pinned above). */
+   accept bar (and, on mobile, the driver bottom-nav it's pinned above).
+   _44: desktop 1440 reported the Số cont & Seal / Hình ảnh sections cut
+   off behind the floating bar — clearance raised past the bar's real
+   height (button + padding + gradient fade) with margin to spare. */
 .driver-task-screen--has-accept-bar {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
@@ -64,7 +67,7 @@
 
 .driver-task-header__eyebrow {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -73,7 +76,7 @@
 
 .driver-task-header__title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--text-title-size);
   line-height: 1.25;
   color: var(--ink);
   overflow-wrap: anywhere;
@@ -89,13 +92,13 @@
 
 .driver-task-header__customer {
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 /* 2a618442: collapsed-header Tuyến line + 44px expand/collapse toggle. */
 .driver-task-header__route {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink-3);
   overflow-wrap: anywhere;
 }
@@ -116,11 +119,11 @@
 
 .driver-task-section {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 16px;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 10px;
   background: var(--surface);
 }
 
@@ -129,14 +132,14 @@
    section titles. */
 .driver-task-section--banner {
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--brand, #005a2d) 8%, white);
-  border-left: 3px solid var(--brand, #005a2d);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 10px;
 }
 
 .driver-task-section--banner,
 .driver-task-section--banner strong {
-  font-size: 13px;
+  font-size: var(--text-body-size);
   font-weight: 400;
 }
 
@@ -149,8 +152,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  /* Section-title tier (13/700, sentence-case) — one type system. */
-  font-size: 13px;
+  /* Shared section-title role, unchanged across viewport sizes. */
+  font-size: var(--text-section-size);
   font-weight: 700;
   color: var(--ink-2, #4a5550);
   margin-bottom: 8px;
@@ -181,7 +184,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -216,17 +219,15 @@
 .driver-task-fact {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .driver-task-fact__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ink, #0f172a) 6%, transparent);
+  width: 20px;
+  height: 20px;
   color: var(--ink);
   flex-shrink: 0;
 }
@@ -238,10 +239,9 @@
 }
 
 .driver-task-fact__label {
-  font-size: 11px;
+  font-size: var(--text-label-size);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-3);
 }
 
@@ -251,22 +251,21 @@
 .driver-task-invoice-party {
   grid-column: 1 / -1;
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-3);
 }
 
 .driver-task-invoice-empty {
   grid-column: 1 / -1;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink-3);
 }
 
 .driver-task-fact__value {
-  font-size: 14px;
+  font-size: var(--text-data-size);
   line-height: 1.45;
   color: var(--ink);
   overflow-wrap: anywhere;
@@ -288,7 +287,7 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--warning, #d97706) 8%, transparent);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
 }
 
@@ -301,13 +300,18 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--info, #2563eb) 8%, transparent);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
+}
+
+.driver-task-rules__note span {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .driver-task-empty {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--ink-3);
 }
 
@@ -327,12 +331,12 @@
 .driver-task-sync strong {
   display: block;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .driver-task-sync p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -354,13 +358,13 @@
 .driver-task-bypass strong {
   display: block;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink);
 }
 
 .driver-task-bypass p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -402,7 +406,7 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .driver-task-step__count {
@@ -417,13 +421,13 @@
 }
 
 .driver-task-step__title {
-  font-size: 16px;
+  font-size: var(--text-section-size);
   line-height: 1.35;
 }
 
 .driver-task-step__help {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -434,7 +438,7 @@
   border-radius: 8px;
   background: color-mix(in srgb, var(--danger, #dc2626) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger, #dc2626) 18%, transparent);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.5;
   color: var(--danger, #b91c1c);
   font-weight: 500;
@@ -510,13 +514,13 @@
 }
 
 .driver-task-footer__summary strong {
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink);
 }
 
 .driver-task-footer__summary p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -525,7 +529,7 @@
   margin: 0;
   padding-left: 18px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.5;
 }
 
@@ -543,7 +547,7 @@
   border: 1px solid transparent;
   background: var(--ink);
   color: var(--fg-inverse, #fff);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   font-weight: 700;
   cursor: pointer;
 }
@@ -558,7 +562,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ok, #166534);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 600;
 }
 
@@ -601,7 +605,7 @@
   border: 1px solid transparent;
   background: var(--accent);
   color: #fff;
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 14px 32px color-mix(in srgb, var(--ink, #0f172a) 12%, transparent);
@@ -640,7 +644,7 @@
 }
 
 .driver-task-paper-order__desc {
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--fg-3, #5F6872);
 }
 
@@ -679,12 +683,12 @@
 
 .driver-task-fuel-subtitle,
 .driver-task-photo-subtitle {
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--fg-3, #5F6872);
 }
 
 .driver-task-fuel-offline {
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--warn, #b45309);
 }
 
@@ -726,7 +730,7 @@
   display: grid;
   align-content: start;
   gap: 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .driver-task-fuel-facts > div {
@@ -771,7 +775,7 @@
   padding: 12px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--ink, #0f172a) 4%, transparent);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-2, #535963);
 }
 
@@ -869,13 +873,13 @@
   }
 
   .driver-task-header__title {
-    font-size: 20px;
+    font-size: var(--text-title-size);
   }
 
   .driver-task-section,
   .driver-task-footer__body {
-    padding: 14px;
-    border-radius: 16px;
+    padding: 10px;
+    border-radius: 10px;
   }
 
   .driver-task-accept-sticky {
@@ -896,7 +900,7 @@
   }
 
   .driver-task-header__title {
-    font-size: 18px;
+    font-size: var(--text-title-size);
   }
 
   .driver-task-rules__item,
@@ -930,8 +934,9 @@
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
+  text-transform: uppercase;
 }
 
 .driver-task-ops-toggle {
@@ -943,7 +948,7 @@
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -955,7 +960,7 @@
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   white-space: nowrap;
 }

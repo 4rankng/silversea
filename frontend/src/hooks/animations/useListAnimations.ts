@@ -1,31 +1,29 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { animate, stagger, createScope, utils, spring } from 'animejs';
+import { useLayoutEffect, useRef, useCallback } from 'react';
+import { animate, createScope } from 'animejs';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
+import { entranceDelay, visibleEntranceTargets } from './operational-entrance';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
 export interface UseListAnimationsOptions {
   /** Selector for individual items (e.g., '.trip-row', '.m-card') */
   itemSelector: string;
-  /** Stagger delay between items in ms (default: 40) */
+  /** Stagger delay between items in ms (default: 12); total delay <= 80ms. */
   staggerDelay?: number;
   /** Max items to animate — performance guard (default: 30) */
   maxItems?: number;
-  /** Animation mode: 'cards' adds subtle scale spring, 'rows' slides up */
+  /** Card and row entrances share a quiet fade; cards get 20ms more settling time. */
   mode?: 'cards' | 'rows';
-  /** Trigger re-animation when deps change */
+  /** Discover newly mounted records when deps change */
   deps?: unknown[];
 }
 
 /* ─── Hook ───────────────────────────────────────────────────────────────── */
 
 /**
- * Staggered list/card entrance animation for table rows, card lists, etc.
- *
- * - Cards mode: animate with slight scale(0.97→1) spring
- * - Rows mode: animate rows in from below with fadeUp
- *
- * Call `replay()` when list data changes to re-animate new children.
+ * Brief fade for new visible records only. Existing records stay readable
+ * through filtering, polling and other data refreshes. `replay()` discovers
+ * new children without hiding the rows the user is already reading.
  * Respects prefers-reduced-motion.
  *
  * Usage:
@@ -36,7 +34,7 @@ export interface UseListAnimationsOptions {
  */
 export function useListAnimations({
   itemSelector,
-  staggerDelay = 40,
+  staggerDelay = 12,
   maxItems = 30,
   mode = 'rows',
   deps = [],
@@ -44,52 +42,28 @@ export function useListAnimations({
   const rootRef = useRef<HTMLDivElement>(null);
   const scopeRef = useRef<ReturnType<typeof createScope> | null>(null);
   const prefersReduced = usePrefersReducedMotion();
+  const seen = useRef(new WeakSet<Element>());
 
   const runAnimation = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
 
-    const allItems = root.querySelectorAll(itemSelector);
-    const items = Array.from(allItems).slice(0, maxItems);
+    const allItems = [...root.querySelectorAll(itemSelector)];
+    const fresh = allItems.filter(item => !seen.current.has(item));
+    allItems.forEach(item => seen.current.add(item));
+    const items = visibleEntranceTargets(fresh).slice(0, Math.max(0, maxItems));
     if (items.length === 0) return;
 
-    if (prefersReduced) {
-      utils.set(items, { opacity: 1, translateY: 0, translateX: 0, scale: 1 });
-      return;
-    }
-
-    // Set initial hidden state
-    utils.set(items, {
-      opacity: 0,
-      willChange: 'opacity, transform',
+    if (prefersReduced) return;
+    animate(items, {
+      opacity: [0.7, 1],
+      delay: (_element: unknown, index: number) => entranceDelay(index, staggerDelay),
+      duration: mode === 'cards' ? 180 : 160,
+      ease: 'out(2)',
     });
-
-    if (mode === 'cards') {
-      // Card entrance: scale + fadeUp with spring
-      utils.set(items, { scale: 0.97, translateY: 16 });
-      animate(items, {
-        opacity: [0, 1],
-        translateY: [16, 0],
-        scale: [0.97, 1],
-        delay: stagger(staggerDelay, { start: 60 }),
-        duration: 500,
-        ease: spring({ stiffness: 170, damping: 20 }),
-      });
-    } else {
-      // Row entrance: fadeUp with slight translateX from left
-      utils.set(items, { translateY: 10, translateX: -6 });
-      animate(items, {
-        opacity: [0, 1],
-        translateY: [10, 0],
-        translateX: [-6, 0],
-        delay: stagger(staggerDelay, { start: 40 }),
-        duration: 400,
-        ease: 'out(3)',
-      });
-    }
   }, [itemSelector, staggerDelay, maxItems, mode, prefersReduced]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
 

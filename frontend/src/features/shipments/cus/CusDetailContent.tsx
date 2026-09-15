@@ -19,6 +19,7 @@ export function ShipmentDetailContent({
   onSavingChange,
   actionsRef,
   onExternalTripCompleted: _onExternalTripCompleted,
+  onAppointmentSavedAndExit,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
@@ -34,6 +35,10 @@ export function ShipmentDetailContent({
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
   /** Detail refetch after a staff close — completion advances the shipment. */
   onExternalTripCompleted?: () => void;
+  /** Fires once after an appointment popover commit settles successfully — the
+   *  host closes the detail surface so Enter returns the user to the list,
+   *  matching the drawer footer's save-then-close behavior. */
+  onAppointmentSavedAndExit?: () => void;
 }) {
   return (
     <div className="cus-detail-content">
@@ -52,6 +57,7 @@ export function ShipmentDetailContent({
           onDirtyChange={onDirtyChange}
           onSavingChange={onSavingChange}
           actionsRef={actionsRef}
+          onAppointmentSavedAndExit={onAppointmentSavedAndExit}
         />
       ) : null}
     </div>

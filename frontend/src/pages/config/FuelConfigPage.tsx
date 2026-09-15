@@ -1,5 +1,5 @@
 import { qk } from '../../api/keys';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../hooks/animations';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +19,8 @@ export default function FuelConfigPage() {
   const queryClient = useQueryClient();
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
   const navigate = useNavigate();
-  const { data: fuelConfig } = useFuelConfig();
+  const { data: fuelConfig, isLoading: configLoading, isError: configFailed, refetch: reloadConfig } = useFuelConfig();
+  const formInitialized = useRef(false);
   const saveFuel = useSaveFuelConfig();
   const [form, setForm] = useState({
     loadedNorm: '', emptyNorm: '', supplement: '', unitPrice: '', baseUnitPrice: '',
@@ -30,6 +31,7 @@ export default function FuelConfigPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<FuelPriceHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
   // Client-side column sort for the price-history table — a small full-set
   // list fetched in one array; null keeps the backend's order. "Người thay
   // đổi" renders a constant placeholder (the API has no author field yet), so
@@ -43,7 +45,8 @@ export default function FuelConfigPage() {
   }, (a, b) => b.id - a.id), [history, historySort]);
 
   useEffect(() => {
-    if (fuelConfig) {
+    if (fuelConfig && !formInitialized.current) {
+      formInitialized.current = true;
       // Accept both camelCase and legacy snake_case field names from the API.
       const f = fuelConfig as unknown as Record<string, string | null>;
       setForm({
@@ -58,19 +61,26 @@ export default function FuelConfigPage() {
     }
   }, [fuelConfig]);
 
-  useEffect(() => {
-    configClient.getFuelPriceHistory().then(setHistory).catch(() => {}).finally(() => setHistoryLoading(false));
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(false);
+    try { setHistory(await configClient.getFuelPriceHistory()); }
+    catch { setHistoryError(true); }
+    finally { setHistoryLoading(false); }
   }, []);
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
 
   const handleSave = async () => {
+    if (saving || configLoading || configFailed || fuelConfig === undefined) return;
+    formInitialized.current = true;
     setSaving(true);
     setError(null);
     setMessage(null);
     try {
-      await saveFuel.mutateAsync({
-        // Optimistic-lock token: present once a config exists (the form seeds
-        // from the same row); omitted on a genuine first configuration.
-        expectedUpdatedAt: fuelConfig?.updatedAt ?? null,
+      // Optimistic-lock token: only include when an existing config row was
+      // loaded — a genuine first configuration must not require a version
+      // token, which avoids the "missing version loop" on first save.
+      const payload: Parameters<typeof configClient.saveFuelConfig>[0] = {
         loadedNorm: Number(form.loadedNorm),
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
@@ -78,7 +88,11 @@ export default function FuelConfigPage() {
         baseUnitPrice: form.baseUnitPrice ? Number(form.baseUnitPrice) : null,
         warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
-      });
+      };
+      if (fuelConfig?.updatedAt) {
+        payload.expectedUpdatedAt = fuelConfig.updatedAt;
+      }
+      await saveFuel.mutateAsync(payload);
       navigate('/config');
     } catch (e) {
       const status = (e as { status?: number }).status;
@@ -103,7 +117,10 @@ export default function FuelConfigPage() {
   return (
     <div ref={pageRef} className="cfg-page cfg-page--fuel">
       <PageHeader title="Định mức nhiên liệu" description="Định mức tiêu hao theo xe và loại tải · đơn giá dầu hiện hành · ngưỡng cảnh báo TTBQ" onBack={() => navigate('/config')} iconName="fuel" />
+      {configLoading && <p role="status">Đang tải cấu hình nhiên liệu…</p>}
+      {configFailed && <div role="alert" className="cfg-form-error">Không tải được cấu hình nhiên liệu. Bản nháp đang giữ nguyên. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void reloadConfig()}>Tải lại cấu hình</button></div>}
       <Panel title="Cấu hình tính nhiên liệu" subtitle="Thông số dùng để tính chi phí nhiên liệu cho mỗi chuyến">
+        <fieldset className="min-w-0 border-0 m-0 p-0" disabled={configLoading || configFailed || saving}>
         <div className="cfg-form-grid">
           <div className="field" id="fuel-loaded-norm-field">
             <label htmlFor="fuel-loaded-norm">Định mức có tải (lít/100km)</label>
@@ -160,18 +177,25 @@ export default function FuelConfigPage() {
           </div>
         </div>
 
+        {error && (
+          <div role="alert" className="cfg-form-error" style={{ marginBottom: 8 }}>
+            {error}
+          </div>
+        )}
         <div className="cfg-form-actions">
-          <button id="fuel-save-config-button" className="btn btn--primary" disabled={saving || !(Number(form.loadedNorm) > 0) || !(Number(form.emptyNorm) > 0) || !(Number(form.unitPrice) > 0)} onClick={handleSave}>
+          <button id="fuel-save-config-button" className="btn btn--primary" disabled={saving || configLoading || configFailed || fuelConfig === undefined || !(Number(form.loadedNorm) > 0) || !(Number(form.emptyNorm) > 0) || !(Number(form.unitPrice) > 0)} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
-          {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
-          {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
+          {message && <span role="status" style={{ color: 'var(--success)', fontSize: 'var(--text-data-size)' }}>{message}</span>}
         </div>
+        </fieldset>
       </Panel>
       <Panel title="Lịch sử giá nhiên liệu" subtitle="Theo dõi các lần thay đổi đơn giá nhiên liệu" style={{ marginTop: 20 }}>
         {historyLoading ? (
           <div style={{ textAlign: 'center', padding: 20, color: 'var(--ink-3)' }}>Đang tải…</div>
+        ) : historyError ? (
+          <div role="alert" className="cfg-form-error">Không tải được lịch sử giá. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void loadHistory()}>Tải lại lịch sử</button></div>
         ) : history.length === 0 ? (
           <div className="cfg-empty" style={{ padding: '24px 16px' }}>
             <img src={resolveEmptyIllustration('empty-config')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />

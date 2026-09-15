@@ -1,3 +1,4 @@
+import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from './trip-expense-ledger-source';
 import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   BILLABLE_TRIP_STATUSES,
@@ -192,7 +193,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
     .limit(1);
   if (
     !expense
-    || expense.approvalStatus !== 'APPROVED'
+    || !['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     || typeof expense.tripStatus !== 'string'
     || !isBillableTripStatus(expense.tripStatus)
     || Number(expense.sellAmount ?? 0) <= 0
@@ -550,7 +551,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     return;
   }
   if (!expense.expenseDate) {
-    throw new ApiError(400, 'Ngày chi thực tế là bắt buộc trước khi phê duyệt chi phí');
+    throw new ApiError(400, 'Ngày chi thực tế là bắt buộc trước khi ghi nhận chi phí');
   }
 
   const existingRows = await tx.select({
@@ -563,7 +564,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
   })
     .from(s.ledger)
-    .where(and(eq(s.ledger.txnType, TxnType.SERVICE_FEE), eq(s.ledger.txnId, expenseId)));
+    .where(tripExpenseServiceLedgerCondition(expenseId, expense.customerId));
   const posted = existingRows.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0);
   const delta = round2dp(Number(expense.sellAmount ?? 0) - posted);
   if (delta === 0) return;
@@ -592,6 +593,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
   await LedgerService.postEntry(tx, {
     txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
     txnId: expense.expenseId,
+    receiptId: tripExpenseServiceReceiptId(expense.expenseId),
     entityType: 'CUSTOMER',
     entityId: expense.customerId,
     debit: delta > 0 ? delta : 0,
@@ -620,7 +622,7 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
   if (
     !expense
     || expense.tripStatus !== 'COMPLETED'
-    || expense.approvalStatus !== 'APPROVED'
+    || !['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     || expense.supplierId == null
     || expense.settlementMethod !== 'COMPANY_DIRECT'
     || Number(expense.buyAmount ?? 0) <= 0
@@ -628,7 +630,7 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
     return;
   }
   if (!expense.departureDate) {
-    throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã duyệt');
+    throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã ghi nhận');
   }
 
   const sourceReceiptId = tripExpenseVendorReceiptId(expenseId);

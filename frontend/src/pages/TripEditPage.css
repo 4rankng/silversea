@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 26px 32px 22px;
+  padding: 12px 0;
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
@@ -63,7 +63,7 @@
 
 .tc-page-title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--text-title-size);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--fg-1, #0A0A0A);
@@ -76,7 +76,7 @@
 
 .tc-page-sub {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-3);
   white-space: normal;
   overflow: visible;
@@ -116,7 +116,7 @@
 
 /* ── Bento grid shell ── */
 .tc-content {
-  padding: 24px 32px 140px;
+  padding: 16px 0 100px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
@@ -129,12 +129,12 @@
 .tc-bento {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 20px;
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 32px;
+  padding: 16px;
 }
 
 /* Span classes no longer needed for flex layout, but kept to avoid breaking TSX */
@@ -169,14 +169,14 @@
 }
 
 .tc-card-title {
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: 600;
   color: var(--fg-1, #0A0A0A);
   letter-spacing: 0;
 }
 
 .tc-card-sub {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-3);
   line-height: 1.45;
   letter-spacing: 0.005em;
@@ -198,7 +198,7 @@
   min-width: 0;
 }
 .tc-field-label {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   color: var(--fg-2);
   letter-spacing: 0.01em;
@@ -264,9 +264,9 @@
 
 .tc-rail-actions {
   margin-top: 0;
-  padding: 20px 20px 22px;
+  padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -296,7 +296,7 @@
   font-weight: 600;
   color: var(--fg-2);
   margin-bottom: 3px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .tc-rail-error {
@@ -312,7 +312,7 @@
   font-weight: 700;
   margin-bottom: 2px;
   color: var(--copper);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .tc-rail-btn {
@@ -337,15 +337,15 @@
   .tc-content {
     grid-template-columns: minmax(0, 1fr) 320px;
     gap: 20px;
-    padding: 22px 24px 140px;
+    padding: 16px 0 100px;
   }
-  .tc-bento { gap: 24px; padding: 24px; }
+  .tc-bento { gap: 20px; padding: 16px; }
 }
 
 @media (max-width: 1023px) {
   .tc-content {
     grid-template-columns: minmax(0, 1fr);
-    padding: 18px 20px 140px;
+    padding: 12px 0 100px;
   }
   .tc-rail { position: static; }
 }
@@ -364,24 +364,24 @@
   }
   .tc-bento {
     gap: 24px;
-    padding: 16px;
+    padding: 10px;
     border-inline: 0;
     border-radius: 0;
   }
   .tc-page-head {
-    padding: 16px 14px 14px;
+    padding: 10px 8px;
   }
   .tc-page-head::after {
     left: 14px;
     right: 14px;
   }
-  .tc-page-title { font-size: var(--fs-xl); }
+  .tc-page-title { font-size: var(--text-title-size); }
   
   .tc-card-head {
     margin-bottom: 12px;
   }
-  .tc-card-title { font-size: var(--fs-sm); }
-  .tc-card-sub { font-size: 12px; }
+  .tc-card-title { font-size: var(--text-section-size); }
+  .tc-card-sub { font-size: var(--text-caption-size); }
   .tc-card-body {
     gap: 12px;
   }
@@ -430,3 +430,19 @@
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-edit-page .tc-card, .trip-edit-page .tc-rail { animation: none; }
+  .trip-edit-page .tc-back-btn { transition: none; }
+  .trip-edit-page .tc-back-btn:hover { transform: none; }
+}
+.tc-edit-conflict-field {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.tc-edit-conflict-field legend { font-size: var(--text-body-size); font-weight: 600; }
+.tc-edit-conflict-choice { display: flex; align-items: start; gap: 8px; padding: 8px 0; overflow-wrap: anywhere; font-size: var(--text-body-size); }
+.tc-edit-conflict-choice input { flex: 0 0 auto; margin-top: 2px; }

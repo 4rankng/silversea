@@ -130,9 +130,9 @@
     grid-column: 1 / -1;
   }
 
-  /* Tighter title on phones */
+  /* Keep the page title role consistent across viewports. */
   .tc-page-title {
-    font-size: var(--fs-xl);
+    font-size: var(--text-title-size);
   }
 
   /* 2-col body becomes a single column on phones. The two .trip-col
@@ -170,8 +170,8 @@
   .tdp-m3 { order: 1; }
   .tdp-r1 { order: 2; }
   .tdp-r2 { order: 3; }
-  .tdp-m2 { order: 4; }
-  .tdp-m4 { order: 5; }
+  .tdp-m2 { order: 5; }
+  .tdp-m4 { order: 4; }
   .tdp-r3 { order: 6; }
   .tdp-r4 { order: 7; }
   .tdp-r5 { order: 8; }

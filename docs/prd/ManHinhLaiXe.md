@@ -1,186 +1,172 @@
 # Màn Hình & Luồng Vận Hành App Lái Xe
 
 **Dự án:** TTransport — Silver Sea
-**Nguồn:** `2026.8.27_Man_hinh_lai_xe.docx`
-**Liên quan:** [`QuyTrinhO2C.md`](QuyTrinhO2C.md) Bước 3, [`LoHangKepKetHop.md`](LoHangKepKetHop.md), [`OpsVanHanh.md`](OpsVanHanh.md)
 
-**Mục tiêu:** luồng vận hành của Lái xe — **Nhận lệnh ➔ Chạy ➔ Báo cáo POD**.
+**Nguồn nghiệp vụ:** `2026.8.27_Man_hinh_lai_xe.docx` và yêu cầu bổ sung về thông tin công việc, ảnh chứng từ và bố cục màn hình lái xe.
 
-**Tiêu chuẩn Mobile UI:** thao tác 1 chạm, cuộn dọc, chữ lớn.
+**Liên quan:** [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Kẹp và Kết hợp](LoHangKepKetHop.md), [Master data nhà máy](MasterDataNhaMay.md), [Vận hành Ops](OpsVanHanh.md).
 
----
+Tài liệu xác định sản phẩm phục vụ lái xe từ lúc nhận lệnh đến khi hoàn thành công việc. Lái xe cần biết đi đâu, làm gì, liên hệ ai và nộp chứng từ nào; Điều vận, CUS và Ops cần theo dõi đúng tiến độ của phần việc liên quan.
 
-## 0. Phạm Vi Phase Này
+## 1. Phạm Vi Và Nguyên Tắc Vận Hành
 
-> **Tạm ẨN module Chi phí ở Frontend, nhưng Backend phải thiết kế sẵn Database Schema.**
-> Giả lập (bypass) luồng của Ops để thông suốt quy trình test.
+- App **cần Internet** để xem thông tin hiện hành và ghi nhận thao tác. Khi mất kết nối, giải thích rõ việc chưa thể lưu; không cho làm việc ngoại tuyến hoặc tự gửi lại thao tác khi có mạng.
+- Không có bước phê duyệt nội bộ, người kiểm tra/người duyệt hoặc trạng thái chờ duyệt để hoàn thành công việc. **Lái xe nhận lệnh vận chuyển** là xác nhận tiếp nhận công việc thật, vẫn được giữ.
+- Lái xe chỉ thực hiện công việc được giao và còn quyền thao tác. Giữ ràng buộc an toàn xe/tài xế/moóc, thứ tự vận hành và yêu cầu bằng chứng; các bước liên quan đến Ops phản ánh công việc thực tế.
+- Ảnh, biên lai và chi phí thuộc đúng công việc, chỉ người có quyền mới được thêm hoặc sửa.
+- Dữ liệu trọng tâm xuất hiện trước, trình bày gọn trên điện thoại, máy tính bảng và máy tính. Không dùng chữ quá lớn, khoảng đệm dư hoặc nhiều lớp thẻ trang trí.
 
-| Hạng mục | Trạng thái phase này |
-|----------|----------------------|
-| Nhận lệnh → chạy → e-POD | **Trong phạm vi** |
-| Form "Nhập chi phí lô hàng" | Code sẵn, **ẩn sau feature flag** |
-| Form "Báo cáo đổ dầu" | Code sẵn, **ẩn sau feature flag** |
-| Bước xác nhận của Ops | **Bypass** (bỏ qua toàn bộ) |
+## 2. Điều Hướng Và Đơn Vị Công Việc
 
-**Yêu cầu Database (chuẩn bị cho phase tiếp theo):** bảng `Trips` phải có sẵn các
-cột / bảng quan hệ để lưu: `Tiền nâng`, `Tiền hạ`, `Chi phí phát sinh`, `Tiền đường`,
-`Xăng dầu`, `Hình ảnh biên lai`.
+Điều hướng chính gồm bốn tab: **Hành trình**, **Thu nhập**, **Kỷ luật**, **Tài khoản**. Màn hình **Hành trình** có ba tab: **Lệnh mới**, **Đã nhận**, **Lịch sử**. Số lượng và trạng thái trong các tab phải theo công việc thực tế của tài khoản đang đăng nhập.
 
----
+### 2.1 Lô Hàng, Container Và Công Việc Vận Chuyển
 
-## 1. Cấu Trúc Điều Hướng
+Một **lô hàng nguồn** có thể gồm nhiều container. Mỗi công việc vận chuyển có mã nhận diện, phân xe, tiến độ và bằng chứng riêng, đồng thời vẫn thuộc đúng lô hàng nguồn.
 
-- **Bottom Navigation Bar:** giữ nguyên thiết kế **4 tab hiện tại**.
-- Màn hình "Hành trình" (`/my-trips`) chia làm **3 tab con**: `Lệnh mới` | `Đã nhận` | `Lịch sử`.
+- Với FCL, mỗi thẻ thể hiện một công việc gắn với một container. Không gộp nhiều container có tiến độ khác nhau thành một thẻ chung của lô.
+- Container chưa có số vẫn có thẻ: hiển thị **Chưa có số container**, loại container đã biết, công việc và lịch đã có. Không ẩn loại container chỉ vì thiếu số.
+- Với LCL, thẻ thể hiện công việc vận chuyển hàng lẻ của lô, với thông tin hàng và ngày vận chuyển phù hợp. Không tạo container giả, không yêu cầu ảnh/số container không tồn tại chỉ để đi qua luồng FCL.
+- Quan hệ giữa các thẻ KẸP/KẾT HỢP lấy từ cặp ghép có hiệu lực. Giữ từng thẻ riêng, đặt liền kề và có dấu hiệu chung đủ rõ; không suy ra quan hệ chỉ vì trùng biển số hoặc trùng ngày.
 
----
+### 2.2 Thẻ Tổng Quát
 
-## 2. Màn Hình "Hành Trình" (`/my-trips`)
+Thẻ cần đủ dữ liệu để lái xe nhận diện và chọn đúng công việc mà không phải mở lần lượt từng thẻ.
 
-### 2.1 Lớp 1 — Thẻ Tổng Quát (hiển thị ngoài tab)
-
-> **Đơn vị thẻ = 1 CONTAINER** *(quyết định sản phẩm 2026-09-07 — theo đúng docx)*
->
-> Mỗi **container** là **một thẻ riêng**. **Không** gộp nhiều container vào một thẻ,
-> và **không** hiển thị một thẻ cho cả chuyến (trip). Số thẻ trong danh sách **bằng
-> đúng** số container của tài xế.
->
-> Điều này khớp nguyên tắc **"1 Cont = 1 Lệnh (Shipment)"** ở
-> [`LoHangKepKetHop.md`](LoHangKepKetHop.md) §2 — mỗi container là một lệnh riêng về
-> chứng từ/doanh thu, nên cũng là một thẻ riêng trên app.
-
-> **Lệnh Kẹp / Kết hợp:** hiển thị **2 thẻ riêng biệt nhưng dính liền kề nhau**,
-> có **chung Tag phân loại**. Xem [`LoHangKepKetHop.md`](LoHangKepKetHop.md) §3.3.
-
-**Cấu trúc thẻ:**
-
-| Vùng | Nội dung |
-|------|----------|
-| **Header** | `[Tag: ĐƠN / KẸP / KẾT HỢP]` \| `Giờ đóng / trả: [HH:MM - DD/MM]` |
-| **Dòng 1** | `Nhà máy` *(căn lề trái)* \| `Cảng nâng` *(căn lề phải)* |
-| **Dòng 2** | `Tuyến đường` *(căn lề trái)* \| `Cảng hạ` *(căn lề phải)* |
-| **Dòng 3** | `Cont: [Số Cont] - Loại cont` (ví dụ: `40'HC`) |
-| **Footer** | `Xem chi tiết & Nhận lệnh` |
-
-**Không có trên thẻ Lớp 1:** badge/pill trạng thái (Tag ở header + CTA ở footer đã
-mang trạng thái — quy ước dự án là chữ màu, không badge), `Mã chuyến` monospace, và
-dòng `Tài xế + 🚚 Biển số` (biển số thuộc **Khối 6** của thẻ chi tiết, §2.2).
-
-> ✅ **Đã triển khai (2026-09-07):** `DriverTripsPage.tsx` đã migrate sang mô hình
-> thẻ này — 1 thẻ / container (fulfillment), tabs `Lệnh mới / Đã nhận / Lịch sử`,
-> cấu trúc 2 cột đúng §2.1, tag `[KẸP]` / `[KẾT HỢP]` suy ra từ cặp ghép
-> (`trip_pairs.pair_kind`), 2 thẻ ghép dính liền theo cặp, và khoá tiến độ
-> Lệnh 2 (kết hợp) cho tới khi Lệnh 1 hoàn thành. Tiêu chí nghiệm thu:
-> [`testplan/roles/03-laixe.md`](../../testplan/roles/03-laixe.md) Flow 1 (`DRV-LIST-02`,
-> `DRV-LIST-03`) và [`testplan/flows/03-laixe-nhan-lenh.md`](../../testplan/flows/03-laixe-nhan-lenh.md)
-> §3.7 (`TC-LX-NHANLENH-014`, `-015`).
->
-> Audit 2026-09-09: nhãn `Giờ đóng / trả:` hiển thị literal theo bảng cấu trúc;
-> footer thẻ đạt sàn chạm **48px** trên mobile (opt-up `#root` ≤640px, idiom
-> `c9012bd0`); unit tests khoá cả hai (`DriverTripsPage.test.tsx`,
-> `driver-mobile-full-bleed.styles.test.ts`).
-
-### 2.2 Lớp 2 — Thẻ Chi Tiết (bấm vào thẻ ⇒ mở toàn màn hình)
-
-| Khối | Nội dung |
-|------|----------|
-| **Khối 1 — Lộ trình** | `[Tuyến đường]` \| `[Nhà máy]` \| `[Cảng nâng]` \| `[Cảng hạ]` |
-| **Khối 2 — Hàng hoá** | `[Loại Cont]` \| `[Số Cont]` \| `[Số Chì]` + nút `[📷 Chụp ảnh Cont/Chì]` — **bắt buộc gắn Timestamp vào ảnh lúc chụp** |
-| **Khối 3 — Liên hệ** | `[Tên người phụ trách kho bãi]` + `[Số điện thoại]` |
-| **Khối 4 — Thông tin hoá đơn** | Thông tin xuất HĐ nâng / hạ, HĐ vệ sinh |
-| **Khối 5 — Quy định tại điểm làm hàng** | Lấy dữ liệu từ **note dành cho lái xe** |
-| **Khối 6 — Thông tin xe** | `[Biển số Đầu kéo]` \| `[Biển số Mooc]` |
-| **Khối 7 — Nút thao tác** | **Sticky bottom** — ghim cố định ở đáy màn hình: `Nhận lệnh vận chuyển` |
-
-Khối 4 lấy từ master data nhà máy (`liftFeeInvoice*`, `dropFeeInvoice*`, `cleaningInvoice*`);
-Khối 5 lấy từ `strictRules` — xem [`MasterDataNhaMay.md`](MasterDataNhaMay.md).
-
----
-
-## 3. Logic Vận Hành
-
-> **Lưu ý phase này:** phân hệ Ops chưa hoàn thiện ⇒ **Bypass** toàn bộ phần công việc của Ops.
-
-```mermaid
-stateDiagram-v2
-    state "Lệnh mới" as moi
-    state "Đã nhận / Đang chạy" as chay
-    state "Màn hình E-POD" as epod
-    state "Lịch sử" as ls
-
-    [*] --> moi : Điều vận gán biển số<br/>+ Push Notification
-    moi --> chay : Bấm "Nhận lệnh vận chuyển"<br/>(ghi Timestamp bắt đầu chạy)
-    chay --> epod : Bấm "Hoàn tất lệnh vận chuyển"<br/>(sau khi hạ cont tại cảng hạ)
-    epod --> ls : Đủ 2 ảnh ⇒ "HOÀN THÀNH CHUYẾN"
-    ls --> [*] : Đồng bộ về Dashboard Điều vận
-```
-
-### Bước 1 — Nhận lệnh & Bypass Ops
-
-- Ngay khi Điều vận gán biển số xe xong, App bắn **Push Notification**. Thẻ xuất hiện ở tab `Lệnh mới`.
-- **Logic tạm thời:** bỏ qua toàn bộ các bước xác nhận của Ops. Lái xe có thể bấm `Nhận lệnh vận chuyển` **ngay khi có lệnh đến**.
-- **Action:** bấm nhận lệnh ⇒ **ghi nhận Timestamp bắt đầu chạy** ⇒ thẻ chuyển sang tab `Đã nhận / Đang chạy`.
-
-> **Deviation (đã triển khai):** phase này dùng **poll 15 s** (`refetchInterval` trong
-> `useDriverQueries.ts`) thay cho FCM/APNS push notification — thẻ vẫn xuất hiện ở
-> tab `Lệnh mới` trong vòng 15 s sau khi Điều vận gán biển số. Bỏ qua bước Ops: app
-> hiện banner "Nhận lệnh ngay, không cần chờ Ops" và cho nhận ngay (AC `DRV-DET-13`).
-
-### Bước 2 — Cập nhật hành trình
-
-- Tại tab `Đang chạy`, khi kết thúc toàn bộ chuyến hàng (hạ cont tại cảng hạ), Lái xe bấm `Hoàn tất lệnh vận chuyển` ⇒ khởi động luồng E-POD (§4).
-
-### Ràng buộc riêng cho hàng Kết hợp
-
-Luồng trạng thái phải **nối tiếp**: *hoàn thành trả hàng Lệnh 1* ⇒ mới mở được
-*bắt đầu đóng hàng Lệnh 2*. Hai thẻ dính liền nhưng thẻ thứ hai bị khoá cho đến khi thẻ đầu xong.
-
----
-
-## 4. E-POD Bắt Buộc & Hoàn Thành Chuyến
-
-Khi Lái xe bấm `Hoàn tất lệnh vận chuyển`, App **không** cho kết thúc chuyến ngay
-mà chuyển sang **màn hình Upload E-POD**.
-
-### 4.1 UI màn hình E-POD
-
-Gồm **2 khu vực tải ảnh — cả hai đều bắt buộc**:
-
-1. **Phiếu bãi / Phiếu hạ** (bắt buộc chụp)
-2. **Biên bản giao nhận** (bắt buộc chụp, **phải có dấu / chữ ký**)
-
-### 4.2 Logic hệ thống
-
-| Yêu cầu | Chi tiết |
+| Thứ tự | Nội dung |
 |---------|----------|
-| **Compress** | Ảnh tải lên phải được **tự động nén ngay trên điện thoại** để truyền tải nhanh |
-| **Timestamp** | Gắn **timestamp thực tế** vào file ảnh |
-| **Gate hoàn thành** | Chỉ khi **cả 2 file ảnh upload thành công (thanh tiến trình 100%)**, nút `[HOÀN THÀNH CHUYẾN]` mới **sáng** và bấm được |
+| Nhận diện công việc | Phân loại ĐƠN/KẸP/KẾT HỢP và lịch đóng/trả đầy đủ ngày, giờ khi đã có |
+| Nhà máy | Tên ngắn nhà máy ở vị trí nổi bật; thiếu tên ngắn thì dùng tên đầy đủ |
+| Tuyến | Tuyến vận chuyển ngay dưới nhà máy; không thay tuyến bằng địa chỉ đường phố |
+| Container và thao tác | Mỗi số container đi cùng **loại của chính container đó**, ví dụ `EMCU6163403 · 20DC`; thể hiện **TRẢ HÀNG/ĐÓNG HÀNG** đúng công việc |
+| Cảng | Cảng nâng và cảng hạ có nhãn riêng, đúng chiều nhập/xuất và nguồn của công việc |
+| Chỉ dẫn | Dòng nhiệm vụ viết hoa; ghi chú dành cho lái xe ở dòng riêng, giữ cách viết và xuống dòng có nghĩa |
+| Thao tác | Mở chi tiết; nội dung nút phù hợp với trạng thái thực tế, không hứa nhiều thao tác nhưng chỉ thực hiện một thao tác |
 
-### 4.3 Kết thúc
+Điều vận chọn tác vụ phù hợp; lái xe nhìn thấy đúng nhãn đã chọn trong danh mục sau:
 
-Bấm `HOÀN THÀNH CHUYẾN` ⇒ thẻ chuyển sang tab `Lịch sử` ⇒ **đồng bộ trạng thái về
-Dashboard của Điều vận**.
+| Tác vụ | Tác vụ |
+|--------|--------|
+| HẾT HẠN | ĐẢO VỎ |
+| ĐẶT ĐUÔI | ĐẶT ĐẦU |
+| KIỂM HÓA | QUAY ĐẦU |
+| GỬI VỎ BÃI ĐĂNG KHOA | QUÁ TẢI |
+| ĐẢO HÀNG | HẠ VỎ ICD QUẾ VÕ |
+| GẮP VỎ ICD QUẾ VÕ | |
 
-> ✅ **Đã triển khai:** e-POD là màn hình riêng `/my-trips/:id/pod` (ticket
-> 2026-08-28); `TripPodSubmission` hiển thị thanh tiến trình % (mở khoá completion
-> tại 100% — spec "thanh tiến trình"); nén ảnh + burn-in timestamp ngay trên máy
-> (`compressImageFile`, áp dụng cả ảnh Cont/Chì Khối 2); "HOÀN THÀNH CHUYẾN" = submit
-> draft e-POD rồi hoàn tất chuyến trong một lần bấm; gate 2 ảnh bắt buộc
-> (`TRIP_POD_REQUIRED_FILE_TYPES`) chặn cả FE (`podReadiness.ts`) lẫn BE
-> (`getDriverCompletionEvidenceStatus` — API hoàn thành từ chối nếu thiếu ảnh).
-> Hoàn thành ⇒ `trips.status = COMPLETED` ⇒ thẻ sang tab `Lịch sử`
-> (`bucketForStatus`); Điều vận thấy ngay qua trạng thái chuyến trên dashboard.
+Đây là 11 nhãn tác vụ. Chọn tác vụ không thay thế ghi chú tự do; nhãn **QUÁ TẢI** không cho phép bỏ qua giới hạn tải hoặc ràng buộc an toàn.
 
----
+Không lặp lại biển số, tài xế hoặc mã tham chiếu trên mọi dòng khi chúng không giúp chọn công việc. Mã công việc vẫn phải truy cập được trong chi tiết và trong thông báo chỉ rõ công việc đang chặn. Phân loại ghép và trạng thái vận hành là hai thông tin khác nhau; không dùng riêng màu sắc để truyền đạt trạng thái cần hành động.
 
-## 5. Quy Tắc Chung
+Giờ hẹn tại nhà máy, giờ tiếp nhận lệnh và thời điểm thực tế bắt đầu chạy phải có nhãn đúng nghĩa. Không hiển thị giờ hẹn như bằng chứng xe đã xuất phát. Ngày nghiệp vụ theo Việt Nam; giữ đủ phút khi phát lệnh và đọc lại, không tự đổi thành giờ tròn.
 
-| Quy tắc | Chi tiết |
-|---------|----------|
-| **Thao tác 1 chạm** | Mọi hành động chính đạt được trong 1 lần chạm; nút ≥ 48 px |
-| **Cuộn dọc, chữ lớn** | Không cuộn ngang; cỡ chữ đọc được dưới nắng |
-| **Sticky CTA** | Nút thao tác chính ghim đáy màn, tôn trọng `env(safe-area-inset-bottom)` |
-| **Ảnh luôn có timestamp** | Áp dụng cho ảnh Cont/Chì (Khối 2) và cả 2 ảnh E-POD |
-| **Không kết thúc chuyến thiếu ảnh** | Gate 2 ảnh là điều kiện duy nhất, không có đường vòng |
-| **Module chi phí ẩn** | Frontend không render form chi phí / đổ dầu trong phase này |
+### 2.3 Cảng Theo Chiều Vận Chuyển
+
+- Với hàng nhập, **Cảng hạ** là nơi trả vỏ rỗng của công việc. Điểm giao hàng/nhà máy không được dùng thay cho nơi trả vỏ chỉ vì trường đó có dữ liệu.
+- Với hàng xuất, cảng nâng/hạ thể hiện đúng điểm lấy vỏ và điểm hạ hàng theo lệnh.
+- Nếu điểm giao hàng khác nơi trả vỏ, giữ cả hai dưới nhãn đúng nghĩa. Hai điểm có thể trùng tên nhưng khác vai trò; nhãn vẫn phải giúp lái xe hiểu đúng điểm cần đến.
+- Khi chưa xác định được điểm cần thiết, hiển thị rõ **Chưa có thông tin** và hướng bổ sung phù hợp quyền; không tạo địa điểm giả hoặc mượn địa điểm của công việc khác.
+
+### 2.4 Thu Nhập, Kỷ Luật Và Tài Khoản
+
+- **Thu nhập:** Lái xe xem thu nhập của chính mình theo kỳ đã chọn, các khoản cấu thành, tổng và khoản điều chỉnh có giải thích. Phân biệt khoản tạm tính, kỳ đã chốt và tiền đã trả theo sự kiện thực tế; không coi đã chốt là đã thanh toán. Cách tính và mức tiền tuân theo quy tắc lương đang áp dụng, không đặt công thức riêng trên màn hình lái xe.
+- **Kỷ luật:** Lái xe xem các biên bản của mình, ngày vi phạm, lý do, số tiền hoặc ảnh hưởng liên quan và trạng thái hiện hành. Biên bản đã hủy vẫn có thể xem lại nhưng không còn được cộng vào khoản khấu trừ hiện hành. Số tổng và chi tiết phải khớp nhau, không chỉ phân biệt bằng màu.
+- **Tài khoản:** Hiển thị đúng tên đăng nhập, họ tên, thông tin liên hệ và xe hiện được giao khi có. Chỉ cho sửa thông tin thuộc quyền của lái xe; thông tin không được tự sửa phải thể hiện rõ. Sau đăng xuất, không còn xem được dữ liệu của tài khoản trước; đăng nhập tài khoản khác chỉ hiển thị dữ liệu được phép của tài khoản mới.
+
+Cả ba tab dùng bố cục gọn trên điện thoại, máy tính bảng và máy tính. Số tiền, kỳ, ngày và biển số đọc được nguyên cụm; trạng thái rỗng giải thích rõ thay vì khiến người dùng hiểu thành chưa tải xong hoặc mất dữ liệu.
+
+## 3. Chi Tiết Lệnh
+
+Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề chi tiết có thể ưu tiên tuyến theo mẫu màn hình; quy tắc nhà máy trước, tuyến sau của thẻ tổng quát không buộc thay tiêu đề chi tiết thành tên nhà máy.
+
+### 3.1 Thứ Tự Thông Tin
+
+| Nhóm | Yêu cầu |
+|------|---------|
+| Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
+| Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
+| Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
+| Nhiệm vụ và ghi chú | Nhiệm vụ viết hoa ở dòng riêng; ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa |
+| Thông tin xuất hóa đơn | Tiêu đề từng bên/nhóm thông tin đặt **trước** tên, địa chỉ, mã số thuế của bên đó |
+| Xe thực hiện | Biển số đầu kéo và moóc, đọc được nguyên mã |
+| Bằng chứng và hành động | Ảnh container/chì/biên bản; thao tác phù hợp giai đoạn và luồng e-POD |
+
+Tên liên hệ và số điện thoại phải cùng nhóm với địa chỉ nhà máy, gọi được qua liên kết điện thoại. Không lặp lại cùng người/số trong các dòng kho bãi và liên hệ khác nhau. Nếu có người liên hệ khác với vai trò thật sự khác, giữ họ ở chi tiết kèm nhãn vai trò; không xóa thông tin hữu ích chỉ để rút ngắn màn hình.
+
+Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể riêng. Không lấy tên/mã số thuế khách hàng thay cho hồ sơ nhà máy đang thiếu. Các nhóm hóa đơn nâng, hạ, vệ sinh dùng hồ sơ tương ứng theo [Master data nhà máy](MasterDataNhaMay.md); không âm thầm gộp các hồ sơ khác nhau. Thiếu hồ sơ phải được thể hiện rõ, kể cả khi toàn bộ nhóm chưa có dữ liệu.
+
+Các phần dài có thể thu gọn độc lập. Tiêu đề phần có tóm tắt đủ nhận diện, biểu thị trạng thái mở/đóng và điều khiển được bằng bàn phím. Thông tin cốt lõi về công việc không bị đẩy xuống dưới một vùng minh họa hoặc thẻ dịch vụ rỗng lớn.
+
+## 4. Nhận Lệnh, Thực Hiện Và Hoàn Thành
+
+### 4.1 Lệnh Mới
+
+Sau khi Điều vận phát lệnh hợp lệ cho đúng tài xế, công việc xuất hiện ở **Lệnh mới**. Thông báo phải mở đúng công việc; khi đang trực tuyến, danh sách cần làm mới để thấy lệnh mới và phân công mới. Khi mở thông báo, lái xe phải thấy phân công và trạng thái hiện hành.
+
+Bấm **Nhận lệnh vận chuyển** xác nhận tiếp nhận công việc trực tiếp. Chỉ chuyển sang **Đã nhận** khi hệ thống xác nhận đã ghi nhận thành công. Ghi nhận thời điểm tiếp nhận; không tự coi tiếp nhận là một sự kiện xuất phát vật lý khác nếu chưa có sự kiện đó trong luồng vận hành.
+
+Nếu xe/tài xế/moóc còn bận ở công việc khác, giữ ràng buộc đúng và hiển thị bền vững lý do cùng mã/liên kết tới công việc đang chặn mà người dùng được quyền xem. Hướng dẫn bước cần làm; không chỉ đưa nút tải lại khiến lái xe lặp lại cùng lỗi. Cặp KẸP hợp lệ được xử lý theo quan hệ dùng chung tài nguyên, không được coi thành xung đột giữa hai thành viên.
+
+### 4.2 Thực Hiện Công Việc
+
+- Tiến độ và ảnh cập nhật đúng công việc/container đang mở; không làm hoàn thành các phần việc khác trong cùng lô hàng.
+- KẸP vận chuyển đồng thời hai container, nhưng từng công việc vẫn giữ mốc và bằng chứng riêng.
+- KẾT HỢP thực hiện nối tiếp: hoàn thành trả hàng Lệnh 1 rồi mới được bắt đầu đóng hàng Lệnh 2. Màn hình phải nêu lý do khi phần việc sau chưa thể bắt đầu.
+- Khi công việc đã được người khác phân lại, hủy hoặc sửa, giải thích thay đổi và giữ nội dung đang nhập để người dùng đối chiếu. Chỉ cho tiếp tục thao tác phù hợp với phân công hiện hành; không âm thầm ghi đè thay đổi của người khác.
+
+### 4.3 e-POD Và Hoàn Thành
+
+Bấm **Hoàn tất lệnh vận chuyển** mở màn hình chứng từ giao nhận điện tử (e-POD) của công việc. Với công việc container (FCL), giữ hai nhóm bằng chứng bắt buộc:
+
+1. **Phiếu hạ bãi / trả hàng** (phiếu bãi/phiếu hạ phù hợp với loại công việc).
+2. **Biên bản giao nhận**, có dấu hoặc chữ ký theo yêu cầu chứng từ.
+
+Ảnh chụp container/chì và e-POD có dấu thời gian thực tế; ảnh tải lên thuận tiện và vẫn đọc được số cùng nội dung chứng từ. Không ghi đè thời điểm chụp bằng thời điểm thử tải lại. Với ảnh có sẵn, không diễn giải thời điểm chọn/tải lên thành thời điểm chụp nếu không biết.
+
+Giữ thao tác hoàn thành gọn đã được xác định: lái xe phải tự **Nhận lệnh** và có đủ hai nhóm bằng chứng đã lưu; nút **HOÀN THÀNH CHUYẾN** gửi hồ sơ e-POD và hoàn thành trong một thao tác. Không bắt lái xe nhập thêm từng mốc lấy vỏ, đóng/trả, hạ bãi nếu còn thiếu: hệ thống có thể suy ra các mốc sau nhận lệnh từ chính hành động hoàn thành. Các mốc này phải ghi rõ nguồn **suy ra từ hoàn thành**, không mô tả thành thời điểm quan sát thực tế/GPS hoặc bịa thời gian đã xảy ra. Các mốc thực tế đã có phải được giữ nguyên.
+
+Ảnh tải đến 100% chưa đồng nghĩa hồ sơ đã lưu thành công; người dùng phải biết ảnh nào đã lưu và có thể mở lại. Thiếu bằng chứng phải có chỉ dẫn cụ thể; đủ bằng chứng không tạo thêm bước chờ phê duyệt e-POD hoặc kế toán. Vẫn kiểm tra quyền sở hữu, trạng thái còn cho phép hoàn thành và thứ tự KẾT HỢP; không yêu cầu nhập thêm các mốc thủ công chỉ để đủ thủ tục. Ảnh container/chì, vé cầu đường, thu hồi chứng từ gốc, đối soát chi phí hoặc xác nhận doanh thu bằng 0 không trở thành điều kiện bổ sung để lái xe đóng chuyến.
+
+Khi hệ thống xác nhận hoàn thành, thẻ chuyển sang **Lịch sử** và Điều vận/CUS/Ops thấy tiến độ mới. Lô hàng có nhiều phần việc chỉ hoàn thành khi các phần bắt buộc đã xong; một container xong không đồng nghĩa mọi container trong lô đã xong.
+
+Với LCL, ghi nhận hoàn thành cho công việc hàng lẻ, không phụ thuộc vào container. Bộ chứng từ thay cho phiếu hạ container chưa được xác định đầy đủ và phải làm rõ theo nghiệp vụ hàng lẻ; không tự coi bộ chứng từ FCL là bắt buộc cho mọi công việc LCL. Không yêu cầu số container hoặc ảnh container giả để đóng lệnh.
+
+## 5. Ảnh, Biên Lai Và Khôi Phục Khi Có Lỗi
+
+Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh biên bản không xuất hiện thành hai khối tải/xóa độc lập. Giữ ảnh thu nhỏ gọn; bấm hoặc dùng bàn phím để xem toàn ảnh, phóng to và di chuyển để đọc nội dung. Đóng bằng Esc được và vị trí điều khiển bàn phím trở về ảnh vừa mở.
+
+- Phân biệt ảnh đang chọn, đang tải, đã lưu, tải thất bại và chưa xác định được kết quả. Chỉ hiển thị thành công khi hệ thống xác nhận đã lưu.
+- Nếu một ảnh thất bại sau khi ảnh khác đã lưu, giữ tiến độ từng ảnh và cho thử lại ảnh lỗi. Không buộc chụp lại ảnh còn trong màn hình, không tạo thêm công việc hoặc bản sao ảnh đã lưu.
+- Khi mất Internet, báo rõ chưa thể lưu và giữ nội dung đang làm trên màn hình. Cảnh báo trước khi người dùng rời hoặc tải lại trang nếu việc đó làm mất nội dung chưa lưu. Không tự gửi khi kết nối trở lại.
+- Khi mạng trở lại, người dùng chủ động tiếp tục. Nếu chưa biết lần lưu trước đã thành công hay chưa, hệ thống cần làm rõ kết quả trước khi cho thử lại; không báo kết quả sai hoặc tạo thêm ảnh/khoản chi trùng lặp.
+- Xóa/thay ảnh cần cập nhật theo kết quả đã lưu và quyền sở hữu hiện hành. Nếu công việc đã giao cho người khác hoặc người dùng hết quyền, giải thích rõ và ngừng cho sửa/xóa.
+- Luồng lưu ảnh/biên lai của một khoản chi đã có phải giữ đúng khoản chi đó; không yêu cầu tạo lại khoản chi để bổ sung chứng từ.
+
+## 6. Giao Diện Và Khả Năng Truy Cập
+
+- Ưu tiên cuộn dọc và nhiều thông tin hữu ích trong một màn hình. Tận dụng chiều rộng điện thoại, tránh nhiều lớp lề hoặc thẻ trang trí lồng nhau.
+- Văn bản và trường nhập dễ đọc, đủ tương phản. Không thu nhỏ dữ liệu quan trọng để ép vừa, cũng không dùng tiêu đề hoặc thẻ quá khổ.
+- Nút dễ chạm, không chồng lấn hoặc bị bàn phím ảo che. Nếu giữ nút chính ở đáy màn hình, không che dữ liệu, lỗi hoặc vùng điều hướng của thiết bị.
+- Số container, loại container, biển số và số tiền giữ nguyên từng cụm; có thể xuống dòng giữa các cụm, không ngắt từng ký tự. Tên dài vẫn đọc được bằng chạm/bàn phím, không chỉ xem được khi rê chuột.
+- Người dùng bàn phím và công cụ đọc màn hình nhận biết được từng trường, nút và trạng thái mở/đóng. Lỗi nằm sát trường cần sửa; vị trí đang điều khiển luôn rõ.
+- Khi thu gọn/đổi tab/quay lại danh sách, giữ ngữ cảnh công việc phù hợp. Trạng thái mạng và lỗi không được chiếm toàn bộ màn hình hoặc lặp lại thành nhiều thông báo giống nhau.
+
+## 7. Tiêu Chí Nghiệm Thu
+
+1. Kiểm tra cùng một bộ dữ liệu ở điện thoại, máy tính bảng và máy tính: nhà máy trước tuyến trên thẻ; đủ thao tác, cảng, số–loại; tên dài không vỡ mã hoặc che hành động.
+2. Lô nhiều container tạo đúng số phần việc FCL; container thiếu số vẫn hiện loại; LCL đi qua tạo, phân xe, phát lệnh, nhận lệnh và đọc lại mà không có container giả.
+3. Chi tiết giữ nhà máy–địa chỉ–liên hệ cùng nhóm; tiêu đề hóa đơn đứng trước đúng bên; hàng nhập phân biệt nơi giao hàng với nơi trả vỏ.
+4. Nhiệm vụ viết hoa và ghi chú riêng; sửa ghi chú giữ khoảng trắng/xuống dòng có nghĩa, không biến toàn bộ ghi chú thành chữ hoa.
+5. Nhận lệnh, chặn xe bận, KẸP, thứ tự KẾT HỢP và phân lại cho kết quả đúng, có chỉ dẫn xử lý rõ, không bỏ qua quyền hoặc ràng buộc vận hành.
+6. Ảnh container/chì/e-POD đọc được; ảnh đã lưu mở xem được; thất bại một phần, phản hồi bị mất, thay/xóa ảnh và thử lại không tạo bản sao hoặc mất ảnh đã xác nhận.
+7. Mất mạng không có thao tác ghi, trạng thái thành công giả hoặc tự phát lại khi có mạng. Sau khi đọc lại, người dùng chủ động tiếp tục được trên dữ liệu mới.
+8. Với FCL, sau nhận lệnh thủ công và đủ hai nhóm e-POD đã lưu, một thao tác hoàn thành gửi hồ sơ và suy ra các mốc sau nhận còn thiếu. Không thêm bước nhập mốc thủ công hoặc phê duyệt; mốc suy ra không mang nghĩa quan sát thực tế/GPS. Kiểm tra tổng hợp trạng thái lô nhiều công việc và làm mới các vai trò liên quan.
+9. Lái xe chụp/chọn, xem, thay và xóa ảnh được trên điện thoại phù hợp; chứng từ vẫn đọc rõ. Các thao tác chính dùng được bằng bàn phím trên máy tính, thông báo lỗi đọc được và bàn phím ảo không che nút cần dùng.
+10. Thu nhập hiển thị đúng tài khoản và kỳ, phân biệt tạm tính/đã chốt/đã trả; Kỷ luật thể hiện lý do, ngày, ảnh hưởng và loại biên bản đã hủy khỏi khấu trừ hiện hành. Tài khoản hiển thị đúng danh tính/xe, chỉ sửa theo quyền và không lộ dữ liệu tài khoản trước sau đăng xuất hoặc đổi người đăng nhập.
+
+## 8. Điểm Còn Cần Làm Rõ
+
+- Bộ chứng từ bắt buộc phù hợp với công việc LCL, thay cho phiếu hạ container; không áp đặt yêu cầu ảnh container khi không có container.
+- Khi có nhiều người liên hệ hoặc bên xuất hóa đơn hợp lệ, cần thống nhất bên nào được sử dụng cho từng công việc và loại phí.
+
+Các điểm này cần được làm rõ với người phụ trách nghiệp vụ trước khi xác định yêu cầu chi tiết.

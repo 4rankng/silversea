@@ -1,355 +1,307 @@
-# Quy Trình O2C: Chứng Từ → Điều Vận → Lái Xe
+# Quy trình O2C: Chứng từ → Điều vận → Lái xe → Hồ sơ và công nợ
 
 **Dự án:** TTransport — Silver Sea
 
----
+**Cập nhật:** 14/09/2026
 
-## Sơ Đồ Tương Tác Tổng Quát
+Tài liệu xác định trải nghiệm từ khi tiếp nhận nhu cầu vận chuyển đến khi hoàn thành công việc, đủ hồ sơ và thu tiền. Mỗi bên cần biết phần việc của mình, thông tin còn thiếu và bước tiếp theo, không phải nhập lại dữ liệu đã có hoặc dò qua nhiều màn hình để biết một lô đang ở đâu.
 
-Toàn bộ thao tác giữa 3 vai trò, theo 4 giai đoạn:
+## 1. Mục tiêu, người sử dụng và phạm vi
+
+Sản phẩm phục vụ vận chuyển nguyên container (FCL) và hàng lẻ (LCL), gồm lệnh đơn, lệnh kẹp và lệnh kết hợp. Người có quyền thực hiện trực tiếp nghiệp vụ của mình; không có luồng gửi yêu cầu, kiểm tra và phê duyệt nội bộ. Việc lái xe nhận lệnh và khách hàng xác nhận giao hàng là phản hồi thực tế của bên thực hiện hoặc bên nhận, vẫn được giữ.
+
+| Người sử dụng | Mục tiêu và trách nhiệm |
+|---|---|
+| Nhân viên chứng từ, gọi tắt là CUS | Tạo và bổ sung lô, thông tin khách hàng/hàng hóa/lịch; theo dõi phần chưa phân xe, thiếu số container hoặc thiếu hồ sơ. |
+| Điều vận | Phân bổ nhà vận tải, bố trí xe–moóc–tài xế, phát lệnh và xử lý thay đổi trong phạm vi được phép. |
+| Lái xe | Biết đi đâu, làm gì, liên hệ ai; nhận lệnh, ghi nhận công việc và nộp bằng chứng giao nhận. |
+| Ops | Theo dõi kế hoạch công ty và xe được giao; ghi chi hiện trường, bổ sung giấy tờ và đối chiếu quỹ cá nhân. |
+| Kế toán | Xác định khoản đủ hồ sơ lập bảng kê, ghi nhận thanh toán/công nợ, chi phí và lương đúng kỳ. |
+| Quản lý và quản trị viên | Theo dõi hoạt động, quản lý danh mục/quyền và thực hiện nghiệp vụ tài chính hoặc điều chỉnh theo quyền được cấp. |
+| Khách hàng | Xem các lô thuộc phạm vi của mình, xác nhận thực tế giao nhận và phản hồi bảng kê khi có luồng tương ứng. |
+
+Quyền xem không tự cấp quyền sửa, xóa, ghi tiền hoặc xem mọi ảnh. Các hành động và tài liệu chỉ thuộc phạm vi người dùng đang được phép truy cập. Ứng dụng cần Internet để làm việc, không hỗ trợ ghi nghiệp vụ ngoại tuyến rồi tự gửi sau.
+
+**Các khái niệm cần phân biệt:**
+
+- **Lô hàng:** thông tin khách hàng, chứng từ và hàng hóa; có thể gồm nhiều phần việc vận chuyển.
+- **Container:** đơn vị hàng FCL; số vỏ có thể chưa biết khi nhập ban đầu.
+- **Công việc/chuyến vận chuyển:** phần được giao cho xe hoặc nhà vận tải thực hiện. Hàng lẻ có công việc riêng mà không cần container.
+- **Đã nhập biển số, đã phát lệnh và lái xe đã nhận:** ba sự việc khác nhau, không suy ra lẫn nhau.
+- **Hoàn thành vận chuyển, đủ chứng từ, sẵn sàng lập bảng kê, đã thanh toán và đã khóa kỳ:** các thông tin riêng; một trạng thái không tự chứng minh các trạng thái còn lại.
+
+## 2. Luồng làm việc từ đầu đến cuối
 
 ```mermaid
 sequenceDiagram
-    participant CT as 📋 Chứng Từ
-    participant DV as 🚛 Điều Vận
-    participant LX as 🚗 Lái Xe
-
-    CT->>CT: Tạo lô hàng<br/>Hệ thống tự tính cước
-    CT->>CT: Nhập container / hàng lẻ
-    CT->>DV: Gửi lô cho điều vận (bàn giao)
-    DV->>DV: Nhận bàn giao
-
-    DV->>DV: Kế hoạch tổng quát:<br/>phân bổ nhà vận tải (xe nhà / thuê ngoài)
-    DV->>DV: Kế hoạch chi tiết:<br/>gán biển số xe + tài xế từng dòng
-    DV->>DV: Phát lệnh<br/>(kiểm tra xe, rơ-moóc, lịch)
-    DV-->>LX: Thông báo đẩy: có lệnh mới
-
-    LX->>LX: Nhận lệnh
-    LX->>LX: Lấy vỏ/hàng
-    LX->>LX: Đóng/trả hàng
-    LX->>LX: Hạ bãi/giao hàng
-    LX->>LX: Ghi chi phí phát sinh + đổ dầu
-
-    LX->>LX: Nộp e-POD (2 ảnh bắt buộc)
-    LX->>LX: Nhấn "Hoàn thành chuyến"<br/>Tự gửi e-POD + tự ghi mốc còn thiếu
-    LX->>LX: Chuyến hoàn thành
-    LX-->>CT: Lô hoàn thành khi mọi chuyến xong<br/>(hồ sơ chờ chốt — không cần Kế toán)
-    alt Chứng Từ duyệt e-POD
-        CT->>CT: Duyệt + xác nhận thu hồi chứng từ gốc<br/>Hồ sơ khóa
-    else Chứng Từ từ chối
-        CT-->>LX: e-POD bị từ chối
-        LX->>LX: Nộp lại bản mới<br/>(chuyến vẫn hoàn thành)
+    participant CT as CUS
+    participant DV as Điều vận
+    participant LX as Lái xe
+    participant KH as Khách hàng
+    participant KT as Kế toán
+    CT->>CT: Lưu lô, hàng và lịch đã biết
+    CT-->>DV: Lô đủ dữ liệu để điều xe
+    DV->>DV: Phân bổ nhà vận tải và bố trí nguồn lực
+    DV-->>LX: Phát lệnh hợp lệ
+    LX->>LX: Chủ động nhận lệnh
+    LX->>LX: Thực hiện, ghi tiến độ và chi phí
+    LX->>LX: Lưu bằng chứng giao nhận và hoàn thành
+    LX-->>CT: Tiến độ từng công việc và tổng hợp lô
+    CT->>CT: Bổ sung hồ sơ, ghi chứng từ gốc đã nhận
+    opt Có luồng xác nhận của khách hàng
+        KH->>CT: Xác nhận giao nhận thực tế
     end
+    KT->>KT: Lập bảng kê khi đủ dữ liệu và chứng từ
+    KH-->>KT: Phản hồi bảng kê và thanh toán thực tế
+    KT->>KT: Ghi thu tiền, phân bổ công nợ và chốt kỳ
 ```
 
----
+Bàn giao nội bộ là giao trách nhiệm hoặc ghi đã trao/nhận lệnh, giấy tờ. Nó không tạo một cấp cho phép người khác mới được làm việc. Xác nhận trước khi chính người có quyền thực hiện một thao tác quan trọng vẫn được dùng để tránh nhầm lẫn.
 
-## Vòng Đời Lô Hàng
+## 3. Tiến độ và quyền thay đổi công việc
 
-```mermaid
-stateDiagram-v2
-    state "Chờ chốt lịch" as choLich
-    state "Sẵn sàng điều xe" as sanSang
-    state "Đã phân xe" as phanXe
-    state "Đang chạy" as dangChay
-    state "Hoàn thành" as xong
-    state "Đã hủy" as huy
+### 3.1 Theo dõi lô nhiều phần việc
 
-    [*] --> choLich : Chứng Từ tạo (thiếu ngày)
-    [*] --> sanSang : Chứng Từ tạo (đủ ngày)
-    choLich --> sanSang : Bổ sung ngày giao
-    sanSang --> phanXe : Điều vận phát lệnh
-    phanXe --> dangChay : Lái xe nhận lệnh
-    dangChay --> xong : Lái xe đóng chuyến cuối
-    sanSang --> huy
-    phanXe --> huy
-    dangChay --> huy
-    xong --> [*]
-    huy --> [*]
-```
+Một lô có thể vừa có phần chưa chốt lịch, phần đã phân xe và phần đang thực hiện. Màn tổng hợp phải cho biết số lượng ở từng bước và giúp mở đúng phần cần xử lý.
 
-| Trạng thái | Chịu trách nhiệm |
-|------------|-------------------|
-| Chờ chốt lịch | Chứng Từ |
-| Sẵn sàng điều xe | Chứng Từ |
-| Đã phân xe | Điều vận |
-| Đang chạy | Lái xe |
-| Hoàn thành | Lái xe (tự đóng) |
-| Đã hủy | Admin/GĐ |
+| Giai đoạn của phần việc | Người dùng cần biết |
+|---|---|
+| Chưa đủ dữ liệu điều xe | Thiếu lịch hoặc thông tin nào; vẫn lưu và tìm lại được. |
+| Sẵn sàng điều xe | Đủ dữ liệu kế hoạch cần thiết, còn phần nguồn lực nào phải bố trí. |
+| Đã phát lệnh | Lệnh đã tới đúng người thực hiện, chưa mặc nhiên là đã nhận. |
+| Đã nhận / đang thực hiện | Ai đã nhận và tiến độ nào đã được ghi. |
+| Hoàn thành vận chuyển | Phần việc đã kết thúc; tình trạng giấy tờ và tiền được theo dõi riêng. |
+| Đã hủy | Phần việc không còn thực hiện, có lý do và lịch sử; không được tính là đã giao. |
 
-> Lô 1 chuyến đi thẳng đến hoàn thành. Lô nhiều chuyến giữ trạng thái "Đang chạy" đến khi chuyến cuối hoàn thành (giai đoạn "Chờ duyệt phí" đã dừng 2026-09-05). Mỗi bước chuyển đều ghi nhận vào lịch sử.
+Một container hoàn thành không làm cả lô hoàn thành. Lô chỉ hoàn thành khi mọi phần việc bắt buộc còn hiệu lực đã xong. Lô đã phát, hoàn thành hoặc hủy vẫn tra cứu được; bộ lọc phải cho biết vì sao một lô không xuất hiện trong danh sách hiện tại.
 
----
+### 3.2 Thay đổi phân công trước và sau nhận lệnh
 
-## Danh Mục: Quan Hệ Khách Hàng – Nhà Máy – Tuyến – Vị Trí (Master Data)
+| Tình huống | Quy tắc nghiệp vụ |
+|---|---|
+| Chưa phát lệnh | Cho sửa kế hoạch theo quyền, số lượng và khả năng thực hiện. |
+| Đã phát nhưng lái xe chưa thực tế nhận công việc hiện tại | Cho đổi nhà vận tải, xe, tài xế hoặc moóc hợp lệ. Không khóa chỉ vì nhãn tổng hợp đang thể hiện đang vận chuyển. |
+| Lái xe đã nhận công việc hiện tại | Khóa thay đổi phân công thông thường, nêu lý do và hướng xử lý được phép; không chuyển sang gửi yêu cầu duyệt. |
+| Đã hoàn thành, hủy hoặc thuộc kỳ đã khóa | Không sửa phân công như một kế hoạch mới. Sai sót được xử lý bằng nghiệp vụ điều chỉnh phù hợp, giữ lý do và lịch sử. |
+| Nhãn trạng thái và thông tin nhận lệnh mâu thuẫn | Chỉ rõ vấn đề và xác định việc nhận của phân công hiện tại; không tự coi là chưa nhận chỉ dựa vào nhãn. |
 
-Các trường Tuyến đường và Vị trí đóng/trả hàng **không nằm trôi nổi** ở bảng Khách hàng hay bảng Lô hàng — chúng neo về **Nhà máy**:
+Nếu lái xe nhận trong lúc Điều vận đang sửa, không được lưu một phân công đã hết điều kiện. Người sửa phải biết công việc vừa được nhận và giữ được nội dung đang nhập để đối chiếu. Đổi phân công phải cập nhật nhất quán xe, moóc, tài xế và nhà vận tải liên quan; người cũ không còn tiếp tục công việc hay truy cập ảnh ngoài quyền hiện tại.
 
-```mermaid
-erDiagram
-    KHACH_HANG ||--o{ NHA_MAY : "1 khách hàng nhiều nhà máy"
-    NHA_MAY ||--|| TUYEN_DUONG : "nhà máy gắn 1 tuyến cố định"
-    NHA_MAY ||--|| VI_TRI : "1 vị trí đóng/trả hàng"
-```
+## 4. Chuẩn bị dữ liệu và tạo lô
 
-- **[Khách hàng] 1–N [Nhà máy]:** mỗi khách hàng có 1 hoặc nhiều nhà máy (`operational_sites`, theo khách hàng).
-- **[Nhà máy] 1–1 [Tuyến đường]:** nhà máy dạng **Factory** bắt buộc gắn đúng 1 tuyến vận chuyển cố định (ví dụ nhà máy A luôn chạy tuyến Hải Phòng – Bắc Ninh). Kho (Warehouse) phục vụ hàng lẻ nên tuyến vẫn giữ ở cấp lô.
-- **[Nhà máy] 1–1 [Vị trí đóng/trả hàng]:** mỗi nhà máy có đúng 1 vị trí giao nhận (địa chỉ + tọa độ/Google Maps) cấu hình sẵn trên nhà máy.
+### 4.1 Khách hàng, nhà máy và tuyến
 
-**Luồng nhập liệu ở Form Tạo Lô Hàng (Cascading + Auto-fill):**
+Một khách hàng có nhiều nhà máy. Nhà máy có tuyến cố định và vị trí đóng/trả; nhiều nhà máy có thể dùng cùng tuyến. Kho phục vụ hàng lẻ có thể xác định tuyến tại lô theo nghiệp vụ.
 
-1. Chọn **Khách hàng** → dropdown **Nhà máy** chỉ đổ các nhà máy ACTIVE của khách hàng đó (đổi khách hàng → tải lại, reset chọn cũ).
-2. Chọn **Nhà máy** → hệ thống **tự điền và khóa (read-only)** 2 trường **Tuyến đường** và **Vị trí đóng/trả hàng** theo cấu hình của nhà máy — CUS/Điều vận không phải chọn tay. Nhà máy chưa cấu hình tuyến → trường Tuyến vẫn chọn tay được (không dead-end), nhưng form thêm nhà máy bắt buộc chọn tuyến với loại Factory.
-3. Backend chốt tại điểm ghi: container có nhà máy mà tuyến ≠ tuyến của nhà máy → từ chối (422, tiếng Việt); thiếu tuyến → tự suy từ nhà máy.
+- Chọn khách hàng chỉ đưa ra nhà máy phù hợp đang hoạt động. Đổi khách hàng không để lại nhà máy sai quan hệ; cảnh báo trước khi làm mất nội dung liên quan đang nhập.
+- Chọn nhà máy tự điền tuyến và vị trí đã cấu hình; không cho chọn trái tuyến cố định đó.
+- Với nhà máy cũ chưa có tuyến, người có quyền vẫn có thể chọn một tuyến hợp lệ cho công việc và được nhắc bổ sung danh mục. Lựa chọn cho một lô không tự thay đổi danh mục nhà máy. Nếu vẫn thiếu tuyến bắt buộc thì chưa được phát lệnh.
+- Tạo nhà máy mới phải có tuyến. Người dùng biết ai có thể bổ sung cấu hình khi mình không có quyền.
+- Lựa chọn sau cùng của người dùng được giữ đúng. Danh sách chưa tải được phải có thông báo và cách thử lại, khác với danh sách thực sự không có dữ liệu.
 
----
+### 4.2 Nhập thông tin đã biết, bổ sung thông tin còn thiếu
 
-## Bước 1 — Chứng Từ: Khởi Tạo Lô Hàng
+1. CUS lưu khách hàng, Bill/Booking và hàng hóa đã biết, nhận mã lô để tiếp tục theo dõi.
+2. Với FCL, ghi loại, số lượng và từng container. Số container hoặc ngày giao chưa biết được để trống và hiển thị ngắn gọn “Chưa có số” hoặc “Chưa chốt lịch”. Giá trị đã nhập sai phải được giải thích để sửa, không coi là chưa biết.
+3. Với LCL, ghi quy cách, số lượng, khối lượng/thể tích và lịch khi đã biết; không tạo số vỏ hoặc container giả.
+4. Người có quyền bổ sung số container còn trống và dữ liệu được phép trực tiếp, không gửi phê duyệt. Nhập từng dòng hay nhiều dòng cùng lúc phải có cùng quy tắc hợp lệ.
+5. Nhận dạng từ ảnh chỉ đề xuất thông tin để người dùng kiểm tra và lưu; không âm thầm thay thông tin đã nhập.
+6. Lô đủ dữ liệu xuất hiện trong kế hoạch Điều vận. Việc giao người tiếp nhận hoặc thông báo không làm phát sinh bước duyệt.
 
-1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến** (đã gồm phụ phí dầu của kỳ đang hiệu lực).
-2. Nhập hàng:
-   - **Hàng nguyên container:** nhập danh sách container; hệ thống kiểm tra số container đúng chuẩn, đủ chữ số kiểm tra.
-   - **Hàng lẻ:** nhập quy cách, số lượng, khối lượng, CBM.
-3. Gửi lô cho điều vận — hệ thống tạo **phiếu bàn giao**, lô chuyển **sẵn sàng điều xe**.
+### 4.3 Ngày và giờ
 
-**Kiểm soát hệ thống:**
-- **Tính cước tự động** — 3 tầng chọn **giá cước gốc**: theo kg → theo container/loại xe → điều chỉnh thủ công (dự phòng). Không gõ tay giá.
-- **Phụ phí dầu** — cước cuối **không chỉ là giá gốc**: `cước = giá gốc × (1 + % chia sẻ) + phụ phí dầu`, trong đó phụ phí dầu = `(giá dầu kỳ − giá dầu mốc) × số lít định mức cả chuyến khứ hồi`. `% chia sẻ` thuộc **cặp (khách hàng × tuyến)**, không phải theo khách hàng. Làm tròn **đến từng đồng**. Đặc tả: [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md); thiết kế bảng: [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md).
-- **Số container chuẩn quốc tế (ISO 6346)** — Có chữ số kiểm tra; OCR tự sửa khi nhập gần đúng.
-- **Bàn giao** — Điều vận phải chấp nhận phiếu bàn giao trước khi phân bổ.
-- **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
-- **Chọn nhà máy → tự điền tuyến + vị trí** — chọn khách hàng lọc nhà máy theo đúng khách hàng; chọn nhà máy tự điền và khóa Tuyến đường + Vị trí đóng/trả hàng theo cấu hình nhà máy (xem mục Danh Mục ở trên).
+- Ngày nghiệp vụ theo Việt Nam, không tự lệch ngày khi người dùng mở từ nơi khác. Ngày giao dự kiến, ngày vận chuyển, giờ hẹn và thời điểm xe thực tế chạy phải có nhãn rõ.
+- Nhập và hiển thị giờ theo dạng 24 giờ, giữ đầy đủ phút như 00:15 hoặc 20:45. Qua nửa đêm phải sang đúng ngày tiếp theo.
+- Có nút **Xác nhận** rõ khi bổ sung lịch; gõ, chọn lịch hoặc dùng Enter cho cùng kết quả. Chỉ báo đã lưu khi mở lại còn đúng ngày và giờ đã chọn.
+- Cho sửa hoặc xóa lịch theo quyền và giai đoạn. Xóa lịch trở về chưa chốt, không tự điền hôm nay hay giữ ngày cũ ở nơi khác.
+- Chưa đủ lịch vẫn được lưu lô. Khi phát lệnh, chỉ yêu cầu lịch thực sự cần để thực hiện và hướng tới đúng chỗ bổ sung. Không bắt nhập lại lịch đã có ở một biểu mẫu khác.
 
-### Lệnh chạy ngoài (Ad-hoc — tối ưu xe rỗng)
+### 4.4 Cước và lệnh chạy ngoài
 
-Đầu Form Tạo Lô có ô đánh dấu **`[ ] Lệnh chạy ngoài (Tối ưu xe rỗng)`** (mặc định không tích, cố định đầu form):
+Cước được xác định theo điều khoản của từng hợp đồng. Khi hợp đồng cho phép các nguồn giá này, ưu tiên giá gốc theo kg, sau đó giá theo container/loại xe, cuối cùng là nhập hoặc điều chỉnh thủ công bởi người có quyền khi cần. Thứ tự này không cho phép lấy giá của hợp đồng khác hoặc coi dữ liệu thiếu là giá 0. Giá dự kiến phải phân biệt với giá đã phát hành; quyền sửa lô không tự cho phép sửa giá.
 
-- **Tích cờ:** bỏ qua validation định mức cước phí (lưu được lô thiếu giá catalog); mở khóa Tuyến đường + Vị trí đóng/trả; 5 trường danh mục (Khách hàng / Nhà máy / Tuyến / Cảng nâng / Cảng hạ) chuyển thành **combobox** nhận **text tự do** khi không khớp mục nào.
-- **Lưu trữ hỗn hợp:** chọn danh mục ⇒ lưu `*_ID`; gõ text mới ⇒ lưu `Raw_*` với ID rỗng (đúng một trong hai vế). Text tự do **không bao giờ** ghi vào bảng danh mục gốc. Cho phép trộn trong cùng lô (khách free-text + cảng chọn danh mục).
-- **Hiển thị:** mọi màn đọc thay tên catalog bằng `COALESCE(tên danh mục, Raw_*)` — không ô trống, kèm nhãn "Chạy ngoài" cạnh mã lô.
-- Bật/tắt cờ giữa chừng không xóa dữ liệu đã gõ; các kiểm soát an toàn dữ liệu (ISO 6346, ngày hợp lệ, số lượng > 0) vẫn giữ nguyên. Chi tiết: `MasterDataNhaMay.md` §4.
+Đối với mô hình Long Minh trong [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md):
 
----
+- **Cước điều chỉnh = Giá gốc × (1 + Tỷ lệ chia sẻ / 100).** Tỷ lệ thuộc cặp khách hàng–tuyến.
+- **Phụ phí dầu = (Giá dầu kỳ − Giá dầu mốc) × Lít định mức khứ hồi**, nhưng không nhỏ hơn 0. Tỷ lệ chia sẻ không nhân thêm vào phụ phí dầu.
+- **Tổng cước = Cước điều chỉnh + Phụ phí dầu.** Hai thành phần tiền được làm tròn riêng đến đồng; phần lẻ từ nửa đồng trở lên làm tròn lên, dưới nửa đồng làm tròn xuống. Không thay bằng chỉ làm tròn tổng cuối.
+- Lít định mức khứ hồi dựa trên quãng đường một chiều × 2 × định mức phù hợp đơn vị. Giữ độ chính xác của các tham số và lượng nhiên liệu đến bước tính tiền.
+- Chọn kỳ giá theo ngày vận chuyển và độ trễ hợp đồng. Thiếu tham số phải nói rõ, không tự dùng 0. Kỳ giá mới không làm thay đổi cước đã phát hành trước đó.
 
-## Bước 2 — Điều Vận: Phân Bổ & Phát Lệnh
+Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các mức giá và điều kiện cụ thể theo các tài liệu cước liên quan, không đặt lại trong quy trình này.
 
-Điều vận xử lý qua 2 bước: Kế hoạch tổng quát (phân bổ nhà vận tải) → Kế hoạch chi tiết (gán xe cụ thể) → Phát lệnh.
+**Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
-### 2a. Kế Hoạch Tổng Quát — Phân Bổ Nhà Vận Tải (theo Lô hàng)
+Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
-**Mức dữ liệu: trải phẳng ở cấp Lô hàng (Shipment Level).** Một lô hàng lớn — dù có 5, 10 hay 20 container — chỉ hiển thị **1 dòng duy nhất** trên màn này. Màn này *không* hiển thị số cont, biển số xe, hay cảng nâng/hạ riêng từng container; chỉ lấy thông tin chung + cộng gộp (sum).
+## 5. Phân bổ và phát lệnh
 
-**Điều kiện hiển thị:** API tải lô theo **toàn bộ dải trạng thái vận hành** (`READY_FOR_DISPATCH` → `DISPATCHED` → `IN_TRANSIT` → `COMPLETED`) để lô không biến mất giữa chừng khi đã phân bổ/phát lệnh/hoàn thành (regression 2026-09-05: lô 1 cont hoàn thành biến mất khỏi màn này). Chỉ lô **Chờ chốt lịch** (thiếu `Ngày giao hàng`, chưa tới lượt điều vận) và lô **Đã hủy** là không xuất hiện. Lô `COMPLETED` vẫn hiển thị nhưng **khóa phân bổ** (nút "Phân bổ nhà xe" vô hiệu — hệ thống chỉ cho đổi nhà xe khi lô còn `READY_FOR_DISPATCH`).
+### 5.1 Kế hoạch tổng quát
 
-**Phân bổ đa nhà vận tải (multi-vendor):** 1 lô có thể được chia cho nhiều nhà xe chạy (ví dụ `SS: 2×40HC` + `HÀ AN: 2×40HC`). Mỗi dòng phân bổ gồm: `[Dropdown nhà xe] + [Số lượng Cont 20'] + [Số lượng Cont 40']`. Điều vận bấm `+` để thêm nhà xe mới.
+- Mỗi lô một dòng thông tin chung và tổng số lượng, giúp Điều vận nhìn được nhiều lô cùng lúc.
+- Một lô có thể phân cho nhiều nhà vận tải và lưu từng phần. Tổng phân bổ không vượt số lượng từng loại; phần còn thiếu phải thấy rõ.
+- Thêm phân bổ hoặc bấm lưu lại không nhân đôi công việc. Những phần đã nhận hoặc hoàn thành không được mở khóa chỉ vì phần khác của lô chưa xong.
+- LCL có đủ các bước phân bổ, bố trí nguồn lực và phát lệnh như một công việc hàng lẻ thực sự, không phụ thuộc vào container giả.
 
-**Quy tắc validation:**
+### 5.2 Kế hoạch chi tiết
 
-- Tổng số cont đã phân bổ **không được vượt quá** tổng số lượng cont của lô (theo từng loại 20'/40'). Nếu vượt → hệ thống chặn lưu, hiển thị lỗi tiếng Việt.
-- Hỗ trợ **lưu phân bổ một phần** (`PARTIALLY_ALLOCATED`) — Điều vận có thể phân bổ trước một phần rồi bổ sung sau. Trạng thái cuối là `FULLY_ALLOCATED` khi đã khớp đủ.
+Trên máy tính, mỗi dòng thể hiện một container hoặc công việc: nhà vận tải, biển số, tài xế, moóc, lịch, khách hàng/nhà máy, tuyến, cảng nâng/hạ, tình trạng nhận lệnh và ghi chú. Trên điện thoại và máy tính bảng, giữ thông tin trọng tâm dễ đọc và mở chi tiết khi cần, không ép tên dài vào các cột quá hẹp.
 
-**Trigger tự động sau khi lưu:** Hệ thống tự động **auto-split** lô thành N dòng container tương ứng ở **Kế Hoạch Chi Tiết** (2b), đồng thời **điền sẵn (pre-fill)** tên nhà xe cho từng dòng để Điều vận tiếp tục gán biển số.
+- Xe nhà được chọn trong đội xe phù hợp. Xe ngoài có thể chọn xe của nhà vận tải hoặc nhập biển số được phép; cùng một biển số phải có cách nhận diện nhà vận tải nhất quán.
+- Chưa có biển số vẫn lưu kế hoạch được, nhưng không coi là đã phát lệnh.
+- Chọn Đơn/Kẹp/Kết hợp tại công việc; hàng lẻ giữ phân loại Lẻ. “Đóng kết hợp” cấp lô của CUS là thông tin riêng, không lặp thành lựa chọn cùng nghĩa trong điều phối.
+- Tác vụ và ghi chú tự do có mục đích khác nhau. Tác vụ hiển thị viết hoa ở dòng riêng; ghi chú giữ khoảng trắng, xuống dòng và cách viết có nghĩa, kể cả khi gõ từng ký tự.
 
-Gợi ý theo vùng: ưu tiên xe nhà có điểm hạ bãi hôm trước (D-1) hoặc điểm lấy hàng hôm sau (D+1) cùng vùng.
+### 5.3 Phát lệnh trực tiếp
 
-### 2b. Kế Hoạch Chi Tiết — Gán Xe Cụ Thể (theo Container)
+Người có quyền bấm **Phát lệnh** khi phân bổ, lịch, xe, tài xế và moóc phù hợp. Xe/người phải đang hoạt động, đủ sức chở và không xung đột với công việc khác. Nếu chưa đủ, thông báo cụ thể công việc hoặc dữ liệu đang chặn và cách xử lý trong phạm vi người dùng được xem.
 
-**Mức dữ liệu: trải phẳng ở cấp Container.** Mỗi dòng ứng với 1 container (chuyến xe). Không dùng dòng mở rộng (no expandable rows).
+Khi phát thành công, có đúng công việc cần thực hiện và đúng tài xế được thông báo. Bấm lại không tạo thêm chuyến hoặc thêm tiền. Việc nhập một biển số hay gửi thông báo không tự có nghĩa đã phát lệnh thành công.
 
-Cột **Nhà xe** trên mỗi dòng đã được **pre-fill tự động** từ kết quả phân bổ ở Kế Hoạch Tổng Quát (2a). Điều vận chỉ cần gán tiếp **Biển số xe**:
+Lệnh giấy Ops chưa lấy được là thông tin riêng, không phải cấp phê duyệt để lái xe nhận lệnh. Thay đổi sau phát tuân thủ ranh giới trước/sau nhận ở mục 3.2.
 
-- **Xe nhà (In-house):** Dropdown Searchable lấy từ Master Data Đội xe (chỉ các xe thuộc quyền quản lý công ty).
-- **Xe ngoài (Subcontractor):** Dropdown Searchable lấy từ danh sách xe của riêng Vendor đó; **đồng thời cho phép nhập tay tự do (free-text)** khi xe mới chưa có trong catalog. Trường hợp Điều vận để trống biển số, CUS sẽ bổ sung sau khi liên hệ nhà xe ngoài.
+### 5.4 Đơn, Kẹp và Kết hợp
 
-**Trigger trạng thái lô:** Lô chỉ chuyển sang **Đã phân xe** khi **TẤT CẢ** các dòng container thuộc cùng lô đã được điền đủ cột Biển số xe. Nếu 1 dòng còn trống → lô vẫn ở trạng thái cũ.
+| Tiêu chí | Đơn | Kẹp | Kết hợp |
+|---|---|---|---|
+| Công việc | Một phần việc | Hai container 20FT đồng thời | Hai phần việc nối tiếp, tái dùng vỏ |
+| Theo dõi | Một lệnh | Hai lệnh riêng có quan hệ cặp rõ | Hai lệnh riêng có thứ tự rõ |
+| Nguồn lực | Xe phù hợp | Cùng xe, moóc và tài xế | Cùng xe/tài xế và vỏ phù hợp |
+| Lịch | Thực hiện được | Đồng thời trong cặp hợp lệ | Đủ thời gian chuyển tiếp |
+| Phí chung | Theo định mức phù hợp | Không nhân đôi phí đường/VETC | Không nhân đôi phí chung của vòng |
+| Thu nhập lái xe | Theo công việc | Cuốc cơ bản và phụ phí kẹp | Cuốc cơ bản và phụ phí kết hợp |
 
-**Push notification tới Lái xe:** Ngay khi một dòng container thuộc nhóm Xe nhà được gán biển số hoàn tất, hệ thống lập tức bắn Push Notification "Chuyến được điều phối" và hiển thị chuyến trên App của Lái xe đó (kể cả khi Ops chưa lấy được lệnh giấy).
+**Kẹp:** hai container 20FT có cùng ngày/lịch tương thích, cùng xe–moóc–tài xế; phương tiện phải đáp ứng cả hai vị trí container và **tổng tải đồng thời**. Moóc 40FT phù hợp có thể chở hai container 20FT; không đồng nghĩa một container 40FT được ghép vào cặp hai 20FT. Thành viên thứ ba, quá tải hoặc lộ trình không thể thực hiện phải bị chặn.
 
-Có thể chọn **phân loại chuyến** cho mỗi dòng vận chuyển. Đây là nhãn thao tác ở cấp dòng (fulfillment); riêng đánh dấu **ghép chuyến** ở cấp lô hàng — hai thông tin độc lập. Có 4 loại:
+Hai lệnh trong cặp được nhận diện nhất quán ở kế hoạch, màn lái xe và tính chi phí. Không coi thành viên còn lại là chuyến ngoài cặp để chặn nhầm, cũng không cho phép một công việc không liên quan dùng chung xe chỉ vì có nhãn kẹp. Người dùng phải biết cả cặp đã được bố trí hay phần nào còn chưa xong. Mỗi lệnh vẫn giữ riêng khách hàng, chứng từ, doanh thu và công nợ.
 
-> **Quyền chọn phân loại của Điều vận (2026-09-08):** Điều vận được quyền chọn/đổi **phân loại chuyến Đơn / Kẹp / Kết hợp** cho từng dòng trong dialog **"Chỉnh sửa điều phối"** (Kế hoạch chi tiết) và lưu cùng bước phân xe. Riêng dòng hàng lẻ (LCL) giữ cố định phân loại **Lẻ** (gắn với hình thức lô, không phải lựa chọn theo cont). Đánh dấu **"Đóng kết hợp"** cấp lô **không** nằm trong dialog điều vận — vẫn là quyền của CUS (tạo lô / sửa nhanh); chọn **Kết hợp** ở phân loại đã đủ thể hiện ghép chuyến ở cấp dòng, nên checkbox này là dư thừa đối với điều vận.
+**Kết hợp:** tái dùng đúng vỏ qua hai lệnh nối tiếp. Chưa biết số vỏ có thể lưu kế hoạch để bổ sung, nhưng hai số khác nhau không được coi là cùng vỏ. Hoàn thành trả hàng Lệnh 1 rồi mới bắt đầu đóng hàng Lệnh 2; khi chưa thể bắt đầu, nêu rõ phần việc trước đang chặn.
 
-#### a) Cont đơn (Đơn — 1 chiều)
+Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần còn hiệu lực hoặc bỏ qua xung đột phương tiện. Phí chung và thu nhập của cặp tính đúng một lần theo định mức đã xác định, không trả thành hai cuốc đơn. Điều chỉnh giữ lịch sử và không tự thay đổi kỳ đã khóa. Chi tiết tại [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
 
-1 xe chở 1 container đi 1 chiều, trả về rỗng.
+## 6. Lái xe thực hiện, hoàn thành và ghi nhận thu nhập
 
-```mermaid
-flowchart LR
-  A[Cảng A] -- "xe A · 1×40HC · Bill X1" --> B[Nhà máy KH]
-  B -. "xe quay về rỗng" .-> A
-```
+### 6.1 Tiếp nhận và xem công việc
 
-**Khi dùng:** Lô FCL đơn lẻ, không có chiều về hợp lý, hoặc lộ trình 1 chiều không có hàng ngược.
+Lái xe có **Lệnh mới**, **Đã nhận** và **Lịch sử**. Hai lệnh trong cặp đặt liền nhau với quan hệ rõ, không trộn trạng thái hay ảnh.
 
-**Hệ thống xử lý:** 1 fulfillment = 1 trip. Phí VETC / phí đường tính 1 lần bình thường. Không có ràng buộc ghép.
+Thẻ công việc ưu tiên nhà máy viết tắt → tuyến → từng số container đi cùng loại và thao tác trả/đóng hàng → cảng nâng/hạ → tác vụ/ghi chú. Chi tiết có tên đầy đủ, địa chỉ và liên hệ cùng nhóm; từng bên xuất hóa đơn có tiêu đề trước tên, địa chỉ và mã số thuế. Với hàng nhập, cảng hạ là nơi trả vỏ, không lấy nhà máy giao hàng thay thế. Thông tin thiếu phải nói rõ, không mượn dữ liệu của bên khác.
 
-#### b) Cont kẹp (Kẹp — 2 cont 20' trên cùng 1 mooc, chạy cùng lúc)
+**Nhận lệnh vận chuyển** là hành động chủ động của lái xe khi có Internet và còn được giao công việc. Chỉ chuyển sang Đã nhận khi thành công; giờ nhận không được diễn giải thành giờ xe xuất phát thực tế. Nếu xe hoặc tài xế đang vướng công việc khác, giải thích và hướng xử lý, không chỉ yêu cầu tải lại.
 
-Ghép **2 container 20ft lên cùng 1 xe mooc để chạy đồng thời** — thường 1 cont có hàng + 1 cont rỗng kéo đi/về trong cùng một chuyến đi vật lý.
+### 6.2 Tiến độ, bằng chứng và hoàn thành
 
-```mermaid
-flowchart LR
-  A[Cảng A] -- "xe A · moóc 40'<br/>2×20': Bill X1 (hàng) + vỏ rỗng" --> B[Nhà máy KH]
-```
+Tiến độ gồm nhận lệnh, lấy vỏ/hàng, đóng/trả hàng và hạ bãi/giao hàng. Mốc ghi thực tế giữ đúng thời điểm, người ghi và bằng chứng. Chi phí, nhiên liệu, sự cố và ghi chú thuộc đúng công việc.
 
-**Điều kiện ghép kẹp hợp lệ:**
+Với FCL, cần hai nhóm bằng chứng đã lưu:
 
-- Cùng biển số xe + cùng tài xế
-- Cùng ngày khởi hành
-- **2 container đều 20'** (moóc 40' = 2 slot 20'; không kẹp 2×40')
-- Tuyến không khớp → cảnh báo, không chặn (Điều vận quyết định)
+1. **Phiếu hạ bãi / trả hàng** phù hợp công việc.
+2. **Biên bản giao nhận** có dấu hoặc chữ ký theo yêu cầu chứng từ.
 
-**Hệ thống xử lý:**
+Sau khi tự nhận lệnh và có đủ hai nhóm bằng chứng, lái xe bấm **Hoàn thành chuyến** trong một thao tác. Nếu thiếu các mốc sau nhận lệnh, cho phép ghi chúng là **suy ra từ hoàn thành**; không buộc lái xe bấm thêm từng mốc chỉ để đủ danh sách. Mốc suy ra không được mô tả thành thời điểm quan sát thực tế hoặc GPS, không ghi đè mốc thực tế đã có và không tự tạo việc nhận lệnh thay lái xe.
 
-- **1 cont = 1 lệnh**: mỗi container vẫn là 1 lệnh riêng (chứng từ, doanh thu, công nợ độc lập với khách hàng)
-- 2 trips liên kết thành **1 cặp ghép loại KẸP** (`pair_kind = KEP`) — cùng xe, cùng tài xế, thời gian **chồng lấn được phép** (chạy cùng lúc)
-- Phí VETC / phí đường chỉ ghi nhận **1 lần duy nhất cho cả cặp** (trip thứ hai khử trùng tiền trạm — không lấy định mức × 2 cont)
-- Lương tài xế của cặp = **cuốc cơ bản + phụ phí kẹp hàng** (Cài đặt → Lương), không cộng 2 cuốc đơn
-- Thiếu điều kiện → không cho ghép, cảnh báo "Không đủ điều kiện kẹp hàng"
+Ảnh tải đến 100% chưa đủ để báo hồ sơ đã lưu; ảnh phải mở lại được. Công việc còn thuộc quyền lái xe, còn được phép hoàn thành và tuân thủ thứ tự kết hợp. Đủ điều kiện thì hoàn thành trực tiếp, không chờ duyệt e-POD hoặc kế toán. Ảnh container/chì, vé cầu đường, thu hồi chứng từ gốc, đối chiếu chi phí hoặc xác nhận doanh thu 0 không trở thành điều kiện thêm để đóng chuyến.
 
-#### c) Cont kết hợp (Kết hợp — tái sử dụng vỏ, 2 lệnh nối tiếp)
+Với LCL, hoàn thành theo công việc hàng lẻ. Bộ chứng từ thay phiếu hạ container cần được xác định theo nghiệp vụ hàng lẻ; không mặc định dùng bộ FCL, số container hoặc ảnh container giả.
 
-Xe chở cont đến **trả hàng xong, không kéo vỏ rỗng về bãi** mà giữ lại vỏ đó để tiếp tục đi **đóng hàng cho một lô khác** — tiết kiệm 1 cuốc chở rỗng.
+### 6.3 Tổng hợp, chấm công và lương
 
-```mermaid
-flowchart LR
-  A[Cảng A] -- "xe A · Bill X1" --> B[Nhà máy KH]
-  B -- "trả hàng xong, giữ nguyên vỏ" --> C[Nhà máy KH']
-  C -- "đóng hàng Bill Y1 (lô khác)" --> A
-```
+Hoàn thành cập nhật đúng công việc và tổng hợp lô cho các vai trò liên quan. Ngày hoàn thành theo ngày nghiệp vụ Việt Nam, nhất quán khi xem, mở sửa và mở lại. Công việc qua nửa đêm không bị lệch hoặc mất ngày chỉ vì cách hiển thị thời gian.
 
-**Điều kiện ghép kết hợp hợp lệ:**
+- Ngày công phản ánh các công việc hợp lệ thực hiện trong ngày, kể cả chuyến kéo dài qua nhiều ngày. Nhiều chuyến trong cùng ngày không nhân đôi ngày công.
+- Hủy hoặc đổi một chuyến không xóa công của chuyến khác còn hiệu lực trong ngày. Nội dung chấm công thủ công có căn cứ của người có quyền không bị thay thế âm thầm.
+- Nếu còn thông tin ảnh hưởng ngày công chưa được đối chiếu, người chốt lương phải biết trước khi chốt; không bỏ sót rồi báo lương đã đầy đủ.
+- Lương cơ bản và các mức thu nhập áp dụng đúng ngày hiệu lực. Thay mức mới không tự tính lại khoản đã chốt bằng mức hiện tại. Không đặt thêm mức lương hoặc phụ cấp trong quy trình này.
+- Người có quyền ghi và điều chỉnh kỷ luật trực tiếp theo quy định. Khoản đã hủy không còn là khấu trừ hiện hành hoặc được tính vào tổng vi phạm đang có hiệu lực; lịch sử vẫn tra cứu được.
+- Số phải trả, đã trả, khấu trừ và còn lại phải đối chiếu được. Số âm được giải thích theo các khoản thực sự tạo ra nó, không tự kết luận do nhận thừa tạm ứng.
+- Kỳ lương phải thể hiện đúng khoảng ngày đang áp dụng và ngày hiệu lực khi thay cấu hình. Lương đã chốt không tự thay đổi; sai sót được điều chỉnh theo quyền và giữ lịch sử.
 
-- Cùng biển số xe + cùng tài xế
-- Thời gian **nối tiếp, không chồng lấn** (trả hàng lệnh 1 xong mới bắt đầu đóng hàng lệnh 2)
-- **Cùng số vỏ container** trên cả 2 lệnh (tái sử dụng đúng vỏ; thiếu số vỏ ở giai đoạn điều vận thì bỏ qua, CUS bổ sung sau)
+### 6.4 Chi phí và nhiên liệu
 
-**Hệ thống xử lý:**
+Lái xe ghi chi trực tiếp theo quyền và danh mục, gắn đúng chuyến. Tiền đường và phụ cấp dùng định mức phù hợp; giá trị 0 được nhập rõ khác với chưa nhập. Đổi moóc phải dùng đúng định mức mới; nếu thiếu thì nói rõ, không giữ giá cũ như thể đã tính đúng.
 
-- **1 cont = 1 lệnh**: 2 lệnh độc lập về chứng từ/doanh thu/công nợ
-- 2 trips liên kết thành **1 cặp ghép loại KẾT HỢP** (`pair_kind = KET_HOP`) — giữ nguyên bộ quy tắc kiểm tra hiện hành (cửa sổ kế hoạch, khoảng trống di chuyển xe rỗng)
-- Phí VETC / phí đường tính **1 lần cho cả vòng khép kín** (trip thứ hai khử trùng)
-- Lương tài xế của cặp = **cuốc cơ bản + phụ phí kết hợp** (Cài đặt → Lương)
-- App Lái xe: **hoàn thành trả hàng Lệnh 1 → mới bắt đầu đóng hàng Lệnh 2** (lệnh 2 khóa tiến độ đến khi lệnh 1 hoàn thành/đủ bằng chứng)
+Nhận dạng ảnh cột bơm đề xuất lít, đơn giá và tiền để người dùng kiểm tra, sửa và lưu. Hóa đơn nhiên liệu phải phân bổ đúng số lít, không trùng và có tổng tiền hợp lệ; đây là yêu cầu dữ liệu, không phải cấp duyệt. Khoản chi đã ghi, chứng từ còn thiếu, thanh toán và quyết toán được theo dõi riêng. Chi phí hiện trường và quỹ Ops theo [Vận hành Ops](OpsVanHanh.md).
 
-> **Ghi chú thuật ngữ (2026-09-06):** Bản trước dùng "kẹp" cho cặp 2 chiều nối tiếp và "kết hợp" cho nhiều cont cùng chuyến. Theo định nghĩa chuẩn của khách hàng (đặc tả 2026-09-06): **kẹp = 2 cont 20' cùng 1 mooc chạy cùng lúc**; **kết hợp = tái sử dụng vỏ qua 2 lệnh nối tiếp**. Cặp nối tiếp tồn tại trước ngày này (chưa có `pair_kind`) được hiểu theo nghĩa kết hợp.
+## 7. Hồ sơ, bảng kê và công nợ
 
-#### d) Hàng lẻ (Lẻ)
+### 7.1 Bằng chứng và chứng từ gốc
 
-Lô hàng LCL — không phải nguyên container. Nhập quy cách, số lượng, khối lượng, CBM. Phân loại này tách riêng với 3 mô hình cont ở trên.
+Hồ sơ điện tử cho biết còn thiếu tài liệu nào, tài liệu nào đã lưu và bản nào đang có hiệu lực. Ảnh không đọc được có chỉ dẫn thay hoặc bổ sung. Bản thay thế giữ liên hệ với lịch sử; người không còn quyền không được tiếp tục mở, sửa hoặc xóa ảnh.
 
-#### Bảng so sánh nhanh — 3 mô hình cont
+Không có duyệt/từ chối hồ sơ nội bộ. Đủ bằng chứng, vận chuyển hoàn thành và đã nhận chứng từ giấy là ba thông tin riêng. Chứng từ gốc chỉ được ghi đã nhận khi có người và ngày nhận thực tế, không tự nhận vì có ảnh hoặc chuyến đã xong.
 
-| Tiêu chí | Đơn | Kẹp (cùng lúc) | Kết hợp (nối tiếp) |
-|----------|-----|-----|---------|
-| Số trip | 1 | 2 (liên kết cặp KEP) | 2 (liên kết cặp KET_HOP) |
-| Số fulfillment | 1 | 2 | 2 |
-| Số xe vật lý | 1 | 1 (chở 2 cont cùng lúc) | 1 (đi 2 lượt) |
-| Vỏ container | 1 | 2 vỏ | **1 vỏ dùng lại** |
-| Phí đường / VETC | 1 lần | **1 lần cho cả cặp** (trip 2 khử trùng) | **1 lần cho vòng khép kín** (trip 2 khử trùng) |
-| Thời gian | 1 chiều | Chồng lấn (cùng lúc) | **Nối tiếp, không chồng lấn** |
-| Cùng biển số + tài xế | — | **Bắt buộc** | **Bắt buộc** |
-| Push Lái xe | Khi gán biển số | Khi gán biển số (cả 2 trips) | Khi gán biển số (cả 2 trips) |
+CUS bổ sung thông tin được phép sau phát lệnh. Khi một thay đổi ảnh hưởng kế hoạch hoặc tiền, chỉ người có quyền tương ứng được thực hiện và phải tuân thủ giai đoạn/kỳ liên quan. Thông báo chặn phải nêu ràng buộc thật và cách điều chỉnh phù hợp, không tạo yêu cầu thay đổi chờ duyệt.
 
-Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
+### 7.2 Lập bảng kê và phản hồi khách hàng
 
-### 2c. Phát Lệnh
+Kế toán lập và phát hành bảng kê/debit note trực tiếp khi đủ dữ liệu hàng hóa, giá, chứng từ và điều kiện kỳ. Một phần việc không được tính lặp trên các dòng nguồn đang có hiệu lực. Nếu chưa đủ, hiển thị đầy đủ từng lý do và cách bổ sung; các lý do không che nhau hay tràn ra ngoài vùng thông báo.
 
-Khi Điều vận nhấn **"Phát lệnh"**, hệ thống kiểm tra:
+Khách hàng xác nhận giao hàng hoặc phản hồi bảng kê theo phạm vi của mình, có người phản hồi và thời điểm. Đây là phản hồi bên ngoài, không phải cấp phê duyệt nội bộ. Xác nhận giao nhận không tự có nghĩa đã thanh toán.
 
-- Xe đang hoạt động, tài xế có tài khoản đăng nhập
-- Rơ-moóc khớp container, trọng lượng ≤ tải trọng
-- Không trùng lịch xe
+### 7.3 Ghi nhận tiền và điều chỉnh
 
-Hệ thống tạo chuyến, lô chuyển **sẵn sàng → đã phân xe**, và gửi thông báo "Chuyến được điều phối" tới lái xe.
+Thanh toán dựa trên khoản thu/chi thực tế và phân bổ đúng đối tượng, bảng kê hoặc khoản nợ. Thanh toán một phần giữ phần còn lại. Ghi nhận trong ứng dụng không tự chứng minh có chuyển khoản ngân hàng.
 
-Sau khi phát lệnh, Điều vận vẫn được đổi xe/tài xế tự do — chỉ chặn với lô đã hoàn thành hoặc đã hủy.
+Số tiền và tình trạng thanh toán phải thống nhất giữa chứng từ, danh sách và sổ công nợ. Bấm lặp hoặc thử lại không tăng thu, chi hay công nợ hai lần. Bổ sung ảnh, hoàn thành vận chuyển hoặc quyết toán không tự tạo thêm giao dịch tiền.
 
----
+Sửa/hủy sau phát hành phải theo quyền, có lý do và lịch sử trước/sau; số dư được điều chỉnh tương ứng khi thực tế cần. Không xóa dấu vết, tự mở kỳ đã khóa hoặc tự thay số tiền đã chốt.
 
-## Bước 3 — Lái Xe: Thực Thi & Hoàn Thành Chuyến
+## 8. Trải nghiệm chung và độ tin cậy
 
-### Bảng Chuyến Trên App
+### 8.1 Biết chính xác điều gì đã được lưu
 
-App lái xe có 3 tab: **Lệnh mới** → **Đã nhận** → **Lịch sử**. Thẻ nhóm theo phân loại (Đơn/Kẹp/Kết hợp/Lẻ).
+- Mọi thao tác cho biết đang lưu, đã lưu, chưa lưu được hoặc chưa rõ kết quả. Thông báo thành công khớp dữ liệu khi mở lại.
+- Khi không rõ kết quả vì mất kết nối hoặc phản hồi, sản phẩm giúp xác định dữ liệu thực tế đã ghi trước khi người dùng nhập lại. Không tự kết luận thất bại rồi tạo trùng lô, chuyến, ảnh hoặc khoản tiền.
+- Nếu thông tin chính đã lưu nhưng ảnh hay phần bổ sung chưa xong, nói rõ phần nào thành công và cho tiếp tục đúng công việc đó, không bắt tạo lại.
+- Hai người sửa cùng dữ liệu không âm thầm ghi đè nhau. Người đang sửa được biết thay đổi liên quan và giữ nội dung mình đang nhập để đối chiếu.
+- Giá trị chưa biết, nội dung cố ý xóa và số 0 có ý nghĩa riêng. Lưu một dòng không làm mất các dòng khác hoặc khôi phục dữ liệu người dùng đã xóa.
+- Ảnh đã lưu phải đọc được. Thêm, thay, xóa và thử lại giữ đúng lựa chọn cuối cùng, không làm ảnh xuất hiện ở công việc khác hoặc trở lại sau khi đã xóa.
 
-> **Cặp ghép (chung 1 xe vật lý):** khi 2 lệnh cont được liên kết bằng mã ghép chuyến (cặp KẸP hoặc KẾT HỢP), app hiển thị **2 thẻ dính liền kề nhau** kèm nhãn **[KẸP]** / **[KẾT HỢP**] cạnh số container — tài xế biết đây là 1 "combo" phải chạy cùng nhau. Với hàng **kết hợp**, luồng trạng thái nối tiếp nhau: **hoàn thành trả hàng Lệnh 1 → mới bắt đầu đóng hàng Lệnh 2** (lệnh 2 khóa tiến độ đến khi lệnh 1 hoàn thành hoặc đủ bằng chứng).
+### 8.2 Internet, quyền và thao tác quan trọng
 
-### Chuỗi Thao Tác Trên Chuyến
+- Tất cả vai trò cần Internet để làm việc với thông tin hiện hành. Mất mạng phải ngừng thao tác ghi và nói rõ thông tin đang xem có thể chưa mới.
+- Nội dung đang nhập nếu còn giữ trên màn hình phải được ghi rõ chưa lưu; cảnh báo khi rời hoặc tải lại có thể làm mất nội dung. Không cho nhập nghiệp vụ ngoại tuyến với lời hứa sẽ tự gửi.
+- Khi có mạng, mở lại trang hoặc đổi tài khoản, không tự thực hiện các thao tác cũ. Người dùng chủ động tiếp tục sau khi biết kết quả lần trước.
+- Lỗi dịch vụ tạm thời không bị gọi là hết phiên đăng nhập nếu phiên vẫn hợp lệ. Người dùng có cách thử lại mà không mất nội dung đang làm.
+- Quyền luôn theo vai trò, tổ chức, phân công và đối tượng hiện hành; biết mã hay từng mở liên kết không tự cấp quyền. Khách hàng không xem dữ liệu khách hàng khác; lái xe/Ops không giữ quyền cũ sau khi phân công đổi.
+- Xóa/hủy dựa vào quyền, công việc đã phát sinh, dữ liệu liên quan và kỳ đã khóa. Người đủ điều kiện xác nhận rồi thực hiện trực tiếp; không bị đưa vào hàng đợi phê duyệt. Tình huống không được xóa phải giải thích và hướng tới cách xử lý hợp lệ.
 
-Mốc bắt buộc theo thứ tự: **Nhận lệnh → Lấy vỏ/hàng → Đóng/trả hàng → Hạ bãi/giao hàng**.
+### 8.3 Làm việc hiệu quả trên điện thoại, máy tính bảng và máy tính
 
-Sự kiện bổ sung (không bắt buộc): xuất phát, đến nơi, đổ dầu, sự cố, ghi chú.
+- Ưu tiên lô, công việc và hành động thực tế trước tổng hợp dự kiến hoặc khu vực chưa có dữ liệu. Màn hình chứa nhiều thông tin vẫn phải quét nhanh được.
+- Mã lô, biển số, số container và số tiền đọc được nguyên nghĩa; tên dài không đè lên hành động. Không dùng chữ quá nhỏ để ép dữ liệu, cũng không dùng chữ/thẻ quá lớn hoặc nhiều lớp lề, thẻ lồng nhau.
+- Điện thoại dành đủ chiều ngang cho dữ liệu, máy tính bảng không ép quá nhiều cột, máy tính tận dụng diện tích để so sánh nhiều dòng. Giữ cùng nghĩa thông tin và cùng khả năng thao tác trên ba loại thiết bị.
+- Hành động ít dùng và thông tin dài có thể mở khi cần; không giấu phần cần thiết cho quyết định chính. Danh sách dài có tìm kiếm, bộ lọc rõ và cách quay lại vị trí đang xem.
+- Biểu mẫu chỉ yêu cầu dữ liệu cần thiết tại bước hiện tại. Lỗi nằm cạnh trường cần sửa; nút lưu/hủy dễ tìm và không bị bàn phím ảo che.
+- Hộp thoại và các thao tác chính dùng được bằng bàn phím, trạng thái không phụ thuộc riêng màu sắc. Hiệu ứng nhẹ, tôn trọng lựa chọn giảm chuyển động; làm mới không đẩy hàng hoặc nút người dùng đang thao tác.
 
-### Hoàn Thành Chuyến — Lái Xe Tự Đóng
+## 9. Tiêu chí chấp nhận
 
-Lái xe nộp e-POD rồi nhấn **"Hoàn thành chuyến"**. Điều kiện:
+| Tình huống | Kết quả người dùng quan sát được |
+|---|---|
+| Tạo lô chưa đủ thông tin | Lưu và tìm lại được FCL chưa số/ngày; LCL không cần container giả; giá trị sai có hướng sửa rõ. |
+| Chọn khách hàng và nhà máy | Đúng quan hệ, tuyến cấu hình được giữ; nhà máy cũ thiếu tuyến có lựa chọn hợp lệ và hướng bổ sung; nhà máy mới yêu cầu tuyến. |
+| Bổ sung lịch | Nhập 00:15/20:45, qua nửa đêm, xóa lịch, Enter hoặc Xác nhận đều giữ đúng ngày/phút khi mở lại. |
+| Tính cước Long Minh | Giá dầu dưới mốc cho phụ phí 0; hai thành phần tiền làm tròn riêng; đúng kỳ/độ trễ; giá đã phát hành không đổi theo kỳ mới. |
+| Lệnh chạy ngoài | Giữ thông tin nhập và tính chất chạy ngoài; không tự thêm danh mục; không bỏ qua quyền, tải trọng, lịch hay tín dụng. |
+| Phân bổ một phần hoặc hàng lẻ | Nhiều nhà vận tải không vượt số lượng, phần thiếu rõ; LCL được phân xe và phát lệnh mà không có vỏ giả. |
+| Đổi phân công | Trước khi lái xe nhận thì đổi hợp lệ được; sau nhận thì chặn đúng lý do. Nếu nhận trong lúc sửa, không ghi đè phân công đã được nhận. |
+| Phát lệnh kẹp | Hai container 20FT trên phương tiện phù hợp được ghép; quá tổng tải, thành viên 40FT, thành viên thứ ba hoặc công việc ngoài cặp xung đột bị chặn. |
+| Lệnh kết hợp | Đúng vỏ và thứ tự; phần việc trước chưa xong được chỉ rõ; phí chung và lương không tính thành hai cuốc đơn. |
+| Lái xe xem và nhận việc | Đủ nhà máy, tuyến, từng số–loại, cảng và liên hệ đúng nhóm; nhận chủ động; ghi chú tiếng Việt giữ khoảng trắng. |
+| Hoàn thành FCL | Sau tự nhận và đủ hai nhóm bằng chứng đã lưu, hoàn thành trong một thao tác; mốc còn thiếu được ghi rõ suy ra, không giả GPS/thời điểm thực tế. |
+| Công việc và lương | Đúng tổng hợp lô, ngày công qua ngày và nhiều chuyến; hủy một chuyến không xóa công khác; chấm thủ công có căn cứ được giữ; mức lương đúng hiệu lực, kỳ chốt không tự đổi. |
+| Kỷ luật và khấu trừ | Khoản hủy rời khấu trừ/tổng vi phạm hiện hành nhưng còn lịch sử; số phải trả, đã trả và còn lại giải thích được. |
+| Hồ sơ và bảng kê | Đủ/thiếu bằng chứng, chứng từ gốc và xác nhận khách hàng tách biệt; đủ dữ liệu lập bảng kê trực tiếp, không chờ duyệt. |
+| Thanh toán và công nợ | Thu/chi một phần còn dư đúng; danh sách, chi tiết và sổ nợ thống nhất; thử lại hoặc bổ sung ảnh không tạo tiền trùng. |
+| Lưu một phần hoặc chưa rõ kết quả | Biết phần đã xong, đọc lại được kết quả thực tế, tiếp tục đúng bản ghi; không mất nội dung đang nhập hay ghi đè người khác. |
+| Mất mạng hoặc đổi tài khoản | Không nhận thêm thao tác để gửi sau, không báo thành công giả hoặc tự gửi lại; người dùng chủ động tiếp tục khi có mạng. |
+| Ba loại thiết bị | Dữ liệu dài, rỗng, đang tải và lỗi đều dễ hiểu; mã/tiền không chồng nhau; biểu mẫu gọn, nút không bị che, thao tác được bằng bàn phím. |
 
-- Lái xe đã bấm nhận lệnh (thao tác thủ công)
-- Đủ 2 file e-POD bắt buộc đã tải lên (nút bấm tự gửi e-POD)
-- Các mốc còn thiếu (lấy vỏ, đóng/trả, hạ bãi) được tự ghi nhận
+## 10. Tài liệu liên quan và điểm cần làm rõ
 
-Đủ điều kiện → **chuyến hoàn thành ngay**. Lô 1 chuyến hoàn thành luôn; lô nhiều chuyến giữ "Đang chạy" đến khi chuyến cuối hoàn thành.
+- [Màn hình lái xe](ManHinhLaiXe.md), [Vận hành Ops](OpsVanHanh.md), [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
+- [Master data nhà máy](MasterDataNhaMay.md).
+- [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md), [Phương án tính cước tự động](PhuongAnTinhCuocTuDong.md), [Mô hình và quy tắc cước](CuocPhiThietKeDB.md).
 
-**Tự động bỏ qua:** phê duyệt đặc biệt, thu hồi chứng từ gốc (chưa cần trước khi đóng), xác nhận doanh thu bằng 0, ảnh hiện trường (cont/seal), phạm vi chi phí.
-
-### e-POD (Chứng Từ Điện Tử)
-
-Quy trình theo hướng: **Nháp** (tải ảnh lên) → **Đã gửi** → **Đã duyệt** hoặc **Bị từ chối** (lái xe sửa lại rồi nộp bản mới).
-
-**2 file bắt buộc:** phiếu hạ bãi/trả hàng + biên bản giao nhận đã ký.
-
-**File tùy chọn:** vé cầu đường.
-
-> e-POD chỉ cần đã gửi là chuyến hoàn thành. Chứng Từ duyệt/từ chối SAU khi hoàn thành — không chặn luồng.
-
-### Chi Phí Phát Sinh
-
-Lái xe nhập chi phí trực tiếp trên app:
-
-- **Nhập tay:** Phí nâng/hạ, cầu đường, đỗ xe, rửa/hàn cont, cân lốp
-- **Tự tính (không sửa được):** Tiền đường (từ chuyến), phí nâng/hạ Lạch Huyên (50k)
-- **Đổ dầu (riêng):** Chụp ảnh cột bơm → hệ thống đọc số lít, đơn giá, tổng tiền → phát hiện bất thường (đối chiếu GPS lộ trình đã dừng cùng tính năng tracking, 2026-09-06)
-
-> Chi phí **lái xe** chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi. Chi phí **khai bởi Ops hiện trường** (tạm ứng, chi hộ, biên lai) là luồng riêng của vai trò Ops: xem `OpsVanHanh.md` (/ops/orders, /ops/wallet; cập nhật 2026-09-06).
-
----
-
-## Bước 4 — Chứng Từ: Chốt Hồ Sơ Sau Chuyến
-
-Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ đã hoàn thành:
-
-- **Duyệt e-POD** — chỉ vai trò Chứng Từ mới được duyệt. Chấp nhận phải kèm xác nhận đã thu hồi chứng từ gốc.
-- **Từ chối e-POD** — lái xe nộp lại bản mới; chuyến vẫn hoàn thành, không mở lại.
-- **Chốt hồ sơ** — lô hoàn thành → hồ sơ khóa, không sửa trực tiếp được; mở lại phải qua phê duyệt Admin.
-
-**Nhóm hồ sơ Chứng Từ** (tự suy ra từ trạng thái lô, theo hướng **Mới → Đang chạy → Chờ khóa → Đã khóa**):
-
-| Nhóm hồ sơ | Khi nào | Ý nghĩa |
-|------------|---------|---------|
-| Mới | Lô vừa tạo, chưa phát lệnh | Chưa có chuyến |
-| Đang chạy | Đã phát lệnh / đang chạy | Chờ các chuyến hoàn thành |
-| Chờ khóa | Hoàn thành một phần (còn chuyến chưa xong) | Sắp chốt hồ sơ |
-| Đã khóa | Lô hoàn thành | Hồ sơ cuối — không sửa trực tiếp được |
-
-> Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này. Riêng đối soát ví tạm ứng & chi phí của Ops hiện trường (duyệt từng khoản, phiếu đề nghị thanh toán) đã định nghĩa ở `OpsVanHanh.md` (2026-09-06).
-
----
-
-## Quy Tắc Hệ Thống
-
-| Quy tắc | Chi tiết |
-|---------|----------|
-| **Xóa dữ liệu** | Bản tạo mới được xóa trong phiên hiện tại. Phiên cũ → Admin/GĐ phê duyệt |
-| **Chi phí đã duyệt** | Cấm xóa (bất kỳ ai) |
-| **Thông báo đẩy** | Lái xe nhận thông báo: lệnh mới, hủy lệnh, phạt. Điều vận nhận sự kiện lô hàng |
-| **Lái xe tự đóng chuyến** | Không cần Kế toán duyệt — e-POD đã gửi là đủ |
-| **Duyệt e-POD** | Chỉ Chứng Từ duyệt — sau hoàn thành, không chặn. Chấp nhận cần xác nhận đã thu hồi chứng từ gốc |
-| **Chốt hồ sơ** | Lô hoàn thành → hồ sơ khóa — không sửa trực tiếp được, mở lại phải qua phê duyệt Admin |
-| **Yêu cầu thay đổi** | Chứng Từ sửa lô sau phát lệnh → tạo yêu cầu thay đổi (không sửa trực tiếp) |
-| **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Điều vận được chọn/đổi Đơn/Kẹp/Kết hợp cho từng dòng trong "Chỉnh sửa điều phối" (hàng lẻ LCL giữ Lẻ); đánh dấu "Đóng kết hợp" cấp lô thuộc CUS, không có trong dialog điều vận |
-| **Phí đường cặp ghép** | Chuyến có mã ghép kẹp/kết hợp: VETC/tiền trạm thu phí chỉ ghi nhận **1 lần cho cả cặp** — trip thứ hai được khử trùng bằng đúng tiền trạm gộp (không lấy định mức × 2 cont) |
-| **Lương cặp ghép** | Không trả bằng tổng 2 cuốc chạy đơn: lương cặp = **cuốc cơ bản + phụ phí kẹp/kết hợp**, phụ phí lấy từ cấu hình lương (Cài đặt → Lương). Hủy cặp → khôi phục lương tiêu chuẩn từng trip |
-| **Lệnh chạy ngoài** | Lô cuốc vãng lai (không có trong danh mục): lưu `Raw_*` với ID rỗng, **không bao giờ** ghi text tự do vào bảng danh mục gốc; validation định mức cước được bỏ qua khi có cờ `is_ad_hoc`. Chi tiết `MasterDataNhaMay.md` §4 |
-| **Phụ phí dầu (doanh thu)** | Khác hoàn toàn "phụ phí kẹp/kết hợp" ở trên (đó là **lương lái xe**). Đây là khoản **thu của khách**: `(giá dầu kỳ − giá dầu mốc) × lít định mức khứ hồi`, thu **100 %**, không nhân `% chia sẻ`. Đổi giá dầu = **thêm kỳ mới**, không sửa kỳ cũ; cước đã phát hành giữ nguyên số đã chốt. Chi tiết `CuocPhiPhuPhiDau.md` |
-| **Làm tròn tiền** | Mọi giá trị tiền làm tròn **đến từng đồng** (VND không có thập phân). Tham số công thức (giá dầu mốc, số lít, chênh lệch đơn giá) **không** làm tròn. Chi tiết `CuocPhiThietKeDB.md` §4.2 |
+Bộ chứng từ bắt buộc cho LCL thay phiếu hạ container cần được chốt với người phụ trách nghiệp vụ. Điều kiện hợp đồng hoặc nguồn thông tin còn chưa rõ cần được xác định trước khi áp dụng; không tự đặt giá, giấy tờ mới hoặc thêm phê duyệt để thay thế câu trả lời.

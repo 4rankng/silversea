@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, FileText, Pencil, XCircle } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
-import { useAuth } from '../hooks/useAuth';
 import {
   ADVANCE_SETTLEMENT_STATUS_LABELS,
   AdvanceSettlementStatus,
-  Role,
 } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
@@ -17,7 +15,6 @@ import { Money } from '../components/shared/Money';
 import {
   useAdminSettlements,
   useAdminAdvanceBalances,
-  useRejectSettlement,
 } from '../hooks/useForwarderQueries';
 import { advanceSettlementStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
@@ -40,16 +37,13 @@ export function summarizeSettlementStats(
 ) {
   const counts: Record<string, number> = {
     total: 0,
-    [AdvanceSettlementStatus.PENDING]: 0,
-    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
-    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.DRAFT]: 0,
+    [AdvanceSettlementStatus.RECORDED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
-    [AdvanceSettlementStatus.REJECTED]: 0,
+    [AdvanceSettlementStatus.VOIDED]: 0,
   };
   const totals: Record<string, number> = {
-    [AdvanceSettlementStatus.PENDING]: 0,
-    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
-    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.RECORDED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
   };
 
@@ -65,10 +59,10 @@ export function summarizeSettlementStats(
 
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceSettlementStatus.PENDING, label: 'Chờ xử lý' },
-  { key: AdvanceSettlementStatus.APPROVED, label: 'Đã duyệt' },
+  { key: AdvanceSettlementStatus.DRAFT, label: 'Chưa hoàn tất' },
+  { key: AdvanceSettlementStatus.RECORDED, label: 'Đã ghi nhận' },
   { key: AdvanceSettlementStatus.REVERSED, label: 'Đã hoàn tác' },
-  { key: AdvanceSettlementStatus.REJECTED, label: 'Từ chối' },
+  { key: AdvanceSettlementStatus.VOIDED, label: 'Đã hủy' },
 ];
 
 const AS_PAGE_SIZE = 50;
@@ -76,24 +70,18 @@ const AS_PAGE_SIZE = 50;
 /** The composite "Chờ xử lý" tab selects both in-review statuses server-side. */
 function statusFilterParam(filter: StatusFilter): string | undefined {
   if (!filter) return undefined;
-  if (filter === AdvanceSettlementStatus.PENDING) {
-    return `${AdvanceSettlementStatus.PENDING},${AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT}`;
-  }
   return filter;
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'var(--warning, #D97706)',
-  CHECKED_BY_ACCOUNTANT: '#2563EB',
-  APPROVED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #059669)',
   REVERSED: '#64748B',
-  REJECTED: '#DC2626',
+  VOIDED: '#DC2626',
+  DRAFT: 'var(--warning)',
 };
 
 function settlementStatusLabel(status: AdvanceSettlementStatus): string {
-  return status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT
-    ? 'Đã kiểm tra · Chờ phê duyệt'
-    : ADVANCE_SETTLEMENT_STATUS_LABELS[status];
+  return ADVANCE_SETTLEMENT_STATUS_LABELS[status];
 }
 
 /* ── Compact KPI card — mirrors AdminAdvancesPage .adv-kpi proportions ── */
@@ -149,17 +137,11 @@ function AsKPI({ label, value, meta, variant, iconName, active = false, hasItems
 
 export function SettlementGridRow({
   s,
-  rejectMutation,
   focusId,
-  canApproveReject,
 }: {
   s: Settlement;
-  rejectMutation: ReturnType<typeof useRejectSettlement>;
   focusId?: string;
-  canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
-  const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
 
@@ -232,40 +214,14 @@ export function SettlementGridRow({
             </StatusPill>
           </div>
 
-          <div className={`as-actions${canAct ? '' : ' as-actions--history'}`}>
-            {canAct ? (
-              <>
-                <Link
-                  className="as-row-action"
-                  to={`/settlements/${s.id}`}
-                  aria-label={`${canApproveReject ? 'Kiểm tra' : 'Xem'} ${s.code}`}
-                >
-                  {canApproveReject && <Pencil size={15} aria-hidden="true" />}
-                  {canApproveReject ? 'Kiểm tra' : 'Xem phiếu'}
-                </Link>
-                {canApproveReject && (
-                  <button
-                    className="as-reject-action"
-                    onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
-                    disabled={isRejecting}
-                    title="Từ chối hoàn ứng"
-                    aria-label={`Từ chối hoàn ứng ${s.code}`}
-                  >
-                    {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
-                  Xem phiếu
-                </Link>
-                {(s.approverName || s.checkerName) && (
-                  <div className="as-approver">
-                    {s.approverName ? <>Duyệt bởi <strong>{s.approverName}</strong></> : <>KT <strong>{s.checkerName}</strong></>}
-                  </div>
-                )}
-              </>
+          <div className="as-actions as-actions--history">
+            <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
+              Xem phiếu
+            </Link>
+            {(s.approverName || s.checkerName) && (
+              <div className="as-approver">
+                {s.approverName ? <>Ghi nhận bởi <strong>{s.approverName}</strong></> : <>KT <strong>{s.checkerName}</strong></>}
+              </div>
             )}
           </div>
         </div>
@@ -278,17 +234,11 @@ export function SettlementGridRow({
 
 export function SettlementMobileCard({
   s,
-  rejectMutation,
   focusId,
-  canApproveReject,
 }: {
   s: Settlement;
-  rejectMutation: ReturnType<typeof useRejectSettlement>;
   focusId?: string;
-  canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
-  const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
 
@@ -375,29 +325,11 @@ export function SettlementMobileCard({
         </div>
       )}
 
-      {/* Actions */}
-      {canAct ? (
-        <div className="as-mcard__actions">
-          {canApproveReject && (
-            <Link className="btn btn--primary" to={`/settlements/${s.id}`}>
-              <Pencil size={16} aria-hidden="true" /> Kiểm tra &amp; hoàn tất
-            </Link>
-          )}
-          {canApproveReject && (
-            <button
-              className="btn as-mcard__reject"
-              onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
-              disabled={isRejecting}
-              aria-label={`Từ chối hoàn ứng ${s.code}`}
-            >
-              {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-              Từ chối
-            </button>
-          )}
-        </div>
-      ) : (s.approverName || s.checkerName) ? (
+      {/* Actions — direct-effect: view the voucher; reviewer names are
+          historical audit records, not pending handoffs. */}
+      {(s.approverName || s.checkerName) ? (
         <div className="as-mcard__reviewer">
-          <span>{s.approverName ? 'Duyệt bởi' : 'KT kiểm tra'}</span>
+          <span>{s.approverName ? 'Ghi nhận bởi' : 'KT kiểm tra'}</span>
           <strong>{s.approverName ?? s.checkerName}</strong>
         </div>
       ) : null}
@@ -420,9 +352,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   });
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !isLoading });
-  const rejectMutation = useRejectSettlement();
-  const { user } = useAuth();
-  const canApproveReject = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT;
 
   const settlements: Settlement[] = useMemo(
     () => (data?.items ?? []) as Settlement[],
@@ -436,10 +365,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   const statusAmounts = data?.statusAmounts ?? {};
   const totalPages = data?.totalPages ?? 1;
   const effectivePage = Math.min(page, totalPages);
-  const pendingReviewCount = (statusCounts[AdvanceSettlementStatus.PENDING] ?? 0)
-    + (statusCounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
-  const pendingReviewAmount = (statusAmounts[AdvanceSettlementStatus.PENDING] ?? 0)
-    + (statusAmounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
 
   const applyFilter = (next: StatusFilter) => {
     setStatusFilter(next);
@@ -451,10 +376,10 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
     const fullTotal = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
     return {
       '': fullTotal,
-      [AdvanceSettlementStatus.PENDING]: pendingReviewCount,
-      [AdvanceSettlementStatus.APPROVED]: statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0,
+      [AdvanceSettlementStatus.DRAFT]: statusCounts[AdvanceSettlementStatus.DRAFT] ?? 0,
+      [AdvanceSettlementStatus.RECORDED]: statusCounts[AdvanceSettlementStatus.RECORDED] ?? 0,
       [AdvanceSettlementStatus.REVERSED]: statusCounts[AdvanceSettlementStatus.REVERSED] ?? 0,
-      [AdvanceSettlementStatus.REJECTED]: statusCounts[AdvanceSettlementStatus.REJECTED] ?? 0,
+      [AdvanceSettlementStatus.VOIDED]: statusCounts[AdvanceSettlementStatus.VOIDED] ?? 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -473,23 +398,13 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="as-kpi-row">
         <AsKPI
-          label="Chờ xử lý"
-          value={pendingReviewCount}
-          meta={`${formatNumber(pendingReviewAmount)} ₫`}
-          variant="warn"
-          iconName="settlement"
-          active={statusFilter === AdvanceSettlementStatus.PENDING}
-          hasItems={pendingReviewCount > 0}
-          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.PENDING ? '' : AdvanceSettlementStatus.PENDING)}
-        />
-        <AsKPI
-          label="Đã duyệt"
-          value={statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0}
-          meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.APPROVED] ?? 0)} ₫`}
+          label="Đã ghi nhận"
+          value={statusCounts[AdvanceSettlementStatus.RECORDED] ?? 0}
+          meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.RECORDED] ?? 0)} ₫`}
           variant="success"
           iconName="paid"
-          active={statusFilter === AdvanceSettlementStatus.APPROVED}
-          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.APPROVED ? '' : AdvanceSettlementStatus.APPROVED)}
+          active={statusFilter === AdvanceSettlementStatus.RECORDED}
+          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.RECORDED ? '' : AdvanceSettlementStatus.RECORDED)}
         />
         <AsKPI
           label="Tồn tạm ứng"
@@ -525,7 +440,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
             value={statusFilter}
             onChange={(event) => applyFilter(event.target.value === 'all' ? '' : event.target.value as StatusFilter)}
             options={TABS.map((tab) => ({
-              value: tab.key || 'all',
+              value: tab.key,
               label: `${tab.label} (${tabCounts[tab.key]})`,
             }))}
           />
@@ -568,9 +483,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                     <SettlementGridRow
                       key={s.id}
                       s={s}
-                      rejectMutation={rejectMutation}
                       focusId={`as-${s.id}`}
-                      canApproveReject={canApproveReject}
                     />
                   ))}
                 </div>
@@ -583,9 +496,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                 <SettlementMobileCard
                   key={s.id}
                   s={s}
-                  rejectMutation={rejectMutation}
                   focusId={`as-${s.id}`}
-                  canApproveReject={canApproveReject}
                 />
               ))}
             </div>

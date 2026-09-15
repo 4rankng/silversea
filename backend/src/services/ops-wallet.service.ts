@@ -84,7 +84,7 @@ export async function getOpsWalletSummary(userId: number): Promise<OpsWalletSumm
       .from(s.advanceRequests)
       .where(and(
         eq(s.advanceRequests.requesterId, userId),
-        eq(s.advanceRequests.status, 'APPROVED'),
+        eq(s.advanceRequests.status, 'RECORDED'),
       )),
     db
       .select({ status: s.opsExpenseEntries.approvalStatus, amount: s.opsExpenseEntries.amount })
@@ -97,7 +97,7 @@ export async function getOpsWalletSummary(userId: number): Promise<OpsWalletSumm
       .from(s.advanceSettlements)
       .where(and(
         eq(s.advanceSettlements.forwarderId, userId),
-        eq(s.advanceSettlements.status, 'APPROVED'),
+        eq(s.advanceSettlements.status, 'RECORDED'),
       )),
   ]);
 
@@ -105,8 +105,8 @@ export async function getOpsWalletSummary(userId: number): Promise<OpsWalletSumm
     approvedAdvanceAmounts: advanceRows.map((row) => row.amount),
     expenseAmounts: {
       PENDING: expenseRows.filter((row) => row.status === 'PENDING').map((row) => row.amount),
-      APPROVED: expenseRows.filter((row) => row.status === 'APPROVED').map((row) => row.amount),
-      REJECTED: expenseRows.filter((row) => row.status === 'REJECTED').map((row) => row.amount),
+      APPROVED: expenseRows.filter((row) => (row.status === 'RECORDED' || row.status === 'APPROVED')).map((row) => row.amount),
+      REJECTED: expenseRows.filter((row) => (row.status === 'VOIDED' || row.status === 'REJECTED')).map((row) => row.amount),
     },
     approvedRefundAmounts: refundRows.map((row) => row.refundAmount),
   });

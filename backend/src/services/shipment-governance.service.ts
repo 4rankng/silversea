@@ -52,7 +52,7 @@ export async function requestShipmentDelete(args: {
       version: args.version,
       deletedBy: args.actor.userId,
     }, tx);
-    return { action: null, deleted, pendingApproval: false };
+    return { action: null, deleted };
   };
 
   return runInTx(args.transaction, execute);

@@ -185,9 +185,14 @@ export function createCrudRouter<
   function requireExpectedUpdatedAt(req: Request): Date {
     const raw = req.header('If-Unmodified-Since')?.trim();
     if (!raw) {
+      // Machine-readable code: the FE transport self-heals exactly this
+      // omission (refetch the row, retry once with the fresh token) while
+      // genuine version conflicts keep their plain 409.
       throw new ApiError(
         428,
         'Thiếu phiên bản dữ liệu. Vui lòng tải lại danh mục trước khi cập nhật.',
+        undefined,
+        { code: 'VERSION_TOKEN_REQUIRED' },
       );
     }
     const expected = new Date(raw);

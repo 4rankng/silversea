@@ -11,7 +11,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     if (!active || !ref.current) return;
 
     const container = ref.current;
-    const getFocusable = () => Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
+    const getFocusable = () => Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
+      if (element.tabIndex < 0 || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+      const style = getComputedStyle(element);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
 
     // Focus the first focusable element when trap activates
     const focusable = getFocusable();

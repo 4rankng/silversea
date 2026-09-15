@@ -13,7 +13,7 @@
   padding: 12px 14px;
   background: var(--warning-soft);
   color: var(--warning-text);
-  font-size: 13px;
+  font-size: var(--text-body-size);
   font-weight: 600;
   line-height: 1.45;
 }
@@ -58,7 +58,7 @@
   display: block;
   margin-bottom: 3px;
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.3;
@@ -68,7 +68,7 @@
 .ci-record__header h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: var(--text-section-size);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -116,7 +116,7 @@
   display: block;
   margin-bottom: 7px;
   color: var(--fg-2);
-  font-size: 12.5px;
+  font-size: var(--text-label-size);
   font-weight: 650;
   line-height: 1.4;
 }
@@ -132,7 +132,7 @@
   height: 45px;
   padding: 0 12px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--text-control-size);
 }
 
 .ci-field-warning {
@@ -142,7 +142,7 @@
   gap: 6px;
   margin-top: 8px;
   color: var(--warning-text);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -202,7 +202,7 @@
 
 .ci-photo-lane__title {
   color: var(--fg-2);
-  font-size: 12.5px;
+  font-size: var(--text-label-size);
   font-weight: 650;
   line-height: 1.4;
 }
@@ -211,7 +211,7 @@
   margin-top: 3px;
   overflow: hidden;
   color: var(--fg-3);
-  font-size: 11.5px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -274,7 +274,7 @@
   height: 100%;
   padding: 4px;
   color: var(--danger-text);
-  font-size: 9px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
   line-height: 1.15;
   text-align: center;
@@ -325,7 +325,7 @@
   border-radius: 999px;
   background: var(--warning);
   color: var(--warning-text);
-  font-size: 9px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -345,7 +345,7 @@
   background: var(--surface);
   color: var(--ink-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-control-compact-size);
   font-weight: 650;
   line-height: 1.35;
   cursor: pointer;
@@ -396,12 +396,12 @@
 
 .ci-empty strong {
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body-size);
 }
 
 .ci-empty span {
   margin-top: 3px;
-  font-size: 12.5px;
+  font-size: var(--text-body-size);
   line-height: 1.45;
 }
 
@@ -415,7 +415,7 @@
 
 .ci-editor__footer > span {
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -493,7 +493,7 @@
   }
 
   .input.ci-input-sm {
-    font-size: 16px;
+    font-size: var(--text-input-touch-size);
   }
 
   .ci-editor__footer {

@@ -32,7 +32,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -54,7 +53,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={null}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={ensureDraft}
@@ -99,7 +97,6 @@ describe('TripPodSubmission', () => {
           ],
         })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -119,7 +116,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -147,7 +143,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission({ status: TripPodStatus.SUBMITTED })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -159,7 +154,7 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByRole('button', { name: 'Tải tệp' })).toBeNull();
     // One shared banner, not one per card — avoids repeating the identical
     // sentence twice on screen.
-    expect(screen.getAllByText(/e-POD đã gửi duyệt/).length).toBe(1);
+    expect(screen.getAllByText(/e-POD đã được gửi/).length).toBe(1);
   });
 
   it('keeps capture/upload open after a REJECTED submission so the driver can retry', () => {
@@ -171,7 +166,6 @@ describe('TripPodSubmission', () => {
           rejectionReason: 'Ảnh mờ, không đọc được số phiếu.',
         })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}

@@ -4,7 +4,7 @@ import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRo
 import { Panel, Btn, PageHeader } from '../../../components/UI';
 import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
-import { formatCurrency, formatDate } from '../../../lib/format';
+import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
 import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
@@ -169,6 +169,195 @@ export function PenaltyTable({
       />
       )}
 
+      {/* ── Violation log (full width so the record table keeps table mode) ── */}
+      <Panel flush className="penalty-transparent-panel penalty-log-panel">
+          <div className="penalty-card-head">
+            <div className="penalty-card-lead">
+              <div className="penalty-card-icon alt">
+                <FileText size={18} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div className="penalty-card-title">
+                  Sổ biên bản vi phạm
+                  <span className="count-pill">{total}</span>
+                </div>
+                <div className="penalty-card-sub">Lịch sử biên bản đã lập và khấu trừ lương</div>
+              </div>
+            </div>
+            <div className="penalty-head-tools">
+              {STATUS_CHIPS.map(f => (
+                <button
+                  key={f.key}
+                  className={`penalty-chip${statusFilter === f.key ? ' active' : ''}`}
+                  onClick={() => onStatusFilterChange(f.key)}
+                >
+                  {f.label}
+                  <span className="count">
+                    {chipCounts[f.key]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filter toolbar — search + driver, scoped to the salary period */}
+          <div className="penalty-filter-bar">
+            <div className="penalty-filter-bar__search">
+              <Search size={14} />
+              <input
+                type="text"
+                aria-label="Tìm biên bản"
+                placeholder="Tìm lái xe, mã chuyến, lý do..."
+                value={search}
+                onChange={e => onSearchChange(e.target.value)}
+              />
+              {search && (
+                <button
+                  className="penalty-filter-bar__clear"
+                  onClick={() => onSearchChange('')}
+                  title="Xóa tìm kiếm"
+                  aria-label="Xóa nội dung tìm kiếm"
+                  type="button"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <UuiSelectField
+              id="penalty-driver-filter"
+              label="Lái xe"
+              inline
+              value={driverFilter == null ? '' : String(driverFilter)}
+              onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
+              controlClassName="penalty-filter-bar__select"
+              options={[
+                { value: '', label: 'Tất cả lái xe' },
+                ...drivers.map(d => ({ value: String(d.id), label: d.name })),
+              ]}
+            />
+            {hasActiveFilters && (
+              <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
+                <X size={12} /> Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {listLoading ? (
+            <div className="penalty-loading penalty-loading--padded">
+              <div className="penalty-spinner spin" />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="penalty-empty-log">
+              <div className="penalty-empty-icon-wrap">
+                <ShieldCheck size={36} strokeWidth={2.5} />
+              </div>
+              <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
+              <div className="penalty-empty-desc">
+                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương ngay khi biên bản có hiệu lực.
+              </div>
+              <div className="penalty-empty-stats">
+                <div className="penalty-empty-stat">
+                  <div className="lbl">Chuỗi an toàn</div>
+                  <div className="val pos">{longestStreak}<span className="u">ngày</span></div>
+                </div>
+                <div className="penalty-empty-divider" />
+                <div className="penalty-empty-stat">
+                  <div className="lbl">Vi phạm YTD</div>
+                  <div className="val">{insights?.ytd.count ?? 0}<span className="u">vụ</span></div>
+                </div>
+                <div className="penalty-empty-divider" />
+                <div className="penalty-empty-stat">
+                  <div className="lbl">Tiết kiệm phạt</div>
+                  <div className="val pos">~{formatNumber(ytdTotal)}<span className="u">đ</span></div>
+                </div>
+              </div>
+              <div className="penalty-empty-actions">
+                <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
+                <Btn variant="primary" icon={<Plus size={13} />} onClick={() => onOpenDrawer()}>Lập biên bản</Btn>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Record table — shared base provides sticky thead, neutral
+                  gated hover and mobile record cards via container queries. */}
+              <div className="record-table-wrap penalty-log-wrap">
+                <table className="record-table ops-table penalty-log-table">
+                  <thead>
+                    <tr>
+                      <SortHeader label="Lái xe" sortKey="driverName" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Ngày" sortKey="date" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={onSortChange} numeric />
+                      {canCancel && <th className="penalty-scoreboard-col-action"></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(p => {
+                      const canceled = p.status === 'CANCELED';
+                      return (
+                        <tr key={p.id} className={canceled ? 'penalty-log-row--canceled' : undefined}>
+                          <td data-label="Lái xe">
+                            <span className="penalty-log-driver">
+                              <span className="penalty-log-avatar">
+                                <UserRound size={14} aria-hidden="true" />
+                              </span>
+                              <span className="penalty-log-driver-name">{p.driverName || 'Lái xe'}</span>
+                            </span>
+                          </td>
+                          <td data-label="Lý do">{p.reasonText || p.customReason || '—'}</td>
+                          <td data-label="Ngày">{formatDate(p.date)}</td>
+                          <td data-label="Chuyến">
+                            {p.tripId && p.tripCode ? (
+                              <a
+                                href={`/trips/${p.tripId}`}
+                                onClick={(e) => { e.preventDefault(); navigate(`/trips/${p.tripId}`); }}
+                                className="penalty-log-trip"
+                              >{p.tripCode}</a>
+                            ) : '—'}
+                          </td>
+                          <td data-label="Số tiền" className="num">
+                            {canceled ? (
+                              <span className="penalty-log-money penalty-log-money--canceled">
+                                <Money value={Math.abs(Number(p.amount))} /> <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>(đã hủy)</span>
+                              </span>
+                            ) : (
+                              <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />
+                            )}
+                          </td>
+                          {canCancel && (
+                            <td data-label="" className="record-table__action">
+                              {!canceled && (
+                                <button
+                                  className="penalty-row-act penalty-row-act--danger"
+                                  aria-label="Hủy kỷ luật"
+                                  title="Hủy kỷ luật"
+                                  onClick={() => onCancelPenalty(p)}
+                                  type="button"
+                                >
+                                  <XCircle size={14} />
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                onChange={onPageChange}
+                disabled={listLoading}
+              />
+            </>
+          )}
+        </Panel>
+
       {/* ── Driver scoreboard ────────────────────────────────────────────── */}
       <Panel flush className="penalty-transparent-panel">
         <div className="penalty-card-head">
@@ -277,7 +466,7 @@ export function PenaltyTable({
                       </td>
                       <td data-label="Phạt YTD" className="num">
                         <span className={`penalty-money ${moneyClass}`}>
-                          {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : `0`}<span className="unit">đ</span>
+                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit">đ</span>
                         </span>
                       </td>
                       <td data-label="Mức" className="penalty-scoreboard-col-center">
@@ -301,189 +490,6 @@ export function PenaltyTable({
           </div>
         </div>
       </Panel>
-
-      {/* ── Violation log (full width so the record table keeps table mode) ── */}
-      <Panel flush className="penalty-transparent-panel penalty-log-panel">
-          <div className="penalty-card-head">
-            <div className="penalty-card-lead">
-              <div className="penalty-card-icon alt">
-                <FileText size={18} />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div className="penalty-card-title">
-                  Sổ biên bản vi phạm
-                  <span className="count-pill">{total}</span>
-                </div>
-                <div className="penalty-card-sub">Lịch sử biên bản đã lập và khấu trừ lương</div>
-              </div>
-            </div>
-            <div className="penalty-head-tools">
-              {STATUS_CHIPS.map(f => (
-                <button
-                  key={f.key}
-                  className={`penalty-chip${statusFilter === f.key ? ' active' : ''}`}
-                  onClick={() => onStatusFilterChange(f.key)}
-                >
-                  {f.label}
-                  <span className="count">
-                    {chipCounts[f.key]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Filter toolbar — search + driver, scoped to the salary period */}
-          <div className="penalty-filter-bar">
-            <div className="penalty-filter-bar__search">
-              <Search size={14} />
-              <input
-                type="text"
-                aria-label="Tìm biên bản"
-                placeholder="Tìm lái xe, mã chuyến, lý do..."
-                value={search}
-                onChange={e => onSearchChange(e.target.value)}
-              />
-              {search && (
-                <button
-                  className="penalty-filter-bar__clear"
-                  onClick={() => onSearchChange('')}
-                  title="Xóa tìm kiếm"
-                  aria-label="Xóa nội dung tìm kiếm"
-                  type="button"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            <UuiSelectField
-              id="penalty-driver-filter"
-              label="Lái xe"
-              inline
-              value={driverFilter == null ? '' : String(driverFilter)}
-              onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
-              controlClassName="penalty-filter-bar__select"
-              options={[
-                { value: '', label: 'Tất cả lái xe' },
-                ...drivers.map(d => ({ value: String(d.id), label: d.name })),
-              ]}
-            />
-            {hasActiveFilters && (
-              <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
-                <X size={12} /> Xóa bộ lọc
-              </button>
-            )}
-          </div>
-
-          {listLoading ? (
-            <div className="penalty-loading penalty-loading--padded">
-              <div className="penalty-spinner spin" />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="penalty-empty-log">
-              <div className="penalty-empty-icon-wrap">
-                <ShieldCheck size={36} strokeWidth={2.5} />
-              </div>
-              <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
-              <div className="penalty-empty-desc">
-                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương ngay khi biên bản có hiệu lực.
-              </div>
-              <div className="penalty-empty-stats">
-                <div className="penalty-empty-stat">
-                  <div className="lbl">Chuỗi an toàn</div>
-                  <div className="val pos">{longestStreak}<span className="u">ngày</span></div>
-                </div>
-                <div className="penalty-empty-divider" />
-                <div className="penalty-empty-stat">
-                  <div className="lbl">Vi phạm YTD</div>
-                  <div className="val">{insights?.ytd.count ?? 0}<span className="u">vụ</span></div>
-                </div>
-                <div className="penalty-empty-divider" />
-                <div className="penalty-empty-stat">
-                  <div className="lbl">Tiết kiệm phạt</div>
-                  <div className="val pos">~{formatCurrency(ytdTotal)}<span className="u">đ</span></div>
-                </div>
-              </div>
-              <div className="penalty-empty-actions">
-                <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
-                <Btn variant="primary" icon={<Plus size={13} />} onClick={() => onOpenDrawer()}>Lập biên bản</Btn>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Record table — shared base provides sticky thead, neutral
-                  gated hover and mobile record cards via container queries. */}
-              <div className="record-table-wrap penalty-log-wrap">
-                <table className="record-table ops-table penalty-log-table">
-                  <thead>
-                    <tr>
-                      <SortHeader label="Lái xe" sortKey="driverName" sort={sort} onSortChange={onSortChange} />
-                      <SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={onSortChange} />
-                      <SortHeader label="Ngày" sortKey="date" sort={sort} onSortChange={onSortChange} />
-                      <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
-                      <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={onSortChange} numeric />
-                      {canCancel && <th className="penalty-scoreboard-col-action"></th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(p => {
-                      const canceled = p.status === 'CANCELED';
-                      return (
-                        <tr key={p.id} className={canceled ? 'penalty-log-row--canceled' : undefined}>
-                          <td data-label="Lái xe">
-                            <span className="penalty-log-driver">
-                              <span className="penalty-log-avatar">
-                                <UserRound size={14} aria-hidden="true" />
-                              </span>
-                              <span className="penalty-log-driver-name">{p.driverName || 'Lái xe'}</span>
-                            </span>
-                          </td>
-                          <td data-label="Lý do">{p.reasonText || p.customReason || '—'}</td>
-                          <td data-label="Ngày">{formatDate(p.date)}</td>
-                          <td data-label="Chuyến">
-                            {p.tripId && p.tripCode ? (
-                              <a
-                                href={`/trips/${p.tripId}`}
-                                onClick={(e) => { e.preventDefault(); navigate(`/trips/${p.tripId}`); }}
-                                className="penalty-log-trip"
-                              >{p.tripCode}</a>
-                            ) : '—'}
-                          </td>
-                          <td data-label="Số tiền" className="num">
-                            <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />
-                          </td>
-                          {canCancel && (
-                            <td data-label="" className="record-table__action">
-                              {!canceled && (
-                                <button
-                                  className="penalty-row-act penalty-row-act--danger"
-                                  aria-label="Hủy kỷ luật"
-                                  title="Hủy kỷ luật"
-                                  onClick={() => onCancelPenalty(p)}
-                                  type="button"
-                                >
-                                  <XCircle size={14} />
-                                </button>
-                              )}
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                totalItems={total}
-                pageSize={pageSize}
-                onChange={onPageChange}
-                disabled={listLoading}
-              />
-            </>
-          )}
-        </Panel>
 
       {/* ── Violation type reference ─────────────────────────────────────── */}
       <Panel flush className="penalty-transparent-panel">

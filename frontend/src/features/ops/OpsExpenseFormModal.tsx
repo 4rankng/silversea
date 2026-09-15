@@ -9,7 +9,7 @@ import { formatVnd, localDateInputValue } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 import './ops-modal.css';
-import { useOpsModalDismiss } from './useOpsModalDismiss';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 interface Props {
   order: OpsOrderItem;
   onClose: () => void;
@@ -27,7 +27,6 @@ interface PendingPhoto {
  * bổ sung ảnh sau (tạo "nợ chứng từ").
  */
 export function OpsExpenseFormModal({ order, onClose }: Props) {
-  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const { data: typesData } = useOpsExpenseTypes();
   const createExpense = useCreateOpsExpense();
   const attachPhoto = useAttachOpsExpensePhoto();
@@ -67,9 +66,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     return options;
   }, [groupedTypes]);
 
-  const amountClean = amount.replace(/[^\d]/g, '');
-  const amountValid = /^\d+$/.test(amountClean) && Number(amountClean) > 0;
-  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending;
+  const amountClean = amount.replace(/[^\d-]/g, '');
+  const isNegative = amountClean.startsWith('-');
+  const amountDigits = amountClean.replace(/-/g, '');
+  const amountError = isNegative ? 'Số tiền phải là số dương' : null;
+  const amountValid = /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative;
+  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading;
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -101,12 +103,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         shipmentId: order.id,
         shipmentContainerId: containerId,
         expenseTypeCode: typeCode,
-        amount: amountClean,
+        amount: amountDigits,
         paidAt,
         note: note.trim() || null,
         photoStorageKeys: photos.map((photo) => photo.storageKey),
       });
-      toast({ kind: 'success', message: 'Đã lưu khoản chi — chờ kế toán duyệt.' });
+      toast({ kind: 'success', message: 'Đã ghi nhận khoản chi.' });
       onClose();
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Lưu khoản chi thất bại.' });
@@ -116,7 +118,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const busy = createExpense.isPending;
 
   return (
-    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Khai báo chi phí">
+    <OpsModalBackdrop onClose={onClose} ariaLabel="Khai báo chi phí">
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Khai báo chi phí</h2>
@@ -154,12 +156,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <label>
               Số tiền (VND) *
               <input
-                value={amountClean ? formatVnd(amountClean) : ''}
+                value={amountDigits ? `${isNegative ? '-' : ''}${formatVnd(amountDigits)}` : (isNegative ? '-' : '')}
+                aria-invalid={Boolean(amountError)}
+                aria-describedby={amountError ? 'ops-create-amount-error' : undefined}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="numeric"
                 placeholder="0"
                 required
               />
+              {amountError && <span id="ops-create-amount-error" role="alert" className="ops-field-error">{amountError}</span>}
             </label>
             <label>
               Ngày chi *
@@ -179,7 +184,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 type="button"
                 className="btn-secondary"
                 onClick={() => fileRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || busy}
               >
                 {uploading ? <Loader2 size={14} className="spin" /> : <Camera size={14} />}
                 {uploading ? 'Đang tải…' : 'Chụp / chọn ảnh'}
@@ -215,7 +220,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{attachPhoto.isPending ? 'Đang đính kèm ảnh…' : `Tổng: ${amountClean ? formatVnd(amountClean) : 0} ₫`}</div>
+          <div>{attachPhoto.isPending ? 'Đang đính kèm ảnh…' : `Tổng: ${amountDigits ? formatVnd(amountDigits) : 0} ₫`}</div>
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>
@@ -224,7 +229,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           </div>
         </footer>
       </form>
-    </div>
+    </OpsModalBackdrop>
   );
 }
 

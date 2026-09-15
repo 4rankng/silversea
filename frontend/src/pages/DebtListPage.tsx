@@ -1,3 +1,4 @@
+import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
@@ -214,11 +215,11 @@ export default function DebtListPage() {
 
   // Full-set totals arrive server-computed (page-independent), so the KPI strip
   // stays stable while paging or narrowing to one aging bucket.
-  const totals = data?.totals ?? {
+  const totals = useMemo(() => data?.totals ?? {
     total: 0, current: 0, d30: 0, d60: 0, over90: 0,
     currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
     overdueCount: 0, highRiskCount: 0,
-  };
+  }, [data?.totals]);
 
   // Bucket + page + search filtering happen server-side; the rows below render
   // the current window only.
@@ -295,9 +296,7 @@ export default function DebtListPage() {
         ]}
       />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-        *  ZONE 2 — Aging Distribution (4 equal glass cards)
-        * ══════════════════════════════════════════════════════════════════════ */}
+      <AgingDisclosure label="Nhóm tuổi nợ khách hàng · mở chi tiết">
       <div className="debt-aging-grid" data-tour-id="debt-aging">
         {AGING_BUCKETS.map((bucket) => {
           const amount = totals[bucket.amountKey];
@@ -346,6 +345,7 @@ export default function DebtListPage() {
           );
         })}
       </div>
+      </AgingDisclosure>
 
       {/* ══════════════════════════════════════════════════════════════════════
         *  ZONE 3 — Data Section (full-width card with filters + table/cards)
@@ -434,7 +434,7 @@ export default function DebtListPage() {
                                   <Clock size={12} aria-hidden="true" style={{ marginRight: 5, verticalAlign: '-1px' }} />
                                   Quá hạn
                                 </span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>
@@ -486,7 +486,7 @@ export default function DebtListPage() {
                                 <Badge variant="success">2 chiều</Badge>
                               )}
                             </div>
-                            <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
+                            <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
                               {d.totalOutstanding > 0
                                 ? (d.maxOverdueDays > 30 ? "Nợ quá hạn" : "Trong hạn")
                                 : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}

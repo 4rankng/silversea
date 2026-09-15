@@ -60,7 +60,7 @@ import {
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import * as s from '../db/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { sniffImageType } from '../lib/format';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import {
@@ -240,10 +240,38 @@ function hashStorageKey(storageKey: string): string {
 async function deleteDriverTripPhotosCommand(
   client: Tx,
   tripId: number,
+  driverId: number,
   type: TripPhotoType,
   containerId: number | undefined,
   expectedUpdatedAt: Date | undefined,
 ): Promise<DriverTripPhotoDeleteCommand> {
+  // KP-077: re-verify ownership and terminal status inside the destructive
+  // transaction so a concurrent reassignment or completion cannot slip through
+  // between the pre-check and the actual delete + outbox write.
+  const [trip] = await client.select({
+    id: s.trips.id,
+    status: s.trips.status,
+    driverId: s.trips.driverId,
+  })
+    .from(s.trips)
+    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!trip || trip.driverId !== driverId) {
+    throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  }
+  if (trip.status === 'COMPLETED') {
+    throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã hoàn thành');
+  }
+
+  if (containerId !== undefined) {
+    const [container] = await client.select({ id: s.tripContainers.id })
+      .from(s.tripContainers)
+      .where(and(eq(s.tripContainers.id, containerId), eq(s.tripContainers.tripId, tripId)))
+      .limit(1);
+    if (!container) throw new ApiError(404, 'Không tìm thấy số cont');
+  }
+
   const conditions = [eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.type, type)];
   if (containerId !== undefined) {
     conditions.push(eq(s.tripPhotos.tripContainerId, containerId));
@@ -950,16 +978,10 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
 router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
-  const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
 
   const photoType = String(req.params.type).toUpperCase();
   if (photoType !== 'CONTAINER' && photoType !== 'SEAL') {
     return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container hoặc seal)' });
-  }
-
-  if (trip.status === 'COMPLETED') {
-    throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã hoàn thành');
   }
 
   // Phase 2: optional container_id scopes the delete to one container's
@@ -971,15 +993,12 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
     if (isNaN(containerId)) {
       return res.status(400).json({ error: 'container_id không hợp lệ' });
     }
-    if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
-      return res.status(404).json({ error: 'Không tìm thấy số cont' });
-    }
   }
   const idempotencyKey = requireDriverIdempotencyKey(req);
-  // 2026-09-11 user directive: the version precondition on photo delete is
-  // removed — deletes always proceed. Ownership (getDriverTripDetail), the
-  // COMPLETED block, the type check, and idempotency stay; the command
-  // already treats an absent expectedUpdatedAt as "skip the staleness check".
+  // KP-077: ownership, terminal status, and container existence are verified
+  // inside the destructive transaction (deleteDriverTripPhotosCommand) so a
+  // concurrent reassignment or completion cannot slip through between the
+  // pre-check and the actual delete + outbox write.
   const outcome = await runIdempotent({
     endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.PHOTO_DELETE,
     idempotencyKey,
@@ -993,6 +1012,7 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
     create: (tx) => deleteDriverTripPhotosCommand(
       tx,
       tripId,
+      driver.id,
       photoType as TripPhotoType,
       containerId,
       undefined,

@@ -7,7 +7,7 @@ export const STATUS_COLORS = {
 } as const;
 
 /** Resolve status string to color. ACTIVE → emerald, anything else → red. */
-// eslint-disable-next-line react-refresh/only-export-components -- shared helper consumed by non-component code
+ 
 export function getStatusColor(status: string): string {
   return status === 'ACTIVE' ? STATUS_COLORS.active : STATUS_COLORS.inactive;
 }

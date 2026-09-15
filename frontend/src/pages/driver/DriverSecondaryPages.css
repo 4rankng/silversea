@@ -1,0 +1,131 @@
+/* These lazy routes own their card presentation; they must not depend on
+   another driver page having been visited first. */
+.driver-secondary-page {
+  width: 100%;
+  max-width: var(--driver-measure);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 12px 8px 24px;
+}
+
+.driver-secondary-page .driver-trip-card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.driver-secondary-page .driver-trip-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.driver-secondary-page .dt-card__header,
+.driver-secondary-page .dt-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.driver-secondary-page .dt-card__label,
+.driver-secondary-page .dt-card__truck {
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
+}
+
+.driver-secondary-page .dt-card__status-pill {
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  color: var(--surface);
+  font-size: var(--text-caption-size);
+}
+
+.driver-secondary-page .dt-card__route {
+  margin: 0;
+  font-size: var(--text-section-size);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.driver-secondary-page .dt-card__meta {
+  display: grid;
+  gap: 6px;
+}
+
+.driver-secondary-page .dt-card__meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--lh-normal);
+}
+
+.driver-secondary-page .dt-card__meta-item svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
+.driver-secondary-page .dt-card__meta-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.driver-secondary-page .dt-card__footer {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.driver-payslip__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 6px 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.driver-payslip__metric {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.driver-payslip__metric > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.driver-payslip__metric strong {
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.driver-payslip__metric--deduction strong {
+  color: var(--danger);
+}
+
+@media (max-width: 1023px) {
+  .driver-secondary-page {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+  }
+}
+
+@media (hover: hover) {
+  .driver-secondary-page .driver-trip-card:hover {
+    background: var(--surface-2);
+  }
+}

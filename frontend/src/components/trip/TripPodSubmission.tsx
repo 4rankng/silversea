@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
-  Clock3,
   FileImage,
   FileText,
   Loader2,
@@ -11,7 +10,6 @@ import {
   Upload,
 } from 'lucide-react';
 import { TRIP_POD_REQUIRED_FILE_TYPES, TRIP_POD_STATUS_LABELS, TripPodFileType, TripPodStatus } from '@tingting/shared';
-import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueue';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
@@ -20,14 +18,11 @@ import { driverClient } from '../../api/driverClient';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import './TripPodSubmission.css';
 
-type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
-
 export interface TripPodSubmissionProps {
   tripCode?: string | null;
   tripVersion: number;
   currentSubmission: DriverTaskPodSubmission | null;
   history: DriverTaskPodSubmission[];
-  pendingCommands: OfflineCommand[];
   creatingDraft: boolean;
   uploading: boolean;
   onEnsureDraft: () => Promise<DriverTaskPodSubmission>;
@@ -46,7 +41,7 @@ const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
 };
 
-// Canonical labels live in shared (unified 2026-09-01): 'Chờ duyệt' / 'Đã duyệt'.
+// Canonical labels describe delivery evidence and customer acknowledgement.
 const STATUS_LABELS = TRIP_POD_STATUS_LABELS;
 
 function statusClass(status: TripPodStatus): string {
@@ -76,13 +71,6 @@ function groupFilesByType(submission: DriverTaskPodSubmission | null): Record<st
   return empty;
 }
 
-function commandState(commands: OfflineCommand[]): SubmitState {
-  if (commands.some((command) => command.status === 'CONFLICT')) return 'conflict';
-  if (commands.some((command) => command.status === 'FAILED')) return 'retry';
-  if (commands.some((command) => command.status === 'QUEUED' || command.status === 'IN_PROGRESS')) return 'pending';
-  return 'idle';
-}
-
 function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
   ref.current?.click();
 }
@@ -92,7 +80,6 @@ export function TripPodSubmission({
   tripVersion,
   currentSubmission,
   history,
-  pendingCommands,
   creatingDraft,
   uploading,
   onEnsureDraft,
@@ -156,9 +143,6 @@ export function TripPodSubmission({
     || currentSubmission?.status === TripPodStatus.ACCEPTED;
   const missingRequired = REQUIRED_FILE_TYPES.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
-  const submitCommands = pendingCommands.filter((command) => command.endpoint === 'driver.task.pod.submit');
-  const submitState = commandState(submitCommands);
-
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
     await uploadPodFile(fileType, fileList[0], fileRefs[fileType].current);
@@ -220,7 +204,7 @@ export function TripPodSubmission({
       {isLocked && (
         <div className="trip-pod__banner trip-pod__banner--info" role="status">
           <Lock size={16} />
-          <span>e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
+          <span>e-POD đã được gửi — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
         </div>
       )}
 
@@ -228,17 +212,6 @@ export function TripPodSubmission({
         <div className="trip-pod__banner trip-pod__banner--error" role="alert">
           <AlertTriangle size={16} />
           <span>{uploadError}</span>
-        </div>
-      )}
-
-      {submitState !== 'idle' && (
-        <div className={`trip-pod__banner ${submitState === 'conflict' ? 'trip-pod__banner--error' : 'trip-pod__banner--info'}`}>
-          {submitState === 'conflict' ? <AlertTriangle size={16} /> : <Clock3 size={16} />}
-          <span>
-            {submitState === 'pending' && 'Lệnh gửi e-POD đang chờ đồng bộ.'}
-            {submitState === 'retry' && 'Gửi e-POD chưa thành công. Hệ thống sẽ thử lại khi có mạng.'}
-            {submitState === 'conflict' && 'Phiên bản e-POD đã thay đổi. Vui lòng tải lại để gửi phiên bản mới.'}
-          </span>
         </div>
       )}
 
@@ -271,7 +244,7 @@ export function TripPodSubmission({
                       type="button"
                       className="trip-pod__action"
                       onClick={() => setScanning(fileType)}
-                      disabled={uploading || creatingDraft || submitState === 'pending'}
+                      disabled={uploading || creatingDraft}
                     >
                       {creatingDraft || uploading ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
                       <span>Chụp</span>
@@ -280,7 +253,7 @@ export function TripPodSubmission({
                       type="button"
                       className="trip-pod__action trip-pod__action--secondary"
                       onClick={() => triggerInput(fileRefs[fileType])}
-                      disabled={uploading || creatingDraft || submitState === 'pending'}
+                      disabled={uploading || creatingDraft}
                     >
                       <Upload size={16} />
                       <span>Tải tệp</span>

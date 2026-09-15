@@ -196,7 +196,7 @@
     margin-bottom: 4px;
     color: var(--fg-3);
     content: attr(data-label);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.3;

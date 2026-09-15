@@ -1,10 +1,11 @@
 // Add panel — create a new user account.
 // Split from UserForm.tsx in the 2026-09-01 structural wave (move-only).
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck, Plus, Loader2, User, Eye, EyeOff,
   Mail, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
+import { isValidOptionalEmail } from '../../../lib/optional-email';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
@@ -30,6 +31,8 @@ export function AddPanel({
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail]       = useState('');
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
   const [phone, setPhone]       = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
   const [role, setRole]         = useState<Role>(Role.DRIVER);
@@ -58,7 +61,7 @@ export function AddPanel({
   // Validation
   const nameValid = fullName.trim().length > 0;
   const usernameValid = username.trim().length > 0;
-  const emailError = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailError = !isValidOptionalEmail(email);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const forwarderScopeInvalid = role === Role.OPS && shipmentIds.length === 0;
@@ -89,7 +92,13 @@ export function AddPanel({
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
-    const payload: CreateData = { fullName, username, email, phone, employeeCode, role, password };
+    // Field-level Vietnamese validation — focus first invalid field
+    const nextEmailMsg = !isValidOptionalEmail(email)
+      ? 'Email không hợp lệ'
+      : null;
+    setEmailMsg(nextEmailMsg);
+    if (nextEmailMsg != null) { emailInputRef.current?.focus(); return; }
+    const payload: CreateData = { fullName, username, email: email.trim(), phone, employeeCode, role, password };
     if (role === Role.DRIVER) {
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
@@ -171,13 +180,19 @@ export function AddPanel({
           </FormGroup>
           <FormGroup label="Email">
             <IconInput
+              inputRef={emailInputRef}
               icon={<Mail size={14} />}
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); if (emailMsg) setEmailMsg(null); }}
               placeholder="nva@cty.vn"
-              error={emailError}
+              error={emailError || emailMsg != null}
+              ariaInvalid={emailMsg != null}
+              ariaDescribedBy={emailMsg != null ? 'user-email-error' : undefined}
             />
+            {emailMsg && (
+              <div id="user-email-error" className="users-field-error" role="alert">{emailMsg}</div>
+            )}
           </FormGroup>
         </div>
       </div>

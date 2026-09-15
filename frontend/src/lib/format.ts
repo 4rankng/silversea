@@ -117,12 +117,26 @@ export function formatCardTimeShort(value: string | null | undefined): string {
 }
 
 /**
- * Zero-padded dd/mm/yyyy read straight off the ISO string, no Date parsing —
- * immune to timezone shifts and valid for date-only columns ("19/08/2026").
- * Use where the source is a calendar date, not a wall-clock timestamp.
+ * Zero-padded dd/mm/yyyy. For date-only strings ("YYYY-MM-DD"), reads
+ * directly — immune to timezone shifts. For full ISO instants (…Z or
+ * ±hh:mm), converts to the Vietnam business timezone first so a UTC
+ * midnight-adjacent instant maps to the correct local date (KP-032).
  */
 export function formatISODate(iso: string | null | undefined): string {
   if (!iso) return '—';
+  // Instant with timezone suffix — convert via Intl to Vietnam date.
+  if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(iso)) {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '—';
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? '';
+    return `${get('day')}/${get('month')}/${get('year')}`;
+  }
   const [year, month, day] = iso.slice(0, 10).split('-');
   return year && month && day ? `${day}/${month}/${year}` : iso;
 }

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Loader2, Pin, PinOff, Plus, Search } from 'lucide-react';
+import { CalendarDays, Pin, PinOff, Plus, Search } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
+import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -22,7 +23,7 @@ export default function OpsOrdersPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const { data, isLoading, isError } = useOpsOrders(date, search || undefined);
+  const { data, isLoading, isError, refetch } = useOpsOrders(date, search || undefined);
   const togglePin = useToggleShipmentPin();
   const queryClient = useQueryClient();
 
@@ -78,7 +79,7 @@ export default function OpsOrdersPage() {
 
       <p className="ops-orders__meta">
         {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${date}`}
-        {isError && ' — không tải được danh sách, thử lại.'}
+
       </p>
 
       <div className="ops-orders__scroll">
@@ -86,12 +87,12 @@ export default function OpsOrdersPage() {
           <thead>
             <tr>
               <th className="col-pin" aria-label="Ghim" />
-              <th>Mã lô</th>
-              <th>Khách hàng</th>
-              <th>Tuyến</th>
-              <th>Cont</th>
-              <th>Bill / Booking</th>
-              <th>Trạng thái</th>
+              <th scope="col" className="col-code">Mã lô</th>
+              <th scope="col">Khách hàng</th>
+              <th scope="col">Tuyến</th>
+              <th scope="col">Cont</th>
+              <th scope="col">Bill / Booking</th>
+              <th scope="col">Trạng thái</th>
               <th className="col-actions" aria-label="Thao tác" />
             </tr>
           </thead>
@@ -99,7 +100,7 @@ export default function OpsOrdersPage() {
             {items.map((order) => {
               const status = shipmentStatusText(order.status);
               return (
-                <tr key={order.id} className={order.pinned ? 'is-pinned' : undefined}>
+                <tr key={order.id} className={`ops-orders__row${order.pinned ? ' is-pinned' : ''}`}>
                   <td className="col-pin">
                     <button
                       type="button"
@@ -111,32 +112,30 @@ export default function OpsOrdersPage() {
                       {order.pinned ? <Pin size={15} /> : <PinOff size={15} />}
                     </button>
                   </td>
-                  <td className="col-code">{order.shipmentCode ?? '—'}</td>
-                  <td>{order.customerName ?? '—'}</td>
-                  <td>{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
-                  <td>
+                  <td className="col-code" data-label="Mã lô">{order.shipmentCode ?? '—'}</td>
+                  <td className="col-customer" data-label="Khách hàng">{order.customerName ?? '—'}</td>
+                  <td className="col-route" data-label="Tuyến">{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
+                  <td data-label="Container">
                     {order.containerCount === 0
                       ? '—'
                       : `${order.containerCount} · ${order.containerNumbers.join(', ')}`}
                   </td>
-                  <td>{order.billRef ?? '—'}</td>
-                  <td><span style={{ color: status.color }}>{status.label}</span></td>
+                  <td data-label="Bill / Booking">{order.billRef ?? '—'}</td>
+                  <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="col-actions">
-                    <button type="button" className="btn-secondary ops-orders__expense" onClick={() => setExpenseFor(order)}>
+                    <button type="button" className="btn btn--secondary btn--sm ops-orders__expense" onClick={() => setExpenseFor(order)}>
                       <Plus size={14} /> Khai chi phí
                     </button>
                   </td>
                 </tr>
               );
             })}
-            {!isLoading && items.length === 0 && (
+            {!isLoading && !isError && items.length === 0 && (
               <tr><td colSpan={8} className="ops-orders__empty">Không có lô hàng trong ngày này.</td></tr>
             )}
           </tbody>
         </table>
-        {isLoading && (
-          <div className="ops-orders__loading"><Loader2 className="spin" size={18} /></div>
-        )}
+        <OpsQueryFeedback loading={isLoading} error={isError} label="kế hoạch làm hàng" onRetry={refetch} />
       </div>
 
       {expenseFor && <OpsExpenseFormModal order={expenseFor} onClose={() => setExpenseFor(null)} />}

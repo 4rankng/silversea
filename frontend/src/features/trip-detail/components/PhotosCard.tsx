@@ -54,14 +54,14 @@ export function PhotosCard({ photoUrls }: PhotosCardProps) {
                   cursor: isBroken ? 'default' : 'pointer',
                   width: '100%',
                   color: 'var(--ink-3)',
-                  fontSize: 12,
+                  fontSize: 'var(--text-caption-size)',
                 }}
               >
                 {isBroken ? (
                   <>
                     <ImageOff size={20} aria-hidden="true" />
                     <span>Ảnh {i + 1}</span>
-                    <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>Không tải được</span>
+                    <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-4)' }}>Không tải được</span>
                   </>
                 ) : (
                   <img

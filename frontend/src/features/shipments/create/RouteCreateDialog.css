@@ -1,0 +1,47 @@
+/* Imported by the shared dialog rather than a lazy shipment page. */
+.route-create-dialog {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.route-create-dialog > p {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size);
+  line-height: 1.5;
+}
+
+.route-create-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.route-create-dialog__error {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.route-create-dialog__distance-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.route-create-dialog__distance-field { flex: 1 1 160px; min-width: 0; }
+.route-create-dialog__submit { flex: 0 0 auto; }
+
+@media (max-width: 640px) {
+  .route-create-dialog__grid { grid-template-columns: minmax(0, 1fr); }
+  .route-create-dialog__submit { min-height: var(--control-touch-h); }
+}

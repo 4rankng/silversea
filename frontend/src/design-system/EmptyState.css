@@ -3,37 +3,33 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: 24px 12px;
   text-align: center;
   color: var(--fg-3, var(--ink-3));
   gap: 8px;
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
-  border-radius: var(--app-radius-lg, 16px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
-    transparent;
-  box-shadow: var(--sh-sm);
+  background: transparent;
 }
 
 .ds-empty-state__illustration {
-  width: 160px;
-  height: 132px;
+  width: 96px;
+  height: 80px;
   object-fit: contain;
   opacity: 0.85;
 }
 
 .ds-empty-state__title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-size);
   font-weight: 600;
   color: var(--ink-2, var(--fg-2));
 }
 
 .ds-empty-state__description {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--fg-3, var(--ink-3));
   width: 100%;
   min-width: 0;
@@ -65,12 +61,8 @@
  * When `preview` is set, the message sits on top and faded placeholder
  * shapes appear underneath so users see what content will look like. */
 .ds-empty-state--with-preview {
-  padding: 48px 24px 32px;
-  gap: 24px;
-  border: 2px dashed var(--line-2);
-  background: var(--surface);
-  box-shadow: none;
-  border-radius: var(--r-lg);
+  padding: 24px 12px;
+  gap: 12px;
 }
 
 .ds-empty-state__message {
@@ -82,13 +74,13 @@
 }
 
 .ds-empty-state--with-preview .ds-empty-state__title {
-  font-size: var(--fs-xl);
+  font-size: var(--text-section-size);
   font-weight: var(--fw-bold);
   color: var(--ink);
 }
 
 .ds-empty-state--with-preview .ds-empty-state__description {
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   line-height: var(--lh-relaxed);
   color: var(--ink-3);
 }
@@ -168,3 +160,10 @@
 .ds-empty-state__preview-line--w50 { width: 50%; }
 .ds-empty-state__preview-line--w60 { width: 60%; }
 .ds-empty-state__preview-line--w75 { width: 75%; }
+
+@media (max-width: 640px) {
+  .ds-empty-state,
+  .ds-empty-state--with-preview { padding: 20px 8px; }
+  /* Decorative preview records must not push the recovery action off-screen. */
+  .ds-empty-state .ds-empty-state__preview { display: none; }
+}

@@ -19,7 +19,6 @@ import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   buildGovernanceAction,
   type GovernanceApplyAdapter,
-  type GovernanceApplyResult,
 } from './governance-action-core.service';
 import {
   CLOSE_ENTITY_TYPE,

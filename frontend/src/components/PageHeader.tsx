@@ -7,22 +7,20 @@ type PageHeaderProps = {
   description?: React.ReactNode;
   action?: React.ReactNode;
   onBack?: () => void;
-  /** Render the title as a compact VISIBLE heading instead of sr-only — for
-   *  module surfaces (config catalog) whose only visible header was the app
-   *  topbar's generic context. */
+  /** Compact visible module/record identity by default. Opt out only when
+   *  another heading on the same page already supplies the exact identity. */
   showTitle?: boolean;
   /** Retained for call-site compatibility; page icons are no longer page chrome. */
   iconName?: AssetIconName;
 };
 
-export function PageHeader({ title, action, onBack, showTitle }: PageHeaderProps) {
-  if (!onBack && !action) {
+export function PageHeader({ title, action, onBack, showTitle = true }: PageHeaderProps) {
+  if (!showTitle && !onBack && !action) {
     return <h1 className="sr-only">{title}</h1>;
   }
 
   return (
     <div className={`page-header page-header--actions-only${action ? ' page-header--has-action' : ''}`}>
-      <h1 className={showTitle ? 'page-header__title-visible' : 'sr-only'}>{title}</h1>
       {onBack && (
         <button
           className="btn btn--ghost btn--icon btn--sm"
@@ -32,6 +30,7 @@ export function PageHeader({ title, action, onBack, showTitle }: PageHeaderProps
           <ArrowLeft size={16} />
         </button>
       )}
+      <h1 className={showTitle ? 'page-header__title-visible' : 'sr-only'}>{title}</h1>
       {action && <div className="page-actions">{action}</div>}
     </div>
   );

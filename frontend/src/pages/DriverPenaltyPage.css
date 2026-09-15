@@ -4,12 +4,6 @@
      720px driver measure instead of stretching edge to edge. */
   max-width: var(--driver-measure);
   margin: 0 auto;
-  --driver-penalty-title: var(--fs-xl);
-  --driver-penalty-subtitle: var(--fs-xs);
-  --driver-penalty-section: var(--fs-xs);
-  --driver-penalty-body: var(--fs-sm);
-  --driver-penalty-muted: var(--fs-xs);
-  --driver-penalty-kpi: 22px;
   padding-bottom: 40px;
 }
 
@@ -18,13 +12,13 @@
 }
 
 .driver-penalty-page .page-title {
-  font-size: var(--driver-penalty-title);
+  font-size: var(--text-title-size);
   line-height: 1.25;
   letter-spacing: 0;
 }
 
 .driver-penalty-page .page-subtitle {
-  font-size: var(--driver-penalty-subtitle);
+  font-size: var(--text-body-size);
   line-height: var(--lh-normal);
   color: var(--ink-2);
 }
@@ -63,13 +57,13 @@
   background: var(--danger);
 }
 .penalty-status-banner__title {
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: 700;
   line-height: var(--lh-snug);
   letter-spacing: 0;
 }
 .penalty-status-banner__subtitle {
-  font-size: var(--driver-penalty-body);
+  font-size: var(--text-body-size);
   color: var(--ink-2);
   margin-top: 2px;
   line-height: var(--lh-normal);
@@ -93,17 +87,17 @@
   background: var(--surface-2);
   border: 1px solid var(--line-2);
   color: var(--ink-3);
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
 }
 
 /* ═══ ZONE 2 — KPI Grid (reuse shared .kpi-grid and .kpi classes) ═══ */
 .penalty-kpi-grid {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
 .penalty-kpi-grid .kpi {
-  min-height: 108px;
-  padding: 16px 88px 16px 20px;
+  min-height: 84px;
+  padding: 12px;
 }
 
 .penalty-kpi-grid .kpi__top {
@@ -111,34 +105,34 @@
 }
 
 .penalty-kpi-grid .kpi__label {
-  font-size: var(--driver-penalty-section);
+  font-size: var(--text-label-size);
   letter-spacing: var(--tracking-wide);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
   max-width: 100%;
 }
 
 .penalty-kpi-grid .kpi__value {
-  font-size: var(--driver-penalty-kpi) !important;
+  font-size: var(--text-metric-size) !important;
   line-height: 1.25;
   margin-bottom: 6px;
   letter-spacing: 0;
-  word-break: normal;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .penalty-kpi-grid .kpi__value-unit {
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-label-size);
   letter-spacing: 0;
 }
 
 .penalty-kpi-grid .kpi__meta {
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
   line-height: var(--lh-snug);
 }
 
 .penalty-kpi-grid .kpi__watermark {
+  display: none;
   top: 50%;
   right: 24px;
   bottom: auto;
@@ -176,10 +170,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 .penalty-data-card__title {
-  font-size: var(--driver-penalty-section);
+  font-size: var(--text-section-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
@@ -229,13 +224,14 @@
   flex-wrap: wrap;
 }
 .penalty-violation-row__reason {
-  font-size: var(--driver-penalty-body);
+  overflow-wrap: anywhere;
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--ink);
   line-height: var(--lh-snug);
 }
 .penalty-violation-row__amount {
-  font-size: var(--driver-penalty-body);
+  font-size: var(--text-data-size);
   font-weight: 700;
   color: var(--danger);
   white-space: nowrap;
@@ -245,7 +241,7 @@
   gap: 12px;
   margin-top: 6px;
   flex-wrap: wrap;
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
 }
 .penalty-violation-row__meta span {
@@ -254,8 +250,9 @@
   gap: 4px;
 }
 .penalty-violation-row__note {
+  overflow-wrap: anywhere;
   margin-top: 6px;
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   font-style: italic;
 }
@@ -275,7 +272,7 @@
   margin-top: 12px;
 }
 .penalty-empty-state__title {
-  font-size: var(--fs-md);
+  font-size: var(--text-section-size);
   font-weight: 600;
   color: var(--ink);
   margin: 0;
@@ -283,7 +280,7 @@
 }
 .penalty-empty-state__desc {
   margin: 6px 0 0;
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
   line-height: var(--lh-normal);
 }
 
@@ -293,21 +290,13 @@
   padding: 12px 16px;
   background: var(--surface-2);
   border-radius: 8px;
-  font-size: var(--driver-penalty-muted);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   text-align: center;
 }
 
 /* ═══ Responsive ═══ */
 @media (max-width: 640px) {
-  .driver-penalty-page {
-    --driver-penalty-title: var(--fs-xl);
-    --driver-penalty-subtitle: 13px;
-    --driver-penalty-section: 11px;
-    --driver-penalty-body: 13px;
-    --driver-penalty-muted: 11.5px;
-    --driver-penalty-kpi: 22px;
-  }
   .driver-penalty-page .page-header {
     margin-bottom: 14px;
   }
@@ -330,14 +319,14 @@
     height: 38px;
   }
   .penalty-status-banner__title {
-    font-size: var(--fs-sm);
+    font-size: var(--text-section-size);
   }
   .penalty-status-banner__subtitle {
-    font-size: var(--driver-penalty-body);
+    font-size: var(--text-body-size);
   }
   .penalty-kpi-grid .kpi {
-    min-height: 96px;
-    padding: 14px 58px 14px 16px;
+    min-height: 80px;
+    padding: 12px;
   }
   .penalty-kpi-grid .kpi__top {
     margin-bottom: 8px;
@@ -372,8 +361,8 @@
   /* KPI titles ("VI PHẠM T8/2026"…) ellipsized at phone width: drop the
    * watermark gutter and let the label wrap instead of truncating. */
   .penalty-kpi-grid .kpi {
-    padding: 14px 16px;
-    min-height: 92px;
+    padding: 10px;
+    min-height: 80px;
   }
 
   .penalty-kpi-grid .kpi__watermark {
@@ -384,13 +373,25 @@
     white-space: normal;
   }
 
-  /* The deduction reads as one token: digits and ₫ never split lines in the
-     squeezed 2-up cards, and the value shrinks to fit the ~117px card. */
-  .penalty-kpi-grid .kpi__value {
-    font-size: 18px !important;
+  /* Financial values retain their type size; the narrow layout supplies
+     a full row instead of shrinking a deduction to fit a count card. */
+  .penalty-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .penalty-kpi-grid .kpi:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* Override the generic three-KPI phone layout: counts stay together. */
+  .penalty-kpi-grid.kpi-grid > .kpi:nth-child(3):last-child {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .penalty-kpi-grid .money {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    max-width: 100%;
   }
 }

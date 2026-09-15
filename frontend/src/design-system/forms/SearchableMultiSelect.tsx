@@ -24,6 +24,7 @@ import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSearchableSelectPosition } from './useSearchableSelectPosition';
 import './SearchableSelect.css';
+import { scrollActiveOption } from './scrollActiveOption';
 
 export interface SearchableMultiSelectOption {
   value: string;
@@ -101,6 +102,7 @@ export function SearchableMultiSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -186,6 +188,11 @@ export function SearchableMultiSelect({
       setActiveIndex(Math.max(0, filteredOptions.length - 1));
     }
   }, [activeIndex, filteredOptions.length]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    scrollActiveOption(optionRefs.current[activeIndex]);
+  }, [activeIndex, isOpen, filteredOptions]);
 
   // Debounced server-search hook, mirroring SearchableSelect's contract:
   // fires only while open, `searchDebounceMs` after the query settles.
@@ -285,7 +292,7 @@ export function SearchableMultiSelect({
         }}
         onClick={close}
       />
-      <div ref={popoverRef} className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
+      <div ref={popoverRef} className="searchable-select__popover" data-size={size} role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
         <div className="searchable-select__search">
           <Search size={16} aria-hidden="true" />
           <input
@@ -325,6 +332,7 @@ export function SearchableMultiSelect({
               return (
                 <li key={option.value} role="presentation">
                   <button
+                    ref={(el) => { optionRefs.current[index] = el; }}
                     id={`${listboxId}-option-${option.value}`}
                     type="button"
                     role="option"

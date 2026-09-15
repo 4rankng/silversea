@@ -21,6 +21,11 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
   beforeEach(() => {
     shouldThrow = false;
     sessionStorage.clear();
+    document.head.innerHTML = '<script type="module" src="/assets/index-old.js"></script>';
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response('<script type="module" src="/assets/index-new.js"></script>', { headers: { 'content-type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('', { headers: { 'content-type': 'text/javascript' } })));
     reload = stubReload();
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -38,6 +43,8 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    document.head.innerHTML = "";
   });
 
   it('catches a stale-chunk crash and renders the reload panel instead of the dead-end error', async () => {
@@ -48,7 +55,7 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
       </ErrorBoundary>,
     );
 
-    const panel = await screen.findByText(/đang tải lại trang/i);
+    const panel = await screen.findByText(/đang tải phiên bản mới/i);
     expect(panel).toBeTruthy();
     expect(screen.queryByText('Đã xảy ra lỗi')).toBeNull();
 
@@ -56,7 +63,7 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
     expect(Number(sessionStorage.getItem(RELOAD_AT_KEY))).toBeGreaterThan(0);
   });
 
-  it('still shows the manual error screen when the self-heal cooldown is spent', () => {
+  it('still shows manual asset recovery when the deployment cooldown is spent', async () => {
     shouldThrow = true;
     sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
     render(
@@ -65,10 +72,25 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText('Đã xảy ra lỗi')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /thử lại/i })).toBeTruthy();
-    expect(screen.queryByText(/đang tải lại trang/i)).toBeNull();
+    expect(await screen.findByText('Không thể tải trang')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /tải lại trang/i })).toBeTruthy();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/đang tải phiên bản mới/i)).toBeNull();
     expect(reload).not.toHaveBeenCalled();
+  });
+
+
+  it('keeps an unchanged-build failure recoverable without claiming a deployment', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<script type="module" src="/assets/index-old.js"></script>', { headers: { 'content-type': 'text/html' } })));
+    shouldThrow = true;
+    render(<ErrorBoundary><FlakyChild error={STALE_CHUNK_ERR} /></ErrorBoundary>);
+    expect(await screen.findByText('Không thể tải trang')).toBeTruthy();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(reload).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(RELOAD_AT_KEY)).toBeNull();
+    expect(screen.queryByText(/phiên bản mới/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /tải lại trang/i }));
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it('keeps the manual retry screen and honors the fallback prop for non-chunk errors', () => {
@@ -80,7 +102,7 @@ describe('ErrorBoundary stale-chunk self-heal', () => {
     );
 
     expect(screen.getByText('custom fallback')).toBeTruthy();
-    expect(screen.queryByText(/đang tải lại trang/i)).toBeNull();
+    expect(screen.queryByText(/đang tải phiên bản mới/i)).toBeNull();
     expect(reload).not.toHaveBeenCalled();
   });
 

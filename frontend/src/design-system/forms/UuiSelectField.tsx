@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Select as UUISelect } from '../../components/untitled-ui/base/select/select';
 import { currentPathname, hasOperationalDensity } from '../../lib/operational-density';
 import './UuiSelectField.css';
@@ -38,6 +38,7 @@ export interface UuiSelectFieldProps {
   hideLabel?: boolean;
   /** Overrides the accessible name; use for repeated rows where every control shares one visible label. */
   ariaLabel?: string;
+  ariaDescribedBy?: string;
   /** Flags the control as invalid to assistive tech without switching `hint` to the red `error` styling. */
   invalid?: boolean;
   /** Inline layout: label left, control right — for filter toolbars. */
@@ -73,6 +74,7 @@ export function UuiSelectField({
   hint,
   hideLabel,
   ariaLabel,
+  ariaDescribedBy,
   invalid,
   inline,
   placeholder,
@@ -81,6 +83,9 @@ export function UuiSelectField({
   controlClassName,
   popoverClassName,
 }: UuiSelectFieldProps) {
+  const generatedId = useId();
+  const messageId = `${id ?? generatedId}-message`;
+  const descriptionIds = [ariaDescribedBy, (error || hint) ? messageId : undefined].filter(Boolean).join(' ') || undefined;
   const classes = [
     'ds-uui-select',
     hasOperationalDensity(currentPathname()) ? 'ds-uui-select--operational' : '',
@@ -110,6 +115,7 @@ export function UuiSelectField({
           id={id}
           size="sm"
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
+          aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
           menuTrigger="focus"
           openOnPress
@@ -139,6 +145,7 @@ export function UuiSelectField({
           id={id}
           size="sm"
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
+          aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
           selectedKey={value || EMPTY_SELECT_KEY}
           onSelectionChange={(key) => onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)))}
@@ -155,8 +162,8 @@ export function UuiSelectField({
         </UUISelect>
       )}
       {error
-        ? <span className="ds-uui-select__error">{error}</span>
-        : hint && <span className="ds-uui-select__hint">{hint}</span>}
+        ? <span id={messageId} className="ds-uui-select__error">{error}</span>
+        : hint && <span id={messageId} className="ds-uui-select__hint">{hint}</span>}
     </div>
   );
 }

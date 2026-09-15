@@ -8,7 +8,7 @@
   margin: 0 auto 4px;
   padding: 12px 24px 0;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   max-width: 1600px;
 }
 .debt-detail__crumbs ul { gap: 4px; }
@@ -64,7 +64,7 @@
 .dd-meta { flex: 1; min-width: 0; }
 
 .dd-meta h1 {
-  font-size: 24px;
+  font-size: var(--text-title-size);
   font-weight: 850;
   letter-spacing: 0;
   line-height: 1.25;
@@ -122,7 +122,7 @@
 }
 
 .dd-carrier-badge {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   font-weight: 700;
   color: var(--info-text);
@@ -182,7 +182,7 @@
   margin-top: 8px;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: 20px;
+  font-size: var(--text-title-size);
   line-height: 1.2;
   font-weight: 850;
   overflow-wrap: anywhere;
@@ -421,7 +421,7 @@
 .dd-workspace-head h2 {
   margin: 4px 0 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-section-size);
   font-weight: 850;
   line-height: 1.2;
 }
@@ -525,7 +525,7 @@
 .dd-payment-panel__main h2 {
   margin: 6px 0 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-dialog-title-size);
   font-weight: 850;
 }
 
@@ -593,7 +593,7 @@
   border-bottom: 1px solid var(--line);
 }
 .dd-ledger-head h2 {
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: 800;
   flex-shrink: 0;
   line-height: 1.35;
@@ -643,7 +643,7 @@
 .dd-documents-section__head h2 {
   margin: 4px 0 0;
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: 800;
 }
 
@@ -737,7 +737,7 @@
 }
 
 .dd-route-card-head h3 {
-  font-size: 18px;
+  font-size: var(--text-body-size);
   line-height: 1.4;
   font-weight: 850;
   margin: 0;
@@ -812,7 +812,7 @@
 
 .dd-route-card-total b {
   font-family: var(--font-data);
-  font-size: 24px;
+  font-size: var(--text-metric-size);
   line-height: 1.25;
   color: var(--ink);
 }
@@ -1340,7 +1340,7 @@
   }
 
   .period-summary .d-stat-value {
-    font-size: clamp(1.35rem, 2.2vw, 2rem);
+    font-size: var(--text-metric-size);
     white-space: nowrap;
   }
 }
@@ -1447,7 +1447,7 @@
 
   .dd-ledger-mobile-card__amounts dt {
     color: var(--ink-3);
-    font-size: 10px;
+    font-size: var(--text-label-size);
     font-weight: 750;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -1457,7 +1457,7 @@
     margin: 4px 0 0;
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: clamp(10px, 2.8vw, 13px);
+    font-size: var(--text-data-size);
     font-weight: 750;
     line-height: 1.35;
     overflow-wrap: anywhere;
@@ -1748,7 +1748,7 @@
     min-width: 0;
   }
   .debt-detail-page .dd-meta h1 {
-    font-size: var(--fs-lg);
+    font-size: var(--text-title-size);
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
@@ -1778,7 +1778,7 @@
     padding: 12px;
   }
   .debt-detail-page .dd-account-card strong {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
     line-height: 1.35;
   }
   .debt-detail-page .dd-workspace-head {
@@ -1875,7 +1875,7 @@
     padding: 12px 14px;
   }
   .debt-detail-page .dd-ledger-head h2 {
-    font-size: var(--fs-sm);
+    font-size: var(--text-section-size);
   }
   .debt-detail-page .dd-filters {
     margin-left: 0;
@@ -1897,11 +1897,11 @@
   .dd-header { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; }
   .dd-avatar { display: none; }
   .dd-meta { min-width: 0; }
-  .dd-meta h1 { font-size: var(--fs-lg); line-height: 1.25; overflow-wrap: anywhere; }
+  .dd-meta h1 { font-size: var(--text-title-size); line-height: 1.25; overflow-wrap: anywhere; }
   .dd-actions { grid-column: 1 / -1; }
   .dd-actions .btn { width: 100%; justify-content: center; }
   .dd-ledger-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
-  .dd-ledger-head h2 { font-size: var(--fs-sm); }
+  .dd-ledger-head h2 { font-size: var(--text-section-size); }
   .dd-filters { width: 100%; flex-wrap: wrap; gap: 8px; }
   .dd-filters > * { flex-shrink: 0; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -1962,20 +1962,20 @@
   min-width: 0;
 }
 .dd-credit__label {
-  font-size: 11px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--fg-3, #6b7280);
 }
 .dd-credit__info strong {
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: 700;
   color: var(--fg-1, #111827);
   line-height: 1.2;
 }
 .dd-credit__pct {
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3, #6b7280);
 }
 .dd-credit__badge {
@@ -1985,7 +1985,7 @@
   gap: 5px;
   padding: 5px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -2005,4 +2005,29 @@
 @media (max-width: 640px) {
   .dd-credit-strip { gap: 12px; }
   .dd-credit__badge { margin-left: 0; width: 100%; justify-content: center; }
+}
+
+/* Keep balances visible and make secondary aging detail opt-in. A paired,
+   ruled strip uses the same canvas as the ledger rather than four tall cards. */
+.debt-detail-page .dd-account-strip { gap: 0; border-block: 1px solid var(--line); }
+.debt-detail-page .dd-account-card { border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 10px 12px; }
+.debt-detail-page .dd-account-card + .dd-account-card { border-inline-start: 1px solid var(--line); }
+.debt-detail-page .dd-account-card strong { margin-top: 4px; }
+.dd-aging-disclosure { margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.dd-aging-disclosure > summary { cursor: pointer; padding: 10px 0; color: var(--ink); font-size: var(--text-body-size); font-weight: 600; }
+.dd-aging-disclosure > summary span { margin-inline-start: 8px; color: var(--ink-3); font-size: var(--text-caption-size); font-weight: 400; }
+.dd-aging-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.debt-detail-page .dd-aging-disclosure .dd-summary { border: 0; box-shadow: none; padding: 8px 0; margin: 0; background: transparent; }
+@media (max-width: 1023px) {
+  .debt-detail-page .dd-account-card:nth-child(3) { border-inline-start: 0; }
+  .debt-detail-page .dd-account-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .debt-detail-page .dd-account-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debt-detail-page .dd-account-card { padding: 8px; }
+  .debt-detail-page .dd-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debt-detail-page .dd-actions > :only-child { grid-column: 1 / -1; }
+  .debt-detail-page .dd-workspace { border-inline: 0; border-radius: 0; box-shadow: none; }
+  .debt-detail-page .dd-workspace-head, .debt-detail-page .dd-workspace-body { padding-inline: 0; }
+  .debt-detail-page .dd-sum-update { display: flex; flex-wrap: wrap; gap: 4px; }
 }

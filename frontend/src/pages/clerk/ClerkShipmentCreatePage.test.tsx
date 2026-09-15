@@ -316,7 +316,7 @@ describe('ClerkShipmentCreatePage', () => {
     const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
-    const distanceAction = dialog.querySelector('.csc-route-dialog__distance-action');
+    const distanceAction = dialog.querySelector('.route-create-dialog__distance-action');
     expect(distanceAction).toContainElement(within(dialog).getByLabelText('Khoảng cách (km)'));
     expect(distanceAction).toContainElement(within(dialog).getByRole('button', { name: 'Thêm tuyến đường' }));
 

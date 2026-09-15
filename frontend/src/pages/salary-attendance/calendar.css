@@ -11,6 +11,11 @@
   .salary-page-layout.has-selected {
     grid-template-columns: minmax(auto, 840px) 320px;
   }
+  /* Sidebar is first in DOM for mobile proximity to driver picker;
+     reorder main (calendar) to appear first on the left column. */
+  .salary-page-layout.has-selected .salary-page-layout__main {
+    order: -1;
+  }
 }
 
 @media (max-width: 1023px) {
@@ -117,7 +122,7 @@
   gap: 12px;
   padding: 14px 16px;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .salary-empty-inline img {

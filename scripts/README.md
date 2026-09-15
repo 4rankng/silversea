@@ -67,5 +67,5 @@ All scripts honour the same env vars (with sensible defaults):
 | `FRONTEND` | `http://localhost:7174` | every browser script |
 | `BACKEND`  | `http://localhost:3001/api` | every API script |
 | `ARTIFACTS`| `qa/<date>_<scope>/` | every script that writes files |
-| `DB_CONTAINER` | `silversea-db` | `qa-dev-ready.mjs` |
-| `REDIS_CONTAINER` | `silversea-redis` | `qa-dev-ready.mjs` |
+| `DB_CONTAINER` | `ss-prod-db` | `qa-dev-ready.mjs` |
+| `REDIS_CONTAINER` | `ss-prod-redis` | `qa-dev-ready.mjs` |

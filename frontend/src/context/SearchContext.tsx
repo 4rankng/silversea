@@ -17,7 +17,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook, not a component
+ 
 export function useSearch(): SearchContextValue {
   const ctx = useContext(SearchContext);
   if (!ctx) {

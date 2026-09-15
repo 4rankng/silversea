@@ -38,7 +38,6 @@ const createdCargoTypeIds: number[] = [];
 let actors: Array<{ id: number; role: string }> = [];
 let server: http.Server;
 let baseUrl = '';
-let primaryAction: Record<string, unknown>;
 
 async function post(
   path: string,
@@ -288,7 +287,6 @@ describe('Q15 profit-distribution governance', () => {
     // status APPROVED and the distribution rows exist immediately.
     assert.equal(first.body.status, 'APPROVED');
     assert.equal((await rowsFor(quarter, year)).length, 1);
-    primaryAction = first.body;
     assert.ok(await waitForAuditEvent(
       actors[0]!.id,
       AuditEvent.PROFIT_DISTRIBUTED,

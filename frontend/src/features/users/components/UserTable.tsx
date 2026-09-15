@@ -236,12 +236,14 @@ export function UserTable({
           const totalPages = Math.ceil(filteredTotal / pageSize);
           const startIdx = filteredTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
           const endIdx = Math.min(filteredTotal, currentPage * pageSize);
+          const summary = (
+            <span className="users-table-foot__summary">
+              Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filteredTotal}</strong> tài khoản
+            </span>
+          );
           return (
             <div className="table-foot users-table-foot">
-              <span className="users-table-foot__summary">
-                Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filteredTotal}</strong> tài khoản
-              </span>
-              {totalPages > 1 && <Pagination page={currentPage} totalPages={totalPages} totalItems={filteredTotal} pageSize={pageSize} onChange={onPageChange} />}
+              {totalPages > 1 ? <Pagination page={currentPage} totalPages={totalPages} summary={summary} onChange={onPageChange} /> : summary}
             </div>
           );
         })()}
@@ -253,7 +255,7 @@ export function UserTable({
           marginTop: 20, padding: '12px 16px',
           background: 'var(--surface-2)', borderRadius: 8,
           display: 'flex', alignItems: 'center', gap: 10,
-          color: 'var(--ink-3)', fontSize: 12.5,
+          color: 'var(--ink-3)', fontSize: 'var(--text-data-size)',
         }}>
           <KeyRound size={14} />
           {canEditDriversOnly
@@ -353,7 +355,7 @@ function DesktopTable({
                 >
                   <td data-label="Mã NV" style={{ position: 'relative' }}>
                     <StatusStrip status={u.status} />
-                    <span style={{ fontFamily: 'var(--font-data)', fontSize: 12.5 }}>{u.employeeCode ?? '—'}</span>
+                    <span style={{ fontFamily: 'var(--font-data)', fontSize: 'var(--text-data-size)' }}>{u.employeeCode ?? '—'}</span>
                   </td>
                   <td data-label="Họ tên">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -374,12 +376,12 @@ function DesktopTable({
                   </td>
                   <td data-label="Email">
                     {u.email
-                      ? <span style={{ fontSize: 12.5 }}>{u.email}</span>
+                      ? <span style={{ fontSize: 'var(--text-data-size)' }}>{u.email}</span>
                       : <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
                   <td data-label="Bộ phận">
                     {unitNames
-                      ? <span style={{ fontSize: 12.5 }}>{unitNames}</span>
+                      ? <span style={{ fontSize: 'var(--text-data-size)' }}>{unitNames}</span>
                       : <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
                   <td data-label="Trạng thái" style={{ whiteSpace: 'nowrap' }}>
@@ -484,7 +486,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, bu
                         overflow: 'hidden', minWidth: 120,
                       }} onClick={(e) => e.stopPropagation()}>
                         {canManage && canDelete && (
-                          <button role="menuitem" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)', opacity: isMe ? 0.4 : 1 }}
+                          <button role="menuitem" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)', opacity: isMe ? 0.4 : 1 }}
                             disabled={!!deleting || isMe}
                             onClick={() => { setActiveMenuId(null); if (!isMe) onDelete(u.id); }}>
                             {deleting === u.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá

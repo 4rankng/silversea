@@ -73,6 +73,7 @@ export function DateField({
         id={id}
         type="date"
         disabled={disabled}
+        required={required}
         className="ds-field__input"
         aria-invalid={input['aria-invalid'] ?? Boolean(error)}
         aria-describedby={describedBy}

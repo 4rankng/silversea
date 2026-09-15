@@ -11,8 +11,10 @@ const animatedOverlaySource = readFileSync(
 );
 const responsiveStyles = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const modalStyles = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
+const drawerStyles = readFileSync(resolve(process.cwd(), 'src/components/Drawer.css'), 'utf8');
 const shipmentStyles = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const userStyles = readFileSync(resolve(process.cwd(), 'src/features/users/users.css'), 'utf8');
+const operationalStyles = readFileSync(resolve(process.cwd(), 'src/styles/operational-density.css'), 'utf8');
 
 function DrawerHarness() {
   const [open, setOpen] = useState(false);
@@ -50,10 +52,30 @@ describe('Drawer keyboard focus', () => {
   });
 
   it('preserves safe-area clearance when compact drawer styles override shared padding', () => {
-    expect(responsiveStyles).toContain('padding-top: calc(24px + env(safe-area-inset-top, 0px));');
+    expect(drawerStyles).toMatch(/\.drawer__head\s*\{[^}]*padding:\s*calc\(12px \+ env\(safe-area-inset-top, 0px\)\) 16px 12px;/);
+    expect(drawerStyles).toMatch(/\.drawer__foot\s*\{[^}]*padding:\s*8px 16px calc\(8px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    expect(drawerStyles).toContain('padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;');
+    expect(drawerStyles).toContain('padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));');
     expect(shipmentStyles).toContain('padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;');
-    expect(userStyles).toContain('padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;');
-    expect(userStyles).toContain('padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 0px));');
+    expect(userStyles).toContain('padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));');
+    expect(userStyles).toContain('padding: 10px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));');
+  });
+
+  it('replaces the desktop operational modal cap with safe-area-aware phone gutters', () => {
+    expect(operationalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal\.modal--operational-density\s*\{[^}]*padding:\s*max\(8px, env\(safe-area-inset-top, 0px\)\)/);
+    expect(operationalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal--operational-density \.modal__content\s*\{[^}]*max-width:\s*calc\(100vw - 16px\);[^}]*max-height:\s*calc\(100dvh - max\(8px, env\(safe-area-inset-top, 0px\)\) - max\(8px, env\(safe-area-inset-bottom, 0px\)\)\);/);
+    expect(operationalStyles).toContain('.modal--operational-density .modal__body { padding: 12px; }');
+    expect(operationalStyles).toContain('.modal--operational-density.modal--polished .modal__head { padding-right: 64px; }');
+  });
+
+  it('keeps dialog actions reachable with long content and respects reduced motion', () => {
+    expect(modalStyles).toMatch(/\.modal__content\s*\{[^}]*max-height:\s*calc\(100dvh - 48px\);/);
+    expect(modalStyles).toMatch(/\.modal__foot\s*\{[^}]*flex-wrap:\s*wrap;/);
+    expect(modalStyles).toMatch(/\.modal__head > div:first-child\s*\{[^}]*min-width:\s*0;/);
+    expect(modalStyles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none;/);
+    expect(drawerStyles).toMatch(/\.drawer__body\s*\{[^}]*min-height:\s*0;/);
+    expect(drawerStyles).not.toMatch(/padding:\s*20px 28px 100px;/);
+    expect(drawerStyles).toContain('.drawer__close:focus-visible');
   });
 
   it('keeps shared dialog chrome compact without sacrificing mobile touch targets', () => {
