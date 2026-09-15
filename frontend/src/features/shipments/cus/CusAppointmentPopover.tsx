@@ -10,8 +10,9 @@ import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
 import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { parseDateTime24 } from '../../../lib/format';
-import { useClickOutside } from '../../../hooks/useClickOutside';
 import { getOffsetDateString, parseDateTimeParts } from './cusAppointmentUtils';
+import { DatePanel, TimePanel } from '../../../design-system/forms/DateTimePickerPanels';
+import { useClickOutside } from '../../../hooks/useClickOutside';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
 
 export interface CusAppointmentPopoverProps {
@@ -46,7 +47,10 @@ export function CusAppointmentPopover({
   const committing = useRef(false);
   const session = useRef(0);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const pickerInputRef = useRef<HTMLInputElement>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pickerTriggerRef = useRef<HTMLButtonElement>(null);
+  useClickOutside(panelRef, () => setPanelOpen(false), { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef] });
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   useFocusTrap(popoverRef, isOpen);
@@ -311,37 +315,23 @@ export function CusAppointmentPopover({
               />
               <button
                 type="button"
+                ref={pickerTriggerRef}
                 className="cus-appointment-picker-btn"
                 aria-label="Chọn ngày giờ từ lịch"
+                aria-haspopup="dialog"
+                aria-expanded={panelOpen}
                 disabled={saving}
                 title="Mở lịch chọn ngày giờ"
-                onClick={() => {
-                  const picker = pickerInputRef.current;
-                  if (!picker) return;
-                  if (typeof picker.showPicker === 'function') {
-                    try {
-                      picker.showPicker();
-                      return;
-                    } catch { /* invalid draft state — fall through to typing */ }
-                  }
-                  popoverRef.current?.querySelector<HTMLInputElement>('.cus-appointment-input')?.focus();
-                }}
+                onClick={() => setPanelOpen((v) => !v)}
               >
                 <Calendar size={14} aria-hidden="true" />
               </button>
-              <input
-                ref={pickerInputRef}
-                type="datetime-local"
-                className="cus-appointment-picker-input"
-                disabled={saving}
-                aria-label="Lịch chọn ngày giờ hẹn"
-                tabIndex={-1}
-                value={date && time ? `${date}T${time}` : ''}
-                onChange={(event) => {
-                  const [pickerDate = '', pickerTime = ''] = event.target.value.split('T');
-                  if (pickerDate) updateDateTime(pickerDate, pickerTime);
-                }}
-              />
+              {panelOpen && (
+                <div ref={panelRef} className="dtp-popover cus-appointment-dtp" role="dialog" aria-label="Chọn ngày giờ">
+                  <DatePanel value={date} onChange={(d) => updateDateTime(d, time || '08:00')} />
+                  <TimePanel value={time} onPick={(t) => { updateDateTime(date || getOffsetDateString(0), t); setPanelOpen(false); }} />
+                </div>
+              )}
             </div>
           </div>
         </div>

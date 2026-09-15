@@ -57,35 +57,16 @@ describe('CusAppointmentPopover', () => {
     expect(container.querySelector('input[type="date"]')).toBeNull();
   });
 
-  it('offers a calendar affordance that opens the browser picker without showing native inputs', () => {
-    // jsdom has no showPicker — install a mock directly on the prototype.
-    const showPicker = vi.fn();
-    (HTMLInputElement.prototype as unknown as { showPicker?: () => void }).showPicker = showPicker;
+  it('_39: the calendar button opens the designed picker dialog — no native input', () => {
     const { container } = render(
-      <CusAppointmentPopover
-        isOpen={true}
-        value="2026-09-08T08:00"
-        containerLabel="MSKU1234567"
-        onClose={vi.fn()}
-        onChange={vi.fn()}
-      />,
+      <CusAppointmentPopover isOpen={true} value="2026-09-08T08:00" containerLabel="MSKU1234567" onClose={vi.fn()} onChange={vi.fn()} />,
     );
-    try {
-      const pickerInput = container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
-      expect(pickerInput).toBeDefined();
-      // The picker vehicle stays clipped — never a visible AM/PM field.
-      expect(pickerInput.className).toBe('cus-appointment-picker-input');
-
-      const calendarBtn = screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' });
-      expect(calendarBtn).toBeDefined();
-      fireEvent.click(calendarBtn);
-      expect(showPicker).toHaveBeenCalledTimes(1);
-    } finally {
-      delete (HTMLInputElement.prototype as unknown as { showPicker?: () => void }).showPicker;
-    }
+    expect(container.querySelector('input[type="datetime-local"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
+    expect(screen.getByRole('dialog', { name: 'Chọn ngày giờ' })).toBeTruthy();
   });
 
-  it('applies a date chosen in the picker to the draft and the 24h text display', () => {
+  it('_39: picking a day in the designed panel applies the draft and rehydrates the 24h display', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -97,13 +78,15 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const pickerInput = container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
-    fireEvent.change(pickerInput, { target: { value: '2026-09-15T20:46' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T20:46');
+    // Open the designed panels and pick day 15 of the value's month.
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
+    fireEvent.click(screen.getByRole('button', { name: '15 Tháng 9 2026' }));
+    // Existing 08:00 carries over — the composed draft is the buffered contract.
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
 
     // The typed display rehydrates to the same 24h contract.
     const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput.value).toBe('20:46 15/09/2026');
+    expect(datetimeInput.value).toBe('08:00 15/09/2026');
   });
 
   it('falls back to focusing the text input when the browser has no showPicker', () => {

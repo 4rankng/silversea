@@ -1,8 +1,10 @@
-import { type ReactNode, useId } from 'react';
+import { type ReactNode, useId, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
-import { NativePickerButton } from './NativePickerButton';
+import { DatePanel, TimePanel } from './DateTimePickerPanels';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface BufferedUuiDateTimeInputProps
   extends Omit<InputBaseProps, 'value' | 'onChange' | 'type' | 'onBlur' | 'defaultValue' | 'ref' | 'isRequired' | 'isInvalid' | 'placeholder' | 'inputClassName' | 'wrapperClassName' | 'hint'> {
@@ -66,6 +68,32 @@ export function BufferedUuiDateTimeInput({
   const id = rest.id ?? generatedId;
   const buffered = useBufferedDateTimeValue({ value, onChange });
 
+  // Designed picker popover (card _39): separate date + time panels, strictly
+  // 24h. Selection composes the buffered 'YYYY-MM-DDTHH:mm' contract exactly
+  // like a complete typed entry; the raw browser picker is gone.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside(popoverRef, () => { setPickerOpen(false); triggerRef.current?.focus(); }, {
+    escapeKey: true,
+    enabled: pickerOpen,
+    additionalRefs: [triggerRef],
+  });
+
+  const currentDate = value ? value.split('T')[0] ?? '' : '';
+  const currentTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : '';
+
+  const applyComposed = (date: string, time: string) => {
+    const composed = date && time ? `${date}T${time}` : '';
+    buffered.onChange({ target: { value: composed } } as unknown as Parameters<typeof buffered.onChange>[0]);
+  };
+  const handleDatePick = (date: string) => applyComposed(date, currentTime || '08:00');
+  const handleTimePick = (time: string) => {
+    applyComposed(currentDate || new Date().toISOString().slice(0, 10), time);
+    setPickerOpen(false);
+    triggerRef.current?.focus();
+  };
+
   // InputBase forwards its onChange/onBlur straight to the native input, so
   // the hook's event-shaped handlers wire up directly without wrapping.
   return (
@@ -102,14 +130,26 @@ export function BufferedUuiDateTimeInput({
             {...(inputProps as Partial<InputBaseProps>)}
           />
         </div>
-        <NativePickerButton
-          kind="datetime-local"
-          label={label ? `Chọn ngày giờ: ${label}` : 'Chọn ngày giờ'}
-          isDisabled={isDisabled}
-          onPick={(native) =>
-            buffered.onChange({ target: { value: native } } as unknown as Parameters<typeof buffered.onChange>[0])
-          }
-        />
+        <div className="relative shrink-0">
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-label={label ? `Chọn ngày giờ: ${label}` : 'Chọn ngày giờ'}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            disabled={isDisabled}
+            onClick={() => setPickerOpen((v) => !v)}
+            className="mt-px grid h-[34px] w-[34px] place-items-center rounded-md border border-[color:var(--line,#d1d5db)] bg-[color:var(--surface,#fff)] text-tertiary transition-colors hover:text-[color:var(--ink,#1f2937)] disabled:opacity-40"
+          >
+            <Calendar size={16} aria-hidden="true" />
+          </button>
+          {pickerOpen && (
+            <div ref={popoverRef} className="dtp-popover" role="dialog" aria-label="Chọn ngày giờ">
+              <DatePanel value={currentDate} onChange={handleDatePick} />
+              <TimePanel value={currentTime} onPick={handleTimePick} />
+            </div>
+          )}
+        </div>
       </div>
       {hint && (
         <p className="text-xs leading-[1.5] text-tertiary group-invalid/input:text-error-primary">
