@@ -314,10 +314,10 @@ after(async () => {
     if (createdShipmentIds.length > 0) {
       await db.delete(s.notifications).where(and(
         eq(s.notifications.type, 'TRIP_DISPATCHED'),
-        eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+        eq(s.notifications.relatedEntityType, 'trips'),
         inArray(
           s.notifications.relatedEntityId,
-          db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds)),
+          db.select({ id: s.trips.id }).from(s.trips).where(inArray(s.trips.shipmentId, createdShipmentIds)),
         ),
       ));
       await db.delete(s.notifications).where(and(
@@ -497,8 +497,8 @@ describe('dispatch fulfillment workflow routes', () => {
       userId: s.notifications.userId,
     }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      eq(s.notifications.relatedEntityId, trip.id),
     ));
     assert.deepEqual(
       [...new Set(notifications.map((row) => row.userId))].sort((a, b) => a - b),
@@ -588,8 +588,8 @@ describe('dispatch fulfillment workflow routes', () => {
       userId: s.notifications.userId,
     }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      eq(s.notifications.relatedEntityId, dispatch.data.trip.id),
     ));
     assert.equal(notifications.length, 0);
   });
@@ -1524,8 +1524,8 @@ describe('dispatch fulfillment workflow routes', () => {
       relatedEntityId: s.notifications.relatedEntityId,
     }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      eq(s.notifications.relatedEntityId, firstDispatch.data.trip.id),
       inArray(s.notifications.userId, [resourcesA.driverUser.id, resourcesB.driverUser.id]),
     ));
     assert.equal(notifications.length, 2);

@@ -41,10 +41,10 @@ describe('trip command service', () => {
       title: 'Chuyến mới được tạo',
       message: 'Chuyến TRP-202606-0042 đã được tạo',
       // Driver-only notification (targetDriverId, no targetRoles/targetUserId)
-      // — DriverTripDetailPage reads /my-trips/:id as a fulfillment id, so the
-      // deep link must key on the fulfillment, not the trip.
-      relatedEntityType: 'shipment_fulfillments',
-      relatedEntityId: 4200,
+      // — /my-trips/:id is trip-scoped (card 20260915_1), so the deep link
+      // keys on the trip id.
+      relatedEntityType: 'trips',
+      relatedEntityId: 42,
       targetDriverId: 7,
     });
   });
@@ -75,8 +75,8 @@ describe('trip command service', () => {
       type: NotificationType.TRIP_CREATED,
       title: 'Chuyến mới được tạo',
       message: 'Chuyến TRP-202606-0043 đã được tạo',
-      relatedEntityType: 'shipment_fulfillments',
-      relatedEntityId: 4300,
+      relatedEntityType: 'trips',
+      relatedEntityId: 43,
       targetDriverId: 7,
     });
   });
@@ -116,8 +116,8 @@ describe('trip command service', () => {
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
       message: 'Chuyến TRP-202606-0055 đã được điều phối',
-      relatedEntityType: 'shipment_fulfillments',
-      relatedEntityId: 5500,
+      relatedEntityType: 'trips',
+      relatedEntityId: 55,
       targetDriverId: 8,
     });
   });

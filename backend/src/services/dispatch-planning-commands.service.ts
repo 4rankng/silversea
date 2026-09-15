@@ -656,8 +656,10 @@ export async function issueOrderCreateOrUpdate(
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, fulfillment.id),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      // Same trip row is updated in place on re-dispatch, so keying the
+      // duplicate check on the trip id matches the payload re-key above.
+      eq(s.notifications.relatedEntityId, trip.id),
       driverUserId != null ? eq(s.notifications.userId, driverUserId) : undefined,
     ));
     if (

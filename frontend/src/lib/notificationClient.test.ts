@@ -16,6 +16,23 @@ describe('resolveNotificationRoute', () => {
     }, 'DRIVER')).toBe('/my-trips/88');
   });
 
+  it('routes trip-keyed driver notifications through the trip-scoped detail route', () => {
+    // Contract since card 20260915_1: /my-trips/:id reads a TRIP id. The
+    // TRIP_DISPATCHED payload re-keyed to 'trips' + tripId (card 20260915_19)
+    // rides this branch — both resolvers must agree with the backend mirror.
+    expect(resolveNotificationRoute({
+      id: 3,
+      userId: 7,
+      type: 'TRIP_DISPATCHED',
+      title: 'Lệnh điều xe mới',
+      message: 'Chuyến TRP-x đã được điều xe',
+      relatedEntityType: 'trips',
+      relatedEntityId: 42,
+      isRead: false,
+      createdAt: '2026-08-01T03:00:00.000Z',
+    }, 'DRIVER')).toBe('/my-trips/42');
+  });
+
   it.each(['FORWARDER', 'OPS'])('routes %s settlement notifications to the Ops portal', (role) => {
     expect(resolveNotificationRoute({
       id: 2,

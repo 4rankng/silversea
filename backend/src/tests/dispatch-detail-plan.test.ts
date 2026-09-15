@@ -315,8 +315,11 @@ async function countDispatchNotifications(fulfillmentId: number) {
   const notes = await db.select({ id: s.notifications.id, title: s.notifications.title }).from(s.notifications)
     .where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, fulfillmentId),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      inArray(
+        s.notifications.relatedEntityId,
+        db.select({ id: s.trips.id }).from(s.trips).where(eq(s.trips.fulfillmentId, fulfillmentId)),
+      ),
     ));
   return notes;
 }
@@ -381,10 +384,10 @@ after(async () => {
     if (createdShipmentIds.length > 0) {
       await db.delete(s.notifications).where(and(
         eq(s.notifications.type, 'TRIP_DISPATCHED'),
-        eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+        eq(s.notifications.relatedEntityType, 'trips'),
         inArray(
           s.notifications.relatedEntityId,
-          db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds)),
+          db.select({ id: s.trips.id }).from(s.trips).where(inArray(s.trips.shipmentId, createdShipmentIds)),
         ),
       ));
       // Trips reference fulfillments (RESTRICT FK, migration 0073): take the
@@ -974,8 +977,11 @@ describe('dispatch detail plan plate assignment', () => {
     // Plate assignment never notifies — the driver notification belongs to
     // dispatch-order issuance, which is the only place a trips row exists.
     const notes = await db.select({ id: s.notifications.id }).from(s.notifications).where(and(
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, f1.id),
+      eq(s.notifications.relatedEntityType, 'trips'),
+      inArray(
+        s.notifications.relatedEntityId,
+        db.select({ id: s.trips.id }).from(s.trips).where(eq(s.trips.fulfillmentId, f1.id)),
+      ),
     ));
     assert.equal(notes.length, 0, 'plate assignment must not persist any notification');
 
@@ -1462,8 +1468,11 @@ describe('atomic dispatch detail plan save', () => {
     // Planning saves never notify the driver.
     const notes = await db.select({ id: s.notifications.id }).from(s.notifications)
       .where(and(
-        eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-        eq(s.notifications.relatedEntityId, fulfillment.id),
+        eq(s.notifications.relatedEntityType, 'trips'),
+        inArray(
+          s.notifications.relatedEntityId,
+          db.select({ id: s.trips.id }).from(s.trips).where(eq(s.trips.fulfillmentId, fulfillment.id)),
+        ),
       ));
     assert.equal(notes.length, 0);
   });
