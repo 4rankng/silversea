@@ -376,7 +376,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
     const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
-  }, [draft.vehicleValue, row.dispatch.assignedPlate, suggestions, vehicleOptions]);
+  }, [draft.vehicleValue, row.dispatch.assignedPlate, row.container.containerTypeLabel, suggestions, vehicleOptions]);
 
   async function openEditor() {
     if (disabled) return;

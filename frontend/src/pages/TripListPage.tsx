@@ -144,8 +144,8 @@ export default function TripListPage() {
     };
   }, [summary]);
   const breakdownPct = useMemo(() => breakdownPctFromCounts(statusCounts), [statusCounts]);
-  const truckOptions = summary?.truckOptions ?? [];
-  const customerOptions = summary?.customerOptions ?? [];
+  const truckOptions = useMemo(() => summary?.truckOptions ?? [], [summary?.truckOptions]);
+  const customerOptions = useMemo(() => summary?.customerOptions ?? [], [summary?.customerOptions]);
 
   useEffect(() => {
     if (!quickEdit) return;

@@ -3,13 +3,18 @@ import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-let lastRenderForm: ((p: any) => ReactNode) | null = null;
-let lastCrudProps: any = null;
+// Shape of the CrudTable props the mock captures — an open record so the
+// tests can read page-specific props (sortFn etc.) without importing the
+// real component's prop type.
+type CapturedCrudProps = { renderForm: (p: Record<string, unknown>) => ReactNode } & Record<string, unknown>;
+
+let lastRenderForm: ((p: Record<string, unknown>) => ReactNode) | null = null;
+let lastCrudProps: CapturedCrudProps | null = null;
 
 vi.mock('../../components/config/CrudTable', async () => {
   const React = await import('react');
   return {
-    CrudTable: (props: any) => {
+    CrudTable: (props: CapturedCrudProps) => {
       lastRenderForm = props.renderForm;
       lastCrudProps = props;
       return React.createElement('div', { 'data-testid': 'crud-table' });
@@ -56,7 +61,7 @@ function renderForm(props: Record<string, unknown> = {}) {
   if (!lastRenderForm) throw new Error('renderForm not captured');
   return render(
     <div data-testid="form-host">
-      {lastRenderForm({ saving: false, onSave: vi.fn(), onCancel: vi.fn(), ...props } as any) as ReactNode}
+      {lastRenderForm({ saving: false, onSave: vi.fn(), onCancel: vi.fn(), ...props }) as ReactNode}
     </div>,
   );
 }
@@ -68,7 +73,8 @@ describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
   it('renders the CrudTable surface with desc sort by effectiveDate', () => {
     renderPage();
     expect(screen.getByTestId('crud-table')).toBeTruthy();
-    const sortFn = lastCrudProps.sortFn as (a: any, b: any) => number;
+    if (!lastCrudProps) throw new Error('CrudTable props not captured');
+    const sortFn = lastCrudProps.sortFn as (a: Record<string, unknown>, b: Record<string, unknown>) => number;
     const newer = { effectiveDate: '2026-09-02' };
     const older = { effectiveDate: '2026-09-01' };
     expect(sortFn(newer, older)).toBeLessThan(0);

@@ -74,7 +74,7 @@ function usePortalTarget() {
  * focus is inside a <textarea> or contenteditable element so multi-line
  * editing still works naturally.
  * -------------------------------------------------------------------------- */
-// eslint-disable-next-line react-refresh/only-export-components -- shared hook, not a component
+ 
 export function useConfirmShortcuts(opts: {
   isOpen: boolean;
   onConfirm?: () => void;

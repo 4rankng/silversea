@@ -42,7 +42,7 @@ export default function TripDetailPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('reassign');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [page.openReassign, page.permissions.canReassign, page.trip, searchParams, setSearchParams]);
+  }, [page, searchParams, setSearchParams]);
 
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {

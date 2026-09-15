@@ -61,7 +61,7 @@ function downsizeImageToDataUrl(imageSrc: string): Promise<string> {
 }
 
 /** Convert a `data:` URL into a `File` for multipart FormData uploads. */
-// eslint-disable-next-line react-refresh/only-export-components -- utility helper co-located with the scanner component
+ 
 export function dataUrlToFile(dataUrl: string, filename = 'capture.jpg'): File {
   const [meta, b64] = dataUrl.split(',');
   const mime = /data:(.*?);base64/.exec(meta)?.[1] ?? 'image/jpeg';

@@ -113,7 +113,6 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       setIssueDraft({ externalDriverName: '', externalDriverPhone: '' });
       setIssueError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on row identity/version change; full `row` identity flips on every board refetch and would clobber in-progress dispatcher input
   }, [open, row.fulfillmentId, row.version]);
 
   async function issue() {

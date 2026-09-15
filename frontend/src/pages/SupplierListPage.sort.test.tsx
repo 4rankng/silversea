@@ -110,7 +110,6 @@ describe('SupplierListPage server-side sort headers', () => {
     ];
     for (const [label, key] of sortKeys) {
       fireEvent.click(screen.getByRole('button', { name: label }));
-      // eslint-disable-next-line no-await-in-loop -- sequential clicks each await their own request
       await waitFor(() => expect(lastGetUrl()).toContain(`sortBy=${key}`));
     }
     // The last-clicked column announces direction via its header cell.

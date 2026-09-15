@@ -204,7 +204,7 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
  * Register a global Cmd/Ctrl+K hotkey that calls `onOpen`.
  * Returns nothing — call at the top level of the app shell.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- hook, not a component
+ 
 export function useCommandHotkey(onOpen: () => void): void {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

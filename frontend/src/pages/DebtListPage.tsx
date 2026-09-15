@@ -215,11 +215,11 @@ export default function DebtListPage() {
 
   // Full-set totals arrive server-computed (page-independent), so the KPI strip
   // stays stable while paging or narrowing to one aging bucket.
-  const totals = data?.totals ?? {
+  const totals = useMemo(() => data?.totals ?? {
     total: 0, current: 0, d30: 0, d60: 0, over90: 0,
     currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
     overdueCount: 0, highRiskCount: 0,
-  };
+  }, [data?.totals]);
 
   // Bucket + page + search filtering happen server-side; the rows below render
   // the current window only.

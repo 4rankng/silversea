@@ -219,7 +219,7 @@ export default function DriverTripsPage() {
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
   // Tag labels ride on the board response — the driver portal fetches nothing
   // from the dispatcher-only tag pool (ticket 53a536f9).
-  const cards = data?.items ?? [];
+  const cards = useMemo(() => data?.items ?? [], [data?.items]);
   const tagLabels = data?.knownTagLabels ?? [];
 
   const countsByBucket = useMemo(() => {

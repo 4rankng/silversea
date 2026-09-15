@@ -663,7 +663,7 @@ export function FuelInvoicesPanel() {
     () => new Map(suppliers.map((supplier) => [supplier.id, supplier.name])),
     [suppliers],
   );
-  const tripOptions = tripsQuery.data ?? [];
+  const tripOptions = useMemo(() => tripsQuery.data ?? [], [tripsQuery.data]);
   const tripOptionsById = useMemo(
     () => new Map(tripOptions.map((trip) => [trip.id, trip])),
     [tripOptions],

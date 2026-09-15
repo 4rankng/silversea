@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react';
 import {
@@ -62,7 +62,7 @@ export default function ShipmentsPage() {
     ? rawSortBy as ShipmentCusWorkspaceSortKey
     : null;
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
-  const sort: TableSortState | null = sortKey ? { by: sortKey, dir: sortDir } : null;
+  const sort: TableSortState | null = useMemo(() => sortKey ? { by: sortKey, dir: sortDir } : null, [sortKey, sortDir]);
 
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);

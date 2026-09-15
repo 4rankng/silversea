@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook co-located with its Provider; splitting would fragment a standard React context pattern
+ 
 export function useAuth() {
   return useContext(AuthContext);
 }

@@ -487,12 +487,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Drivers must receive dispatch orders even when the app is backgrounded.
   // The subscribe() hook is idempotent — it no-ops if already subscribed or
   // if the browser denies permission.
-  const push = usePushNotifications();
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, permissionStatus: pushPermission, subscribe: subscribePush } = usePushNotifications();
   useEffect(() => {
-    if (user?.role === 'DRIVER' && push.isSupported && !push.isSubscribed && push.permissionStatus !== 'denied') {
-      void push.subscribe();
+    if (user?.role === 'DRIVER' && pushSupported && !pushSubscribed && pushPermission !== 'denied') {
+      void subscribePush();
     }
-  }, [user?.role, push.isSupported, push.isSubscribed, push.permissionStatus, push.subscribe]);
+  }, [user?.role, pushSupported, pushSubscribed, pushPermission, subscribePush]);
 
   const openProfileModal = () => {
     if (!user) return;

@@ -133,7 +133,7 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- utility helper co-located with the filter component
+ 
 export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   const total = statusCounts.all || 0;
   if (total === 0) return { chot: 0, htth: 0, dang: 0, moi: 0, huy: 0 };
@@ -149,7 +149,7 @@ export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   };
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- utility helper co-located with the filter component
+ 
 export function defaultStatusCounts(): StatusCounts {
   return {
     all: 0,

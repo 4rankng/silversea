@@ -283,7 +283,7 @@ export default function PayableListPage() {
   // set; headline numbers (totalOutstanding/totalSuppliers/overdueSuppliers)
   // are always full-set.
   const serverTotals = data?.totals;
-  const totals = {
+  const totals = useMemo(() => ({
     total: apiTotal ? parseFloat(apiTotal) : 0,
     current: serverTotals?.current ?? 0,
     d30: serverTotals?.d30 ?? 0,
@@ -295,7 +295,7 @@ export default function PayableListPage() {
     over90Count: serverTotals?.over90Count ?? 0,
     supplierCount: apiSupplierCount,
     overdueCount: apiOverdueCount,
-  };
+  }), [apiTotal, serverTotals, apiSupplierCount, apiOverdueCount]);
 
   // Search + pagination happen server-side; rows render the current window.
   const effectivePage = Math.min(page, data?.totalPages ?? 1);

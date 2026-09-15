@@ -169,17 +169,6 @@ export function ShipmentCreateWorkspace() {
     };
   }, [loading]);
 
-  useEffect(() => {
-    if (!form.customerId) { setSites([]); return; }
-    let cancelled = false;
-    setSitesLoading(true);
-    listOperationalSites(Number(form.customerId))
-      .then((value) => { if (!cancelled) setSites(value); })
-      .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
-      .finally(() => { if (!cancelled) setSitesLoading(false); });
-    return () => { cancelled = true };
-  }, [form.customerId, sitesVersion]);
-
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
   const selectedOperationalSite = useMemo(
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
@@ -252,6 +241,17 @@ export function ShipmentCreateWorkspace() {
     customerNotes,
     onDuplicateConflict: reportServerConflict,
   });
+
+  useEffect(() => {
+    if (!form.customerId) { setSites([]); return; }
+    let cancelled = false;
+    setSitesLoading(true);
+    listOperationalSites(Number(form.customerId))
+      .then((value) => { if (!cancelled) setSites(value); })
+      .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
+      .finally(() => { if (!cancelled) setSitesLoading(false); });
+    return () => { cancelled = true };
+  }, [form.customerId, sitesVersion, reportError]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => key === 'tradeDirection'

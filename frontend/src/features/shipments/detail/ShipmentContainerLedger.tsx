@@ -78,7 +78,7 @@ export interface ShipmentNotesDraft {
 }
 
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
-// eslint-disable-next-line react-refresh/only-export-components -- shared badge vocabulary consumed by the page's Trạng thái filter
+ 
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
   PLANNED: { label: 'Đã phân xe', color: 'blue' },
@@ -100,7 +100,7 @@ const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
 
 // Shared with the missing-fields summary control, whose jump-to-editor
 // buttons reuse the same cell vocabulary.
-// eslint-disable-next-line react-refresh/only-export-components -- shared cell vocabulary consumed by the missing-fields summary
+ 
 export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   if (mode === 'identity') return 'khách hàng và lộ trình';
   if (mode === 'documents') return 'chứng từ và hãng tàu';

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchPenaltiesPage,
   usePenaltyInsights,
@@ -125,9 +125,9 @@ export default function PenaltyPage() {
 
   // Column sort rides the same filters bag as every other list param —
   // setFilter resets the page to 1 and keys the query cache on primitives.
-  const sort: TableSortState | null = filters.sortBy
+  const sort: TableSortState | null = useMemo(() => filters.sortBy
     ? { by: filters.sortBy, dir: filters.sortDir === 'desc' ? 'desc' : 'asc' }
-    : null;
+    : null, [filters.sortBy, filters.sortDir]);
   const handleSortChange = useCallback((key: string) => {
     const next = nextTableSort(sort, key);
     table.setFilters({

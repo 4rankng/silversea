@@ -52,7 +52,7 @@ export function MonthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- context hook co-located with its Provider; splitting would fragment a standard React context pattern
+ 
 export function useMonth(): MonthContextValue {
   const ctx = useContext(MonthContext);
   if (!ctx) throw new Error('useMonth must be used within a MonthProvider');

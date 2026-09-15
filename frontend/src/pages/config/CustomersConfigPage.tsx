@@ -64,7 +64,7 @@ export default function CustomersConfigPage() {
   });
 
   const customers = useMemo(() => data?.customers ?? [], [data?.customers]);
-  const customerTripStats = data?.customerTripStats ?? new Map<number, { trips: number; revenue: number }>();
+  const customerTripStats = useMemo(() => data?.customerTripStats ?? new Map<number, { trips: number; revenue: number }>(), [data?.customerTripStats]);
 
   const crud = useCRUD('/customers', async () => { await refetch(); });
   const { confirm, dialog: confirmDialog } = useConfirm();

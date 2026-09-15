@@ -138,7 +138,7 @@ export function FleetVehiclesView() {
         (driverByTruck.get(t.id) ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [trucks, needle, carrierFilter, carriers, driverByTruck, trailerById]);
+  }, [trucks, needle, carrierFilter, driverByTruck, trailerById]);
 
   // Full catalog is already client-side (unpaginated lookup table), so sorting
   // happens locally with the shared contract: empty cells last, id tiebreaker.
