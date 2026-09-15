@@ -14,6 +14,12 @@ export default defineConfig({
     },
   },
   build: {
+    // The one deliberate >500 kB chunk is exceljs (~940 kB min): a single
+    // self-contained module that cannot be split further and is loaded
+    // lazily on first Excel export (lib/csv.ts). The eager main chunk stays
+    // ~680 kB after vendor splitting. Raise the threshold past the largest
+    // lazy chunk instead of contorting the graph for a heuristic default.
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         // Split stable vendor libraries from app code so dep-bump releases

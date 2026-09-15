@@ -224,7 +224,13 @@ export default defineConfig([
 
       // ---- React rules ----
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Off: this codebase co-locates helpers/types/constants with the
+      // components that own them (50+ files, both directions — e.g. nav
+      // helpers in Layout.tsx, presenter components in dashboard-presenters).
+      // Splitting every file to satisfy this rule buys only finer-grained HMR
+      // in dev; it has no production effect. Revisit only if fast-refresh
+      // granularity becomes a real bottleneck.
+      'react-refresh/only-export-components': 'off',
 
       // ---- General rules ----
       'no-console': ['warn', { allow: ['error', 'warn'] }],
