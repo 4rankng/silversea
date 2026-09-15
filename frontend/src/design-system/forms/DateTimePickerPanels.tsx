@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TimePickerSurface } from './TimePickerSurface';
+import { closeAfterPress } from './closeAfterPress';
 export { TimePanel } from './TimePanel';
 import { Calendar, CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
 import { formatDateTime24 } from '../../lib/format';
@@ -207,7 +208,12 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
       {panel === 'date' && <DatePanel value={date} onChange={(iso) => { setDate(iso); setError(''); setPanel(null); }} />}
       {panel === 'time' && <TimePickerSurface label="Chọn giờ (24h)" value={time} panelRef={timePanel} anchorRef={timeTrigger} inline
         onDismiss={() => { setPanel(null); timeTrigger.current?.focus(); }} onExit={() => setPanel(null)}
-        onPick={(t) => { setTime(t); setError(''); setPanel(null); timeTrigger.current?.focus(); }} />}
+        onPick={(t) => {
+          setTime(t); setError('');
+          // Card _8: the commit path fires at pointerdown; defer the unmount
+          // so the in-flight gesture lands on the picker, not on <body>.
+          closeAfterPress(() => { setPanel(null); timeTrigger.current?.focus(); });
+        }} />}
 
       <div className="dtp-dialog__strip">
         <span className="dtp-dialog__strip-label">Nhanh</span>

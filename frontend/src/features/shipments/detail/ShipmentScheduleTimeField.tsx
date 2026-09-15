@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from '../../../design-system/forms/TimePickerSurface';
+import { closeAfterPress } from '../../../design-system/forms/closeAfterPress';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import './ShipmentScheduleTimeField.css';
 
@@ -44,6 +45,6 @@ export function ShipmentScheduleTimeField({ label, value, onChange, disabled, au
     {invalid && <small id={`${id}-error`} className="shipment-schedule-time-error">Nhập giờ từ 00:00 đến 23:59 (HH:mm).</small>}
     {open && !disabled && <TimePickerSurface id={`${id}-panel`} label={`Chọn giờ (24h) — ${label}`} value={value}
       panelRef={panel} anchorRef={input} keyboard={keyboardPicker} onDismiss={close} onExit={() => setOpen(false)}
-      onPick={(next) => { onChange(next); close(); }} />}
+      onPick={(next) => { onChange(next); closeAfterPress(close); }} />}
   </>;
 }

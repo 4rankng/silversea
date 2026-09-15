@@ -52,7 +52,7 @@ describe('SplitDateTimeField', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('opens independent date and 24h time pickers and restores focus after selection', () => {
+  it('opens independent date and 24h time pickers and restores focus after selection', async () => {
     const onChange = vi.fn();
     render(<Harness value="2026-09-19T08:00" onChange={onChange} />);
     const dateTrigger = screen.getByLabelText('Ngày — Hẹn');
@@ -68,7 +68,7 @@ describe('SplitDateTimeField', () => {
     fireEvent.click(within(within(dialog).getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '45' }));
     expect(onChange).toHaveBeenLastCalledWith('2026-09-20T23:45');
     expect(screen.getByLabelText('Giờ — Hẹn')).toHaveValue('23:45');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('clicking fields opens their picker without stealing typing focus or showing premature errors', () => {
@@ -101,8 +101,8 @@ describe('SplitDateTimeField', () => {
     clickWithFocus(time);
     clickWithFocus(within(screen.getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '13' }));
     clickWithFocus(within(screen.getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '30' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(time).toHaveFocus();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(time).toHaveAttribute('aria-invalid', 'false');
     expect((time as HTMLInputElement).validity.valid).toBe(false);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -112,7 +112,7 @@ describe('SplitDateTimeField', () => {
     expect(time).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it.each([false, true])('settles late selector focus cleanup without stealing a genuine outside focus: %s', (leaveGroup) => {
+  it.each([false, true])('settles late selector focus cleanup without stealing a genuine outside focus: %s', async (leaveGroup) => {
     let nextFrame: FrameRequestCallback | undefined;
     const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { nextFrame = callback; return 1; });
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
@@ -123,7 +123,7 @@ describe('SplitDateTimeField', () => {
       clickWithFocus(within(screen.getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '05' }));
       clickWithFocus(within(screen.getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '01' }));
       expect(time).toHaveValue('01:05');
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       // Chrome can perform the selector's remaining focus cleanup after its
       // onSelectionChange unmounts the option and restores the input.
       const outside = screen.getByLabelText('Outside field');

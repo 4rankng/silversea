@@ -24,6 +24,16 @@ function ScheduleHarness() {
 describe('adaptive time entry', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
+  it('_8: any open picker surface holds the top overlay token — desktop mode included', () => {
+    const parentToken = registerOverlayToken();
+    render(<TimePickerSurface id='tp' label='Giờ' value='20:46' onPick={vi.fn()} onDismiss={vi.fn()} onExit={vi.fn()} panelRef={{ current: null }} anchorRef={{ current: null }} />);
+    // The surface registers its token in every mode (sheet, popover, inline),
+    // so a parent dialog's window-level Escape/Enter shortcuts yield whenever
+    // any picker panel is open — not only on the mobile sheet.
+    expect(isTopOverlayToken(parentToken)).toBe(false);
+    unregisterOverlayToken(parentToken);
+  });
+
   it('accepts numeric phone entry, retains exact off-step minutes and rejects invalid time on explicit apply', () => {
     const onPick = vi.fn();
     render(<TimePanel value="20:46" onPick={onPick} />);

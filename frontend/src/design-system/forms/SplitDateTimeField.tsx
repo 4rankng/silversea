@@ -8,6 +8,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { DatePanel } from './DateTimePickerPanels';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from './TimePickerSurface';
+import { closeAfterPress } from './closeAfterPress';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './SplitDateTimeField.css';
 
@@ -157,6 +158,6 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
     </div>, document.body)}
     {active && open === 'time' && <TimePickerSurface id={`${id}-picker`} label={`Chọn giờ (24h) — ${label}`} value={draft.time}
       panelRef={panelRef} anchorRef={timeRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
-      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }} onPick={(next) => { update('time', next); close(); }} />}
+      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }} onPick={(next) => { update('time', next); closeAfterPress(close); }} />}
   </div>;
 }

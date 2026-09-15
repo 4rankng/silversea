@@ -26,17 +26,18 @@ export function TimePickerSurface({ id, label, value, onPick, onDismiss, onExit,
   useFocusTrap(panelRef, !mobile && keyboard);
   useClickOutside(panelRef, onExit, { enabled: !mobile && !inline, additionalRefs: [anchorRef, ...additionalRefs] });
 
-  // Card 20260915_6 (mobile interplay): while the sheet is open, register an
-  // overlay token so the PARENT dialog's window-level shortcuts (Escape /
-  // Enter in useConfirmShortcuts) yield to the sheet — pressing the sheet or
-  // its overlay must never also dismiss the whole quick-edit dialog.
+  // Card 20260915_6 + _8: while the picker surface is open — sheet, popover,
+  // or inline — register an overlay token so the PARENT dialog's window-level
+  // shortcuts (Escape / Enter in useConfirmShortcuts) yield to the picker,
+  // and pointer-outside detectors treat the open panel as the top overlay.
+  // Pressing the picker or its overlay must never also dismiss the whole
+  // parent dialog.
   const sheetTokenRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!mobile) return;
     const token = registerOverlayToken();
     sheetTokenRef.current = token;
     return () => unregisterOverlayToken(token);
-  }, [mobile]);
+  }, []);
   const content = <TimePanel value={value} onPick={onPick} />;
   const keyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onDismiss(); }

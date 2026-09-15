@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
@@ -109,7 +109,7 @@ describe('ScheduleEditorBody', () => {
     rerender(<ScheduleEditorBody {...baseProps({ cargoMode: 'LCL', canEditTransport: true, saving: true })} />);
     expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
   });
-  it('accepts arbitrary 24h minutes and selects from the shared time panel', () => {
+  it('accepts arbitrary 24h minutes and selects from the shared time panel', async () => {
     const props = baseProps();
     render(<ScheduleEditorBody {...props} />);
     fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '20:46' } });
@@ -118,8 +118,8 @@ describe('ScheduleEditorBody', () => {
     const minutePanel = screen.getByRole('listbox', { name: 'Phút 00–59' });
     fireEvent.click(minutePanel.querySelector('[role=option]')!);
     expect(props.onScheduleTimeChange).toHaveBeenCalledWith('08:00');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByLabelText('Giờ trả hàng')).toHaveFocus();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByLabelText('Giờ trả hàng'), { key: 'ArrowDown', altKey: true });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
