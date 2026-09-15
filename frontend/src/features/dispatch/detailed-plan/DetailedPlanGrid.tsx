@@ -375,7 +375,9 @@ export function DetailedPlanGrid({
                         title="Bấm để xem toàn bộ ghi chú"
                       >
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--notes detailed-plan-grid__note-clamp">
-                          Xe: {displayNote(row.notes.vehicleNote)}
+                          {`Xe: ${displayNote(row.notes.vehicleNote)}`.split('\n').map((line, i) => (
+                            <span key={i} className="detailed-plan-grid__note-line">{line}</span>
+                          ))}
                         </span>
                       </button>
                     )}
@@ -387,7 +389,9 @@ export function DetailedPlanGrid({
                         title="Bấm để xem toàn bộ ghi chú"
                       >
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
-                          Khách: {displayNote(row.notes.customerNote)}
+                          {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
+                            <span key={i} className="detailed-plan-grid__note-line">{line}</span>
+                          ))}
                         </span>
                       </button>
                     )}

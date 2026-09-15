@@ -633,6 +633,12 @@
   overflow: hidden;
 }
 
+/* Each note line is a block span so \n is structurally rendered —
+   the -webkit-line-clamp counts these DOM lines, not CSS whitespace. */
+.detailed-plan-grid__note-line {
+  display: block;
+}
+
 .detailed-plan-grid__note-full {
   font-size: var(--text-body-size);
   line-height: 1.55;

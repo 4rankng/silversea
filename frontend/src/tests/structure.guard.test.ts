@@ -115,8 +115,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
   // on a stable identity helper (branch rows carry a null fulfillment id).
-  // Bumped 407 → 435: 2026-09-14 KP-140 lift/drop port columns added.
-  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 435,
+  // Bumped 435 → 439: 2026-09-15 multiline note-line spans (20260915_35).
+  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 439,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
