@@ -59,6 +59,7 @@ import {
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
+import { throwValidation } from '../lib/validation';
 import * as s from '../db/schema';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { sniffImageType } from '../lib/format';
@@ -380,7 +381,7 @@ router.post('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Re
   }
   const parsed = driverFulfillmentProgressSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const idempotencyKey = req.header('Idempotency-Key') as string | undefined;
@@ -433,7 +434,7 @@ router.post('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const submission = await withMaterialWriteAuditContext(
@@ -462,7 +463,7 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', podUpload.si
   }
   const parsed = driverPodFileAttachSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const file = req.file;
   if (!file) {
@@ -498,7 +499,7 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', asyncHandle
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const submission = await withMaterialWriteAuditContext(
@@ -544,7 +545,7 @@ router.post('/fulfillments/:fulfillmentId/complete', asyncHandler(async (req: Re
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const outcome = await withMaterialWriteAuditContext(
@@ -654,7 +655,7 @@ router.post('/trips/:tripId/fuel-evidence', fuelEvidenceUpload.single('file'), a
   }
   const parsedMeta = driverFuelEvidenceMetadataSchema.safeParse(req.body ?? {});
   if (!parsedMeta.success) {
-    throw new ApiError(400, parsedMeta.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsedMeta.error);
   }
 
   const metadata = parsedMeta.data;

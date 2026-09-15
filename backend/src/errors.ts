@@ -6,7 +6,7 @@ export class ApiError extends Error {
   constructor(
     public statusCode: number,
     message: string,
-    public details?: string,
+    public details?: string | Array<{ code?: string; message: string; path?: Array<string | number> }>,
     public payload?: Record<string, unknown>,
   ) {
     super(message);

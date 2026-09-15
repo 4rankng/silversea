@@ -9,8 +9,7 @@ export function throwValidation(error: ZodError): never {
   const first = error.errors[0];
   const field = first.path.join('.');
   const message = field ? `${first.message} (${field})` : first.message;
-  throw new ApiError(400, message, error.errors.map(e => ({
-    path: e.path.join('.'),
-    message: e.message,
-  })).join('; '));
+  // Pass the zod issues through verbatim so `details` matches the structured
+  // [{code, message, path}] array the global ZodError handler already returns.
+  throw new ApiError(400, message, error.errors);
 }
