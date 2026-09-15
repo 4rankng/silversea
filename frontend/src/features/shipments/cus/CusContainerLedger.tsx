@@ -115,10 +115,27 @@ export function ContainerLedger({
   const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
 
-  // Reset drafts whenever detail.containers operational signatures change
+  // Re-sync drafts only for lines whose server-side operational truth actually
+  // changed — a wholesale reset on every detail refresh wiped unsaved edits on
+  // rows the save loop had not reached yet: row 1's success refreshed the
+  // detail, the signature join changed, and row 2's in-progress draft silently
+  // reverted (and a failed row-2 save then lost it for good).
   const signatureKey = detail.containers.map(lineOperationalSignature).join('|');
+  const lineSignaturesRef = useRef<Map<number, string>>(new Map());
   useEffect(() => {
-    setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
+    const previous = lineSignaturesRef.current;
+    const signatures = new Map<number, string>();
+    for (const line of detail.containers) signatures.set(line.id, lineOperationalSignature(line));
+    lineSignaturesRef.current = signatures;
+    setDrafts((prev) => {
+      const next: Record<number, ContainerLineDraft> = {};
+      for (const line of detail.containers) {
+        next[line.id] = previous.get(line.id) === signatures.get(line.id) && prev[line.id]
+          ? prev[line.id]
+          : lineDraft(line);
+      }
+      return next;
+    });
   }, [signatureKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirtyLineIds = useMemo(() => {
