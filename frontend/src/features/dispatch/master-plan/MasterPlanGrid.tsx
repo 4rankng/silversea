@@ -32,7 +32,7 @@ function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const date = new Date(iso);
   if (isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString('vi-VN');
+  return new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
 }
 
 /** Time-of-day line for col 1 — derived from the cutoff timestamp when present. */
@@ -40,7 +40,7 @@ function formatHour(iso: string | null | undefined): string {
   if (!iso) return '—';
   const date = new Date(iso);
   if (isNaN(date.getTime())) return '—';
-  return `${date.getHours()}H`;
+  return `${new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hour12: false }).format(date)}H`;
 }
 
 /** Schedule blocks: one per container appointment — the ICT "HH:mm d/m/yyyy"

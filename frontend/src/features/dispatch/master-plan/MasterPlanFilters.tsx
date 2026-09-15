@@ -45,7 +45,10 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
 ];
 
 function toISODate(d: Date): string {
-  return d.toLocaleDateString('en-CA');
+  // Pin the business timezone — "Hôm nay/Hôm sau" must follow the Vietnam
+  // calendar day the CUS-entered delivery dates compare against, not the
+  // viewer machine's day.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(d);
 }
 
 function addDays(d: Date, n: number): Date {
