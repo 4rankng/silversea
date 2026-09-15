@@ -223,7 +223,22 @@ export const createTripPairSchema = z.object({
   }
 });
 
-export const updateTripFiguresSchema = z.object({
+// Card 20260914_40: `version` is the canonical optimistic-locking field for
+// trip-figure writes. `expectedVersion` is accepted as a deliberate ALIAS
+// (mapped to `version` when `version` itself is absent) so an older API
+// consumer that sends the wrong field trips a real version check instead of
+// the misleading "expectedVersion không hợp lệ" deep-guard 400.
+export const updateTripFiguresSchema = z.preprocess(
+  (raw) => {
+    if (raw != null && typeof raw === 'object' && 'expectedVersion' in raw) {
+      const { expectedVersion, ...rest } = raw as Record<string, unknown>;
+      if (rest.version === undefined) {
+        return { ...rest, version: expectedVersion };
+      }
+    }
+    return raw;
+  },
+  z.object({
   legs: z.array(tripLegSchema),
   customerId: z.coerce.number().int().positive().optional(),
   departureDate: z.string().optional(),
@@ -286,7 +301,8 @@ export const updateTripFiguresSchema = z.object({
       path: ['revenue'],
     });
   }
-});
+}),
+);
 
 export const bulkUpdateTripFiguresSchema = z.object({
   updates: z.array(z.object({
