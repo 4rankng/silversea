@@ -22,6 +22,8 @@ import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
+import { useQuery } from '@tanstack/react-query';
+import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
@@ -50,8 +52,18 @@ export default function DriverTripDetailPage() {
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
   const [blockingFulfillmentId, setBlockingFulfillmentId] = useState<number | null>(null);
 
-  const fulfillmentId = Number(id);
-  const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
+  const tripId = Number(id);
+  const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
+
+  // Card 20260915_1: the route id is a TRIP id. The trip payload carries
+  // fulfillmentId (null on ad-hoc trips — those render without fulfillment
+  // sections and never call fulfillment-scoped endpoints).
+  const tripQuery = useQuery({
+    queryKey: qk.driver.tripBasic(validTripId),
+    queryFn: () => driverClient.getDriverTrip(validTripId as number),
+    enabled: validTripId != null,
+  });
+  const validFulfillmentId = tripQuery.data?.fulfillmentId ?? undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
   const progress = useDriverTaskProgress(validFulfillmentId);
@@ -167,7 +179,7 @@ export default function DriverTripDetailPage() {
     void refreshAll();
   }
 
-  if (!validFulfillmentId) {
+  if (!validTripId) {
     return (
       <div className="driver-task-screen driver-task-screen--feedback">
         <div className="driver-task-feedback">
@@ -178,6 +190,60 @@ export default function DriverTripDetailPage() {
             <span>Quay lại danh sách</span>
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (tripQuery.isLoading) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback">
+          <Loader2 size={24} className="spin" />
+          <p>Đang tải chuyến…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Gate on data, not error: a failed background refetch keeps the cached
+  // trip usable (the driver sees the trip, refresh retries in the header).
+  if (!tripQuery.data) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback">
+          <AlertTriangle size={28} />
+          <p>Không thể tải chuyến.</p>
+          <div className="driver-task-feedback__actions">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => void tripQuery.refetch()}>Thử lại</button>
+            <button type="button" className="driver-task-back" onClick={handleBack}>
+              <ArrowLeft size={16} />
+              <span>Quay lại danh sách</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ad-hoc trips carry fulfillmentId null — render a lean detail without the
+  // fulfillment-scoped sections instead of a hard error.
+  if (!validFulfillmentId) {
+    const basic = tripQuery.data;
+    return (
+      <div className="driver-task-screen">
+        <section className="driver-task-section">
+          <div className="driver-task-section__head">
+            <span>{basic.tripCode ?? `Chuyến #${basic.id}`}</span>
+          </div>
+          <p className="driver-task-empty">
+            Lô hàng này chưa có đầu việc vận chuyển (ad-hoc) — không có cột mốc,
+            ảnh POD hay chi phí để thực hiện. Vui lòng liên hệ điều vận khi cần.
+          </p>
+          <button type="button" className="driver-task-back" onClick={handleBack}>
+            <ArrowLeft size={16} />
+            <span>Quay lại danh sách</span>
+          </button>
+        </section>
       </div>
     );
   }

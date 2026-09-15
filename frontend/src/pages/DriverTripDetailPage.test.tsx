@@ -3,6 +3,31 @@ import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const getDriverTripMock = vi.hoisted(() => vi.fn());
+
+// Synchronous trip payload for the page's first render — the trip →
+// fulfillmentId resolution is seeded into the query cache so existing
+// tests keep their synchronous shape.
+const tripBasic88: Record<string, unknown> = {
+  id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+  departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+  routeName: null, truckPlate: null, customerName: null, notes: null,
+};
+function freshClient() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['driver-trip-basic', '88'], tripBasic88);
+  return client;
+}
+
+vi.mock('../api/driverClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/driverClient')>();
+  // getDriverTrip is replaced per-test via vi.spyOn in the resolution suite —
+  // the spy binds to THIS module instance, which the page also imports.
+  void getDriverTripMock;
+  return actual;
+});
 
 const {
   useDriverTaskDetailMock,
@@ -149,12 +174,15 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
 }
 
 function renderPage() {
+  const client = freshClient();
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88']}>
-      <Routes>
-        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/my-trips/88']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -163,17 +191,20 @@ function renderPage() {
 // prove the driver lands on the RIGHT trip's e-POD screen (fulfillment id, not
 // trip.id — the regression Phần 4 fixed).
 function renderPageWithBoard() {
+  const client = freshClient();
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88']}>
-      <Routes>
-        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
-        <Route
-          path="/my-trips/:id/pod"
-          element={<PodRouteStub />}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/my-trips/88']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+          <Route
+            path="/my-trips/:id/pod"
+            element={<PodRouteStub />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -184,6 +215,11 @@ function PodRouteStub() {
 
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
+    getDriverTripMock.mockResolvedValue({
+      id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+      departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+      routeName: null, truckPlate: null, customerName: null, notes: null,
+    });
     boardItems = [];
     toastMock.mockReset();
     useDriverTaskDetailMock.mockReturnValue({
@@ -1004,5 +1040,58 @@ describe('busy-trip recovery', () => {
     }
     rejection.mockRestore();
     board.mockRestore();
+  });
+});
+
+describe('20260915_1: trip → fulfillmentId resolution', () => {
+  function bareClient() {
+    return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  }
+  function basicTrip(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 16, shipmentId: null, fulfillmentId: 31, tripCode: 'TRP-16',
+      departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
+      routeName: null, truckPlate: null, customerName: null, notes: null,
+      ...overrides,
+    };
+  }
+  beforeEach(() => {
+    getDriverTripMock.mockReset();
+    getDriverTripMock.mockResolvedValue(basicTrip());
+    vi.spyOn(driverClient, 'getDriverTrip').mockImplementation(getDriverTripMock as unknown as typeof driverClient.getDriverTrip);
+    useDriverTaskDetailMock.mockReset();
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+    useDriverTaskProgressMock.mockReset();
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+  });
+  function bareRender(url: string, client: QueryClient) {
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[url]}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('pins fetch order: trips/{id} first, then fulfillment-scoped calls keyed by the payload fulfillmentId', async () => {
+    getDriverTripMock.mockResolvedValue(basicTrip());
+    const client = bareClient();
+    bareRender('/my-trips/16', client);
+    // The trip fetch precedes any fulfillment-scoped resolution.
+    await waitFor(() => expect(getDriverTripMock).toHaveBeenCalledWith(16));
+    await waitFor(() => expect(useDriverTaskDetailMock).toHaveBeenLastCalledWith(31));
+    await waitFor(() => expect(useDriverTaskProgressMock).toHaveBeenLastCalledWith(31));
+  });
+
+  it('renders ad-hoc trips (fulfillmentId null) without fulfillment-scoped calls', async () => {
+    getDriverTripMock.mockResolvedValue(basicTrip({ id: 23, fulfillmentId: null, tripCode: 'TRP-23-ADHOC' }));
+    const client = bareClient();
+    bareRender('/my-trips/23', client);
+    // Lean fulfillment-less detail instead of the hard 404 error.
+    expect(await screen.findByText(/chưa có đầu việc vận chuyển/)).toBeTruthy();
+    expect(getDriverTripMock).toHaveBeenCalledWith(23);
   });
 });

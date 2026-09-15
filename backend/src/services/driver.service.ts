@@ -411,6 +411,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   const [trip] = await db.select({
     id: s.tripsComposite.id,
     shipmentId: s.tripsComposite.shipmentId,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
     tripCode: s.tripsComposite.tripCode,
     departureDate: s.tripsComposite.departureDate,
     plannedStartAt: s.tripsComposite.plannedStartAt,

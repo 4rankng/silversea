@@ -1,5 +1,12 @@
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+function freshClient() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['driver-trip-basic', '9'], { id: 9, shipmentId: null, fulfillmentId: 9, tripCode: 'TRP-9', departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT', routeName: null, truckPlate: null, customerName: null, notes: null });
+  return client;
+}
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -121,44 +128,52 @@ describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
 
   it('hides the cost-entry form (kế toán từ từ)', () => {
     render(
-      <MemoryRouter initialEntries={['/my-trips/9']}>
-        <Routes>
-          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={freshClient()}>
+        <MemoryRouter initialEntries={['/my-trips/9']}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
   });
 
   it('hides the e-POD widget (moved to /pod screen)', () => {
     render(
-      <MemoryRouter initialEntries={['/my-trips/9']}>
-        <Routes>
-          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={freshClient()}>
+        <MemoryRouter initialEntries={['/my-trips/9']}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
   });
 
   it('hides the fuel-refill cost form (Phần 1; GIỮ NGUYÊN is the screenshot upload)', () => {
     render(
-      <MemoryRouter initialEntries={['/my-trips/9']}>
-        <Routes>
-          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={freshClient()}>
+        <MemoryRouter initialEntries={['/my-trips/9']}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
   it('renders the operational-note card from cus/điều vận', () => {
     render(
-      <MemoryRouter initialEntries={['/my-trips/9']}>
-        <Routes>
-          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={freshClient()}>
+        <MemoryRouter initialEntries={['/my-trips/9']}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.getByText('Hàng dễ vỡ, bốc cẩn thận.')).toBeInTheDocument();
   });

@@ -143,12 +143,14 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText(/Seal SL001/)).toBeTruthy();
   });
 
-  it('navigates to the fulfillment detail page when a card footer is pressed', async () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 42 })]));
+  it('navigates to the trip detail by TRIP id when a card footer is pressed (20260915_1)', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ tripId: 55, fulfillmentId: 42 })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ }));
-    expect(navigateMock).toHaveBeenCalledWith('/my-trips/42');
+    // Card 20260915_1: the detail route carries the TRIP id; the page resolves
+    // fulfillmentId from the trip payload (works for ad-hoc trips too).
+    expect(navigateMock).toHaveBeenCalledWith('/my-trips/55');
   });
 
   it('tags sibling linked cards with KẸP and groups them visually', async () => {

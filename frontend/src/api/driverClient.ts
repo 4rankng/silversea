@@ -364,6 +364,20 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
   };
 }
 
+export interface DriverTripBasic {
+  id: number;
+  shipmentId: number | null;
+  fulfillmentId: number | null;
+  tripCode: string | null;
+  departureDate: string | null;
+  plannedStartAt: string | null;
+  status: string;
+  routeName: string | null;
+  truckPlate: string | null;
+  customerName: string | null;
+  notes: string | null;
+}
+
 export const driverClient = {
   getTrips: async () => {
     return api.get<{
@@ -454,6 +468,13 @@ export const driverClient = {
   /** Topbar identity chip — the driver's current vehicle plate. */
   getVehicle: async () => {
     return api.get<DriverVehicle>(DRIVER_TASK.VEHICLE);
+  },
+
+  /** Card 20260915_1: ownership-enforced trip detail by TRIP id — the page
+   *  resolves fulfillmentId from this payload before fulfillment-scoped calls
+   *  (ad-hoc trips carry fulfillmentId null and never hit them). */
+  getDriverTrip: async (tripId: number) => {
+    return api.get<DriverTripBasic>(`/driver/me/trips/${tripId}`);
   },
 
   getTaskDetail: async (fulfillmentId: number) => {

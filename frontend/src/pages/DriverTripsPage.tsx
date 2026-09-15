@@ -205,7 +205,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
       <button
         type="button"
         className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
-        onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
+        onClick={() => navigate(`/my-trips/${card.tripId}`)}
       >
         <span>{footerLabel}</span>
         <ArrowRight size={16} aria-hidden="true" />
