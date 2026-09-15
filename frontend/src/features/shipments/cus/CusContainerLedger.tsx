@@ -149,6 +149,14 @@ export function ContainerLedger({
     dirtyLineIdsRef.current = new Set(dirtyLineIds);
   }, [dirtyLineIds]);
 
+  // _42: the settle-poll exit must also wait for the saving flag to clear —
+  // an exit fired during the saving teardown hits the host's while-saving
+  // guard (stranded mid-exit) instead of closing the drawer cleanly.
+  const savingRef = useRef(saving);
+  useEffect(() => {
+    savingRef.current = saving;
+  }, [saving]);
+
   const onDirtyChangeRef = useRef(onDirtyChange);
   const onSavingChangeRef = useRef(onSavingChange);
   useEffect(() => { onDirtyChangeRef.current = onDirtyChange; }, [onDirtyChange]);
@@ -246,7 +254,9 @@ export function ContainerLedger({
   const scheduleExit = useCallback(() => {
     let attempt = 0;
     const tryExit = () => {
-      if (dirtyLineIdsRef.current.size === 0 || attempt >= 40) {
+      // Settle on BOTH clean drafts and a cleared saving flag — closing
+      // mid-teardown is what occasionally left the rung on a broken surface.
+      if ((dirtyLineIdsRef.current.size === 0 && !savingRef.current) || attempt >= 60) {
         onAppointmentSavedAndExit?.();
         return;
       }

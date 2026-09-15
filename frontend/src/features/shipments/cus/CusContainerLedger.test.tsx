@@ -230,6 +230,30 @@ describe('ContainerLedger confirm affordances', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
   });
+
+  it('_42: settle-poll exit holds while a save is in flight, then fires once it clears', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    const view = renderLedger({ onAppointmentSavedAndExit });
+    let resolveSave: (value: { line: { id: number; shipmentVersion: number } }) => void;
+    updateCusShipmentContainerLine.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+
+    // Drafts go clean while the save is STILL in flight (the refetch race).
+    view.rerenderWithSavedLine();
+    await new Promise((r) => setTimeout(r, 250));
+    // Holding: saving has not cleared, so the exit must not fire mid-teardown.
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+
+    resolveSave!({ line: { id: 10, shipmentVersion: 5 } });
+    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
 });
 
 describe('ContainerLedger external-trip staff close', () => {
