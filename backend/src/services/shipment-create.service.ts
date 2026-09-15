@@ -21,6 +21,7 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   findDeclarationReferenceConflict,
   throwShipmentReferenceConflict,
@@ -47,6 +48,7 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
 // ─── Create ─────────────────────────────────────────────────────────────────
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
+  await assertShipmentMasterRefsExist(tx, input);
   assertShipmentDocumentReferences(input);
   // Hybrid intake (MasterDataNhaMay §2.1): a catalog id wins and its raw text
   // is cleared; ad-hoc rows keep the raw text with a null id. The factory

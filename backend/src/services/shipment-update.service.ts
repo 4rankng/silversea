@@ -30,6 +30,7 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
@@ -48,6 +49,14 @@ export async function updateShipment(
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, id);
+    // Master refs carry no DB FKs — validate only the refs this input
+    // actually changes, so pre-existing orphan rows (2026-09-15 sweep:
+    // 94 shipments referencing deleted masters) stay editable.
+    await assertShipmentMasterRefsExist(tx, {
+      customerId: input.customerId,
+      routeId: input.routeId,
+      cargoTypeId: input.cargoTypeId,
+    });
     // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
     // FACTORY-type validation the container choke point enforces. The
     // resolved customer respects an in-flight customerId change. Ad-hoc

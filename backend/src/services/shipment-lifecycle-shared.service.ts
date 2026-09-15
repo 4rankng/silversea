@@ -364,3 +364,37 @@ export async function assertShipmentFactorySiteValid(
     )).limit(1);
   if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
 }
+
+/**
+ * Shipment master refs carry no DB foreign keys (repo convention: master-data
+ * integrity is app-layer), so intake validates existence here instead. The
+ * update path passes only the refs its input actually changes, so pre-existing
+ * orphan rows (2026-09-15 sweep found 94 shipments referencing deleted
+ * masters) stay editable without a data migration first.
+ */
+export async function assertShipmentMasterRefsExist(
+  tx: Tx,
+  refs: { customerId?: number | null; routeId?: number | null; cargoTypeId?: number | null },
+): Promise<void> {
+  if (refs.customerId != null) {
+    const [customer] = await tx.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(eq(s.customers.id, refs.customerId))
+      .limit(1);
+    if (!customer) throw new ApiError(400, 'Khách hàng không tồn tại.');
+  }
+  if (refs.routeId != null) {
+    const [route] = await tx.select({ id: s.routes.id })
+      .from(s.routes)
+      .where(eq(s.routes.id, refs.routeId))
+      .limit(1);
+    if (!route) throw new ApiError(400, 'Tuyến vận chuyển không tồn tại.');
+  }
+  if (refs.cargoTypeId != null) {
+    const [cargoType] = await tx.select({ id: s.cargoTypes.id })
+      .from(s.cargoTypes)
+      .where(eq(s.cargoTypes.id, refs.cargoTypeId))
+      .limit(1);
+    if (!cargoType) throw new ApiError(400, 'Loại hàng không tồn tại.');
+  }
+}
