@@ -194,4 +194,30 @@ describe('shipment master reference integrity', () => {
     assert.equal(res.status, 200);
     assert.equal(res.body.operationalNotes, 'orphan vẫn sửa được');
   });
+
+  test('update that resends the stored phantom routeId unchanged still succeeds', async () => {
+    const [orphan] = await db.insert(s.shipments).values({
+      customerId: 999_999_998,
+      routeId: 999_999_997,
+      cargoMode: 'LCL',
+      shipmentCode: `MAST2-${suffix}`,
+      status: 'PENDING_DATE',
+      createdBy: userId,
+      version: 1,
+    }).returning();
+    shipmentIds.push(orphan.id);
+
+    // The clerk identity editor resends routeId with every save for non-FCL
+    // rows. A stored phantom routeId must not block unrelated edits — only
+    // refs the input actually CHANGES are validated.
+    const key = `masterrefs-update-orphan-route-${suffix}`;
+    idempotencyKeys.push(key);
+    const res = await request(`/${orphan.id}`, {
+      method: 'PUT',
+      body: { routeId: 999_999_997, operationalNotes: 'route giữ nguyên', expectedVersion: 1 },
+      key,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.operationalNotes, 'route giữ nguyên');
+  });
 });

@@ -50,12 +50,13 @@ export async function updateShipment(
     assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, id);
     // Master refs carry no DB FKs — validate only the refs this input
-    // actually changes, so pre-existing orphan rows (2026-09-15 sweep:
-    // 94 shipments referencing deleted masters) stay editable.
+    // actually CHANGES, so pre-existing orphan rows (2026-09-15 sweep:
+    // 94 shipments referencing deleted masters) stay editable, including
+    // through editors that resend the stored (phantom) ref unchanged.
     await assertShipmentMasterRefsExist(tx, {
-      customerId: input.customerId,
-      routeId: input.routeId,
-      cargoTypeId: input.cargoTypeId,
+      customerId: input.customerId !== undefined && input.customerId !== existing.customerId ? input.customerId : undefined,
+      routeId: input.routeId !== undefined && input.routeId !== existing.routeId ? input.routeId : undefined,
+      cargoTypeId: input.cargoTypeId !== undefined && input.cargoTypeId !== existing.cargoTypeId ? input.cargoTypeId : undefined,
     });
     // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
     // FACTORY-type validation the container choke point enforces. The
