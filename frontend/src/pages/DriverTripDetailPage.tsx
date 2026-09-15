@@ -357,45 +357,43 @@ export default function DriverTripDetailPage() {
 
       <DriverTaskInfoSections trip={trip} />
 
-      {/* Card _36 (P0_Mobile, user report 2026-09-15): Tác vụ and Ghi chú
-          render as TWO SEPARATE LINES from the saved dispatch note
-          (driverTaskNote v2): tags segment → Tác vụ (uppercase chips),
-          manual text → Ghi chú. Each line omits gracefully when its part
-          is absent; N ≥ 6 chips collapse behind Mở rộng/Thu gọn. Same
-          parseNote codepath as the /my-trips board cards. */}
-      {(operationTags.length > 0 || driverNotes) && (
-        <section className="driver-task-section">
-          {operationTags.length > 0 && (
-            <>
-              <div className="driver-task-section__head">
-                <span>Tác vụ</span>
-              </div>
-              <div className="driver-task-ops" data-testid="operation-chips">
-                {visibleOperationTags.map((tag) => (
-                  <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
-                ))}
-                {shouldCollapseChips && (
-                  <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
-                    {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-          {driverNotes && (
-            <>
-              <div className="driver-task-section__head">
-                <span>Ghi chú</span>
-              </div>
-              <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
-                <StickyNote size={16} />
-                <span>{driverNotes}</span>
-              </p>
-            </>
-          )}
-        </section>
-      )}
+      {/* Card _36 (paper-form spec): Tác vụ and Ghi chú are STRUCTURAL rows —
+          they always render, filled from the saved dispatch note
+          (driverTaskNote v2: tags segment → Tác vụ uppercase chips, manual
+          text → Ghi chú) and show an empty state when the part is absent.
+          N ≥ 6 chips collapse behind Mở rộng/Thu gọn. Same parseNote
+          codepath as the /my-trips board cards. */}
+      <section className="driver-task-section" data-testid="task-note-section">
+        <div className="driver-task-section__head">
+          <span>Tác vụ</span>
+        </div>
+        {operationTags.length > 0 ? (
+          <div className="driver-task-ops" data-testid="operation-chips">
+            {visibleOperationTags.map((tag) => (
+              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
+            ))}
+            {shouldCollapseChips && (
+              <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
+                {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="driver-task-empty">Không có tác vụ.</p>
+        )}
+        <div className="driver-task-section__head">
+          <span>Ghi chú</span>
+        </div>
+        {driverNotes ? (
+          <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
+            <StickyNote size={16} />
+            <span>{driverNotes}</span>
+          </p>
+        ) : (
+          <p className="driver-task-empty">Không có ghi chú.</p>
+        )}
+      </section>
 
       <section className="driver-task-section">
         <DriverContainerCard

@@ -194,62 +194,60 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
         </div>
       </section>
 
-      {/* 2a618442: customer wording — "THÔNG TIN XUẤT HÓA ĐƠN". Block hides
-          when there is nothing to show (per-row graceful hide; fee-invoice
-          rows may still surface alone). */}
-      {(invoiceInfo || trip.invoiceMaster || trip.invoiceFactory || fulfillment?.factoryName || fulfillment?.factoryShortName) && (
-        <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
-          <CollapsibleSectionHead
-            id="driver-task-invoice-grid"
-            label="Thông tin xuất hóa đơn"
-            open={invoiceOpen}
-            onToggle={() => setInvoiceOpen((v) => !v)}
-          />
-          <div className="driver-task-grid" id="driver-task-invoice-grid" hidden={!invoiceOpen}>
-            {/* KP-191: each party heading precedes that party's data. */}
-            {/* Factory invoice profile — the site billing the
-                lift/drop/cleaning fees. */}
-            <p className="driver-task-invoice-party">Nhà máy</p>
-            {trip.invoiceFactory?.name ? (
-              <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceFactory.name} fullWidth />
-            ) : !trip.invoiceFactory ? (
-              <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình thông tin xuất hóa đơn.</p>
-            ) : null}
-            {trip.invoiceFactory?.address ? (
-              <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
-            ) : null}
-            {trip.invoiceFactory?.taxCode ? (
-              <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
-            ) : null}
-            {missingFactoryInvoiceFields.length > 0 ? <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình: {missingFactoryInvoiceFields.join(', ')}.</p> : null}
-            {/* Customer master-data invoice block — heading precedes data. */}
-            {trip.invoiceMaster && (trip.invoiceMaster.companyName || trip.invoiceMaster.address || trip.invoiceMaster.taxCode) ? (
-              <>
-                <p className="driver-task-invoice-party">Khách hàng</p>
-                {trip.invoiceMaster.companyName ? (
-                  <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceMaster.companyName} fullWidth />
-                ) : null}
-                {trip.invoiceMaster.address ? (
-                  <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
-                ) : null}
-                {trip.invoiceMaster.taxCode ? (
-                  <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
-                ) : null}
-              </>
-            ) : null}
-            {/* Fee-invoice rows carry their own explicit per-fee labels. */}
-            {invoiceInfo?.liftFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />
-            )}
-            {invoiceInfo?.dropFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={feeInvoiceValue(invoiceInfo.dropFeeInvoiceName, invoiceInfo.dropFeeInvoiceAddress, invoiceInfo.dropFeeTaxCode)} fullWidth />
-            )}
-            {invoiceInfo?.cleaningInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={feeInvoiceValue(invoiceInfo.cleaningInvoiceName, invoiceInfo.cleaningInvoiceAddress, invoiceInfo.cleaningTaxCode)} fullWidth />
-            )}
-          </div>
-        </section>
-      )}
+      {/* 2a618442 / paper-form spec: "THÔNG TIN XUẤT HÓA ĐƠN" is a STRUCTURAL
+          section — it always renders; rows show their values or the
+          unconfigured empty states below. */}
+      <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
+        <CollapsibleSectionHead
+          id="driver-task-invoice-grid"
+          label="Thông tin xuất hóa đơn"
+          open={invoiceOpen}
+          onToggle={() => setInvoiceOpen((v) => !v)}
+        />
+        <div className="driver-task-grid" id="driver-task-invoice-grid" hidden={!invoiceOpen}>
+          {/* KP-191: each party heading precedes that party's data. */}
+          {/* Factory invoice profile — the site billing the
+              lift/drop/cleaning fees. */}
+          <p className="driver-task-invoice-party">Nhà máy</p>
+          {trip.invoiceFactory?.name ? (
+            <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceFactory.name} fullWidth />
+          ) : !trip.invoiceFactory ? (
+            <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình thông tin xuất hóa đơn.</p>
+          ) : null}
+          {trip.invoiceFactory?.address ? (
+            <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
+          ) : null}
+          {trip.invoiceFactory?.taxCode ? (
+            <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
+          ) : null}
+          {missingFactoryInvoiceFields.length > 0 ? <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình: {missingFactoryInvoiceFields.join(', ')}.</p> : null}
+          {/* Customer master-data invoice block — heading precedes data. */}
+          {trip.invoiceMaster && (trip.invoiceMaster.companyName || trip.invoiceMaster.address || trip.invoiceMaster.taxCode) ? (
+            <>
+              <p className="driver-task-invoice-party">Khách hàng</p>
+              {trip.invoiceMaster.companyName ? (
+                <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceMaster.companyName} fullWidth />
+              ) : null}
+              {trip.invoiceMaster.address ? (
+                <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
+              ) : null}
+              {trip.invoiceMaster.taxCode ? (
+                <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+              ) : null}
+            </>
+          ) : null}
+          {/* Fee-invoice rows carry their own explicit per-fee labels. */}
+          {invoiceInfo?.liftFeeInvoiceName && (
+            <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />
+          )}
+          {invoiceInfo?.dropFeeInvoiceName && (
+            <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={feeInvoiceValue(invoiceInfo.dropFeeInvoiceName, invoiceInfo.dropFeeInvoiceAddress, invoiceInfo.dropFeeTaxCode)} fullWidth />
+          )}
+          {invoiceInfo?.cleaningInvoiceName && (
+            <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={feeInvoiceValue(invoiceInfo.cleaningInvoiceName, invoiceInfo.cleaningInvoiceAddress, invoiceInfo.cleaningTaxCode)} fullWidth />
+          )}
+        </div>
+      </section>
     </>
   );
 }

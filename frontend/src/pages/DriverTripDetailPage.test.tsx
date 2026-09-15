@@ -1094,4 +1094,19 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     expect(await screen.findByText(/chưa có đầu việc vận chuyển/)).toBeTruthy();
     expect(getDriverTripMock).toHaveBeenCalledWith(23);
   });
+
+  it('_36 rework: Tác vụ/Ghi chú rows are structural — they render even with no note data', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ knownTagLabels: [], fulfillment: { ...makeTaskDetail().fulfillment!, driverNotes: null } }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+    expect(await screen.findByText('Tác vụ')).toBeTruthy();
+    expect(screen.getByText('Không có tác vụ.')).toBeTruthy();
+    expect(screen.getByText('Ghi chú')).toBeTruthy();
+    expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
+    expect(screen.queryByTestId('operation-chips')).toBeNull();
+  });
 });
