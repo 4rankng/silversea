@@ -1,4 +1,4 @@
-import { type RefObject } from 'react';
+import { type RefObject, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { X } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { usePopoverPosition } from '../../hooks/usePopoverPosition';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { registerOverlayToken, unregisterOverlayToken } from '../../hooks/useAnimatedOverlay';
 import { TimePanel } from './TimePanel';
 import './TimePickerSurface.css';
 
@@ -24,6 +25,18 @@ export function TimePickerSurface({ id, label, value, onPick, onDismiss, onExit,
   const position = usePopoverPosition(panelRef, anchorRef, !mobile && !inline, 240, 264);
   useFocusTrap(panelRef, !mobile && keyboard);
   useClickOutside(panelRef, onExit, { enabled: !mobile && !inline, additionalRefs: [anchorRef, ...additionalRefs] });
+
+  // Card 20260915_6 (mobile interplay): while the sheet is open, register an
+  // overlay token so the PARENT dialog's window-level shortcuts (Escape /
+  // Enter in useConfirmShortcuts) yield to the sheet — pressing the sheet or
+  // its overlay must never also dismiss the whole quick-edit dialog.
+  const sheetTokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!mobile) return;
+    const token = registerOverlayToken();
+    sheetTokenRef.current = token;
+    return () => unregisterOverlayToken(token);
+  }, [mobile]);
   const content = <TimePanel value={value} onPick={onPick} />;
   const keyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onDismiss(); }

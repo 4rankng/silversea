@@ -5,6 +5,8 @@ import { SplitDateTimeField } from './SplitDateTimeField';
 import { DateTimePickerDialog, TimePanel } from './DateTimePickerPanels';
 import { BufferedUuiDateTimeInput } from './BufferedUuiDateTimeInput';
 import { ShipmentScheduleTimeField } from '../../features/shipments/detail/ShipmentScheduleTimeField';
+import { registerOverlayToken, unregisterOverlayToken, isTopOverlayToken } from '../../hooks/useAnimatedOverlay';
+import { TimePickerSurface } from './TimePickerSurface';
 
 function click(element: HTMLElement) {
   fireEvent.pointerDown(element); fireEvent.mouseDown(element);
@@ -62,6 +64,17 @@ describe('adaptive time entry', () => {
         matches: query === '(max-width: 640px)', media: query, onchange: null,
         addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
       })));
+    });
+
+    it('_6: sheet registers as top overlay — parent window shortcuts yield while it is open', () => {
+      const parentToken = registerOverlayToken();
+      render(<TimePickerSurface id='tp' label='Giờ' value='20:46' onPick={vi.fn()} onDismiss={vi.fn()} onExit={vi.fn()} panelRef={{ current: null }} anchorRef={{ current: null }} />);
+      // While the mobile sheet slides up over the parent quick-edit dialog,
+      // the sheet's own token sits on top of the stack, above the parent's —
+      // window-level Escape/Enter shortcuts registered by a parent dialog
+      // must yield while the sheet is open.
+      expect(isTopOverlayToken(parentToken)).toBe(false);
+      unregisterOverlayToken(parentToken);
     });
 
     it('keeps exact entry inside the modal, applies without premature pair error and restores the original field', async () => {
