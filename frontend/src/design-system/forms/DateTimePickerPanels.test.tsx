@@ -2,14 +2,26 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { BufferedUuiDateTimeInput } from './BufferedUuiDateTimeInput';
-import { DatePanel, TimePanel } from './DateTimePickerPanels';
+import { DatePanel, DateTimePickerDialog } from './DateTimePickerPanels';
 
-function Hooked() {
+function Hooked({ onChange }: { onChange: (v: string) => void }) {
   const [value, setValue] = useState('');
-  return <BufferedUuiDateTimeInput label="Hẹn" value={value} onChange={setValue} />;
+  return (
+    <BufferedUuiDateTimeInput
+      label="Hẹn"
+      value={value}
+      onChange={(v) => { setValue(v); onChange(v); }}
+    />
+  );
 }
 
-describe('DateTimePickerPanels (_39 designed pickers)', () => {
+function offsetIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+describe('DateTimePickerDialog (_43 appointment-dialog design)', () => {
   it('DatePanel: clicking a day fires the YYYY-MM-DD contract', () => {
     const onChange = vi.fn();
     render(<DatePanel value="" onChange={onChange} />);
@@ -25,41 +37,46 @@ describe('DateTimePickerPanels (_39 designed pickers)', () => {
     expect(screen.getByText('Tháng 10 2026')).toBeTruthy();
   });
 
-  it('TimePanel: hour + minute pick composes 24h HH:mm; no AM/PM anywhere', () => {
-    const onPick = vi.fn();
-    render(<TimePanel value="" onPick={onPick} />);
-    const hours = screen.getByRole('listbox', { name: 'Giờ 00–23' });
-    const minutes = screen.getByRole('listbox', { name: 'Phút (bước 5 phút)' });
-    fireEvent.click(within(hours).getByRole('option', { name: '20' }));
-    fireEvent.click(within(minutes).getByRole('option', { name: '45' }));
-    expect(onPick).toHaveBeenCalledWith('20:45');
+  it('dialog: quick day pill + slot pill + Xác nhận composes the 24h contract', () => {
+    const onConfirm = vi.fn();
+    render(
+      <DateTimePickerDialog
+        title="Giờ hẹn đóng/trả"
+        value="2026-09-08T08:00"
+        onConfirm={onConfirm}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ngày mai' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Khung giờ phổ biến' })).getByRole('button', { name: '10:00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(onConfirm).toHaveBeenCalledWith(`${offsetIso(1)}T10:00`);
     expect(document.body.textContent).not.toMatch(/\bAM\b|\bPM\b/);
   });
 
-  it('TimePanel: hour 23 stays 24h (never 11 PM)', () => {
-    const onPick = vi.fn();
-    render(<TimePanel value="" onPick={onPick} />);
-    const hours = screen.getByRole('listbox', { name: 'Giờ 00–23' });
-    const minutes = screen.getByRole('listbox', { name: 'Phút (bước 5 phút)' });
-    fireEvent.click(within(hours).getByRole('option', { name: '23' }));
-    fireEvent.click(within(minutes).getByRole('option', { name: '05' }));
-    expect(onPick).toHaveBeenCalledWith('23:05');
+  it('dialog: invalid draft shows the error and Xác nhận does not fire', () => {
+    const onConfirm = vi.fn();
+    render(<DateTimePickerDialog title="T" value="" onConfirm={onConfirm} onClose={vi.fn()} />);
+    const input = screen.getByLabelText('Nhập T');
+    fireEvent.change(input, { target: { value: 'gibberish' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('HH:mm DD/MM/YYYY');
   });
 
-  it('_39: the input popover portals to document.body so scroll containers cannot clip it', () => {
+  it('_43: the input opens the titled dialog; Xác nhận writes the buffered contract', () => {
     const onChange = vi.fn();
-    render(<BufferedUuiDateTimeInput label="Hẹn" value="" onChange={onChange} />);
-    // Clicking the input itself opens the designed panels (no button).
+    render(<Hooked onChange={onChange} />);
     fireEvent.click(screen.getByLabelText('Hẹn'));
-    const dialog = screen.getByRole('dialog', { name: 'Chọn ngày giờ' });
-    expect(dialog.className).toContain('dtp-popover--portal');
-    expect(dialog.parentElement).toBe(document.body);
-    // Date pick keeps the panel open; the minute pick completes and closes.
-    fireEvent.click(within(dialog).getByRole('button', { name: '15 Tháng 9 2026' }));
-    expect(onChange).toHaveBeenCalledWith('2026-09-15T08:00');
-    fireEvent.click(within(dialog).getByRole('option', { name: '07' }));
-    fireEvent.click(within(dialog).getByRole('option', { name: '45' }));
-    expect(onChange).toHaveBeenLastCalledWith('2026-09-15T07:45');
-    expect(screen.queryByRole('dialog', { name: 'Chọn ngày giờ' })).toBeNull();
+    const dialog = screen.getByRole('dialog', { name: 'Hẹn' });
+    expect(dialog.className).toContain('dtp-dialog');
+    // Portaled: the dialog host mounts under document.body.
+    expect(dialog.parentElement!.className).toContain('dtp-dialog-host');
+    expect(dialog.parentElement!.parentElement).toBe(document.body);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hôm nay' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '13:30' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận' }));
+    expect(onChange).toHaveBeenCalledWith(`${new Date().toISOString().slice(0, 10)}T13:30`);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

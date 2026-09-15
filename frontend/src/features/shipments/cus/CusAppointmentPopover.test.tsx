@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
@@ -63,10 +63,10 @@ describe('CusAppointmentPopover', () => {
     );
     expect(container.querySelector('input[type="datetime-local"]')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
-    expect(screen.getByRole('dialog', { name: 'Chọn ngày giờ' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Giờ hẹn đóng/trả — MSKU1234567' })).toBeTruthy();
   });
 
-  it('_39: picking a day in the designed panel applies the draft and rehydrates the 24h display', () => {
+  it('_43: picking a day in the dialog applies the draft and rehydrates the 24h display', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -78,10 +78,13 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    // Open the designed panels and pick day 15 of the value's month.
+    // Open the dialog, pick day 15 of the value's month via the grid toggle,
+    // confirm — the popover's onChange fires with the composed contract.
     fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
-    fireEvent.click(screen.getByRole('button', { name: '15 Tháng 9 2026' }));
-    // Existing 08:00 carries over — the composed draft is the buffered contract.
+    const pickerDialog = screen.getByRole('dialog', { name: /Giờ hẹn đóng\/trả — MSKU1234567/ });
+    fireEvent.click(within(pickerDialog).getByRole('button', { name: 'Mở lịch' }));
+    fireEvent.click(within(pickerDialog).getByRole('button', { name: '15 Tháng 9 2026' }));
+    fireEvent.click(within(pickerDialog).getByRole('button', { name: 'Xác nhận' }));
     expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
 
     // The typed display rehydrates to the same 24h contract.

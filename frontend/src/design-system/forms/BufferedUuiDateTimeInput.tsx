@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { DATE_TIME_24_PLACEHOLDER, formatDateTime24, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
-import { DatePanel, TimePanel } from './DateTimePickerPanels';
+import { DateTimePickerDialog } from './DateTimePickerPanels';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface BufferedUuiDateTimeInputProps
@@ -101,18 +101,11 @@ export function BufferedUuiDateTimeInput({
     enabled: pickerOpen,
   });
 
-  const currentDate = value ? value.split('T')[0] ?? '' : '';
-  const currentTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : '';
-
-  const applyComposed = (date: string, time: string) => {
-    const composed = date && time ? `${date}T${time}` : '';
-    // The buffered hook parses the DISPLAY shape (HH:mm DD/MM/YYYY), so the
-    // ISO contract is formatted through formatDateTime24 before dispatch.
+  // The dialog owns draft editing and confirms the composed value; the
+  // buffered hook parses the DISPLAY shape, so commits format the ISO
+  // contract through formatDateTime24 before dispatch.
+  const confirmComposed = (composed: string) => {
     buffered.onChange({ target: { value: formatDateTime24(composed) } } as unknown as Parameters<typeof buffered.onChange>[0]);
-  };
-  const handleDatePick = (date: string) => applyComposed(date, currentTime || '08:00');
-  const handleTimePick = (time: string) => {
-    applyComposed(currentDate || new Date().toISOString().slice(0, 10), time);
     setPickerOpen(false);
     document.getElementById(id)?.focus();
   };
@@ -156,13 +149,15 @@ export function BufferedUuiDateTimeInput({
       {pickerOpen && createPortal(
         <div
           ref={popoverRef}
-          className="dtp-popover dtp-popover--portal"
-          role="dialog"
-          aria-label="Chọn ngày giờ"
+          className="dtp-dialog-host"
           style={{ top: pickerPos?.top ?? 8, left: pickerPos?.left ?? 8 }}
         >
-          <DatePanel value={currentDate} onChange={handleDatePick} />
-          <TimePanel value={currentTime} onPick={handleTimePick} />
+          <DateTimePickerDialog
+            title={label ?? 'Chọn ngày giờ'}
+            value={value}
+            onConfirm={confirmComposed}
+            onClose={() => { setPickerOpen(false); document.getElementById(id)?.focus(); }}
+          />
         </div>,
         document.body,
       )}

@@ -11,7 +11,7 @@ import { Calendar, Clock, X } from 'lucide-react';
 import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { parseDateTime24 } from '../../../lib/format';
 import { getOffsetDateString, parseDateTimeParts } from './cusAppointmentUtils';
-import { DatePanel, TimePanel } from '../../../design-system/forms/DateTimePickerPanels';
+import { DateTimePickerDialog } from '../../../design-system/forms/DateTimePickerPanels';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
 
@@ -329,9 +329,17 @@ export function CusAppointmentPopover({
                 <Calendar size={14} aria-hidden="true" />
               </button>
               {panelOpen && (
-                <div ref={panelRef} className="dtp-popover cus-appointment-dtp" role="dialog" aria-label="Chọn ngày giờ">
-                  <DatePanel value={date} onChange={(d) => updateDateTime(d, time || '08:00')} />
-                  <TimePanel value={time} onPick={(t) => { updateDateTime(date || getOffsetDateString(0), t); setPanelOpen(false); }} />
+                <div ref={panelRef} className="dtp-dialog-host cus-appointment-dtp">
+                  <DateTimePickerDialog
+                    title={`Giờ hẹn đóng/trả — ${containerLabel}`}
+                    value={date && time ? `${date}T${time}` : ''}
+                    onConfirm={(composed) => {
+                      const [d = '', t = ''] = composed.split('T');
+                      updateDateTime(d, t);
+                      setPanelOpen(false);
+                    }}
+                    onClose={() => setPanelOpen(false)}
+                  />
                 </div>
               )}
             </div>
