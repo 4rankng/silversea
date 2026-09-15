@@ -608,6 +608,13 @@
       "when": 1789444340666,
       "tag": "0090_drop_no_invoice_approval_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1789466975593,
+      "tag": "0091_add_driver_salary_effective_date",
+      "breakpoints": true
     }
   ]
 }

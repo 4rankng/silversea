@@ -1016,6 +1016,7 @@ export const driverSchema = z.object({
   name: z.string().min(1),
   phone: z.string().optional(),
   baseSalary: nonNegNumeric.optional(),
+  salaryEffectiveDate: isoDateOnlySchema.optional().nullable(),
   socialInsurance: nonNegNumeric.optional(),
   status: z.nativeEnum(DriverStatus).optional().default(DriverStatus.ACTIVE),
   // Identity + payroll-routing fields from DriverFormModal (drivers table

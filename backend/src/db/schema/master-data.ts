@@ -66,6 +66,10 @@ export const drivers = pgTable('drivers', {
   phone: varchar('phone', { length: 20 }),
   assignedTruckId: integer('assigned_truck_id'),
   baseSalary: numeric('base_salary', { precision: 15, scale: 0 }),
+  // Optional effective date for the baseSalary — when set, the salary
+  // computation uses baseSalary only from this date onward (first of a
+  // month is the typical value). Null means "effective immediately".
+  salaryEffectiveDate: date('salary_effective_date'),
   // BHXH/BHYT monthly contribution — tracked SEPARATELY for cost allocation; NOT part of daily_rate
   // or trip-salary auto-fill (Pete 2026-06: baseSalary only — base/std_days, no socialInsurance)
   socialInsurance: numeric('social_insurance', { precision: 15, scale: 0 }).default('0'),

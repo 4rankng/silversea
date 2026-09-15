@@ -39,6 +39,7 @@ export function BaseSalaryEditModal({
   month: number;
 }) {
   const [amount, setAmount] = useState(String(currentBaseSalary));
+  const [effectiveDate, setEffectiveDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [versionToken, setVersionToken] = useState<string | null>(null);
@@ -49,6 +50,10 @@ export function BaseSalaryEditModal({
     if (isOpen) {
       setAmount(String(currentBaseSalary));
       setError('');
+      // Default to the first day of next month.
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      setEffectiveDate(nextMonth.toISOString().slice(0, 10));
     }
   }, [isOpen, currentBaseSalary]);
 
@@ -83,7 +88,7 @@ export function BaseSalaryEditModal({
       // /api/drivers (config router), never under /config/. The catalog PUT
       // is optimistic-locked: expectedUpdatedAt → If-Unmodified-Since (428
       // without it).
-      await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed }, { expectedUpdatedAt: versionToken });
+      await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed, salaryEffectiveDate: effectiveDate || null }, { expectedUpdatedAt: versionToken });
       // Invalidate the salary query so the summary recomputes on next render,
       // and the drivers catalog cache so other surfaces see the new amount.
       await queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
@@ -138,6 +143,16 @@ export function BaseSalaryEditModal({
           placeholder="Ví dụ: 8000000"
           inputClassName="tabular-nums"
         />
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-body-size)' }}>
+          Ngày hiệu lực
+          <input
+            type="date"
+            value={effectiveDate}
+            onChange={(e) => setEffectiveDate(e.target.value)}
+            className="input"
+            aria-label="Ngày hiệu lực"
+          />
+        </label>
         {!valid && amount.trim() !== '' && (
           <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>
             Lương cứng phải là số nguyên không âm, tối đa 999.999.999.999.999 ₫.

@@ -87,12 +87,11 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
     ? (fulfillment?.returnDepotName ?? rawDropPoint)
     : rawDropPoint;
 
-  // For IMPORT: when the actual delivery location differs from the return
-  // depot, render it as its own "Địa chỉ giao hàng" row so the driver can
-  // see both the delivery site and the return depot.
+  // For IMPORT: always show the delivery address when it exists, even when
+  // it matches the return depot (the driver needs to see where to deliver).
   // For EXPORT: show the empty-container return depot when it differs from
   // the drop point (existing behaviour).
-  const showDeliveryLocationRow = isImport && fulfillment?.returnDepotName && rawDropPoint !== '—' && rawDropPoint !== fulfillment.returnDepotName;
+  const showDeliveryLocationRow = isImport && rawDropPoint !== '—';
   const showReturnDepotRow = !isImport && fulfillment?.returnDepotName && fulfillment.returnDepotName !== cangHa;
 
   // KP-191: each container number paired with its own type code

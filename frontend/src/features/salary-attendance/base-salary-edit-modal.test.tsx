@@ -50,6 +50,16 @@ describe('BaseSalaryEditModal', () => {
     expect(input).toBeTruthy();
   });
 
+  it('renders an effective-date input defaulting to first of next month', () => {
+    renderModal();
+    const dateInput = screen.getByLabelText('Ngày hiệu lực') as HTMLInputElement;
+    expect(dateInput).toBeTruthy();
+    expect(dateInput.type).toBe('date');
+    const expectedDate = new Date();
+    const firstOfNext = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 1).toISOString().slice(0, 10);
+    expect(dateInput.value).toBe(firstOfNext);
+  });
+
   it('rejects empty and negative amounts — the Lưu button disables', async () => {
     await renderReady();
     const input = screen.getByDisplayValue('8000000');
@@ -79,7 +89,9 @@ describe('BaseSalaryEditModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
-    expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000 }, { expectedUpdatedAt: DRIVER_UPDATED_AT });
+    const expectedDate = new Date();
+    const firstOfNext = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 1).toISOString().slice(0, 10);
+    expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: firstOfNext }, { expectedUpdatedAt: DRIVER_UPDATED_AT });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
@@ -98,7 +110,7 @@ describe('BaseSalaryEditModal', () => {
     // Retry with the refreshed token goes through.
     fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(2));
-    expect(apiPut).toHaveBeenLastCalledWith('/drivers/39', { baseSalary: 9_500_000 }, { expectedUpdatedAt: '2026-09-14T11:30:00.000Z' });
+    expect(apiPut).toHaveBeenLastCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: expect.any(String) }, { expectedUpdatedAt: '2026-09-14T11:30:00.000Z' });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 

@@ -320,24 +320,26 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('KP-063: IMPORT with no return depot falls back to drop port for Cảng hạ', () => {
+  it('P1_5: IMPORT with no return depot shows drop port as Cảng hạ and delivery row', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: null, dropPortName: 'Nhà máy Samsung' },
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Nhà máy Samsung');
-    expect(labels()).not.toContain('Địa chỉ giao hàng');
+    // P1_5: always show delivery address for IMPORT when data exists
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
   });
 
-  it('KP-063: IMPORT with return depot equal to drop port shows no separate delivery row', () => {
+  it('P1_5: IMPORT with return depot equal to drop port still shows delivery row', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: 'Sóng Thần', dropPortName: 'Sóng Thần' },
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
-    expect(labels()).not.toContain('Địa chỉ giao hàng');
+    // P1_5 regression fix: always show delivery address for IMPORT when data exists
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Sóng Thần');
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
