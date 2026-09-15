@@ -11,7 +11,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { Role } from '@tingting/shared';
+import { Role, CustomerStatus } from '@tingting/shared';
 import {
   restrictCustomerCreateForIntake,
   restrictCustomerUpdateForIntake,
@@ -38,17 +38,16 @@ const FULL_PAYLOAD: CustomerCreateInput = {
   taxCode: '0123456789',
   contactPerson: 'Nguyễn Văn A',
   phone: '0901234567',
-  email: 'a@abc.vn',
   address: '123 Nguyễn Huệ',
   creditLimit: 500_000_000,
   creditWarningThreshold: 0.8,
   paymentTermDays: 30,
-  paymentDatePolicy: 'END_OF_MONTH',
+  paymentDatePolicy: 'NEXT_BUSINESS_DAY',
   fuelSurchargeSharePct: 50,
-  debitNoteMode: 'PER_SHIPMENT',
+  debitNoteMode: 'MONTHLY',
   debitNoteTemplateId: 7,
   linkedSupplierId: 42,
-  status: 'ACTIVE',
+  status: CustomerStatus.ACTIVE,
   isCarrier: false,
 };
 
@@ -80,8 +79,7 @@ describe('restrictCustomerCreateForIntake', () => {
       assert.equal(asRecord(result).name, 'Công ty ABC');
       assert.equal(asRecord(result).taxCode, '0123456789');
       assert.equal(asRecord(result).phone, '0901234567');
-      assert.equal(asRecord(result).email, 'a@abc.vn');
-      assert.equal(asRecord(result).address, '123 Nguyễn Huệ');
+          assert.equal(asRecord(result).address, '123 Nguyễn Huệ');
     });
   }
 
@@ -109,7 +107,7 @@ describe('restrictCustomerUpdateForIntake', () => {
         name: 'Tên mới',
         creditLimit: 999_999_999,
         paymentTermDays: 60,
-        debitNoteMode: 'PER_SHIPMENT',
+        debitNoteMode: 'MONTHLY',
       };
       const result = restrictCustomerUpdateForIntake(partial, role);
       assert.equal(asRecord(result).name, 'Tên mới');
@@ -119,7 +117,7 @@ describe('restrictCustomerUpdateForIntake', () => {
     });
 
     test(`${role}: preserves isCarrier on update for carrier intake`, () => {
-      const partial: Partial<CustomerCreateInput> = { status: 'INACTIVE', isCarrier: true, shortName: 'NEW' };
+      const partial: Partial<CustomerCreateInput> = { status: CustomerStatus.LOCKED, isCarrier: true, shortName: 'NEW' };
       const result = restrictCustomerUpdateForIntake(partial, role);
       assert.equal(asRecord(result).status, undefined);
       assert.equal(asRecord(result).isCarrier, true);
@@ -129,7 +127,7 @@ describe('restrictCustomerUpdateForIntake', () => {
 
   for (const role of [Role.ADMIN, Role.MANAGER]) {
     test(`${role}: passes all update fields through`, () => {
-      const partial: Partial<CustomerCreateInput> = { creditLimit: 1_000_000, status: 'ACTIVE' };
+      const partial: Partial<CustomerCreateInput> = { creditLimit: 1_000_000, status: CustomerStatus.ACTIVE };
       const result = restrictCustomerUpdateForIntake(partial, role);
       assert.deepEqual(result, partial);
     });
