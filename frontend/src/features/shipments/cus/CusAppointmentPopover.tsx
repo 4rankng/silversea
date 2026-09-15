@@ -47,6 +47,9 @@ export function CusAppointmentPopover({
 }: CusAppointmentPopoverProps) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  // _15 ruling: a pick must be EXPLICIT — pills/typing/panel-confirm mark it;
+  // opening an appointment-less popover marks nothing by itself.
+  const [explicit, setExplicit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const committing = useRef(false);
@@ -75,15 +78,27 @@ export function CusAppointmentPopover({
     return () => { session.current += 1; };
   }, [isOpen]);
 
-  // Sync state whenever opened or value changes
+  // Sync state whenever opened or value changes. No seed: an appointment-less
+  // container opens EMPTY — a fabricated "08:00 hôm nay" display let a bare
+  // Enter/Xác nhận commit a slot the user never picked (_15 ruling: never
+  // silently commit an unchosen value; the pills remain explicit quick-picks).
   useEffect(() => {
     if (isOpen) {
       setSaveError('');
       const parts = parseDateTimeParts(value);
-      setDate(parts.date || getOffsetDateString(0));
-      setTime(parts.time || '08:00');
+      setDate(parts.date);
+      setTime(parts.time);
     }
   }, [isOpen, value]);
+
+  // Explicit-pick tracking resets only on the OPEN edge — the [isOpen, value]
+  // effect above re-runs mid-edit whenever a pick round-trips through the
+  // parent, and resetting there would un-mark a just-made choice.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) setExplicit(false);
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // Combined 24h text input (see the input block below): the draft date+time
   // state rehydrates it on pills/presets, and a complete "HH:mm DD/MM/YYYY"
@@ -94,6 +109,7 @@ export function CusAppointmentPopover({
     value: date && time ? `${date}T${time}` : '',
     onChange: (next) => {
       if (committing.current) return;
+      setExplicit(true);
       const [nextDate, nextTime] = next ? next.split('T') : ['', ''];
       setDate(nextDate);
       setTime(nextTime.slice(0, 5));
@@ -115,6 +131,7 @@ export function CusAppointmentPopover({
 
   const updateDateTime = (newDate: string, newTime: string) => {
     if (committing.current) return;
+    setExplicit(true);
     setDate(newDate);
     setTime(newTime);
     if (newDate) {
@@ -134,6 +151,12 @@ export function CusAppointmentPopover({
 
   const commit = () => {
     if (committing.current) return;
+    // _15 ruling: an appointment-less popover with no explicit pick must not
+    // silently save a fabricated slot — guide instead of committing.
+    if (!value && !explicit) {
+      setSaveError('Chưa chọn ngày giờ để lưu.');
+      return;
+    }
     const input = popoverRef.current?.querySelector<HTMLInputElement>('.cus-appointment-input');
     const raw = input?.value.trim() ?? '';
     const composed = raw ? parseDateTime24(raw) : '';
@@ -359,7 +382,7 @@ export function CusAppointmentPopover({
           <button
             type="button"
             className="btn btn--primary"
-            disabled={saving}
+            disabled={saving || (!value && !explicit)}
             onMouseDown={(event) => event.preventDefault()}
             onClick={commit}
           >

@@ -421,5 +421,73 @@ describe('CusAppointmentPopover', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
+  it('_15: an appointment-less container opens with an empty input and inactive pills', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
 
+    const input = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    // _15 ruling: no appointment → no fabricated display. The seed used to
+    // put "08:00 <today>" in the input and light up Hôm nay/08:00 pills.
+    expect(input.value).toBe('');
+    expect(screen.getByRole('button', { name: 'Hôm nay' }).className).not.toContain('is-active');
+    for (const slot of ['08:00', '10:00', '13:30', '16:00']) {
+      expect(screen.getByRole('button', { name: slot }).className).not.toContain('is-active');
+    }
+  });
+
+  it('_15: Enter without any explicit pick on an appointment-less container does not commit', () => {
+    const onCommit = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa chọn ngày giờ để lưu');
+  });
+
+  it('_15: Xác nhận stays disabled until the user makes an explicit pick, then commits it', async () => {
+    const onCommit = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    const confirmBtn = screen.getByRole('button', { name: 'Xác nhận' });
+    expect(confirmBtn).toBeDisabled();
+
+    // Explicit pick via quick pill — commits the picked slot.
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    expect(confirmBtn).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${y}-${m}-${d}T08:00`));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
 });
