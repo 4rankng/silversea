@@ -836,6 +836,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
   });
 
+  it('renders the lot-level schedule line when a lot has no container appointment groups (card 20260915_35)', async () => {
+    // Lead ruling fork (a): the "Chỉnh sửa Lịch trình" dialog writes the
+    // shipment-level closingAt/plannedReturnAt, but for FCL lots the readiness
+    // rule counts only per-container appointments — the cell must still SHOW
+    // the saved lot-level schedule instead of leaving "Chưa chốt ngày" alone.
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } })
+        : Promise.resolve(listResponse([{ ...row, appointmentGroups: [], plannedReturnAt: '2026-09-19T13:03:00.000Z' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    expect(await within(masterRow()).findByText('20:03 19/9/26')).toBeTruthy();
+  });
+
   it('uses exactly one full-cell button to open the matching edit dialog', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();

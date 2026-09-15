@@ -29,12 +29,14 @@ import {
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
+  scheduleTimestamp,
   SHIPMENT_BUCKET_COLORS,
   splitContainerSummaryLines,
   vehicleReadinessLabel,
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
+import { formatDateTimeShort } from '../../../lib/format';
 
 export interface CusShipmentRowProps {
   item: ShipmentCusWorkspaceListItem;
@@ -71,11 +73,22 @@ export function CusShipmentRow({
     ? aggregateContainerSummary(filteredGroups)
     : '';
   const hasDateFilter = Boolean(dateFrom || dateTo);
+  const lotScheduleValue = scheduleTimestamp(item);
+  const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-    {(hasDateFilter ? filteredGroups : item.appointmentGroups).map((group) => (
+    {groupsToShow.map((group) => (
       <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
     ))}
+    {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
+        writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the
+        readiness rule counts only per-container appointments — so without this
+        fallback the user's saved schedule never appears in the cell. Render the
+        lot-level schedule whenever no appointment group is on display; the
+        readiness chip above still warns while container appointments are open. */}
+    {groupsToShow.length === 0 && lotScheduleValue && (
+      <span key="lot-schedule-fallback" className="cus-schedule-lot-fallback">{formatDateTimeShort(lotScheduleValue)}</span>
+    )}
     <span>{vehicleReadinessLabel(item)}</span>
     <DispatchIssueStatusSummaryChip
       plated={item.operational.plateAssignedContainers}
