@@ -36,6 +36,18 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it('keeps bare Enter as a newline when editing dispatch notes; Ctrl+Enter saves', () => {
+    const onUpdateNotes = vi.fn();
+    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
+    fireEvent.click(document.querySelector('.master-plan-grid__notes-trigger')!);
+    const notesArea = screen.getByLabelText('Ghi chú điều phối') as HTMLTextAreaElement;
+    fireEvent.change(notesArea, { target: { value: 'Dòng một\nDòng hai' } });
+    fireEvent.keyDown(notesArea, { key: 'Enter' });
+    expect(onUpdateNotes).not.toHaveBeenCalled();
+    expect(notesArea.value).toBe('Dòng một\nDòng hai');
+    fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
+    expect(onUpdateNotes).toHaveBeenCalledWith(item(), 'Dòng một\nDòng hai');
+  });
   it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
     const fixture = {
       ...item({ pickupLocation: null, deliveryLocation: null, containerTypeSummary: null }),

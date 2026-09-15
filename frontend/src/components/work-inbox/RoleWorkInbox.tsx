@@ -402,6 +402,10 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                       aria-label={`Mở hồ sơ ${item.title}`}
                       onClick={handleRowActivate}
                       onKeyDown={(event) => {
+                        // Mirror the pointer guard above: keys inside form
+                        // controls (e.g. Enter in the dispute-reason
+                        // textarea) must not activate the row.
+                        if ((event.target as HTMLElement).closest('a, button, textarea, input, select, label')) return;
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
                           handleRowActivate(event);

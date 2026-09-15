@@ -57,7 +57,7 @@ export function ShipmentQuickEditFields({
       {draft.field === 'notes' && <>
         <label><span>Ghi chú cho khách hàng</span><textarea autoFocus disabled={saving} rows={3} maxLength={2000} value={draft.customerNote} onChange={(event) => update({ customerNote: event.target.value })} /></label>
         <label><span>Ghi chú cho lái xe</span><textarea disabled={saving} rows={3} maxLength={2000} value={draft.operationalNote} onChange={(event) => update({ operationalNote: event.target.value })} /></label>
-        <p className="cus-quick-edit-modal__help">Shift+Enter để xuống dòng.</p>
+        <p className="cus-quick-edit-modal__help">Enter để xuống dòng.</p>
       </>}
       {error && <p className="cus-inline-edit-error" role="alert">{error}</p>}
     </div>

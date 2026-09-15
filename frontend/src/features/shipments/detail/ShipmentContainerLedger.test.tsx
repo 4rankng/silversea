@@ -165,6 +165,7 @@ const baseDetail = () => ({
 function renderLedger(mode: ShipmentDetailEditMode) {
   const row = baseRow();
   const onCancelEdit = vi.fn();
+  const onSaveNotes = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -180,16 +181,26 @@ function renderLedger(mode: ShipmentDetailEditMode) {
       onSaveRoute={vi.fn(async () => {})}
       onSaveVehicle={vi.fn(async () => {})}
       onSaveSchedule={vi.fn(async () => {})}
-      onSaveNotes={vi.fn(async () => {})}
+      onSaveNotes={onSaveNotes}
       onSaveIdentity={vi.fn(async () => {})}
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit };
+  return { ...view, onCancelEdit, onSaveNotes };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
+  it('keeps bare Enter as a newline in the notes editor; Ctrl+Enter saves', () => {
+    const { onSaveNotes } = renderLedger('notes');
+    const notesArea = screen.getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement;
+    fireEvent.change(notesArea, { target: { value: 'Dòng một\nDòng hai' } });
+    fireEvent.keyDown(notesArea, { key: 'Enter' });
+    expect(onSaveNotes).not.toHaveBeenCalled();
+    expect(notesArea.value).toBe('Dòng một\nDòng hai');
+    fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
+    expect(onSaveNotes).toHaveBeenCalledTimes(1);
+  });
   it('documents editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('documents');
     fireEvent.pointerDown(document.body);

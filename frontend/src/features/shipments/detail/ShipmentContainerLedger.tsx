@@ -351,7 +351,9 @@ function InlineEditor({
         if (event.key !== 'Enter' || event.nativeEvent.isComposing || !dirty || saving) return;
         const target = event.target as HTMLElement;
         if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
-        if (event.shiftKey && target.tagName === 'TEXTAREA') return;
+        // Multiline notes: bare Enter inserts a newline; the modified
+        // Enter combo (Ctrl+Enter / Cmd+Enter) is what saves instead.
+        if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
         if (event.shiftKey) return;
         event.preventDefault();
         void save();
