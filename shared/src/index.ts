@@ -18,7 +18,7 @@ export {
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   OPS_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
   NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
-  NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_APPROVAL_TITLES, NO_INVOICE_APPROVAL_TITLE_LABELS, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
+  NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, PORTAL, WORKSPACES, NOTIFICATIONS, SALARY, PRICING_ENGINE,
   CarrierType, SettlementMethod, ApprovalStatus, DebitNoteMode,
@@ -32,7 +32,7 @@ export {
   DEFAULT_SHIPPING_LINES,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchClassification } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,

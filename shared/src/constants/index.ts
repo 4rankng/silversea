@@ -499,18 +499,6 @@ export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[]
 
 export const NO_INVOICE_REQUIRED_SCOPE = 'TRIP_OR_SHIPMENT' as const;
 
-export const NO_INVOICE_APPROVAL_TITLES = [
-  'FINANCE_LEAD',
-  'DIRECTOR',
-] as const;
-
-export type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
-
-export const NO_INVOICE_APPROVAL_TITLE_LABELS: Record<NoInvoiceApprovalTitle, string> = {
-  FINANCE_LEAD: 'Trưởng phòng Tài chính/Kế toán',
-  DIRECTOR: 'Giám đốc',
-};
-
 export const NO_INVOICE_DEFAULT_CATEGORY_ALIASES: Record<string, readonly string[]> = {
   LIFTING: ['Bốc xếp tại hiện trường', 'Lao động thời vụ tại hiện trường'],
   LOWERING: ['Hạ container tại hiện trường', 'Lao động thời vụ tại hiện trường'],
@@ -524,8 +512,6 @@ export const NO_INVOICE_DEFAULT_CATEGORY_ALIASES: Record<string, readonly string
 export const NO_INVOICE_POLICY_DEFAULTS = {
   perItemLimit: 1_000_000,
   perDayLimit: 5_000_000,
-  financeLeadItemApprovalLimit: 5_000_000,
-  directorDayApprovalLimit: 10_000_000,
 };
 
 export enum AdvanceRequestStatus {
