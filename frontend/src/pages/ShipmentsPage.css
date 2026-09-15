@@ -2516,3 +2516,21 @@
 @media (prefers-reduced-motion: reduce) {
   .cus-appointment-popover { animation: none; }
 }
+
+/* Desktop: the advanced filter set renders as a proper row segment — the
+   collapse wrapper is a ≤1023px affordance, so above it the four secondary
+   fields fill the toolbar's remaining columns and the toggle/summary chrome
+   disappears (the filters are always visible where they fit). */
+@media (min-width: 1024px) {
+  .cus-worksheet-advanced {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(148px, 1fr));
+    gap: 8px 12px;
+    align-items: end;
+    grid-column: 2 / -1;
+  }
+  .cus-worksheet-toolbar__filters .cus-advanced-toggle,
+  .cus-worksheet-toolbar__filters .cus-active-filter-summary {
+    display: none;
+  }
+}

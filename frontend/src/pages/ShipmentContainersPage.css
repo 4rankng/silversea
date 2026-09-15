@@ -541,3 +541,20 @@
     flex-basis: 100%;
   }
 }
+
+/* Desktop: both date inputs share the date-range slot side by side and the
+   collapse toggle disappears — the filter band holds one field row plus the
+   date-actions footer (two lines total, user ruling 2026-09-15). The
+   ≤1023px collapse behavior is untouched. */
+.shipments-detail-filters__advanced {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+@media (min-width: 1101px) {
+  .shipments-detail-filters .cus-advanced-toggle {
+    display: none;
+  }
+}
