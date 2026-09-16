@@ -79,6 +79,6 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
     {invalid && <small id={`${id}-error`} className="time-input__error">{validation}</small>}
     {open && !disabled && <TimePickerSurface id={`${id}-panel`} label={`Chọn giờ (24h) — ${label}`} value={value}
       panelRef={panel} anchorRef={input} keyboard={keyboardPicker} onDismiss={close} onExit={() => setOpen(false)}
-      onPick={(next) => { onChange(next); close(); }} />}
+      onPick={(next) => onChange(next)} onApply={() => close()} />}
   </div>;
 }

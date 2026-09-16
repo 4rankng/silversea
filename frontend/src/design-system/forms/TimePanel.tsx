@@ -9,8 +9,11 @@ const parse = (value: string) => isTime(value)
   : { hour: null, minute: null };
 
 /** Five-minute shortcuts plus exact 24h entry. Partial selection never invents
- * the other part, and opening or cancelling never rounds an existing minute. */
-export function TimePanel({ value, onPick }: { value: string; onPick: (time: string) => void }) {
+ * the other part, and opening or cancelling never rounds an existing minute.
+ * List selections only update the value and keep the panel open (user ruling
+ * 2026-09-16); the explicit Xong button — and Enter in the exact entry — fire
+ * onApply so hosts can close the panel. */
+export function TimePanel({ value, onPick, onApply }: { value: string; onPick: (time: string) => void; onApply?: (time: string) => void }) {
   const [draft, setDraft] = useState<{ hour: number | null; minute: number | null }>(() => parse(value));
   const [text, setText] = useState(value);
   const [invalid, setInvalid] = useState(false);
@@ -47,6 +50,7 @@ export function TimePanel({ value, onPick }: { value: string; onPick: (time: str
   const applyExact = () => {
     if (!isTime(text)) { setInvalid(true); return; }
     onPick(text);
+    onApply?.(text);
   };
   const minutes = Array.from({ length: 12 }, (_, n) => n * 5);
   if (draft.minute != null && !minutes.includes(draft.minute)) minutes.push(draft.minute);

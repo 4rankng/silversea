@@ -156,6 +156,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
       onPick={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); close(); }} />}
     {active && open === 'time' && <TimePickerSurface id={`${id}-picker`} label={`Chọn giờ (24h) — ${label}`} value={draft.time}
       panelRef={panelRef} anchorRef={timeRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
-      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }} onPick={(next) => { update('time', next); close(); }} />}
+      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
+      onPick={(next) => update('time', next)} onApply={() => close()} />}
   </div>;
 }

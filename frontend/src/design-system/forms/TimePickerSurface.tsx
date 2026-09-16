@@ -15,8 +15,11 @@ export const TIME_PICKER_MOBILE_QUERY = '(max-width: 640px)';
 /** One time surface for create, detail schedule and combined appointments.
  * The mobile modal contains its own exact entry, so it never depends on an
  * obscured or inert input behind the sheet. */
-export function TimePickerSurface({ id, label, value, onPick, onDismiss, onExit, panelRef, anchorRef, additionalRefs = [], keyboard = false, inline = false }: {
+export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss, onExit, panelRef, anchorRef, additionalRefs = [], keyboard = false, inline = false }: {
   id?: string; label: string; value: string; onPick: (time: string) => void;
+  /** Explicit apply (Xong button / Enter in exact entry) — the only paths
+   *  that close the picker (user ruling 2026-09-16: selections stay open). */
+  onApply?: (time: string) => void;
   onDismiss: () => void; onExit: () => void;
   panelRef: RefObject<HTMLDivElement | null>; anchorRef: RefObject<HTMLElement | null>;
   additionalRefs?: RefObject<HTMLElement | null>[]; keyboard?: boolean; inline?: boolean;
@@ -38,7 +41,7 @@ export function TimePickerSurface({ id, label, value, onPick, onDismiss, onExit,
     sheetTokenRef.current = token;
     return () => unregisterOverlayToken(token);
   }, []);
-  const content = <TimePanel value={value} onPick={onPick} />;
+  const content = <TimePanel value={value} onPick={onPick} onApply={onApply} />;
   const keyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onDismiss(); }
     if (event.key === 'Enter') event.stopPropagation();

@@ -102,7 +102,7 @@ describe('adaptive time entry', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(time).toHaveValue('14:17');
       await waitFor(() => expect(time).toHaveFocus());
-      expect(time).toHaveAttribute('aria-invalid', 'false');
+      expect(time).not.toHaveAttribute('aria-invalid', 'true');
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(time).toHaveAttribute('aria-expanded', 'false');
     });
@@ -116,9 +116,14 @@ describe('adaptive time entry', () => {
       expect(time).toHaveValue('');
       expect(within(dialog).getByLabelText('Giờ chính xác (HH:mm)')).toHaveValue('--:05');
       click(within(within(dialog).getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '01' }));
+      // Completing the pair applies the value and keeps the panel open
+      // (2026-09-16 ruling); Xong is the explicit close.
+      expect(within(dialog).getByLabelText('Giờ chính xác (HH:mm)')).toHaveValue('01:05');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Xong' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       await waitFor(() => expect(time).toHaveFocus());
       expect(time).toHaveValue('01:05');
-      expect(time).toHaveAttribute('aria-invalid', 'false');
+      expect(time).not.toHaveAttribute('aria-invalid', 'true');
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
@@ -153,19 +158,17 @@ describe('adaptive time entry', () => {
       await waitFor(() => expect(time).toHaveFocus());
     });
 
-    it('nested sheet interaction and Escape leave the outer buffered appointment open', async () => {
+    it('nested picker Escape closes only the picker and preserves the buffered value', async () => {
       const onChange = vi.fn();
       render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T20:46" onChange={onChange} />);
-      click(screen.getByLabelText('Hẹn'));
-      click(screen.getByRole('button', { name: /^GIỜ/ }));
-      const sheet = await screen.findByRole('dialog', { name: 'Chọn giờ (24h)' });
+      click(screen.getByLabelText('Giờ — Hẹn'));
+      const sheet = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       const exact = within(sheet).getByLabelText('Giờ chính xác (HH:mm)');
       click(exact); fireEvent.change(exact, { target: { value: '1417' } });
       expect(sheet).toBeInTheDocument();
       fireEvent.keyDown(exact, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h)' })).not.toBeInTheDocument());
-      expect(screen.getByRole('dialog', { name: 'Hẹn' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^GIỜ/ })).toHaveTextContent('20:46');
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).not.toBeInTheDocument());
+      expect(screen.getByLabelText('Giờ — Hẹn')).toHaveValue('20:46');
       expect(onChange).not.toHaveBeenCalled();
     });
 

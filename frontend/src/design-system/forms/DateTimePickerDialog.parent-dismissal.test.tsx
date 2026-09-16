@@ -64,18 +64,21 @@ describe('picker interactions never dismiss the parent dialog', () => {
     expect(onParentClose).not.toHaveBeenCalled();
   });
 
-  it('keeps the picker panel mounted through the press that picked the minute, then settles closed', async () => {
+  it('minute selection keeps the panel open — only Xong closes it', async () => {
     const { onParentClose } = openTimePanel('2026-09-20T15:30');
     tap(minute(35));
-    // Commit applied immediately...
+    // Selection applies the value...
     expect(screen.getByRole('button', { name: /GIỜ/ })).toHaveTextContent('15:35');
-    // ...but the panel is still mounted while the gesture is in flight — an
-    // immediate unmount orphaned the press's mousedown, which the browser
-    // retargets to <body>, and the parent's outside-press detector reads that
-    // as an outside tap (card _8: minute-tap dismissed the whole dialog).
+    // ...and the panel STAYS OPEN (user ruling 2026-09-16: no auto-close on
+    // selection; only Xong closes). This also keeps the gesture's press
+    // inside the mounted panel, so the parent's outside-press detector never
+    // sees an orphaned event (card _8 invariant).
+    await new Promise((resolve) => setTimeout(resolve, 200));
     expect(screen.getByRole('listbox', { name: 'Phút 00–59' })).toBeInTheDocument();
-    // The gesture settles and only then does the panel close.
+    // Xong is the explicit close.
+    fireEvent.click(screen.getByRole('button', { name: 'Xong' }));
     await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Phút 00–59' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /GIỜ/ })).toHaveTextContent('15:35');
     expect(onParentClose).not.toHaveBeenCalled();
   });
 
