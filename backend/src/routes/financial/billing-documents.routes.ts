@@ -24,6 +24,7 @@ import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit
 import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { parseId, parseOptionalId } from '../utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
 import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
@@ -83,14 +84,14 @@ router.get('/finance/billing-documents/transport-register', requireRoles(...ROLE
 
 // GET /api/finance/billing-documents/:id — one document with lines
 router.get('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
-  res.json(await billingService.getDocument(Number(req.params.id)));
+  res.json(await billingService.getDocument(parseId(req.params.id, 'ID hóa đơn')));
 }));
 
 // PUT /api/finance/billing-documents/:id — edit in place (always-editable)
 router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = saveBillingDocumentSchema.parse(req.body);
   const actor = getUser(req);
-  const documentId = Number(req.params.id);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_UPDATE,
@@ -110,7 +111,7 @@ router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandle
 router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = billingDocumentAdjustmentRequestSchema.parse(req.body);
-  const documentId = Number(req.params.id);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_ADJUSTMENT_REQUEST,
@@ -139,7 +140,7 @@ router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES)
 router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = billingDocumentIssueRequestSchema.parse(req.body);
-  const documentId = Number(req.params.id);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT,
@@ -167,7 +168,7 @@ router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyn
 router.post('/finance/billing-documents/:id/send-for-confirmation', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = sendDebitNoteForConfirmationSchema.parse(req.body);
-  const documentId = Number(req.params.id);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: BILLING_DOCUMENT_SEND_CONFIRMATION_ENDPOINT,
@@ -192,7 +193,7 @@ router.post('/finance/billing-documents/:id/send-for-confirmation', requireRoles
 // DELETE /api/finance/billing-documents/:id — soft delete
 router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
-  const documentId = Number(req.params.id);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_DELETE,
@@ -221,9 +222,9 @@ router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHan
 // Falls back to the legacy renderer when no template applies.
 router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
-  const id = Number(req.params.id);
+  const id = parseId(req.params.id, 'ID hóa đơn');
   const overrideRaw = req.query.templateId;
-  const templateIdOverride = overrideRaw ? Number(overrideRaw) : null;
+  const templateIdOverride = parseOptionalId(overrideRaw, 'ID mẫu');
 
   if (format === 'pdf' || format === 'html') {
     // Wave 3 M5.8 — browser-printable HTML that mirrors the screen.
