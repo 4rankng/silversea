@@ -172,7 +172,7 @@ router.get('/shipments', asyncHandler(async (req: Request, res: Response) => {
   let status: ShipmentStatus | undefined;
   if (statusVal !== undefined) {
     if (!Object.values(ShipmentStatus).includes(statusVal as ShipmentStatus)) {
-      return res.status(400).json({ error: 'Trạng thái lô hàng không hợp lệ' });
+      throw new ApiError(400, 'Trạng thái lô hàng không hợp lệ');
     }
     status = statusVal as ShipmentStatus;
   }
@@ -202,7 +202,7 @@ router.get('/shipments/:id', asyncHandler(async (req: Request, res: Response) =>
 
   const detail = await getShipmentDetail(id);
   if (detail.shipment.customerId !== resolveSelectedCustomerId(req)) {
-    return res.status(404).json({ error: 'Không tìm thấy lô hàng' });
+    throw new ApiError(404, 'Không tìm thấy lô hàng');
   }
 
   res.json(toCustomerShipmentDetail(detail));
@@ -213,7 +213,7 @@ router.get('/shipments/:id/pod-files/:fileId', asyncHandler(async (req: Request,
   const fileId = parsePositiveId(String(req.params.fileId), 'ID tệp e-POD');
   const detail = await getShipmentDetail(shipmentId);
   if (detail.shipment.customerId !== resolveSelectedCustomerId(req)) {
-    return res.status(404).json({ error: 'Không tìm thấy lô hàng' });
+    throw new ApiError(404, 'Không tìm thấy lô hàng');
   }
   const file = await downloadShipmentPodFile(shipmentId, fileId, getUser(req));
   res.type(file.mimeType);
