@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 import {
   getForwarderTrips, getForwarderTripCounts, getForwarderTripDetail,
 } from '../../services/forwarder.service';
@@ -30,7 +31,7 @@ router.get('/trips', asyncHandler(async (req: Request, res: Response) => {
 router.get('/trips/:id', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const trip = await getForwarderTripDetail(parseInt(req.params.id as string, 10), forwarder.id);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   res.json(trip);
 }));
 

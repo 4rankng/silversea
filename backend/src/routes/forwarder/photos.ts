@@ -43,10 +43,10 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
   // so a forwarder cannot enumerate another forwarder's photo metadata.
   const ownedExpenseId = await getForwarderOwnedExpenseId(expenseId, forwarder.id);
   if (!ownedExpenseId) {
-    return res.status(404).json({ error: 'Không tìm thấy chi phí' });
+    throw new ApiError(404, 'Không tìm thấy chi phí');
   }
   const ownedTripId = await getExpenseTripLink(expenseId);
-  if (ownedTripId == null) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
+  if (ownedTripId == null) throw new ApiError(404, 'Không tìm thấy chi phí');
   await assertForwarderTripScope(ownedTripId, forwarder.id);
   const photos = await getExpensePhotos(expenseId);
   res.json({ items: photos });
@@ -55,7 +55,7 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
 router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const file = req.file;
-  if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
+  if (!file) throw new ApiError(400, 'Không có file tải lên');
 
   const expenseId = parseInt(req.params.id as string, 10);
 
@@ -63,12 +63,12 @@ router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHand
   // so a forwarder cannot attach photos to another forwarder's trip_expense.
   const ownedExpenseId = await getForwarderOwnedExpenseId(expenseId, forwarder.id);
   if (!ownedExpenseId) {
-    return res.status(404).json({ error: 'Không tìm thấy chi phí' });
+    throw new ApiError(404, 'Không tìm thấy chi phí');
   }
 
   // Validate image type
   const mime = sniffImageType(file.buffer);
-  if (!mime) return res.status(400).json({ error: 'Định dạng file không được hỗ trợ' });
+  if (!mime) throw new ApiError(400, 'Định dạng file không được hỗ trợ');
 
   // Process: strip EXIF, downscale. Wrapped in try/catch (parity with
   // expense.ts) so a corrupt/unsupported codec yields a clean 400, not a 500.
@@ -84,7 +84,7 @@ router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHand
     }
   } catch (err) {
     console.warn('[forwarder] expense-photo processing failed:', err instanceof Error ? err.message : err);
-    return res.status(400).json({ error: 'Xử lý ảnh thất bại' });
+    throw new ApiError(400, 'Xử lý ảnh thất bại');
   }
   const idempotencyKey = requireForwarderIdempotencyKey(req);
   const fileHash = createHash('sha256').update(processedBuffer).digest('hex');

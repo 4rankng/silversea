@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
 import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../../services/advance.service';
 import { runIdempotent } from '../../services/idempotency.service';
@@ -87,8 +88,8 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 router.get('/advance-settlements/:id', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const settlement = await getAdvanceSettlement(Number(req.params.id));
-  if (!settlement) return res.status(404).json({ error: 'Không tìm thấy phiếu thanh toán' });
-  if (settlement.forwarderId !== forwarder.id) return res.status(403).json({ error: 'Không có quyền truy cập' });
+  if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
+  if (settlement.forwarderId !== forwarder.id) throw new ApiError(403, 'Không có quyền truy cập');
   res.json(settlement);
 }));
 
@@ -96,13 +97,13 @@ router.get('/advance-settlements/:id/export', asyncHandler(async (req: Request, 
   const forwarder = req.forwarder!;
   const id = Number(req.params.id);
   const settlement = await getAdvanceSettlement(id);
-  if (!settlement) return res.status(404).json({ error: 'Không tìm thấy phiếu thanh toán' });
-  if (settlement.forwarderId !== forwarder.id) return res.status(403).json({ error: 'Không có quyền truy cập' });
+  if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
+  if (settlement.forwarderId !== forwarder.id) throw new ApiError(403, 'Không có quyền truy cập');
 
   const format = (req.query.format as string) || 'xlsx';
   if (format === 'pdf' || format === 'html') {
     const html = await exportSettlementHtml(id);
-    if (!html) return res.status(404).json({ error: 'Không tìm thấy phiếu thanh toán' });
+    if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
     return;
