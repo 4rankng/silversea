@@ -228,6 +228,9 @@ after(async () => {
   try {
     await saveAppSettings(originalSettings);
     server.closeAllConnections();
+    // Release the shared postgres client so this file's process can exit
+    // with its true result code instead of hanging the full-suite gate.
+    await client.end({ timeout: 5 });
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
