@@ -91,7 +91,8 @@ describe('BaseSalaryEditModal', () => {
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
     const expectedDate = new Date();
-    const firstOfNext = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 1).toISOString().slice(0, 10);
+    // Local-field ISO build — toISOString on local midnight slips a day in +07.
+    const firstOfNext = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 2).padStart(2, '0')}-01`;
     expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: firstOfNext }, { expectedUpdatedAt: DRIVER_UPDATED_AT });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });

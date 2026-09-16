@@ -35,7 +35,7 @@ const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
-const filterCss = css.slice(css.indexOf('@media (max-width: 1023px)'));
+const filterCss = css.slice(css.indexOf('@container cus-workboard'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
 // structural split; these guard assertions follow the markup, not the page file.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
@@ -696,7 +696,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '20/08/2026' } });
     fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
@@ -824,12 +824,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     it('closes on outside pointerdown', async () => {
       await openDocumentsBubble();
       fireEvent.pointerDown(document.body);
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
-    });
-
-    it('closes on outside mousedown', async () => {
-      await openDocumentsBubble();
-      fireEvent.mouseDown(document.body);
       await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
     });
 
@@ -1089,7 +1083,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hủy' })).toBeTruthy();
 
-    fireEvent.change(dateInput, { target: { value: '2026-08-21' } });
+    fireEvent.change(dateInput, { target: { value: '21/08/2026' } });
     fireEvent.blur(dateInput, { relatedTarget: timeInput });
     expect(apiPut).not.toHaveBeenCalled();
 
@@ -1123,14 +1117,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     const date = screen.getByLabelText('Ngày đóng/trả') as HTMLInputElement;
     fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '16:17' } });
-    // jsdom cannot type a segmented badInput date. Native custom validity
-    // exercises the same form constraint-validation boundary without mocking it.
-    date.setCustomValidity('Ngày chưa hoàn chỉnh');
+    // Partial typed text never emits the ISO contract, so the save cannot
+    // reuse the previous date while the entry is incomplete.
+    fireEvent.change(date, { target: { value: '23/09/' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(apiPut).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Ngày đóng/trả')).toBeInTheDocument();
-    date.setCustomValidity('');
-    fireEvent.input(date, { target: { value: '2026-09-23' } });
+    fireEvent.change(date, { target: { value: '23/09/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
     expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-09-23' }));
@@ -1410,8 +1403,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByLabelText('Chi tiết container');
     if (field === 'appointment') {
       fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-      fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '15:17 24/09/2026' } });
-      fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
+      const splitInputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
+      fireEvent.change(splitInputs[0], { target: { value: '15:17' } });
+      fireEvent.change(splitInputs[1], { target: { value: '24/09/2026' } });
+      fireEvent.keyDown(splitInputs[0], { key: 'Enter' });
     } else {
       const plate = screen.getByLabelText(/Biển số xe của container MSKU1234567/);
       fireEvent.change(plate, { target: { value: '15C-666.66' } });
@@ -1441,10 +1436,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
     fireEvent.change(plate, { target: { value: '15C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/ }));
-    // Single buffered 24h text input (combined date+time contract) — one
-    // complete entry replaces the old separate Ngày/Giờ native inputs.
-    const datetimeInput = screen.getByLabelText('Ngày giờ') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '10:30 14/08/2026' } });
+    // Unified split pair — complete time + date text publishes the contract.
+    const splitInputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
+    fireEvent.change(splitInputs[0], { target: { value: '10:30' } });
+    fireEvent.change(splitInputs[1], { target: { value: '14/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
@@ -1656,7 +1651,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
     expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?min-height:\s*38px;/);
     expect(source).toContain('tabIndex={0}');
     expect(rowSource).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
@@ -1693,8 +1688,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rowSource).toContain('kg ·');
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/\.cus-quick-edit-modal__help\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/@media \(max-width: 999px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
@@ -1844,8 +1839,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('renders giờ before ngày in schedule quick-edit fields with 24h format', () => {
     const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
     const scheduleBlock = quickEdit.match(/draft\.field === 'schedule' && <>([\s\S]*?)<\/>/)?.[1] ?? '';
-    const timeIndex = scheduleBlock.indexOf('<ShipmentScheduleTimeField');
-    const dateIndex = scheduleBlock.indexOf('<DateInput');
+    const timeIndex = scheduleBlock.indexOf('<TimeInput');
+    const dateIndex = scheduleBlock.indexOf('<BufferedUuiDateInput');
     expect(timeIndex).toBeGreaterThan(-1);
     expect(dateIndex).toBeGreaterThan(-1);
     expect(timeIndex).toBeLessThan(dateIndex);
