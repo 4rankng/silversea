@@ -68,7 +68,7 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
 // offset atomically; legacy clients must not trigger another financial effect.
 router.post('/finance/debt-offsets/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER),
   (_req: Request, res: Response) => {
-    throw new ApiError(410, 'Luồng phê duyệt đã được loại bỏ. Đối trừ được ghi nhận trực tiếp khi tạo hợp lệ.');
+    res.status(410).json({ error: 'Luồng phê duyệt đã được loại bỏ. Đối trừ được ghi nhận trực tiếp khi tạo hợp lệ.' });
   },
 );
 
