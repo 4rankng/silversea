@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 // The editor dialog mounts the note composer, which pulls the tag pool via
@@ -792,5 +793,70 @@ describe('DetailedPlanGrid — secondary text contrast pins', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const placeholder = css.match(/\.dispatch-assignment-cell__plate\.is-placeholder,[\s\S]*?\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-tertiary, #64748b)');
+  });
+});
+
+describe('allocation editor mounts on every press (20260916_9)', () => {
+  function PressHost({ initialRow }: { initialRow: DispatchDetailPlanRow }) {
+    const [items, setItems] = useState<DispatchDetailPlanRow[]>([initialRow]);
+    const [autoOpen, setAutoOpen] = useState<number | null>(null);
+    const consume = vi.fn(() => setAutoOpen(null));
+    const ensure = vi.fn(async (current: DispatchDetailPlanRow) => {
+      const fresh = { ...current, fulfillmentId: 98, version: 1 };
+      setItems([fresh]);
+      setAutoOpen(98);
+      return fresh;
+    });
+    return (
+      <DetailedPlanGrid
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onFilterChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        items={items}
+        loading={false}
+        error={null}
+        onRetry={vi.fn()}
+        assignmentError={null}
+        lotBanner={null}
+        onClearLotBanner={vi.fn()}
+        presence={null}
+        zones={[]}
+        sortKey={null}
+        sortDirection="asc"
+        onToggleSort={vi.fn()}
+        onAtomicSave={vi.fn()}
+        onOpenTripReassign={vi.fn()}
+        onCompleteExternalTrip={vi.fn()}
+        onIssueOrder={vi.fn()}
+        onEnsureFulfillment={ensure}
+        autoOpenFulfillmentId={autoOpen}
+        onAutoOpenConsumed={consume}
+      />
+    );
+  }
+
+  it('mounts the editor on press 1 (branch decompose) and on every later press', async () => {
+    const branch = {
+      ...row({ fulfillmentId: undefined }),
+      shipmentContainerId: 55,
+    } as DispatchDetailPlanRow;
+    render(<PressHost initialRow={branch} />);
+    const trigger = () => screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+
+    // Press 1 — decompose path, then the editor must mount on the fresh row.
+    fireEvent.click(trigger());
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeNull());
+
+    // Presses 2-3 — direct path after the row gained its fulfillment.
+    for (let round = 2; round <= 3; round++) {
+      fireEvent.click(trigger());
+      await waitFor(() => expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy(), { timeout: 1500 });
+      fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeNull());
+    }
   });
 });

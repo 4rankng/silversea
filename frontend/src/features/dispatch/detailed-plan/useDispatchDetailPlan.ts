@@ -467,12 +467,25 @@ export function useDispatchDetailPlan() {
     return response.items;
   }, []);
 
-  // Branch-row decompose (ensureFulfillment.ts — closes _4 item 7).
-  const ensureFulfillment = useCallback((row: DispatchDetailPlanRow) => ensureFulfillmentFor(row, { patchItems: setItems, onError: setAssignmentError }), []);
+  // Branch-row decompose (ensureFulfillment.ts — closes _4 item 7). The
+  // decompose re-keys the grid row (container key → fulfillment key), which
+  // unmounts the editor cell that started the work — so record the fresh
+  // fulfillment id and let the surviving cell auto-open its editor.
+  const [autoOpenFulfillmentId, setAutoOpenFulfillmentId] = useState<number | null>(null);
+  const ensureFulfillment = useCallback(async (row: DispatchDetailPlanRow) => {
+    const fresh = await ensureFulfillmentFor(row, { patchItems: setItems, onError: setAssignmentError });
+    if (fresh) setAutoOpenFulfillmentId(fresh.fulfillmentId);
+    return fresh;
+  }, []);
+  const consumeAutoOpen = useCallback((id: number) => {
+    setAutoOpenFulfillmentId((current) => (current === id ? null : current));
+  }, []);
 
   return {
     filters,
     ensureFulfillment,
+    autoOpenFulfillmentId,
+    consumeAutoOpen,
     updateFilters,
     items: sortedItems,
     loading,

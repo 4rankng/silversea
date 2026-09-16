@@ -75,6 +75,12 @@ interface DetailedPlanGridProps {
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
   /** Decompose-then-edit for fulfillment-less branch rows. */
   onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+  /** When the decompose re-keys the row, the cell that started the work is
+   *  unmounted mid-await — the surviving cell for this fulfillment opens its
+   *  editor instead (20260916_9). */
+  autoOpenFulfillmentId?: number | null;
+  /** Clears the parent's pending auto-open once consumed. */
+  onAutoOpenConsumed?: (id: number) => void;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
@@ -113,6 +119,8 @@ export function DetailedPlanGrid({
   onIssueOrder,
   onOpenPair,
   onEnsureFulfillment,
+  autoOpenFulfillmentId,
+  onAutoOpenConsumed,
 }: DetailedPlanGridProps) {
   // Long notes clamp to three lines; tapping reopens the full text in a
   // dialog so the column stays scannable without hiding content.
@@ -334,6 +342,8 @@ export function DetailedPlanGrid({
                       onAtomicSave={onAtomicSave}
                       onOpenTripReassign={onOpenTripReassign}
                       onEnsureFulfillment={onEnsureFulfillment}
+                      autoOpenFulfillmentId={autoOpenFulfillmentId}
+                      onAutoOpenConsumed={onAutoOpenConsumed}
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
                     />

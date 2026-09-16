@@ -85,6 +85,10 @@ interface DispatchPlanEditorCellProps {
   /** Fulfillment-less branch rows must decompose before the editor can open;
    *  resolves to the fresh (fulfilled) row, or null when the write fails. */
   onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+  /** Surviving-cell auto-open after a decompose re-key (20260916_9). */
+  autoOpenFulfillmentId?: number | null;
+  /** Clears the parent's pending auto-open once consumed. */
+  onAutoOpenConsumed?: (id: number) => void;
   /** "Phát lệnh" — issues the order for the already-saved plan (carrier +
    *  vehicle), creating the live trip and notifying the driver. */
   onIssueOrder: (
@@ -152,7 +156,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -233,6 +237,16 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   useEffect(() => {
     if (!open) setDraft(draftForRow(row));
   }, [open, row]);
+
+  // A decompose re-keys the grid row mid-await, unmounting the cell that
+  // handled the press — its setOpen died with it. The surviving cell for the
+  // fresh fulfillment id opens the editor in its place (20260916_9).
+  useEffect(() => {
+    if (open || autoOpenFulfillmentId == null || row.fulfillmentId !== autoOpenFulfillmentId) return;
+    setDraft(draftForRow(row));
+    setOpen(true);
+    onAutoOpenConsumed?.(autoOpenFulfillmentId);
+  }, [autoOpenFulfillmentId, row, open]);
 
   useEffect(() => {
     if (open || !restoreFocusRef.current) return;
