@@ -28,7 +28,9 @@
 
 .ops-schedule { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .ops-schedule > .ops-schedule__datetime {
-  white-space: nowrap;
+  /* Wrap at the time/date space: "09:00" / "13/09/2026" — the year stays
+     visible in the 12% schedule column instead of clipping after "13/09/". */
+  white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
   font-size: var(--ops-table-primary-size);

@@ -4,7 +4,7 @@
 // Split out of ShipmentContainerLedger.tsx (structure-guard ratchet);
 // appointment state (ngày + giờ) stays owned by the parent InlineEditor,
 // which passes values and setters down.
-import { Calendar, Clock, X } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { BufferedUuiDateInput } from '../../../design-system';
@@ -67,7 +67,6 @@ export function ScheduleEditorBody({
     <>
       <div className="shipment-container-ledger__schedule-header">
         <div className="shipment-container-ledger__schedule-title">
-          <Calendar size={14} aria-hidden="true" />
           <strong>Chỉnh sửa lịch trình</strong>
           <span className="shipment-container-ledger__schedule-badge">{row.containerNumber || `Container số ${row.ordinal}`}</span>
         </div>

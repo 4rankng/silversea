@@ -148,6 +148,10 @@
 .shipment-container-ledger__missing-fields-item:disabled { opacity: .55; cursor: default; }
 .shipment-container-ledger__missing-fields-item--external { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
+/* Container numbers are 11-char ISO codes: one step below the cell's primary
+   size and single-line — the td's overflow-wrap:anywhere breaks them mid-number
+   at the column's 12% width. */
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code { font-size: var(--text-caption-size); white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
    stay reserved for state signals. */
@@ -319,7 +323,6 @@
    link. Pills auto-complete the date+time pair like the customer popover. */
 .shipment-container-ledger__schedule-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
 .shipment-container-ledger__schedule-title { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--ink); font-size: var(--text-data-size); }
-.shipment-container-ledger__schedule-title > svg { flex-shrink: 0; color: var(--brand); }
 .shipment-container-ledger__schedule-badge { color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
 .shipment-container-ledger__schedule-close { display: inline-grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); cursor: pointer; }
 .shipment-container-ledger__schedule-close:hover { background: var(--surface-2); color: var(--ink); }

@@ -23,6 +23,14 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('ScheduleEditorBody', () => {
+  it('renders the editor header without a calendar icon', () => {
+    const props = baseProps();
+    const { container } = render(<ScheduleEditorBody {...props} />);
+    // The header icon crowded the narrow cell tray; the user asked for it gone.
+    expect(container.querySelector('.shipment-container-ledger__schedule-title svg')).toBeNull();
+    expect(screen.getByText('Chỉnh sửa lịch trình')).toBeTruthy();
+  });
+
   it('renders giờ before ngày with locale-independent 24h text entry', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);
