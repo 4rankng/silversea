@@ -66,6 +66,13 @@ function buildContainerPatch(
       carrierType, externalCarrierId, externalCarrierVehicleId: matchedVehicle?.id ?? null,
     } : {}),
     ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber !== base.plateNumber ? { plateNumber: draft.plateNumber.trim() || null } : {}),
+    // Clear parity with the detail-table editor (20260916_6): an emptied
+    // plate alone is NOT a clear on EXTERNAL rows with a selected vehicle —
+    // the service falls back to the vehicle's stored plate. Emptied from an
+    // assigned plate ⇒ send the explicit flag.
+    ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber.trim() === '' && (base.plateNumber ?? '') !== ''
+      ? { clearVehicle: true as const }
+      : {}),
     ...(permissions.containerTypeEditable && draft.containerTypeId !== base.containerTypeId ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
     ...(permissions.routeEditable && draft.routeId !== base.routeId ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
     ...(permissions.liftSiteEditable && draft.liftSiteId !== base.liftSiteId ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),

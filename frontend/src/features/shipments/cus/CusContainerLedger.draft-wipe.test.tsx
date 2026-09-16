@@ -139,3 +139,35 @@ describe('ContainerLedger multi-row save draft preservation', () => {
     expect(document.querySelector('.cus-container-confirm')).toBeNull();
   });
 });
+
+describe('drawer plate clear parity (20260916_6 addendum)', () => {
+  beforeEach(() => {
+    updateCusShipmentContainerLine.mockReset();
+  });
+
+  it('an emptied plate carries clearVehicle so the external plate actually clears', async () => {
+    render(<DraftWipeHost />);
+    const plateA = screen.getByLabelText('Biển số xe của container MSKU1234567') as HTMLInputElement;
+    fireEvent.change(plateA, { target: { value: '' } });
+    updateCusShipmentContainerLine
+      .mockResolvedValueOnce({ line: { ...twoLineDetail.containers[0], shipmentVersion: 5, plateNumber: null } });
+
+    fireEvent.click(document.querySelector('.cus-container-confirm')!);
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect((payload as { clearVehicle?: boolean }).clearVehicle).toBe(true);
+  });
+
+  it('retyping a plate does not send clearVehicle', async () => {
+    render(<DraftWipeHost />);
+    const plateA = screen.getByLabelText('Biển số xe của container MSKU1234567') as HTMLInputElement;
+    fireEvent.change(plateA, { target: { value: '15C-999.99' } });
+    updateCusShipmentContainerLine
+      .mockResolvedValueOnce({ line: { ...twoLineDetail.containers[0], shipmentVersion: 5, plateNumber: '15C-999.99' } });
+
+    fireEvent.click(document.querySelector('.cus-container-confirm')!);
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect((payload as { clearVehicle?: boolean }).clearVehicle).toBeUndefined();
+  });
+});
