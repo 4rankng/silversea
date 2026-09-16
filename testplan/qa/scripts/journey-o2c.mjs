@@ -225,18 +225,21 @@ async function journey() {
   const tomorrow = new Date(TS + windowOffsetH * 3600_000).toISOString();
   const dayAfter = new Date(TS + (windowOffsetH + 6) * 3600_000).toISOString();
 
-  // Self-healing: cancel stranded QA49E2E trips from earlier probe runs —
-  // the dispatcher queue's DISPATCHED rows carry tripId/tripStatus, and a
-  // driver-or-truck with a CREATED/IN_TRANSIT trip blocks all progress.
+  // Self-healing: cancel stranded QA49E2E trips from earlier probe runs.
+  // The DISPATCHED queue rows do not expose trip ids, so scan the trip-id
+  // range directly (admin GET /trips/:id) and cancel only our own
+  // fixtures whose trip is still CREATED/IN_TRANSIT.
   {
-    const dispatchedRows = await call(tokens.DISPATCHER, 'GET', '/shipments/dispatch-queue?status=DISPATCHED&limit=50');
-    const stale = (dispatchedRows.body?.items ?? []).filter((row) =>
-      (row.shipment?.blNumber ?? row.blNumber ?? '').startsWith('QA49E2E')
-      && [row.tripStatus].some((s) => s === 'CREATED' || s === 'IN_TRANSIT')
-      && row.tripId);
-    for (const row of stale) {
-      const canceled = await call(tokens.ADMIN, 'POST', `/trips/${row.tripId}/cancel`, {}, { idempotency: crypto.randomUUID() });
-      log('H4', `cleanup: admin-cancel stranded trip ${row.tripId} (${row.tripCode}) → ${canceled.status}`,
+    const from = Number(process.env.CLEANUP_TRIP_FROM ?? 20);
+    const to = Number(process.env.CLEANUP_TRIP_TO ?? 140);
+    for (let tripId = from; tripId <= to; tripId += 1) {
+      const probe = await call(tokens.ADMIN, 'GET', `/trips/${tripId}`);
+      if (probe.status !== 200) continue;
+      const ref = String(probe.body?.customerReference ?? '');
+      const status = probe.body?.status;
+      if (!ref.startsWith('QA49E2E') || !['CREATED', 'IN_TRANSIT'].includes(status)) continue;
+      const canceled = await call(tokens.ADMIN, 'POST', `/trips/${tripId}/cancel`, {}, { idempotency: crypto.randomUUID() });
+      log('H4', `cleanup: admin-cancel stranded trip ${tripId} (${probe.body?.tripCode ?? probe.body?.code}) → ${canceled.status}`,
         canceled.status === 200 ? 'PASS' : 'WARN');
     }
   }
@@ -373,23 +376,30 @@ async function journey() {
   const podVersion = () => pod.body?.submissionVersion ?? pod.body?.version ?? 1;
 
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let podVer = pod.body?.submissionVersion ?? pod.body?.version ?? 1;
   for (const fileType of ['YARD_OR_DROP_RECEIPT', 'SIGNED_DELIVERY_NOTE']) {
     const form = new FormData();
     form.append('file', new Blob([png], { type: 'image/png' }), `${fileType}.png`);
     form.append('fileType', fileType);
-    form.append('expectedVersion', String(podVersion()));
-    const attach = await fetch(`${API}/driver/me/trips/${tripA.id}/pod/${podId}/files`, {  // trip-scoped per client map
+    form.append('expectedVersion', String(podVer));
+    const attach = await fetch(`${API}/driver/me/fulfillments/${fulfillmentA}/pod/${podId}/files`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokens.DRIVER}` },
+      headers: { Authorization: `Bearer ${tokens.DRIVER}`, 'Idempotency-Key': crypto.randomUUID() },
       body: form,
     });
     const bodyText = await attach.text();
-    assert('H7', attach.status === 200 || attach.status === 201, `POD attach ${fileType}: ${attach.status}`);
-    try { Object.assign(pod.body, JSON.parse(bodyText)); } catch { /* keep versions */ }
+    log('H7', `POD attach ${fileType} raw: ${attach.status} ${bodyText.slice(0, 180)}`);
+    assert('H7', attach.status === 200 || attach.status === 201, `POD attach ${fileType}: ${attach.status} body=${bodyText.slice(0, 160)}`);
+    try {
+      const attached = JSON.parse(bodyText);
+      // The submission's optimistic version rides `version`; submissionVersion
+      // stays at the create-time value.
+      podVer = attached.version ?? attached.submissionVersion ?? podVer + 1;
+    } catch { podVer += 1; }
   }
 
   const podSubmit = await call(tokens.DRIVER, 'POST', `/driver/me/fulfillments/${fulfillmentA}/pod/${podId}/submit`,
-    { expectedVersion: podVersion() }, { idempotency: crypto.randomUUID() });
+    { expectedVersion: podVer }, { idempotency: crypto.randomUUID() });
   assert('H7', [200, 201].includes(podSubmit.status), `POD submit: ${podSubmit.status}`);
 
   // ─── HOP 8: driver expense (incidental cost) with idempotent replay ───
@@ -406,6 +416,8 @@ async function journey() {
     `dispatcher token CANNOT write driver incidental cost: ${otherCost.status}`);
 
   // ─── HOP 9: driver completes the fulfillment ──────────────────────────
+  const detailBeforeComplete = await call(tokens.DRIVER, 'GET', `/driver/me/fulfillments/${fulfillmentA}`);
+  if (detailBeforeComplete.body?.tripVersion) fulfillmentVersion = detailBeforeComplete.body.tripVersion;
   const complete = await call(tokens.DRIVER, 'POST', `/driver/me/fulfillments/${fulfillmentA}/complete`,
     { expectedVersion: fulfillmentVersion }, { idempotency: crypto.randomUUID() });
   assert('H9', [200, 201].includes(complete.status), `fulfillment complete: ${complete.status}`);
@@ -472,29 +484,39 @@ async function journey() {
   const queueB = await call(tokens.DISPATCHER, 'GET', '/shipments/dispatch-queue?status=READY&limit=50');
   const itemB = pickQueueItem(queueB.body, lotB.id);
   assert('H10', Boolean(itemB), `queue holds lot B (fulfillment ${itemB?.fulfillmentId ?? '?'})`);
-  const dispatchB = await call(tokens.DISPATCHER, 'POST', `/shipments/${lotB.id}/dispatch`, {
+  const bStart = new Date(TS + (windowOffsetH + 24 * 15) * 3600_000).toISOString();
+  const bEnd = new Date(TS + (windowOffsetH + 24 * 15 + 6) * 3600_000).toISOString();
+  const dispatchB = itemB ? await call(tokens.DISPATCHER, 'POST', `/shipments/${lotB.id}/dispatch`, {
     fulfillmentId: itemB.fulfillmentId,
     expectedVersion: itemB.fulfillmentVersion,
-    plannedStartAt: tomorrow,
-    plannedEndAt: dayAfter,
+    plannedStartAt: bStart,
+    plannedEndAt: bEnd,
     endTimeConfirmed: true,
     carrierType: 'OWN',
     truckId: truck.id,
     driverId: driver.id,
-  }, { idempotency: crypto.randomUUID() });
-  assert('H10', [200, 201].includes(dispatchB.status),
-    `dispatch lot B: ${dispatchB.status} trip=${dispatchB.body?.trip?.id ?? '?'}`);
-  const tripB = dispatchB.body?.trip;
-  const fulfillmentB = dispatchB.body?.fulfillmentId ?? itemB.fulfillmentId;
+  }, { idempotency: crypto.randomUUID() }) : null;
+  assert('H10', dispatchB !== null && [200, 201].includes(dispatchB.status),
+    `dispatch lot B: ${dispatchB?.status ?? 'no queue item'} trip=${dispatchB?.body?.trip?.id ?? '?'} body=${JSON.stringify(dispatchB?.body ?? {}).slice(0, 140)}`);
+  const tripB = dispatchB?.body?.trip;
+  const fulfillmentB = dispatchB?.body?.fulfillmentId ?? itemB?.fulfillmentId;
 
   // Driver sees it, acknowledges, then dispatcher cancels the trip.
   const detailB = await call(tokens.DRIVER, 'GET', `/driver/me/fulfillments/${fulfillmentB}`);
-  const ack = await call(tokens.DRIVER, 'POST', `/driver/me/fulfillments/${fulfillmentB}/progress`,
-    { eventType: 'ORDER_RECEIVED', occurredAt: iso() }, { idempotency: crypto.randomUUID() });
-  assert('H10', [200, 201].includes(ack.status), `driver ACK on lot B: ${ack.status}`);
+  let ack = await call(tokens.DRIVER, 'POST', `/driver/me/fulfillments/${fulfillmentB}/progress`,
+    { eventType: 'ORDER_RECEIVED', occurredAt: iso(), expectedVersion: detailB.body?.tripVersion ?? 1 }, { idempotency: crypto.randomUUID() });
+  for (let retry = 0; retry < 2 && ack.status === 409; retry += 1) {
+    const fresh = await call(tokens.DRIVER, 'GET', `/driver/me/fulfillments/${fulfillmentB}`);
+    log('H10', `lot B ACK retry ${retry}: fresh tripVersion=${fresh.body?.tripVersion} prev=${JSON.stringify(ack.body).slice(0, 100)}`, 'INFO');
+    ack = await call(tokens.DRIVER, 'POST', `/driver/me/fulfillments/${fulfillmentB}/progress`,
+      { eventType: 'ORDER_RECEIVED', occurredAt: iso(), expectedVersion: fresh.body?.tripVersion ?? 1 }, { idempotency: crypto.randomUUID() });
+  }
+  assert('H10', [200, 201].includes(ack.status), `driver ACK on lot B: ${ack.status} body=${JSON.stringify(ack.body).slice(0, 140)}`);
 
-  const cancelTrip = await call(tokens.DISPATCHER, 'POST', `/trips/${tripB.id}/cancel`, {});
-  assert('H10', [200, 201].includes(cancelTrip.status), `dispatcher cancels trip B: ${cancelTrip.status}`);
+  const dispCancel = await call(tokens.DISPATCHER, 'POST', `/trips/${tripB.id}/cancel`, {}, { idempotency: crypto.randomUUID() });
+  assert('H10', dispCancel.status === 403, `dispatcher cancel denied by design: ${dispCancel.status}`);
+  const cancelTrip = await call(tokens.ADMIN, 'POST', `/trips/${tripB.id}/cancel`, {}, { idempotency: crypto.randomUUID() });
+  assert('H10', [200, 201].includes(cancelTrip.status), `admin cancels trip B: ${cancelTrip.status}`);
 
   // ─── HOP 11: driver-side behavior on the CANCELED fulfillment ─────────
   const canceledDetail = await call(tokens.DRIVER, 'GET', `/driver/me/fulfillments/${fulfillmentB}`);
