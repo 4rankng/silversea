@@ -11,7 +11,7 @@ Gate status (lead ruling, 2026-09-16): the full serial run is **advisory** until
 |---|---|---|---|
 | transport-expense "reversal ledger count 3≠1" | PASS | FAIL (one run) | passes isolated; fails only in specific orders |
 | q23-upload photo-replay pair (`status undefined ≠ SUCCEEDED`) | 7/7 PASS | PASS (in the 517✔ run) | fails in some combined orders |
-| auth-session-revocation / comprehensive (lead-named) | not yet isolated | reds under load | 4-suspect combined run was green |
+| auth-session-revocation / comprehensive (lead-named) | PASS 3/0 and 7/0 (isolated, after the sweep CLI run) | reds under load | victims, not polluters — see follow-ups 2/3 |
 
 Isolated vs combined divergence runs in BOTH directions (some red only in full runs, some green in full runs but red in scoped combos) — the polluter is **sequence-dependent**, not a fixed pair.
 
@@ -30,7 +30,7 @@ All integration suites share one dev database. `withTestCleanup` deletes the row
 
 ## Follow-ups (proposed cards)
 
-- q23-upload-idempotency: switch `processed.find(id)` asserts to re-fetch-by-id (mechanical; shrinks the flake class).
-- Maintenance CLI to sweep stale leases/Redis keys from the shared dev DB before gate runs.
-- Isolation runs for auth-session-revocation + comprehensive to place them on the polluter/victim map.
-- Last resort only: per-file schema isolation.
+- DONE 20260916_20 item 1 (`da5438d7`): q23-upload-idempotency asserts re-fetch by id.
+- DONE 20260916_20 item 2 (`186f80fb`): `pnpm tsx backend/scripts/sweep-stale-test-state.ts` — re-queues expired-RUNNING leases, deletes >24h terminal rows (first run: 502→38), reports advisory locks. Run before gate runs.
+- DONE 20260916_20 item 3: isolation runs — auth-session-revocation (3/0) and comprehensive (7/0) both PASS isolated post-sweep: victims of order pollution, not polluters.
+- Last resort only, with lead ack: per-file schema isolation.
