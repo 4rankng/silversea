@@ -128,6 +128,9 @@
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
+/* Container codes never wrap and never render bold (user ruling 2026-09-16):
+   11-char ISO codes stay on one line at supporting size. */
+.shipment-container-ledger td[data-label="Container"] .shipment-container-ledger__multiline > strong { font-size: var(--text-caption-size); font-weight: 400; white-space: nowrap; }
 .shipment-container-ledger__multiline > span { color: var(--ink-2); }
 .shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-bold); line-height: 1.5; white-space: nowrap; }
