@@ -189,7 +189,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     ? req.query.q.trim()
     : undefined;
   if (q && q.length > 100) {
-    return res.status(400).json({ error: 'Từ khóa tìm kiếm không được vượt quá 100 ký tự' });
+    throw new ApiError(400, 'Từ khóa tìm kiếm không được vượt quá 100 ký tự');
   }
 
   // Validate the status filter early — an invalid enum value would otherwise
@@ -201,7 +201,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     const requested = statusVal.split(',').map((part) => part.trim()).filter((part) => part.length > 0);
     const invalid = requested.find((part) => !Object.values(ShipmentStatus).includes(part as ShipmentStatus));
     if (requested.length === 0 || invalid) {
-      return res.status(400).json({ error: 'Trạng thái lô hàng không hợp lệ' });
+      throw new ApiError(400, 'Trạng thái lô hàng không hợp lệ');
     }
     status = requested.length === 1
       ? requested[0] as ShipmentStatus
@@ -217,7 +217,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     ? req.query.blNumber.trim()
     : undefined;
   if (blNumber && blNumber.length > 50) {
-    return res.status(400).json({ error: 'Số B/L không được vượt quá 50 ký tự' });
+    throw new ApiError(400, 'Số B/L không được vượt quá 50 ký tự');
   }
   const dateFrom = typeof req.query.dateFrom === 'string' && req.query.dateFrom.trim().length > 0
     ? req.query.dateFrom.trim()
@@ -226,10 +226,10 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     ? req.query.dateTo.trim()
     : undefined;
   if (dateFrom && isNaN(new Date(dateFrom).getTime())) {
-    return res.status(400).json({ error: 'dateFrom không hợp lệ' });
+    throw new ApiError(400, 'dateFrom không hợp lệ');
   }
   if (dateTo && isNaN(new Date(dateTo).getTime())) {
-    return res.status(400).json({ error: 'dateTo không hợp lệ' });
+    throw new ApiError(400, 'dateTo không hợp lệ');
   }
 
   // Dispatch master-plan ("Kế hoạch Tổng quát") filters: delivery-date range on
@@ -241,16 +241,16 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     ? req.query.deliveryDateTo.trim()
     : undefined;
   if (deliveryDateFrom && isNaN(new Date(deliveryDateFrom).getTime())) {
-    return res.status(400).json({ error: 'deliveryDateFrom không hợp lệ' });
+    throw new ApiError(400, 'deliveryDateFrom không hợp lệ');
   }
   if (deliveryDateTo && isNaN(new Date(deliveryDateTo).getTime())) {
-    return res.status(400).json({ error: 'deliveryDateTo không hợp lệ' });
+    throw new ApiError(400, 'deliveryDateTo không hợp lệ');
   }
   const allocationStatusVal = req.query.allocationStatus as string | undefined;
   let allocationStatus: AllocationStatus | undefined;
   if (allocationStatusVal !== undefined && allocationStatusVal.trim().length > 0) {
     if (!ALLOCATION_STATUSES.includes(allocationStatusVal as AllocationStatus)) {
-      return res.status(400).json({ error: 'Trạng thái phân bổ không hợp lệ' });
+      throw new ApiError(400, 'Trạng thái phân bổ không hợp lệ');
     }
     allocationStatus = allocationStatusVal as AllocationStatus;
   }
@@ -264,13 +264,13 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     if (raw == null || String(raw).trim() === '') continue;
     const id = Number(String(raw).trim());
     if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ error: 'Cảng lọc không hợp lệ' });
+      throw new ApiError(400, 'Cảng lọc không hợp lệ');
     }
     portIds.push(id);
   }
   if (new Set(portIds).size !== portIds.length) portIds.splice(0, portIds.length, ...new Set(portIds));
   if (portIds.length > 50) {
-    return res.status(400).json({ error: 'Chỉ được chọn tối đa 50 cảng' });
+    throw new ApiError(400, 'Chỉ được chọn tối đa 50 cảng');
   }
   const rawCarrierKeys = Array.isArray(req.query.carrierKeys) ? req.query.carrierKeys : [req.query.carrierKeys];
   const carrierKeys: string[] = [];
@@ -278,13 +278,13 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     if (raw == null || String(raw).trim() === '') continue;
     const key = String(raw).trim();
     if (!/^(OWN|UNASSIGNED|EXTERNAL:[1-9]\d*)$/.test(key)) {
-      return res.status(400).json({ error: 'Nhà xe lọc không hợp lệ' });
+      throw new ApiError(400, 'Nhà xe lọc không hợp lệ');
     }
     carrierKeys.push(key);
   }
   const uniqueCarrierKeys = [...new Set(carrierKeys)];
   if (uniqueCarrierKeys.length > 50) {
-    return res.status(400).json({ error: 'Chỉ được chọn tối đa 50 nhà xe' });
+    throw new ApiError(400, 'Chỉ được chọn tối đa 50 nhà xe');
   }
 
   const result = await listShipmentsPaginated({
@@ -781,8 +781,7 @@ coreRoutes.post(
     if (shipmentId === null) return;
     const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
     if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
-      res.status(400).json({ error: 'ID tác vụ không hợp lệ' });
-      return;
+      throw new ApiError(400, 'ID tác vụ không hợp lệ');
     }
     const parsed = cancelShipmentFulfillmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -819,7 +818,7 @@ coreRoutes.delete(
     const versionRaw = (req.body?.version ?? req.query.version) as unknown;
     const version = Number(versionRaw);
     if (!Number.isInteger(version) || version < 0) {
-      return res.status(400).json({ error: 'version là bắt buộc để xóa lô hàng' });
+      throw new ApiError(400, 'version là bắt buộc để xóa lô hàng');
     }
     const user = getUser(req);
     const { result } = await runShipmentWrite(
