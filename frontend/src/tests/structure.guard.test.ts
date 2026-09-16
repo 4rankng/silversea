@@ -151,7 +151,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // returned to 515 the same day: the ensure logic extracted to
   // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
   // 2026-09-15 KP-018: filter/query contract extracted to detailPlanFilters.ts.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
+  // Bumped 515 → 518: 2026-09-16 card 20260916_9 — decompose re-keys the grid
+  // row and unmounts the pressing editor cell; the hook now tracks the fresh
+  // fulfillment id so the surviving cell auto-opens the editor.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 518,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
