@@ -66,6 +66,9 @@ export interface ShipmentVehicleDraft {
   externalCarrierVehicleId: number | null;
   plateNumber: string | null;
   newExternalCarrier: { name: string; plateNumber: string } | null;
+  /** Explicit removal: an emptied plate alone is NOT a clear on EXTERNAL
+   *  rows (the service falls back to the carrier vehicle's stored plate). */
+  clearVehicle?: boolean;
 }
 
 export interface ShipmentScheduleDraft {
@@ -172,6 +175,10 @@ function InlineEditor({
   const [carrierId, setCarrierId] = useState(initialCarrier);
   const [newCarrierName, setNewCarrierName] = useState('');
   const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
+  // 20260916_6: an explicit clear action — an emptied plate alone is NOT a
+  // clear on EXTERNAL rows (the service falls back to the carrier vehicle's
+  // stored plate), so the save must carry the clearVehicle flag.
+  const [clearVehicleRequested, setClearVehicleRequested] = useState(false);
   const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
   const [appointmentDate, setAppointmentDate] = useState(appointmentInput?.slice(0, 10) ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
@@ -313,6 +320,19 @@ function InlineEditor({
           throw new Error('Nhập đủ tên nhà xe mới và biển số xe.');
         }
         if (!carrierId) throw new Error('Chọn nhà xe trước khi lưu.');
+        if (clearVehicleRequested) {
+          // The explicit clear beats any draft plate text: the user asked to
+          // remove the assignment, so drop the vehicle selection too.
+          await onSaveVehicle(line, {
+            carrierType: 'EXTERNAL',
+            externalCarrierId: carrierId === 'NEW_EXTERNAL' ? null : Number(carrierId),
+            externalCarrierVehicleId: null,
+            plateNumber: null,
+            newExternalCarrier: null,
+            clearVehicle: true,
+          });
+          return;
+        }
         await onSaveVehicle(line, {
           carrierType: 'EXTERNAL',
           externalCarrierId: carrierId === 'NEW_EXTERNAL' ? null : Number(carrierId),
@@ -444,6 +464,11 @@ function InlineEditor({
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={vehicleOptions.map((vehicle) => ({ value: vehicle.label, label: vehicle.label, searchText: vehicle.searchText }))} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
+          {carrierId && carrierId !== 'NEW_EXTERNAL' && line.plateNumber && line.permissions.plateEditable && (
+            <small className="shipment-container-ledger__plate-clear">
+              <button type="button" disabled={saving} onClick={() => { setPlateNumber(''); setClearVehicleRequested(true); }}>Xóa biển số</button>
+            </small>
+          )}
           {carrierId === 'OWN' && <small>Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
           {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
         </div>

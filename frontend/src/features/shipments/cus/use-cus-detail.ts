@@ -282,6 +282,7 @@ export function useCusDetail(params: CusDetailListParams) {
               externalCarrierId: draft.externalCarrierId,
               externalCarrierVehicleId: draft.externalCarrierVehicleId,
               plateNumber: draft.plateNumber,
+              ...(draft.clearVehicle ? { clearVehicle: true } : {}),
             }),
       }, key);
     } catch (error) {

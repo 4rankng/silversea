@@ -556,6 +556,20 @@ export async function updateCusShipmentContainerLine(args: {
           ?? null;
         if (nextCarrierId == null) throw new ApiError(400, 'Cần chọn hoặc nhập nhà xe ngoài hợp lệ.');
         await loadExternalCarrier(nextCarrierId, tx);
+        // An explicit clear must win over the stored-vehicle fallback: with a
+        // carrier vehicle still selected, an empty plate used to resurrect the
+        // vehicle's license plate instead of clearing the plan (QA: no UI
+        // affordance could remove an assigned plate on EXTERNAL rows).
+        if (args.input.clearVehicle === true) {
+          await tx.update(s.shipmentFulfillments).set({
+            plannedCarrierType: 'EXTERNAL',
+            plannedExternalCarrierId: nextCarrierId,
+            plannedExternalCarrierVehicleId: null,
+            plannedVehiclePlateNumber: null,
+            version: fulfillment.version + 1,
+            updatedAt: now,
+          }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+        } else {
         const nextCarrierVehicleId = inlineCarrier?.carrierVehicleId
           ?? (args.input.externalCarrierVehicleId !== undefined
             ? args.input.externalCarrierVehicleId
@@ -579,6 +593,7 @@ export async function updateCusShipmentContainerLine(args: {
           version: fulfillment.version + 1,
           updatedAt: now,
         }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+        }
       } else if (nextCarrierType === 'OWN') {
         // CUS may plan an internal-fleet plate (customer ask, Cap_nhat_UI_va_logic
         // 1.3). It is a plan only — the official dispatch trip remains the

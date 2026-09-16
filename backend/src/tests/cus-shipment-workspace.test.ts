@@ -2857,3 +2857,88 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
     assert.equal(result.line.containerNumber, nextNumber);
   });
 });
+
+describe('container line vehicle plate clear (20260916_6)', () => {
+  const createdVehicleIds: number[] = [];
+
+  async function seedCarrierVehicle() {
+    const carrier = await seedCustomer({
+      name: `Nhà xe clear ${suffix}`.slice(0, 255),
+      isCarrier: true,
+      status: 'ACTIVE',
+    });
+    const [vehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: carrier.id,
+      licensePlate: `30K-${suffix.slice(-3).toUpperCase()}.99`,
+      normalizedPlate: `30K${suffix.slice(-3).toUpperCase()}99`,
+      isActive: true,
+    }).returning();
+    createdVehicleIds.push(vehicle.id);
+    return { carrier, vehicle };
+  }
+
+  async function seedExternalPlateRow() {
+    const { carrier, vehicle } = await seedCarrierVehicle();
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `PCL${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `PCL${lettersTag(4)}1`.slice(0, 50),
+      routeId: route.id,
+      containerTypeId,
+    });
+    const fulfillment = await seedFulfillment(shipment.id, container.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: carrier.id,
+      plannedExternalCarrierVehicleId: vehicle.id,
+      plannedVehiclePlateNumber: vehicle.licensePlate,
+    });
+    return { carrier, vehicle, shipment, container, fulfillment };
+  }
+
+  test('clearVehicle removes the planned plate and vehicle while keeping the external carrier', async () => {
+    const { carrier, shipment, container, fulfillment } = await seedExternalPlateRow();
+
+    await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        clearVehicle: true,
+      },
+      actor: cusActor,
+    });
+
+    const [after] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after.plannedVehiclePlateNumber, null, 'plate must be cleared, not fall back to the vehicle plate');
+    assert.equal(after.plannedExternalCarrierVehicleId, null, 'vehicle selection must be cleared');
+    assert.equal(after.plannedExternalCarrierId, carrier.id, 'the external carrier itself stays');
+  });
+
+  test('clearVehicle cannot ride along with a vehicle selection or an inline new carrier', () => {
+    const base = { expectedShipmentVersion: 1, carrierType: 'EXTERNAL' as const };
+    const withVehicle = shipmentCusContainerLineUpdateSchema.safeParse({
+      ...base, clearVehicle: true, externalCarrierVehicleId: 5,
+    });
+    assert.equal(withVehicle.success, false);
+    const withInline = shipmentCusContainerLineUpdateSchema.safeParse({
+      ...base, clearVehicle: true, newExternalCarrier: { name: 'Nhà xe mới', plateNumber: '30K-001.99' },
+    });
+    assert.equal(withInline.success, false);
+  });
+
+  test.after(async () => {
+    for (const id of createdVehicleIds) {
+      await db.delete(s.carrierFleetVehicles).where(eq(s.carrierFleetVehicles.id, id)).catch(() => {});
+    }
+  });
+});

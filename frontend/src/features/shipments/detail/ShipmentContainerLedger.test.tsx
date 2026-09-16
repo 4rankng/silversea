@@ -473,3 +473,62 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     view.unmount();
   });
 });
+
+describe('vehicle plate clear affordance (20260916_6)', () => {
+  const editable = () => ({ canRead: true, canEdit: true });
+  const lineWithPlate = () => ({
+    ...baseLine(),
+    carrierType: 'EXTERNAL',
+    externalCarrierId: 7,
+    externalCarrierVehicleId: 9,
+    carrierName: 'Nhà xe A',
+    plateNumber: '29C-123.45',
+    permissions: { ...baseLine().permissions },
+  });
+
+  function renderVehicleEditor(overrides: Record<string, unknown> = {}) {
+    const row = baseRow({ carrierName: 'Nhà xe A', plateNumber: '29C-123.45' });
+    const onSaveVehicle = vi.fn(async () => {});
+    const view = render(
+      <ShipmentContainerLedger
+        rows={[row]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={{ row, detail: baseDetail(), line: { ...lineWithPlate(), ...overrides } as never, mode: 'vehicle' }}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={onSaveVehicle}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+    );
+    return { onSaveVehicle };
+  }
+
+  it('offers a clear action for an assigned plate and sends clearVehicle on save', async () => {
+    const { onSaveVehicle } = renderVehicleEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa biển số' }));
+    const plate = screen.getByLabelText('Biển số xe') as HTMLInputElement;
+    expect(plate.value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveVehicle).toHaveBeenCalledTimes(1));
+    expect(onSaveVehicle).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      carrierType: 'EXTERNAL',
+      clearVehicle: true,
+      externalCarrierId: 7,
+    }));
+  });
+
+  it('does not offer the clear action when no plate is assigned', () => {
+    renderVehicleEditor({ plateNumber: null });
+    expect(screen.queryByRole('button', { name: 'Xóa biển số' })).toBeNull();
+  });
+});
