@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { ApiError } from '../../errors';
 import type { Request, Response } from 'express';
 import {
   Role,
@@ -66,7 +67,7 @@ router.get('/finance/billing-documents', requireRoles(...ROLES), asyncHandler(as
   const entityType = String(req.query.entityType ?? '');
   const entityId = Number(req.query.entityId);
   if ((entityType !== 'CUSTOMER' && entityType !== 'VENDOR') || !Number.isFinite(entityId) || entityId <= 0) {
-    return res.status(400).json({ error: 'Thiếu hoặc sai entityType / entityId' });
+    throw new ApiError(400, 'Thiếu hoặc sai entityType / entityId');
   }
   const rawType = req.query.type;
   const type = rawType === 'DEBIT_NOTE' || rawType === 'PAYMENT_STATEMENT' ? rawType : undefined;

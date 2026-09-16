@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Role } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
+import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribution, getDistributionHistory, requestProfitDistributionGovernance } from '../../services/reporting.service';
@@ -45,7 +46,7 @@ router.get('/reports/pnl', asyncHandler(async (req: Request, res: Response) => {
   const month = parseInt(req.query.month as string);
   const year = parseInt(req.query.year as string) || new Date().getFullYear();
   if (!month || month < 1 || month > 12) {
-    return res.status(400).json({ error: 'Tháng là bắt buộc (month 1-12)' });
+    throw new ApiError(400, 'Tháng là bắt buộc (month 1-12)');
   }
   res.json(await getPnlReport(month, year));
 }));
@@ -57,15 +58,15 @@ router.get('/reports/profitability', requireRoles(Role.ADMIN, Role.MANAGER, Role
   const validDimension = requestedDimension === 'VEHICLE'
     || PROFITABILITY_DIMENSIONS.includes(requestedDimension as typeof PROFITABILITY_DIMENSIONS[number]);
   if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
-    return res.status(400).json({ error: 'Tháng và năm báo cáo không hợp lệ' });
+    throw new ApiError(400, 'Tháng và năm báo cáo không hợp lệ');
   }
   if (!validDimension) {
-    return res.status(400).json({ error: 'Chiều báo cáo lợi nhuận không hợp lệ' });
+    throw new ApiError(400, 'Chiều báo cáo lợi nhuận không hợp lệ');
   }
   const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 100 });
   const lowMarginOnly = req.query.alert === 'LOW_MARGIN';
   if (req.query.alert != null && !['ALL', 'LOW_MARGIN'].includes(String(req.query.alert))) {
-    return res.status(400).json({ error: 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ' });
+    throw new ApiError(400, 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ');
   }
   res.json(await getProfitabilityReport({
     month,
@@ -84,11 +85,11 @@ router.get('/reports/profitability/export', requireRoles(Role.ADMIN, Role.MANAGE
   const validDimension = requestedDimension === 'VEHICLE'
     || PROFITABILITY_DIMENSIONS.includes(requestedDimension as typeof PROFITABILITY_DIMENSIONS[number]);
   if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || !validDimension) {
-    return res.status(400).json({ error: 'Kỳ hoặc chiều báo cáo lợi nhuận không hợp lệ' });
+    throw new ApiError(400, 'Kỳ hoặc chiều báo cáo lợi nhuận không hợp lệ');
   }
   const lowMarginOnly = req.query.alert === 'LOW_MARGIN';
   if (req.query.alert != null && !['ALL', 'LOW_MARGIN'].includes(String(req.query.alert))) {
-    return res.status(400).json({ error: 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ' });
+    throw new ApiError(400, 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ');
   }
   const buffer = await exportProfitabilityReport({
     month,
@@ -143,7 +144,7 @@ router.get('/reports/total-ar', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCO
   const rangeFrom = typeof req.query.rangeFrom === 'string' ? req.query.rangeFrom : '';
   const rangeTo = typeof req.query.rangeTo === 'string' ? req.query.rangeTo : '';
   if (!DATE_RE.test(rangeFrom) || !DATE_RE.test(rangeTo) || rangeFrom > rangeTo) {
-    return res.status(400).json({ error: 'Khoảng ngày báo cáo không hợp lệ (cần rangeFrom ≤ rangeTo, định dạng YYYY-MM-DD)' });
+    throw new ApiError(400, 'Khoảng ngày báo cáo không hợp lệ (cần rangeFrom ≤ rangeTo, định dạng YYYY-MM-DD)');
   }
   res.json(await cacheGet(
     totalArRangeKey(rangeFrom, rangeTo),
@@ -158,7 +159,7 @@ router.get('/reports/fuel-variance', asyncHandler(async (req: Request, res: Resp
   const month = parseInt(req.query.month as string);
   const year = parseInt(req.query.year as string) || new Date().getFullYear();
   if (!month || month < 1 || month > 12) {
-    return res.status(400).json({ error: 'Tháng là bắt buộc (month 1-12)' });
+    throw new ApiError(400, 'Tháng là bắt buộc (month 1-12)');
   }
   res.json(await getFuelVarianceReport(month, year));
 }));
@@ -170,16 +171,16 @@ router.get('/reports/distribution-history', requireRoles(Role.ADMIN, Role.MANAGE
 
 router.post('/reports/distribute-profit/preview', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const { quarter, year } = req.body;
-  if (!quarter || !year) return res.status(400).json({ error: 'Cần nhập quý và năm' });
-  if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
+  if (!quarter || !year) throw new ApiError(400, 'Cần nhập quý và năm');
+  if (quarter < 1 || quarter > 4) throw new ApiError(400, 'Quý phải từ 1 đến 4');
   res.json(await previewDistribution(quarter, year));
 }));
 
 // Execute distribution — ADMIN/MANAGER only. ACCOUNTANT can preview but not execute per spec.
 router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const { quarter, year, reason } = req.body;
-  if (!quarter || !year) return res.status(400).json({ error: 'Cần nhập quý và năm' });
-  if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
+  if (!quarter || !year) throw new ApiError(400, 'Cần nhập quý và năm');
+  if (quarter < 1 || quarter > 4) throw new ApiError(400, 'Quý phải từ 1 đến 4');
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, statusCode, replayed } = await runProfitDistributionWithSerializationRetry(() => (

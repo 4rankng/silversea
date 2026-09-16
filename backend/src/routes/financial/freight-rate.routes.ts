@@ -51,7 +51,7 @@ freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Reques
     transportDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày vận chuyển phải có dạng YYYY-MM-DD'),
   }).safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0]?.message ?? 'Tham số không hợp lệ' });
+    throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Tham số không hợp lệ');
   }
   res.json(await resolveFreightRateWithManualFallback(parsed.data));
 }));
@@ -64,7 +64,7 @@ const router = Router();
 router.get('/pricing/snapshots/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const view = await getFreightRateSnapshotById(parseSnapshotId(req));
   if (!view) {
-    return res.status(404).json({ error: 'Không tìm thấy ảnh chụp giá cước' });
+    throw new ApiError(404, 'Không tìm thấy ảnh chụp giá cước');
   }
   res.json(view);
 }));
@@ -76,10 +76,10 @@ router.get('/pricing/snapshots/:id', requireRoles(...ROLES), asyncHandler(async 
 router.get('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const view = await getFreightRateSnapshotById(parseSnapshotId(req));
   if (!view) {
-    return res.status(404).json({ error: 'Không tìm thấy ảnh chụp giá cước' });
+    throw new ApiError(404, 'Không tìm thấy ảnh chụp giá cước');
   }
   if (!view.override) {
-    return res.status(404).json({ error: 'Chưa có điều chỉnh giá cước cho ảnh chụp này' });
+    throw new ApiError(404, 'Chưa có điều chỉnh giá cước cho ảnh chụp này');
   }
   res.json(view.override);
 }));
@@ -91,7 +91,7 @@ router.put('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandl
   const snapshotId = parseSnapshotId(req);
   const parsed = freightRateOverrideSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0]?.message ?? 'Dữ liệu không hợp lệ' });
+    throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Dữ liệu không hợp lệ');
   }
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);

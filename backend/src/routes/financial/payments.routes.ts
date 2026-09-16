@@ -415,7 +415,7 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
 router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(req.params.driverId as string, 10);
   if (!Number.isFinite(driverId) || driverId <= 0) {
-    return res.status(400).json({ error: 'driverId không hợp lệ' });
+    throw new ApiError(400, 'driverId không hợp lệ');
   }
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);

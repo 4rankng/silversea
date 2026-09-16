@@ -10,6 +10,7 @@ import {
   updateAdvanceSettlementSchema,
 } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
+import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { getAdvanceSettlement } from '../../services/advance.service';
@@ -208,7 +209,7 @@ router.patch(
 router.get('/advance-settlements/:id', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const settlement = await getAdvanceSettlement(id);
-  if (!settlement) return res.status(404).json({ error: 'Không tìm thấy phiếu thanh toán' });
+  if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
   res.json(settlement);
 }));
 
@@ -219,7 +220,7 @@ router.get('/advance-settlements/:id/export', requireRoles(Role.ADMIN, Role.MANA
 
   if (format === 'pdf' || format === 'html') {
     const html = await exportSettlementHtml(id);
-    if (!html) return res.status(404).json({ error: 'Không tìm thấy phiếu thanh toán' });
+    if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
     return;
