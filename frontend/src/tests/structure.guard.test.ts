@@ -94,7 +94,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Baseline 410 (was new-file capped): e-POD photos now render as tappable
   // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
   // render branch live beside the upload lifecycle they serve.
-  'src/components/trip/TripPodSubmission.tsx': 410,
+  // Bumped 410 → 423: 2026-09-16 unified-datetime patch batch — POD submission
+  // gains the shared datetime adapter wiring.
+  'src/components/trip/TripPodSubmission.tsx': 423,
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
@@ -195,7 +197,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // restore a smaller ceiling.
   // Bumped 1080 → 1103: 2026-09-10 T4 — the live FreightPreviewCard mounts
   // in the workspace (first container row drives the engine input).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1103,
+  // Bumped 1103 → 1104: 2026-09-16 unified-datetime patch batch (create-form
+  // adapter wiring, one line over the T4 bump).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1104,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
@@ -260,7 +264,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
-  'src/pages/ShipmentsPage.tsx': 634,
+  // Bumped 634 → 680: 2026-09-16 unified-datetime patch batch — quick-edit
+  // schedule wiring moves to the shared surfaces.
+  'src/pages/ShipmentsPage.tsx': 680,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
@@ -340,6 +346,11 @@ describe('frontend structure guard', () => {
       // the surface-specific empty-state text is local.
       'src/features/shipments/detail/ShipmentContainerLedger.tsx',
       'src/pages/portal/PortalDebitNotesPage.tsx',
+      // 2026-09-16 unified-datetime patch batch: driver trip model derives
+      // display labels from trip legs; the buffered hook normalizes partial
+      // date text for the shared surfaces.
+      'src/features/driver/driver-trip-model.ts',
+      'src/design-system/hooks/useBufferedDateTextValue.ts',
     ]);
     const offenders: string[] = [];
     for (const root of SIZE_ROOTS) {
