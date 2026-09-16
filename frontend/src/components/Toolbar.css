@@ -4,8 +4,9 @@
  * ========================================================================== */
 .toolbar {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
   padding: 10px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
@@ -14,10 +15,9 @@
 .toolbar > .grow,
 .toolbar .toolbar-grow { flex: 1; min-width: 0; }
 .toolbar .toolbar-spacer,
-.toolbar .toolbar__spacer { flex: 1; }
+.toolbar .toolbar__spacer { flex: 1; min-width: 0; }
 
-/* Toolbar inline search (BEM variant used in list pages). Filter density
-   contract: compact 34px/12px on desktop, 44px/16px on touch canvases. */
+/* Inline search shares the filter boundary height, including its border. */
 .toolbar__search {
   position: relative;
   display: flex;
@@ -26,7 +26,8 @@
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  min-width: 180px;
+  min-width: min(180px, 100%);
+  max-width: 100%;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .toolbar__search:focus-within {
@@ -46,21 +47,24 @@
 }
 .toolbar__search input {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 0 10px 0 32px;
   background: transparent;
   border: none;
   outline: none;
   font-size: var(--control-field-font-size);
   line-height: 1.35;
-  min-height: var(--filter-control-h);
+  min-height: 0;
   color: var(--ink);
-  height: 100%;
+  height: calc(var(--filter-control-h) - 2px);
 }
 .toolbar__search input::placeholder { color: var(--ink-3); }
 
 @media (max-width: 640px) {
   .toolbar {
-    padding: 10px;
+    padding: 8px;
+    gap: 6px;
   }
 
   .toolbar__search {
@@ -71,6 +75,16 @@
 
   .toolbar__search input {
     font-size: var(--text-input-touch-size);
-    min-height: var(--control-mobile-h);
   }
+}
+
+/* Global phone input floors apply to whole fields, not this borderless child. */
+#root .toolbar__search input {
+  min-height: 0;
+  height: calc(var(--filter-control-h) - 2px);
+  padding-block: 0;
+}
+
+@media (pointer: coarse) {
+  .toolbar__search { --filter-control-h: var(--control-touch-h); }
 }

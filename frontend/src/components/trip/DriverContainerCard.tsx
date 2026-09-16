@@ -37,6 +37,8 @@ interface OcrResponse {
 
 interface Props {
   tripId: number;
+  /** Completed trips reject container edits and photo deletion in the API. */
+  readOnly?: boolean;
   /** Existing containers for this trip (read-only display; refreshed by parent). */
   containers: ExistingContainer[];
   /** Storage key of the latest container photo — shown as a thumbnail once saved. */
@@ -53,7 +55,7 @@ interface Props {
 
 // photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
-export function DriverContainerCard({ tripId, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
+export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -80,11 +82,11 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
 
   const containers = sourceContainers ?? [];
   const hasSaved = containers.length > 0;
-  const showForm = !hasSaved || editing;
+  const showForm = !readOnly && (!hasSaved || editing);
   const editingExisting = hasSaved && editing;
 
   const enterEdit = () => {
-    if (!hasSaved) return;
+    if (!hasSaved || readOnly) return;
     const c = containers[0];
     setDraft({
       // Saved rows can carry a null container number (seal-only / LCL saves) —
@@ -294,7 +296,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
   );
 
   const handleSave = async () => {
-    if (saving || uploading.cont || uploading.seal || uploadingNote) return;
+    if (readOnly || saving || uploading.cont || uploading.seal || uploadingNote) return;
     setError(null);
     const invalid = draft.containerNumber.trim()
       ? checkContainerNumber(draft.containerNumber).warning : 'Cần nhập số container.';
@@ -364,32 +366,32 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
             strip on the hero carries the brand accent (never a full-height bar),
             and thumbnails are pinned to fixed square dimensions so the grid can
             never stretch them. */}
-        {hasSaved && !editing && (
+        {((hasSaved && !editing) || readOnly) && (
           <div className="dcc-bento">
             <div className="dcc-bento__hero">
               <div className="dcc-bento__hero-content">
                 <div className="dcc-bento__eyebrow">Số cont</div>
-                <div className="dcc-bento__plate">{containers[0].containerNumber || 'Chưa có số cont'}</div>
-                {containers[0].containerTypeName && (
+                <div className="dcc-bento__plate">{containers[0]?.containerNumber || 'Chưa có số cont'}</div>
+                {containers[0]?.containerTypeName && (
                   <div className="dcc-bento__hero-meta">
                     {containers[0].containerTypeName}
                   </div>
                 )}
               </div>
-              <button
+              {!readOnly && <button
                 type="button"
                 className="dcc-bento__edit-btn"
                 onClick={enterEdit}
                 aria-label="Sửa số cont"
               >
                 <Pencil size={13} /> Sửa
-              </button>
+              </button>}
             </div>
 
             <div className="dcc-bento__seal">
               <div className="dcc-bento__eyebrow">Seal</div>
               <div className="dcc-bento__seal-value">
-                {containers[0].sealNumber || <span className="dcc-bento__dash">—</span>}
+                {containers[0]?.sealNumber || <span className="dcc-bento__dash">—</span>}
               </div>
             </div>
 
@@ -402,7 +404,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                     the single display + management surface for all 3 types. */}
                 <div className="dcc-bento__slot">
                   {attachmentTile(deliveryNotePhotoKey, 'Biên bản')}
-                  {deliveryNotePhotoKey && (
+                  {deliveryNotePhotoKey && !readOnly && (
                     <button
                       type="button"
                       className="dcc-photo-remove"
@@ -417,7 +419,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
               </div>
               {/* Ghost retake affordances under the saved slots — one style,
                   ≥44px touch on coarse pointers (design spec photo block). */}
-              <div className="dcc-capture dcc-capture--note">
+              {!readOnly && <div className="dcc-capture dcc-capture--note">
                 <label className="dcc-capture-btn dcc-capture-btn--secondary">
                   {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                   <span>Chụp / chọn ảnh biên bản</span>
@@ -432,7 +434,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                 >
                   <span>Mở camera biên bản</span>
                 </button>
-              </div>
+              </div>}
             </div>
           </div>
         )}

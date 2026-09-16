@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, SlidersHorizontal, X } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN,
@@ -18,11 +18,14 @@ import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
-import { nextTableSort, type TableSortState } from '../lib/table-sort';
+import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { CusFilterSummary } from '../features/shipments/cus/CusFilterSummary';
 import { useAuth } from '../hooks/useAuth';
+import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
+import { parseDateTime24 } from '../lib/format';
+import { validateDateInputText } from '../design-system/hooks/useBufferedDateTextValue';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
@@ -44,7 +47,7 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const suffixParam = searchParams.get('searchSuffix') ?? '';
   const dateFrom = searchParams.get('transportDateFrom') ?? '';
@@ -69,6 +72,9 @@ export default function ShipmentsPage() {
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [dateResetKey, setDateResetKey] = useState(0);
+  const [hasDateDraft, setHasDateDraft] = useState(false);
+  const filterFormRef = useRef<HTMLFormElement>(null);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
 
   const ws = useCusWorkspaceState({
@@ -91,6 +97,10 @@ export default function ShipmentsPage() {
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
+      // A second date can arrive before React has rendered the first date's
+      // min/max prop. Keep its invalid draft out of the applied URL range.
+      if (value && key === 'transportDateFrom' && next.get('transportDateTo') && value > next.get('transportDateTo')!) return current;
+      if (value && key === 'transportDateTo' && next.get('transportDateFrom') && value < next.get('transportDateFrom')!) return current;
       if (!value) next.delete(key);
       else next.set(key, value);
       if (key !== 'page') next.delete('page');
@@ -103,15 +113,15 @@ export default function ShipmentsPage() {
   // Both sort params are written in one setSearchParams pass so no render can
   // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
   const applySort = useCallback((key: string) => {
-    const next = nextTableSort(sort, key);
     setSearchParams((current) => {
+      const next = nextTableSort(readTableSort(current.get('sortBy'), current.get('sortDir')), key);
       const nextParams = new URLSearchParams(current);
       nextParams.set('sortBy', next.by);
       nextParams.set('sortDir', next.dir);
       nextParams.delete('page');
       return nextParams;
     }, { replace: true });
-  }, [sort, setSearchParams]);
+  }, [setSearchParams]);
 
   const openShipmentDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
@@ -137,9 +147,30 @@ export default function ShipmentsPage() {
     setDrawerId(null);
   }, [drawerCloseConfirmId, setDetailDirty]);
 
+  const validateFilterDates = () => {
+    const fromInput = filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-from');
+    const toInput = filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-to');
+    const visibleFrom = fromInput?.value ? parseDateTime24(`00:00 ${fromInput.value}`)?.slice(0, 10) ?? '' : '';
+    const visibleTo = toInput?.value ? parseDateTime24(`00:00 ${toInput.value}`)?.slice(0, 10) ?? '' : '';
+    // Read the actual draft pair: a rapid submit can precede the next render
+    // and its validity effect, so URL state alone is not validation evidence.
+    if (fromInput) fromInput.setCustomValidity(validateDateInputText(fromInput.value, '', visibleTo));
+    if (toInput) toInput.setCustomValidity(validateDateInputText(toInput.value, visibleFrom));
+    const invalidInput = filterFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid');
+    if (!invalidInput) return true;
+    setAdvancedOpen(true);
+    // Reveal collapsed criteria before moving focus to the invalid draft.
+    requestAnimationFrame(() => {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+    });
+    return false;
+  };
+
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
-    const value = searchInput.trim();
+    if (!validateFilterDates()) return;
+    const value = (filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-search')?.value ?? searchInput).trim();
     if (value && !CUS_SEARCH_PATTERN.test(value)) {
       setSearchError('Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
       return;
@@ -149,6 +180,8 @@ export default function ShipmentsPage() {
   };
 
   const clearFilters = () => {
+    setDateResetKey((key) => key + 1);
+    setHasDateDraft(false);
     setSearchInput('');
     setSearchError(null);
     setSearchParams((current) => {
@@ -177,22 +210,24 @@ export default function ShipmentsPage() {
   }, {
     escapeKey: true,
     enabled: quickEditDraft != null && quickEditItem != null,
-    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline', // Card 20260915_6: TimePickerSurface clicks (portaled picker) must not kill the draft
+    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
   // Phone/tablet: secondary criteria collapse so records start higher.
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const exportWorksheet = async () => {
+    if (!validateFilterDates()) return;
     setExporting(true);
     ws.setError(null);
     try {
+      const current = latestSearchParams.current;
       await exportCusWorksheet({
-        searchSuffix: suffixParam,
-        transportDateFrom: dateFrom,
-        transportDateTo: dateTo,
-        direction: direction || undefined,
-        bucket: bucket || undefined,
+        searchSuffix: current.get('searchSuffix') ?? '',
+        transportDateFrom: current.get('transportDateFrom') ?? '',
+        transportDateTo: current.get('transportDateTo') ?? '',
+        direction: current.get('direction') === 'IMPORT' ? 'IMPORT' : current.get('direction') === 'EXPORT' ? 'EXPORT' : undefined,
+        bucket: BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
       });
     } catch (exportError) {
       ws.setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
@@ -237,47 +272,52 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
+        <form ref={filterFormRef} className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate
+          onInput={(event) => { if ((event.target as HTMLElement).matches('[data-date-input]')) setHasDateDraft(true); }}>
           <div className="cus-worksheet-toolbar__filters" aria-label={'Bộ lọc' + (activeFilterCount ? ' đang áp dụng ' + activeFilterCount : '')}>
             <div className="cus-search-field">
-              <UUIInput
-                label="Bill/Book hoặc tờ khai"
-                size="sm"
-                icon={Search}
-                value={searchInput}
-                onChange={(value) => {
-                  setSearchInput(value);
-                  setSearchError(null);
-                }}
-                placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
-                inputProps={{
-                  inputMode: 'text',
-                  pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',
-                  autoCapitalize: 'characters',
-                  autoCorrect: 'off',
-                  spellCheck: false,
-                }}
-                isInvalid={Boolean(searchError)}
-                aria-describedby={searchError ? 'cus-search-error' : undefined}
-                className="shipment-uui-field"
-                wrapperClassName="shipment-uui-control"
-                inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
-                iconClassName="shipment-uui-control__icon"
-              />
-              {searchInput && (
-                <UUIButton
-                  size="xs"
-                  color="tertiary"
-                  className="shipment-uui-clear"
-                  onPress={() => {
-                    setSearchInput('');
+              <div className="cus-search-field__anchor">
+                <UUIInput
+                  id="cus-filter-search"
+                  label="Bill/Book hoặc tờ khai"
+                  size="sm"
+                  icon={Search}
+                  value={searchInput}
+                  onChange={(value) => {
+                    setSearchInput(value);
                     setSearchError(null);
-                    updateParam('searchSuffix', null);
                   }}
-                  aria-label="Xóa tìm kiếm"
-                  iconLeading={<X size={16} aria-hidden="true" />}
+                  placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
+                  inputProps={{
+                    inputMode: 'text',
+                    pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',
+                    autoCapitalize: 'characters',
+                    autoCorrect: 'off',
+                    spellCheck: false,
+                  }}
+                  isInvalid={Boolean(searchError)}
+                  aria-describedby={searchError ? 'cus-search-error' : undefined}
+                  className="shipment-uui-field"
+                  wrapperClassName="shipment-uui-control"
+                  inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
+                  iconClassName="shipment-uui-control__icon"
+                  tooltipClassName="cus-search-field__validation-icon"
                 />
-              )}
+                {searchInput && (
+                  <UUIButton
+                    size="sm"
+                    color="tertiary"
+                    className="shipment-uui-clear"
+                    onPress={() => {
+                      setSearchInput('');
+                      setSearchError(null);
+                      updateParam('searchSuffix', null);
+                    }}
+                    aria-label="Xóa tìm kiếm"
+                    iconLeading={<X size={16} aria-hidden="true" />}
+                  />
+                )}
+              </div>
               {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
 
@@ -293,47 +333,53 @@ export default function ShipmentsPage() {
               <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
             )}
             <div id="cus-advanced-filters" className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
-            <UuiSelectField
-              label="Xuất / Nhập"
-              value={direction}
-              onChange={(event) => updateParam('direction', event.target.value || null)}
-              options={[
-                { value: '', label: 'Tất cả' },
-                { value: 'EXPORT', label: 'Xuất' },
-                { value: 'IMPORT', label: 'Nhập' },
-              ]}
-              wrapperClassName="shipment-uui-field"
-              controlClassName="shipment-uui-select"
-            />
-            <BufferedUuiDateInput
-              label="Từ ngày giao"
-              size="sm"
-              value={dateFrom}
-              onChange={(value) => updateParam('transportDateFrom', value || null)}
-              className="shipment-uui-field"
-              wrapperClassName="shipment-uui-control"
-              inputClassName="shipment-uui-control__input"
-            />
-            <BufferedUuiDateInput
-              label="Đến ngày giao"
-              size="sm"
-              value={dateTo}
-              onChange={(value) => updateParam('transportDateTo', value || null)}
-              className="shipment-uui-field"
-              wrapperClassName="shipment-uui-control"
-              inputClassName="shipment-uui-control__input"
-            />
-            <UuiSelectField
-              label="Kế hoạch"
-              value={bucket}
-              onChange={(event) => updateParam('bucket', event.target.value || null)}
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
-              ]}
-              wrapperClassName="shipment-uui-field cus-plan-status-filter"
-              controlClassName="shipment-uui-select"
-            />
+              <BufferedUuiDateInput
+                id="cus-filter-date-from"
+                key={`from-${dateResetKey}`}
+                label="Từ ngày giao"
+                size="sm"
+                value={dateFrom}
+                onChange={(value) => updateParam('transportDateFrom', value || null)}
+                max={dateTo || undefined}
+                className="shipment-uui-field"
+                wrapperClassName="shipment-uui-control"
+                inputClassName="shipment-uui-control__input"
+              />
+              <BufferedUuiDateInput
+                id="cus-filter-date-to"
+                key={`to-${dateResetKey}`}
+                label="Đến ngày giao"
+                size="sm"
+                value={dateTo}
+                onChange={(value) => updateParam('transportDateTo', value || null)}
+                min={dateFrom || undefined}
+                className="shipment-uui-field"
+                wrapperClassName="shipment-uui-control"
+                inputClassName="shipment-uui-control__input"
+              />
+              <UuiSelectField
+                label="Xuất / Nhập"
+                value={direction}
+                onChange={(event) => updateParam('direction', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả' },
+                  { value: 'EXPORT', label: 'Xuất' },
+                  { value: 'IMPORT', label: 'Nhập' },
+                ]}
+                wrapperClassName="shipment-uui-field"
+                controlClassName="shipment-uui-select"
+              />
+              <UuiSelectField
+                label="Kế hoạch"
+                value={bucket}
+                onChange={(event) => updateParam('bucket', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả trạng thái' },
+                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
+                ]}
+                wrapperClassName="shipment-uui-field cus-plan-status-filter"
+                controlClassName="shipment-uui-select"
+              />
             </div>
           </div>
 
@@ -361,7 +407,7 @@ export default function ShipmentsPage() {
               </UUIButton>
             </div>
             <div className="cus-worksheet-toolbar__action-group cus-worksheet-toolbar__action-group--utility">
-              {hasFilters && (
+              {(hasFilters || hasDateDraft) && (
                 <UUIButton
                   size="sm"
                   color="tertiary"

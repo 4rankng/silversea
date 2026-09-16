@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, X } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { api } from '../../lib/api';
 import { CONFIG } from '@tingting/shared';
 import { qk } from '../../api/keys';
@@ -145,10 +146,9 @@ export function BaseSalaryEditModal({
         />
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-body-size)' }}>
           Ngày hiệu lực
-          <input
-            type="date"
+          <DateInput
             value={effectiveDate}
-            onChange={(e) => setEffectiveDate(e.target.value)}
+            onChange={setEffectiveDate}
             className="input"
             aria-label="Ngày hiệu lực"
           />

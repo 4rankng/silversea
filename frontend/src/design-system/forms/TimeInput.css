@@ -1,0 +1,3 @@
+.time-input { display: grid; gap: 4px; width: 100%; min-width: 0; font-weight: var(--fw-regular, 400); }
+.time-input > [data-uui-control] { min-width: 0; }
+.time-input__error { color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }

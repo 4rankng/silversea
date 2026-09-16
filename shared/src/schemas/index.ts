@@ -838,7 +838,12 @@ export const tirePositionSchema = z.object({
 export const routeSchema = z.object({
   name: z.string().trim().min(1, 'Tên đầy đủ là bắt buộc').max(255),
   shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
-  distanceKm: positiveNumeric.optional(),
+  // Stored as nullable PostgreSQL integer kilometres. A deliberate clear is
+  // null; omission keeps the previous value on a partial update.
+  distanceKm: positiveNumeric.refine(
+    (value) => Number.isInteger(value) && value <= 2147483647,
+    'Khoảng cách phải là số km nguyên lớn hơn 0, tối đa 2.147.483.647.',
+  ).nullable().optional(),
   isMountain: z.boolean().optional().default(false),
   fixedFuelAllowance: nonNegNumeric.nullable().optional(),
   tollsStations: nonNegNumeric.nullable().optional(),

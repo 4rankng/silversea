@@ -562,6 +562,9 @@
   font-size: var(--ops-table-supporting-size, 12px);
   line-height: 1.4;
   cursor: pointer;
+  max-width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
@@ -570,9 +573,10 @@
 }
 
 .dispatch-assignment-dialog__notes-tag.is-selected {
-  background: var(--accent, #005a2d);
-  border-color: var(--accent, #005a2d);
-  color: #fff;
+  background: var(--surface-2);
+  border-color: var(--fg-1);
+  color: var(--fg-1);
+  font-weight: 600;
 }
 
 .dispatch-assignment-dialog__notes-tag--add {
@@ -584,6 +588,8 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dispatch-assignment-dialog__notes-add-row input {
@@ -592,6 +598,7 @@
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
   width: 160px;
+  min-width: 0;
 }
 
 .dispatch-assignment-dialog__notes-add-row button {
@@ -622,6 +629,8 @@
   min-height: 56px;
   resize: vertical;
   font-family: inherit;
+  width: 100%;
+  min-width: 0;
 }
 
 .dispatch-assignment-dialog__notes-text:focus,

@@ -7,6 +7,8 @@
 
 .shipments-page--worksheet {
   min-width: 0;
+  container-name: cus-workboard;
+  container-type: inline-size;
 }
 
 .cus-worksheet-toolbar {
@@ -92,7 +94,7 @@
 }
 
 .cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .cus-worksheet-toolbar .shipment-uui-control__icon {
@@ -100,32 +102,25 @@
 }
 
 .cus-worksheet-toolbar .shipment-uui-select { font-weight: var(--fw-medium); }
-/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
-   vendored Select trigger's inner value span keeps its own min-h-[34px],
-   2px taller than the text-input/date min-h-[32px]. With the filter row's
-   align-items: end, that extra height pushes the whole select block (label
-   + control) upward relative to its neighbors instead of just growing the
-   control downward. Trim it to 32px so every field in the row shares one
-   box height and one label baseline. */
-.cus-worksheet-toolbar .ds-uui-select__control button > span,
-.cus-worksheet-toolbar .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 
-.cus-search-field {
+
+.cus-search-field__anchor {
   position: relative;
 }
 
 .cus-search-field:has(.shipment-uui-clear) .shipment-uui-control__input {
-  padding-right: 38px;
+  padding-right: calc(var(--uui-control-h) + 4px);
 }
+.cus-search-field .shipment-uui-control .cus-search-field__validation-icon { display: none; }
 
 .cus-worksheet-toolbar .shipment-uui-clear {
   position: absolute;
-  top: 19px;
-  right: 2px;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  bottom: 0;
+  right: 0;
+  width: var(--uui-control-h);
+  min-width: var(--uui-control-h);
+  height: var(--uui-control-h);
+  min-height: var(--uui-control-h);
   padding: 0;
   border: 0;
   border-radius: 5px;
@@ -763,7 +758,7 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.cus-quick-edit-modal__fields input,
+.cus-quick-edit-modal__fields input:not([data-uui-control] > input),
 .cus-quick-edit-modal__fields select,
 .cus-quick-edit-modal__fields textarea {
   box-sizing: border-box;
@@ -780,7 +775,7 @@
   line-height: 1.35;
 }
 .cus-quick-edit-modal__fields textarea { min-height: 84px; resize: vertical; }
-.cus-quick-edit-modal__fields input:focus-visible,
+.cus-quick-edit-modal__fields input:not([data-uui-control] > input):focus-visible,
 .cus-quick-edit-modal__fields select:focus-visible,
 .cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand-subtle); outline-offset: 1px; }
 .cus-quick-edit-modal__help,
@@ -841,7 +836,7 @@
 
 .cus-note-internal {
   color: var(--ink-3);
-  font-style: italic;
+  font-style: normal;
   opacity: 0.85;
   -webkit-line-clamp: 1;
 }
@@ -971,7 +966,8 @@
 
 @media (max-width: 620px) {
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
-  .cus-quick-edit-modal__fields input,
+  .cus-quick-edit-modal__fields[data-edit-field='schedule'] { grid-template-columns: minmax(80px, .65fr) minmax(130px, 1fr); }
+  .cus-quick-edit-modal__fields input:not([data-uui-control] > input),
   .cus-quick-edit-modal__fields select { min-height: 44px; }
   .cus-quick-edit-modal__fields .ds-uui-select button { min-height: 44px; }
   .cus-quick-edit-modal__action { min-height: 44px; }
@@ -1974,7 +1970,7 @@
 .cus-appointment-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1040;
+  z-index: calc(var(--z-popover) - 1);
   background: transparent;
 }
 
@@ -1983,7 +1979,7 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 1050;
+  z-index: var(--z-popover);
   width: 275px;
   max-width: calc(100vw - 32px);
   padding: 12px;
@@ -2374,15 +2370,12 @@
 .cus-active-filter-summary { display: none; }
 .cus-worksheet-advanced {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(120px, 1fr)) minmax(100px, .8fr) minmax(170px, 1.3fr);
   gap: 8px 12px;
   min-width: 0;
   align-items: end;
 }
-@media (max-width: 1279px) and (min-width: 1024px) {
-  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 1023px) {
+@container cus-workboard (max-width: 880px) {
   .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
   .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }
   .cus-active-filter-summary {

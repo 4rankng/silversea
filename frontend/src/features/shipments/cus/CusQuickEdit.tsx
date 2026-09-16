@@ -1,8 +1,8 @@
 import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
-import { ShipmentScheduleTimeField } from '../detail/ShipmentScheduleTimeField';
-import { DateInput, UuiSelectField } from '../../../design-system';
+import { TimeInput } from '../../../design-system/forms/TimeInput';
+import { BufferedUuiDateInput, UuiSelectField } from '../../../design-system';
 import { vehicleReadinessLabel, type ShipmentQuickEditDraft } from './cusUtils';
 
 export function ShipmentQuickEditFields({
@@ -22,7 +22,7 @@ export function ShipmentQuickEditFields({
   const documentDirection = draft.tradeDirection || item.direction || '';
 
   return (
-    <div className="cus-quick-edit-modal__fields">
+    <div className="cus-quick-edit-modal__fields" data-edit-field={draft.field}>
       {draft.field === 'identity' && <>
         <label className="cus-quick-edit-modal__field--full"><span>Khách hàng</span><div className="cus-quick-edit-modal__readonly" title={item.customerName ?? item.fieldAccess.customerId.reason}>{item.customerName ?? '—'}</div></label>
         <label className="cus-quick-edit-modal__field--full"><span>Nhà máy</span><input autoFocus value={draft.factoryName} onChange={(event) => update({ factoryName: event.target.value })} maxLength={255} disabled={saving} /></label>
@@ -51,8 +51,8 @@ export function ShipmentQuickEditFields({
         <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={draft.cargoVolumeCbm} onChange={(event) => update({ cargoVolumeCbm: event.target.value })} disabled={saving || item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
       </>}
       {draft.field === 'schedule' && <>
-        <label><span>Giờ</span><ShipmentScheduleTimeField autoFocus label="Giờ" disabled={saving} value={draft.time} onChange={(time) => update({ time })} /></label>
-        <label><span>Ngày đóng/trả</span><DateInput disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} /></label>
+        <label><span>Giờ</span><TimeInput autoFocus label="Giờ" disabled={saving} value={draft.time} onChange={(time) => update({ time })} /></label>
+        <BufferedUuiDateInput label="Ngày đóng/trả" size="sm" disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} />
         <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
       </>}
       {draft.field === 'notes' && <>

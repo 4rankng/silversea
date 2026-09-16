@@ -4,7 +4,7 @@
  * §"Workboard table & summary rail"). A decision rail, not cards: it gives the
  * operator a quiet count of the work that needs attention before scanning rows.
  *
- * Desktop retains a horizontal ruled strip. Phones and tablets pair metrics
+ * Desktop retains a horizontal ruled strip. Phones pair metrics
  * in columns so operational records stay close to the top of the screen.
  */
 
@@ -67,7 +67,7 @@
 
 /* Pair compact metrics on constrained canvases instead of consuming an entire
    phone screen before the first record. Each value retains its own column. */
-@media (max-width: 1023px) {
+@media (max-width: 640px) {
   .summary-rail {
     margin: 8px 12px 0;
   }

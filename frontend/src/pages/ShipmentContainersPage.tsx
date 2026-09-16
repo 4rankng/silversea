@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, RotateCcw, Search } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
+import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
   type ShipmentCusContainerSortKey,
@@ -43,7 +43,7 @@ function ShipmentContainerLedgerSkeleton() {
 
 export default function ShipmentContainersPage() {
   const today = useMemo(() => formatVietnamDateInput(new Date()), []);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = readPositiveInteger(searchParams.get('page'), 1);
   const rawSuffix = searchParams.get('searchSuffix') ?? '';
   const suffixParam = CUS_SEARCH_PATTERN.test(rawSuffix) ? rawSuffix.toUpperCase() : '';
@@ -72,6 +72,7 @@ export default function ShipmentContainersPage() {
   const sortDir = sort?.dir;
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [dateResetKey, setDateResetKey] = useState(0);
   const appliedSearchRef = useRef(suffixParam);
 
   const detail = useCusDetail({
@@ -82,6 +83,8 @@ export default function ShipmentContainersPage() {
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
+      if (value && key === 'transportDateFrom' && next.get('transportDateTo') && value > next.get('transportDateTo')!) return current;
+      if (value && key === 'transportDateTo' && next.get('transportDateFrom') && value < next.get('transportDateFrom')!) return current;
       if (!value) next.delete(key);
       else next.set(key, value);
       if (key !== 'page') next.delete('page');
@@ -100,31 +103,32 @@ export default function ShipmentContainersPage() {
     setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
 
     const nextSuffix = isValid ? value : '';
-    if (nextSuffix === suffixParam) return;
+    if (nextSuffix === (latestSearchParams.current.get('searchSuffix') ?? '')) return;
     appliedSearchRef.current = nextSuffix;
     updateParam('searchSuffix', nextSuffix || null);
-  }, [suffixParam, updateParam]);
+  }, [latestSearchParams, updateParam]);
 
   // Both sort params are written in one setSearchParams pass (never via the
   // single-key updateParam) so no intermediate render can pair a new sortBy
   // with a stale sortDir.
   const applySort = useCallback((key: string) => {
-    const next = nextTableSort(sort, key);
     setSearchParams((current) => {
+      const next = nextTableSort(readTableSort(current.get('sortBy'), current.get('sortDir')), key);
       const nextParams = new URLSearchParams(current);
       nextParams.set('sortBy', next.by);
       nextParams.set('sortDir', next.dir);
       nextParams.delete('page');
       return nextParams;
     }, { replace: true });
-  }, [sort, setSearchParams]);
+  }, [setSearchParams]);
 
   useEffect(() => {
+    if (suffixParam !== (latestSearchParams.current.get('searchSuffix') ?? '')) return;
     if (appliedSearchRef.current === suffixParam) return;
     appliedSearchRef.current = suffixParam;
     setSearchInput(suffixParam);
     setSearchError(null);
-  }, [suffixParam]);
+  }, [latestSearchParams, suffixParam]);
 
   const items = detail.data?.items ?? [];
   const totalPages = detail.data?.totalPages ?? 0;
@@ -136,6 +140,7 @@ export default function ShipmentContainersPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const resetFilters = () => {
+    setDateResetKey((key) => key + 1);
     appliedSearchRef.current = '';
     setSearchInput('');
     setSearchError(null);
@@ -154,14 +159,17 @@ export default function ShipmentContainersPage() {
     }, { replace: true });
   };
 
-  const showAllDates = () => setSearchParams((current) => {
-    const next = new URLSearchParams(current);
-    next.delete('transportDateFrom');
-    next.delete('transportDateTo');
-    next.set('dateScope', 'all');
-    next.delete('page');
-    return next;
-  }, { replace: true });
+  const showAllDates = () => {
+    setDateResetKey((key) => key + 1);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('transportDateFrom');
+      next.delete('transportDateTo');
+      next.set('dateScope', 'all');
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
 
   const tomorrow = useMemo(() => {
     const d = new Date();
@@ -169,23 +177,29 @@ export default function ShipmentContainersPage() {
     return formatVietnamDateInput(d);
   }, []);
 
-  const showToday = () => setSearchParams((current) => {
-    const next = new URLSearchParams(current);
-    next.delete('dateScope');
-    next.set('transportDateFrom', today);
-    next.set('transportDateTo', today);
-    next.delete('page');
-    return next;
-  }, { replace: true });
+  const showToday = () => {
+    setDateResetKey((key) => key + 1);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('dateScope');
+      next.set('transportDateFrom', today);
+      next.set('transportDateTo', today);
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
 
-  const showTomorrow = () => setSearchParams((current) => {
-    const next = new URLSearchParams(current);
-    next.delete('dateScope');
-    next.set('transportDateFrom', tomorrow);
-    next.set('transportDateTo', tomorrow);
-    next.delete('page');
-    return next;
-  }, { replace: true });
+  const showTomorrow = () => {
+    setDateResetKey((key) => key + 1);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('dateScope');
+      next.set('transportDateFrom', tomorrow);
+      next.set('transportDateTo', tomorrow);
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
 
   return (
     <div className="shipments-detail-page">
@@ -197,22 +211,29 @@ export default function ShipmentContainersPage() {
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
             <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
-            <button
+            <UUIButton
               type="button"
+              size="sm"
+              color="secondary"
               className="cus-advanced-toggle"
+              aria-label="Bộ lọc nâng cao"
               aria-expanded={advancedOpen}
-              onClick={() => setAdvancedOpen((o) => !o)}
+              aria-controls="cus-detail-advanced-filters"
+              onPress={() => setAdvancedOpen((o) => !o)}
+              iconLeading={SlidersHorizontal}
             >
-              Bộ lọc nâng cao{activeDetailFilterCount > 0 ? ` · ${activeDetailFilterCount} đang áp dụng` : ''}
-            </button>
-            <div className="shipments-detail-filters__group shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
-              <BufferedUuiDateInput label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
-              <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
-            </div>
-            <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
-              <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
-              <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
-              <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
+              Bộ lọc{activeDetailFilterCount > 0 ? ` · ${activeDetailFilterCount}` : ''}
+            </UUIButton>
+            <div id="cus-detail-advanced-filters" className="shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
+              <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
+                <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
+                <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
+              </div>
+              <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
+                <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
+                <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
+                <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
+              </div>
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
@@ -220,7 +241,7 @@ export default function ShipmentContainersPage() {
                   size="sm"
                   color="secondary"
                   onPress={showToday}
-                  isDisabled={dateFrom === today && dateTo === today}
+                  aria-pressed={dateFrom === today && dateTo === today}
                 >
                   Hôm nay
                 </UUIButton>
@@ -228,7 +249,7 @@ export default function ShipmentContainersPage() {
                   size="sm"
                   color="secondary"
                   onPress={showTomorrow}
-                  isDisabled={dateFrom === tomorrow && dateTo === tomorrow}
+                  aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}
                 >
                   Hôm sau
                 </UUIButton>
@@ -236,7 +257,7 @@ export default function ShipmentContainersPage() {
                   size="sm"
                   color="secondary"
                   onPress={showAllDates}
-                  isDisabled={allDates}
+                  aria-pressed={allDates}
                 >
                   Tất cả
                 </UUIButton>
@@ -245,7 +266,6 @@ export default function ShipmentContainersPage() {
                   color="secondary"
                   className="shipments-detail-filters__reset"
                   onPress={resetFilters}
-                  isDisabled={!hasFilters}
                   iconLeading={<RotateCcw aria-hidden="true" />}
                 >
                   Xóa bộ lọc

@@ -156,11 +156,9 @@ export async function transitionTripStatus(
       if (currentStatus !== TripStatus.CREATED && currentStatus !== TripStatus.COMPLETED) {
         throw new ApiError(409, 'Chỉ có thể xuất phát chuyến đi ở trạng thái Mới tạo hoặc Hoàn thành');
       }
-      // Block dispatching a second trip on a truck that is already running
-      // another trip — physically a truck can only be on one IN_TRANSIT trip
-      // at a time. Without this guard the dispatch page's "Đang chạy" stat
-      // stays at 3 even after dispatching more, because it counts unique
-      // trucks (not trips) — so the user gets no visible feedback.
+      // Unrelated trips cannot share a running truck. A persisted ACTIVE
+      // KEP pair is the exception: its two 20ft containers run together.
+      // A DOUBLE display classification alone never establishes that pair.
       //
       // Advisory lock serializes concurrent dispatches for the same truck —
       // without it, two READ COMMITTED transactions could both see 0 IN_TRANSIT
@@ -168,7 +166,11 @@ export async function transitionTripStatus(
       if (trip.truckId) {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${trip.truckId})`);
       }
-      const busyTrips = trip.truckId ? await tx.select({ id: s.trips.id, tripCode: s.trips.tripCode })
+      const busyTrips = trip.truckId ? await tx.select({
+        id: s.trips.id, tripCode: s.trips.tripCode,
+        activeTripPairId: s.trips.activeTripPairId,
+        driverId: s.trips.driverId, trailerId: s.trips.trailerId,
+      })
         .from(s.trips)
         .where(and(
           eq(s.trips.truckId, trip.truckId!),
@@ -182,8 +184,23 @@ export async function transitionTripStatus(
       // the truck is free once the driver delivered the full evidence set
       // (4 milestones + submitted e-POD); only still-running trips block a
       // new departure on the same truck.
+      let simultaneousPartnerId: number | null = null;
+      if (trip.activeTripPairId != null) {
+        const [pair] = await tx.select({ firstTripId: s.tripPairs.firstTripId, secondTripId: s.tripPairs.secondTripId })
+          .from(s.tripPairs).where(and(
+            eq(s.tripPairs.id, trip.activeTripPairId),
+            eq(s.tripPairs.status, 'ACTIVE'),
+            eq(s.tripPairs.pairKind, 'KEP'),
+          )).limit(1);
+        if (pair?.firstTripId === tripId) simultaneousPartnerId = pair.secondTripId;
+        else if (pair?.secondTripId === tripId) simultaneousPartnerId = pair.firstTripId;
+      }
       const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
       for (const candidate of busyTrips) {
+        if (candidate.id === simultaneousPartnerId
+          && candidate.activeTripPairId === trip.activeTripPairId
+          && trip.driverId != null && candidate.driverId === trip.driverId
+          && trip.trailerId != null && candidate.trailerId === trip.trailerId) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);
       }

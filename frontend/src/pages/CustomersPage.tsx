@@ -32,6 +32,7 @@ import { EmptyIllustration } from '../components/shared';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import './CustomersPage.css';
+import './config/customer-form.css';
 
 /** Sort keys mirror the backend /customers sortBy whitelist (server-side sort). */
 type CustomerTableFilters = {
@@ -158,7 +159,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="customer-form-modal flex flex-col gap-4">
         <EntityFormSection icon={Building2} label="Thông tin khách hàng">
           <Input
             size="sm"

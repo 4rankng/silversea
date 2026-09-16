@@ -1,10 +1,10 @@
 .time-picker__popup, .time-picker__dialog { box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; padding: 10px; color: var(--ink); background: var(--bg-1); outline: none; }
-.time-picker__popup { position: fixed; z-index: 1100; width: min(240px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(15 23 42 / 14%); }
+.time-picker__popup { position: fixed; z-index: var(--z-nested-popover, 410); width: min(240px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(15 23 42 / 14%); }
 .time-picker__header { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: var(--text-data-size); }
 .time-picker__header > button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); }
 .time-picker__header > button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .time-picker__inline { min-width: 0; }
-.time-picker__overlay { position: fixed; inset: 0 0 auto; height: var(--visual-viewport-height, 100dvh); z-index: 1200; display: flex; align-items: flex-end; justify-content: center; padding: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom)); box-sizing: border-box; background: rgb(15 23 42 / 24%); }
+.time-picker__overlay { position: fixed; inset: 0 0 auto; height: var(--visual-viewport-height, 100dvh); z-index: var(--z-picker-modal, 420); display: flex; align-items: flex-end; justify-content: center; padding: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom)); box-sizing: border-box; background: rgb(15 23 42 / 24%); }
 .time-picker__sheet { width: 100%; max-width: 420px; max-height: min(300px, var(--visual-viewport-height, 100dvh)); overflow: auto; overscroll-behavior: contain; border-radius: 10px; background: var(--bg-1); outline: none; }
 .time-picker__sheet .time-picker__dialog { padding: 8px 10px; }
 .time-picker__sheet .time-picker__header > button { width: 44px; height: 36px; }

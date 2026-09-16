@@ -1,5 +1,5 @@
 import { FilterLines, SearchLg } from '@untitledui/icons';
-import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -11,6 +11,7 @@ import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
+import { businessDateISO } from '../../../lib/format';
 import './MasterPlanGrid.css';
 
 interface MasterPlanFiltersProps {
@@ -48,12 +49,12 @@ function toISODate(d: Date): string {
   // Pin the business timezone — "Hôm nay/Hôm sau" must follow the Vietnam
   // calendar day the CUS-entered delivery dates compare against, not the
   // viewer machine's day.
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(d);
+  return businessDateISO(d);
 }
 
 function addDays(d: Date, n: number): Date {
   const result = new Date(d);
-  result.setDate(result.getDate() + n);
+  result.setUTCDate(result.getUTCDate() + n);
   return result;
 }
 
@@ -241,6 +242,21 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
   const [zonesError, setZonesError] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const drawerContentRef = useRef<HTMLDivElement>(null);
+  const [dateResetKey, setDateResetKey] = useState(0);
+  const applyDrawerFilters = () => {
+    const invalid = drawerContentRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (invalid) {
+      invalid.focus();
+      invalid.reportValidity();
+      return;
+    }
+    setIsFilterDrawerOpen(false);
+  };
+  const changeDatePreset = (patch: Partial<FilterState>) => {
+    setDateResetKey((key) => key + 1);
+    onChange(patch);
+  };
   const activeDrawerFilterCount = [
     filters.allocationStatus,
     filters.deliveryDateFrom,
@@ -250,6 +266,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   ].filter(Boolean).length;
 
   const clearDrawerFilters = () => {
+    setDateResetKey((key) => key + 1);
     onChange({
       allocationStatus: '',
       deliveryDateFrom: '',
@@ -339,7 +356,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 className="master-plan-filters__date-input"
                 inputClassName="master-plan-filters__control"
                 size="sm"
-                value={filters.deliveryDateFrom}
+                key={`from-${dateResetKey}`} max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom}
                 onChange={(value) => onChange({ deliveryDateFrom: value })}
                 inputProps={{ 'aria-label': 'Từ ngày giao' }}
               />
@@ -348,12 +365,12 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 className="master-plan-filters__date-input"
                 inputClassName="master-plan-filters__control"
                 size="sm"
-                value={filters.deliveryDateTo}
+                key={`to-${dateResetKey}`} min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo}
                 onChange={(value) => onChange({ deliveryDateTo: value })}
                 inputProps={{ 'aria-label': 'Đến ngày giao' }}
               />
             </div>
-            <QuickDateActions filters={filters} onChange={onChange} />
+            <QuickDateActions filters={filters} onChange={changeDatePreset} />
           </div>
         </div>
         <UUIButton
@@ -374,16 +391,16 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
         title="Bộ lọc kế hoạch tổng quát"
-        subtitle={activeDrawerFilterCount > 0 ? `${activeDrawerFilterCount} điều kiện đang áp dụng` : 'Lọc theo trạng thái, ngày giao, cảng và nhà xe'}
+        subtitle={activeDrawerFilterCount > 0 ? `${activeDrawerFilterCount} điều kiện đang áp dụng` : `Lọc theo trạng thái, ngày giao${visibleZones.length ? ', cảng' : ''} và nhà xe`}
         className="master-plan-filters__drawer"
         footer={(
           <>
-            <UUIButton size="sm" color="secondary" onPress={clearDrawerFilters} isDisabled={activeDrawerFilterCount === 0}>Đặt lại</UUIButton>
-            <UUIButton size="sm" color="primary" onPress={() => setIsFilterDrawerOpen(false)}>Xem kết quả</UUIButton>
+            <UUIButton size="sm" color="secondary" onPress={clearDrawerFilters}>Đặt lại</UUIButton>
+            <UUIButton size="sm" color="primary" onPress={applyDrawerFilters}>Xem kết quả</UUIButton>
           </>
         )}
       >
-        <div className="master-plan-filters__drawer-content">
+        <div ref={drawerContentRef} className="master-plan-filters__drawer-content">
           <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-allocation">
             <h3 id="master-plan-filter-allocation" className="master-plan-filters__drawer-title">Phân xe và ngày giao</h3>
             <div className="master-plan-filters__drawer-fields">
@@ -402,16 +419,16 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
               <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
                 <span className="master-plan-filters__label">Ngày giao</span>
                 <div className="master-plan-filters__date-inputs">
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" value={filters.deliveryDateFrom} onChange={(value) => onChange({ deliveryDateFrom: value })} inputProps={{ 'aria-label': 'Từ ngày giao' }} />
+                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" key={`from-${dateResetKey}`} max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom} onChange={(value) => onChange({ deliveryDateFrom: value })} inputProps={{ 'aria-label': 'Từ ngày giao' }} />
                   <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
+                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" key={`to-${dateResetKey}`} min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
                 </div>
-                <QuickDateActions filters={filters} onChange={onChange} />
+                <QuickDateActions filters={filters} onChange={changeDatePreset} />
               </div>
             </div>
           </section>
           <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-location">
-            <h3 id="master-plan-filter-location" className="master-plan-filters__drawer-title">Cảng và nhà xe</h3>
+            <h3 id="master-plan-filter-location" className="master-plan-filters__drawer-title">{visibleZones.length ? 'Cảng và nhà xe' : 'Nhà xe'}</h3>
             <div className="master-plan-filters__drawer-fields">
               {visibleZones.map((zone) => (
                 <FacetMultiSelect key={zone.code} label={portZoneFacetLabel(zone.label)} selected={filters.portIds} onSelectionChange={(ids) => onChange({ portIds: ids })} loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)} />

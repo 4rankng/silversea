@@ -3,7 +3,8 @@ import { Loader2 } from 'lucide-react';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { getCusShipmentWorkspaceDetail, type ShipmentListItem } from '../../../api/shipmentClient';
 import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
-import { formatDateTimeShort } from '../../../lib/format';
+import { formatDateTime24 } from '../../../lib/format';
+import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { Drawer } from '../../../components/UI';
 import './DispatchContainerDetailDrawer.css';
 
@@ -34,6 +35,7 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
             <tr key={line.id} className="dispatch-container-detail__row">
               <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
               <th scope="row" data-label="Container">
+                <span className="dispatch-container-detail__inline-ordinal">#{line.ordinal}</span>
                 <strong>{line.containerNumber || 'Chưa có số container'}</strong>
               </th>
               <td data-label="Loại cont">{line.containerTypeLabel || '—'}</td>
@@ -46,7 +48,7 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
               <td data-label="Biển số">{line.plateNumber || '—'}</td>
               <td data-label="Nâng">{line.liftSite || '—'}</td>
               <td data-label="Hạ">{line.dropoffSite || '—'}</td>
-              <td data-label="Giờ hẹn đóng/trả">{formatDateTimeShort(line.customerAppointmentAt)}</td>
+              <td data-label="Giờ hẹn đóng/trả">{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</td>
             </tr>
           ))}
         </tbody>

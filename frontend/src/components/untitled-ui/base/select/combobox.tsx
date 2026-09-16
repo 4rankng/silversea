@@ -73,6 +73,8 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
             {...otherProps}
             onClick={handleClick}
             data-size={size}
+            data-uui-control="combobox"
+            data-control-size={size}
             data-default-search-icon={IconProp == null || (!isReactComponent(IconProp) && !isValidElement(IconProp)) ? true : undefined}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(

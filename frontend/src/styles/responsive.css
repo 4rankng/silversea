@@ -415,7 +415,9 @@
   .toolbar > div[style*="flex: 1"],
   .toolbar > .toolbar__spacer,
   .toolbar > .toolbar-spacer { display: none; }
-  .toolbar > div:has(input) { width: 100%; order: 99; }
+  /* Search follows DOM order; inputs inside other field groups must not
+     reorder the whole group behind unrelated actions. */
+  .toolbar > .toolbar__search { flex-basis: 100%; }
   .filter-tabs, .dispatch-page .filter-tabs, .pill-row, .toolbar {
     display: flex;
     flex-wrap: wrap;

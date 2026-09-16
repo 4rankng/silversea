@@ -35,7 +35,8 @@ export function useClickOutside(
       // Targets inside an ignored region (e.g. a portaled select popover whose
       // own backdrop owns outside clicks) never dismiss this layer — pointer
       // and Escape alike, so a dropdown's own shortcuts stay self-contained.
-      if (ignoreSelector && e.target instanceof Element && e.target.closest(ignoreSelector)) return;
+      const path = e.composedPath();
+      if (ignoreSelector && path.some((node) => node instanceof Element && node.matches(ignoreSelector))) return;
       if (e instanceof KeyboardEvent) {
         if (escapeKey && e.key === 'Escape') {
           e.stopPropagation();
@@ -43,18 +44,23 @@ export function useClickOutside(
         }
         return;
       }
-      const target = e.target as Node;
-      const isInside = [ref, ...(additionalRefs ?? [])].some((candidate) => candidate.current?.contains(target));
+      // The event path retains ownership if a child selects and unmounts
+      // before this document listener runs.
+      const isInside = [ref, ...(additionalRefs ?? [])].some((candidate) =>
+        candidate.current != null && path.includes(candidate.current),
+      );
       if (!isInside) {
         onDismiss();
       }
     };
-    document.addEventListener('pointerdown', handler);
-    document.addEventListener('mousedown', handler);
+    // A picker may select and unmount on pointerdown. Its compatibility
+    // mousedown can then target <body>; handling both dismisses the parent
+    // editor even though the user only selected an option in the child.
+    const pressEvent = typeof window.PointerEvent === 'function' ? 'pointerdown' : 'mousedown';
+    document.addEventListener(pressEvent, handler);
     if (escapeKey) document.addEventListener('keydown', handler);
     return () => {
-      document.removeEventListener('pointerdown', handler);
-      document.removeEventListener('mousedown', handler);
+      document.removeEventListener(pressEvent, handler);
       if (escapeKey) {
         document.removeEventListener('keydown', handler);
         unregisterOverlay();
@@ -63,4 +69,3 @@ export function useClickOutside(
     };
   }, [additionalRefs, ref, onDismiss, enabled, escapeKey, ignoreSelector]);
 }
-

@@ -56,6 +56,12 @@
   gap: 10px;
 }
 
+@media (min-width: 1024px) {
+  .driver-journey { max-width: 1120px; padding-inline: 16px; }
+  .driver-journey__list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .driver-journey-group { min-width: 0; }
+}
+
 .driver-journey-group {
   display: grid;
   gap: 8px;
@@ -122,6 +128,8 @@
   font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--ink-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Headline — factory name is the primary identifier a driver scans a 27-card
@@ -256,24 +264,25 @@
 
 /* Ports row — lift and drop port side-by-side below the container strip. */
 .driver-journey-card__ports {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  padding: 0 2px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
   font-size: var(--text-caption-size);
   color: var(--ink-2);
 }
 
 .driver-journey-card__port {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .driver-journey-card__port-label {
   font-size: var(--text-label-size);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--ink-3);
 }
@@ -405,6 +414,8 @@
   border: 1px solid var(--border-subtle, #eaecf0);
   border-radius: 6px;
   padding: 1px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 @media (hover: hover) {

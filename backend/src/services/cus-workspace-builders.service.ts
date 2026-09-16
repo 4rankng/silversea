@@ -253,12 +253,13 @@ function buildListItem(
     // (customer requirement 2026-09-12: assigned LCL summary carrier chip).
     support.assignmentsByShipment.get(row.shipment.id) ?? null,
   ];
-  const liftSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
-    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse')?.name
-  )));
-  const dropoffSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
-    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite')?.name
-  )));
+  const lotSnapshot = support.assignmentsByShipment.get(row.shipment.id)?.siteSnapshot ?? null;
+  const liftSiteNames = uniqueNonEmpty(containers.length > 0
+    ? containers.map((container) => resolveLiftSite(support, container, support.assignmentsByContainer.get(container.id) ?? null)?.name)
+    : [readPortSnapshot(lotSnapshot, 'pickupWarehouse')?.name]);
+  const dropoffSiteNames = uniqueNonEmpty(containers.length > 0
+    ? containers.map((container) => resolveDropoffSite(support, container, support.assignmentsByContainer.get(container.id) ?? null)?.name)
+    : [readPortSnapshot(lotSnapshot, 'deliverySite')?.name]);
   const customerAppointmentAts = uniqueNonEmpty(containers.map((container) => (
     container.customerAppointmentAt?.toISOString() ?? null
   )));
@@ -443,8 +444,9 @@ function buildListItem(
 }
 
 // Lift/drop authority is the per-container port columns (same columns the
-// create form writes). The fulfillment site-snapshot remains the fallback
-// for legacy rows decomposed before ports existed. The missing-status bits
+// create form writes). Only a snapshot explicitly marked PORT can supply a
+// legacy port fallback; a FACTORY delivery snapshot is a different place.
+// The missing-status bits
 // in containerMissingFields/containerMissingBitsSql resolve through these
 // same id-based helpers. Display names use the same authority as their
 // selector IDs, so creating a delivery snapshot cannot relabel a port.
@@ -453,9 +455,8 @@ function resolveLiftSite(
   container: ContainerRow,
   assignment: AssignmentRow | null,
 ) {
-  return container.pickupPortId != null
-    ? support.portsById.get(container.pickupPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
+  if (container.pickupPortId != null) return support.portsById.get(container.pickupPortId) ?? null;
+  return readPortSnapshot(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
 }
 
 function resolveDropoffSite(
@@ -463,9 +464,13 @@ function resolveDropoffSite(
   container: ContainerRow,
   assignment: AssignmentRow | null,
 ) {
-  return container.dropoffPortId != null
-    ? support.portsById.get(container.dropoffPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
+  if (container.dropoffPortId != null) return support.portsById.get(container.dropoffPortId) ?? null;
+  return readPortSnapshot(assignment?.siteSnapshot ?? null, 'deliverySite');
+}
+
+function readPortSnapshot(snapshot: Record<string, unknown> | null, key: 'pickupWarehouse' | 'deliverySite') {
+  const legacyPort = readSiteSnapshotSite(snapshot, key);
+  return legacyPort?.siteType === 'PORT' ? legacyPort : null;
 }
 
 function buildContainerLine(

@@ -7,6 +7,7 @@ import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd, localDateInputValue } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -168,7 +169,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             </label>
             <label>
               Ngày chi *
-              <input type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} required />
+              <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
 

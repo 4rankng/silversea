@@ -1,14 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type Ref } from 'react';
 import { InputBase } from '../../components/untitled-ui/base/input/input';
 import { formatDateTime24, parseDateTime24 } from '../../lib/format';
-import { usePopoverPosition } from '../../hooks/usePopoverPosition';
-import { useClickOutside } from '../../hooks/useClickOutside';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { DatePanel } from './DateTimePickerPanels';
+import { DatePickerSurface } from './DatePickerSurface';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from './TimePickerSurface';
-import { closeAfterPress } from './closeAfterPress';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './SplitDateTimeField.css';
 
@@ -20,9 +14,13 @@ function splitValue(value: string) {
 /** Independent, editable 24h time/date controls with one complete datetime
  * contract. Partial drafts stay visible and invalidate their form inputs;
  * they never silently preserve an older complete timestamp for submission. */
-export function SplitDateTimeField({ id: suppliedId, label, value, onChange, disabled, error, hideLabel, className }: {
+export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
   id?: string; label: string; value: string; onChange: (value: string) => void;
-  disabled?: boolean; error?: string; hideLabel?: boolean; className?: string;
+  onCommit?: (value: string) => void;
+  disabled?: boolean; readOnly?: boolean; required?: boolean; error?: string; hideLabel?: boolean; className?: string;
+  min?: string; max?: string; name?: string; groupRef?: Ref<HTMLDivElement>; size?: 'sm' | 'md' | 'lg';
+  inputClassName?: string; wrapperClassName?: string;
+  inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue' | 'onChange' | 'id' | 'name' | 'min' | 'max' | 'size'>;
 }) {
   const generatedId = useId();
   const id = suppliedId ?? generatedId;
@@ -39,10 +37,8 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
   const restoringFocus = useRef(false);
   const restoreFrame = useRef<number | null>(null);
   const trigger = open === 'date' ? dateRef : timeRef;
-  const active = open != null && !disabled;
+  const active = open != null && !disabled && !readOnly;
   const mobileTime = useMediaQuery(TIME_PICKER_MOBILE_QUERY) && open === 'time';
-  const position = usePopoverPosition(panelRef, trigger, active && open === 'date', 280, 240);
-  useFocusTrap(panelRef, active && open === 'date' && keyboardPicker);
   const close = () => {
     const target = trigger.current;
     restoringFocus.current = true;
@@ -60,11 +56,10 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
       restoringFocus.current = false;
     });
   };
-  useClickOutside(panelRef, () => { setTouched(true); setOpen(null); }, { enabled: active && open === 'date', escapeKey: true, additionalRefs: [groupRef] });
 
   useEffect(() => () => { if (restoreFrame.current != null) cancelAnimationFrame(restoreFrame.current); }, []);
 
-  useEffect(() => { if (disabled) setOpen(null); }, [disabled]);
+  useEffect(() => { if (disabled || readOnly) setOpen(null); }, [disabled, readOnly]);
 
   useEffect(() => {
     if (value !== lastValue.current) {
@@ -76,14 +71,17 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
 
   const parsed = draft.time && draft.date ? parseDateTime24(`${draft.time} ${draft.date}`) : null;
   const incomplete = Boolean(draft.time || draft.date) && parsed == null;
-  const validation = incomplete ? 'Nhập đủ giờ và ngày hợp lệ.' : '';
+  const validation = incomplete ? 'Nhập đủ giờ và ngày hợp lệ.'
+    : required && !parsed ? 'Vui lòng nhập ngày và giờ.'
+    : parsed && min && parsed < min.slice(0, 16) ? `Chọn từ ${formatDateTime24(min)}.`
+    : parsed && max && parsed > max.slice(0, 16) ? `Chọn đến ${formatDateTime24(max)}.` : '';
   useEffect(() => {
     timeRef.current?.setCustomValidity(validation);
     dateRef.current?.setCustomValidity(validation);
   }, [validation]);
 
   const update = (part: 'time' | 'date', text: string) => {
-    if (disabled) return;
+    if (disabled || readOnly) return;
     setTouched(false);
     const next = { ...draft, [part]: text };
     setDraft(next);
@@ -93,7 +91,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
     onChange(emitted);
   };
   const openPanel = (part: 'time' | 'date', keyboard = false) => {
-    if (!disabled) {
+    if (!disabled && !readOnly) {
       if (restoreFrame.current != null) cancelAnimationFrame(restoreFrame.current);
       restoreFrame.current = null;
       restoringFocus.current = false;
@@ -103,7 +101,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
   const message = error || (touched ? validation : '');
   const dateValue = parseDateTime24(`00:00 ${draft.date}`)?.slice(0, 10) ?? '';
 
-  return <div ref={groupRef} data-split-datetime className={['split-datetime', className].filter(Boolean).join(' ')} role="group" aria-label={label}
+  return <div ref={(node) => { groupRef.current = node; if (typeof externalGroupRef === 'function') externalGroupRef(node); else if (externalGroupRef) externalGroupRef.current = node; }} data-split-datetime className={['split-datetime', className].filter(Boolean).join(' ')} role="group" aria-label={label}
     onFocusCapture={(event) => {
       if (!active && !restoringFocus.current && event.currentTarget.contains(event.target as Node) && !event.currentTarget.contains(event.relatedTarget as Node | null)) valueAtFocus.current = value;
     }}
@@ -116,7 +114,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
       }
     }}
     onKeyDown={(event) => {
-      if (event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return;
+      if (event.defaultPrevented || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return;
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopPropagation();
         if (active) { close(); return; }
@@ -128,7 +126,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
         event.preventDefault(); event.stopPropagation();
         setOpen(null);
         setTouched(true);
-        if (!incomplete) event.target.blur();
+        if (!validation) { onCommit?.(parsed ?? ''); event.target.blur(); }
       }
     }}>
     {!hideLabel && <span className="split-datetime__label">{label}</span>}
@@ -137,27 +135,27 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, dis
         const fieldLabel = part === 'time' ? 'Giờ' : 'Ngày';
         return <div className="split-datetime__field" key={part}>
           <div className="split-datetime__control">
-            <InputBase id={`${id}-${part}`} ref={part === 'time' ? timeRef : dateRef} type="text" size="sm"
-              aria-label={`${fieldLabel} — ${label}`} aria-invalid={Boolean(error) || (touched && incomplete)} aria-describedby={message ? `${id}-error` : undefined}
+            <InputBase {...inputProps} id={`${id}-${part}`} ref={part === 'time' ? timeRef : dateRef} type="text" size={size} inputClassName={inputClassName} wrapperClassName={wrapperClassName}
+              aria-label={`${fieldLabel} — ${label}`} aria-invalid={Boolean(error) || (touched && Boolean(validation)) || inputProps?.['aria-invalid']}
+              aria-describedby={[inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined}
               aria-haspopup="dialog" aria-expanded={active && open === part} aria-controls={active && open === part ? `${id}-picker` : undefined}
               value={draft[part]} onChange={(event) => update(part, event.target.value)}
               onClick={() => openPanel(part)} onInvalid={() => setTouched(true)}
-              onKeyDown={(event) => { if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } }}
+              onKeyDown={(event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } }}
               placeholder={part === 'time' ? 'HH:mm' : 'DD/MM/YYYY'} maxLength={part === 'time' ? 5 : 10}
-              autoComplete="off" isDisabled={disabled} disabled={disabled} />
+              autoComplete="off" isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required} />
           </div>
         </div>;
       })}
     </div>
+    {name && <input type="hidden" name={name} form={inputProps?.form} value={parsed ?? ''} disabled={disabled} />}
     {message && <small id={`${id}-error`} className="split-datetime__error" role="alert">{message}</small>}
-    {active && open === 'date' && createPortal(<div id={`${id}-picker`} ref={panelRef} className="split-datetime__popover" style={{ top: position?.top ?? 12, left: position?.left ?? 12 }}
-      role="dialog" aria-label={`Chọn ngày — ${label}`} data-escape-boundary="true"
-      onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } if (event.key === 'Enter') event.stopPropagation(); }}>
-      <header><strong>Chọn ngày</strong><button type="button" aria-label="Đóng" onClick={close}><X size={14} aria-hidden="true" /></button></header>
-      {<DatePanel value={dateValue} onChange={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); close(); }} />}
-    </div>, document.body)}
+    {active && open === 'date' && <DatePickerSurface id={`${id}-picker`} label={`Chọn ngày — ${label}`} value={dateValue} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
+      panelRef={panelRef} anchorRef={dateRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
+      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
+      onPick={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); close(); }} />}
     {active && open === 'time' && <TimePickerSurface id={`${id}-picker`} label={`Chọn giờ (24h) — ${label}`} value={draft.time}
       panelRef={panelRef} anchorRef={timeRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
-      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }} onPick={(next) => { update('time', next); closeAfterPress(close); }} />}
+      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }} onPick={(next) => { update('time', next); close(); }} />}
   </div>;
 }

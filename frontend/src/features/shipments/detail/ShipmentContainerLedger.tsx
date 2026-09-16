@@ -201,7 +201,7 @@ function InlineEditor({
     if (!saving) onCancel();
   }, {
     escapeKey: true,
-    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [data-time-picker-overlay], .time-picker__popup',
+    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [data-time-picker-overlay], .time-picker__popup, [data-date-picker]',
   });
   const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
     value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
@@ -261,11 +261,11 @@ function InlineEditor({
   }, []);
 
   const save = async () => {
-    const invalidDate = Array.from(editorRef.current?.querySelectorAll<HTMLInputElement>('input[type="date"]') ?? [])
+    const invalidInput = Array.from(editorRef.current?.querySelectorAll<HTMLInputElement>('input') ?? [])
       .find((input) => !input.validity.valid);
-    if (invalidDate) {
-      setSaveError('Nhập ngày đầy đủ và hợp lệ trước khi lưu lịch trình.');
-      invalidDate.focus();
+    if (invalidInput) {
+      setSaveError(invalidInput.validationMessage || 'Kiểm tra thông tin chưa hợp lệ trước khi lưu.');
+      invalidInput.focus();
       return;
     }
     setSaving(true);
@@ -350,6 +350,7 @@ function InlineEditor({
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
+        if ((event.target as HTMLElement).closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
         if (event.key === 'Escape' && !saving) {
           event.preventDefault();
           event.stopPropagation();

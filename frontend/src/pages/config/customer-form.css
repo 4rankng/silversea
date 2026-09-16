@@ -1,0 +1,51 @@
+.customer-form :is(input, textarea),
+.customer-form-modal :is(input, textarea),
+.customer-form [data-uui-select-value],
+.customer-form-modal [data-uui-select-value] { font-weight: var(--fw-regular, 400); }
+.customer-form input::placeholder,
+.customer-form textarea::placeholder,
+.customer-form-modal input::placeholder,
+.customer-form-modal textarea::placeholder { font-weight: var(--fw-regular, 400); }
+
+/* Keep the actions outside the field scroller, including when the keyboard
+   reduces the available dialog height. Only this form owns the inner scroll. */
+.modal .modal__body:has(> .customer-form) {
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+}
+.modal__body > .customer-form {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+}
+.customer-form__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 12px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.customer-form__actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+@media (max-width: 640px) {
+  .customer-form__body { gap: 12px; padding: 12px; scrollbar-width: none; }
+  .customer-form__body::-webkit-scrollbar { display: none; }
+  .customer-form .cfg-form-columns--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 8px;
+  }
+  .customer-form__actions { padding: 8px 12px max(8px, env(safe-area-inset-bottom)); }
+  .customer-form__actions > .btn { flex: 1 1 0; min-height: 44px; justify-content: center; }
+}

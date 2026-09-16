@@ -20,6 +20,9 @@ export interface DatePanelProps {
   /** Selected date 'YYYY-MM-DD'; '' = none. */
   value: string;
   onChange: (date: string) => void;
+  /** Inclusive ISO date bounds used by date-range fields. */
+  min?: string;
+  max?: string;
 }
 
 interface DayCell {
@@ -63,7 +66,7 @@ function parseIsoParts(iso: string): { y: number; m0: number; d: number } | null
   return { y: Number(match[1]), m0: Number(match[2]) - 1, d: Number(match[3]) };
 }
 
-export function DatePanel({ value, onChange }: DatePanelProps) {
+export function DatePanel({ value, onChange, min, max }: DatePanelProps) {
   const todayIso = useMemo(() => offsetDate(0), []);
   const initial = parseIsoParts(value) ?? parseIsoParts(todayIso)!;
   const [view, setView] = useState({ y: initial.y, m0: initial.m0 });
@@ -110,6 +113,7 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
               data-idx={idx}
               className={`dtp-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}${cell.inMonth ? '' : ' is-outside'}`}
               aria-pressed={isSelected}
+              disabled={Boolean((min && cell.iso < min) || (max && cell.iso > max))}
               aria-label={`${cell.day} Tháng ${cellDate.m0 + 1} ${cellDate.y}`}
               onClick={() => onChange(cell.iso)}
             >

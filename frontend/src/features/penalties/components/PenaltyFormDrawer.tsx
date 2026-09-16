@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Save, Loader2, AlertCircle } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { Alert } from '../../../components/shared/Alert';
@@ -38,6 +38,7 @@ export function PenaltyFormDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tripSearch, setTripSearch] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
   const tripOptionsQuery = useQuery({
     queryKey: qk.penalties.tripSelector(formDriverId || null, tripSearch),
     queryFn: () => tripClient.listTrips({
@@ -76,6 +77,13 @@ export function PenaltyFormDrawer({
   }, [isOpen, preselectedDriverId]);
 
   const handleSubmit = async () => {
+    if (submitting) return;
+    const invalidInput = formRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (invalidInput) {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+      return;
+    }
     if (!formDriverId || !formAmount || !formDate) return;
     setSubmitting(true);
     setSubmitError(null);
@@ -131,7 +139,7 @@ export function PenaltyFormDrawer({
           {submitError}
         </Alert>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div ref={formRef} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <FormGroup label="Lái xe vi phạm *">
           <UuiSelectField
             label="Lái xe vi phạm"

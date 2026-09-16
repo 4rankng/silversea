@@ -213,8 +213,9 @@ function activePlannedPlateSql(): SQL {
 
 // Lift/drop presence in SQL mirrors resolveLiftSite/resolveDropoffSite: the
 // per-container port column is the authority (port row must exist, matching
-// the JS portsById lookup); the snapshot half only counts when it is a JSON
-// object (readSiteSnapshotSite's presence rule). `is not distinct from`
+// the JS portsById lookup); only an explicit PORT snapshot counts as a
+// legacy fallback. A FACTORY delivery snapshot never fills a missing port.
+// `is not distinct from`
 // keeps a missing fulfillment row (NULL subquery) falsy. The port columns
 // carry no DB FK by repo convention, but the write path validates ids
 // against s.ports, so a dangling id is unreachable through the API.
@@ -223,11 +224,12 @@ function portRowExistsSql(column: SQL | Column): SQL {
 }
 
 function siteSnapshotHalfIsObjectSql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
-  return sql`(select jsonb_typeof(${s.shipmentFulfillments.siteSnapshot} -> ${key})
+  return sql`(select jsonb_typeof(${s.shipmentFulfillments.siteSnapshot} -> ${key}) = 'object'
+      and ${s.shipmentFulfillments.siteSnapshot} -> ${key} ->> 'siteType' = 'PORT'
     from ${s.shipmentFulfillments}
     where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
       and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1) is not distinct from 'object'`;
+    limit 1) is not distinct from true`;
 }
 
 // nullif(btrim(x), '') mirrors the JS trimOrNull: null-or-whitespace is absent.

@@ -1,7 +1,9 @@
-import { type ReactNode, useId } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
-import { useBufferedDateValue } from '../hooks/useBufferedDateValue';
+import { formatDateInput as formatDate, useBufferedDateTextValue } from '../hooks/useBufferedDateTextValue';
+import { DatePickerSurface } from './DatePickerSurface';
+import './BufferedUuiDateInput.css';
 
 export interface BufferedUuiDateInputProps
   extends Omit<InputBaseProps, 'value' | 'onChange' | 'type' | 'onBlur' | 'defaultValue' | 'ref' | 'isRequired' | 'isInvalid' | 'placeholder' | 'inputClassName' | 'wrapperClassName' | 'hint'> {
@@ -29,21 +31,8 @@ export interface BufferedUuiDateInputProps
   inputProps?: Record<string, unknown>;
 }
 
-/**
- * Untitled UI styled date input that uses a local draft buffer so the
- * "typed digits flash and disappear" bug is fixed.
- *
- * This wraps the shared `InputBase` (and the `Label` primitive) directly
- * instead of the higher-level `Input` component, because the latter wraps
- * React Aria's `TextField` which enforces a controlled `value` — the very
- * behavior that makes `<input type="date">` lose partial entries on every
- * keystroke. With this component the input is uncontrolled (via the
- * underlying `defaultValue`) and the `useBufferedDateValue` effect pushes
- * external value changes to the DOM via the ref.
- *
- * Use this in filter bars and toolbar UIs that already use the UUI
- * `Input`; use the design-system `<DateField>` for form pages.
- */
+/** Shared DD/MM/YYYY field with a local draft and the existing calendar.
+ * Complete dates emit ISO values; partial text stays visible and invalid. */
 export function BufferedUuiDateInput({
   label,
   value,
@@ -62,44 +51,118 @@ export function BufferedUuiDateInput({
 }: BufferedUuiDateInputProps) {
   const generatedId = useId();
   const id = rest.id ?? generatedId;
-  const buffered = useBufferedDateValue({ value, onChange });
+  const nativeProps = inputProps as Partial<InputBaseProps> | undefined;
+  const [open, setOpen] = useState(false);
+  const [keyboardPicker, setKeyboardPicker] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const blurFrame = useRef<number | null>(null);
+  const disabled = Boolean(isDisabled || nativeProps?.disabled || rest.disabled);
+  const readOnly = Boolean(nativeProps?.readOnly || rest.readOnly);
+  const required = Boolean(isRequired || nativeProps?.isRequired || nativeProps?.required || rest.required);
+  const active = open && !disabled && !readOnly;
+  const min = String(nativeProps?.min ?? rest.min ?? '');
+  const max = String(nativeProps?.max ?? rest.max ?? '');
+  const name = nativeProps?.name ?? rest.name;
+  const { draft, setDraft, setTouched, parsed, validation, message, emit, update } = useBufferedDateTextValue({ value, onChange, min, max, inputRef });
+  const describedBy = [nativeProps?.['aria-describedby'] ?? rest['aria-describedby'], (message || hint) ? `${id}-hint` : undefined].filter(Boolean).join(' ') || undefined;
+  const dismiss = () => { setOpen(false); inputRef.current?.focus(); };
 
-  // InputBase forwards its onChange/onBlur straight to the native input, so
-  // the hook's event-shaped handlers wire up directly without wrapping.
+  useEffect(() => { if (disabled || readOnly) setOpen(false); }, [disabled, readOnly]);
+  useEffect(() => () => { if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current); }, []);
+
+  const closeWhenFocusLeaves = (next: Node | null) => {
+    if (!fieldRef.current?.contains(next) && !panelRef.current?.contains(next)) {
+      setOpen(false);
+      setTouched(true);
+    }
+  };
+
+  const showCalendar = (keyboard = false) => {
+    if (!disabled && !readOnly) { setKeyboardPicker(keyboard); setOpen(true); }
+  };
+
   return (
     <div
+      ref={fieldRef}
+      onFocusCapture={() => {
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        blurFrame.current = null;
+      }}
+      onBlurCapture={(event) => {
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        const next = event.relatedTarget as Node | null;
+        if (next) {
+          blurFrame.current = null;
+          closeWhenFocusLeaves(next);
+        } else {
+          // Some pointer focus transfers have no relatedTarget. Let the new
+          // calendar button receive focus before deciding it left the field.
+          blurFrame.current = requestAnimationFrame(() => {
+            blurFrame.current = null;
+            closeWhenFocusLeaves(document.activeElement);
+          });
+        }
+      }}
       data-input-wrapper
       data-input-size={size}
       className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
     >
-      {label && (
-        <Label isRequired={isRequired} isInvalid={isInvalid} htmlFor={id}>
-          {label}
-        </Label>
-      )}
+      {label && <Label isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
       <InputBase
         {...rest}
-        ref={buffered.ref}
+        {...nativeProps}
+        ref={inputRef}
         groupRef={groupRef}
         id={id}
-        type="date"
+        type="text"
+        name={undefined}
+        data-date-input
         size={size}
-        defaultValue={buffered.defaultValue}
-        isInvalid={isInvalid}
-        isDisabled={isDisabled}
-        isRequired={isRequired}
-        onChange={buffered.onChange}
-        onInput={buffered.onInput}
-        onBlur={buffered.onBlur}
+        value={draft}
+        placeholder="DD/MM/YYYY"
+        maxLength={10}
+        autoComplete="off"
+        isInvalid={isInvalid || Boolean(message)}
+        isDisabled={disabled}
+        disabled={disabled}
+        readOnly={readOnly}
+        isRequired={required}
+        aria-invalid={isInvalid || Boolean(message) || nativeProps?.['aria-invalid'] || rest['aria-invalid']}
+        aria-describedby={describedBy}
+        aria-haspopup="dialog"
+        aria-expanded={active}
+        aria-controls={active ? `${id}-calendar` : undefined}
+        onChange={(event) => update(event.target.value)}
+        onClick={(event) => { (nativeProps?.onClick ?? rest.onClick)?.(event); if (!event.defaultPrevented) showCalendar(); }}
+        onInvalid={(event) => { setTouched(true); (nativeProps?.onInvalid ?? rest.onInvalid)?.(event); }}
+        onBlur={(event) => {
+          if (!panelRef.current?.contains(event.relatedTarget as Node | null)) {
+            setTouched(true);
+            if (!validation && parsed) setDraft(formatDate(parsed));
+          }
+          nativeProps?.onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          (nativeProps?.onKeyDown ?? rest.onKeyDown)?.(event);
+          if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+          if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); showCalendar(true); }
+          else if (event.key === 'Escape' && active) { event.preventDefault(); event.stopPropagation(); dismiss(); }
+          else if (event.key === 'Enter') {
+            setTouched(true);
+            if (active || validation) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
+          }
+        }}
         inputClassName={inputClassName}
         wrapperClassName={wrapperClassName}
-        {...(inputProps as Partial<InputBaseProps>)}
       />
-      {hint && (
-        <p className="text-xs leading-[1.5] text-tertiary group-invalid/input:text-error-primary">
-          {hint}
-        </p>
-      )}
+      {name && <input type="hidden" name={name} value={value} disabled={disabled} form={nativeProps?.form ?? rest.form} />}
+      {(message || hint) && <p id={`${id}-hint`} role={message ? 'alert' : undefined} className={message ? 'uui-date-hint uui-date-hint--error' : 'uui-date-hint'}>{message || hint}</p>}
+      {active && <DatePickerSurface id={`${id}-calendar`} label={`Chọn ngày${label ? ` — ${label}` : ''}`}
+        value={parsed ?? ''} min={min} max={max} panelRef={panelRef} anchorRef={inputRef} additionalRefs={[fieldRef]} keyboard={keyboardPicker}
+        onExit={() => { setOpen(false); setTouched(true); }} onDismiss={dismiss}
+        onPick={(next) => { setDraft(formatDate(next)); setTouched(false); emit(next); dismiss(); }} />}
     </div>
   );
 }

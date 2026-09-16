@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Edit2 } from 'lucide-react';
 import { ANCILLARY_EXPENSE_TYPES } from '@tingting/shared';
@@ -22,6 +22,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: qk.tripForm.tripExpenses(tripId),
@@ -89,6 +90,13 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
   };
 
   const handleAdd = async () => {
+    if (submitting) return;
+    const invalidInput = formRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (invalidInput) {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+      return;
+    }
     setFormError('');
     if (!form.buyAmount || !Number.isFinite(Number(form.buyAmount)) || Number(form.buyAmount) <= 0 || !Number.isFinite(Number(form.sellAmount)) || Number(form.sellAmount) < 0) {
       setFormError('Vui lòng nhập số tiền gốc hợp lệ.');
@@ -343,7 +351,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                 </div>
               }
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div ref={formRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {formError && (
                   <div style={{ padding: '6px 10px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, fontSize: 'var(--text-body-size)' }}>
                     {formError}

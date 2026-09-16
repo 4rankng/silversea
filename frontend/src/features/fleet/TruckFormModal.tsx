@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { Save, X, Loader2, Truck, Tag, Factory, Weight, Fuel, Calendar, FileText } from "lucide-react";
 import { Modal } from "../../components/UI";
 import { Input } from "../../components/untitled-ui/base/input/input";
@@ -35,6 +35,8 @@ export function TruckFormModal({
   carrierOptions?: Array<{ id: number; name: string }>;
   trailerOptions?: Array<{ id: number; licensePlate: string; type: string | null; coupledToPlate: string | null }>;
 }) {
+  const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [plate, setPlate] = useState(item?.licensePlate || "");
   // '' = chưa phân (saves explicit null = UNASSIGN per the carrier-link
   // contract); a numeric string saves that carrier id.
@@ -88,7 +90,7 @@ export function TruckFormModal({
   ) => alerts.find((a) => a.field === field);
 
   const handleSave = () => {
-    if (!plate.trim()) return;
+    if (saving || !plate.trim() || !formRef.current?.reportValidity()) return;
     onsave({
       licensePlate: plate.trim(),
       carrierId: carrierId === "" ? null : Number(carrierId),
@@ -111,7 +113,7 @@ export function TruckFormModal({
       polished
       ariaLabel={item ? `Sửa xe đầu kéo ${item.licensePlate}` : "Thêm xe đầu kéo"}
       onClose={oncancel}
-      onConfirm={handleSave}
+      onConfirm={() => formRef.current?.requestSubmit()}
       maxWidth={920}
       footer={
         <>
@@ -120,9 +122,10 @@ export function TruckFormModal({
             <X size={14} /> Hủy
           </button>
           <button
+            type="submit"
+            form={formId}
             className="btn btn--primary btn--sm"
             disabled={saving || !plate.trim()}
-            onClick={handleSave}
           >
             {saving ? (
               <Loader2 size={14} className="spin" />
@@ -134,7 +137,7 @@ export function TruckFormModal({
         </>
       }
     >
-      <div className="flex flex-col gap-6">
+      <form id={formId} ref={formRef} className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); handleSave(); }}>
         <EntityFormSection icon={Truck} label="Thông tin xe">
           <Input
             label="Biển số xe đầu kéo"
@@ -200,6 +203,7 @@ export function TruckFormModal({
             value={String(towCapacityTons)}
             onChange={setTowCapacityTons}
             min={0}
+            step="any"
             placeholder="0"
           />
           <UnitInput
@@ -209,6 +213,7 @@ export function TruckFormModal({
             value={String(fuelLPer100kmLoaded)}
             onChange={setFuelLPer100kmLoaded}
             min={0}
+            step="any"
             placeholder="0"
             padClassName="pr-20"
           />
@@ -219,6 +224,7 @@ export function TruckFormModal({
             value={String(fuelLPer100kmEmpty)}
             onChange={setFuelLPer100kmEmpty}
             min={0}
+            step="any"
             placeholder="0"
             padClassName="pr-20"
           />
@@ -251,7 +257,7 @@ export function TruckFormModal({
             />
           </div>
         </EntityFormSection>
-      </div>
+      </form>
     </Modal>
   );
 }

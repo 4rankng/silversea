@@ -13,7 +13,9 @@ export function resolveNotificationRoute(notification: Notification, role: strin
       if (isOpsRole(role)) return id ? routes.myForwarderTripDetail(id) : routes.myForwarderTrips;
       return id ? routes.tripDetail(id) : routes.trips;
     case 'shipment_fulfillments':
-      return role === 'DRIVER' && id ? routes.myTripDetail(id) : null;
+      // The API resolves owned legacy fulfillment references to trip IDs.
+      // Cached older responses must not open an unrelated numeric trip ID.
+      return role === 'DRIVER' ? routes.myTrips : null;
     case 'advance_settlements':
       if (isOpsRole(role)) return id ? routes.mySettlementDetail(id) : routes.mySettlements;
       return id ? `/settlements/${id}` : '/payables/forwarder-advances';

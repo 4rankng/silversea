@@ -1,4 +1,5 @@
 import { compactActionText } from "../control-typography";
+import "../control-geometry.css";
 import type { FC, ReactElement, ReactNode } from "react";
 import React, { cloneElement, isValidElement } from "react";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
@@ -31,7 +32,7 @@ export const styles = sortCx({
         },
         sm: {
             root: [
-                "min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5",
+                "gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5",
                 compactActionText,
                 "in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5",
                 "*:data-icon:size-4 *:data-icon:stroke-[2.25px]",
@@ -242,6 +243,8 @@ export const Button: {
     );
 
     const commonProps = {
+        "data-uui-control": isLinkType ? undefined : "button",
+        "data-control-size": size,
         "data-loading": loading ? true : undefined,
         "data-icon-only": isIcon ? true : undefined,
         ...props,

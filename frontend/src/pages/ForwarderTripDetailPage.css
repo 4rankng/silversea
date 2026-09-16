@@ -106,7 +106,7 @@
   padding-right: 44px;
 }
 
-.fwd-expense-form input[type="date"].input {
+.fwd-expense-form input[data-date-input].input {
   padding-right: 10px;
 }
 

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
+import { useMonth } from '../hooks/useMonth';
+import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
 import { formatCardTimeShort } from '../lib/format';
@@ -224,10 +226,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
 
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
+  const { month, year } = useMonth();
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
   // Tag labels ride on the board response — the driver portal fetches nothing
   // from the dispatcher-only tag pool (ticket 53a536f9).
-  const cards = useMemo(() => data?.items ?? [], [data?.items]);
+  const cards = useMemo(() => {
+    const selectedMonth = `${year}-${String(month).padStart(2, '0')}`;
+    return (data?.items ?? []).filter((card) => card.bucket !== 'HISTORY'
+      || formatVietnamDateInput(card.historyAt ?? card.scheduledAt).startsWith(selectedMonth));
+  }, [data?.items, month, year]);
   const tagLabels = data?.knownTagLabels ?? [];
 
   const countsByBucket = useMemo(() => {
@@ -270,7 +277,7 @@ export default function DriverTripsPage() {
             </button>
           </div>
         ) : groupedCardsForTab.length === 0 ? (
-          <p className="driver-journey__empty">{EMPTY_MESSAGE[activeTab]}</p>
+          <p className="driver-journey__empty">{activeTab === 'HISTORY' ? `Chưa có chuyến trong tháng ${month}/${year}.` : EMPTY_MESSAGE[activeTab]}</p>
         ) : (
           <div className="driver-journey__list">
             {groupedCardsForTab.map((group) => (

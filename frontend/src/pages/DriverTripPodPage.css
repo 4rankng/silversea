@@ -6,7 +6,7 @@
 .driver-trip-pod-screen {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 100%;
   background: var(--surface, #f5f7f6);
 }
 
@@ -15,9 +15,12 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 8px 24px;
+  /* The surrounding driver-task-screen already owns the viewport inset. */
+  padding: 0;
   max-width: var(--driver-measure);
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   margin-inline: auto;
 }
 
@@ -70,12 +73,6 @@
   font-size: var(--text-body-size);
   line-height: 1.45;
   white-space: pre-wrap;
-}
-
-@media (max-width: 480px) {
-  .driver-trip-pod-main {
-    padding: 10px 8px 18px;
-  }
 }
 
 /* D1 follow-up (e-POD variant): when the "HOÀN THÀNH CHUYẾN" command gets

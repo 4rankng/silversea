@@ -21,6 +21,7 @@ import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '../api/keys';
@@ -41,6 +42,13 @@ import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
+  // A different order owns a fresh editor, feedback and photo-viewer session.
+  return <DriverTripDetailContent key={id} />;
+}
+
+function DriverTripDetailContent() {
+  const { id } = useParams<{ id: string }>();
+  useDriverScreenEntry(id);
   const navigate = useNavigate();
   const { toast } = useToast();
   const online = useOnline();
@@ -306,6 +314,7 @@ export default function DriverTripDetailPage() {
   // DELIVERY_NOTE (latest row wins — the query orders by uploadedAt desc).
   const deliveryNotePhotoKey = containerSealPhotos.find((p) => p.type === 'DELIVERY_NOTE')?.storageKey ?? null;
   const accountingLock = trip.accountingLock ?? null;
+  const completed = trip.status === 'COMPLETED';
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page only links there. The footer still
   // surfaces the two mandatory-photo gaps so the driver knows what is missing
@@ -399,6 +408,7 @@ export default function DriverTripDetailPage() {
       <section className="driver-task-section">
         <DriverContainerCard
           tripId={trip.id}
+          readOnly={completed}
           containers={trip.containers}
           contPhotoKey={contPhotoKey}
           sealPhotoKey={sealPhotoKey}
@@ -518,19 +528,21 @@ export default function DriverTripDetailPage() {
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>Hoàn tất lệnh vận chuyển</strong>
-            <p>
-              Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "HOÀN THÀNH CHUYẾN" ở đó — hệ thống
-              gửi e-POD và chốt chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
-            </p>
-            {(!hasYardReceipt || !hasSignedNote) && (
+            <strong>{completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
+            <p>{completed ? 'Xem lại phiếu bãi và biên bản giao nhận đã lưu.' : 'Thêm phiếu bãi / phiếu hạ và biên bản giao nhận, rồi hoàn thành chuyến.'}</p>
+            {!completed && (!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
                 {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
               </ul>
             )}
           </div>
-          {trip.status === 'IN_TRANSIT' ? (
+          {completed ? (
+            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
+              <FileCheck2 size={18} />
+              <span>Xem chứng từ giao hàng</span>
+            </Link>
+          ) : trip.status === 'IN_TRANSIT' ? (
             <button
               type="button"
               className="driver-task-complete"

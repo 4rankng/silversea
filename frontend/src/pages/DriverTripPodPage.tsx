@@ -30,6 +30,7 @@ import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { useOnline } from '../hooks/useOnline';
@@ -42,13 +43,14 @@ import './DriverTripPodPage.css';
 // Status-aware completion CTA label — same logic as DriverTripDetailPage:
 // only IN_TRANSIT can complete, COMPLETED is done, others read as not-yet.
 function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
+  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
   if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
   return 'Chưa thể hoàn thành chuyến';
 }
 
 export function DriverTripPodPage() {
   const { id: fulfillmentIdParam } = useParams<{ id: string }>();
+  useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
   const online = useOnline();
   const { toast } = useToast();
@@ -117,7 +119,7 @@ export function DriverTripPodPage() {
         idempotencyKey,
       );
       await refreshAll();
-      toast({ kind: 'success', message: 'Đã mở phiên bản e-POD mới.' });
+      toast({ kind: 'success', message: 'Đã tạo hồ sơ chứng từ giao hàng.' });
       return created;
     } finally {
       setCreatingDraft(false);
@@ -300,7 +302,7 @@ export function DriverTripPodPage() {
           <section className="driver-trip-pod-note">
             <StickyNote size={18} />
             <div>
-              <strong>Ghi chú từ điều vận / CUS</strong>
+              <strong>Ghi chú giao hàng</strong>
               {noteChips.length > 0 && (
                 <div className="driver-task-ops" data-testid="pod-operation-chips">
                   {noteChips.map((tag) => (
@@ -318,6 +320,7 @@ export function DriverTripPodPage() {
             labels at the top of the card. */}
         <section className="driver-task-section">
           <TripPodSubmission
+            key={trip.id}
             tripCode={trip.tripCode}
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
@@ -330,13 +333,12 @@ export function DriverTripPodPage() {
         </section>
       </main>
 
-      <footer className="driver-task-footer">
+      {trip.status !== 'COMPLETED' && <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>HOÀN THÀNH CHUYẾN</strong>
+            <strong>Hoàn thành chuyến</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "HOÀN THÀNH CHUYẾN" — hệ thống gửi e-POD và chốt
-              chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
+              Thêm đủ hai loại chứng từ, rồi bấm Hoàn thành chuyến để lưu và kết thúc lệnh.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -363,7 +365,7 @@ export function DriverTripPodPage() {
             </span>
           </button>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }

@@ -1,0 +1,79 @@
+/* The visible boundary owns control height. Inputs and selected-value wrappers
+   fit inside it; they must not add another minimum plus their own padding. */
+[data-uui-control] {
+  --uui-control-h: var(--control-default-h);
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--uui-control-h);
+}
+
+[data-uui-control][data-control-size='xs'] {
+  --uui-control-h: 28px;
+}
+
+[data-uui-control][data-control-size='sm'] {
+  --uui-control-h: var(--control-compact-h);
+}
+
+[data-uui-control][data-control-size='lg'] {
+  --uui-control-h: 40px;
+}
+
+[data-uui-control][data-control-size='xl'] {
+  --uui-control-h: 44px;
+}
+
+[data-uui-control='button'][data-icon-only] {
+  min-width: var(--uui-control-h);
+}
+
+[data-uui-control='input'] > input,
+#root [data-uui-control='input'] > input {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  height: calc(var(--uui-control-h) - 2px);
+  padding-block: 4px;
+}
+
+[data-uui-control='select'] > [data-uui-select-value],
+[data-uui-control='combobox'] > [data-combobox-value] {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: calc(var(--uui-control-h) - 2px);
+  padding-block: 4px;
+}
+
+[data-uui-control='combobox'] input[role='combobox'],
+#root [data-uui-control='combobox'] input[role='combobox'] {
+  min-width: 0;
+  min-height: 0;
+  padding-block: 0;
+}
+
+[data-uui-select-value] > p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-uui-control='button'][data-control-size='sm'],
+[data-uui-control='button'][data-control-size='md'] {
+  padding-block: 4px;
+  font-size: var(--control-field-font-size);
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  [data-uui-control][data-control-size='sm'] {
+    --uui-control-h: var(--control-mobile-h);
+  }
+}
+
+@media (pointer: coarse) {
+  [data-uui-control],
+  [data-uui-control][data-control-size] {
+    --uui-control-h: var(--control-touch-h);
+  }
+}

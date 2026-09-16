@@ -12,7 +12,6 @@ interface UDateTimeFieldProps {
   value: string;
   onChange: (event: HtmlInputEvent) => void;
   disabled?: boolean;
-  required?: boolean;
   error?: string;
   hideLabel?: boolean;
 }

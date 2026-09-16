@@ -47,13 +47,13 @@ export function TimePickerSurface({ id, label, value, onPick, onDismiss, onExit,
   if (mobile) return <ModalOverlay isOpen isDismissable onOpenChange={(open) => { if (!open) onDismiss(); }} className="time-picker__overlay" data-time-picker-overlay>
     <Modal className="time-picker__sheet">
       <Dialog id={id} ref={panelRef} aria-label={label} className="time-picker__dialog" data-escape-boundary="true">
-        <div className="time-picker__content" onKeyDown={keyDown}>{header}{content}</div>
+        <div className="time-picker__content" onKeyDown={keyDown} onClick={(event) => event.stopPropagation()}>{header}{content}</div>
       </Dialog>
     </Modal>
   </ModalOverlay>;
   if (inline) return <div ref={panelRef} className="time-picker__inline" onKeyDown={keyDown}>{content}</div>;
   return createPortal(<div id={id} ref={panelRef} role="dialog" aria-label={label} className="time-picker__popup" data-escape-boundary="true"
-    style={{ top: position?.top ?? 12, left: position?.left ?? 12 }} onKeyDown={keyDown}
+    style={{ top: position?.top ?? 12, left: position?.left ?? 12 }} onKeyDown={keyDown} onClick={(event) => event.stopPropagation()}
     onBlur={(event) => {
       const next = event.relatedTarget as Node | null;
       if (next && !event.currentTarget.contains(next) && ![anchorRef, ...additionalRefs].some((ref) => ref.current?.contains(next))) onExit();

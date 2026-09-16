@@ -14,8 +14,7 @@
   gap: 8px;
   font-size: var(--text-section-size);
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-3);
 }
 
@@ -42,10 +41,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-2);
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
 }
 
 .dcc-bento__hero-content {
@@ -93,11 +90,14 @@
 
 .dcc-bento__seal,
 .dcc-bento__photos {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  padding: 2px 0 8px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
+}
+
+.dcc-bento__photos {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
 }
 
 .dcc-bento__seal-value {
@@ -124,7 +124,7 @@
 .dcc-bento__thumb {
   width: 96px;
   height: 96px;
-  object-fit: cover;
+  object-fit: contain;
   background: var(--surface-2);
   border-radius: 10px;
   border: 1px solid var(--line);
@@ -353,15 +353,29 @@
   line-height: 1.5;
 }
 
-/* Narrow phones keep the three capture groups; read-only identity wraps. */
+/* Keep the compact edit action beside the identity on ordinary phones. */
 @media (max-width: 420px) {
   .dcc-bento__hero {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .dcc-bento__edit-btn {
     justify-content: center;
+  }
+
+  .dcc-bento__thumb,
+  .dcc-bento__thumb-empty {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+@media (pointer: coarse) {
+  .dcc-bento__edit-btn,
+  .dcc-photo-remove {
+    min-height: var(--control-touch-h, 44px);
+    min-width: var(--control-touch-h, 44px);
   }
 }
 

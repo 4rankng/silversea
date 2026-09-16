@@ -41,6 +41,8 @@ export interface DriverJourneyCard {
    */
   pairLocked: boolean;
   scheduledAt: string | null;
+  /** Completion date for history; legacy records fall back to their trip date. */
+  historyAt: string | null;
   factoryName: string | null;
   factoryShortName: string | null;
   // 3a0bd5af: factory site street address, kept for detail; the card uses routeName.
@@ -127,6 +129,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     activeTripPairId: s.trips.activeTripPairId,
     activeTripPairOrder: s.trips.activeTripPairOrder,
     plannedStartAt: s.trips.plannedStartAt,
+    completedAt: s.trips.completedAt,
+    departureDate: s.trips.departureDate,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     isAdHoc: s.shipments.isAdHoc,
@@ -271,6 +275,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
         && firstTripId != null
         && !isTripFinished(firstTripId),
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
+      historyAt: row.completedAt?.toISOString() ?? row.plannedStartAt?.toISOString() ?? `${row.departureDate}T00:00:00+07:00`,
       factoryName: row.factoryName ?? row.containerFactoryName,
       factoryShortName: row.containerFactoryShortName ?? row.factoryName,
       factoryAddress: row.containerFactoryAddress,

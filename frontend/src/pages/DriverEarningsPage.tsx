@@ -183,8 +183,8 @@ export default function DriverEarningsPage() {
         </div>
         <div className="earnings-hero-bento__icon">
           {isPositive
-            ? <TrendingUp size={24} color="#fff" />
-            : <TrendingDown size={24} color="#fff" />
+            ? <TrendingUp size={24} />
+            : <TrendingDown size={24} />
           }
         </div>
         <div className="earnings-hero-bento__watermark">

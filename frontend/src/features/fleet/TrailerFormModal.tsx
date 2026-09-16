@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { Save, X, Loader2, Truck, Weight, FileText } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
@@ -25,6 +25,8 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
   oncancel: () => void;
   isOpen: boolean;
 }) {
+  const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [plate, setPlate] = useState(item?.licensePlate || '');
   const [type, setType] = useState<string>(item?.type || '');
   const [maxPayloadTons, setMaxPayloadTons] = useState<string | number>(item?.maxPayloadTons ?? '');
@@ -47,7 +49,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, item?.id]);
   const handleSave = () => {
-    if (!plate.trim()) return;
+    if (saving || !plate.trim() || !formRef.current?.reportValidity()) return;
     onsave({
       licensePlate: plate.trim(),
       // '' is the explicit Chưa rõ loại choice — persist it as NULL (the
@@ -68,7 +70,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
       polished
       ariaLabel={item ? `Sửa rơ-moóc ${item.licensePlate}` : 'Thêm rơ-moóc'}
       onClose={oncancel}
-      onConfirm={handleSave}
+      onConfirm={() => formRef.current?.requestSubmit()}
       maxWidth={600}
       footer={
         <>
@@ -76,14 +78,14 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
           <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button type="button" className="btn btn--primary btn--sm" disabled={saving || !plate.trim()} onClick={handleSave}>
+          <button type="submit" form={formId} className="btn btn--primary btn--sm" disabled={saving || !plate.trim()}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm rơ-moóc'}
           </button>
         </>
       }
     >
-      <div className="flex flex-col gap-6">
+      <form id={formId} ref={formRef} className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); handleSave(); }}>
         <EntityFormSection icon={Truck} label="Thông tin rơ-moóc">
           <Input
             label="Biển số rơ-moóc"
@@ -112,6 +114,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             value={String(maxPayloadTons)}
             onChange={setMaxPayloadTons}
             min={0}
+            step="any"
             placeholder="0"
           />
           <UnitInput
@@ -121,6 +124,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             value={String(maxAxleLoadFrontTons)}
             onChange={setMaxAxleLoadFrontTons}
             min={0}
+            step="any"
             placeholder="0"
           />
           <UnitInput
@@ -130,6 +134,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             value={String(maxAxleLoadRearTons)}
             onChange={setMaxAxleLoadRearTons}
             min={0}
+            step="any"
             placeholder="0"
           />
           <DateField
@@ -152,7 +157,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
         <p className="text-sm text-tertiary">
           Sau khi thêm, gán rơ-moóc cho đầu kéo bằng cách sửa xe đầu kéo và chọn rơ-moóc trong danh sách.
         </p>
-      </div>
+      </form>
     </Modal>
   );
 }

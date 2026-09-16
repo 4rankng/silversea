@@ -101,7 +101,7 @@ function normalizeNotificationType(input: NotificationType | string): Notificati
   }
 }
 
-export async function getNotifications(userId: number, page = 1, limit = 20) {
+export async function getNotifications(userId: number, page = 1, limit = 20, role?: Role) {
   const offset = (page - 1) * limit;
   const [items, [{ total }]] = await Promise.all([
     db.select()
@@ -114,7 +114,38 @@ export async function getNotifications(userId: number, page = 1, limit = 20) {
       .from(notifications)
       .where(eq(notifications.userId, userId)),
   ]);
-  return { items, total, page, limit };
+  if (role !== Role.DRIVER) return { items, total, page, limit };
+
+  // Older dispatch notifications stored fulfillment IDs. The driver detail
+  // route now takes a trip ID, so resolve those references on read without
+  // rewriting notification history or exposing another driver's trip.
+  const fulfillmentIds = [...new Set(items.flatMap((item) =>
+    item.relatedEntityType === 'shipment_fulfillments' && item.relatedEntityId != null
+      ? [item.relatedEntityId] : [],
+  ))];
+  if (fulfillmentIds.length === 0) return { items, total, page, limit };
+  const ownedTrips = await db.select({ id: s.trips.id, fulfillmentId: s.trips.fulfillmentId })
+    .from(s.trips)
+    .innerJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
+    .where(and(
+      inArray(s.trips.fulfillmentId, fulfillmentIds),
+      eq(s.drivers.userId, userId),
+      isNull(s.drivers.deletedAt),
+      isNull(s.trips.deletedAt),
+    ))
+    .orderBy(desc(s.trips.id));
+  const tripByFulfillment = new Map<number, number>();
+  for (const trip of ownedTrips) {
+    if (trip.fulfillmentId != null && !tripByFulfillment.has(trip.fulfillmentId)) {
+      tripByFulfillment.set(trip.fulfillmentId, trip.id);
+    }
+  }
+  return {
+    items: items.map((item) => item.relatedEntityType === 'shipment_fulfillments'
+      ? { ...item, relatedEntityType: 'trips', relatedEntityId: tripByFulfillment.get(item.relatedEntityId ?? -1) ?? null }
+      : item),
+    total, page, limit,
+  };
 }
 
 export async function getUnreadCount(userId: number) {
@@ -297,7 +328,7 @@ async function resolveTargets(
 
 /** Best-effort deep link for push clicks. Role-specific portals keep users in
  *  their own app surface instead of landing them on a forbidden desktop route.
- *  Mirrors frontend urlForNotification() in NotificationDrawer.tsx — the two
+ *  Mirrors frontend resolveNotificationRoute() — the two
  *  must agree so a push and a drawer tap open the same screen. */
 export function notificationUrlForRole(payload: NotificationPayload, role: Role): string | undefined {
   const id = payload.relatedEntityId;
@@ -307,7 +338,9 @@ export function notificationUrlForRole(payload: NotificationPayload, role: Role)
       if (role === Role.OPS) return id ? `/my-forwarder-trips/${id}` : '/my-forwarder-trips';
       return id ? `/trips/${id}` : '/trips';
     case 'shipment_fulfillments':
-      return role === Role.DRIVER ? (id ? `/my-trips/${id}` : '/my-trips') : undefined;
+      // Legacy queued pushes do not carry a trip ID. In-app reads resolve
+      // them with ownership; a push must never treat the fulfillment ID as one.
+      return role === Role.DRIVER ? '/my-trips' : undefined;
     case 'penalties':
       return role === Role.DRIVER ? '/my-penalties' : '/penalties';
     case 'payments':

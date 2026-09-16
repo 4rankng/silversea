@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Truck } from 'lucide-react';
 import './config-page.css';
+import './customer-form.css';
 import { UuiSelectField } from '../../design-system';
 import {
   buildCustomerDebitNoteModeOptions,
@@ -64,6 +65,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
 
   return (
     <div className="customer-form">
+      <div className="customer-form__body">
       <div className="cfg-form-columns">
         <Field label="Tên khách hàng *">
           <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên…" required />
@@ -73,7 +75,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Tên ngắn">
           <input className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên viết tắt dùng trong vận hành…" />
         </Field>
@@ -82,7 +84,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Người liên hệ">
           <input className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Tên người liên hệ…" />
         </Field>
@@ -91,7 +93,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Kế toán liên hệ">
           <input className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên kế toán…" />
         </Field>
@@ -100,7 +102,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Hạn mức tín dụng">
           <input className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
         </Field>
@@ -178,7 +180,8 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
       />
 
       {error && <p className="cfg-form-error" role="alert">{error}</p>}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+      </div>
+      <div className="customer-form__actions">
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>
         <button type="button" className="btn btn--primary" onClick={() => {
           onsave({

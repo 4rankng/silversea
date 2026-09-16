@@ -57,6 +57,9 @@ export function ShipmentContainerCell({
   };
 
   const captureStartingValue = (event: FocusEvent<HTMLTableCellElement>) => {
+    // React portals keep the cell in their event ancestry, but the picker
+    // owns its own input/focus session outside this cell's DOM subtree.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     const previousTarget = event.relatedTarget as Node | null;
     if (!previousTarget || !event.currentTarget.contains(previousTarget)) {
       valueAtFocus.current = value;
@@ -65,6 +68,7 @@ export function ShipmentContainerCell({
 
   const handleCellKeyDown = (event: KeyboardEvent<HTMLTableCellElement>) => {
     const target = event.target as HTMLElement;
+    if (!event.currentTarget.contains(target)) return;
     // Split controls own their partial draft, Escape and picker shortcuts.
     if (target.closest('[data-split-datetime]')) return;
     if (!target.matches('input:not([role="combobox"]), textarea')) return;

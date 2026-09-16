@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
@@ -16,10 +16,26 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/ta
 import type { Customer, TripDetail } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { CustomerForm } from './CustomerForm';
+import { Input } from '../../components/untitled-ui/base/input/input';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import './customer-config-density.css';
+
+function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
+  const facts = [
+    ['Tên đầy đủ', c.name], ['Tên viết tắt', c.shortName], ['Mã KH', c.code], ['Mã số thuế', c.taxCode],
+    ['Địa chỉ', c.address], ['Người liên hệ', c.contactPerson], ['SĐT liên hệ', c.phone],
+    ['Kế toán liên hệ', c.accountantName], ['SĐT kế toán', c.accountantPhone], ['Liên hệ khác', c.contactInfo],
+    ['Hạn thanh toán chi hộ', c.agencyFeePaymentTermDays == null ? null : `${c.agencyFeePaymentTermDays} ngày`],
+    ['Hạn thanh toán cước', c.paymentTermDays == null ? null : `${c.paymentTermDays} ngày`],
+  ];
+  return <details className="cfg-customer-details">
+    <summary>Thông tin chi tiết</summary>
+    <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Chưa cập nhật'}</dd></div>)}</dl>
+  </details>;
+}
 
 export default function CustomersConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -36,17 +52,17 @@ export default function CustomersConfigPage() {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isPending, isFetching, isError } = useQuery({
     queryKey: qk.tripForm.customersConfig(search),
     queryFn: async () => {
       const [custList, tripRes] = await Promise.all([
         configClient.getAllCustomers(search || undefined),
-        tripClient.fetchAllTrips({}).catch(() => ({ items: [] as TripDetail[], total: 0 })),
+        tripClient.fetchAllTrips({}).catch(() => null),
       ]);
       const now = new Date();
       const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const statsMap = new Map<number, { trips: number; revenue: number }>();
-      tripRes.items.forEach((t: TripDetail) => {
+      tripRes?.items.forEach((t: TripDetail) => {
         const dep = t.departureDate || '';
         if (dep.startsWith(thisMonth)) {
           const cid = t.customerId;
@@ -58,9 +74,10 @@ export default function CustomersConfigPage() {
           }
         }
       });
-      return { customers: custList, customerTripStats: statsMap };
+      return { customers: custList, customerTripStats: statsMap, tripStatsAvailable: tripRes != null };
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const customers = useMemo(() => data?.customers ?? [], [data?.customers]);
@@ -78,7 +95,7 @@ export default function CustomersConfigPage() {
   const allRevenues = customers.map(c => customerTripStats.get(c.id)?.revenue || 0).sort((a, b) => b - a);
   const totalRevenue = allRevenues.reduce((s, v) => s + v, 0);
   const top4Revenue = allRevenues.slice(0, 4).reduce((s, v) => s + v, 0);
-  const top4Pct = totalRevenue > 0 ? Math.round((top4Revenue / totalRevenue) * 100) : 0;
+  const top4Pct = totalRevenue > 0 ? Math.round((top4Revenue / totalRevenue) * 100) : null;
 
   function getRiskLevel(c: Customer): 'high' | 'med' | 'low' {
     const debt = 0;
@@ -128,15 +145,15 @@ export default function CustomersConfigPage() {
         title="Khách hàng & Đối tác"
         description={
           <>
-            <strong>{totalCount}</strong> khách hàng đang quản lý
-            {top4Pct > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{top4Pct}%</strong> doanh thu tập trung ở 4 KH lớn nhất</>}
+            <strong>{data ? totalCount : '—'}</strong> khách hàng đang quản lý
+            {top4Pct != null && top4Pct > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{top4Pct}%</strong> doanh thu tập trung ở 4 KH lớn nhất</>}
           </>
         }
         onBack={handleBack}
         iconName="customer"
         action={
           <div className="page-actions">
-          <button className="btn btn--secondary" onClick={async () => {
+          <button className="btn btn--secondary" disabled={isFetching || isError} onClick={async () => {
             const headers = ['Khách hàng', 'MST', 'Liên hệ', 'Chuyến ' + monthLabel, 'Doanh thu ' + monthLabel, 'Hạn mức TD', 'Trạng thái'];
             const rows = filtered.map(c => {
               const stats = customerTripStats.get(c.id);
@@ -169,53 +186,54 @@ export default function CustomersConfigPage() {
         }
       />
 
-      <div className="kpi-grid cfg-customer-summary" role="group" aria-label="Tổng quan khách hàng">
+      <div className="kpi-grid cfg-customer-summary" role="group" aria-label="Tổng quan khách hàng" aria-busy={isFetching}>
         <div className="kpi">
           <div className="kpi__top"><span className="kpi__label">Tổng khách hàng</span></div>
-          <div className="kpi__value">{totalCount}</div>
+          <div className="kpi__value">{data ? totalCount : '—'}</div>
           <div className="kpi__meta kpi__meta--up">Đang quản lý</div>
           <div className="kpi__watermark" aria-hidden="true"><Users size={72} /></div>
         </div>
         <div className="kpi kpi--success">
           <div className="kpi__top"><span className="kpi__label">Đang hoạt động</span></div>
-          <div className="kpi__value">{activeCount}<span className="kpi__value-unit">/{totalCount}</span></div>
-          <div className="kpi__meta">{totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0}% hoạt động đều</div>
+          <div className="kpi__value">{data ? activeCount : '—'}{data && <span className="kpi__value-unit">/{totalCount}</span>}</div>
+          <div className="kpi__meta">Trạng thái hoạt động</div>
           <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg></div>
         </div>
         <div className="kpi kpi--warn">
           <div className="kpi__top"><span className="kpi__label">Top 4 chiếm</span></div>
-          <div className="kpi__value">{top4Pct}<span className="kpi__value-unit">%</span></div>
-          <div className="kpi__meta">{top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
+          <div className="kpi__value">{top4Pct ?? '—'}{top4Pct != null && <span className="kpi__value-unit">%</span>}</div>
+          <div className="kpi__meta">{top4Pct == null ? (data?.tripStatsAvailable ? 'Chưa có doanh thu tháng này' : 'Chưa có dữ liệu doanh thu') : top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
           <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
         </div>
         <div className="kpi kpi--danger">
           <div className="kpi__top"><span className="kpi__label">Tạm khoá</span></div>
-          <div className="kpi__value">{lockedCount}</div>
-          <div className="kpi__meta">Do nợ quá hạn</div>
+          <div className="kpi__value">{data ? lockedCount : '—'}</div>
+          <div className="kpi__meta">Trạng thái tạm khoá</div>
           <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
         </div>
       </div>
 
       <div className="table-wrap">
-        <div className="toolbar">
-          {(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
-            const labels = { all: `Tất cả · ${totalCount}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động · ${activeCount}`, locked: `Tạm khoá · ${lockedCount}` };
-            return <button key={f} className={`filter-pill${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
-          })}
-          <div className="toolbar__spacer" />
-          <div className="toolbar__search">
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input
-              type="text"
-              name="customerSearch"
-              aria-label="Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ"
-              placeholder="Tên, MST, điện thoại…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+        <div className="toolbar cfg-customer-toolbar">
+          <div className="cfg-customer-filter-pills" role="group" aria-label="Lọc khách hàng">
+            {(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
+              const labels = { all: `Tất cả${data ? ` · ${totalCount}` : ''}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động${data ? ` · ${activeCount}` : ''}`, locked: `Tạm khoá${data ? ` · ${lockedCount}` : ''}` };
+              return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-pill${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
+            })}
           </div>
+          <Input size="sm" icon={Search} aria-label="Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ"
+            placeholder="Tên, MST, điện thoại…" value={search} onChange={setSearch} className="cfg-customer-search" />
+          <UuiSelectField label="Lọc khách hàng" hideLabel value={customerFilter}
+            wrapperClassName="cfg-customer-filter-select"
+            onChange={(event) => setCustomerFilter(event.target.value as typeof customerFilter)}
+            options={[{ value: 'all', label: 'Tất cả' }, { value: 'high-risk', label: 'Rủi ro cao' }, { value: 'active', label: 'Hoạt động' }, { value: 'locked', label: 'Tạm khoá' }]} />
         </div>
-        <div className="table-scroll">
+        <div className="cfg-customer-fetch-status" role="status" aria-live="polite">
+          {isFetching ? (isPending ? 'Đang tải khách hàng…' : 'Đang cập nhật kết quả…') : isError ? <>
+            Không thể tải khách hàng. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void refetch(); }}>Thử lại</button>
+          </> : null}
+        </div>
+        <div className="table-scroll" aria-busy={isFetching}>
           <div className="record-table-wrap">
           <table className="record-table ops-table cfg-customer-table">
             <thead>
@@ -225,30 +243,38 @@ export default function CustomersConfigPage() {
                 <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />
                 <SortHeader label="Mã Số Thuế" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
                 <SortHeader label="Địa Chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Giám đốc" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="SĐT Giám đốc" sortKey="phone" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Người Liên Hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="SĐT liên hệ" sortKey="phone" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Kế toán liên hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />
                 <SortHeader label="SĐT Kế toán" sortKey="accountantPhone" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Email" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Liên hệ khác" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />
                 <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />
                 <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />
                 <th style={{ width: 88 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={13} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={13} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'}</td></tr>}
               {filtered.map((c, index) => (
                 <tr key={c.id}>
-                  <td data-label="Tên Khách hàng"><div className="row-strong">{c.name}</div></td>
+                  <td data-label="Tên Khách hàng" className="cfg-customer-identity">
+                    {c.shortName && c.shortName !== c.name && <strong className="cfg-customer-short-name">{c.shortName}</strong>}
+                    <div className="row-strong cfg-customer-full-name" title={c.name}>{c.name}</div>
+                    <div className="cfg-customer-compact-meta">
+                      {c.taxCode && <span>MST {c.taxCode}</span>}
+                      {(c.contactPerson || c.phone) && <span>{[c.contactPerson, c.phone].filter(Boolean).join(' · ')}</span>}
+                    </div>
+                    <CustomerCompactDetails customer={c} />
+                  </td>
                   <td data-label="Tên viết tắt">{c.shortName || '—'}</td>
                   <td data-label="Mã KH">{c.code || '—'}</td>
                   <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>
                   <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || '—'}</td>
-                  <td data-label="Giám đốc">{c.contactPerson || '—'}</td>
-                  <td data-label="SĐT Giám đốc">{c.phone || '—'}</td>
-                  <td data-label="Người Liên Hệ">{c.accountantName || '—'}</td>
+                  <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>
+                  <td data-label="SĐT liên hệ">{c.phone || '—'}</td>
+                  <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>
                   <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>
-                  <td data-label="Email" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>
+                  <td data-label="Liên hệ khác" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>
                   <td
@@ -261,6 +287,7 @@ export default function CustomersConfigPage() {
                       <button
                         className="row-action"
                         title="Tùy chọn"
+                        aria-label={`Thao tác khách hàng ${c.shortName || c.name}`}
                         onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}
                       >
                         <MoreHorizontal size={14} />
@@ -297,14 +324,13 @@ export default function CustomersConfigPage() {
           </div>
         </div>
         <div className="table-foot">
-          <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> khách hàng</span>
+          {data && <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> khách hàng</span>}
         </div>
       </div>
       {crud.error && <div style={{ textAlign: 'center', color: 'var(--danger)', marginTop: 12 }}>{crud.error}</div>}
 
       {/* Modal for adding a new customer */}
       <Modal isOpen={crud.showAddForm && !crud.editingId} title="Thêm khách hàng mới" polished onClose={crud.cancelForm} maxWidth={600}>
-        <div style={{ padding: '8px 4px' }}>
           <CustomerForm
             saving={crud.saving}
             error={crud.error}
@@ -314,7 +340,6 @@ export default function CustomersConfigPage() {
             }}
             oncancel={crud.cancelForm}
           />
-        </div>
       </Modal>
 
       {/* Modal for editing an existing customer */}
@@ -323,7 +348,6 @@ export default function CustomersConfigPage() {
         if (!item) return null;
         return (
           <Modal isOpen={true} title="Chỉnh sửa thông tin khách hàng" polished onClose={crud.cancelForm} maxWidth={600}>
-            <div style={{ padding: '8px 4px' }}>
               <CustomerForm
                 item={item}
                 saving={crud.saving}
@@ -334,7 +358,6 @@ export default function CustomersConfigPage() {
                 }}
                 oncancel={crud.cancelForm}
               />
-            </div>
           </Modal>
         );
       })()}

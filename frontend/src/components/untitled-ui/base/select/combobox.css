@@ -34,9 +34,5 @@
     padding-block: 0;
   }
 
-  /* Small direct-use fields occupy 44px including the outer border. More
-     specific operational adapter rules retain their compact phone geometry. */
-  .uui-combobox[data-size='sm'] [data-combobox-value] {
-    min-height: calc(var(--control-touch-h) - 2px);
-  }
+
 }

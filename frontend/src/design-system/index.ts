@@ -52,6 +52,8 @@ export type { DateTimeFieldProps } from './forms/DateTimeField';
 export type { DateFieldProps } from './forms/DateField';
 export { DateInput } from './forms/DateInput';
 export type { DateInputProps } from './forms/DateInput';
+export { TimeInput } from './forms/TimeInput';
+export type { TimeInputProps } from './forms/TimeInput';
 export { BufferedUuiDateInput } from './forms/BufferedUuiDateInput';
 export type { BufferedUuiDateInputProps } from './forms/BufferedUuiDateInput';
 export { BufferedUuiDateTimeInput } from './forms/BufferedUuiDateTimeInput';

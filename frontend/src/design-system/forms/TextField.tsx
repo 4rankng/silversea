@@ -40,11 +40,11 @@ export function TextField({
       {prefix || suffix ? (
         <div className="ds-field__input-group">
           {prefix && <span className="ds-field__affix">{prefix}</span>}
-          <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
+          <input {...input} id={id} required={required} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
           {suffix && <span className="ds-field__affix">{suffix}</span>}
         </div>
       ) : (
-        <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
+        <input {...input} id={id} required={required} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
       )}
       {error ? (
         <span id={errorId} className="ds-field__msg ds-field__msg--error">{error}</span>

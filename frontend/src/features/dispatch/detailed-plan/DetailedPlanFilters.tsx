@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, FilterLines, XClose } from '@untitledui/icons';
 import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
@@ -8,6 +8,7 @@ import { Select as UUISelect } from '../../../components/untitled-ui/base/select
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import { businessDateISO } from '../../../lib/format';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
+import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 
 export interface FacetItem {
   id: number;
@@ -115,6 +116,9 @@ export function DetailedPlanFilters({
   zones,
 }: DetailedPlanFiltersProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [draftResetKey, setDraftResetKey] = useState(0);
+  const [dateResetKey, setDateResetKey] = useState(0);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
   const today = businessDateISO();
   const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
   const activeDrawerFilterCount = [
@@ -132,16 +136,34 @@ export function DetailedPlanFilters({
     + (filters.q.trim() !== '' ? 1 : 0);
 
   const clearFilters = () => {
+    setDateResetKey((key) => key + 1);
+    setDraftResetKey((key) => key + 1);
     setIsFilterDrawerOpen(false);
     onChange(createDefaultDetailedPlanFilters());
   };
 
+  const selectDate = (date: string) => {
+    setDateResetKey((key) => key + 1);
+    onChange({ date });
+  };
+
   const clearDrawerFilters = () => {
+    setDraftResetKey((key) => key + 1);
     onChange({
       ...createDefaultDetailedPlanFilters(),
       q: filters.q,
       date: filters.date,
     });
+  };
+
+  const showResults = () => {
+    const invalidInput = filterPanelRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (invalidInput) {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+      return;
+    }
+    setIsFilterDrawerOpen(false);
   };
 
   return (
@@ -165,6 +187,7 @@ export function DetailedPlanFilters({
         <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
         <div className="detailed-plan-filters__date-scope-controls">
           <BufferedUuiDateInput
+            key={dateResetKey}
             className="detailed-plan-filters__date"
             value={filters.date}
             onChange={(value) => onChange({ date: value })}
@@ -176,7 +199,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: today })}
+              onPress={() => selectDate(today)}
               aria-label="Hôm nay"
               aria-pressed={filters.date === today}
               iconLeading={filters.date === today ? <Check aria-hidden="true" /> : undefined}
@@ -187,7 +210,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === tomorrow ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: tomorrow })}
+              onPress={() => selectDate(tomorrow)}
               aria-label="Hôm sau"
               aria-pressed={filters.date === tomorrow}
               iconLeading={filters.date === tomorrow ? <Check aria-hidden="true" /> : undefined}
@@ -198,7 +221,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: '' })}
+              onPress={() => selectDate('')}
               aria-label="Tất cả"
               aria-pressed={filters.date === ''}
               iconLeading={filters.date === '' ? <Check aria-hidden="true" /> : undefined}
@@ -212,7 +235,6 @@ export function DetailedPlanFilters({
             color="tertiary"
             iconLeading={XClose}
             onPress={clearFilters}
-            isDisabled={activeFilterCount === 0}
             aria-label="Xóa lọc"
           >
             Xóa lọc
@@ -246,17 +268,16 @@ export function DetailedPlanFilters({
               size="sm"
               color="secondary"
               onPress={clearDrawerFilters}
-              isDisabled={activeDrawerFilterCount === 0}
             >
               Đặt lại
             </UUIButton>
-            <UUIButton size="sm" color="primary" onPress={() => setIsFilterDrawerOpen(false)}>
+            <UUIButton size="sm" color="primary" onPress={showResults}>
               Xem kết quả
             </UUIButton>
           </>
         }
       >
-        <div className="detailed-plan-filter-panel">
+        <div ref={filterPanelRef} className="detailed-plan-filter-panel">
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-assignment">
             <h3 id="detailed-plan-filter-assignment" className="detailed-plan-filter-panel__title">Phân xe và giờ chạy</h3>
             <div className="detailed-plan-filter-panel__fields">
@@ -275,9 +296,9 @@ export function DetailedPlanFilters({
               <div className="detailed-plan-filters__field detailed-plan-filters__hour">
                 <span className="detailed-plan-filters__label">Giờ chạy</span>
                 <div className="detailed-plan-filters__hour-inputs">
-                  <UUIInput type="time" className="detailed-plan-filters__hour-control" value={filters.hourFrom} onChange={(value) => onChange({ hourFrom: value })} size="sm" aria-label="Giờ từ" inputProps={{ step: 60 }} />
+                  <DispatchTimeFilterField key={`from-${draftResetKey}`} label="Giờ từ" value={filters.hourFrom} onChange={(value) => onChange({ hourFrom: value })} />
                   <span aria-hidden="true">→</span>
-                  <UUIInput type="time" className="detailed-plan-filters__hour-control" value={filters.hourTo} onChange={(value) => onChange({ hourTo: value })} size="sm" aria-label="Giờ đến" inputProps={{ step: 60 }} />
+                  <DispatchTimeFilterField key={`to-${draftResetKey}`} label="Giờ đến" value={filters.hourTo} onChange={(value) => onChange({ hourTo: value })} />
                 </div>
               </div>
               <div className="detailed-plan-filters__field detailed-plan-filters__field--zone">

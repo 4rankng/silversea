@@ -2,7 +2,8 @@
 // Split from pages/DriverTripDetailPage.tsx in the 2026-09-01 structural wave (move-only).
 import { DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../../lib/api';
-import { formatDateTimeShort } from '../../lib/format';
+import { formatDateTime24 } from '../../lib/format';
+import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
 import { getLocationPermissionIssue, isGeolocationError } from '../../lib/gps/geolocation';
 import { useDriverTaskProgress } from '../../hooks/useDriverQueries';
 import type { DriverTaskDetail } from '../../api/driverClient';
@@ -40,7 +41,14 @@ export const FUEL_EVIDENCE_REVIEW_LABELS = {
   REJECTED: 'Không sử dụng (lịch sử)',
 } as const;
 
-export const formatDateTime = formatDateTimeShort;
+export const formatDateTime = (value: string | null | undefined): string => {
+  if (!value) return '—';
+  // Editor drafts already use Vietnam wall-clock time; only instants need conversion.
+  const localValue = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(value)
+    ? formatVietnamDateTimeInput(value)
+    : value;
+  return formatDateTime24(localValue) || '—';
+};
 
 export function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
@@ -50,7 +58,7 @@ export function valueOrDash(value: string | null | undefined): string {
 // disabled: only IN_TRANSIT trips can complete, COMPLETED is already done, and
 // every other status gets a neutral not-yet label.
 export function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
+  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
   if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
   return 'Chưa thể hoàn thành chuyến';
 }
@@ -105,4 +113,3 @@ export function milestoneActionState(eventFound: boolean, nextMilestoneIndex: nu
   if (nextMilestoneIndex === index) return 'available';
   return 'locked';
 }
-

@@ -23,12 +23,16 @@ router.post('/read-all', asyncHandler(async (req: Request, res: Response) => {
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req, { limit: 20 });
-  res.json(await notifService.getNotifications(getUser(req).userId, page, limit));
+  const actor = getUser(req);
+  res.json(await notifService.getNotifications(actor.userId, page, limit, actor.role));
 }));
 
 router.post('/:id/read', asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, 'ID thông báo không hợp lệ');
+  const rawId = req.params.id as string;
+  const id = Number(rawId);
+  if (!/^\d+$/.test(rawId) || !Number.isSafeInteger(id) || id <= 0 || id > 2_147_483_647) {
+    throw new ApiError(400, 'ID thông báo không hợp lệ');
+  }
   const updated = await notifService.markAsRead(id, getUser(req).userId);
   if (!updated) throw new ApiError(404, 'Không tìm thấy thông báo.');
   res.json(updated);

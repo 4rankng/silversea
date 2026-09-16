@@ -6,10 +6,3 @@
 .split-datetime__control > [role='group'] { flex: 1; min-width: 0; }
 .split-datetime__control input { min-width: 0; padding-inline: 8px; }
 .split-datetime__error { font-size: var(--text-caption-size); color: var(--danger); white-space: normal; }
-.split-datetime__popover { position: fixed; z-index: 1100; display: flex; flex-direction: column; gap: 6px; width: min(280px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-1); box-shadow: 0 8px 24px rgb(15 23 42 / 14%); }
-.split-datetime__popover > header { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-data-size); }
-.split-datetime__popover > header button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; }
-.split-datetime__popover .dtp-date, .split-datetime__popover .dtp-time { flex: 0 0 auto; width: 100%; min-width: 0; }
-@media (pointer: coarse), (max-width: 767px) {
-  .split-datetime__popover { width: min(320px, calc(100vw - 24px)); }
-}

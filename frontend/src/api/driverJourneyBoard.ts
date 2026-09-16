@@ -34,6 +34,8 @@ export interface DriverJourneyCard {
    */
   pairLocked: boolean;
   scheduledAt: string | null;
+  /** Optional during rollout; completion time for the selected history month. */
+  historyAt?: string | null;
   factoryName: string | null;
   factoryShortName: string | null;
   /** 3a0bd5af: factory site street address, kept for detail; the card uses routeName. */

@@ -533,7 +533,12 @@ export function ShipmentCreateWorkspace() {
 
 
   function goBack() {
-    if (isDirty) {
+    // Date controls keep incomplete/invalid text locally until it can become
+    // a model value. That visible draft still belongs to the user on cancel.
+    const hasDateDraft = Array.from(workspaceFormRef.current?.querySelectorAll<HTMLInputElement>(
+      '[data-date-input], [data-split-datetime] input:not([type="hidden"])',
+    ) ?? []).some((input) => input.value.trim() !== '');
+    if (isDirty || hasDateDraft) {
       setBackConfirmOpen(true);
       return;
     }
@@ -546,7 +551,7 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
-    const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-split-datetime] input:invalid');
+    const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
     if (incomplete) { incomplete.focus(); incomplete.reportValidity(); return; }
     const result = await runSave(intent);
     if (result.issues.length > 0) {
@@ -922,7 +927,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-customer-appointment`)}
                     onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
                   >
-                    <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel required value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
+                    <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
                   </ShipmentContainerCell>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>

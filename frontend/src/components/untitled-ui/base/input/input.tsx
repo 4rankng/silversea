@@ -1,4 +1,5 @@
 import { fieldTextSizes } from "../control-typography";
+import "../control-geometry.css";
 import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, createContext, useContext, useState } from "react";
 import { Eye, EyeOff, HelpCircle, InfoCircle } from "@untitledui/icons";
 import type { InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps } from "react-aria-components";
@@ -72,7 +73,7 @@ export const InputBase = ({
 
     const sizes = sortCx({
         sm: {
-            root: cx("min-h-[32px] px-2.5 py-1 max-md:min-h-[42px] max-md:px-3 max-md:py-2", fieldTextSizes.sm, hasLeadingIcon && "pl-8 max-md:pl-9", hasTrailingIcon && "!pr-8 max-md:!pr-9"),
+            root: cx("px-2.5 py-1 max-md:px-3", fieldTextSizes.sm, hasLeadingIcon && "pl-8 max-md:pl-9", hasTrailingIcon && "!pr-8 max-md:!pr-9"),
             iconLeading: "left-2.5 size-4 stroke-[2.25px] max-md:left-3",
             iconTrailing: "right-2.5 max-md:right-3",
             shortcut: "pr-1.5",
@@ -94,12 +95,12 @@ export const InputBase = ({
     return (
         <AriaGroup
             {...{ isDisabled, isInvalid }}
+            data-uui-control="input"
+            data-control-size={inputSize}
             ref={groupRef}
             className={({ isFocusWithin, isDisabled, isInvalid }) =>
                 cx(
                     "group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
-                    inputSize === "sm" && "min-h-[34px] max-md:min-h-11",
-                    inputSize === "md" && "min-h-10 max-md:min-h-11",
 
                     isFocusWithin && !isDisabled && "border-brand outline-2 outline-offset-1",
 

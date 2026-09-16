@@ -3,8 +3,8 @@
    dispatch-plan-page__* BEM conventions. */
 
 .master-plan-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: end;
   gap: 10px;
   margin-bottom: 14px;
@@ -20,8 +20,8 @@
    these rules only shape them inside the flex bar. */
 
 .master-plan-filters__search {
-  flex: 1 1 300px;
-  min-width: 248px;
+  grid-column: span 5;
+  min-width: 0;
 }
 
 .master-plan-filters__field {
@@ -38,34 +38,25 @@
   width: auto;
 }
 
-/* This toolbar combines UUI controls with the port/carrier facet trigger.
-   Keep every desktop surface on the same compact operational rhythm. */
-@media (min-width: 768px) {
-  .master-plan-filters__select > button {
-    height: var(--control-compact-h);
-    min-height: var(--control-compact-h);
-  }
-}
-
 .master-plan-filters__direction {
   /* The field label needs a little more room than the selected "Tất cả"
      value; anything wider is unused toolbar space. */
-  flex: 0 0 132px;
+  grid-column: span 2;
 }
 
 .master-plan-filters__allocation {
   /* This fits the longest allocation label plus the Select affordance without
      turning a categorical filter into a half-row control. */
-  flex: 0 0 180px;
+  grid-column: span 2;
 }
 
 .master-plan-filters__date-range {
   /* Keep the date inputs and their related actions in one operational row.
      The date field intentionally takes a complete flex line when needed so
      its shortcuts and the create action never become an orphaned button row. */
-  flex: 0 1 608px;
+  grid-column: span 9;
   display: grid;
-  grid-template-columns: minmax(280px, 360px) max-content;
+  grid-template-columns: minmax(0, 320px) max-content;
   gap: 5px 8px;
   align-items: end;
 }
@@ -76,7 +67,7 @@
 
 .master-plan-filters__date-inputs {
   display: grid;
-  grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 6px;
 }
@@ -103,7 +94,6 @@
 }
 
 .master-plan-filters__date-action {
-  min-height: var(--control-compact-h);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--fg-2);
@@ -116,13 +106,14 @@
 }
 
 .master-plan-filters__date-action.is-active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
-  color: var(--accent-ink);
+  border-color: var(--fg-1);
+  background: var(--surface-2);
+  color: var(--fg-1);
 }
 
 .master-plan-filters__actions {
-  flex: 0 0 auto;
+  grid-column: span 3;
+  justify-self: end;
   align-self: end;
   white-space: nowrap;
 }
@@ -175,10 +166,12 @@
 .master-plan-filters__drawer-fields .master-plan-filters__facet,
 .master-plan-filters__drawer-fields .master-plan-filters__allocation,
 .master-plan-filters__drawer-fields .master-plan-filters__date-range {
+  grid-column: auto;
   width: 100%;
 }
 
 .master-plan-filters__drawer-fields .master-plan-filters__date-range {
+  grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -190,7 +183,7 @@
 
 /* Multi-select facet controls for ports and carriers */
 .master-plan-filters__facet {
-  flex: 0 0 200px;
+  grid-column: span 3;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -429,10 +422,14 @@
 .master-plan-cargo-summary__count {
   font-weight: 500;
   color: var(--fg-1);
+  white-space: nowrap;
 }
 
-.master-plan-cargo-summary__separator {
-  color: var(--fg-3);
+.master-plan-cargo-summary__group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 /* Previous-day OWN-truck drop hint (customer ask: sits inside the volume
@@ -442,15 +439,20 @@
   color: var(--fg-2);
 }
 
-@container (max-width: 640px) {
+@container (max-width: 1040px) {
+  .master-plan-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(124px, 160px) auto auto;
+  }
+
   .master-plan-filters__search,
-  .master-plan-filters__actions {
-    flex-basis: 100%;
+  .master-plan-filters__direction,
+  .master-plan-filters__actions,
+  .master-plan-filters__advanced-trigger {
+    grid-column: auto;
   }
 
   .master-plan-filters__direction,
   .master-plan-filters__advanced-trigger {
-    flex: 1 1 0;
     min-width: 0;
   }
 
@@ -461,10 +463,6 @@
   .master-plan-filters__advanced-trigger {
     display: inline-flex;
     justify-content: center;
-  }
-
-  .master-plan-filters__actions > .btn {
-    width: 100%;
   }
 
   .master-plan-filters__facet-picker {
@@ -482,21 +480,30 @@
   }
 }
 
+@container (max-width: 640px) {
+  .master-plan-filters { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 6px; }
+  .master-plan-filters__search { grid-column: 1 / -1; }
+  .master-plan-filters__direction { grid-column: 1; }
+  .master-plan-filters__advanced-trigger { grid-column: 2; }
+  .master-plan-filters__actions { grid-column: 3; justify-self: stretch; min-width: 0; }
+  .master-plan-filters__actions > .btn { width: 100%; }
+}
+
 @media (max-width: 767px) {
   .drawer.master-plan-filters__drawer {
     max-width: 100%;
   }
 
   .master-plan-filters__drawer .drawer__head {
-    padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 14px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;
   }
 
   .master-plan-filters__drawer .drawer__body {
-    padding: 18px 20px 24px;
+    padding: 12px;
   }
 
   .master-plan-filters__drawer .drawer__foot {
-    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 
   .master-plan-filters__drawer-fields {
@@ -678,6 +685,17 @@
 }
 
 .master-plan-grid__notes-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   cursor: pointer;
   border-radius: var(--radius-xs, 4px);
   transition: background-color 100ms var(--ease);
@@ -747,55 +765,54 @@
   border-color: var(--fg-3);
 }
 
-/* Special clickable affordance for detail triggers */
-.master-plan-grid__container-detail-trigger {
-  min-height: 28px;
-  margin-top: 5px;
-  padding: 1px 8px;
-  display: inline-flex;
+.master-plan-grid__cargo-content {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
-  border-radius: var(--radius-xs, 4px);
-  font-size: var(--ops-table-meta-size, 11px);
-  font-weight: var(--fw-semibold, 600);
-  line-height: 1;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+  justify-content: space-between;
+  gap: 2px 8px;
 }
 
+.master-plan-grid__cargo-summary {
+  flex: 1 1 56px;
+  min-width: 0;
+}
+
+.master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Secondary details use the kit's link appearance. Their touch target stays
+   large without adding a separate framed action row under every value. */
+.master-plan-grid__container-detail-trigger,
 .master-plan-grid__note-detail-trigger {
-  min-height: 28px;
-  margin-top: 5px;
-  padding: 1px 8px;
-  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: max(28px, var(--uui-control-h));
+  margin: 0;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-end;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
-  border-radius: var(--radius-xs, 4px);
+  background: transparent;
+  border: 0;
   font-size: var(--ops-table-meta-size, 11px);
   font-weight: var(--fw-semibold, 600);
-  line-height: 1;
+  line-height: 1.35;
   text-decoration: none;
-  cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+  box-shadow: none;
 }
 
 .master-plan-grid__container-detail-trigger:hover,
 .master-plan-grid__note-detail-trigger:hover {
-  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: transparent;
   color: color-mix(in srgb, var(--accent) 90%, var(--fg-1));
 }
 
@@ -930,7 +947,14 @@
   }
 
   .master-plan-grid__row {
-    display: block;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "schedule customer"
+      "route route"
+      "lift drop"
+      "cargo allocation"
+      "notes notes";
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: var(--app-radius-md);
@@ -946,6 +970,14 @@
   .master-plan-grid__cell + .master-plan-grid__cell {
     border-top: 1px solid var(--line);
   }
+  .master-plan-grid__cell[data-label="Thời gian & lịch trình"] { grid-area: schedule; }
+  .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] { grid-area: customer; border-top: 0; border-inline-start: 1px solid var(--line); }
+  .master-plan-grid__cell[data-label="Tuyến đường & hãng tàu"] { grid-area: route; }
+  .master-plan-grid__cell--lift-port { grid-area: lift; }
+  .master-plan-grid__cell--drop-port { grid-area: drop; border-inline-start: 1px solid var(--line); }
+  .master-plan-grid__cell[data-label="Tổng quan hàng hóa"] { grid-area: cargo; }
+  .master-plan-grid__cell--action { grid-area: allocation; border-inline-start: 1px solid var(--line); }
+  .master-plan-grid__cell[data-label="Ghi chú"] { grid-area: notes; }
 
   .master-plan-grid__cell::before {
     display: block;
@@ -964,18 +996,9 @@
     overflow-wrap: anywhere;
   }
 
-  .master-plan-grid__container-detail-trigger {
-    min-height: 44px;
-    margin-top: 4px;
-    padding-block: 8px;
-    padding-inline: 10px;
-  }
-
+  .master-plan-grid__container-detail-trigger,
   .master-plan-grid__note-detail-trigger {
     min-height: 44px;
-    margin-top: 4px;
-    padding-block: 8px;
-    padding-inline: 10px;
   }
 
   .master-plan-grid__cell--action {
@@ -1018,65 +1041,18 @@
   }
 }
 
-/* Phone records use the same full 2-column pairing as the record-table
-   layout (config pages): every cell pairs side-by-side so mobile layouts
-   stay consistent app-wide. Only the smallest screens collapse to a single
-   column. The paired ports keep their divider styling. */
+/* Phone retains the semantic pairs while reducing the inherited cell inset. */
 @container (max-width: 599px) {
-  .master-plan-grid__row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .master-plan-grid__cell--lift-port,
-  .master-plan-grid__cell--drop-port {
-    padding-inline: 12px;
-  }
-
-  .master-plan-grid__cell--drop-port {
-    border-inline-start: 1px solid var(--line);
-    border-top: 0;
-  }
-
+  .master-plan-grid__cell { padding: 8px 10px; }
+  .master-plan-grid__cell--action { padding: 0; }
+  .master-plan-grid__allocation-trigger { padding: 8px 10px; }
 }
 
-@container (max-width: 360px) {
-  .master-plan-grid__row {
-    display: block;
-  }
-
-  .master-plan-grid__cell--drop-port {
-    border-inline-start: 0;
-    border-top: 1px solid var(--line);
-  }
-}
-
-@container (min-width: 600px) and (max-width: 900px) {
-  .master-plan-grid__row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .master-plan-grid__cell + .master-plan-grid__cell {
-    border-top: 0;
-  }
-
-  .master-plan-grid__cell:nth-child(even) {
-    border-inline-start: 1px solid var(--line);
-  }
-
-  .master-plan-grid__cell:nth-child(n + 3) {
-    border-top: 1px solid var(--line);
-  }
-
-  /* Cell 7 (Phân bổ nhà xe) + cell 8 (Ghi chú) pair side-by-side in this
-     band (user 2026-09-10: one-line content spanning the full row leaves
-     the half dead). Child 7 is odd → left column; child 8 is even → right
-     column with the :nth-child(even) divider; :nth-child(n+3) separates
-     the pair from the row above. The action rule stays after
-     :nth-child(even) so border-inline-start: 0 wins by source order
-     without !important. */
-  .master-plan-grid__cell--action {
-    border-inline-start: 0;
-  }
+/* Shared Table.css paints every hovered td green. Suppress that passive wash
+   for phone/touch records; feedback belongs to the actual pressed control. */
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+  .master-plan-grid tbody > .master-plan-grid__row:hover { background: var(--surface); }
+  .master-plan-grid tbody tr:hover > .master-plan-grid__cell { background: transparent; }
+  .master-plan-grid__allocation-trigger:hover { background: transparent; }
+  .master-plan-grid__allocation-trigger:active { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 }

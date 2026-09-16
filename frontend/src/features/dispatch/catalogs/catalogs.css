@@ -4,7 +4,7 @@
 .dispatch-catalogs {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding: 0 0 32px;
 }
 
@@ -22,12 +22,14 @@
 }
 
 /* Three resource counts are one compact summary, not a second card grid. */
-.kpi-grid.dispatch-catalogs__vehicle-summary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.kpi-grid.dispatch-catalogs__summary {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 0;
   border-block: 1px solid var(--line);
 }
-.dispatch-catalogs__vehicle-summary .kpi {
+.dispatch-catalogs__summary .kpi {
   min-width: 0;
   min-height: 0;
   padding: 8px 10px;
@@ -36,12 +38,12 @@
   background: transparent;
   box-shadow: none;
 }
-.dispatch-catalogs__vehicle-summary .kpi + .kpi { border-left: 1px solid var(--line); }
-.kpi-grid.dispatch-catalogs__vehicle-summary > .kpi:nth-child(3):last-child { grid-column: auto; }
-.dispatch-catalogs__vehicle-summary .kpi::before,
-.dispatch-catalogs__vehicle-summary .kpi__watermark { display: none; }
-.dispatch-catalogs__vehicle-summary .kpi__label { font-size: var(--text-label-size); }
-.dispatch-catalogs__vehicle-summary .kpi__value { font-size: var(--text-section-size); }
+.dispatch-catalogs__summary .kpi + .kpi { border-left: 1px solid var(--line); }
+.kpi-grid.dispatch-catalogs__summary > .kpi:last-child { grid-column: auto; }
+.dispatch-catalogs__summary .kpi::before,
+.dispatch-catalogs__summary .kpi__watermark { display: none; }
+.dispatch-catalogs__summary .kpi__label { font-size: var(--text-label-size); }
+.dispatch-catalogs__summary .kpi__value { font-size: var(--text-section-size); }
 
 .dispatch-catalogs__page-header > button {
   flex: 0 0 auto;
@@ -50,8 +52,7 @@
 @media (max-width: 640px) {
   .dispatch-catalogs__page-header {
     align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
 }
 
@@ -83,6 +84,11 @@
   margin-left: auto;
   font-size: var(--text-data-size);
   color: var(--fg-3);
+}
+
+.dispatch-catalogs__carrier-filter {
+  width: min(240px, 100%);
+  min-width: 0;
 }
 
 .dispatch-catalogs__table {
@@ -122,17 +128,41 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.dispatch-catalogs__table tbody tr:hover {
-  background: var(--hover-bg, rgba(0, 0, 0, 0.02));
+@media (hover: hover) and (pointer: fine) {
+  .dispatch-catalogs__table tbody tr:hover { background: var(--hover-bg, rgba(0, 0, 0, 0.02)); }
 }
+
+.dispatch-catalogs__compact-driver-name,
+.dispatch-catalogs__compact-driver-code { display: none; }
 
 .dispatch-catalogs__plate {
   font-family: var(--font-data);
   font-weight: 600;
   white-space: nowrap;
 }
+
+.dispatch-catalogs__edit {
+  display: block;
+  max-width: 100%;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.dispatch-catalogs__edit:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dispatch-catalogs__edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .dispatch-catalogs__empty {
   text-align: center;
@@ -161,7 +191,7 @@
   background: var(--bg-1, #fff);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .dispatch-catalogs__page-header > button {
     min-height: var(--control-mobile-h);
   }
@@ -176,6 +206,8 @@
     max-width: none;
     flex-basis: 100%;
   }
+
+  .dispatch-catalogs__carrier-filter { flex: 1 1 180px; }
 
   .dispatch-catalogs__count {
     margin-left: 0;
@@ -197,23 +229,21 @@
 
   .dispatch-catalogs__table tbody {
     display: grid;
-    gap: 10px;
+    gap: 0;
   }
 
   .dispatch-catalogs__table tbody tr {
     display: grid;
     width: 100%;
     min-width: 0;
+    min-height: 44px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-    padding: 12px;
-    border: 1px solid var(--border-1);
-    border-radius: var(--app-radius-sm);
-    background: var(--surface);
-  }
-
-  .dispatch-catalogs__table tbody tr:hover {
-    background: var(--surface);
+    gap: 6px 12px;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-1);
+    border-radius: 0;
+    background: transparent;
   }
 
   .dispatch-catalogs__table td {
@@ -226,21 +256,29 @@
 
   .dispatch-catalogs__table td:first-child {
     grid-column: 1 / -1;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 2px;
   }
+
+  .dispatch-catalogs__table td[data-empty],
+  .dispatch-catalogs__table td.dispatch-catalogs__desktop-driver-name,
+  .dispatch-catalogs__desktop-driver-code { display: none; }
+  .dispatch-catalogs__compact-driver-name { display: inline; }
+  .dispatch-catalogs__compact-driver-code { display: block; margin-top: 2px; color: var(--fg-3); font-size: var(--text-caption-size); font-weight: 400; }
 
   .dispatch-catalogs__table td[data-label]::before {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     color: var(--fg-3);
     content: attr(data-label);
     font-size: var(--fs-2xs);
-    font-weight: 700;
-    letter-spacing: 0.02em;
+    font-weight: 500;
+    letter-spacing: 0;
     line-height: 1.35;
-    text-transform: uppercase;
+    text-transform: none;
   }
+
+  .dispatch-catalogs__table td:first-child::before,
+  .dispatch-catalogs__table td[data-label="Thao tác"]::before { display: none; }
 
   /* Vehicle card actions (QA-056): the Thao tác group previously inherited
      one narrow grid column, squeezing three buttons to 3-line wraps
@@ -248,8 +286,8 @@
      and the buttons keep their labels on one line. */
   .dispatch-catalogs__table td[data-label="Thao tác"] {
     grid-column: 1 / -1;
-    border-top: 1px solid var(--border-1);
-    padding-top: 10px;
+    border-top: 0;
+    padding-top: 0;
   }
 
   .dispatch-catalogs__table td[data-label="Thao tác"] > div {

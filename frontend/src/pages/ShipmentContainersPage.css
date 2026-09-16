@@ -21,22 +21,22 @@
    horizontal divider runs under the filters. */
 .shipments-detail-workspace__header {
   display: grid;
-  gap: 10px;
-  padding: 16px 18px 0;
+  gap: 8px;
+  padding: 8px 0 0;
   border-block: 0;
   background: transparent;
 }
 .shipments-detail-filters {
   display: grid;
-  /* Three visual groups — search, one date-range unit, the select trio — so
-     related filters read as a cluster: 6px inside a group, 14px between
-     groups, with the date-actions footer on the second row. */
+  /* Keep one field row while its actual minimum fits the workspace. */
   grid-template-columns: minmax(220px, 1.1fr) minmax(280px, 1.5fr) minmax(430px, 2.1fr);
-  gap: 14px;
-  align-items: start;
+  gap: 8px 12px;
+  align-items: end;
   min-width: 0;
 }
-.shipments-detail-filters__group { display: grid; min-width: 0; gap: 6px; }
+.shipments-detail-filters .cus-advanced-toggle { display: none; }
+.shipments-detail-filters__advanced { display: contents; }
+.shipments-detail-filters__group { display: grid; min-width: 0; gap: 6px; align-items: end; }
 .shipments-detail-filters__group--dates { grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr); }
 .shipments-detail-filters__group--selects { grid-template-columns: minmax(170px, 1.25fr) minmax(110px, .65fr) minmax(140px, .85fr); }
 .shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
@@ -45,16 +45,10 @@
 .shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
-/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
-   vendored Select trigger owns its own Tailwind sizing (min-h-[34px]) since
-   UuiSelectField.css's boundary selectors don't reach it, so its 36px
-   border-box sits 2px taller than the text-input wrapper's 34px. Trim the
-   inner value span to 32px so both control families share one row line. */
-.shipments-detail-filters .ds-uui-select__control button > span,
-.shipments-detail-filters .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
+
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
+.shipments-detail-filters__footer { display: flex; grid-column: 1 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
@@ -66,11 +60,8 @@
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
-/* Summary = the shared workboard summary rail (design-system/SummaryRail.css),
-   the app-wide standard for operational list summaries. The page owns the
-   gutter: 18px aligns the rail with the workspace header's padding (the
-   component ships the workboard's own 16px default for other adopters). */
-.shipments-detail-workspace .summary-rail { margin-inline: 18px; }
+/* The app shell already supplies the page gutter. */
+.shipments-detail-workspace .summary-rail { margin-inline: 0; }
 
 .shipment-container-ledger { position: relative; min-width: 0; background: var(--surface); }
 .shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -133,7 +124,7 @@
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
-.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
+.shipment-container-ledger__multiline:not(.shipment-container-ledger__notes) > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
@@ -188,7 +179,8 @@
    italic internal-note voice. */
 .shipment-container-ledger__notes > strong,
 .shipment-container-ledger__notes > span { font-size: var(--ops-table-note-size); font-weight: var(--ops-table-note-weight); line-height: var(--ops-table-note-line-height); }
-.shipment-container-ledger__notes > span { color: var(--ink-3); font-style: italic; }
+.shipment-container-ledger__multiline.shipment-container-ledger__notes > :is(strong, span) { white-space: pre-wrap; }
+.shipment-container-ledger__notes > span { color: var(--ink-3); font-style: normal; }
 
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }
 /* The place name is this cell's headline value (same role as the customer
@@ -286,15 +278,15 @@
 .shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
 .shipment-container-ledger__editor-grid > label > span,
 .shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: var(--text-label-size); font-weight: var(--fw-bold); line-height: 1.3; }
-.shipment-container-ledger__editor-grid input,
+.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid textarea,
 .shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: var(--control-field-font-size); line-height: 1.35; }
-.shipment-container-ledger__editor-grid input,
+.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid .searchable-select__trigger { padding: 5px 9px; }
 .shipment-container-ledger__editor-grid textarea { height: auto; min-height: 72px; padding: 7px 9px; resize: vertical; }
-.shipment-container-ledger__editor-grid input:focus-visible,
+.shipment-container-ledger__editor-grid input:not([data-uui-control] > input):focus-visible,
 .shipment-container-ledger__editor-grid select:focus-visible,
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
@@ -357,35 +349,14 @@
 .shipments-detail-workspace .ds-pagination__btn { background: var(--surface); box-shadow: none; }
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
-/* Operational filters use the same shell-owned edge as the other full-width
-   workflows through tablet and compact desktop widths. */
-@media (max-width: 1100px) {
-  .shipments-detail-workspace__header { padding-inline: 0; }
-}
-
-/* Between ~1000px and ~1300px of container width the three-group row no
-   longer fits: the select trio moves to its own full-width row (keeping its
-   internal three-column rhythm) and the date/reset actions close the block,
-   right-aligned, instead of stranding on a clipped fourth column. */
-@container shipments-detail (max-width: 1300px) {
-  .shipments-detail-filters {
-    grid-template-columns: minmax(220px, 1.1fr) minmax(260px, 1.3fr);
-    align-items: start;
-    max-width: 1120px;
-  }
-  .shipments-detail-filters__group--selects { grid-column: 1 / -1; }
-  .shipments-detail-filters__footer { grid-column: 1 / -1; justify-content: flex-end; align-self: end; }
-  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
-}
-
 @container shipments-detail (max-width: 1000px) {
-  .shipments-detail-filters { grid-template-columns: 1fr 1fr; max-width: none; }
-  .shipments-detail-filter--search { grid-column: 1 / -1; }
-  .shipments-detail-filters__group--dates { grid-column: 1 / -1; }
-  .shipments-detail-filters__group--selects { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
-  .shipments-detail-filters__group--selects > .shipments-detail-filter:last-child { grid-column: 1 / -1; }
-  .shipments-detail-filters__footer { grid-column: 1 / -1; }
-  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
+  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .shipments-detail-filters .cus-advanced-toggle { display: inline-flex; }
+  .shipments-detail-filters__advanced { display: none; grid-column: 1 / -1; min-width: 0; gap: 8px; align-items: end; }
+  .shipments-detail-filters__advanced[data-open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shipments-detail-filters__group--dates,
+  .shipments-detail-filters__group--selects { display: contents; }
+  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: 1 / -1; }
   .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
@@ -440,7 +411,7 @@
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
-  .shipment-container-ledger__editor-grid input,
+  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
   .shipment-container-ledger__editor-grid select,
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
   .shipment-container-ledger__cell-trigger,
@@ -462,20 +433,18 @@
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
   .shipments-detail-workspace { border: 0; border-radius: 0; }
-  /* The shell already owns the phone gutter. Keep filters aligned with the
-     workspace edge so this operational screen does not lose another 24px. */
-  .shipments-detail-workspace__header { padding: 14px 0; }
-  .shipments-detail-workspace .summary-rail { margin: 10px 10px 0; }
+  .shipments-detail-workspace__header { padding: 0; }
+  .shipments-detail-workspace .summary-rail { margin: 10px 0 0; }
   .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 6px solid var(--surface-2); }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { grid-column: auto !important; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
-  .shipment-container-ledger__editor-grid input,
+  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
   .shipment-container-ledger__editor-grid select,
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
@@ -489,71 +458,92 @@
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
 }
 
+/* Phone records keep related values adjacent and give prose the full width.
+   The editor expands across both columns without narrowing its controls. */
 @media (max-width: 520px) {
-  /* Every group owns a full row on the phone sheet; the date pair stays
-     side-by-side and the date/reset actions close the toolbar right-aligned. */
-  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr); }
-  .shipments-detail-filter--search,
-  .shipments-detail-filters__group--dates,
-  .shipments-detail-filters__group--selects { grid-column: 1 / -1; }
-  .shipments-detail-filters__group--selects { grid-template-columns: minmax(0, 1fr); }
-  .shipments-detail-filters__footer { grid-column: 1 / -1; }
-  .shipments-detail-filters__date-actions { flex-wrap: nowrap; justify-content: flex-end; }
-  .shipment-container-ledger tbody > tr { grid-template-columns: 1fr; }
+  .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { grid-template-columns: 88px minmax(0, 1fr); column-gap: 8px; padding: 6px 10px; }
-  .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td,
-  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: auto !important; border-right: 0; }
-  /* An active editor owns its complete record on a phone. Its trigger already
-     supplies the internal spacing, so parent-cell padding must not truncate
-     the normal-flow editor below it. */
-  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { display: block; padding: 0 0 32px; }
-  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell.shipment-container-ledger__editable-cell { padding: 0 0 32px !important; }
-  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell::before { display: none; }
-  .shipment-container-ledger__editing-cell > .shipment-container-ledger__cell-editor { display: flex; flex-direction: column; }
-  .shipment-container-ledger__editing-cell .shipment-container-ledger__cell-trigger { margin: 0; }
-  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-trigger,
-  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-trigger,
-  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor,
-  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-editor,
-  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-stack,
-  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__edit-error { grid-column: 2; }
-  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor--expanded,
-  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-editor--expanded { grid-column: 1 / -1; }
-  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor { grid-column: 1 / -1; }
-  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger { grid-template-columns: 88px minmax(0, 1fr); }
-  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before { width: 80px; }
-  .shipment-container-ledger__cell-trigger { grid-column: 2; }
-  .shipment-container-ledger__route { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; column-gap: 8px; }
+  .shipment-container-ledger tbody > tr > td {
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: auto;
+    min-height: 44px;
+    align-content: start;
+    padding: 8px 10px;
+    border-right: 0;
+  }
+  .shipment-container-ledger tbody > tr > :is(:first-child, :nth-child(4), :nth-child(7), :nth-child(8)) {
+    grid-column: 1 / -1;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 4px;
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before {
+    position: static;
+    grid-column: 1;
+    width: auto;
+  }
+  .shipment-container-ledger__cell-trigger > :not(.shipment-container-ledger__edit-purpose) { grid-column: 1; }
+  .shipment-container-ledger__cell-editor[data-mode="identity"] > .shipment-container-ledger__cell-trigger::before,
+  .shipment-container-ledger__cell-editor[data-mode="route"] > .shipment-container-ledger__cell-trigger::before { display: none; }
+  .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "Chứng từ"; }
+  .shipment-container-ledger__cell-editor[data-mode="container"] > .shipment-container-ledger__cell-trigger::before { content: "Container"; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell {
+    display: block;
+    grid-column: 1 / -1 !important;
+    padding: 0 0 8px !important;
+  }
+  .shipment-container-ledger__editing-cell::before { display: none; }
+  .shipment-container-ledger__route { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__cell--status { display: block; }
+  .shipment-container-ledger__cell--status::before { display: none; }
+  .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 }
 
-@media (max-width: 1023px) {
-  .shipments-detail-filters__advanced {
-    display: none;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
+/* Tablet has enough room for all five secondary fields without borrowing the
+   phone's three-row disclosure. Keep dates adjacent in keyboard order. */
+@container shipments-detail (min-width: 700px) and (max-width: 1000px) {
   .shipments-detail-filters__advanced[data-open] {
-    display: flex;
-    flex-basis: 100%;
+    grid-template-columns: repeat(2, minmax(130px, 1fr)) minmax(170px, 1.3fr) minmax(100px, .75fr) minmax(130px, 1fr);
   }
+  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: auto; }
 }
 
-/* Desktop: both date inputs share the date-range slot side by side and the
-   collapse toggle disappears — the filter band holds one field row plus the
-   date-actions footer (two lines total, user ruling 2026-09-15). The
-   ≤1023px collapse behavior is untouched. */
-.shipments-detail-filters__advanced {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
-  gap: 6px;
-  min-width: 0;
-}
-
-@media (min-width: 1101px) {
-  .shipments-detail-filters .cus-advanced-toggle {
-    display: none;
+/* Stack labels above values inside tablet record blocks. A fixed 96px label
+   column otherwise leaves too little room for container and document codes. */
+@container shipments-detail (min-width: 641px) and (max-width: 1000px) {
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    align-content: start;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before {
+    position: static;
+    width: auto;
+    grid-column: 1;
+  }
+  .shipment-container-ledger__cell-trigger > :not(.shipment-container-ledger__edit-purpose) { grid-column: 1; }
+  .shipment-container-ledger tbody > tr > td[data-label="Ghi chú"] {
+    grid-column: 1 / -1;
+    min-height: 0;
+    border-right: 0;
+  }
+  .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__cell-trigger { min-height: 0; }
+  .shipment-container-ledger tbody > tr > td[data-label="Trạng thái"] {
+    display: flex;
+    align-items: center;
+    gap: 6px 12px;
+    min-height: 44px;
+  }
+  .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
   }
 }

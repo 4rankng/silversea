@@ -1,0 +1,2 @@
+.uui-date-hint { margin: 0; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
+.uui-date-hint--error { color: var(--danger); }

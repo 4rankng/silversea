@@ -26,7 +26,7 @@ import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
-import { and, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -656,10 +656,10 @@ export async function issueOrderCreateOrUpdate(
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'trips'),
-      // Same trip row is updated in place on re-dispatch, so keying the
-      // duplicate check on the trip id matches the payload re-key above.
-      eq(s.notifications.relatedEntityId, trip.id),
+      or(
+        and(eq(s.notifications.relatedEntityType, 'trips'), eq(s.notifications.relatedEntityId, trip.id)),
+        and(eq(s.notifications.relatedEntityType, 'shipment_fulfillments'), eq(s.notifications.relatedEntityId, fulfillment.id)),
+      ),
       driverUserId != null ? eq(s.notifications.userId, driverUserId) : undefined,
     ));
     if (
@@ -866,4 +866,3 @@ export async function completeExternalCarrierDispatchOrder(
 
   return { ok: true, tripId: trip.tripId, fulfillmentId: input.fulfillmentId, replayed };
 }
-
