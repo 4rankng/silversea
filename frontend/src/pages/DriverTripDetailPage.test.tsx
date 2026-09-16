@@ -1064,6 +1064,10 @@ describe('busy-trip recovery', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     await waitFor(() => expect(board).toHaveBeenCalledOnce());
+    // Card 20260916_8: the backend's busy-trip message must reach the driver
+    // through BOTH surfaces — the transient toast (message text as thrown by
+    // the API layer) and the inline banner.
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.stringContaining('Xe đang chạy chuyến TRP-TEST-1') })));
     expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
     if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
     else {
