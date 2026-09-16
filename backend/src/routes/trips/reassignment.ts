@@ -26,13 +26,13 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
   const data = req.body;
   if (data.expectedVersion !== undefined
       && (!Number.isInteger(data.expectedVersion) || data.expectedVersion <= 0)) {
-    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+    throw new ApiError(400, 'Phiên bản chuyến đi không hợp lệ');
   }
   if (data.carrierType === 'OWN' && (!data.truckId || !data.driverId)) {
-    return res.status(400).json({ error: 'truckId và driverId là bắt buộc cho xe nhà' });
+    throw new ApiError(400, 'truckId và driverId là bắt buộc cho xe nhà');
   }
   if (data.carrierType === 'EXTERNAL' && (!data.externalCarrierId && !data.externalPlateNumber)) {
-    return res.status(400).json({ error: 'Vui lòng chọn đối tác xe ngoài hoặc nhập biển số' });
+    throw new ApiError(400, 'Vui lòng chọn đối tác xe ngoài hoặc nhập biển số');
   }
   const trip = await loadReassignmentGuardContext(id);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');

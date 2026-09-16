@@ -6,6 +6,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { tripContainerBatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 
 import { getUser } from '../../middleware/auth';
 import { batchUpsertTripContainers } from '../../services/forwarder.service';
@@ -59,7 +60,7 @@ router.get('/:id/instructions', asyncHandler(async (req: Request, res: Response)
 router.put('/:id/instructions', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   if (!Number.isFinite(tripId) || tripId <= 0) {
-    return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
+    throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   }
   const parsed = upsertTripInstructionsSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);

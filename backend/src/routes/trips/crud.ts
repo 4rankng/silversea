@@ -67,7 +67,7 @@ router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req
   // itself cannot encode this because it is shared with the frontend, which
   // does not see the server-side flag.
   if (config.shipmentFirstCreate && data.shipmentId == null) {
-    return res.status(400).json({ error: 'shipmentId là bắt buộc khi SHIPMENT_FIRST_CREATE đang bật' });
+    throw new ApiError(400, 'shipmentId là bắt buộc khi SHIPMENT_FIRST_CREATE đang bật');
   }
   const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await createTripWriteCommand(data, getUser(req), idempotencyKey);
@@ -82,7 +82,7 @@ router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req
 router.post('/:id/copy', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const tripId = Number(req.params.id);
   if (!Number.isInteger(tripId) || tripId <= 0) {
-    return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
+    throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   }
   const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await copyTripWriteCommand(tripId, getUser(req), idempotencyKey);
@@ -223,7 +223,7 @@ router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) =>
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  if (isNaN(id)) return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
+  if (isNaN(id)) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   // F6: attach the factory-site view (snapshot preferred, live join for
   // legacy rows) alongside the composite detail.
   const [trip, factorySite] = await Promise.all([
@@ -236,14 +236,14 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)
 router.delete('/:id', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  if (isNaN(id)) return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
+  if (isNaN(id)) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const rawExpectedVersion = req.query.expectedVersion
     ?? (req.body as Record<string, unknown> | undefined)?.expectedVersion;
   const expectedVersion = rawExpectedVersion === undefined
     ? undefined
     : Number(rawExpectedVersion);
   if (expectedVersion !== undefined && (!Number.isInteger(expectedVersion) || expectedVersion <= 0)) {
-    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+    throw new ApiError(400, 'Phiên bản chuyến đi không hợp lệ');
   }
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
