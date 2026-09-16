@@ -96,6 +96,12 @@ Lỗi nằm trong form đang mở, sát trường cần sửa và đọc đượ
 
 ## 4. Lệnh Chạy Ngoài
 
+**Bản chất nghiệp vụ.** Lệnh chạy ngoài là những lô/con hàng **không do SilverSea tạo ra**, mà đi xin từ bên ngoài để tránh xe chạy rỗng trong những hôm không đủ lệnh hoặc đoạn chạy xa nhà. Đây là **một dạng lô hàng đặc biệt**:
+
+- Doanh thu chỉ gồm **cước do khách báo giá** và **các phí chi hộ** — không áp bảng định mức cước nội bộ.
+- Là lô đặc biệt được **bỏ qua nhiều thao tác hoặc chi phí** không áp dụng; danh sách bước bỏ qua cụ thể cần chốt lại với nghiệp vụ khi triển khai.
+- Vẫn là lô hàng đầy đủ về quy trình vận hành (xem các mục dưới): chỉ nới phần thuộc danh mục và định mức, không nới chất lượng dữ liệu và phân quyền.
+
 ### 4.1 Lựa Chọn Và Phạm Vi Áp Dụng
 
 Lựa chọn **Lệnh chạy ngoài (Tối ưu xe rỗng)** mặc định tắt và nằm ở vị trí dễ thấy đầu form.

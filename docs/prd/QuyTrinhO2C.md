@@ -132,6 +132,8 @@ Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các 
 
 **Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
+Bản chất: lệnh chạy ngoài là hàng **không do SilverSea tạo ra**, đi xin từ bên ngoài cho ngày thiếu lệnh hoặc đoạn chạy xa nhà — chỉ có **cước do khách báo** và **phí chi hộ**, không áp định mức nội bộ; là dạng lô đặc biệt được bỏ qua nhiều thao tác/chi phí không áp dụng (danh sách bỏ qua cụ thể chốt khi triển khai).
+
 Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
 ## 5. Phân bổ và phát lệnh
