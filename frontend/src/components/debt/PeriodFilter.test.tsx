@@ -44,7 +44,7 @@ describe('PeriodFilter', () => {
       />,
     );
 
-    const inputs = screen.getAllByDisplayValue(/2026-07-/);
+    const inputs = screen.getAllByDisplayValue(/07\/2026$/);
     expect(inputs).toHaveLength(2);
     inputs.forEach(input => {
       expect((input as HTMLElement).className).toContain('w-full');

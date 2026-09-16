@@ -54,10 +54,11 @@ describe('BaseSalaryEditModal', () => {
     renderModal();
     const dateInput = screen.getByLabelText('Ngày hiệu lực') as HTMLInputElement;
     expect(dateInput).toBeTruthy();
-    expect(dateInput.type).toBe('date');
+    expect(dateInput.type).toBe('text');
     const expectedDate = new Date();
-    const firstOfNext = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 1).toISOString().slice(0, 10);
-    expect(dateInput.value).toBe(firstOfNext);
+    const firstOfNext = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 1);
+    const expected = `${String(firstOfNext.getDate()).padStart(2, '0')}/${String(firstOfNext.getMonth() + 1).padStart(2, '0')}/${firstOfNext.getFullYear()}`;
+    expect(dateInput.value).toBe(expected);
   });
 
   it('rejects empty and negative amounts — the Lưu button disables', async () => {

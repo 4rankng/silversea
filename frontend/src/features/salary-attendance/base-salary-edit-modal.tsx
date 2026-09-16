@@ -54,7 +54,10 @@ export function BaseSalaryEditModal({
       // Default to the first day of next month.
       const now = new Date();
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      setEffectiveDate(nextMonth.toISOString().slice(0, 10));
+      // Local-midnight ISO conversion would slip a day in timezones ahead of
+      // UTC (2026-10-01 local +07 -> 2026-09-30Z), so build the ISO date
+      // from the calendar fields directly.
+      setEffectiveDate(`${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`);
     }
   }, [isOpen, currentBaseSalary]);
 
