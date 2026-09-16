@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
+import { parseId } from '../utils/parse-id';
 import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../../services/advance.service';
 import { runIdempotent } from '../../services/idempotency.service';
 
@@ -87,7 +88,7 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 
 router.get('/advance-settlements/:id', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
-  const settlement = await getAdvanceSettlement(Number(req.params.id));
+  const settlement = await getAdvanceSettlement(parseId(req.params.id, 'ID phiếu thanh toán'));
   if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
   if (settlement.forwarderId !== forwarder.id) throw new ApiError(403, 'Không có quyền truy cập');
   res.json(settlement);
@@ -95,7 +96,7 @@ router.get('/advance-settlements/:id', asyncHandler(async (req: Request, res: Re
 
 router.get('/advance-settlements/:id/export', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
-  const id = Number(req.params.id);
+  const id = parseId(req.params.id, 'ID phiếu thanh toán');
   const settlement = await getAdvanceSettlement(id);
   if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
   if (settlement.forwarderId !== forwarder.id) throw new ApiError(403, 'Không có quyền truy cập');
