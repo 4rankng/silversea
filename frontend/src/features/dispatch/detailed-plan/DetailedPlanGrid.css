@@ -549,6 +549,13 @@
   line-height: var(--ops-table-primary-line-height);
 }
 
+/* Container codes never render bold and never wrap (user ruling 2026-09-16). */
+.detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
+  font-size: var(--text-caption-size);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .detailed-plan-grid__line--muted {
   /* Fallback is the WCAG-passing slate-500 (4.76:1 on white, 4.55:1 on the
      hover tint): the previous #94a3b8 fallback resolved whenever
