@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { Calendar } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -174,7 +173,6 @@ export function ContainerLineRow({
             aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chưa có'}`}
             title="Nhấn để chọn giờ hẹn đóng/trả"
           >
-            <Calendar size={13} className="cus-appointment-trigger__icon" aria-hidden="true" />
             <span className={draft.customerAppointmentAt ? 'cus-appointment-trigger__text' : 'cus-appointment-trigger__text cus-appointment-trigger__text--empty'}>
               {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
             </span>

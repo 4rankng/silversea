@@ -269,26 +269,6 @@
 }
 
 /* ── Lệnh chạy ngoài toggle (MasterDataNhaMay §4.1) ───────────────────────── */
-.csc-adhoc-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px dashed var(--line, #d8d3cb);
-  border-radius: 10px;
-  background: var(--bg-2, #f7f4ee);
-  font-size: var(--text-body-size);
-  font-weight: 600;
-  color: var(--fg-1, #222);
-  margin-bottom: 4px;
-}
-
-.csc-adhoc-toggle input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--ink, #1c1c1c);
-}
-
 /* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
  * already entered). Renders BELOW the input hint so the field stays valid;
  * orange tone to distinguish from a hard `error` (red). The link inside is

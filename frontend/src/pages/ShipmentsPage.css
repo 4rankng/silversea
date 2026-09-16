@@ -1949,11 +1949,6 @@
   box-shadow: 0 0 0 1px var(--brand-600, #005a2d);
 }
 
-.cus-appointment-trigger__icon {
-  flex-shrink: 0;
-  color: var(--brand-600, #005a2d);
-}
-
 .cus-appointment-trigger__text {
   overflow: hidden;
   text-overflow: ellipsis;

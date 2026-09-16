@@ -575,18 +575,6 @@ export function ShipmentCreateWorkspace() {
       <h1 className="csc-page__title">Tạo lô hàng</h1>
       <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
-        {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1) — fixed at the very top of
-            the intake form, visible without scrolling. Toggling never clears
-            typed data; it only switches validation + field locking. */}
-        <label className="csc-adhoc-toggle" data-field-id="shipment-is-adhoc">
-          <input
-            type="checkbox"
-            checked={form.isAdHoc}
-            onChange={(event) => update('isAdHoc', event.target.checked)}
-            disabled={Boolean(saving)}
-          />
-          <span>Lệnh chạy ngoài (Tối ưu xe rỗng)</span>
-        </label>
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
