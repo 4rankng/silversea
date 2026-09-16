@@ -48,7 +48,16 @@ export function TimePanel({ value, onPick, onApply }: { value: string; onPick: (
     }
   };
   const applyExact = () => {
-    if (!isTime(text)) { setInvalid(true); return; }
+    if (!isTime(text)) {
+      setInvalid(true);
+      // Minute-first on an empty value leaves '--:MM' — refusing to invent
+      // the hour is correct, but a bare error is a dead end: guide the user
+      // to the hour column instead.
+      if (draft.hour == null && draft.minute != null) {
+        root.current?.querySelector<HTMLElement>('[aria-label="Giờ 00–23"]')?.focus();
+      }
+      return;
+    }
     onPick(text);
     onApply?.(text);
   };
