@@ -161,7 +161,7 @@ export async function recordDriverFulfillmentProgress(args: {
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
@@ -254,7 +254,7 @@ export async function listDriverFulfillmentProgress(
   fulfillmentId: number,
   driverId: number,
 ): Promise<DriverProgressEvent[]> {
-  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId, { includeCanceled: true });
   const rows = await db.select().from(s.driverProgressEvents)
     .where(and(
       eq(s.driverProgressEvents.tripId, ownedTrip.tripId),
@@ -435,7 +435,7 @@ export async function completeOwnedFulfillmentTrip(args: {
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');

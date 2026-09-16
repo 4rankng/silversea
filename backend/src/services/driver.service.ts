@@ -584,7 +584,7 @@ export async function getDriverFulfillmentDetail(
   driverId: number,
   fulfillmentId: number,
 ): Promise<DriverFulfillmentDetail> {
-  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId, { includeCanceled: true });
   const trip = await getDriverTripDetail(driverId, ownedTrip.tripId);
   if (!trip) {
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
