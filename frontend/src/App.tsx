@@ -1,7 +1,6 @@
 import React, { lazy, Suspense, type ReactElement } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { ConnectionGate } from './components/shared/ConnectionGate';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
 import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
@@ -405,7 +404,7 @@ export default function App() {
         <ToastProvider>
           <MonthProvider>
             <SearchProvider>
-              <ConnectionGate><AppRoutes /></ConnectionGate>
+              <AppRoutes />
             </SearchProvider>
           </MonthProvider>
         </ToastProvider>

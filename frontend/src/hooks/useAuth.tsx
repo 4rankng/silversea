@@ -5,7 +5,6 @@ import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
-import { AuthRecoveryGate } from '../components/shared/AuthRecoveryGate';
 
 export interface AuthUser {
   userId: number;
@@ -248,9 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {(!error || !getToken() || user) && children}
-      {error && getToken() && <AuthRecoveryGate pending={isFetching}
-        retry={() => void refetch()} logout={() => logout()} />}
+      {children}
     </AuthContext.Provider>
   );
 }
