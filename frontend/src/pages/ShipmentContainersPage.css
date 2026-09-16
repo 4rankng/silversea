@@ -209,7 +209,6 @@
 .shipment-container-ledger__vehicle-state { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: var(--text-caption-size); line-height: 1.4; white-space: normal; }
 .shipment-container-ledger__vehicle-state svg { width: 12px; height: 12px; margin-right: 4px; }
 .shipment-container-ledger__plate--missing { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: var(--text-caption-size); line-height: 1.4; white-space: normal; }
-.shipment-container-ledger__vehicle-guidance { color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-medium); line-height: 1.35; }
 
 .shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
 .shipment-container-ledger__cell-stack > .shipment-container-ledger__cell-trigger + .shipment-container-ledger__cell-trigger { padding-top: 5px; border-top: 1px solid var(--line); }
