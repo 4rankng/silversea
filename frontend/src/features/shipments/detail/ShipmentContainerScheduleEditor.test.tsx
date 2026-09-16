@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
@@ -28,29 +28,27 @@ describe('ScheduleEditorBody', () => {
     const { container } = render(<ScheduleEditorBody {...props} />);
 
     // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
-    const labels = Array.from(
-      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label > span:first-child'),
-    );
+    const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
+    const labels = Array.from(grid.querySelectorAll('label'));
     expect(labels.map((label) => label.textContent)).toEqual(['Giờ trả hàng', 'Ngày trả hàng']);
 
-    const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
-    const timeInput = grid.querySelector('input[type="text"]')!;
-    const dateInput = grid.querySelector('input[type="date"]')!;
+    const timeInput = grid.querySelector('input[type="text"][placeholder="HH:mm"]')!;
+    const dateInput = grid.querySelector('input[data-date-input]')!;
     // DOM order: time input precedes the date input.
     expect(timeInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Native time fields ignore lang on some browsers; explicit text avoids AM/PM.
+    // Explicit 24h text entry avoids AM/PM; the buffered date field shows DD/MM/YYYY.
     expect(timeInput.getAttribute('placeholder')).toBe('HH:mm');
     expect((timeInput as HTMLInputElement).value).toBe('08:00');
-    expect(dateInput.getAttribute('lang')).toBe('en-GB');
+    expect(dateInput.getAttribute('placeholder')).toBe('DD/MM/YYYY');
+    expect((dateInput as HTMLInputElement).value).toBe('10/09/2026');
   });
 
   it('uses đóng-hàng labels for EXPORT rows', () => {
     const props = baseProps({ row: baseRow({ direction: 'EXPORT' }) });
     const { container } = render(<ScheduleEditorBody {...props} />);
 
-    const labels = Array.from(
-      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label > span:first-child'),
-    );
+    const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
+    const labels = Array.from(grid.querySelectorAll('label'));
     expect(labels.map((label) => label.textContent)).toEqual(['Giờ đóng hàng', 'Ngày đóng hàng']);
   });
 
@@ -83,13 +81,14 @@ describe('ScheduleEditorBody', () => {
     const { container } = render(<ScheduleEditorBody {...props} />);
 
     // Appointment date + the lot transport date — the transport input is the
-    // second date field, under its own section.
-    const dateInputs = Array.from(container.querySelectorAll('input[type="date"]'));
+    // second buffered date field, under its own section.
+    const dateInputs = Array.from(container.querySelectorAll('input[data-date-input]'));
     expect(dateInputs).toHaveLength(2);
     const transport = dateInputs[1];
-    expect((transport as HTMLInputElement).value).toBe('2026-09-14');
+    expect((transport as HTMLInputElement).value).toBe('14/09/2026');
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    fireEvent.change(transport, { target: { value: '2026-09-20' } });
+    // The buffered field emits ISO only for complete DD/MM/YYYY entries.
+    fireEvent.change(transport, { target: { value: '20/09/2026' } });
     expect(onTransportDateChange).toHaveBeenCalledWith('2026-09-20');
   });
 
@@ -97,33 +96,45 @@ describe('ScheduleEditorBody', () => {
     const props = baseProps({ cargoMode: 'FCL' });
     const { container } = render(<ScheduleEditorBody {...props} />);
 
-    expect(container.querySelectorAll('input[type="date"]')).toHaveLength(1);
+    expect(container.querySelectorAll('input[data-date-input]')).toHaveLength(1);
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
   });
 
   it('disables the lot transport date while saving or when the shipment schedule is read-only', () => {
     const props = baseProps({ cargoMode: 'LCL', canEditTransport: false });
     const { container, rerender } = render(<ScheduleEditorBody {...props} />);
-    expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
+    expect((container.querySelectorAll('input[data-date-input]')[1] as HTMLInputElement).disabled).toBe(true);
 
     rerender(<ScheduleEditorBody {...baseProps({ cargoMode: 'LCL', canEditTransport: true, saving: true })} />);
-    expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
+    expect((container.querySelectorAll('input[data-date-input]')[1] as HTMLInputElement).disabled).toBe(true);
   });
+
   it('accepts arbitrary 24h minutes and selects from the shared time panel', async () => {
     const props = baseProps();
     render(<ScheduleEditorBody {...props} />);
-    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '20:46' } });
+    const timeField = screen.getByLabelText('Giờ trả hàng');
+    fireEvent.change(timeField, { target: { value: '20:46' } });
     expect(props.onScheduleTimeChange).toHaveBeenCalledWith('20:46');
-    fireEvent.click(screen.getByLabelText('Giờ trả hàng'));
-    const minutePanel = screen.getByRole('listbox', { name: 'Phút 00–59' });
-    fireEvent.click(minutePanel.querySelector('[role=option]')!);
+
+    // The shared panel opens on click and carries the driver-facing listboxes.
+    fireEvent.click(timeField);
+    const panel = screen.getByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
+    const minuteList = within(panel).getByRole('listbox', { name: 'Phút 00–59' });
+    fireEvent.click(minuteList.querySelector('[role=option]')!);
+    // Picking a minute keeps the panel open — only Xong (or dismissal) closes.
+    expect(screen.getByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' })).toBeInTheDocument();
     expect(props.onScheduleTimeChange).toHaveBeenCalledWith('08:00');
+
+    // Xong is the explicit close.
+    fireEvent.click(within(panel).getByRole('button', { name: 'Xong' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByLabelText('Giờ trả hàng')).toHaveFocus();
+
+    // Reopen from the keyboard and dismiss with Escape.
     fireEvent.keyDown(screen.getByLabelText('Giờ trả hàng'), { key: 'ArrowDown', altKey: true });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText('Giờ trả hàng'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByLabelText('Giờ trả hàng')).toHaveFocus();
   });
 

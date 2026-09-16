@@ -149,6 +149,22 @@ async function seedContainer(
   return row;
 }
 
+/** Lift/dropoff completeness authority is the container's own port columns
+ * (same columns the create form writes); snapshot fallbacks must be
+ * explicitly PORT-typed. Seeds a port pair for container fixtures. */
+async function seedLiftDropPorts() {
+  const [liftPort] = await db.insert(s.ports).values({
+    code: `LP${lettersTag(6)}`,
+    name: `Cảng nâng ${suffix}`.slice(0, 255),
+  }).returning();
+  const [dropPort] = await db.insert(s.ports).values({
+    code: `DP${lettersTag(6)}`,
+    name: `Cảng hạ ${suffix}`.slice(0, 255),
+  }).returning();
+  createdPortIds.push(liftPort.id, dropPort.id);
+  return { liftPortId: liftPort.id, dropPortId: dropPort.id };
+}
+
 before(async () => {
   customerId = (await seedCustomer()).id;
   containerTypeId = (await seedContainerType()).id;
@@ -1913,10 +1929,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `DON${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(shipment.id, container.id, {
@@ -1996,10 +2015,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: null,
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `LIN${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       shippingLineName: 'ONE',
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
@@ -2031,10 +2053,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(complete.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const completeContainer = await seedContainer(complete.id, {
       containerNumber: `MC-${marker}`.slice(0, 50),
       routeId: completeRoute.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(complete.id, completeContainer.id, {
@@ -2363,10 +2388,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `NOD${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(shipment.id, container.id, {});

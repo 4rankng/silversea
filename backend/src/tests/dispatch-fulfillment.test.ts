@@ -21,7 +21,7 @@ import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { createHandoff } from '../services/dispatch-handoff.service';
 import { listDispatchQueue } from '../services/dispatch-planning.service';
-import { notificationUrlForRole } from '../services/notification.service';
+import { getNotifications, notificationUrlForRole } from '../services/notification.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -513,8 +513,59 @@ describe('dispatch fulfillment workflow routes', () => {
         relatedEntityId: accepted.fulfillmentId,
         targetDriverId: resources.driver.id,
       }, Role.DRIVER),
-      `/my-trips/${accepted.fulfillmentId}`,
+      // Legacy queued pushes carry a fulfillment ID; the pure helper must
+      // never treat it as a trip ID — the safe fallback is the trips list.
+      // In-app list reads resolve the fulfillment to the driver's own trip.
+      '/my-trips',
     );
+  });
+
+  test('in-app reads resolve legacy fulfillment references to the driver own trip', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const resources = await createOwnedResources();
+
+    const dispatch = await apiFetch<{ trip: { id: number } }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-01T08:00:00+07:00',
+        plannedEndAt: '2026-08-01T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    const tripId = dispatch.data.trip.id;
+    createdTripIds.push(tripId);
+
+    // Legacy row shape: older dispatch notifications stored the fulfillment ID.
+    await db.insert(s.notifications).values({
+      userId: resources.driverUser.id,
+      type: 'TRIP_DISPATCHED',
+      title: 'Điều phối chuyến',
+      message: 'Tài xế đã được phân công',
+      relatedEntityType: 'shipment_fulfillments',
+      relatedEntityId: accepted.fulfillmentId,
+      isRead: false,
+    });
+
+    const list = await getNotifications(resources.driverUser.id, 1, 20, Role.DRIVER);
+    const resolved = list.items.find((item) => (
+      item.relatedEntityType === 'trips' && item.relatedEntityId === tripId
+    ));
+    assert.ok(resolved, 'legacy fulfillment reference must resolve to the driver own trip');
+    assert.equal(notificationUrlForRole({
+      type: NotificationType.TRIP_DISPATCHED,
+      title: resolved.title,
+      message: resolved.message,
+      relatedEntityType: resolved.relatedEntityType ?? undefined,
+      relatedEntityId: resolved.relatedEntityId ?? undefined,
+    }, Role.DRIVER), `/my-trips/${tripId}`);
   });
 
   test('dispatch succeeds when trailer type is unrecorded (master-data import leaves it blank)', async () => {
