@@ -108,6 +108,7 @@
      card itself refuses to shrink below its content and bleeds into the
      neighboring column. */
   min-width: 0;
+  align-content: start;
   gap: 12px;
 }
 
@@ -185,6 +186,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-self: start;
 }
 
 .trip-pod__action,
@@ -384,6 +386,18 @@
        sit empty and starve the two real cards of width. minmax(0,1fr) keeps
        the tracks content-independent so wide children can't inflate them. */
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 8px;
+    align-content: start;
+  }
+  .trip-pod__card {
+    /* Both groups share content-sized header, action and file tracks.
+       A wrapped heading grows the shared header, never the button row. */
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    align-items: start;
+  }
+  .trip-pod__grid[data-editable="false"] .trip-pod__card {
+    grid-row: span 2;
   }
   /* Side-by-side groups separate with a column hairline (the SummaryRail
      ruled-divider convention) instead of the mobile border-top divider.

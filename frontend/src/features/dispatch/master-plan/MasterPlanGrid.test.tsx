@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
@@ -36,6 +36,27 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it('retains a failed note draft and prevents duplicate save requests while pending (DSP-FU-004)', async () => {
+    let rejectSave!: (reason: Error) => void;
+    const onUpdateNotes = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSave = reject; }));
+    render(<MasterPlanGrid items={[item(), item({ id: 2 })]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })[0]);
+    const notesArea = screen.getByLabelText('Ghi chú điều phối');
+    fireEvent.change(notesArea, { target: { value: 'Dòng một\nDòng hai' } });
+    fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' }));
+    fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
+    expect(onUpdateNotes).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Ghi chú điều phối')).toHaveValue('Dòng một\nDòng hai');
+    await act(async () => rejectSave(new Error('network')));
+    expect(screen.getByRole('alert')).toHaveTextContent('Không lưu được ghi chú');
+    expect(screen.getByLabelText('Ghi chú điều phối')).toHaveValue('Dòng một\nDòng hai');
+
+    onUpdateNotes.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(screen.queryByLabelText('Ghi chú điều phối')).toBeNull());
+    expect(onUpdateNotes).toHaveBeenCalledTimes(2);
+  });
   it('keeps bare Enter as a newline when editing dispatch notes; Ctrl+Enter saves', () => {
     const onUpdateNotes = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
@@ -375,7 +396,7 @@ describe('MasterPlanGrid', () => {
     // The "Xem chi tiết" button is visible
     const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
     expect(detailBtn).toBeTruthy();
-    expect(detailBtn.textContent).toBe('Xem chi tiết');
+    expect(detailBtn).toHaveTextContent('Chi tiết');
 
     // Click "Chi tiết" to open the modal
     fireEvent.click(detailBtn);
@@ -481,8 +502,8 @@ describe('MasterPlanGrid', () => {
   it('keeps the per-row container detail action compact on desktop and touch-safe on narrow screens', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
-    expect(css).toContain('min-height: 28px');
-    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger\s*\{[\s\S]*?min-height:\s*44px;/);
+    expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*44px;/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
@@ -539,43 +560,28 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('background: color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
     expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
     expect(css).toContain('@container (max-width: 599px)');
-    expect(css).toContain('.master-plan-grid__cell--lift-port,\n  .master-plan-grid__cell--drop-port');
+    expect(css).toContain('.master-plan-grid__cell--lift-port { grid-area: lift; }');
+    expect(css).toContain('.master-plan-grid__cell--drop-port { grid-area: drop;');
     expect(css).toContain('color: var(--fg-1)');
     expect(css).toContain('color: var(--fg-2)');
     expect(css).toContain('color: var(--fg-3)');
   });
 
-  // User-reported 2026-09-10 (tablet screenshot): one-line cells 7 (Phân bổ
-  // nhà xe) and 8 (Ghi chú) spanned the full row in the 600-900px band,
-  // leaving half of each row dead. They now pair side-by-side: action sits
-  // the left column (odd child), notes the right (even child → the
-  // nth-child(even) divider), and the ≤599px phone spans are untouched.
-  it('pairs every cell 2-col in phone + 600-900px bands, collapsing only below 360px', () => {
+  it('pairs related phone/tablet fields and gives long routes and notes the full record width', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const start = css.indexOf('@container (max-width: 900px)');
     const phoneStart = css.indexOf('@container (max-width: 599px)');
-    const bandStart = css.indexOf('@container (min-width: 600px) and (max-width: 900px)');
-    expect(phoneStart).toBeGreaterThan(-1);
-    expect(bandStart).toBeGreaterThan(phoneStart);
-
-    // Phone band pairs EVERY cell side-by-side (record-table parity per
-    // reporter request, commit b0761a26): no cell spans the full row.
-    const phoneBand = css.slice(phoneStart, bandStart);
-    expect(phoneBand).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
-    expect(phoneBand).not.toContain('grid-column: 1 / -1');
-
-    // Single-column collapse lives ONLY below 360px.
-    const narrowStart = css.indexOf('@container (max-width: 360px)');
-    expect(narrowStart).toBeGreaterThan(phoneStart);
-    const narrowBand = css.slice(narrowStart, bandStart);
-    expect(narrowBand).toContain('display: block');
-
-    // 600-900px band: cells 7|8 pair; the action cell keeps normal flow
-    // (odd child → left column) with its inline-start suppressed by source
-    // order, not !important.
-    const band = css.slice(bandStart);
-    expect(band).not.toContain('grid-column: 1 / -1');
-    expect(band).toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?border-inline-start:\s*0/);
-    expect(band).not.toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?!important/);
+    expect(start).toBeGreaterThan(-1);
+    expect(phoneStart).toBeGreaterThan(start);
+    const record = css.slice(start, phoneStart);
+    expect(record).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(record).toContain('"schedule customer"');
+    expect(record).toContain('"route route"');
+    expect(record).toContain('"lift drop"');
+    expect(record).toContain('"cargo allocation"');
+    expect(record).toContain('"notes notes"');
+    expect(record).toContain('overflow-wrap: anywhere');
+    expect(css.slice(phoneStart)).toContain('padding: 8px 10px');
   });
 
   // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
@@ -613,10 +619,12 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
-    fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '2026-08-01' } });
+    fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '01/08/2026' } });
+    fireEvent.blur(screen.getByLabelText('Từ ngày giao'));
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-08-01' });
 
-    fireEvent.change(screen.getByLabelText('Đến ngày giao'), { target: { value: '2026-08-31' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày giao'), { target: { value: '31/08/2026' } });
+    fireEvent.blur(screen.getByLabelText('Đến ngày giao'));
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
   });
 
@@ -632,22 +640,18 @@ describe('MasterPlanFilters', () => {
     expect(container.querySelector('.master-plan-filters__actions')?.textContent).toBe('Tạo lô hàng');
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('display: flex');
-    expect(css).toContain('flex-wrap: wrap');
-    expect(css).toContain('flex: 0 1 608px');
-    expect(css).toContain('flex: 0 0 132px');
-    expect(css).toContain('flex: 0 0 180px');
-    expect(css).toContain('flex: 0 0 auto');
-    expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
-    expect(css).toContain('.master-plan-filters__date-inputs');
-    expect(css).toContain('.master-plan-filters__date-range');
-    expect(css).toContain('grid-template-columns: minmax(280px, 360px) max-content');
+    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(toolbar).toContain('display: grid');
+    expect(toolbar).toContain('grid-template-columns: repeat(12, minmax(0, 1fr))');
+    expect(toolbar).toContain('align-items: end');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
+    expect(css).toContain('grid-template-columns: minmax(0, 320px) max-content');
     expect(css).toContain('.master-plan-filters__date-action');
     expect(css).toContain('.master-plan-filters__actions');
     expect(css).toContain('.drawer.master-plan-filters__drawer');
     expect(css).toContain('max-width: 100%');
-    expect(css).toContain('padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 14px;');
-    expect(css).toContain('padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));');
+    expect(css).toContain('padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;');
+    expect(css).toContain('padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));');
   });
 
   it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {

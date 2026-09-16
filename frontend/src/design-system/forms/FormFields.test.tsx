@@ -25,8 +25,10 @@ describe('form field accessibility', () => {
     render(<><DateField label="Ngày bắt buộc" value="" onChange={vi.fn()} required /><DateTimeField label="Giờ bắt buộc" value="" onChange={vi.fn()} required /><DateField label="Ngày dự kiến" value="" onChange={vi.fn()} /></>);
     expect(screen.getByLabelText(/Ngày bắt buộc/)).toBeRequired();
     expect(screen.getByLabelText(/Ngày bắt buộc/)).toBeInvalid();
-    expect(screen.getByLabelText(/Giờ bắt buộc/)).toBeRequired();
-    expect(screen.getByLabelText(/Giờ bắt buộc/)).toBeInvalid();
+    for (const label of ['Giờ — Giờ bắt buộc', 'Ngày — Giờ bắt buộc']) {
+      expect(screen.getByLabelText(label)).toBeRequired();
+      expect(screen.getByLabelText(label)).toBeInvalid();
+    }
     expect(screen.getByLabelText('Ngày dự kiến')).not.toBeRequired();
   });
   it('associates a stable TextField id with its label and error', () => {

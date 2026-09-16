@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
+import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -245,7 +245,7 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it.each(['COMPLETED', 'CANCELLED'])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
+  it.each([TripStatus.COMPLETED, TripStatus.CANCELED])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
     });
@@ -254,6 +254,20 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
+  });
+
+  it('DRV-FOLLOWUP-004 keeps a cancelled order read-only while retaining document access', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: TripStatus.CANCELED }), isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Tác vụ tài xế');
+    expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hoàn tất lệnh vận chuyển/ })).toBeNull();
+    expect(screen.getByText('Chuyến đã hủy')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toHaveAttribute('href', '/my-trips/88/pod');
   });
 
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.

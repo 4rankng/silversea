@@ -69,6 +69,10 @@ function formatContainerAppointment(value: string) {
   return formatDateTime24(value) || value;
 }
 
+function hasDateDraft(scope: ParentNode | null | undefined, invalidOnly = false) {
+  return Array.from(scope?.querySelectorAll<HTMLInputElement>('[data-date-input], [data-split-datetime] input:not([type="hidden"])') ?? []).some((input) => input.value.trim() !== '' && (!invalidOnly || !input.validity.valid));
+}
+
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
@@ -473,8 +477,8 @@ export function ShipmentCreateWorkspace() {
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm || form.extraDeliveryDates.some(Boolean))
-      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
+      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.extraDeliveryDates.some(Boolean)) || hasDateDraft(workspaceFormRef.current, true)
+      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
       return;
@@ -496,7 +500,6 @@ export function ShipmentCreateWorkspace() {
       extraDeliveryDates: [],
     }));
     setContainers([newContainer()]);
-    setCustomerNotes('');
     clearFeedback();
   }
 
@@ -505,8 +508,8 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
-  function removeContainer(row: ContainerRow) {
-    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '');
+  function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
+    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
       setPendingContainerDelete(row);
       return;
@@ -535,10 +538,7 @@ export function ShipmentCreateWorkspace() {
   function goBack() {
     // Date controls keep incomplete/invalid text locally until it can become
     // a model value. That visible draft still belongs to the user on cancel.
-    const hasDateDraft = Array.from(workspaceFormRef.current?.querySelectorAll<HTMLInputElement>(
-      '[data-date-input], [data-split-datetime] input:not([type="hidden"])',
-    ) ?? []).some((input) => input.value.trim() !== '');
-    if (isDirty || hasDateDraft) {
+    if (isDirty || hasDateDraft(workspaceFormRef.current)) {
       setBackConfirmOpen(true);
       return;
     }
@@ -917,7 +917,7 @@ export function ShipmentCreateWorkspace() {
                   >
                     <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
                   </ShipmentContainerCell>
-                  <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>
+                  <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>
               );})}</>}
             />

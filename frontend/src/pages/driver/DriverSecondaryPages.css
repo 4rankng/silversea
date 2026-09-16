@@ -65,10 +65,6 @@
   color: var(--ink-3);
 }
 
-.driver-payslip__salary strong {
-  font-variant-numeric: tabular-nums;
-}
-
 .driver-payslip__footer {
   color: var(--brand);
   font-size: var(--text-body-size);

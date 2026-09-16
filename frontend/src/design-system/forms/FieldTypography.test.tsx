@@ -18,8 +18,9 @@ describe('shared field typography roles', () => {
       <BufferedUuiDateTimeInput label="Giờ" size="sm" value="" onChange={vi.fn()} />
       <Button size="sm">Lưu</Button>
     </>);
-    for (const name of ['Nội dung', 'Ngày', 'Giờ']) expectCompactField(screen.getByLabelText(name));
-    for (const name of ['Nội dung', 'Ngày', 'Giờ', 'Gợi ý']) expect(screen.getByText(name)).toHaveClass('text-xs', 'leading-[1.5]');
+    for (const name of ['Nội dung', 'Ngày', 'Giờ — Giờ', 'Ngày — Giờ']) expectCompactField(screen.getByLabelText(name));
+    for (const name of ['Nội dung', 'Ngày', 'Gợi ý']) expect(screen.getByText(name)).toHaveClass('text-xs', 'leading-[1.5]');
+    expect(screen.getByText('Giờ')).toHaveClass('split-datetime__label');
     const action = screen.getByRole('button', { name: 'Lưu' });
     expect(action).toHaveClass('max-md:text-[length:var(--text-control-size)]');
     expect(action).not.toHaveClass('max-md:text-[length:var(--text-input-touch-size)]');

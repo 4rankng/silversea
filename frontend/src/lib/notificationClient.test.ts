@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveNotificationRoute } from './notificationClient';
 
 describe('resolveNotificationRoute', () => {
-  it('routes driver trip notifications to the driver task detail page', () => {
+  it('keeps unresolved legacy fulfillment notifications on the driver board rather than guessing a trip id', () => {
     expect(resolveNotificationRoute({
       id: 1,
       userId: 7,
@@ -13,7 +13,7 @@ describe('resolveNotificationRoute', () => {
       relatedEntityId: 88,
       isRead: false,
       createdAt: '2026-08-01T03:00:00.000Z',
-    }, 'DRIVER')).toBe('/my-trips/88');
+    }, 'DRIVER')).toBe('/my-trips');
   });
 
   it('routes trip-keyed driver notifications through the trip-scoped detail route', () => {

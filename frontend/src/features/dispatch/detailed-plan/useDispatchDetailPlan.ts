@@ -33,6 +33,8 @@ export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirectio
  */
 export function useDispatchDetailPlan() {
   const [filters, setFilters] = useState<DetailedPlanFilterState>(createDefaultDetailedPlanFilters);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -123,6 +125,7 @@ export function useDispatchDetailPlan() {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setTotal(response.total);
+        setPage((current) => Math.min(current, Math.max(1, Math.ceil(response.total / PAGE_SIZE))));
         setLoading(false);
       })
       .catch(() => {
@@ -334,24 +337,35 @@ export function useDispatchDetailPlan() {
         expectedShipmentVersion: row.shipmentVersion,
         ...body,
       });
-      setItems((previous) => previous.map((item) => {
-        if (item.fulfillmentId === row.fulfillmentId) {
-          return {
-            ...item,
-            version: result.fulfillmentVersion,
-            shipmentVersion: result.shipmentVersion,
-            isCombined: result.isCombined,
-            classification: result.classification,
-            lotFullyPlated: result.lotFullyPlated,
-            dispatch: { ...item.dispatch, ...result.dispatch },
-            estimates: { ...result.estimates },
-            notes: { ...item.notes, vehicleNote: result.operationalNotes },
-          };
-        }
-        return item.shipmentId === row.shipmentId
-          ? { ...item, shipmentVersion: result.shipmentVersion, lotFullyPlated: result.lotFullyPlated }
-          : item;
-      }));
+      const assignmentStatus = filtersRef.current.assignmentStatus;
+      const nowAssigned = !!result.dispatch.assignedPlate;
+      const invalidatedByFilter = assignmentStatus === 'UNASSIGNED' && nowAssigned
+        || assignmentStatus === 'ASSIGNED' && !nowAssigned;
+      setItems((previous) => previous
+        .filter((item) => !invalidatedByFilter || item.fulfillmentId !== row.fulfillmentId)
+        .map((item) => {
+          if (item.fulfillmentId === row.fulfillmentId) {
+            return {
+              ...item,
+              version: result.fulfillmentVersion,
+              shipmentVersion: result.shipmentVersion,
+              isCombined: result.isCombined,
+              classification: result.classification,
+              lotFullyPlated: result.lotFullyPlated,
+              dispatch: { ...item.dispatch, ...result.dispatch },
+              estimates: { ...result.estimates },
+              notes: { ...item.notes, vehicleNote: result.operationalNotes },
+            };
+          }
+          return item.shipmentId === row.shipmentId
+            ? { ...item, shipmentVersion: result.shipmentVersion, lotFullyPlated: result.lotFullyPlated }
+            : item;
+        }));
+      // A pre-save refresh must not overwrite the saved row/version, even
+      // without an assignment filter. Reconcile counts and the current page
+      // with a fresh background read after invalidating older responses.
+      requestIdRef.current += 1;
+      refetch();
       if (result.lotFullyPlated) {
         setLotBanner(`Lô ${row.shipmentCode ?? row.shipmentId} đã phân xe đủ.`);
       }
@@ -366,7 +380,7 @@ export function useDispatchDetailPlan() {
         : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
       throw mutationError;
     }
-  }, []);
+  }, [refetch]);
 
   /** "Phát lệnh" — issues the dispatch order for an already-planned row,
    *  creating the live trip and flipping the status chip to "Đã phát lệnh". */

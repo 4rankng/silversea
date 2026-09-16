@@ -25,7 +25,7 @@ describe('shipment detail workboard styling', () => {
     expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
-    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*2\s*\/\s*-1;[^}]*align-items:\s*end;/);
+    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*1\s*\/\s*-1;[^}]*align-items:\s*end;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
@@ -45,14 +45,20 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).not.toContain('.shipments-detail-filter select');
     expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;[^}]*max-width:\s*none;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipments-detail-filters__group--selects\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__group--selects\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(220px, 1\.1fr\) minmax\(260px, 1\.3fr\);/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters__date-actions\s*\{[^}]*flex-wrap:\s*nowrap;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    // Narrow layouts retain search plus an explicit disclosure instead of
+    // forcing every filter into tall one-field rows.
+    const narrow = css.slice(css.indexOf('@container shipments-detail (max-width: 1000px)'));
+    expect(narrow).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(narrow).toMatch(/\.shipments-detail-filters \.cus-advanced-toggle\s*\{[^}]*display:\s*inline-flex;/);
+    expect(narrow).toMatch(/\.shipments-detail-filters__advanced\s*\{[^}]*display:\s*none;[^}]*grid-column:\s*1 \/ -1;/);
+    expect(narrow).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(narrow).toMatch(/\.shipments-detail-filters__group--dates,\s*\.shipments-detail-filters__group--selects\s*\{[^}]*display:\s*contents;/);
+    expect(narrow).toMatch(/\.shipments-detail-filters__group--selects > \.shipments-detail-filter:first-child\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(source).toContain('aria-controls="cus-detail-advanced-filters"');
+    expect(source).toContain('data-open={advancedOpen ? \'\' : undefined}');
+    const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 700px)'));
+    expect(tablet).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(130px, 1fr\)\) minmax\(170px, 1\.3fr\) minmax\(100px, \.75fr\) minmax\(130px, 1fr\);/);
+    expect(tablet).toMatch(/\.shipments-detail-filters__group--selects > \.shipments-detail-filter:first-child\s*\{[^}]*grid-column:\s*auto;/);
   });
 
   it('uses a borderless workband rather than an outer card or ruled lines around the filters and ledger', () => {
@@ -61,7 +67,7 @@ describe('shipment detail workboard styling', () => {
     expect(workspace).toMatch(/background:\s*transparent;/);
     expect(workspace).not.toMatch(/(?:border|border-radius|box-shadow)\s*:/);
     expect(header).toMatch(/border-block:\s*0;/);
-    expect(header).toMatch(/padding:\s*16px 18px 0;/);
+    expect(header).toMatch(/padding:\s*8px 0 0;/);
     expect(header).toMatch(/background:\s*transparent;/);
     expect(css).not.toMatch(/\.shipments-detail-workspace\s*\{[^}]*box-shadow:/);
   });
@@ -131,16 +137,18 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*1fr;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?tbody > tr > td\s*\{[^}]*grid-template-columns:\s*88px minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-column:\s*2;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__cell-editor--expanded\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    const phone = css.slice(css.indexOf('@media (max-width: 520px)'));
+    expect(phone).toMatch(/\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(phone).toMatch(/tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-height:\s*44px;/);
+    expect(phone).toMatch(/tbody > tr > :is\(:first-child, :nth-child\(4\), :nth-child\(7\), :nth-child\(8\)\)\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(phone).toMatch(/\.shipment-container-ledger__cell-trigger::before\s*\{[^}]*position:\s*static;[^}]*grid-column:\s*1;[^}]*width:\s*auto;/);
+    expect(phone).toMatch(/\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*1;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1 !important;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block;[^}]*padding:\s*0 0 32px;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell\.shipment-container-ledger__editable-cell\s*\{[^}]*padding:\s*0 0 32px !important;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell::before\s*\{[^}]*display:\s*none;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell > \.shipment-container-ledger__cell-editor\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell \.shipment-container-ledger__cell-trigger\s*\{[^}]*margin:\s*0;/);
+    expect(phone).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block;[^}]*grid-column:\s*1 \/ -1 !important;[^}]*padding:\s*0 0 8px !important;/);
+    expect(phone).toMatch(/\.shipment-container-ledger__editing-cell::before\s*\{[^}]*display:\s*none;/);
+    const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 641px)'));
+    expect(tablet).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(tablet).toMatch(/\.shipment-container-ledger__cell-trigger::before\s*\{[^}]*position:\s*static;/);
   });
 
   it('makes editable values the cell trigger without pencil controls and keeps bounded stacked editor trays', () => {
@@ -162,13 +170,13 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="schedule"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).not.toContain('data-mode="appointment"');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] > input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     // The appointment-popover redesign (7ad16f89) pairs the ngày/giờ fields
     // side by side inside the schedule tray — giờ leads (f495a3c4 order), so
     // the narrow giờ column comes first and the date keeps the wide track.
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid--schedule\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.8fr\)\s*minmax\(0, 1\.2fr\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] > input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;[^}]*border-top:\s*1px solid var\(--line-2\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding-inline:\s*12px;/);
     expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
@@ -195,9 +203,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/shipment-container-ledger__vehicle-pending/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-state/);
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
-    expect(css).toMatch(/shipment-container-ledger__vehicle-guidance/);
+    expect(ledgerSource).not.toContain('shipment-container-ledger__vehicle-guidance');
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
-    expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
+    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
     // Status chips are UUI badges: the component owns fill, ring, and geometry;
     // page CSS only tunes type so a chip can never read as a button.
     expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);
@@ -222,6 +230,6 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/__direction--import\s*\{[^}]*var\(--info/);
     expect(css).not.toMatch(/__direction--export\s*\{[^}]*var\(--brand/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
-    expect(css).not.toMatch(/shipment-container-ledger__vehicle-guidance\s*\{[^}]*var\(--danger\)/);
+    expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 });

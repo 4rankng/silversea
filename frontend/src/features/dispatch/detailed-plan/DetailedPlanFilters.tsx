@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Check, FilterLines, XClose } from '@untitledui/icons';
 import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
@@ -44,8 +44,9 @@ const ASSIGNMENT_OPTIONS = [
  * shared `SearchableMultiSelect` — portal + flip positioning from the
  * dropdown-flip sweep, so the picker never clips or covers lower controls.
  *
- * Facets lazy-load once per popover open; the picker's search input filters
- * the loaded list locally (facet catalogs are bounded, ≤100 rows).
+ * Facets load on open and on the shared picker's debounced search. Each
+ * request belongs to that query/opening, so a late result cannot replace
+ * newer suggestions or leak into a reopened picker.
  */
 function FacetMultiSelect({
   label,
@@ -60,28 +61,17 @@ function FacetMultiSelect({
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [facets, setFacets] = useState<FacetItem[]>([]);
+  const [search, setSearch] = useState('');
   const pickerId = useId();
 
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
-    loadFacets()
+    loadFacets(search || undefined)
       .then((items) => { if (!cancelled) setFacets(items); })
       .catch(() => { if (!cancelled) setFacets([]); });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen]);
-
-  // The picker's search refetches from the server (debounced by the picker),
-  // preserving the original per-keystroke facet query contract.
-  const handleSearch = useCallback((query: string) => {
-    let cancelled = false;
-    loadFacets(query || undefined)
-      .then((items) => { if (!cancelled) setFacets(items); })
-      .catch(() => { if (!cancelled) setFacets([]); });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPickerOpen, search, loadFacets]);
 
   return (
     <div className="detailed-plan-filters__points">
@@ -98,8 +88,11 @@ function FacetMultiSelect({
           selectionLabel={label.toLowerCase()}
           size="sm"
           clearAllLabel="Bỏ chọn tất cả"
-          onOpenChange={setIsPickerOpen}
-          onSearchChange={handleSearch}
+          onOpenChange={(open) => {
+            setIsPickerOpen(open);
+            if (!open) setSearch('');
+          }}
+          onSearchChange={setSearch}
         />
       </div>
     </div>

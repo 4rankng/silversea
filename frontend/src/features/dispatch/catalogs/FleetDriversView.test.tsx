@@ -98,10 +98,10 @@ describe('FleetDriversView (dispatcher read-only)', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('Nguyễn Văn B')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa tài xế Nguyễn Văn B' })).toBeTruthy();
     expect(screen.getByText('0901234567')).toBeTruthy();
     expect(screen.getByText('0901234567').closest('td')).toHaveAttribute('data-label', 'Số điện thoại');
-    expect(screen.getByText('Trần Thị C')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa tài xế Trần Thị C' })).toBeTruthy();
   });
 
   it('shows loading then empty states', () => {

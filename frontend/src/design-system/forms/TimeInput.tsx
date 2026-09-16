@@ -73,7 +73,14 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
           event.preventDefault(); event.stopPropagation(); setKeyboardPicker(true); setOpen(true);
         } else if (event.key === 'Escape' && open) {
           event.preventDefault(); event.stopPropagation(); close();
-        } else if (event.key === 'Enter' || event.key === 'Tab') setOpen(false);
+        } else if (event.key === 'Enter') {
+          setTouched(true);
+          // Match the date fields: finishing the open picker must not also
+          // submit its surrounding schedule editor. Invalid drafts never
+          // reach a parent's Enter shortcut, even when the picker is closed.
+          if (open || validation) { event.preventDefault(); event.stopPropagation(); }
+          setOpen(false);
+        } else if (event.key === 'Tab') setOpen(false);
       }}
     />
     {invalid && <small id={`${id}-error`} className="time-input__error">{validation}</small>}

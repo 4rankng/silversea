@@ -9,11 +9,12 @@ describe('Button', () => {
     render(<Button size="sm">Tìm kiếm</Button>);
 
     expect(screen.getByRole('button', { name: 'Tìm kiếm' })).toHaveClass(
-      'min-h-[34px]',
       'text-[length:var(--text-control-compact-size)]',
       'max-md:min-h-11',
       '*:data-icon:size-4',
     );
+    expect(screen.getByRole('button', { name: 'Tìm kiếm' })).toHaveAttribute('data-uui-control', 'button');
+    expect(screen.getByRole('button', { name: 'Tìm kiếm' })).toHaveAttribute('data-control-size', 'sm');
   });
 
   it('keeps regular form actions at the default density', () => {

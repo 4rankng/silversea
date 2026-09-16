@@ -3,11 +3,15 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const baseCss = readFileSync(resolve(process.cwd(), 'src/styles/base.css'), 'utf8');
+const shellCss = readFileSync(resolve(process.cwd(), 'src/components/layout/app-shell.css'), 'utf8');
 
 describe('authenticated app shell scrolling', () => {
-  it('contains document scrolling at the root while preserving unscoped login-page flow', () => {
-    expect(baseCss).toMatch(/html:has\(body \.app\),\s*body:has\(\.app\)\s*\{[^}]*overflow:\s*hidden;/);
-    expect(baseCss).toMatch(/body:has\(\.app\) #root\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*overflow:\s*hidden;/);
+  it('keeps the authenticated viewport non-scrollable while the app body owns scrolling', () => {
+    // Unlike hidden, clip cannot move the viewport when a portalled field gains focus.
+    expect(baseCss).toMatch(/html:has\(body \.app\),\s*body:has\(\.app\)\s*\{[^}]*overflow:\s*clip;/);
+    expect(baseCss).toMatch(/body:has\(\.app\) #root\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*overflow:\s*clip;/);
+    expect(shellCss).toMatch(/\.app-body,\s*\.content\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
+    expect(baseCss).not.toMatch(/(?:^|\n)(?:html|body|#root)\s*\{[^}]*overflow:\s*(?:hidden|clip);/);
   });
 
   it('keeps form font inheritance in the base layer so component size utilities can win', () => {

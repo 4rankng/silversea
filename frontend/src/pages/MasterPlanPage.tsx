@@ -47,8 +47,10 @@ export default function MasterPlanPage() {
       });
       masterPlan.replaceItem({ ...shipment, operationalNotes: notes, version: response.version } as ShipmentListItem);
       toast({ kind: 'success', message: 'Đã lưu ghi chú điều phối.' });
-    } catch {
+    } catch (error) {
       toast({ kind: 'error', message: 'Không lưu được ghi chú điều phối. Vui lòng thử lại.' });
+      // The editor awaits this rejection to retain its draft for a retry.
+      throw error;
     }
   }, [masterPlan, toast]);
 

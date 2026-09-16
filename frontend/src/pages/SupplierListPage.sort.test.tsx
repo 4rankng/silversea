@@ -83,14 +83,14 @@ describe('SupplierListPage server-side sort headers', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà cung cấp' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=name');
       expect(lastGetUrl()).toContain('sortDir=asc');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà cung cấp' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');

@@ -73,7 +73,7 @@ describe('FuelNormsConfigPage — TC-M12-01-02 validation', () => {
     const inputs = formHost.container.querySelectorAll('input');
     const loadedInput = Array.from(inputs).find(i => (i.placeholder || '').includes('30')) as HTMLInputElement;
     const emptyInput = Array.from(inputs).find(i => (i.placeholder || '').includes('25')) as HTMLInputElement;
-    const dateInput = formHost.container.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('Ngày hiệu lực') as HTMLInputElement;
 
     // Clear the date (default is today — clear it to trigger required error)
     fireEvent.change(dateInput, { target: { value: '' } });
@@ -92,7 +92,7 @@ describe('FuelNormsConfigPage — TC-M12-01-02 validation', () => {
     expect(lastOnSave).not.toHaveBeenCalled();
   });
 
-  it('rejects zero / negative litres with the Vietnamese message', async () => {
+  it('rejects zero litres with Vietnamese messages and blocks negative litres with field validity', async () => {
     renderPage();
     const formHost = renderForm();
     const inputs = formHost.container.querySelectorAll('input');
@@ -100,13 +100,20 @@ describe('FuelNormsConfigPage — TC-M12-01-02 validation', () => {
     const emptyInput = Array.from(inputs).find(i => (i.placeholder || '').includes('25')) as HTMLInputElement;
 
     fireEvent.change(loadedInput, { target: { value: '0' } });
-    fireEvent.change(emptyInput, { target: { value: '-5' } });
+    fireEvent.change(emptyInput, { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: /Thêm/ }));
 
     await waitFor(() => {
       expect(screen.getByText('Định mức có hàng phải lớn hơn 0')).toBeTruthy();
       expect(screen.getByText('Định mức không hàng phải lớn hơn 0')).toBeTruthy();
     });
+    expect(lastOnSave).not.toHaveBeenCalled();
+
+    fireEvent.change(loadedInput, { target: { value: '30' } });
+    fireEvent.change(emptyInput, { target: { value: '-5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm/ }));
+    expect(emptyInput.validity.rangeUnderflow).toBe(true);
+    expect(emptyInput).toHaveFocus();
     expect(lastOnSave).not.toHaveBeenCalled();
   });
 
@@ -116,11 +123,11 @@ describe('FuelNormsConfigPage — TC-M12-01-02 validation', () => {
     const inputs = formHost.container.querySelectorAll('input');
     const loadedInput = Array.from(inputs).find(i => (i.placeholder || '').includes('30')) as HTMLInputElement;
     const emptyInput = Array.from(inputs).find(i => (i.placeholder || '').includes('25')) as HTMLInputElement;
-    const dateInput = formHost.container.querySelector('input[type="date"]') as HTMLInputElement;
+    const dateInput = screen.getByLabelText('Ngày hiệu lực') as HTMLInputElement;
 
     fireEvent.change(loadedInput, { target: { value: '30' } });
     fireEvent.change(emptyInput, { target: { value: '25' } });
-    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInput, { target: { value: '01/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: /Thêm/ }));
 
     await waitFor(() => {

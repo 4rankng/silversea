@@ -12,6 +12,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
+import { businessDateISO } from '../../../lib/format';
 
 const PAGE_SIZE = 20;
 
@@ -70,9 +71,7 @@ export function useDispatchMasterPlan() {
   useEffect(() => {
     if (!presenceZone) { setPresence(null); return; }
     const requestId = ++presenceRequestIdRef.current;
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    listZoneTruckPresence({ zone: presenceZone, date: todayStr })
+    listZoneTruckPresence({ zone: presenceZone, date: businessDateISO() })
       .then((response) => {
         if (presenceRequestIdRef.current !== requestId) return;
         setPresence(response);
@@ -90,9 +89,17 @@ export function useDispatchMasterPlan() {
     return () => window.clearTimeout(timer);
   }, [filters.q]);
 
+  const viewSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const requestId = ++requestIdRef.current;
-    setLoading(true);
+    const viewSignature = JSON.stringify([
+      page, debouncedQ, filters.tradeDirection, filters.allocationStatus,
+      filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys,
+    ]);
+    // Keep inline note drafts and open note dialogs mounted on periodic
+    // refresh. Only an explicit change of the viewed rows needs a skeleton.
+    if (viewSignatureRef.current !== viewSignature) setLoading(true);
+    viewSignatureRef.current = viewSignature;
     setError(null);
     listShipments({
       // Operational range — mirrors the dispatch queue / detail-plan gates so
@@ -134,9 +141,11 @@ export function useDispatchMasterPlan() {
     setPage(1);
   }, []);
 
-  /** Replace one row in-place after a save (allocation popover) — no refetch. */
+  /** Show the saved row immediately, then reconcile without accepting pre-save reads. */
   const replaceItem = useCallback((updated: ShipmentListItem) => {
+    requestIdRef.current += 1;
     setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    setRefreshKey((value) => value + 1);
   }, []);
 
   const refetch = useCallback(() => {

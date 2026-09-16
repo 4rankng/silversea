@@ -474,11 +474,11 @@ describe('DetailedPlanGrid', () => {
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    expect(css).toContain('.detailed-plan-filters {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: flex-end;');
-    expect(css).toContain('.detailed-plan-filters__field--search {\n  flex: 0 1 360px;\n  width: min(100%, 360px);');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n  display: flex;\n  align-items: center;');
+    expect(css).toContain('.detailed-plan-filters {\n  display: grid;\n  grid-template-columns: minmax(180px, 1fr) auto auto;\n  align-items: end;');
+    expect(css).toContain('.detailed-plan-filters__field--search {\n  width: 100%;\n  min-width: 0;');
+    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n  display: grid;\n  grid-template-columns: 140px auto auto;\n  align-items: center;');
     expect(css).toContain('.detailed-plan-filters__date-scope .detailed-plan-filters__date {\n  flex: 0 1 140px;\n  width: 140px;');
-    expect(css).toContain('.detailed-plan-filters__date-mode {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n  flex: 0 1 316px;\n  min-width: 292px;\n  /* Match the sm input height so the toolbar labels baseline-align. */\n  height: 34px;');
+    expect(css).toContain('.detailed-plan-filters__date-mode {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n  min-width: 234px;\n  gap: 4px;');
     expect(css).not.toContain('repeat(2, minmax(0, 1fr));\n  flex: 0 1 248px');
     const activeDateShortcut = css.match(/\.detailed-plan-filters__date-shortcut\.is-active\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(activeDateShortcut).toContain('background: var(--background-color-primary, #fff);');
@@ -486,7 +486,7 @@ describe('DetailedPlanGrid', () => {
     expect(activeDateShortcut).toContain('box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);');
     expect(activeDateShortcut).not.toContain('background-color-brand-primary');
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    grid-template-columns: minmax(0, 1fr) auto;');
     expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
     expect(css).toContain('.detailed-plan-filter-panel__fields {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
     expect(css).not.toContain('detailed-plan-filters__advanced');
@@ -533,7 +533,7 @@ describe('DetailedPlanGrid', () => {
     const picker = css.match(/\.detailed-plan-filters__point-picker \{([\s\S]*?)\n\}/)?.[1] ?? '';
     const hourControl = css.match(/\.detailed-plan-filters__hour-control \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(toolbar).toContain('align-items: flex-end');
+    expect(toolbar).toContain('align-items: end');
     expect(points).toContain('position: relative');
     expect(points).toContain('min-width: 0');
     expect(picker).toContain('position: absolute');

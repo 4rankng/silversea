@@ -23,7 +23,7 @@ import {
   Loader2,
   StickyNote,
 } from 'lucide-react';
-import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType } from '@tingting/shared';
+import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripStatus } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
@@ -66,6 +66,7 @@ export function DriverTripPodPage() {
 
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
+  const [preparingPod, setPreparingPod] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
@@ -77,6 +78,15 @@ export function DriverTripPodPage() {
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
+  const documentReadOnlyReason = trip?.accountingLock
+    ? 'Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.'
+    : trip?.status === TripStatus.COMPLETED
+      ? 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'
+      : trip?.status === TripStatus.CANCELED
+        ? 'Chuyến đã hủy. Không thể thay đổi chứng từ.'
+        : !online
+          ? 'Cần kết nối mạng để tải lên chứng từ. Vui lòng kiểm tra kết nối.'
+          : null;
   // The dispatch note is tag-composed (format v2): parse it like the detail
   // page does — tags become chips, manual text the note — so the raw
   // tag-line structure never leaks to the driver. The trip.memo fallback was
@@ -90,15 +100,18 @@ export function DriverTripPodPage() {
     : (trip?.notes ?? null);
 
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
+  const documentBusy = preparingPod || creatingDraft || uploadingPod;
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
+    || documentBusy
     || !podReady;
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
     if (!trip || !validFulfillmentId) {
       throw new Error('Không tìm thấy chuyến để tạo e-POD.');
     }
+    if (documentReadOnlyReason) throw new Error(documentReadOnlyReason);
     if (currentSubmission?.status === 'DRAFT') {
       return currentSubmission;
     }
@@ -134,6 +147,7 @@ export function DriverTripPodPage() {
     if (!trip || !validFulfillmentId) {
       throw new Error('Không tìm thấy chuyến để tải ảnh e-POD.');
     }
+    if (documentReadOnlyReason) throw new Error(documentReadOnlyReason);
     setUploadingPod(true);
     try {
       const uploaded = await driverClient.attachPodFile({
@@ -175,7 +189,7 @@ export function DriverTripPodPage() {
   }
 
   async function handleCompleteTrip() {
-    if (!trip || !validFulfillmentId || !online) return;
+    if (!trip || !validFulfillmentId || !online || documentBusy || submitting || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
       toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
       return;
@@ -327,13 +341,16 @@ export function DriverTripPodPage() {
             history={podHistory}
             creatingDraft={creatingDraft}
             uploading={uploadingPod}
+            disabled={submitting || completing}
+            readOnlyReason={documentReadOnlyReason}
+            onBusyChange={setPreparingPod}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
           />
         </section>
       </main>
 
-      {trip.status !== 'COMPLETED' && <footer className="driver-task-footer">
+      {trip.status !== TripStatus.COMPLETED && trip.status !== TripStatus.CANCELED && <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
@@ -361,7 +378,7 @@ export function DriverTripPodPage() {
           >
             <FileCheck2 size={18} />
             <span>
-              {completing || submitting ? 'Đang gửi…' : completeCtaLabel(trip.status)}
+              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : completeCtaLabel(trip.status)}
             </span>
           </button>
         </div>

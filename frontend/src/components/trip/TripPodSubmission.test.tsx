@@ -105,7 +105,7 @@ describe('TripPodSubmission', () => {
     );
 
     expect(screen.getByText('100%')).toBeTruthy();
-    expect(screen.getByText(/Đủ hồ sơ bắt buộc/)).toBeTruthy();
+    expect(screen.getByText('Đủ hai loại chứng từ để hoàn thành chuyến.')).toBeTruthy();
   });
 
   // vantaiphucloc EPOD pattern: "Chụp" opens the fullscreen camera overlay
@@ -154,7 +154,7 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByRole('button', { name: 'Tải tệp' })).toBeNull();
     // One shared banner, not one per card — avoids repeating the identical
     // sentence twice on screen.
-    expect(screen.getAllByText(/e-POD đã được gửi/).length).toBe(1);
+    expect(screen.getAllByText('Chứng từ đã gửi. Bạn có thể xem ảnh hoặc tải lại tệp bên dưới.')).toHaveLength(1);
   });
 
   it('keeps capture/upload open after a REJECTED submission so the driver can retry', () => {

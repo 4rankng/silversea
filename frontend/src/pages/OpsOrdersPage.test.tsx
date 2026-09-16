@@ -134,7 +134,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await screen.findByText('SS-A');
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
-    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-09-20' } });
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
   });
 

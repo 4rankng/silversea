@@ -396,9 +396,119 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
 describe('useDispatchDetailPlan plan-save error mapping', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    listDispatchDetailPlanRowsMock.mockReset().mockResolvedValue(page([row()], 1));
     getDispatchZonesMock.mockResolvedValue({ items: [] });
     listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it.each(['success', 'failure'])('ignores a pre-save refresh %s after an unfiltered atomic save (DSP-FU-006)', async (outcome) => {
+    const previous = row();
+    const updated = row({
+      version: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      dispatch: { ...previous.dispatch, assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
+      notes: { ...previous.notes, vehicleNote: 'Kiểm tra seal' },
+      lotFullyPlated: true,
+    });
+    const previousPage = { ...page([previous], 51), page: 2 };
+    const updatedPage = { ...page([updated], 52), page: 2 };
+    listDispatchDetailPlanRowsMock.mockResolvedValue(previousPage);
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.setPage(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let resolveOld!: (value: typeof previousPage) => void;
+    let rejectOld!: (error: Error) => void;
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      resolveOld = resolve; rejectOld = reject;
+    }));
+    act(() => result.current.refresh());
+    let resolveFresh!: (value: typeof updatedPage) => void;
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => new Promise((resolve) => { resolveFresh = resolve; }));
+    updateDispatchDetailPlanMock.mockResolvedValue({
+      fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+      classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
+      dispatch: { ...updated.dispatch, carrierType: 'OWN' }, estimates: updated.estimates, lotFullyPlated: true,
+      driverNotified: false, driverHint: null, replayed: false,
+    });
+
+    await act(async () => {
+      await result.current.savePlan(previous, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null });
+    });
+    expect(result.current.items).toEqual([updated]);
+    await act(async () => {
+      if (outcome === 'success') resolveOld(previousPage);
+      else rejectOld(new Error('stale refresh failed'));
+    });
+    expect(result.current.items).toEqual([updated]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.page).toBe(2);
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+
+    await act(async () => resolveFresh(updatedPage));
+    expect(result.current.items).toEqual([updated]);
+    expect(result.current.total).toBe(52);
+    expect(result.current.page).toBe(2);
+  });
+
+  it.each([
+    { filter: 'UNASSIGNED' as const, before: null, after: '15C-167.31' },
+    { filter: 'ASSIGNED' as const, before: '15C-167.31', after: null },
+  ])('removes the atomically saved row when it no longer matches $filter and refreshes counts (DSP-FU-003)', async ({ filter, before, after }) => {
+    const plannedRow = row({ dispatch: { ...row().dispatch, assignedPlate: before } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([plannedRow], 1));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.updateFilters({ assignmentStatus: filter }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([], 0));
+    updateDispatchDetailPlanMock.mockResolvedValue({
+      fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+      classification: 'SINGLE', isCombined: false, operationalNotes: null,
+      dispatch: { ...plannedRow.dispatch, carrierType: 'OWN', assignedPlate: after, assignedDriverName: after ? 'Nguyễn Văn A' : null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: after != null, driverNotified: false, driverHint: null, replayed: false,
+    });
+    const countBeforeSave = listDispatchDetailPlanRowsMock.mock.calls.length;
+    await act(async () => {
+      await result.current.savePlan(plannedRow, {
+        carrierType: 'OWN', plannedRevenue: null, plannedCarrierCost: null,
+        ...(after ? { truckId: 7 } : { clearVehicle: true }),
+      });
+    });
+    expect(result.current.items).toEqual([]);
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock.mock.calls.length).toBeGreaterThan(countBeforeSave));
+    expect(result.current.total).toBe(0);
+  });
+
+  it('keeps the updated plate and driver visible without an assignment filter (DSP-FU-003)', async () => {
+    const plannedRow = row();
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    updateDispatchDetailPlanMock.mockResolvedValue({
+      fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+      classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
+      dispatch: { ...plannedRow.dispatch, carrierType: 'OWN', assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: true, driverNotified: false, driverHint: null, replayed: false,
+    });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({
+      version: 4, shipmentVersion: 6,
+      dispatch: { ...plannedRow.dispatch, assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
+      notes: { ...plannedRow.notes, vehicleNote: 'Kiểm tra seal' },
+      lotFullyPlated: true,
+    })], 1));
+    await act(async () => {
+      await result.current.savePlan(plannedRow, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null });
+    });
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.items[0]).toMatchObject({
+      version: 4, shipmentVersion: 6,
+      dispatch: { assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
+      notes: { vehicleNote: 'Kiểm tra seal' },
+    });
+    expect(result.current.total).toBe(1);
   });
 
   it('surfaces the backend 409 message instead of a blanket reload banner', async () => {

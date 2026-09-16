@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
@@ -25,7 +26,7 @@ interface MasterPlanGridProps {
    *  lines show only that day's đóng/trả appointments. */
   scheduleDate?: string | null;
   /** Called when dispatch staff saves an inline operational-notes edit. */
-  onUpdateNotes?: (shipment: ShipmentListItem, notes: string) => void;
+  onUpdateNotes?: OperationalNoteSave;
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -216,31 +217,11 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
  * contract used by data grids.
  */
 export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes }: MasterPlanGridProps) {
-  const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
-  const [editingNotesValue, setEditingNotesValue] = useState('');
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
-  const notesInputRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const startNotesEdit = useCallback((item: ShipmentListItem) => {
-    setEditingNotesId(item.id);
-    setEditingNotesValue(item.operationalNotes ?? '');
-    // Focus the textarea after React renders it.
-    requestAnimationFrame(() => notesInputRef.current?.focus());
-  }, []);
-
-  const cancelNotesEdit = useCallback(() => {
-    setEditingNotesId(null);
-    setEditingNotesValue('');
-  }, []);
-
-  const saveNotesEdit = useCallback((item: ShipmentListItem) => {
-    const trimmed = editingNotesValue.trim();
-    if (trimmed !== (item.operationalNotes ?? '')) {
-      onUpdateNotes?.(item, trimmed);
-    }
-    setEditingNotesId(null);
-    setEditingNotesValue('');
-  }, [editingNotesValue, onUpdateNotes]);
+  const {
+    editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
+    notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
+  } = useMasterPlanNoteEditor(onUpdateNotes);
 
   return (
     <div className="master-plan-grid__wrapper">
@@ -457,11 +438,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         ref={notesInputRef}
                         className="master-plan-grid__notes-input"
                         value={editingNotesValue}
+                        disabled={savingNotes}
                         onChange={(e) => setEditingNotesValue(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                             e.preventDefault();
-                            saveNotesEdit(item);
+                            void saveNotesEdit(item);
                             return;
                           }
                           // Bare Enter falls through to the textarea's native
@@ -472,18 +454,21 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         maxLength={2000}
                         aria-label="Ghi chú điều phối"
                       />
+                      {notesError && <p className="dispatch-plan-page__error" role="alert">{notesError}</p>}
                       <div className="master-plan-grid__notes-actions">
                         <button
                           type="button"
                           className="master-plan-grid__notes-save"
-                          onClick={() => saveNotesEdit(item)}
+                          onClick={() => void saveNotesEdit(item)}
+                          disabled={savingNotes}
                         >
-                          Lưu
+                          {savingNotes ? 'Đang lưu…' : 'Lưu'}
                         </button>
                         <button
                           type="button"
                           className="master-plan-grid__notes-cancel"
                           onClick={cancelNotesEdit}
+                          disabled={savingNotes}
                         >
                           Hủy
                         </button>

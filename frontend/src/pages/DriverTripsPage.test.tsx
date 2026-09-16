@@ -12,6 +12,10 @@ vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
 }));
 
+vi.mock('../hooks/useMonth', () => ({
+  useMonth: () => ({ month: 8, year: 2026 }),
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => navigateMock };
@@ -101,6 +105,17 @@ describe('DriverTripsPage', () => {
     renderPage();
 
     expect(await screen.findByText('00:30 - 07/09')).toBeTruthy();
+  });
+
+  it('filters history by the completion month rather than the planned departure month', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tripId: 51, fulfillmentId: 91, bucket: 'HISTORY', factoryName: 'Completed in August', scheduledAt: '2026-07-31T02:00:00Z', historyAt: '2026-08-01T02:00:00Z' }),
+      card({ tripId: 52, fulfillmentId: 92, bucket: 'HISTORY', factoryName: 'Completed in July', scheduledAt: '2026-08-01T02:00:00Z', historyAt: '2026-07-31T02:00:00Z' }),
+    ]));
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
+    expect(screen.getByText('Completed in August')).toBeVisible();
+    expect(screen.queryByText('Completed in July')).toBeNull();
   });
 
   it('VID-DRV-05 clearly identifies an unconfirmed schedule instead of an ambiguous dash', () => {

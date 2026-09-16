@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Driver, Truck } from '@tingting/shared';
@@ -36,28 +36,25 @@ function renderView() {
 }
 
 function bodyRows() {
-  // Data rows have role="button" (clickable for edit); header row is role="row".
-  const header = screen.getAllByRole('row');
-  const buttons = screen.getAllByRole('button', { name: /chỉnh sửa tài xế/i });
-  return buttons.length > 0 ? buttons : header.slice(1);
+  return Array.from(document.querySelectorAll<HTMLTableRowElement>('tbody tr'));
 }
 
 function nameColumn(): string[] {
   return bodyRows().map((row) =>
-    within(row).getByText(/Trần Zeta|Nguyễn An|Lê Bình/).textContent ?? '');
+    row.querySelector('td[data-label="Họ tên"]')?.textContent ?? '');
 }
 
 function phoneColumn(): Array<string | null> {
   return bodyRows().map((row) => {
     const cell = row.querySelector('td[data-label="Số điện thoại"]');
-    return cell?.textContent === '—' ? null : cell?.textContent ?? null;
+    return cell?.textContent === '—' || cell?.textContent === 'Chưa phân công' ? null : cell?.textContent ?? null;
   });
 }
 
 describe('FleetDriversView client-side sort headers', () => {
   it('keeps the catalog order until a header is pressed, then sorts name asc → desc', () => {
     renderView();
-    expect(screen.getByText('Trần Zeta')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa tài xế Trần Zeta' })).toBeTruthy();
     expect(nameColumn()).toEqual(['Trần Zeta', 'Nguyễn An', 'Lê Bình']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Họ tên' }));
