@@ -596,6 +596,11 @@ export async function updateCusShipmentContainerLine(args: {
         }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
       } else if (nextCarrierType != null) {
         throw new ApiError(400, 'Loại nhà xe không hợp lệ.');
+      } else if (args.input.plateNumber !== undefined) {
+        // A plate plan must attach to a carrier type. A carrier-less row used
+        // to fall through every branch and drop the plate while reporting
+        // success (2026-09-16 QA finding: 200 + version bump, plate null).
+        throw new ApiError(400, 'Cần chọn nhà xe trước khi cập nhật biển số.');
       }
       touched = true;
     }
