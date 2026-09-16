@@ -240,6 +240,12 @@
        2026-09-16: grey gap below the last section on mobile). */
     background: var(--surface, #fff);
   }
+  /* The shell's own 28px bottom padding sits BELOW the page and shows the
+     canvas after the worksheet ends — the page's safe-area padding replaces
+     it on this route (owner: main.app-body padding, found by the _10 rung). */
+  .app-main:has(.csc-page) .app-body {
+    padding-bottom: 0;
+  }
 }
 
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
