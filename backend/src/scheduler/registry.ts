@@ -24,6 +24,12 @@ export interface SchedulerJob {
   retryDelayMs?: number;
   /** Skip scheduling (job still in registry for visibility). Default false. */
   disabled?: boolean;
+  /**
+   * Optional per-tick time limit in ms (default off). When set, a tick whose
+   * handler runs longer is failed (and retried per `retries`) instead of
+   * hanging silently — the Wave-0 "max-tick-time policy" limitation.
+   */
+  maxTickMs?: number;
 }
 
 const registry = new Map<string, SchedulerJob>();

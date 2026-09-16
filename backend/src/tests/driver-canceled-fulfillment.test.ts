@@ -133,6 +133,9 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  // The shared postgres client keeps the process alive; the reference
+  // harness exits explicitly for the same reason.
+  setImmediate(() => process.exit(0));
 });
 
 describe('driver canceled fulfillment read scope (20260916_7)', () => {
