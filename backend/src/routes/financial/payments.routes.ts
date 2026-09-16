@@ -12,6 +12,7 @@ import {
 } from '@tingting/shared';
 import type { PayablesCategory } from '@tingting/shared';
 import { db } from '../../db';
+import { parseId } from '../utils/parse-id';
 import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -316,21 +317,21 @@ router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response
 }));
 
 router.get('/ledger/suppliers/:id/statement', asyncHandler(async (req: Request, res: Response) => {
-  const supplierId = Number(req.params.id);
+  const supplierId = parseId(req.params.id, 'ID nhà cung cấp');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   res.json(await getSupplierStatement(supplierId, dateFrom, dateTo));
 }));
 
 router.get('/ledger/carriers/:id/statement', asyncHandler(async (req: Request, res: Response) => {
-  const carrierId = Number(req.params.id);
+  const carrierId = parseId(req.params.id, 'ID nhà vận tải');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   res.json(await getCarrierPayableStatement(carrierId, dateFrom, dateTo));
 }));
 
 router.get('/ledger/suppliers/:id/statement/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const supplierId = parseInt(req.params.id as string, 10);
+  const supplierId = parseId(req.params.id, 'ID nhà cung cấp');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   const format = (req.query.format as string) || 'xlsx';
