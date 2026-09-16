@@ -72,6 +72,19 @@ function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyCha
   return { ...utils, rerenderWithSavedLine, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
+// The unified datetime batch replaced the combined appointment input with the
+// shared SplitDateTimeField pair inside the popover; drive both parts.
+function appointmentInputs(): { time: HTMLInputElement; date: HTMLInputElement } {
+  const inputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
+  expect(inputs.length).toBe(2);
+  return { time: inputs[0], date: inputs[1] };
+}
+function setAppointment(time: string, date: string) {
+  const { time: timeInput, date: dateInput } = appointmentInputs();
+  if (time) fireEvent.change(timeInput, { target: { value: time } });
+  if (date) fireEvent.change(dateInput, { target: { value: date } });
+}
+
 describe('ContainerLedger confirm affordances', () => {
   // The save mock is module-level: without a clear, call counts accumulate
   // across tests and every assertion would have to track the whole file's
@@ -129,8 +142,7 @@ describe('ContainerLedger confirm affordances', () => {
 
     // Open popover and type the complete 24h entry into the single text input
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
 
     // Close popover
     fireEvent.click(document.querySelector('.cus-appointment-backdrop')!);
@@ -155,8 +167,7 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
 
     // Enter commits straight from the portaled popover — no backdrop click,
     // no footer button, no table-level key handler.
@@ -169,7 +180,7 @@ describe('ContainerLedger confirm affordances', () => {
     // Back to display: popover closed, the trigger shows the saved value.
     await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
     const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
-    expect(trigger.getAttribute('aria-label')).toContain('09:00 11/9/26');
+    expect(trigger.getAttribute('aria-label')).toContain('09:00 11/09/2026');
   });
 
   it('Escape in the popover closes without saving', async () => {
@@ -177,8 +188,7 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
 
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
 
@@ -193,9 +203,8 @@ describe('ContainerLedger confirm affordances', () => {
     const onDirtyChange = vi.fn();
     renderLedger({ onAppointmentSavedAndExit, onDirtyChange });
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
     // Typing in the popover dirties the ledger draft (onChange → onDraftChange).
-    fireEvent.change(datetimeInput, { target: { value: '11:00 19/09/2026' } });
+    setAppointment('11:00', '19/09/2026');
     await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true));
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
     // Dismiss-without-commit: popover closes, the abandoned value is reverted.
@@ -204,8 +213,9 @@ describe('ContainerLedger confirm affordances', () => {
     expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
     // Reopen shows the base value, not the abandoned draft.
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const reopened = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(reopened.value).not.toBe('11:00 19/09/2026');
+    const reopened = appointmentInputs();
+    expect(reopened.time.value).not.toBe('11:00');
+    expect(reopened.date.value).not.toBe('19/09/2026');
   });
 
   it('_34 invalid-entry: out-of-range typing blocks commit with a visible error', async () => {
@@ -214,10 +224,9 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 9 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    // 24h out-of-range hour (24:45): unparseable — must never fall through to
+    // 24h out-of-range hour: unparseable — must never fall through to
     // committing the silently-reverted default.
-    fireEvent.change(datetimeInput, { target: { value: '24:45 20/09/2026' } });
+    setAppointment('24:45', '20/09/2026');
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
 
     await new Promise((r) => setTimeout(r, 200));
@@ -233,8 +242,7 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 9 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '12:00 19/09/2026' } });
+    setAppointment('12:00', '19/09/2026');
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
     const payload = updateCusShipmentContainerLine.mock.calls[0][2] as { customerAppointmentAt: string };
@@ -251,8 +259,7 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
 
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
@@ -288,8 +295,8 @@ describe('ContainerLedger confirm affordances', () => {
     } });
     render(<Host />);
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '14:45 19/09/2026' } });
-    fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
+    setAppointment('14:45', '19/09/2026');
+    fireEvent.keyDown(appointmentInputs().time, { key: 'Enter' });
     await waitFor(() => expect(exited).toHaveBeenCalledTimes(1));
     expect(discarded).not.toHaveBeenCalled();
     expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1);
@@ -302,8 +309,7 @@ describe('ContainerLedger confirm affordances', () => {
     updateCusShipmentContainerLine.mockRejectedValue(new Error('boom'));
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
 
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
@@ -330,8 +336,7 @@ describe('ContainerLedger confirm affordances', () => {
     }));
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    setAppointment('09:00', '11/09/2026');
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
 
