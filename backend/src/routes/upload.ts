@@ -425,10 +425,10 @@ async function prepareCompanyLogo(
 uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const role = getUser(req).role;
   if (role === Role.DRIVER || role === Role.OPS) {
-    return res.status(403).json({ error: 'Không có quyền tải logo công ty' });
+    throw new ApiError(403, 'Không có quyền tải logo công ty');
   }
   const file = req.file;
-  if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
+  if (!file) throw new ApiError(400, 'Không có file tải lên');
   const user = getUser(req);
   const idempotencyKey = requireUploadIdempotencyKey(req);
   const created = await prepareCompanyLogo(file, `company-logo:${user.userId}:${idempotencyKey}`);
@@ -485,10 +485,10 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
   const tripId = parseInt(req.body.trip_id);
   const type = req.body.type as TripPhotoType;
 
-  if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
-  if (isNaN(tripId)) return res.status(400).json({ error: 'trip_id không hợp lệ' });
+  if (!file) throw new ApiError(400, 'Không có file tải lên');
+  if (isNaN(tripId)) throw new ApiError(400, 'trip_id không hợp lệ');
   if (!['CONTAINER', 'SEAL', 'OTHER', 'DELIVERY_NOTE'].includes(type)) {
-    return res.status(400).json({ error: 'Loại ảnh không hợp lệ' });
+    throw new ApiError(400, 'Loại ảnh không hợp lệ');
   }
 
   const user = getUser(req);
@@ -497,10 +497,10 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
     // could attach a photo to any trip_id, not just their own assigned trips.
     const access = await checkDriverTripPhotoAccess(user.userId, tripId);
     if (access === 'no_profile') {
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+      throw new ApiError(403, 'Không có quyền truy cập ảnh này');
     }
     if (access === 'not_owned') {
-      return res.status(403).json({ error: 'Không có quyền tải ảnh cho chuyến đi này' });
+      throw new ApiError(403, 'Không có quyền tải ảnh cho chuyến đi này');
     }
   }
   const idempotencyKey = requireUploadIdempotencyKey(req);
@@ -570,29 +570,29 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
 
 uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
-  if (isNaN(tripId)) return res.status(400).json({ error: 'trip_id không hợp lệ' });
+  if (isNaN(tripId)) throw new ApiError(400, 'trip_id không hợp lệ');
 
   const photoType = String(req.params.type).toUpperCase();
   // 40f3ae15: DELIVERY_NOTE (biên bản giao hàng) deletes per exact storage
   // key. OTHER is intentionally NOT deletable here — the driver route owns
   // delete-all-of-type semantics and receipts ride that path.
   if (!['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].includes(photoType)) {
-    return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container, seal hoặc delivery note)' });
+    throw new ApiError(400, 'Loại ảnh không hợp lệ (container, seal hoặc delivery note)');
   }
 
   const storageKey = String(req.body?.storage_key ?? req.body?.storageKey ?? '');
   if (!storageKey || storageKey.includes('..')) {
-    return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
+    throw new ApiError(400, 'Đường dẫn ảnh không hợp lệ');
   }
   if (!storageKey.startsWith(`trips/${tripId}/`)) {
-    return res.status(400).json({ error: 'Ảnh không thuộc chuyến đi này' });
+    throw new ApiError(400, 'Ảnh không thuộc chuyến đi này');
   }
 
   let containerId: number | undefined;
   const containerIdRaw = req.body?.container_id ?? req.body?.containerId;
   if (containerIdRaw !== undefined && containerIdRaw !== '') {
     containerId = parseInt(String(containerIdRaw), 10);
-    if (isNaN(containerId)) return res.status(400).json({ error: 'container_id không hợp lệ' });
+    if (isNaN(containerId)) throw new ApiError(400, 'container_id không hợp lệ');
   }
   const user = getUser(req);
   const idempotencyKey = requireUploadIdempotencyKey(req);
@@ -708,7 +708,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
   // Defense-in-depth: no storage key ever contains a path segment; reject
   // traversal attempts up front (the resolved-path guard below also covers it).
   if (key.includes('..')) {
-    return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
+    throw new ApiError(400, 'Đường dẫn ảnh không hợp lệ');
   }
 
   // Valid key shapes: trip photos, expense/fuel evidence photos, debit-note
@@ -720,7 +720,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
   const templateLogoMatch = key.match(/^debit-note-templates\/(\d+)\//);
   const opsExpenseMatch = key.match(/^ops-expense-photos\/(\d+)\//);
   if (!isProtectedPhotoStorageKey(key)) {
-    return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
+    throw new ApiError(400, 'Đường dẫn ảnh không hợp lệ');
   }
 
   if (tripMatch) {
@@ -732,10 +732,10 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
       // Driver may only fetch photos of trips assigned to their own profile.
       const access = await checkDriverTripPhotoAccess(photoUser.userId, tripId);
       if (access === 'no_profile') {
-        return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+        throw new ApiError(403, 'Không có quyền truy cập ảnh này');
       }
       if (access === 'not_owned') {
-        return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
+        throw new ApiError(403, 'Không có quyền truy cập ảnh của chuyến đi này');
       }
     } else if (photoUser.role === Role.OPS) {
       // OPS may only fetch photos of trips belonging to shipments they are
@@ -750,7 +750,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
         .where(eq(s.trips.id, tripId))
         .limit(1);
       if (!assignment) {
-        return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
+        throw new ApiError(403, 'Không có quyền truy cập ảnh của chuyến đi này');
       }
     }
   } else if (expenseMatch || fuelEvidenceMatch) {
@@ -765,7 +765,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     const decision = await authorizeExpensePhoto(key, user);
 
     if (decision.reason === 'not_found') {
-      return res.status(404).json({ error: 'Không tìm thấy ảnh' });
+      throw new ApiError(404, 'Không tìm thấy ảnh');
     }
     if (decision.reason === 'collision') {
       // Both tables hold this key and the caller isn't authorized under both.
@@ -773,12 +773,12 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
       // given keys embed Date.now()+ext), not normal traffic — surface it (N6)
       // rather than silently 403.
       console.warn(`[photos] storage_key collision denied: key=${key} role=${user.role} userId=${user.userId}`);
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh chi phí' });
+      throw new ApiError(403, 'Không có quyền truy cập ảnh chi phí');
     }
     if (!decision.allow) {
       // forbidden — includes DRIVER (drivers never read expense receipts),
       // unowned forwarder keys, and company-only receipts requested by non-finance.
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh chi phí' });
+      throw new ApiError(403, 'Không có quyền truy cập ảnh chi phí');
     }
     // allow → fall through to serve (MANAGER/ACCOUNTANT/ADMIN, or an ACTIVE
     // forwarder reading an own-owned trip-expense receipt).
@@ -790,7 +790,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     const ownerUid = parseInt(opsExpenseMatch[1], 10);
     const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
     if (user.userId !== ownerUid && !isApprover) {
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+      throw new ApiError(403, 'Không có quyền truy cập ảnh này');
     }
   } else if (templateLogoMatch) {
     // Debit-note template logos are config artifacts (company letterheads), not
@@ -798,7 +798,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     // DRIVER/FORWARDER never see debit-note templates.
     const role = getUser(req).role;
     if (role !== Role.ADMIN && role !== Role.MANAGER && role !== Role.ACCOUNTANT) {
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+      throw new ApiError(403, 'Không có quyền truy cập ảnh này');
     }
   }
 
@@ -807,11 +807,11 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
 
   // Path traversal guard: resolved path must stay within uploadDir
   if (!filePath.startsWith(uploadDir + path.sep)) {
-    return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
+    throw new ApiError(400, 'Đường dẫn ảnh không hợp lệ');
   }
 
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'Không tìm thấy ảnh' });
+    throw new ApiError(404, 'Không tìm thấy ảnh');
   }
 
   res.sendFile(filePath);
