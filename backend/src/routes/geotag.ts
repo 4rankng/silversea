@@ -8,6 +8,7 @@ import { throwValidation } from '../lib/validation';
 import { ApiError } from '../errors';
 import { submitGeotag, getGeotag } from '../services/geotag.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { parseId } from './utils/parse-id';
 import { runIdempotent } from '../services/idempotency.service';
 
 const router = Router();
@@ -49,7 +50,10 @@ router.get('/:entityType/:entityId', asyncHandler(async (req: Request, res: Resp
   const typeParsed = entityTypeParam.safeParse(req.params.entityType);
   if (!typeParsed.success) throw new ApiError(400, 'Loại chứng từ không hợp lệ');
   const user = getUser(req);
-  const stored = await getGeotag(typeParsed.data, Number(req.params.entityId), user);
+  // Garbage ids are a client error: 400 with the field label, never a NaN
+  // flowing into the ownership query (backend refactor §2.1).
+  const entityId = parseId(req.params.entityId, 'ID chứng từ');
+  const stored = await getGeotag(typeParsed.data, entityId, user);
   res.json(stored);
 }));
 
