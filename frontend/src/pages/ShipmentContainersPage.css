@@ -346,6 +346,12 @@
 .shipment-container-ledger__schedule-clear { padding: 2px 4px; border: 0; background: transparent; color: var(--danger-text); font-family: inherit; font-size: var(--text-control-compact-size); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .shipment-container-ledger__schedule-clear:hover { color: color-mix(in srgb, var(--danger-text) 80%, #000); }
 .shipment-container-ledger__schedule-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Clear-plate affordance mirrors the schedule-clear link-button: danger tone,
+   underline, focus ring — removals read consistently across the ledger. */
+.shipment-container-ledger__plate-clear { display: block; }
+.shipment-container-ledger__plate-clear button { padding: 2px 4px; border: 0; background: transparent; color: var(--danger-text); font-family: inherit; font-size: var(--text-control-compact-size); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.shipment-container-ledger__plate-clear button:hover { color: color-mix(in srgb, var(--danger-text) 80%, #000); }
+.shipment-container-ledger__plate-clear button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .shipments-detail-skeleton { padding: 0 12px; }
 .shipments-detail-skeleton__row { display: flex; gap: 12px; align-items: center; min-height: 72px; border-bottom: 1px solid var(--line); }
@@ -458,6 +464,7 @@
   .shipment-container-ledger__schedule-pill,
   .shipment-container-ledger__schedule-time-pill { min-height: 44px; }
   .shipment-container-ledger__schedule-clear { display: inline-flex; align-items: center; min-height: 44px; }
+  .shipment-container-ledger__plate-clear button { display: inline-flex; align-items: center; min-height: 44px; }
   .shipment-container-ledger__editor-footer { justify-content: flex-end; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
