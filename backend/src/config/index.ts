@@ -90,6 +90,15 @@ const configSchema = z.object({
   // app_settings; sender identity remains deployment configuration.
   emailFromAddress: z.string().default('noreply@tingting.vn'),
   emailFromName: z.string().default('TingTing Logistics'),
+  // Shared postgres client pool bounds (src/db/index.ts). All values are
+  // per-connection timing/limits, not total-runtime limits — long seed and
+  // import scripts stay unaffected. statement_timeout is deliberately NOT a
+  // code option (postgres.js has none); deployments opt in via a DATABASE_URL
+  // startup parameter at the compose level.
+  dbPoolMax: z.coerce.number().int().positive().default(20),
+  dbIdleTimeoutSeconds: z.coerce.number().int().nonnegative().default(30),
+  dbConnectTimeoutSeconds: z.coerce.number().int().positive().default(10),
+  dbMaxLifetimeSeconds: z.coerce.number().int().positive().default(1800),
 });
 
 const raw = {
@@ -112,6 +121,10 @@ const raw = {
   shipmentFirstCreate: parseFlag(process.env.SHIPMENT_FIRST_CREATE),
   driverOpsPaperOrderGateEnabled: parseFlag(process.env.DRIVER_OPS_PAPER_ORDER_GATE_ENABLED, false),
   settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY,
+  dbPoolMax: process.env.DB_POOL_MAX,
+  dbIdleTimeoutSeconds: process.env.DB_IDLE_TIMEOUT_SECONDS,
+  dbConnectTimeoutSeconds: process.env.DB_CONNECT_TIMEOUT_SECONDS,
+  dbMaxLifetimeSeconds: process.env.DB_MAX_LIFETIME_SECONDS,
 };
 
 // Provide dev-only defaults for values not marked as required in production

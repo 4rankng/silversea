@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgres://vantai:${DB_PASSWORD:-VantaiDemo2026}@postgres:5432/vantai
+      - DATABASE_URL=postgres://vantai:${DB_PASSWORD:-VantaiDemo2026}@postgres:5432/vantai?options=-c%20statement_timeout=60000
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
       - PORT=3090
