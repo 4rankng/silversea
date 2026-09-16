@@ -63,7 +63,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parsePricingTableId(req);
   const item = await getPricingTableById(id);
   if (!item) {
-    return res.status(404).json({ error: 'Không tìm thấy' });
+    throw new ApiError(404, 'Không tìm thấy');
   }
   res.json(item);
 }));

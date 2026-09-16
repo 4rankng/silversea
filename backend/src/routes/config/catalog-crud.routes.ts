@@ -122,10 +122,10 @@ router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
   const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
 
   if (isNaN(customerId) || isNaN(routeId)) {
-    return res.status(400).json({ error: 'customerId và routeId là bắt buộc' });
+    throw new ApiError(400, 'customerId và routeId là bắt buộc');
   }
   if (containerTypeIdRaw && (containerTypeId == null || Number.isNaN(containerTypeId))) {
-    return res.status(400).json({ error: 'containerTypeId không hợp lệ' });
+    throw new ApiError(400, 'containerTypeId không hợp lệ');
   }
 
   const pricing = await getPricing(customerId, routeId, date, {

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 
 
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 
 import { requireRoles } from '../../middleware/casbin';
 import { Role } from '@tingting/shared';
@@ -20,7 +21,7 @@ import { installTireSchema, disposeTireSchema, transferTireSchema } from '@tingt
 export const tireLifecycleRouter = Router();
 tireLifecycleRouter.post('/:id/install', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = installTireSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi lắp lốp.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
@@ -52,7 +53,7 @@ tireLifecycleRouter.post('/:id/install', requireRoles(Role.ADMIN, Role.MANAGER, 
 
 tireLifecycleRouter.post('/:id/remove', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tháo lốp.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
     req,
@@ -79,7 +80,7 @@ tireLifecycleRouter.post('/:id/remove', requireRoles(Role.ADMIN, Role.MANAGER, R
 
 tireLifecycleRouter.post('/:id/dispose', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = disposeTireSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi thanh lý lốp.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
@@ -107,7 +108,7 @@ tireLifecycleRouter.post('/:id/dispose', requireRoles(Role.ADMIN, Role.MANAGER, 
 
 tireLifecycleRouter.post('/:id/transfer', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = transferTireSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi chuyển lốp.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
