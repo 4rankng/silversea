@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq } from 'drizzle-orm';
-import { ApiError } from '../errors';
+import { ApiError, isPgUniqueViolation } from '../errors';
 import { persistMaterialWriteSuccessAuditInTransaction } from './audit.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
@@ -308,9 +308,64 @@ export async function waitForIdempotencyRecord(
  * Concurrent first calls are serialized with a transaction-scoped PostgreSQL
  * advisory lock derived from `(endpoint, idempotencyKey)`. The second caller
  * waits, then sees the committed key and replays the original entity without
- * entering `create`. The application lock and canonical lookup are the sole
- * uniqueness authority; the database intentionally has no unique constraint.
+ * entering `create`. The application lock remains the serializer; the database
+ * unique index `idempotency_keys_endpoint_key_uniq` is the backstop behind it
+ * — if a bypass writer slips a row past the lock, our own insert trips 23505
+ * and `runIdempotent` replays from the winning row instead of surfacing the
+ * constraint error.
  */
+/**
+ * Shared replay policy for a previously-persisted idempotency row: actor
+ * match, payload-hash match, then snapshot or entity-load replay. Used by the
+ * in-transaction `existing` branch and by the 23505 catch-and-replay backstop
+ * in `runIdempotent`.
+ */
+async function replayFromRecord<T>(args: {
+  record: typeof s.idempotencyKeys.$inferSelect;
+  payloadHash: string;
+  createdBy?: number | null;
+  idempotencyKey: string;
+  load?: (entityId: number, tx: Tx) => Promise<T>;
+  tx: Tx;
+  deserializeResult?: (snapshot: unknown) => T;
+}): Promise<IdempotentRunResult<T>> {
+  const { record: existing, payloadHash, createdBy, idempotencyKey, load, tx, deserializeResult } = args;
+  const requestedActor = createdBy ?? null;
+  const persistedActor = existing.createdBy ?? null;
+  if (requestedActor !== persistedActor) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  if (existing.payloadHash !== payloadHash) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
+    return {
+      result: deserializeResult
+        ? deserializeResult(existing.responseSnapshot)
+        : (existing.responseSnapshot as T),
+      replayed: true,
+      statusCode: existing.responseStatusCode,
+    };
+  }
+  if (existing.entityId == null || !load) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  const result = await load(existing.entityId, tx);
+  return { result, replayed: true, statusCode: existing.responseStatusCode };
+}
+
 export async function runIdempotent<T>(args: {
   endpoint: string;
   idempotencyKey: string | undefined;
@@ -368,40 +423,15 @@ export async function runIdempotent<T>(args: {
         .limit(1);
 
       if (existing) {
-        const requestedActor = createdBy ?? null;
-        const persistedActor = existing.createdBy ?? null;
-        if (requestedActor !== persistedActor) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        if (existing.payloadHash !== payloadHash) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
-          return {
-            result: deserializeResult
-              ? deserializeResult(existing.responseSnapshot)
-              : (existing.responseSnapshot as T),
-            replayed: true,
-            statusCode: existing.responseStatusCode,
-          };
-        }
-        if (existing.entityId == null || !load) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        const result = await load(existing.entityId, tx);
-        return { result, replayed: true, statusCode: existing.responseStatusCode };
+        return await replayFromRecord<T>({
+          record: existing,
+          payloadHash,
+          createdBy,
+          idempotencyKey,
+          load,
+          tx,
+          deserializeResult,
+        });
       }
 
       createdResult = await create(tx);
@@ -439,6 +469,27 @@ export async function runIdempotent<T>(args: {
   } catch (error) {
     if (onTransactionRollback) {
       await onTransactionRollback(error, createdResult);
+    }
+    // 23505 on our own idempotency-row insert means a bypass writer committed
+    // the same (endpoint, key) after our in-tx SELECT. The business tx rolled
+    // back (the rollback hook above already fired) — replay from the winning
+    // row instead of surfacing the constraint error. Narrowed by constraint
+    // name so business 23505s thrown inside create() still propagate.
+    if (createdResult !== undefined && isPgUniqueViolation(error, 'idempotency_keys_endpoint_key_uniq')) {
+      const existing = await findIdempotencyRecord(endpoint, idempotencyKey);
+      if (existing) {
+        // No transaction is active here; the drizzle instance shares the
+        // SELECT interface the loaders need.
+        return await replayFromRecord<T>({
+          record: existing,
+          payloadHash,
+          createdBy,
+          idempotencyKey,
+          load,
+          tx: db as unknown as Tx,
+          deserializeResult,
+        });
+      }
     }
     throw error;
   }

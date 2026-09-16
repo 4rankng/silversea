@@ -27,18 +27,22 @@ export function getPgErrorCode(err: unknown): string | null {
 /**
  * True when the error is a PostgreSQL unique-violation (SQLSTATE 23505),
  * optionally narrowed to a single constraint by name. The constraint name may
- * ride `err.constraint` or the Drizzle-wrapped `err.cause.constraint`; when
- * absent it is matched against `detail` ("Key (col)=(val) already exists").
+ * ride camelCase (`constraint` — node-postgres style) or the PG wire field
+ * names postgres-js exposes (`constraint_name`), each either on the error or
+ * its Drizzle-wrapped `cause`; when absent it is matched against `detail`
+ * ("Key (col)=(val) already exists").
  */
 export function isPgUniqueViolation(err: unknown, constraintName?: string): boolean {
   if (getPgErrorCode(err) !== '23505') return false;
   if (!constraintName) return true;
   const e = err as {
     constraint?: string;
+    constraint_name?: string;
     detail?: string;
-    cause?: { constraint?: string; detail?: string };
+    cause?: { constraint?: string; constraint_name?: string; detail?: string };
   } | null;
-  const constraint = e?.constraint || e?.cause?.constraint || '';
+  const constraint = e?.constraint || e?.constraint_name
+    || e?.cause?.constraint || e?.cause?.constraint_name || '';
   const detail = e?.detail || e?.cause?.detail || '';
   return constraint.includes(constraintName) || detail.includes(constraintName);
 }
