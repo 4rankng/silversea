@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { ApiError } from '../errors';
+import { ApiError, getPgErrorCode, isPgUniqueViolation } from '../errors';
 import { config } from '../config';
 
 export function globalErrorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
@@ -40,21 +40,20 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
     return;
   }
 
-  // PostgreSQL unique constraint violation (23505). Drizzle wraps the underlying
-  // postgres-js error, so the SQLSTATE may live on either `err.code` (direct
-  // driver throw) or `err.cause.code` (Drizzle-wrapped throw). Mirror the logic
-  // in routes/utils/crud-factory.ts and services/trip-mutations.service.ts —
-  // without the `.cause` fallback, duplicate usernames/emails here surface as a
-  // generic 500 instead of a clean 409.
-  const pgErr = err as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
-  const pgCode = pgErr.code || pgErr.cause?.code;
-  if (pgCode === '23505') {
+  // PostgreSQL unique constraint violation (23505). Detection lives in the
+  // shared helper (src/errors.ts) — the only mirror list that remains is the
+  // concurrency trio below. Without the `.cause` fallback inside the helper,
+  // duplicate usernames/emails here would surface as a generic 500 instead of
+  // a clean 409.
+  if (isPgUniqueViolation(err)) {
+    const pgErr = err as { cause?: { detail?: string }; detail?: string };
     const detail = pgErr.cause?.detail || pgErr.detail || '';
     const fieldMatch = detail.match(/Key \(([^)]+)\)/);
     const field = fieldMatch ? fieldMatch[1] : 'dữ liệu';
     res.status(409).json({ error: `${field} đã tồn tại` });
     return;
   }
+  const pgCode = getPgErrorCode(err);
   if (pgCode === '40P01' || pgCode === '40001' || pgCode === '55P03') {
     res.status(409).json({
       error: 'Dữ liệu đã được xử lý đồng thời. Vui lòng tải lại và thử lại.',
