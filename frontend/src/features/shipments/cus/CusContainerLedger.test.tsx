@@ -395,3 +395,17 @@ describe('ContainerLedger external-trip staff close', () => {
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
   });
 });
+
+describe('drawer plate clear affordance (20260916_6 addendum)', () => {
+  it('shows Xóa biển số for an assigned plate and empties the draft on click', () => {
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={detail} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="drawer-clear" />
+      </ToastProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Xóa biển số' });
+    fireEvent.click(button);
+    const plate = document.querySelector('#drawer-clear-plate-10') as HTMLInputElement;
+    expect(plate.value).toBe('');
+  });
+});

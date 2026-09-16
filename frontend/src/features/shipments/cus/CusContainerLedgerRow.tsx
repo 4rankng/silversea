@@ -146,6 +146,9 @@ export function ContainerLineRow({
           <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
           <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
           <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+          {line.plateNumber && (
+            <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
+          )}
         </ShipmentContainerCell>
       ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
       {liftSiteEditable ? (
