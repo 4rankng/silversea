@@ -16,6 +16,7 @@ import {
   type PreparedTripPhoto,
 } from './upload';
 import { extractContainerAndSeal, extractPumpReading } from '../services/ocr.service';
+import { parseOptionalId as sharedParseOptionalId } from './utils/parse-id';
 import { ApiError } from '../errors';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import {
@@ -178,10 +179,7 @@ async function releaseOcrCleanupGuard(
  * rather than a NaN flowing into a DB query.
  */
 function parseIdParam(raw: unknown, label: string): number | null {
-  if (raw === undefined || raw === '') return null;
-  const n = parseInt(String(raw), 10);
-  if (isNaN(n)) throw new ApiError(400, `${label} không hợp lệ`);
-  return n;
+  return sharedParseOptionalId(raw, label);
 }
 
 /**

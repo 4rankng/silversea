@@ -9,6 +9,7 @@ import { Role } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { ApiError } from '../../errors';
 import { runIdempotent } from '../../services/idempotency.service';
+import { parseId as sharedParseId } from '../utils/parse-id';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import type { Tx } from '../../services/trip-shared';
 
@@ -61,12 +62,14 @@ export function sendShipmentWrite<T>(
 // the caller) on garbage input — never NaN. Centralised so every /:id handler
 // is consistent with `routes/trips.ts`.
 export function parseId(req: Request, res: Response): number | null {
-  const id = parseInt(req.params.id as string, 10);
-  if (!Number.isInteger(id) || id <= 0) {
+  // Delegates to the shared helper; the res-style contract (400 + null) is
+  // preserved for the call sites that early-return on it.
+  try {
+    return sharedParseId(req.params.id as string, 'ID lô hàng');
+  } catch {
     res.status(400).json({ error: 'ID lô hàng không hợp lệ' });
     return null;
   }
-  return id;
 }
 
 export function requireShipmentIdempotencyKey(req: Request, message: string): string {
