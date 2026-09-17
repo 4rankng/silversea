@@ -520,6 +520,21 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
+  // Bulk appointment entry: multi-container lots that share one slot get the
+  // same hover-copy affordance as the CUS ledger (88906f39) — a row with a
+  // schedule offers to fill every row whose appointment is still empty.
+  const emptyAppointmentCount = containers.filter((row) => !row.customerAppointmentAt).length;
+  function copyAppointmentToEmpty(fromKey: string) {
+    const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
+    if (!source) return;
+    const targetCount = containers.filter((row) => row.key !== fromKey && !row.customerAppointmentAt).length;
+    if (!targetCount) return;
+    setContainers((current) => current.map((row) => (
+      row.key !== fromKey && !row.customerAppointmentAt ? { ...row, customerAppointmentAt: source } : row
+    )));
+    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetCount} container chưa có lịch` });
+  }
+
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
@@ -777,6 +792,7 @@ export function ShipmentCreateWorkspace() {
                 const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
                 const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
                 const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
+                const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 2;
                 return (
                 <tr key={row.key} className="csc-container-row">
                   <th scope="row" className="csc-container-row__index">
@@ -928,6 +944,17 @@ export function ShipmentCreateWorkspace() {
                     onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
                   >
                     <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
+                    {canCopyAppointment && (
+                      <button
+                        type="button"
+                        className="csc-appointment-copy"
+                        onClick={() => copyAppointmentToEmpty(row.key)}
+                        title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
+                        aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
+                      >
+                        Copy
+                      </button>
+                    )}
                   </ShipmentContainerCell>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>
