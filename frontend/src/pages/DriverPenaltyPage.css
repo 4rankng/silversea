@@ -4,7 +4,7 @@
      720px driver measure instead of stretching edge to edge. */
   max-width: var(--driver-measure);
   margin: 0 auto;
-  padding-bottom: 40px;
+  padding: 12px 0 24px;
 }
 
 .driver-penalty-page .page-header {
@@ -27,10 +27,10 @@
 .penalty-status-banner {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 20px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 .penalty-status-banner--safe {
   background: var(--success-soft);
@@ -87,6 +87,38 @@
   background: var(--surface-2);
   border: 1px solid var(--line-2);
   color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+
+.penalty-summary-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+.penalty-summary-error > svg {
+  flex-shrink: 0;
+  color: var(--warning);
+}
+
+.penalty-summary-error > div {
+  flex: 1;
+  min-width: 160px;
+}
+
+.penalty-summary-error strong {
+  font-size: var(--text-body-size);
+}
+
+.penalty-summary-error p {
+  margin: 2px 0 0;
   font-size: var(--text-caption-size);
 }
 
@@ -159,14 +191,13 @@
 
 /* ═══ ZONE 3 — Violations Data Card ═══ */
 .penalty-data-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
   overflow: hidden;
 }
 .penalty-data-card__header {
-  padding: 16px 20px 14px;
+  padding: 10px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -176,11 +207,16 @@
 .penalty-data-card__title {
   font-size: var(--text-section-size);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--ink-3);
+  letter-spacing: 0;
+  color: var(--ink-2);
   line-height: var(--lh-snug);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.penalty-month-field {
+  flex: 0 1 180px;
+  min-width: 148px;
+  margin: 0;
 }
 
 /* Violation rows */
@@ -192,8 +228,8 @@
 .penalty-violation-row {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 14px 20px;
+  gap: 10px;
+  padding: 10px 12px;
   border-top: 1px solid var(--line);
   transition: background 120ms ease;
 }
@@ -260,7 +296,7 @@
 /* Empty state */
 .penalty-empty-state {
   text-align: center;
-  padding: 42px 20px;
+  padding: 24px 12px;
   color: var(--ink-3);
   border-top: 1px solid var(--line);
 }
@@ -286,8 +322,8 @@
 
 /* ═══ ZONE 4 — Footer Note ═══ */
 .penalty-footer-note {
-  margin-top: 24px;
-  padding: 12px 16px;
+  margin-top: 12px;
+  padding: 10px 12px;
   background: var(--surface-2);
   border-radius: 8px;
   font-size: var(--text-caption-size);
@@ -304,15 +340,15 @@
     font-weight: 800;
   }
   .penalty-violation-row {
-    padding: 12px 16px;
+    padding: 10px 8px;
   }
   .penalty-data-card {
-    border-radius: 14px;
+    border-radius: 8px;
   }
   .penalty-status-banner {
-    padding: 14px 16px;
-    border-radius: 14px;
-    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    gap: 10px;
   }
   .penalty-status-banner__icon {
     width: 38px;
@@ -342,12 +378,22 @@
     height: 40px;
   }
   .penalty-data-card__header {
-    padding: 14px 16px 12px;
+    padding: 8px;
   }
   /* Month select = UuiSelectField trigger (class lands on the button);
      touch floor per docs/design-guidelines.md. */
   .penalty-month-select {
     min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .penalty-data-card__header {
+    align-items: stretch;
+  }
+
+  .penalty-month-field {
+    flex-basis: 100%;
   }
 }
 

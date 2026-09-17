@@ -44,6 +44,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['shipments/core.routes.ts|PATCH|/operational-sites/:id', 'Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'],
   ['ops.ts|PUT|/orders/shipment-pins/:shipmentId', 'Per-user bookmark upsert keyed by (user_id, shipment_id) with PUT set-semantics; a replay converges on the requested pinned state. No business entity mutation.'],
   ['ops.ts|POST|/expense-photos/upload', 'Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'],
+  ['expense-accounting.ts|POST|/entries/:kind/:id/photos/upload', 'Content-hash evidence upload with unique storage-key attachment; replay converges on the same evidence without changing expense amounts, cash or reconciliation.'],
   ['ops.ts|POST|/expenses/:id/photos', 'Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'],
   ['ops.ts|DELETE|/expense-photos/:id', 'Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'],
   ['ops.ts|PUT|/trucks/:truckId/ops-assignment', 'Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'],

@@ -440,12 +440,16 @@ export function buildNotificationPayload(
   if (trip.fulfillmentId == null) {
     throw new ApiError(409, 'Chuyến điều xe chưa liên kết tác vụ thực hiện.');
   }
+  // /my-trips/:id is TRIP-scoped (card 20260915_1: DriverTripDetailPage
+  // fetches getDriverTrip(tripId)), so the deep link must key on trip.id.
+  // The fulfillmentId is still validated above — issuance requires it — but
+  // it no longer rides the notification.
   return {
     type: NotificationType.TRIP_DISPATCHED,
     title: 'Lệnh điều xe mới',
     message: trip.tripCode ? `Chuyến ${trip.tripCode} đã được điều xe` : 'Bạn có lệnh điều xe mới',
-    relatedEntityType: 'shipment_fulfillments',
-    relatedEntityId: trip.fulfillmentId,
+    relatedEntityType: 'trips',
+    relatedEntityId: trip.id,
     targetDriverId: trip.driverId ?? undefined,
   };
 }

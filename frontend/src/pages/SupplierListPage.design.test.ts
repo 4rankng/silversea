@@ -45,7 +45,7 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     // required-field hint.
     expect(page).toContain("import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';");
     expect((page.match(/<EntityFormSection icon=\{[A-Za-z2]+\} label=/g) ?? []).length).toBe(3);
-    expect(page).toContain('Thông tin nhà xe');
+    expect(page).toContain('Thông tin nhà cung cấp');
     expect(page).toContain('Điều khoản thanh toán');
     expect(page).toContain('Ghi chú');
     expect(page).toContain('<RequiredHint />');

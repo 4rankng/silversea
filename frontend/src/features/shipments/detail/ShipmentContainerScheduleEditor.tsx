@@ -4,9 +4,11 @@
 // Split out of ShipmentContainerLedger.tsx (structure-guard ratchet);
 // appointment state (ngày + giờ) stays owned by the parent InlineEditor,
 // which passes values and setters down.
-import { Calendar, Clock, X } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
+import { useState } from 'react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
-import { DateInput } from '../../../design-system';
+import { BufferedUuiDateInput } from '../../../design-system';
+import { TimeInput } from '../../../design-system/forms/TimeInput';
 
 /** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
 const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
@@ -60,11 +62,11 @@ export function ScheduleEditorBody({
   onAppointmentDateChange, onScheduleTimeChange, onClose,
   cargoMode, transportDate = '', canEditTransport = false, onTransportDateChange,
 }: ScheduleEditorBodyProps) {
+  const [dateResetKey, setDateResetKey] = useState(0);
   return (
     <>
       <div className="shipment-container-ledger__schedule-header">
         <div className="shipment-container-ledger__schedule-title">
-          <Calendar size={14} aria-hidden="true" />
           <strong>Chỉnh sửa lịch trình</strong>
           <span className="shipment-container-ledger__schedule-badge">{row.containerNumber || `Container số ${row.ordinal}`}</span>
         </div>
@@ -87,7 +89,9 @@ export function ScheduleEditorBody({
               key={label}
               type="button"
               className={`shipment-container-ledger__schedule-pill${active ? ' is-active' : ''}`}
+              disabled={saving || !canEdit}
               onClick={() => {
+                setDateResetKey((key) => key + 1);
                 onAppointmentDateChange(quickDate);
                 if (!scheduleTime) onScheduleTimeChange('08:00');
               }}
@@ -98,8 +102,8 @@ export function ScheduleEditorBody({
         })}
       </div>
       <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" lang="en-GB" value={scheduleTime} onChange={(event) => onScheduleTimeChange(event.target.value)} disabled={saving || !canEdit} /></label>
-        <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput lang="en-GB" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} /></label>
+        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><TimeInput label={row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'} value={scheduleTime} onChange={onScheduleTimeChange} disabled={saving || !canEdit} /></label>
+        <BufferedUuiDateInput key={dateResetKey} label={row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'} size="sm" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} />
       </div>
       {cargoMode != null && cargoMode !== 'FCL' && (
         <>
@@ -107,7 +111,8 @@ export function ScheduleEditorBody({
           <div className="shipment-container-ledger__editor-grid">
             <label>
               <span>Ngày vận chuyển</span>
-              <DateInput
+              <BufferedUuiDateInput
+                size="sm"
                 lang="en-GB"
                 value={transportDate}
                 onChange={(value) => onTransportDateChange?.(value)}
@@ -128,6 +133,7 @@ export function ScheduleEditorBody({
             key={presetTime}
             type="button"
             className={`shipment-container-ledger__schedule-time-pill${scheduleTime === presetTime ? ' is-active' : ''}`}
+            disabled={saving || !canEdit}
             onClick={() => {
               onScheduleTimeChange(presetTime);
               if (!appointmentDate) onAppointmentDateChange(getOffsetDateString(0));

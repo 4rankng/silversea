@@ -1,5 +1,5 @@
 import { Play, RefreshCw, Building2, ArrowRight, Link2, Timer, Truck } from 'lucide-react';
-import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
+import { SplitDateTimeField } from '../../../design-system/forms/SplitDateTimeField';
 import { formatDayMonth } from '../../../lib/date';
 import { splitRoute } from '../../../lib/route';
 import { isUrgent } from '../utils';
@@ -9,25 +9,6 @@ import { TRIP_STATUS_COLORS, type TripStatus } from '@tingting/shared';
 import type { NormalizedTrip } from '../../../hooks/useTripQueries';
 import type { PairingState, ReassignState, Truck as TruckType, Driver } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
-
-/** 24h text-input for the trip-pairing form — buffers `HH:mm DD/MM/YYYY`; value contract: `YYYY-MM-DDTHH:mm` in/out. */
-function PairDateTimeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const buffered = useBufferedDateTimeValue({ value, onChange });
-  return (
-    <input
-      ref={buffered.ref}
-      defaultValue={buffered.defaultValue}
-      onChange={buffered.onChange}
-      onBlur={buffered.onBlur}
-      className="input"
-      type="text"
-      inputMode="numeric"
-      placeholder={DATE_TIME_24_PLACEHOLDER}
-      maxLength={16}
-      autoComplete="off"
-    />
-  );
-}
 
 interface DispatchTripCardProps {
   trip: NormalizedTrip;
@@ -220,21 +201,15 @@ export function DispatchTripCard({
           />
         </label>
 
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
           {[
             { title: 'Chuyến 1', value: pairingState.firstTrip, target: 'firstTrip' as const },
             { title: 'Chuyến 2', value: pairingState.secondTrip, target: 'secondTrip' as const },
           ].map((section) => (
             <div key={section.title} style={{ padding: 14, borderRadius: 12, background: '#fff', border: '1px solid var(--border-1)', display: 'grid', gap: 10 }}>
               <div style={{ fontWeight: 700 }}>{section.title}</div>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giờ bắt đầu</span>
-                <PairDateTimeInput value={section.value.plannedStartAt} onChange={(next) => updatePairField(section.target, 'plannedStartAt', next)} />
-              </label>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giờ kết thúc</span>
-                <PairDateTimeInput value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} />
-              </label>
+              <SplitDateTimeField label={`Giờ bắt đầu — ${section.title}`} value={section.value.plannedStartAt} onChange={(next) => updatePairField(section.target, 'plannedStartAt', next)} disabled={pairingState.loading} />
+              <SplitDateTimeField label={`Giờ kết thúc — ${section.title}`} value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} disabled={pairingState.loading} />
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Điểm đi</span>
                 <input type="text" className="input" value={section.value.canonicalOrigin} onChange={(event) => updatePairField(section.target, 'canonicalOrigin', event.target.value)} />
@@ -265,7 +240,11 @@ export function DispatchTripCard({
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className="swap-btn" onClick={onClosePairing} disabled={pairingState.loading}>Hủy</button>
-          <button type="button" className="dispatch-btn" onClick={onPair} disabled={pairingState.loading || !pairingState.secondTripId}>
+          <button type="button" className="dispatch-btn" onClick={(event) => {
+            const invalid = event.currentTarget.closest('.dispatch-pair-panel')?.querySelector<HTMLInputElement>('input:invalid');
+            if (invalid) { invalid.focus(); invalid.reportValidity(); return; }
+            onPair();
+          }} disabled={pairingState.loading || !pairingState.secondTripId}>
             {pairingState.loading ? <Timer size={12} className="spin" /> : <Truck size={12} />}
             Lưu cặp 2 chiều
           </button>

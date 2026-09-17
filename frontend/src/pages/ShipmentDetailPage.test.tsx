@@ -28,6 +28,7 @@ vi.mock('../hooks/animations', () => ({
 }));
 
 import ShipmentDetailPage from './ShipmentDetailPage';
+import { ToastProvider } from '../components/shared/Toast';
 
 const detail: ShipmentDetailData = {
   shipment: {
@@ -93,11 +94,11 @@ describe('ShipmentDetailPage', () => {
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -124,11 +125,11 @@ describe('ShipmentDetailPage', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -140,11 +141,11 @@ describe('ShipmentDetailPage', () => {
     getShipmentDetailMock.mockResolvedValue({ ...detail, carrierAssignments: [] });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -183,11 +184,11 @@ describe('ShipmentDetailPage', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -226,11 +227,11 @@ describe('ShipmentDetailPage', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -271,11 +272,11 @@ describe('ShipmentDetailPage', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 
@@ -303,11 +304,11 @@ describe('ShipmentDetailPage', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/shipments/1']}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></ToastProvider>
       </QueryClientProvider>,
     );
 

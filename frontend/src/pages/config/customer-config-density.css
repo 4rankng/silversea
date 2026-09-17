@@ -72,58 +72,41 @@
   }
 }
 
+/* Compact records keep additional fields in an explicit disclosure. */
+.cfg-customer-short-name, .cfg-customer-compact-meta, .cfg-customer-details { display: none; }
+.cfg-page--customers .cfg-customer-toolbar { display: flex; gap: 8px; padding: 8px 0; background: transparent; min-height: 0; }
+.cfg-customer-filter-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.cfg-customer-search { flex: 1 1 220px; max-width: 340px; min-width: 0; margin-left: auto; }
+.cfg-page--customers .cfg-customer-filter-select { display: none; }
+.cfg-page--customers > .table-wrap { background: transparent; border: 0; box-shadow: none; }
+.cfg-customer-fetch-status { min-height: 20px; display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
+
+@media (max-width: 760px) {
+  .cfg-page--customers .cfg-customer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 130px; align-items: end; gap: 6px; }
+  .cfg-customer-filter-pills { display: none; }
+  .cfg-customer-search { width: 100%; max-width: none; margin: 0; }
+  .cfg-page--customers .cfg-customer-filter-select { display: block; min-width: 0; }
+}
+
 @container (max-width: 1100px) {
-  .cfg-page--customers .cfg-customer-table tbody {
-    gap: 0;
-  }
-
-  .cfg-page--customers .cfg-customer-table tbody tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding-block: 6px;
-    border: 0;
-    border-bottom: 1px solid var(--line-strong);
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .cfg-page--customers .cfg-customer-table tbody tr td {
-    padding: 4px 8px;
-    border: 0;
-    text-align: start;
-  }
-
-  /* The shared two-column orphan guard cannot choose tracks in this page's
-     three-column tablet layout. Identity and actions keep their full row. */
-  .cfg-page--customers .cfg-customer-table tbody tr td:nth-last-child(2):nth-child(even):not(.record-table__action) {
-    grid-column: auto;
-  }
-
-  .cfg-page--customers .cfg-customer-table tbody tr td:first-child,
-  .cfg-page--customers .cfg-customer-table tbody tr td.record-table__action {
-    grid-column: 1 / -1;
-  }
-
-  .cfg-page--customers .cfg-customer-table tbody td::before {
-    margin-bottom: 2px;
-    font-size: var(--text-label-size);
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .cfg-page--customers .cfg-customer-table tbody tr td.record-table__action {
-    padding-block: 0;
-  }
-
-  .cfg-page--customers .cfg-customer-table .row-action {
-    min-width: 44px;
-    min-height: 44px;
-  }
+  .cfg-page--customers .cfg-customer-table tbody { gap: 0; }
+  .cfg-page--customers .cfg-customer-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 44px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+  .cfg-page--customers .cfg-customer-table tbody tr > td { padding: 0; border: 0; text-align: start; }
+  .cfg-page--customers .cfg-customer-table tbody tr > td:not(:first-child):not(.record-table__action) { display: none; }
+  .cfg-page--customers .cfg-customer-table tbody tr > td:first-child { grid-column: 1; min-width: 0; }
+  .cfg-page--customers .cfg-customer-table tbody tr > td::before { display: none; }
+  .cfg-page--customers .cfg-customer-table tbody tr > td.record-table__action { grid-column: 2; grid-row: 1; align-self: start; padding: 0; }
+  .cfg-page--customers .cfg-customer-table .row-action { min-width: 44px; min-height: 44px; }
+  .cfg-customer-short-name { display: block; font-size: var(--text-data-size); line-height: 1.4; }
+  .cfg-customer-full-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+  .cfg-customer-short-name + .cfg-customer-full-name { color: var(--ink-3); font-weight: var(--fw-regular, 400); font-size: var(--text-caption-size); }
+  .cfg-customer-compact-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
+  .cfg-customer-details { display: block; }
+  .cfg-customer-details > summary { display: list-item; width: fit-content; min-height: 32px; align-content: center; color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-medium, 500); cursor: pointer; }
+  .cfg-customer-details > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  .cfg-customer-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 2px 0 4px; }
+  .cfg-customer-details dl > div { min-width: 0; }
+  .cfg-customer-details dt { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-regular, 400); }
+  .cfg-customer-details dd { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.4; font-size: var(--text-data-size); }
 }
-
-@container (min-width: 640px) and (max-width: 1100px) {
-  .cfg-page--customers .cfg-customer-table tbody tr {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
+@media (pointer: coarse) { .cfg-customer-details > summary { min-height: 44px; } }

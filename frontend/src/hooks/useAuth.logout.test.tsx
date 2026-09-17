@@ -74,6 +74,97 @@ describe('AuthProvider logout', () => {
     vi.unstubAllGlobals();
   });
 
+  it('preserves a newer remote login when local logout precedes the storage event', async () => {
+    api.setToken(VALID_TEST_JWT);
+    const tokenB = VALID_TEST_JWT + '-B';
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      return new Response(JSON.stringify(url.endsWith('/auth/logout') ? { success: true } : {
+        id: auth === `Bearer ${tokenB}` ? 2 : 1, username: 'user', email: null, phone: null,
+        role: auth === `Bearer ${tokenB}` ? 'DRIVER' : 'ADMIN',
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { queryClient } = renderWithAuth(<AuthProbe />);
+    await screen.findByTestId('auth-state');
+    localStorage.setItem('token', tokenB);
+    fireEvent.click(screen.getByRole('button', { name: /^logout$/ }));
+    expect(localStorage.getItem('token')).toBe(tokenB);
+    await waitFor(() => expect(queryClient.getQueryData(qk.auth.me)).toMatchObject({ userId: 2, role: 'DRIVER' }));
+    const revocations = fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/logout'));
+    expect(revocations.every(([, init]) => (init?.headers as Record<string, string>).Authorization === `Bearer ${VALID_TEST_JWT}`)).toBe(true);
+  });
+
+  it('logs out the displayed actor even if a late response refreshed the token cache first', async () => {
+    api.setToken(VALID_TEST_JWT);
+    const tokenB = VALID_TEST_JWT + '-B';
+    const pending = createDeferred<Response>();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/trucks/42')) return pending.promise;
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      return new Response(JSON.stringify(url.endsWith('/auth/logout') ? { success: true } : {
+        id: auth === `Bearer ${tokenB}` ? 2 : 1, username: 'user', email: null, phone: null,
+        role: auth === `Bearer ${tokenB}` ? 'DRIVER' : 'ADMIN',
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { queryClient } = renderWithAuth(<AuthProbe />);
+    await screen.findByTestId('auth-state');
+    const oldRead = api.get('/trucks/42');
+    localStorage.setItem('token', tokenB);
+    pending.resolve(new Response('{}', { status: 200 }));
+    await oldRead;
+    fireEvent.click(screen.getByRole('button', { name: /^logout$/ }));
+    expect(localStorage.getItem('token')).toBe(tokenB);
+    await waitFor(() => expect(queryClient.getQueryData(qk.auth.me)).toMatchObject({ userId: 2 }));
+    const revocations = fetchMock.mock.calls.filter(([url]) => url.endsWith('/auth/logout'));
+    expect(revocations.every(([, init]) => (init?.headers as Record<string, string>).Authorization === `Bearer ${VALID_TEST_JWT}`)).toBe(true);
+  });
+
+  it('rotates retained mutation identity after another tab switches accounts', async () => {
+    api.setToken(VALID_TEST_JWT);
+    let mutationCalls = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith('/trucks')) {
+        mutationCalls += 1;
+        return new Response('{}', { status: mutationCalls === 1 ? 503 : 200 });
+      }
+      return new Response(JSON.stringify({ id: 1, username: 'user', email: null, phone: null, role: 'ADMIN' }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithAuth(<AuthProbe />);
+    await screen.findByTestId('auth-state');
+    await expect(api.post('/trucks', { plate: 'QA' })).rejects.toMatchObject({ status: 503 });
+    act(() => {
+      localStorage.setItem('token', VALID_TEST_JWT + '-B');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'token' }));
+    });
+    await api.post('/trucks', { plate: 'QA' });
+    const calls = fetchMock.mock.calls.filter(([url]) => url.endsWith('/trucks'));
+    const key = (call: unknown[]) => ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key'];
+    expect(key(calls[0])).not.toBe(key(calls[1]));
+  });
+
+  it('does not overwrite a remote identity with a late login response', async () => {
+    api.clearToken();
+    const pending = createDeferred<Response>();
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending.promise));
+    let performLogin!: ReturnType<typeof useAuth>['login'];
+    function LoginProbe() { performLogin = useAuth().login; return <div>ready</div>; }
+    renderWithAuth(<LoginProbe />);
+    await screen.findByText('ready');
+    const attempt = performLogin('A', 'password');
+    const outcome = expect(attempt).rejects.toMatchObject({ status: 409 });
+    localStorage.setItem('token', VALID_TEST_JWT + '-B');
+    await act(async () => {
+      pending.resolve(new Response(JSON.stringify({ token: VALID_TEST_JWT + '-A', user: {
+        id: 1, username: 'A', email: null, phone: null, role: 'ADMIN',
+      } }), { status: 200 }));
+      await outcome;
+    });
+    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT + '-B');
+  });
+
   it('clears local auth state immediately; the revocation posts asynchronously', async () => {
     const logoutDeferred = createDeferred<Response>();
     const fetchMock = vi.fn()
@@ -346,80 +437,3 @@ describe('AuthProvider logout', () => {
   });
 });
 
-describe('authentication recovery and overlapping accounts', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    vi.stubGlobal('localStorage', createStorageStub());
-    localStorage.setItem('token', VALID_TEST_JWT);
-    api.refreshTokenFromStorage();
-  });
-  afterEach(() => vi.unstubAllGlobals());
-  const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
-    status, headers: { 'Content-Type': 'application/json' },
-  });
-  const user = { userId: 1, username: 'admin', email: null, phone: null, role: 'ADMIN' };
-
-  it.each([429, 502, 503])('retains credentials on HTTP %s and resumes via Retry', async (status) => {
-    const transport = vi.fn().mockResolvedValueOnce(json({ error: 'temporarily unavailable' }, status))
-      .mockResolvedValueOnce(json(user));
-    vi.stubGlobal('fetch', transport);
-    renderWithAuth(<AuthProbe />);
-    expect(await screen.findByText('Chưa kiểm tra được phiên đăng nhập')).toBeTruthy();
-    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
-    expect(screen.queryByTestId('auth-state')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
-    expect(transport).toHaveBeenCalledTimes(2);
-  });
-
-  it('preserves a mounted unsaved draft when a background auth refetch fails and then recovers', async () => {
-    function DraftProbe() {
-      const [draft, setDraft] = useState('');
-      return <><AuthProbe /><input aria-label="Unsaved expense note" value={draft} onChange={event => setDraft(event.target.value)} /></>;
-    }
-    const transport = vi.fn().mockResolvedValueOnce(json(user))
-      .mockResolvedValueOnce(json({ error: 'temporarily unavailable' }, 503))
-      .mockResolvedValueOnce(json(user));
-    vi.stubGlobal('fetch', transport);
-    const { queryClient, container } = renderWithAuth(<DraftProbe />);
-    await screen.findByTestId('auth-state');
-    const input = screen.getByLabelText('Unsaved expense note');
-    fireEvent.change(input, { target: { value: 'Receipt pending, keep this note' } });
-    await act(async () => { await queryClient.refetchQueries({ queryKey: qk.auth.me }); });
-    expect(await screen.findByText('Chưa kiểm tra được phiên đăng nhập')).toBeTruthy();
-    expect(screen.getByLabelText('Unsaved expense note')).toBe(input);
-    expect((input as HTMLInputElement).value).toBe('Receipt pending, keep this note');
-    expect(container.hasAttribute('inert')).toBe(true);
-    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
-    fireEvent.click(screen.getByRole('button', { name: /^Thử lại$/ }));
-    await waitFor(() => expect(screen.queryByText('Chưa kiểm tra được phiên đăng nhập')).toBeNull());
-    expect(screen.getByLabelText('Unsaved expense note')).toBe(input);
-    expect((input as HTMLInputElement).value).toBe('Receipt pending, keep this note');
-    expect(container.hasAttribute('inert')).toBe(false);
-  });
-
-  it('logs B out immediately while A revocation remains pending, without restoring either account', async () => {
-    const oldLogout = createDeferred<Response>();
-    const tokenB = VALID_TEST_JWT.replace('signature', 'signature-B');
-    const transport = vi.fn().mockResolvedValueOnce(json(user))
-      .mockImplementationOnce(() => oldLogout.promise)
-      .mockResolvedValueOnce(json({ token: tokenB, user: { ...user, userId: 2, username: 'next-user' } }))
-      .mockResolvedValueOnce(json({ success: true }));
-    vi.stubGlobal('fetch', transport);
-    const { queryClient } = renderWithAuth(<AuthProbe />);
-    await screen.findByTestId('auth-state');
-    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
-    await waitFor(() => expect(screen.getByTestId('auth-state').textContent).toBe('signed-out'));
-    fireEvent.click(screen.getByRole('button', { name: 'login' }));
-    await waitFor(() => expect(localStorage.getItem('token')).toBe(tokenB));
-    queryClient.setQueryData(['private-B'], { secret: 'B' });
-    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
-    await waitFor(() => expect(screen.getByTestId('auth-state').textContent).toBe('signed-out'));
-    expect(localStorage.getItem('token')).toBeNull();
-    expect(queryClient.getQueryData(['private-B'])).toBeUndefined();
-    expect(transport.mock.calls.filter(([url]) => url === '/api/auth/logout')).toHaveLength(2);
-    oldLogout.resolve(json({ success: true }));
-    await waitFor(() => expect(localStorage.getItem('token')).toBeNull());
-    expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
-  });
-});

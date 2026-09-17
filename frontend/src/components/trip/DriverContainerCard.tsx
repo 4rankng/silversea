@@ -6,12 +6,8 @@ import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import { PhotoViewer } from '../PhotoViewer';
 import { photoSrc, renderThumb } from './DriverTripPhotos';
-import {
-  normalizeContainerNumber,
-  validateContainerFormat,
-  validateCheckDigit,
-  suggestCorrections,
-} from '@tingting/shared';
+import { normalizeContainerNumber } from '@tingting/shared';
+import { checkContainerNumber } from './container-instance-helpers';
 import { TextField } from '../../design-system';
 import './DriverContainerCard.css';
 
@@ -41,6 +37,8 @@ interface OcrResponse {
 
 interface Props {
   tripId: number;
+  /** Completed trips reject container edits and photo deletion in the API. */
+  readOnly?: boolean;
   /** Existing containers for this trip (read-only display; refreshed by parent). */
   containers: ExistingContainer[];
   /** Storage key of the latest container photo — shown as a thumbnail once saved. */
@@ -55,31 +53,17 @@ interface Props {
   onSaved: () => void;
 }
 
-type CheckStatus = { warning: string | null; suggestion: string | null };
-
-/** ISO 6346 check-digit validation + a 1-edit correction suggestion. Advisory
- *  only — the number is never auto-saved. */
-function checkContainerNumber(cn: string): CheckStatus {
-  const trimmed = cn.trim();
-  if (!trimmed) return { warning: null, suggestion: null };
-  const norm = normalizeContainerNumber(trimmed);
-  if (!validateContainerFormat(norm)) {
-    return { warning: 'Số cont sai định dạng (4 chữ cái + 7 số).', suggestion: null };
-  }
-  if (validateCheckDigit(norm)) return { warning: null, suggestion: null };
-  const corrections = suggestCorrections(norm, 1);
-  return { warning: 'Số cont sai chữ số kiểm tra — kiểm tra lại.', suggestion: corrections[0] ?? null };
-}
-
 // photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
-export function DriverContainerCard({ tripId, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
+export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
   const [uploading, setUploading] = useState<{ cont: boolean; seal: boolean }>({ cont: false, seal: false });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [containerError, setContainerError] = useState<string | null>(null);
+  const containerFieldRef = useRef<HTMLDivElement>(null);
   const [scannerType, setScannerType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
   const [editing, setEditing] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState<'CONTAINER' | 'SEAL' | null>(null);
@@ -98,11 +82,11 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
 
   const containers = sourceContainers ?? [];
   const hasSaved = containers.length > 0;
-  const showForm = !hasSaved || editing;
+  const showForm = !readOnly && (!hasSaved || editing);
   const editingExisting = hasSaved && editing;
 
   const enterEdit = () => {
-    if (!hasSaved) return;
+    if (!hasSaved || readOnly) return;
     const c = containers[0];
     setDraft({
       // Saved rows can carry a null container number (seal-only / LCL saves) —
@@ -117,6 +101,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
     // these in-place, and the parent refetch updates contPhotoKey/sealPhotoKey.
     setLastPhotos({ cont: contPhotoKey, seal: sealPhotoKey });
     setError(null);
+    setContainerError(null);
     setScanCheck(null);
     setEditing(true);
   };
@@ -311,17 +296,21 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
   );
 
   const handleSave = async () => {
+    if (readOnly || saving || uploading.cont || uploading.seal || uploadingNote) return;
     setError(null);
-    setScanCheck(null);
-    if (!draft.containerNumber.trim()) {
-      setError('Cần nhập số container.');
+    const invalid = draft.containerNumber.trim()
+      ? checkContainerNumber(draft.containerNumber).warning : 'Cần nhập số container.';
+    setContainerError(invalid);
+    if (invalid) {
+      containerFieldRef.current?.querySelector('input')?.focus();
       return;
     }
+    setScanCheck(null);
     setSaving(true);
     try {
       // Both branches persist the same payload — only the verb + outcome differ.
       const payload = {
-        containerNumber: draft.containerNumber.trim().toUpperCase(),
+        containerNumber: normalizeContainerNumber(draft.containerNumber),
         sealNumber: draft.sealNumber.trim() || null,
         containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null,
       };
@@ -360,7 +349,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
   };
 
   const check = checkContainerNumber(draft.containerNumber);
-  const busy = saving || uploading.cont || uploading.seal;
+  const busy = saving || uploading.cont || uploading.seal || uploadingNote;
 
   return (
     <section className="dcc-section">
@@ -377,32 +366,32 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
             strip on the hero carries the brand accent (never a full-height bar),
             and thumbnails are pinned to fixed square dimensions so the grid can
             never stretch them. */}
-        {hasSaved && !editing && (
+        {((hasSaved && !editing) || readOnly) && (
           <div className="dcc-bento">
             <div className="dcc-bento__hero">
               <div className="dcc-bento__hero-content">
                 <div className="dcc-bento__eyebrow">Số cont</div>
-                <div className="dcc-bento__plate">{containers[0].containerNumber || 'Chưa có số cont'}</div>
-                {containers[0].containerTypeName && (
+                <div className="dcc-bento__plate">{containers[0]?.containerNumber || 'Chưa có số cont'}</div>
+                {containers[0]?.containerTypeName && (
                   <div className="dcc-bento__hero-meta">
                     {containers[0].containerTypeName}
                   </div>
                 )}
               </div>
-              <button
+              {!readOnly && <button
                 type="button"
                 className="dcc-bento__edit-btn"
                 onClick={enterEdit}
                 aria-label="Sửa số cont"
               >
                 <Pencil size={13} /> Sửa
-              </button>
+              </button>}
             </div>
 
             <div className="dcc-bento__seal">
               <div className="dcc-bento__eyebrow">Seal</div>
               <div className="dcc-bento__seal-value">
-                {containers[0].sealNumber || <span className="dcc-bento__dash">—</span>}
+                {containers[0]?.sealNumber || <span className="dcc-bento__dash">—</span>}
               </div>
             </div>
 
@@ -415,7 +404,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                     the single display + management surface for all 3 types. */}
                 <div className="dcc-bento__slot">
                   {attachmentTile(deliveryNotePhotoKey, 'Biên bản')}
-                  {deliveryNotePhotoKey && (
+                  {deliveryNotePhotoKey && !readOnly && (
                     <button
                       type="button"
                       className="dcc-photo-remove"
@@ -430,7 +419,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
               </div>
               {/* Ghost retake affordances under the saved slots — one style,
                   ≥44px touch on coarse pointers (design spec photo block). */}
-              <div className="dcc-capture dcc-capture--note">
+              {!readOnly && <div className="dcc-capture dcc-capture--note">
                 <label className="dcc-capture-btn dcc-capture-btn--secondary">
                   {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                   <span>Chụp / chọn ảnh biên bản</span>
@@ -445,7 +434,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                 >
                   <span>Mở camera biên bản</span>
                 </button>
-              </div>
+              </div>}
             </div>
           </div>
         )}
@@ -456,7 +445,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
         {showForm && (
           <>
             {error && (
-              <div className="dcc-error">
+              <div className="dcc-error" role="alert">
                 <AlertCircle size={15} /> {error}
               </div>
             )}
@@ -478,72 +467,74 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                 button was unusable on some devices; the file picker is now
                 one tap away. */}
             <div className="dcc-capture">
-              {/* No aria-label: the visible span text is the accessible name
-                  (WCAG 2.5.3 Label-in-Name). */}
-              <label className="dcc-capture-btn dcc-capture-btn--primary">
-                {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                <span>Chụp / chọn ảnh cont</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
+              <div className="dcc-capture-group">
+                <label className="dcc-capture-btn dcc-capture-btn--primary">
+                  {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Chụp / chọn ảnh cont</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    disabled={uploading.cont}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      void onPick(file, 'CONTAINER');
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="dcc-capture-btn dcc-capture-btn--secondary"
                   disabled={uploading.cont}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    void onPick(file, 'CONTAINER');
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-              <label className="dcc-capture-btn dcc-capture-btn--primary">
-                {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                <span>Chụp / chọn ảnh seal</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
+                  onClick={() => setScannerType('CONTAINER')}
+                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                >
+                  <span>Mở camera cont</span>
+                </button>
+              </div>
+              <div className="dcc-capture-group">
+                <label className="dcc-capture-btn dcc-capture-btn--primary">
+                  {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Chụp / chọn ảnh seal</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    disabled={uploading.seal}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      void onPick(file, 'SEAL');
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="dcc-capture-btn dcc-capture-btn--secondary"
                   disabled={uploading.seal}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    void onPick(file, 'SEAL');
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                className="dcc-capture-btn dcc-capture-btn--secondary"
-                disabled={uploading.cont}
-                onClick={() => setScannerType('CONTAINER')}
-                title="Mở camera overlay (chế độ chụp nâng cao)"
-              >
-                <span>Mở camera cont</span>
-              </button>
-              <button
-                type="button"
-                className="dcc-capture-btn dcc-capture-btn--secondary"
-                disabled={uploading.seal}
-                onClick={() => setScannerType('SEAL')}
-                title="Mở camera overlay (chế độ chụp nâng cao)"
-              >
-                <span>Mở camera seal</span>
-              </button>
-              {/* Same row, same styles — the biên bản picker completes the one
-                  capture group for all three photo types. */}
-              <label className="dcc-capture-btn dcc-capture-btn--primary">
-                {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                <span>Chụp / chọn ảnh biên bản</span>
-                {noteFileInput}
-              </label>
-              <button
-                type="button"
-                className="dcc-capture-btn dcc-capture-btn--secondary"
-                disabled={uploadingNote}
-                onClick={() => setScannerType('DELIVERY_NOTE')}
-                title="Mở camera overlay (chế độ chụp nâng cao)"
-              >
-                <span>Mở camera biên bản</span>
-              </button>
+                  onClick={() => setScannerType('SEAL')}
+                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                >
+                  <span>Mở camera seal</span>
+                </button>
+              </div>
+              <div className="dcc-capture-group">
+                <label className="dcc-capture-btn dcc-capture-btn--primary">
+                  {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Chụp / chọn ảnh biên bản</span>
+                  {noteFileInput}
+                </label>
+                <button
+                  type="button"
+                  className="dcc-capture-btn dcc-capture-btn--secondary"
+                  disabled={uploadingNote}
+                  onClick={() => setScannerType('DELIVERY_NOTE')}
+                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                >
+                  <span>Mở camera biên bản</span>
+                </button>
+              </div>
             </div>
 
             {/* Show the most recently uploaded photo for each capture zone so the
@@ -604,27 +595,32 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
             )}
 
             <div className="dcc-fields">
-              <div>
+              <div ref={containerFieldRef}>
                 <TextField
                   label="Số container"
                   required
                   placeholder="Ví dụ: TCKU1234567"
                   value={draft.containerNumber}
-                  onChange={e => setDraft(prev => ({ ...prev, containerNumber: e.target.value.toUpperCase() }))}
+                  error={check.warning ?? containerError ?? undefined}
+                  onChange={e => {
+                    setDraft(prev => ({ ...prev, containerNumber: e.target.value.toUpperCase() }));
+                    setContainerError(null);
+                    setError(null);
+                  }}
                 />
-                {check.warning && (
+                {check.suggestion && (
                   <div className="dcc-warn">
-                    <span>⚠ {check.warning}</span>
-                    {check.suggestion && (
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        style={{ padding: '0 10px', fontSize: 'var(--text-control-size)' }}
-                        onClick={() => setDraft(prev => ({ ...prev, containerNumber: check.suggestion! }))}
-                      >
-                        Đổi thành {check.suggestion}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      style={{ padding: '0 10px', fontSize: 'var(--text-control-size)' }}
+                      onClick={() => {
+                        setDraft(prev => ({ ...prev, containerNumber: check.suggestion! }));
+                        setContainerError(null);
+                      }}
+                    >
+                      Đổi thành {check.suggestion}
+                    </button>
                   </div>
                 )}
               </div>
@@ -653,7 +649,7 @@ export function DriverContainerCard({ tripId, containers: sourceContainers, cont
                 type="button"
                 className="btn btn--primary dcc-save"
                 onClick={handleSave}
-                disabled={saving || uploading.cont || uploading.seal}
+                disabled={busy}
               >
                 {saving
                   ? <Loader2 size={16} className="spin" />

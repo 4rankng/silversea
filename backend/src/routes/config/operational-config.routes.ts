@@ -5,6 +5,7 @@ import * as s from '../../db/schema';
 import { isNull, like } from 'drizzle-orm';
 
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 import { getUser } from '../../middleware/auth';
 
 
@@ -170,7 +171,7 @@ router.get('/fuel-price-history', asyncHandler(async (_req: Request, res: Respon
 
 router.get('/fuel-price-history/effective', asyncHandler(async (req: Request, res: Response) => {
   const dateStr = req.query.date as string;
-  if (!dateStr) return res.status(400).json({ error: 'Tham số date là bắt buộc (YYYY-MM-DD)' });
+  if (!dateStr) throw new ApiError(400, 'Tham số date là bắt buộc (YYYY-MM-DD)');
   const price = await getEffectiveFuelPrice(new Date(dateStr));
   res.json({ price });
 }));

@@ -134,7 +134,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await screen.findByText('SS-A');
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
-    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-09-20' } });
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
   });
 
@@ -196,17 +196,22 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     fireEvent.click(await screen.findByText('— Chọn loại phí —'));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    const amount = screen.getByLabelText(/Số tiền \(VND\)/);
+    const amount = screen.getByLabelText(/Thực chi \(VND\)/);
     fireEvent.change(amount, { target: { value: '-123000' } });
-    expect(amount).toHaveValue('-123.000');
+    expect(amount).toHaveValue(-123000);
     expect(amount).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('Số tiền phải là số dương');
+    expect(screen.getByText('Số tiền phải là số dương')).toBeInTheDocument();
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
     expect(apiPost).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '123.45' } });
+    expect(amount).toHaveValue(123.45);
+    expect(submit).toBeDisabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(apiPost).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '123000' } });
     expect(submit).toBeEnabled();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Số tiền phải là số dương')).not.toBeInTheDocument();
   });
 
   it('waits for the receipt upload before creating the expense with its storage key', async () => {
@@ -217,7 +222,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     fireEvent.click(await screen.findByText('— Chọn loại phí —'));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VND\)/), { target: { value: '123000' } });
+    fireEvent.change(screen.getByLabelText(/Thực chi \(VND\)/), { target: { value: '123000' } });
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
     const form = dialog.querySelector('form')!;
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;

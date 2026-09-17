@@ -2,10 +2,8 @@
 // (PRD M10-01-03; Q23 proposal: same request id → same result, no extra row).
 //
 // Generic over an `(endpoint, idempotencyKey)` pair with a SHA-256 payload
-// hash for conflict detection. Currently consumed by the M10.1 clerk
-// quick-create endpoint (`POST /api/shipments/quick`); designed so future
-// write paths (offline-queue sync, driver progress update) reuse the same
-// helper instead of re-rolling dedupe logic.
+// hash for conflict detection. Business write paths share this authority;
+// a manual retry reuses its key without replaying money or source allocation.
 //
 // Conflict policy (matches Q23 verbatim proposal):
 //   - Same key + same payload hash → return the stored result (replay).
@@ -19,8 +17,8 @@ import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq } from 'drizzle-orm';
-import { ApiError } from '../errors';
-import { persistMaterialWriteSuccessAuditInTransaction } from './audit.service';
+import { ApiError, isPgUniqueViolation } from '../errors';
+import { persistMaterialWriteSuccessAuditInTransaction, resolveSharedAdapterAuditEndpoint } from './audit.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -101,6 +99,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PAYMENTS_VENDOR: 'payments.vendor',
   PAYMENTS_CARRIER: 'payments.carrier',
   TREASURY_ACCOUNT_SETUP: 'treasury.accounts.setup.request',
+  TREASURY_ACCOUNT_FUND: 'treasury.accounts.fund.update',
   TREASURY_ACCOUNT_CUTOVER: 'treasury.accounts.cutover.request',
   TREASURY_MOVEMENT_REVERSAL: 'treasury.movements.reversal.request',
   DRIVER_PAYOUT: 'drivers.payout',
@@ -308,9 +307,65 @@ export async function waitForIdempotencyRecord(
  * Concurrent first calls are serialized with a transaction-scoped PostgreSQL
  * advisory lock derived from `(endpoint, idempotencyKey)`. The second caller
  * waits, then sees the committed key and replays the original entity without
- * entering `create`. The application lock and canonical lookup are the sole
- * uniqueness authority; the database intentionally has no unique constraint.
+ * entering `create`. The application lock remains the serializer; the database
+ * unique index `idempotency_keys_endpoint_key_uniq` is the backstop behind it
+ * — if a bypass writer slips a row past the lock, our own insert trips 23505
+ * and `runIdempotent` replays from the winning row instead of surfacing the
+ * constraint error.
  */
+/**
+ * Shared replay policy for a previously-persisted idempotency row: actor
+ * match, payload-hash match, then snapshot or entity-load replay. Used by the
+ * in-transaction `existing` branch and by the 23505 catch-and-replay backstop
+ * in `runIdempotent`.
+ */
+async function replayFromRecord<T>(args: {
+  record: typeof s.idempotencyKeys.$inferSelect;
+  payloadHash: string;
+  createdBy?: number | null;
+  idempotencyKey: string;
+  load?: (entityId: number, tx: Tx) => Promise<T>;
+  tx: Tx;
+  deserializeResult?: (snapshot: unknown) => T;
+  replayResult?: (snapshot: unknown, tx: Tx) => Promise<T>;
+}): Promise<IdempotentRunResult<T>> {
+  const { record: existing, payloadHash, createdBy, idempotencyKey, load, tx, deserializeResult, replayResult } = args;
+  const requestedActor = createdBy ?? null;
+  const persistedActor = existing.createdBy ?? null;
+  if (requestedActor !== persistedActor) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  if (existing.payloadHash !== payloadHash) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
+    return {
+      result: replayResult ? await replayResult(existing.responseSnapshot, tx) : deserializeResult
+        ? deserializeResult(existing.responseSnapshot)
+        : (existing.responseSnapshot as T),
+      replayed: true,
+      statusCode: existing.responseStatusCode,
+    };
+  }
+  if (existing.entityId == null || !load) {
+    throw new ApiError(
+      409,
+      'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
+      `idempotency_key=${idempotencyKey}`,
+    );
+  }
+  const result = await load(existing.entityId, tx);
+  return { result, replayed: true, statusCode: existing.responseStatusCode };
+}
+
 export async function runIdempotent<T>(args: {
   endpoint: string;
   idempotencyKey: string | undefined;
@@ -324,6 +379,7 @@ export async function runIdempotent<T>(args: {
   getEntityId?: (result: T) => number | null | undefined;
   serializeResult?: (result: T) => unknown;
   deserializeResult?: (snapshot: unknown) => T;
+  replayResult?: (snapshot: unknown, tx: Tx) => Promise<T>;
   onTransactionRollback?: (error: unknown, created: T | undefined) => Promise<void>;
   getEntityKey?: (result: T) => string | null | undefined;
 }): Promise<IdempotentRunResult<T>> {
@@ -340,10 +396,12 @@ export async function runIdempotent<T>(args: {
     getEntityId,
     serializeResult,
     deserializeResult,
+    replayResult,
     onTransactionRollback,
     getEntityKey,
   } = args;
 
+  resolveSharedAdapterAuditEndpoint(endpoint);
   if (!idempotencyKey) {
     throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
   }
@@ -368,40 +426,16 @@ export async function runIdempotent<T>(args: {
         .limit(1);
 
       if (existing) {
-        const requestedActor = createdBy ?? null;
-        const persistedActor = existing.createdBy ?? null;
-        if (requestedActor !== persistedActor) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        if (existing.payloadHash !== payloadHash) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
-          return {
-            result: deserializeResult
-              ? deserializeResult(existing.responseSnapshot)
-              : (existing.responseSnapshot as T),
-            replayed: true,
-            statusCode: existing.responseStatusCode,
-          };
-        }
-        if (existing.entityId == null || !load) {
-          throw new ApiError(
-            409,
-            'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
-            `idempotency_key=${idempotencyKey}`,
-          );
-        }
-        const result = await load(existing.entityId, tx);
-        return { result, replayed: true, statusCode: existing.responseStatusCode };
+        return await replayFromRecord<T>({
+          record: existing,
+          payloadHash,
+          createdBy,
+          idempotencyKey,
+          load,
+          tx,
+          deserializeResult,
+          replayResult,
+        });
       }
 
       createdResult = await create(tx);
@@ -439,6 +473,23 @@ export async function runIdempotent<T>(args: {
   } catch (error) {
     if (onTransactionRollback) {
       await onTransactionRollback(error, createdResult);
+    }
+    // 23505 on our own idempotency-row insert means a bypass writer committed
+    // the same (endpoint, key) after our in-tx SELECT. The business tx rolled
+    // back (the rollback hook above already fired) — replay from the winning
+    // row instead of surfacing the constraint error. Narrowed by constraint
+    // name so business 23505s thrown inside create() still propagate.
+    if (createdResult !== undefined && isPgUniqueViolation(error, 'idempotency_keys_endpoint_key_uniq')) {
+      const existing = await findIdempotencyRecord(endpoint, idempotencyKey);
+      if (existing) {
+        // Replay adapters may attach source allocations to canonical cash.
+        // Keep those writes atomic and serialized just like the normal replay.
+        return await db.transaction(async (tx) => {
+          await lockApplicationOwnedUniqueness(tx, 'idempotency-key', [endpoint, idempotencyKey]);
+          return replayFromRecord<T>({ record: existing, payloadHash, createdBy,
+            idempotencyKey, load, tx, deserializeResult, replayResult });
+        }, transactionOptions);
+      }
     }
     throw error;
   }

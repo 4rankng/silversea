@@ -59,6 +59,7 @@ import {
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
+import { throwValidation } from '../lib/validation';
 import * as s from '../db/schema';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { sniffImageType } from '../lib/format';
@@ -380,7 +381,7 @@ router.post('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Re
   }
   const parsed = driverFulfillmentProgressSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const idempotencyKey = req.header('Idempotency-Key') as string | undefined;
@@ -433,7 +434,7 @@ router.post('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const submission = await withMaterialWriteAuditContext(
@@ -462,7 +463,7 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', podUpload.si
   }
   const parsed = driverPodFileAttachSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const file = req.file;
   if (!file) {
@@ -498,7 +499,7 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', asyncHandle
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const submission = await withMaterialWriteAuditContext(
@@ -544,7 +545,7 @@ router.post('/fulfillments/:fulfillmentId/complete', asyncHandler(async (req: Re
   }
   const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsed.error);
   }
   const driver = await getDriverByUserId(getUser(req).userId);
   const outcome = await withMaterialWriteAuditContext(
@@ -654,7 +655,7 @@ router.post('/trips/:tripId/fuel-evidence', fuelEvidenceUpload.single('file'), a
   }
   const parsedMeta = driverFuelEvidenceMetadataSchema.safeParse(req.body ?? {});
   if (!parsedMeta.success) {
-    throw new ApiError(400, parsedMeta.error.issues.map((issue) => issue.message).join('; '));
+    throwValidation(parsedMeta.error);
   }
 
   const metadata = parsedMeta.data;
@@ -778,7 +779,7 @@ router.get('/trips/:tripId/evidence-status', asyncHandler(async (req: Request, r
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
   const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   const status = await getCompletionEvidenceStatus(tripId);
   res.json(status);
 }));
@@ -798,7 +799,7 @@ router.get('/vehicle-alerts', asyncHandler(async (req: Request, res: Response) =
 router.get('/trips/:id', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const trip = await getDriverTripDetail(driver.id, parseInt(req.params.id as string, 10));
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   res.json(trip);
 }));
 
@@ -827,7 +828,7 @@ router.get('/trips/:id/containers', asyncHandler(async (req: Request, res: Respo
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.id as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   const items = await listTripContainers(tripId);
   res.json({ items });
 }));
@@ -838,11 +839,11 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
   const parsed = validatedTripContainerSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
+    throw new ApiError(400, 'Dữ liệu không hợp lệ', parsed.error.flatten());
   }
   // Canonical number everywhere: storage AND the idempotency fingerprint —
   // equivalent-but-differently-formatted retries must dedupe.
@@ -876,17 +877,17 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
   const tripId = parseInt(req.params.tripId as string, 10);
   const containerId = parseInt(req.params.containerId as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   // The container must belong to THIS driver's trip. Ownership above only
   // proves the driver owns `tripId`; without this check a driver who owns any
   // single trip could patch any container row by guessing its id (IDOR).
   if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
-    return res.status(404).json({ error: 'Không tìm thấy số cont' });
+    throw new ApiError(404, 'Không tìm thấy số cont');
   }
 
   const parsed = validatedTripContainerPatchSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
+    throw new ApiError(400, 'Dữ liệu không hợp lệ', parsed.error.flatten());
   }
   const idempotencyKey = requireDriverIdempotencyKey(req);
   const expectedUpdatedAt = requireExpectedUpdatedAt(
@@ -931,14 +932,14 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
   const tripId = parseInt(req.params.tripId as string, 10);
   const containerId = parseInt(req.params.containerId as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
-    return res.status(404).json({ error: 'Không tìm thấy số cont' });
+    throw new ApiError(404, 'Không tìm thấy số cont');
   }
 
   const parsed = tripContainerSealBatchSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
+    throw new ApiError(400, 'Dữ liệu không hợp lệ', parsed.error.flatten());
   }
   const idempotencyKey = requireDriverIdempotencyKey(req);
   const expectedUpdatedAt = requireExpectedUpdatedAt(
@@ -981,7 +982,7 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
 
   const photoType = String(req.params.type).toUpperCase();
   if (photoType !== 'CONTAINER' && photoType !== 'SEAL') {
-    return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container hoặc seal)' });
+    throw new ApiError(400, 'Loại ảnh không hợp lệ (container hoặc seal)');
   }
 
   // Phase 2: optional container_id scopes the delete to one container's
@@ -991,7 +992,7 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
   if (containerIdRaw !== undefined && containerIdRaw !== '') {
     containerId = parseInt(String(containerIdRaw), 10);
     if (isNaN(containerId)) {
-      return res.status(400).json({ error: 'container_id không hợp lệ' });
+      throw new ApiError(400, 'container_id không hợp lệ');
     }
   }
   const idempotencyKey = requireDriverIdempotencyKey(req);

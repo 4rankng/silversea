@@ -52,7 +52,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           value={value}
           onChange={onChange}
           options={mergedOptions.map((item) => ({ value: String(item.id), label: item.code }))}
-          placeholder="Chọn hoặc gõ để tìm loại"
+          placeholder="Chọn loại"
           disabled={Boolean(saving)}
           error={error}
           popoverPlacement="top"

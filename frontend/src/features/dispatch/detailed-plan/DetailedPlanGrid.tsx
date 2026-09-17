@@ -12,7 +12,7 @@ import {
   type AtomicPlanSaveResult,
   type IssueOrderResult,
 } from './DispatchPlanEditorCell';
-import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
+import { QuickIssueOrderButton } from './QuickIssueOrderButton';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
@@ -21,6 +21,9 @@ import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
 import { displayNote } from '../../shipments/cus/cusUtils';
+import { DispatchDriverNote } from './DispatchDriverNote';
+import { detailRowKey } from './DispatchPlanCellValues';
+import { useDispatchTaskTags } from './useDispatchTaskTags';
 
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
@@ -30,16 +33,6 @@ function formatWeight(kg: string | null | undefined): string {
   const value = Number(kg);
   if (!Number.isFinite(value)) return kg;
   return `${new Intl.NumberFormat('vi-VN').format(value)} kg`;
-}
-
-/** Stable unique row key. Fulfillment rows key on the fulfillment id; branch
- *  rows (not yet decomposed) on their container id — the wire sends a null
- *  fulfillment id there, and keying on it floods the console with
- *  "two children with the same key, null" on every render. */
-function detailRowKey(row: DispatchDetailPlanRow): string {
-  if (row.fulfillmentId != null) return `f-${row.fulfillmentId}`;
-  if (row.shipmentContainerId != null) return `c-${row.shipmentContainerId}`;
-  return `s-${row.shipmentId}-${row.shipmentCode ?? 'lot'}`;
 }
 
 interface DetailedPlanGridProps {
@@ -82,6 +75,12 @@ interface DetailedPlanGridProps {
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
   /** Decompose-then-edit for fulfillment-less branch rows. */
   onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+  /** When the decompose re-keys the row, the cell that started the work is
+   *  unmounted mid-await — the surviving cell for this fulfillment opens its
+   *  editor instead (20260916_9). */
+  autoOpenFulfillmentId?: number | null;
+  /** Clears the parent's pending auto-open once consumed. */
+  onAutoOpenConsumed?: (id: number) => void;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
@@ -120,14 +119,14 @@ export function DetailedPlanGrid({
   onIssueOrder,
   onOpenPair,
   onEnsureFulfillment,
+  autoOpenFulfillmentId,
+  onAutoOpenConsumed,
 }: DetailedPlanGridProps) {
   // Long notes clamp to three lines; tapping reopens the full text in a
   // dialog so the column stays scannable without hiding content.
-  const [expandedNote, setExpandedNote] = useState<{ title: string; text: string } | null>(null);
-  // Row-level quick issue: the labeled "Phát lệnh"/"Hoàn thành" action lives
-  // inside the Ghi chú cell (customer ruling: no floating pills over the
-  // assignment cell), so the dialog opens from grid level, one instance.
-  const [quickIssueRow, setQuickIssueRow] = useState<DispatchDetailPlanRow | null>(null);
+  const [expandedNote, setExpandedNote] = useState<{ title: string; text: string; driver?: boolean } | null>(null);
+  const { tags } = useDispatchTaskTags();
+  const taskLabels = tags.map((tag) => tag.label);
 
   if (error) {
     return (
@@ -242,19 +241,18 @@ export function DetailedPlanGrid({
                   ? 'Phát lệnh'
                   : canCompleteExternal ? 'Hoàn thành' : null;
                 const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && actionLabel == null;
+                const scheduleValue = row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
+                  : [row.time.runHour != null ? `${row.time.runHour}H` : '—', row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ');
+                const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate ?? row.time.runAt ?? null)}
-                    </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                      {/* Full "HH:mm d/m/yyyy" (+07) from the appointment
-                          timestamp — same formatter as the overview grid; the
-                          hour-int fallback covers older rows without runAt. */}
-                      Giờ: {row.time.runAt
-                        ? formatAppointmentGroupLine(row.time.runAt)
-                        : row.time.runHour != null ? `${row.time.runHour}H` : '—'}
+                    <div className="ops-schedule">
+                      <strong className="ops-schedule__datetime">{scheduleValue}</strong>
+                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
+                        {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}
+                      </span>
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình">
@@ -268,13 +266,13 @@ export function DetailedPlanGrid({
                       {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
                     </div>
                   </td>
-                  {/* Lift/drop ports — direction-aware: IMPORT lifts at pickup, EXPORT lifts at dropoff */}
+                  {/* Container pickup/dropoff already mean Cảng nâng/Cảng hạ in
+                      entry, CUS and the master plan; do not reverse them for exports. */}
                   {(() => {
-                    const isImport = row.docs.tradeDirection === 'IMPORT';
-                    const liftPort = isImport ? row.ports.pickupPortName : row.ports.dropoffPortName;
-                    const liftShort = isImport ? row.ports.pickupPortShortName : row.ports.dropoffPortShortName;
-                    const dropPort = isImport ? row.ports.dropoffPortName : row.ports.pickupPortName;
-                    const dropShort = isImport ? row.ports.dropoffPortShortName : row.ports.pickupPortShortName;
+                    const liftPort = row.ports.pickupPortName;
+                    const liftShort = row.ports.pickupPortShortName;
+                    const dropPort = row.ports.dropoffPortName;
+                    const dropShort = row.ports.dropoffPortShortName;
                     return (
                       <>
                         <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng">
@@ -344,6 +342,8 @@ export function DetailedPlanGrid({
                       onAtomicSave={onAtomicSave}
                       onOpenTripReassign={onOpenTripReassign}
                       onEnsureFulfillment={onEnsureFulfillment}
+                      autoOpenFulfillmentId={autoOpenFulfillmentId}
+                      onAutoOpenConsumed={onAutoOpenConsumed}
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
                     />
@@ -371,12 +371,10 @@ export function DetailedPlanGrid({
                       <button
                         type="button"
                         className="detailed-plan-grid__note"
-                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: displayNote(row.notes.vehicleNote) })}
+                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
                         title="Bấm để xem toàn bộ ghi chú"
                       >
-                        <span className="detailed-plan-grid__line detailed-plan-grid__line--notes detailed-plan-grid__note-clamp">
-                          Xe: {displayNote(row.notes.vehicleNote)}
-                        </span>
+                        <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
                       </button>
                     )}
                     {row.notes.customerNote && (
@@ -387,23 +385,22 @@ export function DetailedPlanGrid({
                         title="Bấm để xem toàn bộ ghi chú"
                       >
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
-                          Khách: {displayNote(row.notes.customerNote)}
+                          {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
+                            <span key={i} className="detailed-plan-grid__note-line">{line}</span>
+                          ))}
                         </span>
                       </button>
                     )}
-                    {actionLabel != null && (
+                    {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
+                    {canCompleteExternal && (
                       <button
                         type="button"
                         className="detailed-plan-grid__note-action"
-                        onClick={() => (canQuickIssue
-                          ? setQuickIssueRow(row)
-                          : onCompleteExternalTrip(row))}
-                        aria-label={`${actionLabel} · ${row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`}`}
-                        title={canQuickIssue
-                          ? 'Phát lệnh nhanh — không cần mở ô điều phối'
-                          : 'Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay'}
+                        onClick={() => onCompleteExternalTrip(row)}
+                        aria-label={`Hoàn thành · ${row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`}`}
+                        title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
                       >
-                        {actionLabel}
+                        Hoàn thành
                       </button>
                     )}
                   </td>
@@ -420,16 +417,11 @@ export function DetailedPlanGrid({
         onClose={() => setExpandedNote(null)}
         maxWidth={520}
       >
-        <p className="detailed-plan-grid__note-full">{expandedNote?.text ?? ''}</p>
+        {expandedNote?.driver
+          ? <DispatchDriverNote value={expandedNote.text} labels={taskLabels} />
+          : <p className="detailed-plan-grid__note-full">{expandedNote?.text ?? ''}</p>}
       </Modal>
-      {quickIssueRow != null && (
-        <QuickIssueOrderDialog
-          row={quickIssueRow}
-          open
-          onClose={() => setQuickIssueRow(null)}
-          onIssueOrder={onIssueOrder}
-        />
-      )}
+
     </>
   );
 }

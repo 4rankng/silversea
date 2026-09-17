@@ -38,6 +38,8 @@ interface SelectValueProps {
 const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, triggerClassName }: SelectValueProps) => {
     return (
         <AriaButton
+            data-uui-control="select"
+            data-control-size={size}
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
                 (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",
@@ -46,6 +48,7 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, t
             )}
         >
             <AriaSelectValue<SelectItemType>
+                data-uui-select-value
                 className={(state) =>
                     cx(
                         "flex h-max w-full items-center justify-start truncate text-left align-middle",

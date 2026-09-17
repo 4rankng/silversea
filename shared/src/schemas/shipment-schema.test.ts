@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createShipmentSchema, updateShipmentSchema } from './index';
+import { createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema } from './index';
 
 test('shipment schemas accept canonical calendar dates', () => {
   assert.equal(createShipmentSchema.safeParse({
@@ -60,4 +60,10 @@ test('shipment schemas reject a Bill and Booking on the same shipment', () => {
     blNumber: 'BL-IMPORT-01',
     bookingRef: 'BOOK-EXPORT-01',
   }).success, false);
+});
+
+test('VID-CUS-04: quick intake accepts an initial declaration with the declaration length limit', () => {
+  const parsed = quickCreateShipmentSchema.parse({ customerId: 1, declarationNumber: '  TK-01  ' });
+  assert.equal(parsed.declarationNumber, 'TK-01');
+  assert.equal(quickCreateShipmentSchema.safeParse({ customerId: 1, declarationNumber: 'A'.repeat(51) }).success, false);
 });

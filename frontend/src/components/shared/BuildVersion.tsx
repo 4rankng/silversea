@@ -10,6 +10,9 @@ export function BuildVersion() {
     queryFn: () => api.get<{ buildHash: string }>('/health'),
     staleTime: 0,
     retry: false,
+    networkMode: 'always',
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
   });
   return <div className="build-version" aria-live="polite">
     <span>Phiên bản máy chủ</span>

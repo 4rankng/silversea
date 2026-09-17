@@ -21,6 +21,8 @@ describe('mobile gutter contract', () => {
   it('does not compound the shell gutter on full-width operational workflows', () => {
     expect(dispatch).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.dispatch-plan-page--wide\s*\{[\s\S]*?padding-inline:\s*0;/);
     expect(shipmentCreate).toMatch(/@media \(max-width: 1100px\)\s*\{[\s\S]*?\.csc-page\s*\{[\s\S]*?padding-inline:\s*0;/);
-    expect(shipmentDetail).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.shipments-detail-workspace__header\s*\{[\s\S]*?padding-inline:\s*0;/);
+    expect(shipmentDetail).toMatch(/\.shipments-detail-workspace__header\s*\{[^}]*padding:\s*8px 0 0;/);
+    expect(shipmentDetail).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.shipments-detail-workspace__header\s*\{[^}]*padding:\s*0;/);
+    expect(shipmentDetail).toMatch(/\.shipments-detail-workspace \.summary-rail\s*\{[^}]*margin-inline:\s*0;/);
   });
 });

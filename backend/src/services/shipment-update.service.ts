@@ -30,6 +30,7 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
@@ -48,6 +49,15 @@ export async function updateShipment(
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, id);
+    // Master refs carry no DB FKs — validate only the refs this input
+    // actually CHANGES, so pre-existing orphan rows (2026-09-15 sweep:
+    // 94 shipments referencing deleted masters) stay editable, including
+    // through editors that resend the stored (phantom) ref unchanged.
+    await assertShipmentMasterRefsExist(tx, {
+      customerId: input.customerId !== undefined && input.customerId !== existing.customerId ? input.customerId : undefined,
+      routeId: input.routeId !== undefined && input.routeId !== existing.routeId ? input.routeId : undefined,
+      cargoTypeId: input.cargoTypeId !== undefined && input.cargoTypeId !== existing.cargoTypeId ? input.cargoTypeId : undefined,
+    });
     // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
     // FACTORY-type validation the container choke point enforces. The
     // resolved customer respects an in-flight customerId change. Ad-hoc
@@ -79,8 +89,8 @@ export async function updateShipment(
     // when the client resubmits its own current value (no-op).
     const nextBlNumber = normalizeDocumentReference(input.blNumber !== undefined ? input.blNumber : existing.blNumber);
     const nextBookingRef = normalizeDocumentReference(input.bookingRef !== undefined ? input.bookingRef : existing.bookingRef);
-    const blChanged = input.blNumber !== undefined && nextBlNumber !== existing.blNumber;
-    const bookingChanged = input.bookingRef !== undefined && nextBookingRef !== existing.bookingRef;
+    const blChanged = input.blNumber !== undefined && nextBlNumber?.toLowerCase() !== normalizeDocumentReference(existing.blNumber)?.toLowerCase();
+    const bookingChanged = input.bookingRef !== undefined && nextBookingRef?.toLowerCase() !== normalizeDocumentReference(existing.bookingRef)?.toLowerCase();
     if (blChanged || bookingChanged) {
       const conflict = await findShipmentReferenceConflict(
         tx,
@@ -160,8 +170,8 @@ export async function updateShipment(
       ...(input.routeId !== undefined ? { routeId: input.routeId } : {}),
       ...(input.cargoTypeId !== undefined ? { cargoTypeId: input.cargoTypeId } : {}),
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
-      ...(input.bookingRef !== undefined ? { bookingRef: normalizeDocumentReference(input.bookingRef) } : {}),
-      ...(input.blNumber !== undefined ? { blNumber: normalizeDocumentReference(input.blNumber) } : {}),
+      ...(input.bookingRef !== undefined ? { bookingRef: bookingChanged ? nextBookingRef : existing.bookingRef } : {}),
+      ...(input.blNumber !== undefined ? { blNumber: blChanged ? nextBlNumber : existing.blNumber } : {}),
       ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
       ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
       ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),

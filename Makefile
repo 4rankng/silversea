@@ -66,7 +66,7 @@ GENERATE_LOCK := backend/.drizzle-generate.lock.d
 generate: ## Generate migration from schema changes (serialized via lock)
 	@mkdir $(GENERATE_LOCK) 2>/dev/null || { echo "❌ another 'make generate' appears to be running ($(GENERATE_LOCK) exists). Generate MUST be serialized — remove the lock only if you are certain none is running." >&2; exit 1; }; \
 	trap 'rmdir $(GENERATE_LOCK) 2>/dev/null' EXIT; \
-	cd backend && npx drizzle-kit generate
+	(cd backend && npx drizzle-kit generate)
 
 db-backup: ## Timestamped pg_dump to backups/ (required before any migration apply)
 	@mkdir -p backups

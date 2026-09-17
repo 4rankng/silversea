@@ -1,4 +1,5 @@
 import { fieldTextSizes } from "../control-typography";
+import "../control-geometry.css";
 
 import type { FC, ReactNode } from "react";
 import { createContext } from "react";
@@ -38,7 +39,7 @@ export interface CommonProps {
 
 export const sizes = {
     sm: {
-        root: "min-h-[34px] py-1 pl-2.5 pr-2 gap-1.5 max-md:min-h-11 max-md:py-2 max-md:pl-3 max-md:pr-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px]",
+        root: "py-1 pl-2.5 pr-2 gap-1.5 max-md:pl-3 max-md:pr-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px]",
         withIcon: "",
         text: fieldTextSizes.sm,
         textContainer: "gap-x-1.5",

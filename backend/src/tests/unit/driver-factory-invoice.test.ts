@@ -53,3 +53,18 @@ test('factory invoice profile: lift beats drop beats cleaning; null when unconfi
     taxCode: '3601234567',
   });
 });
+
+test('DRV-R03 retains partial invoice identity without mixing fee parties and ignores whitespace-only profiles', () => {
+  const base = {
+    liftFeeInvoiceName: ' ', liftFeeInvoiceAddress: null, liftFeeTaxCode: null,
+    dropFeeInvoiceName: null, dropFeeInvoiceAddress: null, dropFeeTaxCode: null,
+    cleaningInvoiceName: null, cleaningInvoiceAddress: null, cleaningTaxCode: null,
+  };
+  assert.equal(factoryInvoiceProfile(base), null);
+  assert.deepEqual(factoryInvoiceProfile({ ...base, dropFeeInvoiceName: ' Công ty B ', dropFeeTaxCode: ' 456 ' }), {
+    name: 'Công ty B', address: null, taxCode: '456',
+  });
+  assert.deepEqual(factoryInvoiceProfile({
+    ...base, liftFeeInvoiceAddress: ' Địa chỉ A ', liftFeeTaxCode: ' 123 ', dropFeeInvoiceName: 'Công ty B',
+  }), { name: null, address: 'Địa chỉ A', taxCode: '123' });
+});

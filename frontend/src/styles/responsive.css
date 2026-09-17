@@ -217,16 +217,32 @@
 
 
 /* ============================================================================
- * PHONE  ≤ 640px — all mobile overrides in ONE block
+ * PHONE & TOUCH — scrollbar policy; compact layout stays ≤ 640px
  * ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
 
+  /* Mobile scrollbar visibility: keep every root/portal/nested surface
+     scrollable. Standard non-auto scrollbar styles override WebKit sizing,
+     so reset them before hiding only its vertical width; keep horizontal
+     height under each component's existing rule. */
+  @supports selector(::-webkit-scrollbar) {
+    * { scrollbar-width: auto !important; scrollbar-color: auto !important; scrollbar-gutter: auto !important; }
+    *::-webkit-scrollbar { width: 0 !important; }
+  }
+  /* Firefox has no axis-specific equivalent; its standard fallback hides
+     both rails while preserving the element's original scrolling behavior. */
+  @supports not selector(::-webkit-scrollbar) {
+    * { scrollbar-width: none !important; scrollbar-gutter: auto !important; }
+  }
+}
+
+@media (max-width: 640px) {
   /* ── Compact control floor (ticket 6770b9cb, user directive) ──
    * Phone controls scale with the 11px text: 30-32px tall instead of the old
    * 44px touch contract. Floor stays ≥28px so taps remain reliable. */
   :where(#root) button,
   :where(#root) [role="button"],
-  :where(#root) a[href],
+  :where(#root) :where(a[href]),
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select {
     min-height: 30px;
@@ -399,7 +415,9 @@
   .toolbar > div[style*="flex: 1"],
   .toolbar > .toolbar__spacer,
   .toolbar > .toolbar-spacer { display: none; }
-  .toolbar > div:has(input) { width: 100%; order: 99; }
+  /* Search follows DOM order; inputs inside other field groups must not
+     reorder the whole group behind unrelated actions. */
+  .toolbar > .toolbar__search { flex-basis: 100%; }
   .filter-tabs, .dispatch-page .filter-tabs, .pill-row, .toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -643,7 +661,7 @@
   }
   :where(#root) button,
   :where(#root) [role="button"],
-  :where(#root) a[href],
+  :where(#root) :where(a[href]),
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select,
   #root textarea {
@@ -691,19 +709,6 @@
   #root .wf-minibtn,
   #root .wf-btn,
   #root .topbar-date__trigger { min-height: 30px; }
-  /* CUS workboard rows: two height drivers — the base cell rule's 72px
-     height floor + the page's own ≤620px block re-asserting min-height 72px
-     with 11px 12px padding. Compact both (PM remeasure: rows ≤56px). */
-  #root .cus-dashboard-table tbody > tr > th,
-  #root .cus-dashboard-table tbody > tr > td {
-    height: auto;
-    min-height: 0;
-    padding: 4px 6px;
-    grid-template-columns: 76px minmax(0, 1fr);
-  }
-  #root .cus-inline-trigger { min-height: 32px; padding: 4px 6px; }
-  #root .cus-multiline-cell { gap: 2px; }
-  #root .cus-multiline-cell > span { line-height: 1.25; }
   /* Keep compact padding around the readable field value. */
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select { padding-top: 4px; padding-bottom: 4px; }

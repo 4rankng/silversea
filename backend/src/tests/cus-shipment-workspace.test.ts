@@ -149,6 +149,22 @@ async function seedContainer(
   return row;
 }
 
+/** Lift/dropoff completeness authority is the container's own port columns
+ * (same columns the create form writes); snapshot fallbacks must be
+ * explicitly PORT-typed. Seeds a port pair for container fixtures. */
+async function seedLiftDropPorts() {
+  const [liftPort] = await db.insert(s.ports).values({
+    code: `LP${lettersTag(6)}`,
+    name: `Cảng nâng ${suffix}`.slice(0, 255),
+  }).returning();
+  const [dropPort] = await db.insert(s.ports).values({
+    code: `DP${lettersTag(6)}`,
+    name: `Cảng hạ ${suffix}`.slice(0, 255),
+  }).returning();
+  createdPortIds.push(liftPort.id, dropPort.id);
+  return { liftPortId: liftPort.id, dropPortId: dropPort.id };
+}
+
 before(async () => {
   customerId = (await seedCustomer()).id;
   containerTypeId = (await seedContainerType()).id;
@@ -279,6 +295,25 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
     assert.ok(item);
     assert.equal(item!.customerNotes, twoLineCustomer);
     assert.equal(item!.operationalNotes, 'giao xong\nchụp ảnh biên bản');
+  });
+
+  test('LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework)', async () => {
+    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date('2026-09-22T01:15:00.000Z') });
+    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date('2026-09-21T13:03:00.000Z') });
+
+    const importItem = await findItem(importLot.id);
+    const exportItem = await findItem(exportLot.id);
+    assert.ok(importItem && exportItem);
+    assert.equal(importItem!.operational.scheduleReadiness, 'SCHEDULED');
+    assert.equal(exportItem!.operational.scheduleReadiness, 'SCHEDULED');
+  });
+
+  test('LCL lots with no schedule fields at all stay WAITING_DATE (empty-case preserved)', async () => {
+    const bare = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT' });
+
+    const item = await findItem(bare.id);
+    assert.ok(item);
+    assert.equal(item!.operational.scheduleReadiness, 'WAITING_DATE');
   });
 
   test('trims and nulls empty notes', async () => {
@@ -1260,6 +1295,81 @@ describe('Overview operational priority ordering', () => {
     await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, [factoryA.id, factoryB.id]));
   });
 
+  test('VID-CUS-01: inherited catalog factory agrees between overview and container detail', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const [factory] = await db.insert(s.operationalSites).values({
+      customerId, code: `VID-FA-${marker}`, name: `Nhà máy ${marker}`,
+      shortName: `NM ${marker}`, siteType: 'FACTORY', address: `Địa chỉ ${marker}`,
+    }).returning();
+    try {
+      const shipment = await seedShipment({
+        blNumber: `VID-FACTORY-${marker}`, operationalSiteId: factory.id, factoryName: null,
+      });
+      const container = await seedContainer(shipment.id, { operationalSiteId: null });
+      const overview = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+      const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+      assert.deepEqual(overview.items.find((row) => row.id === shipment.id)?.effectiveFactoryNames, [`NM ${marker}`]);
+      assert.equal(flat.items.find((row) => row.id === container.id)?.factoryName, `NM ${marker}`);
+    } finally {
+      await db.delete(s.operationalSites).where(eq(s.operationalSites.id, factory.id));
+    }
+  });
+
+  test('VID-CUS-10: filling a container number preserves port names when its fulfillment is created', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const [factory] = await db.insert(s.operationalSites).values({
+      customerId, code: `VID-FP-${marker}`, name: `Nhà máy ${marker}`,
+      shortName: `NM ${marker}`, siteType: 'FACTORY', address: `Địa chỉ ${marker}`,
+    }).returning();
+    const [liftPort, dropPort] = await db.insert(s.ports).values([
+      { code: `VID-L-${marker}`, name: `Cảng nâng ${marker}` },
+      { code: `VID-D-${marker}`, name: `Cảng hạ ${marker}` },
+    ]).returning();
+    createdPortIds.push(liftPort.id, dropPort.id);
+    try {
+      const route = await seedRoute();
+      const shipment = await seedShipment({ blNumber: `VID-PORTS-${marker}`, cargoMode: 'FCL', tradeDirection: 'IMPORT', operationalSiteId: factory.id });
+      const container = await seedContainer(shipment.id, { routeId: route.id, pickupPortId: liftPort.id, dropoffPortId: dropPort.id });
+      const before = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+      assert.equal(before.items.find((row) => row.id === container.id)?.dropoffSite, dropPort.name);
+      const updated = await updateCusShipmentContainerLine({
+        shipmentId: shipment.id, containerId: container.id, actor: cusActor,
+        input: { expectedShipmentVersion: shipment.version, containerNumber: 'MSCU1234566' },
+      });
+      assert.equal(updated.line.liftSite, liftPort.name);
+      assert.equal(updated.line.dropoffSite, dropPort.name);
+      const [stored] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+      assert.equal(stored.pickupPortId, liftPort.id);
+      assert.equal(stored.dropoffPortId, dropPort.id);
+      const after = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+      assert.equal(after.items.find((row) => row.id === container.id)?.dropoffSite, dropPort.name);
+    } finally {
+      await db.delete(s.operationalSites).where(eq(s.operationalSites.id, factory.id));
+    }
+  });
+
+  test('VID-CUS-11: full and suffix searches include padded historical references literally', async () => {
+    const marker = Math.random().toString(16).slice(2, 10);
+    const reference = `VID_LEGACY%${marker}`;
+    const dated = await seedShipment({ blNumber: reference, expectedDeliveryDate: '2026-09-15' });
+    const undated = await seedShipment({ blNumber: ` ${reference} ` });
+    const unrelated = await seedShipment({ blNumber: `VIDXLEGACY-other-${marker}` });
+    for (const shipment of [dated, undated, unrelated]) await seedContainer(shipment.id);
+    for (const searchSuffix of [reference.toLowerCase(), marker.slice(-4), marker.slice(-5)]) {
+      const query = { page: 1, limit: 100, searchSuffix };
+      const overview = await listCusShipmentWorkspace(query, cusActor);
+      const flat = await listCusShipmentContainers(query, cusActor);
+      for (const shipment of [dated, undated]) {
+        assert.ok(overview.items.some((row) => row.id === shipment.id));
+        assert.ok(flat.items.some((row) => row.shipmentId === shipment.id));
+      }
+      if (searchSuffix === reference.toLowerCase()) {
+        assert.ok(!overview.items.some((row) => row.id === unrelated.id));
+        assert.ok(!flat.items.some((row) => row.shipmentId === unrelated.id));
+      }
+    }
+  });
+
   test('legacy noon-UTC appointments group under their stored calendar date', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const shipment = await seedShipment({
@@ -1819,10 +1929,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `DON${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(shipment.id, container.id, {
@@ -1902,10 +2015,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: null,
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `LIN${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       shippingLineName: 'ONE',
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
@@ -1937,10 +2053,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(complete.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const completeContainer = await seedContainer(complete.id, {
       containerNumber: `MC-${marker}`.slice(0, 50),
       routeId: completeRoute.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(complete.id, completeContainer.id, {
@@ -2269,10 +2388,13 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       shippingLineName: 'Maersk',
     });
     await seedDeclaration(shipment.id);
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
     const container = await seedContainer(shipment.id, {
       containerNumber: `NOD${suffix}1`.slice(0, 50),
       routeId: route.id,
       containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
     await seedFulfillment(shipment.id, container.id, {});
@@ -2733,5 +2855,90 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
       actor: adminActor,
     });
     assert.equal(result.line.containerNumber, nextNumber);
+  });
+});
+
+describe('container line vehicle plate clear (20260916_6)', () => {
+  const createdVehicleIds: number[] = [];
+
+  async function seedCarrierVehicle() {
+    const carrier = await seedCustomer({
+      name: `Nhà xe clear ${suffix}`.slice(0, 255),
+      isCarrier: true,
+      status: 'ACTIVE',
+    });
+    const [vehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: carrier.id,
+      licensePlate: `30K-${suffix.slice(-3).toUpperCase()}.99`,
+      normalizedPlate: `30K${suffix.slice(-3).toUpperCase()}99`,
+      isActive: true,
+    }).returning();
+    createdVehicleIds.push(vehicle.id);
+    return { carrier, vehicle };
+  }
+
+  async function seedExternalPlateRow() {
+    const { carrier, vehicle } = await seedCarrierVehicle();
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `PCL${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `PCL${lettersTag(4)}1`.slice(0, 50),
+      routeId: route.id,
+      containerTypeId,
+    });
+    const fulfillment = await seedFulfillment(shipment.id, container.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: carrier.id,
+      plannedExternalCarrierVehicleId: vehicle.id,
+      plannedVehiclePlateNumber: vehicle.licensePlate,
+    });
+    return { carrier, vehicle, shipment, container, fulfillment };
+  }
+
+  test('clearVehicle removes the planned plate and vehicle while keeping the external carrier', async () => {
+    const { carrier, shipment, container, fulfillment } = await seedExternalPlateRow();
+
+    await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        clearVehicle: true,
+      },
+      actor: cusActor,
+    });
+
+    const [after] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after.plannedVehiclePlateNumber, null, 'plate must be cleared, not fall back to the vehicle plate');
+    assert.equal(after.plannedExternalCarrierVehicleId, null, 'vehicle selection must be cleared');
+    assert.equal(after.plannedExternalCarrierId, carrier.id, 'the external carrier itself stays');
+  });
+
+  test('clearVehicle cannot ride along with a vehicle selection or an inline new carrier', () => {
+    const base = { expectedShipmentVersion: 1, carrierType: 'EXTERNAL' as const };
+    const withVehicle = shipmentCusContainerLineUpdateSchema.safeParse({
+      ...base, clearVehicle: true, externalCarrierVehicleId: 5,
+    });
+    assert.equal(withVehicle.success, false);
+    const withInline = shipmentCusContainerLineUpdateSchema.safeParse({
+      ...base, clearVehicle: true, newExternalCarrier: { name: 'Nhà xe mới', plateNumber: '30K-001.99' },
+    });
+    assert.equal(withInline.success, false);
+  });
+
+  test.after(async () => {
+    for (const id of createdVehicleIds) {
+      await db.delete(s.carrierFleetVehicles).where(eq(s.carrierFleetVehicles.id, id)).catch(() => {});
+    }
   });
 });

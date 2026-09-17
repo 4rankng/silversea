@@ -554,3 +554,12 @@ test('roadAllowanceOverride=positive uses the override value', () => {
   assert.strictEqual(result.totalCost, 1700000 + 500000 + 110000 + 100000 + 800000);
   assert.strictEqual(result.grossProfit, 4000000 - 3210000);
 });
+
+test('reconciled toll replaces estimate while agreed allowances and separate extras remain', () => {
+  const baseline = computeTripTotals({ ...BASE_A4, tollsStations: 2, tollPerStation: 50000, vehicleShiftAllowance: 200000 });
+  const actual = computeTripTotals({ ...BASE_A4, tollsStations: 2, tollPerStation: 50000, vehicleShiftAllowance: 200000,
+    reconciledTollCost: 80000, reconciledExtraCost: 30000 });
+  assert.equal(actual.totalRoadAllowance, baseline.totalRoadAllowance);
+  assert.equal(actual.tollCost, 80000);
+  assert.equal(actual.totalCost, baseline.totalCost - 100000 + 80000 + 30000);
+});

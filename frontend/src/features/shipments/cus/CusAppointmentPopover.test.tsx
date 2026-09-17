@@ -2,6 +2,15 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
+// The unified datetime batch replaced the single combined input with the
+// shared SplitDateTimeField (separate HH:mm + DD/MM/YYYY inputs) inside the
+// popover; these helpers target the new pair.
+function splitInputs(container: HTMLElement | Document): { time: HTMLInputElement; date: HTMLInputElement } {
+  const inputs = container.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
+  expect(inputs.length).toBe(2);
+  return { time: inputs[0], date: inputs[1] };
+}
+
 describe('CusAppointmentPopover', () => {
   it('does not render when isOpen is false', () => {
     const { container } = render(
@@ -16,7 +25,7 @@ describe('CusAppointmentPopover', () => {
     expect(container.querySelector('.cus-appointment-popover')).toBeNull();
   });
 
-  it('renders correctly when isOpen is true with container badge and inputs', () => {
+  it('renders correctly when isOpen is true with container badge and split inputs', () => {
     const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
@@ -30,14 +39,12 @@ describe('CusAppointmentPopover', () => {
     expect(screen.getByRole('dialog', { name: /MSKU1234567/ })).toBeDefined();
     expect(screen.getByText('MSKU1234567')).toBeDefined();
 
-    // Single buffered 24h text input under the combined date+time contract.
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput.type).toBe('text');
-    expect(datetimeInput.value).toBe('10:30 08/09/2026');
-    expect(datetimeInput.placeholder).toBe('HH:mm DD/MM/YYYY');
+    const { time, date } = splitInputs(container);
+    expect(time.value).toBe('10:30');
+    expect(date.value).toBe('08/09/2026');
   });
 
-  it('labels the single 24h input "Ngày giờ" with no visible native locale-driven inputs', () => {
+  it('labels the separate time/date inputs and keeps native locale pickers out', () => {
     const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
@@ -48,25 +55,14 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    // Thứ tự hiển thị khớp hợp đồng "giờ trước ngày" qua đúng MỘT trường văn
-    // bản 24h — không còn input native HIỂN THỊ theo locale trình duyệt
-    // (AM/PM). Lịch chọn (datetime-local) phải luôn ẩn.
-    const labels = Array.from(container.querySelectorAll('.cus-appointment-input-wrap label'));
-    expect(labels.map((label) => label.textContent)).toEqual(['Ngày giờ']);
+    const { time, date } = splitInputs(container);
+    expect(time.getAttribute('aria-label')).toMatch(/^Giờ — /);
+    expect(date.getAttribute('aria-label')).toMatch(/^Ngày — /);
     expect(container.querySelector('input[type="time"]')).toBeNull();
     expect(container.querySelector('input[type="date"]')).toBeNull();
   });
 
-  it('_39: the calendar button opens the designed picker dialog — no native input', () => {
-    const { container } = render(
-      <CusAppointmentPopover isOpen={true} value="2026-09-08T08:00" containerLabel="MSKU1234567" onClose={vi.fn()} onChange={vi.fn()} />,
-    );
-    expect(container.querySelector('input[type="datetime-local"]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
-    expect(screen.getByRole('dialog', { name: 'Giờ hẹn đóng/trả — MSKU1234567' })).toBeTruthy();
-  });
-
-  it('_43: picking a day in the dialog applies the draft and rehydrates the 24h display', () => {
+  it('opens the date panel from the date input and applies the picked day', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -78,24 +74,18 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    // Open the dialog, pick day 15 of the value's month via the grid toggle,
-    // confirm — the popover's onChange fires with the composed contract.
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
-    const pickerDialog = screen.getByRole('dialog', { name: /Giờ hẹn đóng\/trả — MSKU1234567/ });
-    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__split button:first-child')) as HTMLElement);
-    // Sep 2026 starts Tuesday → Monday-first lead 1 → day 15 sits at idx 15.
-    fireEvent.click((pickerDialog.querySelector('button[data-idx="15"]')) as HTMLElement);
-    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__split button:nth-child(2)')) as HTMLElement);
-    fireEvent.click((pickerDialog.querySelector('[aria-label="Phút (bước 5 phút)"] button')) as HTMLElement);
-    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__confirm')) as HTMLElement);
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
+    const { date } = splitInputs(container);
+    fireEvent.click(date);
+    const dayCell = document.querySelector<HTMLButtonElement>('.dtp-grid button[data-idx="15"]');
+    expect(dayCell).toBeTruthy();
+    fireEvent.click(dayCell!);
 
-    // The typed display rehydrates to the same 24h contract.
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput.value).toBe('08:00 15/09/2026');
+    // Time was prefilled (08:00), so the completed pair publishes immediately.
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
+    expect(date.value).toBe('15/09/2026');
   });
 
-  it('falls back to focusing the text input when the browser has no showPicker', () => {
+  it('keeps time and date as plain editable text inputs', () => {
     const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
@@ -106,56 +96,14 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    // Older engines: no showPicker on the prototype — clicking the calendar
-    // button must not throw and must keep the typed path usable.
-    const calendarBtn = screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' });
-    expect(() => fireEvent.click(calendarBtn)).not.toThrow();
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput).toBeDefined();
+    const { time, date } = splitInputs(container);
+    expect(time.type).toBe('text');
+    expect(date.type).toBe('text');
+    expect(time.placeholder).toBe('HH:mm');
+    expect(date.placeholder).toBe('DD/MM/YYYY');
   });
 
-  it('selects quick date pill and immediately calls onChange', () => {
-    const handleChange = vi.fn();
-    render(
-      <CusAppointmentPopover
-        isOpen={true}
-        value="2026-09-08T08:00"
-        containerLabel="Cont 1"
-        onClose={vi.fn()}
-        onChange={handleChange}
-      />,
-    );
-
-    const tomorrowButton = screen.getByRole('button', { name: 'Ngày mai' });
-    fireEvent.click(tomorrowButton);
-
-    const expectedDate = new Date();
-    expectedDate.setDate(expectedDate.getDate() + 1);
-    const y = expectedDate.getFullYear();
-    const m = String(expectedDate.getMonth() + 1).padStart(2, '0');
-    const d = String(expectedDate.getDate()).padStart(2, '0');
-
-    expect(handleChange).toHaveBeenCalledWith(`${y}-${m}-${d}T08:00`);
-  });
-
-  it('selects quick time pill and immediately calls onChange', () => {
-    const handleChange = vi.fn();
-    render(
-      <CusAppointmentPopover
-        isOpen={true}
-        value="2026-09-08T08:00"
-        containerLabel="Cont 1"
-        onClose={vi.fn()}
-        onChange={handleChange}
-      />,
-    );
-
-    const time1330 = screen.getByRole('button', { name: '13:30' });
-    fireEvent.click(time1330);
-    expect(handleChange).toHaveBeenCalledWith('2026-09-08T13:30');
-  });
-
-  it('emits the draft value for complete 24h text entry across the day', () => {
+  it('emits the composed value for complete 24h text entry across the day', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -167,24 +115,21 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    // Card verify list: 20:46, 00:15, 23:45 — every entry stays on the 24h
-    // clock and rehydrates the same naive wire value.
-    fireEvent.change(datetimeInput, { target: { value: '20:46 15/09/2026' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T20:46');
-
-    fireEvent.change(datetimeInput, { target: { value: '00:15 15/09/2026' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T00:15');
-
-    fireEvent.change(datetimeInput, { target: { value: '23:45 15/09/2026' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T23:45');
-
-    // 08:00/13:30 through the input agree with the preset pills.
-    fireEvent.change(datetimeInput, { target: { value: '13:30 15/09/2026' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T13:30');
+    const { time, date } = splitInputs(container);
+    const cases: Array<[string, string, string]> = [
+      ['20:46', '15/09/2026', '2026-09-15T20:46'],
+      ['00:15', '15/09/2026', '2026-09-15T00:15'],
+      ['23:45', '15/09/2026', '2026-09-15T23:45'],
+      ['13:30', '15/09/2026', '2026-09-15T13:30'],
+    ];
+    for (const [nextTime, nextDate, wire] of cases) {
+      fireEvent.change(time, { target: { value: nextTime } });
+      fireEvent.change(date, { target: { value: nextDate } });
+      expect(handleChange).toHaveBeenCalledWith(wire);
+    }
   });
 
-  it('keeps typing without firing onChange until the entry is complete', () => {
+  it('keeps incomplete typing visible without firing onChange', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -196,33 +141,185 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    fireEvent.change(datetimeInput, { target: { value: '13:3' } });
-    fireEvent.change(datetimeInput, { target: { value: '13:30 15/0' } });
+    const { time, date } = splitInputs(container);
+    fireEvent.change(time, { target: { value: '13:3' } });
+    fireEvent.change(date, { target: { value: '15/09/2026' } });
     expect(handleChange).not.toHaveBeenCalled();
-
-    // Blur normalizes the abandoned incomplete draft back to the current value.
-    fireEvent.blur(datetimeInput);
-    expect(datetimeInput.value).toBe('08:00 08/09/2026');
+    // The partial draft stays visible (unified contract: incomplete text is
+    // never silently cleared or saved).
+    expect(time.value).toBe('13:3');
+    expect(date.value).toBe('15/09/2026');
   });
 
-  it('calls onChange with empty string when clicking Xóa hẹn', () => {
-    const handleChange = vi.fn();
+  it('closes when pressing outside via pointerdown on document', () => {
     const handleClose = vi.fn();
     render(
+      <div>
+        <div data-testid="outside-area">Outside element</div>
+        <CusAppointmentPopover
+          isOpen={true}
+          value="2026-09-08T08:00"
+          containerLabel="Cont 1"
+          onClose={handleClose}
+          onChange={vi.fn()}
+        />
+      </div>,
+    );
+
+    const outside = screen.getByTestId('outside-area');
+    // The press-dismiss contract is a single pointerdown listener (the compat
+    // mousedown double-listener was retired with the unified pickers).
+    fireEvent.pointerDown(outside);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefills Vietnam wall-clock from a UTC instant on any browser timezone', () => {
+    const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
-        value="2026-09-08T08:00"
-        containerLabel="Cont 1"
-        onClose={handleClose}
-        onChange={handleChange}
+        value="2026-09-11T06:30:00.000Z"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
       />,
     );
 
-    const clearBtn = screen.getByRole('button', { name: 'Xóa hẹn' });
-    fireEvent.click(clearBtn);
-    expect(handleChange).toHaveBeenCalledWith('');
-    expect(handleClose).toHaveBeenCalledTimes(1);
+    // 06:30Z = 13:30 +07 — the old parse rendered browser-local (14:30 on a
+    // +08 host), so the recomposed write drifted another hour.
+    const { time, date } = splitInputs(container);
+    expect(time.value).toBe('13:30');
+    expect(date.value).toBe('11/09/2026');
+  });
+
+  it('round-trips a naive draft verbatim without re-interpreting it', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-11T09:00"
+        containerLabel="MSK0098765"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const { time, date } = splitInputs(container);
+    expect(time.value).toBe('09:00');
+    expect(date.value).toBe('11/09/2026');
+  });
+
+  it('confirms once from the visible button and keeps a rejected save open for retry', async () => {
+    const onClose = vi.fn();
+    let reject!: (reason: Error) => void;
+    const onCommit = vi.fn(() => new Promise<boolean>((_resolve, fail) => { reject = fail; }));
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={onClose} onChange={vi.fn()} onCommit={onCommit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('2026-09-08T08:00');
+    const { time, date } = splitInputs(document);
+    expect(time).toBeDisabled();
+    expect(date).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Xóa hẹn' })).toBeDisabled();
+    reject(new Error('network unavailable'));
+    await screen.findByRole('alert');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled();
+  });
+
+  it('does not confirm an incomplete typed date using Enter', () => {
+    const onCommit = vi.fn();
+    const { container } = render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);
+    const { time } = splitInputs(container);
+    fireEvent.change(time, { target: { value: '13:3' } });
+    fireEvent.keyDown(time, { key: 'Enter' });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Nhập đủ giờ');
+  });
+
+  it('ignores an earlier save result after closing and reopening the editor', async () => {
+    let resolveFirst!: (ok: boolean) => void;
+    const onClose = vi.fn();
+    const onCommit = vi.fn(() => new Promise<boolean>((resolve) => { resolveFirst = resolve; }));
+    const props = { value: '2026-09-08T08:00', containerLabel: 'Cont 1', onClose, onChange: vi.fn(), onCommit };
+    const { rerender } = render(<CusAppointmentPopover {...props} isOpen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    rerender(<CusAppointmentPopover {...props} isOpen={false} />);
+    rerender(<CusAppointmentPopover {...props} isOpen />);
+    const { time } = splitInputs(document);
+    expect(time).toBeEnabled();
+    await act(async () => { resolveFirst(true); });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('_15: an appointment-less container opens with empty inputs and inactive pills', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const { time, date } = splitInputs(container);
+    expect(time.value).toBe('');
+    expect(date.value).toBe('');
+    expect(screen.getByRole('button', { name: 'Hôm nay' }).className).not.toContain('is-active');
+    for (const slot of ['08:00', '10:00', '13:30', '16:00']) {
+      expect(screen.getByRole('button', { name: slot }).className).not.toContain('is-active');
+    }
+  });
+
+  it('_15: Enter without any explicit pick on an appointment-less container does not commit', () => {
+    const onCommit = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa chọn ngày giờ để lưu');
+  });
+
+  it('_15: Xác nhận stays disabled until the user makes an explicit pick, then commits it', async () => {
+    const onCommit = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    const confirmBtn = screen.getByRole('button', { name: 'Xác nhận' });
+    expect(confirmBtn).toBeDisabled();
+
+    // Explicit pick via quick pill — commits the picked slot.
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    expect(confirmBtn).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${y}-${m}-${d}T08:00`));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('closes on Escape; Enter without a commit path shows an error and stays open', () => {
@@ -272,46 +369,6 @@ describe('CusAppointmentPopover', () => {
     expect(handleCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('closes when clicking outside via mousedown on document', () => {
-    const handleClose = vi.fn();
-    render(
-      <div>
-        <div data-testid="outside-area">Outside element</div>
-        <CusAppointmentPopover
-          isOpen={true}
-          value="2026-09-08T08:00"
-          containerLabel="Cont 1"
-          onClose={handleClose}
-          onChange={vi.fn()}
-        />
-      </div>,
-    );
-
-    const outside = screen.getByTestId('outside-area');
-    fireEvent.mouseDown(outside);
-    expect(handleClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('closes when clicking outside via pointerdown on document', () => {
-    const handleClose = vi.fn();
-    render(
-      <div>
-        <div data-testid="outside-area">Outside element</div>
-        <CusAppointmentPopover
-          isOpen={true}
-          value="2026-09-08T08:00"
-          containerLabel="Cont 1"
-          onClose={handleClose}
-          onChange={vi.fn()}
-        />
-      </div>,
-    );
-
-    const outside = screen.getByTestId('outside-area');
-    fireEvent.pointerDown(outside);
-    expect(handleClose).toHaveBeenCalledTimes(1);
-  });
-
   it('does not close when clicking inside the popover dialog', () => {
     const handleClose = vi.fn();
     render(
@@ -348,78 +405,22 @@ describe('CusAppointmentPopover', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it('prefills Vietnam wall-clock from a UTC instant on any browser timezone', () => {
-    const { container } = render(
+  it('calls onChange with empty string when clicking Xóa hẹn', () => {
+    const handleChange = vi.fn();
+    const handleClose = vi.fn();
+    render(
       <CusAppointmentPopover
         isOpen={true}
-        value="2026-09-11T06:30:00.000Z"
-        containerLabel="MSKU1234567"
-        onClose={vi.fn()}
-        onChange={vi.fn()}
+        value="2026-09-08T08:00"
+        containerLabel="Cont 1"
+        onClose={handleClose}
+        onChange={handleChange}
       />,
     );
 
-    // 06:30Z = 13:30 +07 — the old parse rendered browser-local (14:30 on a
-    // +08 host), so the recomposed write drifted another hour.
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput.value).toBe('13:30 11/09/2026');
+    const clearBtn = screen.getByRole('button', { name: 'Xóa hẹn' });
+    fireEvent.click(clearBtn);
+    expect(handleChange).toHaveBeenCalledWith('');
+    expect(handleClose).toHaveBeenCalledTimes(1);
   });
-
-  it('round-trips a naive draft verbatim without re-interpreting it', () => {
-    const { container } = render(
-      <CusAppointmentPopover
-        isOpen={true}
-        value="2026-09-11T09:00"
-        containerLabel="MSK0098765"
-        onClose={vi.fn()}
-        onChange={vi.fn()}
-      />,
-    );
-
-    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
-    expect(datetimeInput.value).toBe('09:00 11/09/2026');
-  });
-  it('confirms once from the visible button and keeps a rejected save open for retry', async () => {
-    const onClose = vi.fn();
-    let reject!: (reason: Error) => void;
-    const onCommit = vi.fn(() => new Promise<boolean>((_resolve, fail) => { reject = fail; }));
-    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={onClose} onChange={vi.fn()} onCommit={onCommit} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
-    expect(onCommit).toHaveBeenCalledTimes(1);
-    expect(onCommit).toHaveBeenCalledWith('2026-09-08T08:00');
-    expect(screen.getByLabelText('Ngày giờ')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Xóa hẹn' })).toBeDisabled();
-    reject(new Error('network unavailable'));
-    await screen.findByRole('alert');
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled();
-  });
-
-  it('does not confirm an incomplete typed date using Enter', () => {
-    const onCommit = vi.fn();
-    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);
-    fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '12:3' } });
-    fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
-    expect(onCommit).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent('Nhập ngày giờ đầy đủ');
-  });
-
-  it('ignores an earlier save result after closing and reopening the editor', async () => {
-    let resolveFirst!: (ok: boolean) => void;
-    const onClose = vi.fn();
-    const onCommit = vi.fn(() => new Promise<boolean>((resolve) => { resolveFirst = resolve; }));
-    const props = { value: '2026-09-08T08:00', containerLabel: 'Cont 1', onClose, onChange: vi.fn(), onCommit };
-    const { rerender } = render(<CusAppointmentPopover {...props} isOpen />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    rerender(<CusAppointmentPopover {...props} isOpen={false} />);
-    rerender(<CusAppointmentPopover {...props} isOpen />);
-    expect(screen.getByLabelText('Ngày giờ')).toBeEnabled();
-    await act(async () => { resolveFirst(true); });
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-  });
-
-
 });

@@ -5,7 +5,7 @@
 // update / transitions leaves and the lifecycle core import these one-way.
 import * as s from '../db/schema';
 import { db } from '../db';
-import { and, asc, eq, ilike, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
@@ -57,7 +57,7 @@ export function normalizeDocumentReference(value: string | null | undefined): st
 export interface ShipmentReferenceConflict {
   shipmentId: number;
   shipmentCode: string | null;
-  field: 'blNumber' | 'bookingRef';
+  field: 'blNumber' | 'bookingRef' | 'declaration';
   reference: string;
   createdBy: {
     id: number | null;
@@ -74,16 +74,16 @@ export async function findShipmentReferenceConflict(
   reference: { blNumber?: string | null; bookingRef?: string | null },
   excludeShipmentId?: number | null,
 ): Promise<ShipmentReferenceConflict | null> {
-  // Trim incoming refs once so ilike + the field-derivation comparison
-  // below agree (TC-EDGE-002: case-insensitive + whitespace-insensitive).
+  // References are identifiers, not LIKE patterns. Compare trimmed values
+  // case-insensitively while treating percent and underscore literally.
   const incomingBl = reference.blNumber?.trim() ?? null;
   const incomingBk = reference.bookingRef?.trim() ?? null;
   const conditions = [];
   if (incomingBl) {
-    conditions.push(ilike(s.shipments.blNumber, incomingBl));
+    conditions.push(sql`lower(btrim(${s.shipments.blNumber})) = lower(${incomingBl})`);
   }
   if (incomingBk) {
-    conditions.push(ilike(s.shipments.bookingRef, incomingBk));
+    conditions.push(sql`lower(btrim(${s.shipments.bookingRef})) = lower(${incomingBk})`);
   }
   if (conditions.length === 0) return null;
 
@@ -117,9 +117,9 @@ export async function findShipmentReferenceConflict(
   // naive `row.blNumber === reference.blNumber` sees null === null and
   // mislabels a bookingRef collision as blNumber (cross-direction case).
   // Compares case-insensitively against the trimmed incoming value so a
-  // case-variant ilike match is still labeled as a Bill collision.
+  // case-variant match is still labeled as a Bill collision.
   const field: 'blNumber' | 'bookingRef' =
-    incomingBl && row.blNumber?.toLowerCase() === incomingBl.toLowerCase()
+    incomingBl && row.blNumber?.trim().toLowerCase() === incomingBl.toLowerCase()
       ? 'blNumber'
       : 'bookingRef';
   const value = field === 'blNumber' ? (row.blNumber ?? '') : (row.bookingRef ?? '');
@@ -146,7 +146,7 @@ export async function findDeclarationReferenceConflict(
 ): Promise<ShipmentReferenceConflict | null> {
   const trimmed = declarationNumber.trim();
   const baseWhere = and(
-    ilike(s.shipmentDeclarations.declarationNumber, trimmed),
+    sql`lower(btrim(${s.shipmentDeclarations.declarationNumber})) = lower(${trimmed})`,
   );
   const where = excludeShipmentId != null
     ? and(baseWhere, sql`${s.shipmentDeclarations.shipmentId} <> ${excludeShipmentId}`)
@@ -171,7 +171,7 @@ export async function findDeclarationReferenceConflict(
   return {
     shipmentId: row.shipmentId,
     shipmentCode: row.shipmentCode ?? null,
-    field: 'blNumber',
+    field: 'declaration',
     reference: row.declarationNumber ?? '',
     createdBy: row.createdBy == null
       ? null
@@ -252,6 +252,8 @@ export interface CreateShipmentInput {
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
+  /** Optional initial declaration written atomically by quick intake. */
+  declarationNumber?: string | null;
   tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
   operationalSiteId?: number | null;
@@ -361,4 +363,38 @@ export async function assertShipmentFactorySiteValid(
       isNull(s.operationalSites.deletedAt),
     )).limit(1);
   if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+}
+
+/**
+ * Shipment master refs carry no DB foreign keys (repo convention: master-data
+ * integrity is app-layer), so intake validates existence here instead. The
+ * update path passes only the refs its input actually changes, so pre-existing
+ * orphan rows (2026-09-15 sweep found 94 shipments referencing deleted
+ * masters) stay editable without a data migration first.
+ */
+export async function assertShipmentMasterRefsExist(
+  tx: Tx,
+  refs: { customerId?: number | null; routeId?: number | null; cargoTypeId?: number | null },
+): Promise<void> {
+  if (refs.customerId != null) {
+    const [customer] = await tx.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(eq(s.customers.id, refs.customerId))
+      .limit(1);
+    if (!customer) throw new ApiError(400, 'Khách hàng không tồn tại.');
+  }
+  if (refs.routeId != null) {
+    const [route] = await tx.select({ id: s.routes.id })
+      .from(s.routes)
+      .where(eq(s.routes.id, refs.routeId))
+      .limit(1);
+    if (!route) throw new ApiError(400, 'Tuyến vận chuyển không tồn tại.');
+  }
+  if (refs.cargoTypeId != null) {
+    const [cargoType] = await tx.select({ id: s.cargoTypes.id })
+      .from(s.cargoTypes)
+      .where(eq(s.cargoTypes.id, refs.cargoTypeId))
+      .limit(1);
+    if (!cargoType) throw new ApiError(400, 'Loại hàng không tồn tại.');
+  }
 }

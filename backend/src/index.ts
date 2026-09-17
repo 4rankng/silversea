@@ -34,6 +34,7 @@ import portalRoutes from './routes/portal';
 import financialRoutes from './routes/financial';
 import { freightRatePreviewRoutes } from './routes/financial/freight-rate.routes';
 import expenseRoutes from './routes/expense';
+import expenseAccountingRoutes from './routes/expense-accounting';
 import driverRoutes from './routes/driver';
 import forwarderRoutes from './routes/forwarder';
 import forwarderAdminRoutes from './routes/forwarder-admin';
@@ -211,6 +212,9 @@ app.use('/api/system', authMiddleware, systemWorkInboxRouter);
 // Catalog bootstrap is used by both office pages and portal forms. The router
 // trims sensitive catalogs for DRIVER/FORWARDER before responding.
 app.use('/api', authMiddleware, catalogBootstrapRouter);
+// These routes enforce per-command CUS/OPS/driver/finance scopes themselves.
+// They must precede the generic office-only config and financial gates.
+app.use('/api/expense-accounting', authMiddleware, expenseAccountingRoutes);
 // Config must mount before the generic /api financial catch-all,
 // otherwise financial Casbin gate blocks FORWARDER from /catalogs/bootstrap etc.
 app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);

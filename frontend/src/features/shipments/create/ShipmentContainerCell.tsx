@@ -20,6 +20,7 @@ interface ShipmentContainerCellProps {
   fieldId?: string;
   error?: string;
   className?: string;
+  alwaysVisible?: boolean;
   onRevert?: (value: string) => void;
 }
 
@@ -40,6 +41,7 @@ export function ShipmentContainerCell({
   error,
   className,
   onRevert,
+  alwaysVisible,
 }: ShipmentContainerCellProps) {
   const cellRef = useRef<HTMLTableCellElement>(null);
   const valueAtFocus = useRef(value);
@@ -55,6 +57,9 @@ export function ShipmentContainerCell({
   };
 
   const captureStartingValue = (event: FocusEvent<HTMLTableCellElement>) => {
+    // React portals keep the cell in their event ancestry, but the picker
+    // owns its own input/focus session outside this cell's DOM subtree.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     const previousTarget = event.relatedTarget as Node | null;
     if (!previousTarget || !event.currentTarget.contains(previousTarget)) {
       valueAtFocus.current = value;
@@ -63,6 +68,9 @@ export function ShipmentContainerCell({
 
   const handleCellKeyDown = (event: KeyboardEvent<HTMLTableCellElement>) => {
     const target = event.target as HTMLElement;
+    if (!event.currentTarget.contains(target)) return;
+    // Split controls own their partial draft, Escape and picker shortcuts.
+    if (target.closest('[data-split-datetime]')) return;
     if (!target.matches('input:not([role="combobox"]), textarea')) return;
 
     if (event.key === 'Enter' && !event.altKey) {
@@ -87,7 +95,7 @@ export function ShipmentContainerCell({
       ref={cellRef}
       data-label={label}
       data-field-id={fieldId}
-      className={`csc-container-cell${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
+      className={`csc-container-cell${alwaysVisible ? ' csc-container-cell--persistent' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
       onClick={activateCell}
       onFocusCapture={captureStartingValue}
       onKeyDownCapture={handleCellKeyDown}

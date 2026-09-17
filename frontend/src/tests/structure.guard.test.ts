@@ -94,7 +94,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Baseline 410 (was new-file capped): e-POD photos now render as tappable
   // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
   // render branch live beside the upload lifecycle they serve.
-  'src/components/trip/TripPodSubmission.tsx': 410,
+  // Bumped 410 → 423: 2026-09-16 unified-datetime patch batch — POD submission
+  // gains the shared datetime adapter wiring.
+  'src/components/trip/TripPodSubmission.tsx': 423,
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
@@ -115,8 +117,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
   // on a stable identity helper (branch rows carry a null fulfillment id).
-  // Bumped 407 → 435: 2026-09-14 KP-140 lift/drop port columns added.
-  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 435,
+  // Bumped 435 → 439: 2026-09-15 multiline note-line spans (20260915_35).
+  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 439,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
@@ -149,7 +151,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // returned to 515 the same day: the ensure logic extracted to
   // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
   // 2026-09-15 KP-018: filter/query contract extracted to detailPlanFilters.ts.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
+  // Bumped 515 → 518: 2026-09-16 card 20260916_9 — decompose re-keys the grid
+  // row and unmounts the pressing editor cell; the hook now tracks the fresh
+  // fulfillment id so the surviving cell auto-opens the editor.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 518,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -195,7 +200,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // restore a smaller ceiling.
   // Bumped 1080 → 1103: 2026-09-10 T4 — the live FreightPreviewCard mounts
   // in the workspace (first container row drives the engine input).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1103,
+  // Bumped 1103 → 1104: 2026-09-16 unified-datetime patch batch (create-form
+  // adapter wiring, one line over the T4 bump).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1104,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
@@ -260,7 +267,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
-  'src/pages/ShipmentsPage.tsx': 634,
+  // Bumped 634 → 680: 2026-09-16 unified-datetime patch batch — quick-edit
+  // schedule wiring moves to the shared surfaces.
+  'src/pages/ShipmentsPage.tsx': 680,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
@@ -340,6 +349,11 @@ describe('frontend structure guard', () => {
       // the surface-specific empty-state text is local.
       'src/features/shipments/detail/ShipmentContainerLedger.tsx',
       'src/pages/portal/PortalDebitNotesPage.tsx',
+      // 2026-09-16 unified-datetime patch batch: driver trip model derives
+      // display labels from trip legs; the buffered hook normalizes partial
+      // date text for the shared surfaces.
+      'src/features/driver/driver-trip-model.ts',
+      'src/design-system/hooks/useBufferedDateTextValue.ts',
     ]);
     const offenders: string[] = [];
     for (const root of SIZE_ROOTS) {

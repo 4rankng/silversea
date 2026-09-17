@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Check, FilterLines, XClose } from '@untitledui/icons';
 import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
@@ -8,6 +8,7 @@ import { Select as UUISelect } from '../../../components/untitled-ui/base/select
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import { businessDateISO } from '../../../lib/format';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
+import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 
 export interface FacetItem {
   id: number;
@@ -43,44 +44,34 @@ const ASSIGNMENT_OPTIONS = [
  * shared `SearchableMultiSelect` — portal + flip positioning from the
  * dropdown-flip sweep, so the picker never clips or covers lower controls.
  *
- * Facets lazy-load once per popover open; the picker's search input filters
- * the loaded list locally (facet catalogs are bounded, ≤100 rows).
+ * Facets load on open and on the shared picker's debounced search. Each
+ * request belongs to that query/opening, so a late result cannot replace
+ * newer suggestions or leak into a reopened picker.
  */
 function FacetMultiSelect({
   label,
   selected,
-  onToggle,
+  onSelectionChange,
   loadFacets,
 }: {
   label: string;
   selected: number[];
-  onToggle: (id: number) => void;
+  onSelectionChange: (ids: number[]) => void;
   loadFacets: FacetLoader;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [facets, setFacets] = useState<FacetItem[]>([]);
+  const [search, setSearch] = useState('');
   const pickerId = useId();
 
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
-    loadFacets()
+    loadFacets(search || undefined)
       .then((items) => { if (!cancelled) setFacets(items); })
       .catch(() => { if (!cancelled) setFacets([]); });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen]);
-
-  // The picker's search refetches from the server (debounced by the picker),
-  // preserving the original per-keystroke facet query contract.
-  const handleSearch = useCallback((query: string) => {
-    let cancelled = false;
-    loadFacets(query || undefined)
-      .then((items) => { if (!cancelled) setFacets(items); })
-      .catch(() => { if (!cancelled) setFacets([]); });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPickerOpen, search, loadFacets]);
 
   return (
     <div className="detailed-plan-filters__points">
@@ -89,18 +80,7 @@ function FacetMultiSelect({
         <SearchableMultiSelect
           id={pickerId}
           values={selected.map(String)}
-          onChange={(values) => {
-            // Bridge the design-system array contract onto the parent's
-            // per-id toggle: one onToggle per added/removed id.
-            const previous = new Set(selected.map(String));
-            const next = new Set(values);
-            for (const id of selected) {
-              if (!next.has(String(id))) onToggle(id);
-            }
-            for (const value of values) {
-              if (!previous.has(value)) onToggle(Number(value));
-            }
-          }}
+          onChange={(values) => onSelectionChange(values.map(Number))}
           options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
           placeholder={`Chọn ${label.toLowerCase()}…`}
           searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
@@ -108,16 +88,15 @@ function FacetMultiSelect({
           selectionLabel={label.toLowerCase()}
           size="sm"
           clearAllLabel="Bỏ chọn tất cả"
-          onOpenChange={setIsPickerOpen}
-          onSearchChange={handleSearch}
+          onOpenChange={(open) => {
+            setIsPickerOpen(open);
+            if (!open) setSearch('');
+          }}
+          onSearchChange={setSearch}
         />
       </div>
     </div>
   );
-}
-
-function toggleId(list: number[], id: number): number[] {
-  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
 }
 
 /** Filter bar for the dispatch detail plan grid (docx §4). */
@@ -130,6 +109,9 @@ export function DetailedPlanFilters({
   zones,
 }: DetailedPlanFiltersProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [draftResetKey, setDraftResetKey] = useState(0);
+  const [dateResetKey, setDateResetKey] = useState(0);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
   const today = businessDateISO();
   const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
   const activeDrawerFilterCount = [
@@ -147,16 +129,34 @@ export function DetailedPlanFilters({
     + (filters.q.trim() !== '' ? 1 : 0);
 
   const clearFilters = () => {
+    setDateResetKey((key) => key + 1);
+    setDraftResetKey((key) => key + 1);
     setIsFilterDrawerOpen(false);
     onChange(createDefaultDetailedPlanFilters());
   };
 
+  const selectDate = (date: string) => {
+    setDateResetKey((key) => key + 1);
+    onChange({ date });
+  };
+
   const clearDrawerFilters = () => {
+    setDraftResetKey((key) => key + 1);
     onChange({
       ...createDefaultDetailedPlanFilters(),
       q: filters.q,
       date: filters.date,
     });
+  };
+
+  const showResults = () => {
+    const invalidInput = filterPanelRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (invalidInput) {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+      return;
+    }
+    setIsFilterDrawerOpen(false);
   };
 
   return (
@@ -180,6 +180,7 @@ export function DetailedPlanFilters({
         <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
         <div className="detailed-plan-filters__date-scope-controls">
           <BufferedUuiDateInput
+            key={dateResetKey}
             className="detailed-plan-filters__date"
             value={filters.date}
             onChange={(value) => onChange({ date: value })}
@@ -191,7 +192,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: today })}
+              onPress={() => selectDate(today)}
               aria-label="Hôm nay"
               aria-pressed={filters.date === today}
               iconLeading={filters.date === today ? <Check aria-hidden="true" /> : undefined}
@@ -202,7 +203,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === tomorrow ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: tomorrow })}
+              onPress={() => selectDate(tomorrow)}
               aria-label="Hôm sau"
               aria-pressed={filters.date === tomorrow}
               iconLeading={filters.date === tomorrow ? <Check aria-hidden="true" /> : undefined}
@@ -213,7 +214,7 @@ export function DetailedPlanFilters({
               className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
               size="sm"
               color="secondary"
-              onPress={() => onChange({ date: '' })}
+              onPress={() => selectDate('')}
               aria-label="Tất cả"
               aria-pressed={filters.date === ''}
               iconLeading={filters.date === '' ? <Check aria-hidden="true" /> : undefined}
@@ -227,7 +228,6 @@ export function DetailedPlanFilters({
             color="tertiary"
             iconLeading={XClose}
             onPress={clearFilters}
-            isDisabled={activeFilterCount === 0}
             aria-label="Xóa lọc"
           >
             Xóa lọc
@@ -261,17 +261,16 @@ export function DetailedPlanFilters({
               size="sm"
               color="secondary"
               onPress={clearDrawerFilters}
-              isDisabled={activeDrawerFilterCount === 0}
             >
               Đặt lại
             </UUIButton>
-            <UUIButton size="sm" color="primary" onPress={() => setIsFilterDrawerOpen(false)}>
+            <UUIButton size="sm" color="primary" onPress={showResults}>
               Xem kết quả
             </UUIButton>
           </>
         }
       >
-        <div className="detailed-plan-filter-panel">
+        <div ref={filterPanelRef} className="detailed-plan-filter-panel">
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-assignment">
             <h3 id="detailed-plan-filter-assignment" className="detailed-plan-filter-panel__title">Phân xe và giờ chạy</h3>
             <div className="detailed-plan-filter-panel__fields">
@@ -290,9 +289,9 @@ export function DetailedPlanFilters({
               <div className="detailed-plan-filters__field detailed-plan-filters__hour">
                 <span className="detailed-plan-filters__label">Giờ chạy</span>
                 <div className="detailed-plan-filters__hour-inputs">
-                  <UUIInput type="time" className="detailed-plan-filters__hour-control" value={filters.hourFrom} onChange={(value) => onChange({ hourFrom: value })} size="sm" aria-label="Giờ từ" inputProps={{ step: 60 }} />
+                  <DispatchTimeFilterField key={`from-${draftResetKey}`} label="Giờ từ" value={filters.hourFrom} onChange={(value) => onChange({ hourFrom: value })} />
                   <span aria-hidden="true">→</span>
-                  <UUIInput type="time" className="detailed-plan-filters__hour-control" value={filters.hourTo} onChange={(value) => onChange({ hourTo: value })} size="sm" aria-label="Giờ đến" inputProps={{ step: 60 }} />
+                  <DispatchTimeFilterField key={`to-${draftResetKey}`} label="Giờ đến" value={filters.hourTo} onChange={(value) => onChange({ hourTo: value })} />
                 </div>
               </div>
               <div className="detailed-plan-filters__field detailed-plan-filters__field--zone">
@@ -316,9 +315,9 @@ export function DetailedPlanFilters({
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-points">
             <h3 id="detailed-plan-filter-points" className="detailed-plan-filter-panel__title">Điểm giao nhận</h3>
             <div className="detailed-plan-filter-panel__fields">
-              <FacetMultiSelect label="Điểm nâng" selected={filters.pickupIds} onToggle={(id) => onChange({ pickupIds: toggleId(filters.pickupIds, id) })} loadFacets={loadPickupPortFacets} />
-              <FacetMultiSelect label="Điểm hạ" selected={filters.dropoffIds} onToggle={(id) => onChange({ dropoffIds: toggleId(filters.dropoffIds, id) })} loadFacets={loadDropoffPortFacets} />
-              <FacetMultiSelect label="Điểm trả" selected={filters.deliveryPointIds} onToggle={(id) => onChange({ deliveryPointIds: toggleId(filters.deliveryPointIds, id) })} loadFacets={loadDeliveryPointFacets} />
+              <FacetMultiSelect label="Điểm nâng" selected={filters.pickupIds} onSelectionChange={(ids) => onChange({ pickupIds: ids })} loadFacets={loadPickupPortFacets} />
+              <FacetMultiSelect label="Điểm hạ" selected={filters.dropoffIds} onSelectionChange={(ids) => onChange({ dropoffIds: ids })} loadFacets={loadDropoffPortFacets} />
+              <FacetMultiSelect label="Điểm trả" selected={filters.deliveryPointIds} onSelectionChange={(ids) => onChange({ deliveryPointIds: ids })} loadFacets={loadDeliveryPointFacets} />
             </div>
           </section>
         </div>

@@ -77,8 +77,8 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     renderAt();
     const activeCard = await screen.findByTestId('two-orders-card-Lệnh đang chạy');
     const nextCard = screen.getByTestId('two-orders-card-Lệnh tiếp theo');
-    expect(activeCard.getAttribute('href')).toBe('/my-trips/110');
-    expect(nextCard.getAttribute('href')).toBe('/my-trips/120');
+    expect(activeCard.getAttribute('href')).toBe('/my-trips/10');
+    expect(nextCard.getAttribute('href')).toBe('/my-trips/20');
     expect(activeCard).not.toBe(nextCard);
   });
 
@@ -107,8 +107,8 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     });
     renderAt();
     expect(await screen.findByTestId('ordered-pair-summary')).toBeTruthy();
-    expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute('href')).toBe('/my-trips/110');
-    expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute('href')).toBe('/my-trips/120');
+    expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute('href')).toBe('/my-trips/10');
+    expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute('href')).toBe('/my-trips/20');
     expect(screen.getByText(/22.5 km/)).toBeTruthy();
   });
 

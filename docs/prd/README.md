@@ -33,6 +33,8 @@ Tên vai trò không đồng nghĩa được truy cập mọi dữ liệu hoặc
 
 ## Thay đổi có hiệu lực gần nhất
 
+**16/09/2026 — Chi phí Ops/lái xe, phơi phiếu và thu/trả.** Yêu cầu từ `các chi phí.docx` nằm trong [Ops](OpsVanHanh.md#9-chi-phí-ops-và-hoàn-ứng), [Lái xe](ManHinhLaiXe.md#8-chi-phí-lái-xe) và [O2C](QuyTrinhO2C.md#74-phơi-phiếu-và-phân-công-kế-toán). Chi thực tế, số tính cho khách và tiền đã thu/trả là những thông tin cần tách biệt; đối chiếu không tạo thêm dòng tiền hoặc cấp duyệt. Các điểm nguồn chưa hoàn thiện được ghi tại nghiệp vụ liên quan, không tự suy ra giá hay ngưỡng cảnh báo.
+
 **14/09/2026 — Thao tác trực tiếp, cần Internet, trải nghiệm gọn trên mọi thiết bị.**
 
 - Người có quyền lưu, phát hành, điều chỉnh hoặc hủy trực tiếp sau khi đáp ứng quy tắc nghiệp vụ. Ứng dụng không có quy trình gửi duyệt, người duyệt, chờ duyệt theo cấp tiền hoặc tự động duyệt. Quyền thao tác, kiểm tra dữ liệu, lý do điều chỉnh, lịch sử và khóa kỳ vẫn được giữ.

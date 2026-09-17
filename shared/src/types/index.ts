@@ -430,6 +430,8 @@ export interface Trip {
   vehicleShiftAllowance: string;
   grossProfit: string | null;
   tollCost: string | null;
+  reconciledTollCost?: string | null;
+  reconciledExtraCost?: string | null;
   revenueOriginal: string | null;
   revenueOverriddenBy: number | null;
   revenueOverriddenAt: string | null;
@@ -2176,6 +2178,7 @@ export interface PnlTripDetail {
   roadAllowance: number;
   tollAndCompanyTickets: number;
   driverAndAllowances: number;
+  reconciledExtraCost?: number;
   totalCost: number;
   allocatedFleetFixedCost: number;
   totalCostWithFleetFixedCost: number;
@@ -2248,4 +2251,3 @@ export interface SalaryPeriodRange {
   end: string;    // YYYY-MM-DD inclusive
   label: string;
 }
-

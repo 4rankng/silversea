@@ -6,7 +6,7 @@
 // for the per-line basis detail. REOPENED periods show a prominent badge.
 
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Loader2, Calendar, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertTriangle, Loader2, Calendar, DollarSign, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
 import { PageHeader } from '../../components/UI';
 import { useDriverPayslips } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
@@ -78,11 +78,12 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
         {e.salarySnapshotState === 'UNAVAILABLE' ? <span>Cần đối chiếu bản gốc</span> : <StatusBadge status={p.status} />}
       </div>
 
-      <div className="dt-card__meta" style={{ marginTop: 8 }}>
+      <div className="dt-card__meta">
         <span className="dt-card__meta-item">
           <DollarSign size={14} />
-          <span className="dt-card__meta-text" style={{ fontWeight: 600 }}>
-            {formatCurrency(e.netIncome)}
+          <span className="driver-payslip__salary">
+            <span>Lương ngày công</span>
+            <strong>{formatCurrency(e.netIncome)}</strong>
           </span>
         </span>
       </div>
@@ -112,29 +113,39 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
           {p.note}
         </div>
       )}
+      <div className="dt-card__footer driver-payslip__footer">
+        <span>Xem chi tiết thu nhập</span>
+        <ArrowRight size={14} aria-hidden="true" />
+      </div>
     </Link>
   );
 }
 
 export default function DriverPayslipsPage() {
-  const { data, isLoading: loading, error: queryError } = useDriverPayslips();
+  const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverPayslips();
   const error = queryError ? 'Không thể tải bảng lương' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (loading) return (
-    <div className="driver-secondary-page" style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
-      <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
-      <p style={{ marginTop: 8 }}>Đang tải bảng lương…</p>
+    <div className="driver-secondary-page">
+      <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
+      <div className="driver-secondary-state" role="status">
+        <Loader2 size={20} className="spin" />
+        <p>Đang tải bảng lương…</p>
+      </div>
     </div>
   );
 
   if (error) return (
     <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
-      <div className="empty-state">
+      <div className="empty-state" role="alert">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
         <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi. Vui lòng thử lại sau ít phút.</p>
+        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi.</p>
+        <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+          {isFetching ? 'Đang tải…' : 'Thử lại'}
+        </button>
       </div>
     </div>
   );
@@ -145,7 +156,7 @@ export default function DriverPayslipsPage() {
     <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-trips')} alt="No payslips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <h3 className="empty-state-title">Chưa có kỳ lương nào</h3>
         <p className="empty-state-desc">Bảng lương sẽ xuất hiện ở đây khi kế toán chốt kỳ.</p>
       </div>
@@ -155,7 +166,7 @@ export default function DriverPayslipsPage() {
   return (
     <div ref={rootRef} className="driver-secondary-page">
       <PageHeader title="Bảng lương" description={`${items.length} kỳ đã phát hành`} />
-      <div className="driver-trips-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="driver-secondary-list">
         {items.map((p, idx) => (
           <PayslipCard key={p.period} p={p} idx={idx} />
         ))}

@@ -16,6 +16,7 @@ import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
+import { formatISODate } from '../../../lib/format';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { useCatalogCreate } from './useCatalogCreate';
@@ -81,7 +82,7 @@ export function FleetDriversView() {
         </Button>
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid" style={{ marginBottom: 16 }}>
+      <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
         <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
@@ -121,20 +122,22 @@ export function FleetDriversView() {
                   key={d.id}
                   style={{ cursor: 'pointer' }}
                   onClick={() => crud.showEdit(d.id)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(d.id); } }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Chỉnh sửa tài xế ${d.name}`}
                 >
-                  <td data-label="Mã tài xế" style={{ fontWeight: 600 }}>{d.code ?? '—'}</td>
-                  <td data-label="Họ tên">{d.name}</td>
-                  <td data-label="Số CCCD">{d.idNumber ?? '—'}</td>
-                  <td data-label="GPLX">{d.licenseNumber ?? '—'}</td>
-                  <td data-label="Hạn bằng lái">{d.licenseExpiryDate ?? '—'}</td>
-                  <td data-label="Số điện thoại">{d.phone ?? '—'}</td>
-                  <td data-label="Ngân hàng nhận tiền">{d.bankName ?? '—'}</td>
-                  <td data-label="Số TK nhận tiền">{d.bankAccount ?? '—'}</td>
-                  <td data-label="Hình thức lương">{d.salaryType ?? '—'}</td>
+                  <td data-label="Mã tài xế" style={{ fontWeight: 600 }}>
+                    <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa tài xế ${d.name}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(d.id); }}>
+                      <span className="dispatch-catalogs__desktop-driver-code">{d.code || '—'}</span>
+                      <span className="dispatch-catalogs__compact-driver-name">{d.name}</span>
+                    </button>
+                    {d.code?.trim() && <span className="dispatch-catalogs__compact-driver-code">Mã: {d.code}</span>}
+                  </td>
+                  <td data-label="Họ tên" className="dispatch-catalogs__desktop-driver-name">{d.name}</td>
+                  <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>
+                  <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>
+                  <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>{d.licenseExpiryDate ? formatISODate(d.licenseExpiryDate) : '—'}</td>
+                  <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>
+                  <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined}>{d.bankName || '—'}</td>
+                  <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>
+                  <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>
                 </tr>
               ))}
             </tbody>

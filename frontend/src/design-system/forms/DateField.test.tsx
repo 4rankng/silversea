@@ -6,7 +6,11 @@ describe('DateField', () => {
   it('renders a label-bound date input', () => {
     render(<DateField id="from" label="Từ ngày" value="2024-12-15" onChange={() => {}} />);
     const input = screen.getByLabelText('Từ ngày') as HTMLInputElement;
-    expect(input.type).toBe('date');
+    // The unified batch made the shared date input a buffered DD/MM/YYYY
+    // text field (native locale pickers cannot force 24h/vi display).
+    expect(input.type).toBe('text');
+    expect(input.getAttribute('placeholder')).toBe('DD/MM/YYYY');
+    expect(input.value).toBe('15/12/2024');
     expect(input.id).toBe('from');
   });
 
@@ -77,8 +81,8 @@ describe('DateField', () => {
     // value attribute, we drive the underlying onChange handler to verify
     // the component does not propagate the partial draft to the parent.
     fireEvent.change(input, { target: { value: '1' } });
-    fireEvent.change(input, { target: { value: '12' } });
-    fireEvent.change(input, { target: { value: '2024-12' } });
+    fireEvent.change(input, { target: { value: '15/1' } });
+    fireEvent.change(input, { target: { value: '15/12/20' } });
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -87,7 +91,7 @@ describe('DateField', () => {
     render(<DateField id="from" label="Từ ngày" value="" onChange={onChange} />);
     const input = screen.getByLabelText('Từ ngày') as HTMLInputElement;
 
-    fireEvent.change(input, { target: { value: '2024-12-15' } });
+    fireEvent.change(input, { target: { value: '15/12/2024' } });
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('2024-12-15');
   });
@@ -99,12 +103,9 @@ describe('DateField', () => {
     );
     const input = container.querySelector('#from') as HTMLInputElement;
 
-    // Note: in real browsers, <input type="date"> only fires `change` for
-    // complete dates or cleared values, so partial entries never reach the
-    // handler. jsdom is more permissive and will dispatch `change` for any
-    // string we set, so we explicitly drive the handler with the values the
-    // browser would actually surface to confirm the hook's filtering.
-    fireEvent.change(input, { target: { value: '2024-12-15' } });
+    // The buffered text input only emits once the DD/MM/YYYY entry parses;
+    // partial drafts stay in the field without reaching the parent.
+    fireEvent.change(input, { target: { value: '15/12/2024' } });
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('2024-12-15');
 

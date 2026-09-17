@@ -85,7 +85,7 @@
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 1176px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 .csc-container-col__number { width: 128px; }
 .csc-container-col__type { width: 104px; }
@@ -224,18 +224,32 @@
   .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 14px !important; gap: 12px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; margin: -14px -14px 0; padding: 12px 14px; border-radius: 9px 9px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 7px 7px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 /* Keep the normal-flow action row above the iPhone home indicator at the end
    of the long create form. It is deliberately not sticky. */
 @media (max-width: 640px) {
+  .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
+  .csc-container-row > * { grid-column: 1 / -1; }
+  .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
   .csc-page {
     padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+    /* The trailing safe-area padding must read as part of the worksheet, not
+       as a bare app-main canvas strip at the end of the scroll (user report
+       2026-09-16: grey gap below the last section on mobile). */
+    background: var(--surface, #fff);
+  }
+  /* The shell's own 28px bottom padding sits BELOW the page and shows the
+     canvas after the worksheet ends — the page's safe-area padding replaces
+     it on this route (owner: main.app-body padding, found by the _10 rung). */
+  .app-main:has(.csc-page) .app-body {
+    padding-bottom: 0;
   }
 }
 
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
-@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-section, .csc-validation-summary, .csc-submit-error { padding: 13px !important; }.csc-section__heading { margin: -13px -13px 0; padding-inline: 13px; } }
+@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 /* The FCL cargo step owns an editable view of the lot route. It shares the
@@ -265,26 +279,6 @@
 }
 
 /* ── Lệnh chạy ngoài toggle (MasterDataNhaMay §4.1) ───────────────────────── */
-.csc-adhoc-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px dashed var(--line, #d8d3cb);
-  border-radius: 10px;
-  background: var(--bg-2, #f7f4ee);
-  font-size: var(--text-body-size);
-  font-weight: 600;
-  color: var(--fg-1, #222);
-  margin-bottom: 4px;
-}
-
-.csc-adhoc-toggle input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--ink, #1c1c1c);
-}
-
 /* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
  * already entered). Renders BELOW the input hint so the field stays valid;
  * orange tone to distinguish from a hard `error` (red). The link inside is
@@ -309,3 +303,16 @@
   text-decoration: underline;
 }
 .csc-field-warning__link:hover { color: #92400e; }
+
+/* Separate time/date controls remain usable in the repeatable desktop grid. */
+.csc-container-col__appointment { width: 170px; }
+
+/* Stacked records are forms, not spreadsheet previews. Show their controls
+ * continuously and keep catalog creation beside its selector so invisible
+ * editor/add rows do not reserve a second line of phone screen space. */
+@container (max-width: 1037px) {
+  .csc-container-cell .csc-container-cell__display { display: none; }
+  .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
+  .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+}

@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { Calendar } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { formatDateTimeShort } from '../../../lib/format';
+import { formatDateTime24 } from '../../../lib/format';
+import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
@@ -146,6 +146,9 @@ export function ContainerLineRow({
           <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
           <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
           <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+          {line.plateNumber && (
+            <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
+          )}
         </ShipmentContainerCell>
       ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
       {liftSiteEditable ? (
@@ -170,12 +173,11 @@ export function ContainerLineRow({
             onClick={() => setAppointmentOpen((current) => !current)}
             aria-haspopup="dialog"
             aria-expanded={appointmentOpen}
-            aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chưa có'}`}
+            aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chưa có'}`}
             title="Nhấn để chọn giờ hẹn đóng/trả"
           >
-            <Calendar size={13} className="cus-appointment-trigger__icon" aria-hidden="true" />
             <span className={draft.customerAppointmentAt ? 'cus-appointment-trigger__text' : 'cus-appointment-trigger__text cus-appointment-trigger__text--empty'}>
-              {draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
+              {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
             </span>
           </button>
           <CusAppointmentPopover
@@ -190,7 +192,7 @@ export function ContainerLineRow({
             triggerRef={appointmentTriggerRef}
           />
         </td>
-      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
+      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong></td>}
     </tr>
   );
 }

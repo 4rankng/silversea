@@ -160,7 +160,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
     // Missing-data summary stays compact: the full list collapses behind a
     // count disclosure; expanding reveals jump-to-editor items in list order.
-    const warningToggle = screen.getByRole('button', { name: /Thiếu 4 thông tin/ });
+    const warningToggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
     const rowWarning = warningToggle.closest<HTMLElement>('.shipment-container-ledger__row-warning');
     expect(rowWarning).toBeTruthy();
     if (!rowWarning) throw new Error('Expected the missing-fields warning wrapper');
@@ -230,46 +230,40 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
-  it('keeps Hôm nay / Hôm sau / Tất cả / Xóa bộ lọc in one stable row and disables the active one', async () => {
+  it('keeps date shortcuts actionable in one stable row and announces the selected range', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
-
-    // The four buttons must all be present from the first render so the row
-    // never reflows when a date shortcut is activated.
+    await screen.findByText('CONT-001');
     const actionGroup = document.querySelector('.shipments-detail-filters__date-actions') as HTMLElement;
-    expect(actionGroup).toBeTruthy();
-    const isDisabled = (btn: HTMLElement) => btn.hasAttribute('disabled');
     const todayBtn = within(actionGroup).getByRole('button', { name: 'Hôm nay' });
     const tomorrowBtn = within(actionGroup).getByRole('button', { name: 'Hôm sau' });
     const allBtn = within(actionGroup).getByRole('button', { name: 'Tất cả' });
     const resetBtn = within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' });
+    for (const button of [todayBtn, tomorrowBtn, allBtn, resetBtn]) expect(button).toBeEnabled();
+    expect(todayBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
 
-    // Default (today): Hôm nay is disabled (already today), the date
-    // shortcuts Hôm sau + Tất cả are enabled. Xóa bộ lọc is enabled
-    // because the default state seeds dateFrom/dateTo = today, so the
-    // reset action is meaningful.
-    expect(isDisabled(todayBtn)).toBe(true);
-    expect(isDisabled(allBtn)).toBe(false);
-    expect(isDisabled(resetBtn)).toBe(false);
-    expect(isDisabled(tomorrowBtn)).toBe(false);
-
-    // Switch to Hôm sau — the other three stay mounted, only the active one disables.
     fireEvent.click(tomorrowBtn);
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${tomorrow}&transportDateTo=${tomorrow}`));
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm sau' }))).toBe(true);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm nay' }))).toBe(false);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Tất cả' }))).toBe(false);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' }))).toBe(false);
+    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(todayBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
 
-    // Switch to Tất cả — every date button disables; Xóa bộ lọc also
-    // disables because selecting Tất cả clears the date filter, leaving
-    // no other active filter behind.
     fireEvent.click(allBtn);
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Tất cả' }))).toBe(true);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm nay' }))).toBe(false);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm sau' }))).toBe(false);
-    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' }))).toBe(true);
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(todayBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
+    // Even when the URL is unfiltered, reset must clear a local invalid draft.
+    const from = screen.getByLabelText('Từ ngày vận chuyển');
+    fireEvent.change(from, { target: { value: '31/02/2026' } });
+    fireEvent.blur(from);
+    expect(from).toBeInvalid();
+    fireEvent.click(resetBtn);
+    await waitFor(() => expect(screen.getByLabelText('Từ ngày vận chuyển')).toHaveValue(''));
+    expect(screen.getByLabelText('Từ ngày vận chuyển')).toBeValid();
+    for (const button of [todayBtn, tomorrowBtn, allBtn, resetBtn]) expect(button).toBeEnabled();
   });
 
   it('renders every fulfillment classification with its canonical Vietnamese label', async () => {
@@ -352,7 +346,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
-    expect(pendingVehicleCell?.textContent).toContain('Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.');
+    expect(within(pendingVehicleCell!).getByRole('button', { name: /^Chỉnh sửa phân xe CONT-002/ })).toBeEnabled();
     // "Chưa gán biển số" is a status label, not an action: it renders as a
     // badge span with no button chrome of its own.
     const plateChip = screen.getByText('Chưa gán biển số');
@@ -495,7 +489,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '2026-08-15' } });
+    fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '15/08/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
 
     const selectsGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
@@ -710,7 +704,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Ngày đóng hàng'), { target: { value: '2026-08-22' } });
+    fireEvent.change(await screen.findByLabelText('Ngày đóng hàng'), { target: { value: '22/08/2026' } });
     fireEvent.change(screen.getByLabelText('Giờ đóng hàng'), { target: { value: '09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
 
@@ -734,9 +728,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
     const appointmentDate = await screen.findByLabelText(/Ngày (đóng|trả) hàng/);
-    expect((appointmentDate as HTMLInputElement).value).toBe('2026-08-22');
+    expect((appointmentDate as HTMLInputElement).value).toBe('22/08/2026');
     expect(screen.queryByLabelText('Ngày vận chuyển')).toBeNull();
-    fireEvent.change(appointmentDate, { target: { value: '2026-08-23' } });
+    fireEvent.change(appointmentDate, { target: { value: '23/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {

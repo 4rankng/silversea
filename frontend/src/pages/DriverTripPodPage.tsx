@@ -23,16 +23,16 @@ import {
   Loader2,
   StickyNote,
 } from 'lucide-react';
-import { TRIP_STATUS_LABELS, TripPodFileType } from '@tingting/shared';
+import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripStatus } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { useOnline } from '../hooks/useOnline';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
@@ -42,19 +42,19 @@ import './DriverTripPodPage.css';
 // Status-aware completion CTA label — same logic as DriverTripDetailPage:
 // only IN_TRANSIT can complete, COMPLETED is done, others read as not-yet.
 function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
+  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
   if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
   return 'Chưa thể hoàn thành chuyến';
 }
 
 export function DriverTripPodPage() {
-  const { id: tripIdParam } = useParams<{ id: string }>();
+  const { id: fulfillmentIdParam } = useParams<{ id: string }>();
+  useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
-  const online = useOnline();
   const { toast } = useToast();
 
-  const tripId = Number(tripIdParam);
-  const validFulfillmentId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
+  const fulfillmentId = Number(fulfillmentIdParam);
+  const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
 
@@ -64,6 +64,7 @@ export function DriverTripPodPage() {
 
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
+  const [preparingPod, setPreparingPod] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
@@ -75,18 +76,38 @@ export function DriverTripPodPage() {
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
-  const operationalNote = trip?.fulfillment?.driverNotes ?? trip?.notes ?? null;
+  const documentReadOnlyReason = trip?.accountingLock
+    ? 'Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.'
+    : trip?.status === TripStatus.COMPLETED
+      ? 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'
+      : trip?.status === TripStatus.CANCELED
+        ? 'Chuyến đã hủy. Không thể thay đổi chứng từ.'
+        : null;
+  // The dispatch note is tag-composed (format v2): parse it like the detail
+  // page does — tags become chips, manual text the note — so the raw
+  // tag-line structure never leaks to the driver. The trip.memo fallback was
+  // never tag-composed and renders verbatim.
+  const parsedDriverNote = trip?.fulfillment?.driverNotes != null
+    ? parseDriverTaskNote(trip.fulfillment.driverNotes, trip?.knownTagLabels ?? [])
+    : null;
+  const noteChips = parsedDriverNote?.selectedLabels ?? [];
+  const operationalNote = parsedDriverNote
+    ? (parsedDriverNote.manualText || null)
+    : (trip?.notes ?? null);
 
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
+  const documentBusy = preparingPod || creatingDraft || uploadingPod;
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
+    || documentBusy
     || !podReady;
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
     if (!trip || !validFulfillmentId) {
       throw new Error('Không tìm thấy chuyến để tạo e-POD.');
     }
+    if (documentReadOnlyReason) throw new Error(documentReadOnlyReason);
     if (currentSubmission?.status === 'DRAFT') {
       return currentSubmission;
     }
@@ -107,7 +128,7 @@ export function DriverTripPodPage() {
         idempotencyKey,
       );
       await refreshAll();
-      toast({ kind: 'success', message: 'Đã mở phiên bản e-POD mới.' });
+      toast({ kind: 'success', message: 'Đã tạo hồ sơ chứng từ giao hàng.' });
       return created;
     } finally {
       setCreatingDraft(false);
@@ -122,6 +143,7 @@ export function DriverTripPodPage() {
     if (!trip || !validFulfillmentId) {
       throw new Error('Không tìm thấy chuyến để tải ảnh e-POD.');
     }
+    if (documentReadOnlyReason) throw new Error(documentReadOnlyReason);
     setUploadingPod(true);
     try {
       const uploaded = await driverClient.attachPodFile({
@@ -140,7 +162,7 @@ export function DriverTripPodPage() {
   }
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
-    if (!trip || !validFulfillmentId || !online) return false;
+    if (!trip || !validFulfillmentId) return false;
     setSubmitting(true);
     try {
       const idempotencyKey = buildIdempotencyKey(
@@ -163,7 +185,7 @@ export function DriverTripPodPage() {
   }
 
   async function handleCompleteTrip() {
-    if (!trip || !validFulfillmentId || !online) return;
+    if (!trip || !validFulfillmentId || documentBusy || submitting || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
       toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
       return;
@@ -200,8 +222,9 @@ export function DriverTripPodPage() {
   }, [trip]);
 
   const handleBack = useCallback(
-    () => navigate(validFulfillmentId ? `/my-trips/${validFulfillmentId}` : '/my-trips', { replace: true }),
-    [navigate, validFulfillmentId],
+    // The POD route is fulfillment-scoped; the detail route is trip-scoped.
+    () => navigate(trip?.id ? `/my-trips/${trip.id}` : '/my-trips', { replace: true }),
+    [navigate, trip?.id],
   );
   // ESC/hardware back mirrors the header back button: both return to the trip
   // detail the driver came from, not straight to the journey board.
@@ -283,13 +306,21 @@ export function DriverTripPodPage() {
         {trip.accountingLock && <AccountingLockBanner lock={trip.accountingLock} />}
 
         {/* Ghi chú from cus/điều vận (spec A3): shown read-only above the e-POD
-            so the driver has the operational note in mind before uploading. */}
-        {operationalNote && (
+            so the driver has the operational note in mind before uploading.
+            Parsed like the detail page — tag chips + manual text. */}
+        {(operationalNote || noteChips.length > 0) && (
           <section className="driver-trip-pod-note">
             <StickyNote size={18} />
             <div>
-              <strong>Ghi chú từ điều vận / CUS</strong>
-              <p>{operationalNote}</p>
+              <strong>Ghi chú giao hàng</strong>
+              {noteChips.length > 0 && (
+                <div className="driver-task-ops" data-testid="pod-operation-chips">
+                  {noteChips.map((tag) => (
+                    <span key={tag} className="driver-task-ops-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
+                  ))}
+                </div>
+              )}
+              {operationalNote && <p>{operationalNote}</p>}
             </div>
           </section>
         )}
@@ -299,25 +330,28 @@ export function DriverTripPodPage() {
             labels at the top of the card. */}
         <section className="driver-task-section">
           <TripPodSubmission
+            key={trip.id}
             tripCode={trip.tripCode}
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
             history={podHistory}
             creatingDraft={creatingDraft}
             uploading={uploadingPod}
+            disabled={submitting || completing}
+            readOnlyReason={documentReadOnlyReason}
+            onBusyChange={setPreparingPod}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
           />
         </section>
       </main>
 
-      <footer className="driver-task-footer">
+      {trip.status !== TripStatus.COMPLETED && trip.status !== TripStatus.CANCELED && <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>HOÀN THÀNH CHUYẾN</strong>
+            <strong>Hoàn thành chuyến</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "HOÀN THÀNH CHUYẾN" — hệ thống gửi e-POD và chốt
-              chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
+              Thêm đủ hai loại chứng từ, rồi bấm Hoàn thành chuyến để lưu và kết thúc lệnh.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -335,16 +369,16 @@ export function DriverTripPodPage() {
           <button
             type="button"
             className="driver-task-complete"
-            disabled={completionBlocked || submitting || completing || !online}
+            disabled={completionBlocked || submitting || completing}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />
             <span>
-              {completing || submitting ? 'Đang gửi…' : completeCtaLabel(trip.status)}
+              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : completeCtaLabel(trip.status)}
             </span>
           </button>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }

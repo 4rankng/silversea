@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { expenseInputFields, expenseDateSchema, expenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
@@ -42,6 +43,13 @@ export const numericDecimal = z.union([z.number(), z.string()]).transform((val, 
 });
 
 const positiveNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => {
+  // String inputs must be plain decimal literals — Number() alone would
+  // happily coerce "0x10" to 16 and other exotic literals into money and
+  // quantity fields.
+  if (typeof val === 'string' && !/^\d+(\.\d+)?$/.test(val.trim())) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số dương' });
+    return z.NEVER;
+  }
   const num = Number(val);
   if (!Number.isFinite(num) || num <= 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số dương' });
@@ -831,7 +839,12 @@ export const tirePositionSchema = z.object({
 export const routeSchema = z.object({
   name: z.string().trim().min(1, 'Tên đầy đủ là bắt buộc').max(255),
   shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
-  distanceKm: positiveNumeric.optional(),
+  // Stored as nullable PostgreSQL integer kilometres. A deliberate clear is
+  // null; omission keeps the previous value on a partial update.
+  distanceKm: positiveNumeric.refine(
+    (value) => Number.isInteger(value) && value <= 2147483647,
+    'Khoảng cách phải là số km nguyên lớn hơn 0, tối đa 2.147.483.647.',
+  ).nullable().optional(),
   isMountain: z.boolean().optional().default(false),
   fixedFuelAllowance: nonNegNumeric.nullable().optional(),
   tollsStations: nonNegNumeric.nullable().optional(),
@@ -1121,20 +1134,23 @@ export const expenseCategorySchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
 });
 
-// Date columns reject the empty string — normalise "" → null so the form can submit
-// blank optional dates without forcing the client to strip them.
-const optionalDate = z.string().optional().nullable().transform((v) => (v === '' ? null : v));
+// Clear optional dates with "" → null. Nonempty values must be real calendar
+// dates so invalid input is rejected before reaching a Postgres date column.
+const optionalIsoDate = z
+  .union([z.literal('').transform(() => null), isoDateOnlySchema])
+  .optional()
+  .nullable();
 
 export const expenseSchema = z.object({
-  expenseDate: z.string().min(1),
+  expenseDate: isoDateOnlySchema,
   supplierId: z.coerce.number().int().positive(),
   categoryId: z.coerce.number().int().positive(),
   truckId: z.coerce.number().int().positive().optional().nullable(),
   vehicleComponent: z.enum(['TRUCK', 'TRAILER']).optional().default('TRUCK'),
   amount: positiveNumeric,
   paymentStatus: z.enum(['PAID', 'UNPAID']),
-  validFrom: optionalDate,
-  validTo: optionalDate,
+  validFrom: optionalIsoDate,
+  validTo: optionalIsoDate,
   receiptId: z.string().optional(),
   note: z.string().optional(),
 });
@@ -1646,6 +1662,7 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
 // when headers are not convenient (e.g. multipart). The header wins when
 // both are present; see `routes/shipments.ts` POST /quick.
 export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
+  declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
 }).superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
@@ -1968,9 +1985,11 @@ export type DriverProgressInput = z.infer<typeof driverProgressSchema>;
 // expense (per-diem, lift fee, parking, toll, fuel, other) against a trip.
 // Server-side idempotent (PRD M08-04-03 offline-safe replay).
 export const driverIncidentalCostSchema = z.object({
+  payerKind: z.enum(['USER', 'COMPANY']).optional(),
+  ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
-  amount: z.number().int().positive('Số tiền phải lớn hơn 0'),
-  occurredAt: z.string().min(1, 'Ngày phát sinh là bắt buộc'),
+  amount: expenseVndSchema.refine(v => v > 0, 'Số tiền phải lớn hơn 0'),
+  occurredAt: expenseDateSchema,
   note: z.string().max(1000).optional(),
   receiptStorageKey: z.string().max(255).optional(),
 });

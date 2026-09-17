@@ -24,10 +24,12 @@
  * will register jobs against this runner.
  */
 import cron from 'node-cron';
+import type { Sql } from 'postgres';
 import logger from '../lib/logger';
 import {
   advisoryLockKey,
   listJobs,
+  registerJob,
   type SchedulerJob,
 } from './registry';
 
@@ -49,6 +51,19 @@ export function startScheduler(): void {
     logger.warn('scheduler already started — ignoring duplicate startScheduler()');
     return;
   }
+  // Stale-RUNNING sweeper (STEP 1.4): boot pass + hourly cadence. The
+  // internal job marks scheduler_run_logs rows stuck RUNNING as FAILED so a
+  // crashed instance's rows cannot linger forever (Wave-0 limitation).
+  registerJob({
+    name: 'scheduler-stale-sweeper',
+    cron: '5 * * * *',
+    handler: async () => {
+      const { client: dbClient } = await import('../db/index.js');
+      const swept = await sweepStaleRunningRows(dbClient);
+      if (swept > 0) logger.warn({ swept }, 'scheduler: swept stale RUNNING rows');
+    },
+  });
+
   const jobs = listJobs().filter((j) => !j.disabled);
   for (const job of jobs) {
     // node-cron v4 accepts both 5- and 6-field expressions; the registry's
@@ -81,6 +96,12 @@ export function startScheduler(): void {
   }
   started = true;
   logger.info({ count: scheduled.length }, 'scheduler started');
+
+  // Boot sweep: rows stranded by a previous instance's crash are swept as
+  // soon as this instance takes over, not an hour later.
+  void import('../db/index.js').then(({ client: dbClient }) => sweepStaleRunningRows(dbClient))
+    .then((swept) => { if (swept > 0) logger.warn({ swept }, 'scheduler: boot sweep swept stale RUNNING rows'); })
+    .catch((err) => logger.warn({ err: errMsg(err) }, 'scheduler: boot sweep failed'));
 }
 
 /**
@@ -153,7 +174,7 @@ export async function runJobTick(job: SchedulerJob): Promise<void> {
     // routes each status update back through the reserved connection. Keeping
     // the helper DB-free makes the attempt-counting behavior unit-testable.
     const outcome = await executeWithRetries(
-      job.handler,
+      () => withMaxTick(job.handler, job.maxTickMs),
       maxAttempts,
       retryDelayMs,
       async (status, attempt, error) => {
@@ -197,6 +218,54 @@ export async function runJobTick(job: SchedulerJob): Promise<void> {
     } catch (releaseErr) {
       logger.warn({ job: job.name, err: errMsg(releaseErr) }, 'scheduler: failed to release reserved connection');
     }
+  }
+}
+
+/** Error text stamped on RUNNING rows the sweeper marks FAILED. */
+export const STALE_RUNNING_ERROR = 'swept: stale RUNNING row';
+
+/** Default stale threshold: a RUNNING row older than this is presumed dead. */
+export const STALE_RUNNING_THRESHOLD_MS = 15 * 60_000;
+
+/**
+ * Mark RUNNING `scheduler_run_logs` rows older than `thresholdMs` as FAILED
+ * with the sweep error text. Runs at scheduler boot and hourly (registered
+ * internally by `startScheduler`). Returns the number of rows swept.
+ */
+export async function sweepStaleRunningRows(
+  executor: Sql,
+  thresholdMs: number = STALE_RUNNING_THRESHOLD_MS,
+): Promise<number> {
+  const minutes = Math.max(1, Math.round(thresholdMs / 60_000));
+  const result = await executor`
+    UPDATE scheduler_run_logs
+    SET status = 'FAILED', error = ${STALE_RUNNING_ERROR}, ended_at = now()
+    WHERE status = 'RUNNING' AND started_at < now() - (${minutes} * interval '1 minute')
+  `;
+  return result.count;
+}
+
+/**
+ * Race a handler against `maxTickMs`. Unset/positive-free limits pass the
+ * handler straight through. A tick that outlives the limit rejects — flowing
+ * into the runner's retry/failure path — while the abandoned handler promise
+ * keeps running detached (documented trade-off: a hung handler cannot be
+ * cancelled, only its slot released).
+ */
+export async function withMaxTick<T>(handler: () => Promise<T> | T, maxTickMs?: number): Promise<T> {
+  if (!maxTickMs || maxTickMs <= 0) {
+    return await handler();
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(handler()),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`maxTickMs ${maxTickMs} exceeded`)), maxTickMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

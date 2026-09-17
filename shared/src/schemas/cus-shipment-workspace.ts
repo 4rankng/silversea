@@ -539,6 +539,11 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
   externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
   externalCarrierVehicleId: z.coerce.number().int().positive().nullable().optional(),
   plateNumber: z.string().trim().max(20).nullable().optional(),
+  // Empty-string plates are ambiguous on EXTERNAL rows (the service falls
+  // back to the carrier vehicle's stored plate), so an explicit flag is the
+  // only clear channel. Mutually exclusive with picking a vehicle or an
+  // inline new carrier — those are assignments, not removals.
+  clearVehicle: z.boolean().optional(),
   newExternalCarrier: z.object({
     name: z.string().trim().min(1, 'Tên nhà xe là bắt buộc').max(255),
     plateNumber: z.string().trim().min(1, 'Biển số xe là bắt buộc').max(20),
@@ -589,6 +594,13 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['externalCarrierId'],
       message: 'Xe nội bộ không được đi kèm nhà xe ngoài.',
+    });
+  }
+  if (input.clearVehicle === true && (input.externalCarrierVehicleId != null || input.newExternalCarrier != null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['clearVehicle'],
+      message: 'Không vừa xóa xe vừa chọn xe mới.',
     });
   }
   if (input.carrierType === 'OWN' && input.externalCarrierVehicleId != null) {

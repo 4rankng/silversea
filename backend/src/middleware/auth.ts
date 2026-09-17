@@ -86,13 +86,22 @@ declare global {
   }
 }
 
-export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Token không hợp lệ' });
+/**
+ * Shared verify/blacklist/current-user/scope-check core behind both auth
+ * middlewares. Sends the 401 itself and resolves null when authentication
+ * fails; resolves the verified payload when it succeeds. The two middlewares
+ * differ ONLY in where they source the token (header vs ?token= query).
+ */
+async function authenticateToken(token: string | undefined, res: Response): Promise<AuthUser | null> {
+  if (!token) {
+    res.status(401).json({ error: 'Token không hợp lệ' });
+    return null;
+  }
   try {
     const payload = jwt.verify(token, config.jwtSecret) as AuthUser & { jti?: string };
     if (payload.jti && await isTokenBlacklisted(payload.jti)) {
-      return res.status(401).json({ error: 'Token đã bị thu hồi' });
+      res.status(401).json({ error: 'Token đã bị thu hồi' });
+      return null;
     }
     const [current] = await db.select({
       role: users.role,
@@ -107,13 +116,21 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       : [];
     const tokenIds = tokenCustomerIds(payload);
     if (!current || current.role !== payload.role || !sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
-      return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
+      res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
+      return null;
     }
-    req.user = payload;
-    next();
+    return payload;
   } catch {
     res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+    return null;
   }
+}
+
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  const payload = await authenticateToken(req.headers.authorization?.replace('Bearer ', ''), res);
+  if (!payload) return;
+  req.user = payload;
+  next();
 }
 
 /**
@@ -127,32 +144,10 @@ export async function assetAuthMiddleware(req: Request, res: Response, next: Nex
   if (!token && typeof req.query.token === 'string') {
     token = req.query.token;
   }
-  if (!token) return res.status(401).json({ error: 'Token không hợp lệ' });
-  try {
-    const payload = jwt.verify(token, config.jwtSecret) as AuthUser & { jti?: string };
-    if (payload.jti && await isTokenBlacklisted(payload.jti)) {
-      return res.status(401).json({ error: 'Token đã bị thu hồi' });
-    }
-    const [current] = await db.select({
-      role: users.role,
-      customerId: users.customerId,
-    }).from(users).where(and(
-      eq(users.id, payload.userId),
-      eq(users.status, 'ACTIVE'),
-      isNull(users.deletedAt),
-    )).limit(1);
-    const currentCustomerIds = current && roleUsesCustomerScope(current.role)
-      ? await loadCurrentCustomerIds(payload.userId, current.customerId)
-      : [];
-    const tokenIds = tokenCustomerIds(payload);
-    if (!current || current.role !== payload.role || !sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
-      return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
-    }
-    req.user = payload;
-    next();
-  } catch {
-    res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
-  }
+  const payload = await authenticateToken(token, res);
+  if (!payload) return;
+  req.user = payload;
+  next();
 }
 
 /**

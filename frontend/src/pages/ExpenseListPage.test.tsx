@@ -130,7 +130,7 @@ describe('ExpenseListPage', () => {
     renderPage();
     await screen.findByText('Garage Auto 123');
 
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-01' } });
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
 
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&fromDate=2026-08-01');
@@ -235,8 +235,8 @@ it('keeps visible date labels and clears the selected date range', async () => {
   await screen.findByText('Garage Auto 123');
   expect(screen.getByText('Từ ngày').closest('label')).toContainElement(screen.getByLabelText('Từ ngày'));
   expect(screen.getByText('Đến ngày').closest('label')).toContainElement(screen.getByLabelText('Đến ngày'));
-  fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-01' } });
-  fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-31' } });
+  fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
+  fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));
   expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
   expect(screen.getByLabelText('Đến ngày')).toHaveValue('');

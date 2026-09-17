@@ -34,6 +34,49 @@
   gap: 6px 12px;
 }
 
+.driver-secondary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.driver-secondary-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 12px;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.driver-secondary-state p {
+  margin: 0;
+}
+
+.driver-payslip__salary {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.driver-payslip__salary > span {
+  color: var(--ink-3);
+}
+
+.driver-payslip__footer {
+  color: var(--brand);
+  font-size: var(--text-body-size);
+  font-weight: var(--fw-semibold);
+}
+
+@media (max-width: 640px) {
+  .driver-secondary-page .driver-trip-card {
+    padding: 10px 8px;
+  }
+}
+
 .driver-secondary-page .dt-card__label,
 .driver-secondary-page .dt-card__truck {
   font-size: var(--text-data-size);

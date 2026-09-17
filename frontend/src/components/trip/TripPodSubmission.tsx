@@ -3,16 +3,17 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
+  Download,
   FileImage,
   FileText,
   Loader2,
   Lock,
   Upload,
 } from 'lucide-react';
-import { TRIP_POD_REQUIRED_FILE_TYPES, TRIP_POD_STATUS_LABELS, TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
-import { formatDateTimeShort } from '../../lib/format';
-import { compressImageFile } from '../../lib/imageCompression';
+import { formatDateTime } from '../../features/driver/driver-trip-model';
+import { usePodUpload } from './usePodUpload';
 import { PhotoViewer } from '../PhotoViewer';
 import { driverClient } from '../../api/driverClient';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
@@ -25,6 +26,9 @@ export interface TripPodSubmissionProps {
   history: DriverTaskPodSubmission[];
   creatingDraft: boolean;
   uploading: boolean;
+  disabled?: boolean;
+  readOnlyReason?: string | null;
+  onBusyChange?: (busy: boolean) => void;
   onEnsureDraft: () => Promise<DriverTaskPodSubmission>;
   onUploadFile: (submission: DriverTaskPodSubmission, fileType: TripPodFileType, file: File) => Promise<void>;
 }
@@ -41,8 +45,14 @@ const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
 };
 
-// Canonical labels describe delivery evidence and customer acknowledgement.
-const STATUS_LABELS = TRIP_POD_STATUS_LABELS;
+// Driver submission completes directly; legacy review states remain readable
+// without presenting customer approval as a required step.
+const STATUS_LABELS: Record<TripPodStatus, string> = {
+  [TripPodStatus.DRAFT]: 'Chưa gửi',
+  [TripPodStatus.SUBMITTED]: 'Đã gửi chứng từ',
+  [TripPodStatus.ACCEPTED]: 'Đã lưu chứng từ',
+  [TripPodStatus.REJECTED]: 'Cần bổ sung chứng từ',
+};
 
 function statusClass(status: TripPodStatus): string {
   switch (status) {
@@ -56,8 +66,6 @@ function statusClass(status: TripPodStatus): string {
       return 'trip-pod__status trip-pod__status--draft';
   }
 }
-
-const formatDateTime = formatDateTimeShort;
 
 function groupFilesByType(submission: DriverTaskPodSubmission | null): Record<string, DriverTaskPodFile[]> {
   const empty: Record<string, DriverTaskPodFile[]> = {
@@ -77,15 +85,18 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 
 export function TripPodSubmission({
   tripCode,
-  tripVersion,
   currentSubmission,
   history,
   creatingDraft,
   uploading,
+  disabled = false,
+  readOnlyReason,
+  onBusyChange,
   onEnsureDraft,
   onUploadFile,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   // Which required slot the fullscreen scanner is capturing for (vantaiphucloc
   // EPOD pattern: "Chụp" opens the live-camera overlay with torch + gallery,
   // not a bare <input capture> — camera-denied devices still get the picker).
@@ -103,26 +114,41 @@ export function TripPodSubmission({
     () => (currentSubmission?.files ?? []).filter((file) => (file.mimeType ?? '').startsWith('image/')),
     [currentSubmission],
   );
+  const viewableImages = imageFiles.filter((file) => Boolean(thumbUrls[file.id]));
+
+  useEffect(() => () => {
+    createdUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   useEffect(() => {
     const fulfillmentId = currentSubmission?.fulfillmentId;
     if (!fulfillmentId) return;
     let cancelled = false;
+    const pendingIds = new Set<number>();
     for (const file of imageFiles) {
       if (fetchedIdsRef.current.has(file.id)) continue;
       fetchedIdsRef.current.add(file.id);
+      pendingIds.add(file.id);
       driverClient.downloadPodFile(fulfillmentId, file.id)
         .then((blob) => {
           if (cancelled) return;
+          pendingIds.delete(file.id);
           const url = URL.createObjectURL(blob);
           createdUrlsRef.current.push(url);
           setThumbUrls((prev) => ({ ...prev, [file.id]: url }));
         })
         .catch(() => {
+          if (cancelled) return;
+          pendingIds.delete(file.id);
           fetchedIdsRef.current.delete(file.id);
         });
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Release canceled requests before the replacement effect starts. A late
+      // response must not clear markers owned by the replacement request.
+      pendingIds.forEach((id) => fetchedIdsRef.current.delete(id));
+    };
   }, [currentSubmission, imageFiles]);
 
   const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
@@ -131,7 +157,6 @@ export function TripPodSubmission({
   };
 
   const groupedFiles = useMemo(() => groupFilesByType(currentSubmission), [currentSubmission]);
-  const editableSubmission = currentSubmission?.status === TripPodStatus.DRAFT ? currentSubmission : null;
   // SUBMITTED/ACCEPTED is locked: onEnsureDraft() would call
   // createPodSubmission, which the backend always rejects with 409 "Đã có một
   // e-POD đang mở cho tác vụ này." while an open version exists (see
@@ -140,9 +165,40 @@ export function TripPodSubmission({
   // NOT locked — the backend allows opening a fresh draft on top of a
   // rejected submission, and locking it here would block that retry.
   const isLocked = currentSubmission?.status === TripPodStatus.SUBMITTED
-    || currentSubmission?.status === TripPodStatus.ACCEPTED;
+    || currentSubmission?.status === TripPodStatus.ACCEPTED
+    || Boolean(readOnlyReason);
+  const { processing, uploadPodFile } = usePodUpload({
+    currentSubmission, blocked: uploading || creatingDraft || disabled || isLocked,
+    onEnsureDraft, onUploadFile, onBusyChange, onError: setUploadError,
+  });
+  const busy = processing || uploading || creatingDraft;
   const missingRequired = REQUIRED_FILE_TYPES.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
+  async function downloadFile(file: DriverTaskPodFile) {
+    if (!currentSubmission || downloadingId != null) return;
+    const fulfillmentId = currentSubmission.fulfillmentId;
+    if (fulfillmentId == null) {
+      setUploadError('Chưa thể tải chứng từ của lệnh này. Vui lòng liên hệ điều vận.');
+      return;
+    }
+    setDownloadingId(file.id);
+    setUploadError(null);
+    try {
+      const blob = await driverClient.downloadPodFile(fulfillmentId, file.id);
+      const url = URL.createObjectURL(blob);
+      createdUrlsRef.current.push(url);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.originalFileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Không thể tải chứng từ. Vui lòng thử lại.');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
     await uploadPodFile(fileType, fileList[0], fileRefs[fileType].current);
@@ -153,39 +209,18 @@ export function TripPodSubmission({
     await uploadPodFile(fileType, dataUrlToFile(dataUrl, `pod-${fileType.toLowerCase()}.jpg`), null);
   }
 
-  // Spec (Phần 4): e-POD photos are compressed on-device and carry the real
-  // capture timestamp in the image file. PDFs pass through untouched.
-  async function uploadPodFile(fileType: TripPodFileType, raw: File, input: HTMLInputElement | null) {
-    const file = await compressImageFile(raw, { timestamp: new Date() });
-    setUploadError(null);
-    try {
-      const submission = editableSubmission ?? await onEnsureDraft();
-      await onUploadFile(submission, fileType, file);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Không thể tải tệp e-POD.');
-    } finally {
-      if (input) input.value = '';
-    }
-  }
-
   const uploadProgressPercent = Math.round(
     ((REQUIRED_FILE_TYPES.length - missingRequired.length) / REQUIRED_FILE_TYPES.length) * 100,
   );
-  const submissionHeadline = currentSubmission
-    ? `Phiên bản ${currentSubmission.submissionVersion}`
-    : 'Chưa có phiên bản e-POD';
 
   return (
     <section className="trip-pod">
       <div className="trip-pod__head">
         <div>
-          <p className="trip-pod__eyebrow">e-POD bắt buộc</p>
-          <h2 className="trip-pod__title">{submissionHeadline}</h2>
-          <p className="trip-pod__subtitle">
-            {tripCode || 'Chuyến chưa có mã'} · phiên bản chuyến {tripVersion}
-          </p>
+          <h2 className="trip-pod__title">Chứng từ bắt buộc</h2>
+          {tripCode && <p className="trip-pod__subtitle">{tripCode}</p>}
         </div>
-        {currentSubmission && (
+        {currentSubmission && currentSubmission.status !== TripPodStatus.DRAFT && (
           <span className={statusClass(currentSubmission.status)}>
             {STATUS_LABELS[currentSubmission.status]}
           </span>
@@ -196,7 +231,7 @@ export function TripPodSubmission({
         <div className="trip-pod__banner trip-pod__banner--warn" role="alert">
           <AlertTriangle size={16} />
           <span>
-            Phiên bản gần nhất bị từ chối: {currentSubmission.rejectionReason}
+            Nội dung cần bổ sung: {currentSubmission.rejectionReason}
           </span>
         </div>
       )}
@@ -204,7 +239,7 @@ export function TripPodSubmission({
       {isLocked && (
         <div className="trip-pod__banner trip-pod__banner--info" role="status">
           <Lock size={16} />
-          <span>e-POD đã được gửi — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
+          <span>{readOnlyReason || 'Chứng từ đã gửi. Bạn có thể xem ảnh hoặc tải lại tệp bên dưới.'}</span>
         </div>
       )}
 
@@ -215,7 +250,7 @@ export function TripPodSubmission({
         </div>
       )}
 
-      <div className="trip-pod__grid">
+      <div className="trip-pod__grid" data-editable={!isLocked}>
         {REQUIRED_FILE_TYPES.map((fileType) => {
           const files = groupedFiles[fileType];
           return (
@@ -244,16 +279,16 @@ export function TripPodSubmission({
                       type="button"
                       className="trip-pod__action"
                       onClick={() => setScanning(fileType)}
-                      disabled={uploading || creatingDraft}
+                      disabled={busy || disabled}
                     >
-                      {creatingDraft || uploading ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
+                      {busy ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
                       <span>Chụp</span>
                     </button>
                     <button
                       type="button"
                       className="trip-pod__action trip-pod__action--secondary"
                       onClick={() => triggerInput(fileRefs[fileType])}
-                      disabled={uploading || creatingDraft}
+                      disabled={busy || disabled}
                     >
                       <Upload size={16} />
                       <span>Tải tệp</span>
@@ -265,6 +300,7 @@ export function TripPodSubmission({
                     className="trip-pod__input"
                     type="file"
                     accept="image/*,application/pdf"
+                    disabled={busy || disabled}
                     onChange={(event) => void handlePick(fileType, event.target.files)}
                   />
                 </>
@@ -276,7 +312,7 @@ export function TripPodSubmission({
                     const isImage = (file.mimeType ?? '').startsWith('image/');
                     const thumb = thumbUrls[file.id];
                     if (isImage && thumb) {
-                      const fileIndex = imageFiles.findIndex((item) => item.id === file.id);
+                      const fileIndex = viewableImages.findIndex((item) => item.id === file.id);
                       return (
                         <li key={file.id} className="trip-pod__file">
                           <button
@@ -292,10 +328,11 @@ export function TripPodSubmission({
                     }
                     return (
                       <li key={file.id} className="trip-pod__file">
-                        <div className="trip-pod__file-meta">
+                        <button type="button" className="trip-pod__file-meta trip-pod__file-download" onClick={() => void downloadFile(file)} disabled={downloadingId != null} aria-label={`Tải chứng từ ${file.originalFileName}`}>
                           {(file.mimeType ?? '').startsWith('image/') ? <FileImage size={15} /> : <FileText size={15} />}
                           <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
-                        </div>
+                          {downloadingId === file.id ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
+                        </button>
                         <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
                       </li>
                     );
@@ -330,7 +367,7 @@ export function TripPodSubmission({
             />
           </div>
           {missingRequired.length === 0 ? (
-            <span>Đủ hồ sơ bắt buộc. Bấm "HOÀN THÀNH CHUYẾN" ở dưới để gửi.</span>
+            <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ để hoàn thành chuyến.'}</span>
           ) : (
             <span>
               Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')}.
@@ -343,12 +380,12 @@ export function TripPodSubmission({
 
       {latestHistory.length > 0 && (
         <div className="trip-pod__history">
-          <p className="trip-pod__history-title">Lịch sử phiên bản</p>
+          <p className="trip-pod__history-title">Lịch sử chứng từ</p>
           <ul className="trip-pod__history-list">
             {latestHistory.map((submission) => (
               <li key={submission.id} className="trip-pod__history-item">
                 <div>
-                  <strong>Phiên bản {submission.submissionVersion}</strong>
+                  <strong>Lần gửi {submission.submissionVersion}</strong>
                   <span>{STATUS_LABELS[submission.status]}</span>
                 </div>
                 <span>{formatDateTime(submission.submittedAt ?? submission.createdAt)}</span>
@@ -358,9 +395,9 @@ export function TripPodSubmission({
         </div>
       )}
 
-      {viewerIndex != null && imageFiles[viewerIndex] && thumbUrls[imageFiles[viewerIndex].id] && (
+      {viewerIndex != null && viewableImages[viewerIndex] && (
         <PhotoViewer
-          urls={imageFiles.map((item) => thumbUrls[item.id]).filter(Boolean)}
+          urls={viewableImages.map((item) => thumbUrls[item.id])}
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
         />

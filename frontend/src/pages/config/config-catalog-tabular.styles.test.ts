@@ -70,14 +70,14 @@ describe('customer catalog uses compact scoped summary and record layouts', () =
     expect(css).toContain('font-size: var(--text-caption-size);');
   });
 
-  it('uses three tablet fact columns and preserves two columns on narrow phones', () => {
+  it('keeps a compact identity row with accessible two-column details on tablet and phone', () => {
     const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
-    expect(responsiveRecords).toMatch(/\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*display: grid;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@container \(min-width: 640px\) and \(max-width: 1100px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(responsiveRecords).toContain('td:nth-last-child(2):nth-child(even):not(.record-table__action) {\n    grid-column: auto;');
-    expect(responsiveRecords).toContain('td.record-table__action {\n    grid-column: 1 / -1;');
-    expect(responsiveRecords).toContain('padding: 4px 8px;');
-    expect(responsiveRecords).toContain('min-height: 44px;');
-    expect(responsiveRecords).not.toMatch(/overflow:\s*(hidden|clip)|text-overflow:\s*ellipsis/);
+    expect(responsiveRecords).toMatch(/\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\) 44px;/);
+    expect(responsiveRecords).toMatch(/td\.record-table__action\s*\{[^}]*grid-column: 2;[^}]*grid-row: 1;/);
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*overflow-wrap: anywhere;/);
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details > summary:focus-visible\s*\{[^}]*outline: 2px solid var\(--focus\);/);
+    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: 44px;/);
+    expect(responsiveRecords).toContain('min-width: 44px; min-height: 44px;');
   });
 });

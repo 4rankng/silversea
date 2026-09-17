@@ -1,4 +1,6 @@
 import { eq } from 'drizzle-orm';
+import { replayCashAction } from '../../services/cash-command-replay.service';
+import { receiptCommandIdentity, vendorCommandIdentity, driverCommandIdentity } from '../../services/cash-command-identity.service';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -9,9 +11,12 @@ import {
   vendorPaymentSchema,
   commissionSchema,
   driverPayoutSchema,
+  treasuryAccountSetupSchema,
+  treasuryAccountFundSchema,
 } from '@tingting/shared';
 import type { PayablesCategory } from '@tingting/shared';
 import { db } from '../../db';
+import { parseId } from '../utils/parse-id';
 import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -48,6 +53,7 @@ import { ApiError } from '../../errors';
 import {
   getTreasuryPosition,
   requestTreasuryAccountSetup,
+  updateTreasuryAccountFund,
   requestTreasuryCutover,
   requestTreasuryMovementReversal,
   sortTreasuryPositions,
@@ -61,19 +67,8 @@ const treasuryPaymentFieldsSchema = z.object({
   valueDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày giá trị phải có định dạng YYYY-MM-DD').optional(),
   physicalReference: z.string().trim().min(1).max(160).optional(),
 });
-const createPaymentWithTreasurySchema = z.intersection(createPaymentSchema, treasuryPaymentFieldsSchema);
+const createPaymentWithTreasurySchema = z.intersection(createPaymentSchema, treasuryPaymentFieldsSchema.extend({ unappliedOnly: z.boolean().optional() }));
 const vendorPaymentWithTreasurySchema = vendorPaymentSchema.merge(treasuryPaymentFieldsSchema);
-const treasuryAccountSetupSchema = z.object({
-  code: z.string().trim().min(1).max(50),
-  name: z.string().trim().min(1).max(160),
-  type: z.enum(['CASH', 'BANK']),
-  bankName: z.string().trim().max(160).optional(),
-  bankAccountNumber: z.string().trim().max(80).optional(),
-  openingBalance: z.number().int(),
-  openingBalanceDate: z.string().date(),
-  reason: z.string().trim().min(1).max(1000),
-  openingBalanceEvidence: z.string().trim().min(1).max(255),
-});
 const treasuryCutoverSchema = z.object({
   expectedVersion: z.number().int().positive(),
   cutoverAt: z.string().datetime(),
@@ -108,26 +103,15 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
     idempotencyKey,
-    payload: {
-      customerId: data.customerId,
-      receiptId: data.receiptId,
-      amount: data.amount,
-      payments: data.payments?.map((payment) => ({
-        tripId: payment.tripId,
-        amount: payment.amount,
-      })),
-      makerId: actor.userId,
-      makerRole: actor.role,
-      treasuryAccountId: data.treasuryAccountId,
-      valueDate: data.valueDate,
-      physicalReference: data.physicalReference,
-    },
+    payload: receiptCommandIdentity(data),
     createdBy: actor.userId,
     entityType: 'governance_action',
+    replayResult: (snapshot, tx) => replayCashAction(tx, snapshot, actor, 'PAYMENT_RECEIPT'),
     create: (tx) => autoApplyGovernanceAction({
       make: (tx) => requestPaymentReceiptGovernance({
       payment: {
         customerId: data.customerId,
+        unappliedOnly: data.unappliedOnly,
         receiptId: data.receiptId,
         amount: data.amount,
         payments: data.payments?.map((payment) => ({
@@ -248,14 +232,10 @@ router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response)
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
     idempotencyKey,
-    payload: {
-      ...data,
-      amount: Number(data.amount),
-      makerId: actor.userId,
-      makerRole: actor.role,
-    },
+    payload: vendorCommandIdentity({ ...data, amount: String(data.amount) }),
     createdBy: actor.userId,
     entityType: 'governance_action',
+    replayResult: (snapshot, tx) => replayCashAction(tx, snapshot, actor, 'VENDOR_PAYMENT'),
     create: (tx) => autoApplyGovernanceAction({
       make: (tx) => financialService.requestVendorPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
@@ -285,14 +265,10 @@ router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER,
     idempotencyKey,
-    payload: {
-      ...data,
-      amount: Number(data.amount),
-      makerId: actor.userId,
-      makerRole: actor.role,
-    },
+    payload: vendorCommandIdentity({ ...data, amount: String(data.amount) }),
     createdBy: actor.userId,
     entityType: 'governance_action',
+    replayResult: (snapshot, tx) => replayCashAction(tx, snapshot, actor, 'CARRIER_PAYMENT'),
     create: (tx) => autoApplyGovernanceAction({
       make: (tx) => financialService.requestCarrierPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
@@ -316,21 +292,21 @@ router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response
 }));
 
 router.get('/ledger/suppliers/:id/statement', asyncHandler(async (req: Request, res: Response) => {
-  const supplierId = Number(req.params.id);
+  const supplierId = parseId(req.params.id, 'ID nhà cung cấp');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   res.json(await getSupplierStatement(supplierId, dateFrom, dateTo));
 }));
 
 router.get('/ledger/carriers/:id/statement', asyncHandler(async (req: Request, res: Response) => {
-  const carrierId = Number(req.params.id);
+  const carrierId = parseId(req.params.id, 'ID nhà vận tải');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   res.json(await getCarrierPayableStatement(carrierId, dateFrom, dateTo));
 }));
 
 router.get('/ledger/suppliers/:id/statement/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const supplierId = parseInt(req.params.id as string, 10);
+  const supplierId = parseId(req.params.id, 'ID nhà cung cấp');
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   const format = (req.query.format as string) || 'xlsx';
@@ -415,30 +391,25 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
 router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(req.params.driverId as string, 10);
   if (!Number.isFinite(driverId) || driverId <= 0) {
-    return res.status(400).json({ error: 'driverId không hợp lệ' });
+    throw new ApiError(400, 'driverId không hợp lệ');
   }
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const data = driverPayoutSchema.parse(req.body);
+  const data = driverPayoutSchema.merge(treasuryPaymentFieldsSchema).parse(req.body);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT,
     idempotencyKey,
-    payload: {
-      driverId,
-      amount: data.amount,
-      method: data.method,
-      payoutDate: data.payoutDate,
-      note: data.note?.trim() || '',
-      receiptId: data.receiptId ?? '',
-      makerId: actor.userId,
-      makerRole: actor.role,
-    },
+    payload: driverCommandIdentity({ ...data, driverId }),
     createdBy: actor.userId,
     entityType: 'governance_action',
+    replayResult: (snapshot, tx) => replayCashAction(tx, snapshot, actor, 'DRIVER_PAYOUT'),
     create: (tx) => autoApplyGovernanceAction({
       make: (tx) => financialService.requestDriverPayoutGovernance({
       payout: {
         driverId,
+        treasuryAccountId: data.treasuryAccountId,
+        valueDate: data.valueDate,
+        physicalReference: data.physicalReference,
         amount: data.amount,
         method: data.method,
         payoutDate: data.payoutDate,
@@ -523,6 +494,20 @@ router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MA
   if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
+}));
+
+router.patch('/finance/treasury/accounts/:id/fund', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const accountId = parseId(req.params.id);
+  const body = treasuryAccountFundSchema.parse(req.body);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_FUND,
+    idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { accountId, ...body }, createdBy: actor.userId, entityType: 'treasury_account',
+    create: tx => updateTreasuryAccountFund(tx, accountId, body, actor),
+  });
+  res.locals.auditEntityId = accountId;
+  res.json({ ...result, replayed });
 }));
 
 router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {

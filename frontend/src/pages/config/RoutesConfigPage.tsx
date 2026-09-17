@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { PageHeader, useConfirm } from '../../components/UI';
@@ -14,6 +14,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/ta
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
+import './RoutesConfigPage.css';
 import { RouteFormModal } from './route-form-modal';
 
 export default function RoutesConfigPage() {
@@ -32,10 +33,11 @@ export default function RoutesConfigPage() {
     return { routes: routeList };
   }, [search]);
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isPending, isFetching, isError } = useQuery({
     queryKey: qk.tripForm.routesConfig(search),
     queryFn: fetchData,
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const routes = useMemo(() => data?.routes ?? [], [data]);
@@ -63,11 +65,11 @@ export default function RoutesConfigPage() {
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
       <PageHeader
         title="Tuyến đường & Cự ly"
-        description={<><strong>{totalCount}</strong> tuyến đang quản lý</>}
+        description={isPending ? 'Đang tải tuyến đường…' : <><strong>{totalCount}</strong> tuyến đang quản lý</>}
         onBack={handleBack}
         iconName="route-distance"
         action={
-          <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}><Plus size={14} /> Thêm tuyến</button>
+          <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
         }
       />
 
@@ -75,8 +77,10 @@ export default function RoutesConfigPage() {
         key={crud.editingId ?? (crud.showAddForm ? 'add' : 'closed')}
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
+        error={crud.error}
         item={crud.editingId != null ? routes.find(r => r.id === crud.editingId) : undefined}
         onsave={d => {
+          crud.setError(null);
           if (crud.editingId != null) crud.doUpdate(crud.editingId, d);
           else crud.doCreate(d);
         }}
@@ -100,7 +104,7 @@ export default function RoutesConfigPage() {
         </div>
         <div className="table-scroll">
           <div className="record-table-wrap">
-          <table className="record-table ops-table routes-table">
+          <table className="record-table ops-table routes-table" aria-busy={isFetching}>
             <thead>
               <tr>
                 <SortHeader label="Mã Tuyến" sortKey="code" sort={sort} onSortChange={handleSort} />
@@ -114,28 +118,29 @@ export default function RoutesConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{isPending ? 'Đang tải tuyến đường…' : isError ? 'Không tải được tuyến đường.' : search ? 'Không có tuyến đường phù hợp.' : 'Chưa có dữ liệu'}</td></tr>}
               {filtered.map((r, index) => (
                 <tr key={r.id}>
-                  <td data-label="Mã tuyến" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
-                  <td data-label="Tên tuyến">
+                  <td data-label="Mã tuyến" data-empty={!r.code?.trim() || undefined} className="routes-table__code" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
+                  <td data-label="Tên tuyến" className="routes-table__name">
                     <div className="row-strong">{r.name}</div>
                   </td>
-                  <td data-label="Tên rút gọn">{r.shortName || '—'}</td>
-                  <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
-                  <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
-                  <td className="num" data-label="Vé cầu đường">{r.tollsStations ?? '—'}</td>
-                  <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
+                  <td data-label="Tên rút gọn" data-empty={!r.shortName?.trim() || r.shortName === r.name || undefined}>{r.shortName || '—'}</td>
+                  <td data-label="Điểm đóng trả" data-empty={!r.loadPoint?.trim() || undefined}>{r.loadPoint || '—'}</td>
+                  <td className="num routes-table__distance" data-label="Khoảng cách" data-empty={r.distanceKm == null || undefined}>{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
+                  <td className="num" data-label="Vé cầu đường" data-empty={r.tollsStations == null || undefined}>{r.tollsStations ?? '—'}</td>
+                  <td data-label="Ghi chú" data-empty={!r.note?.trim() || undefined} className="routes-table__note" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
                   <td
                     data-label=""
                     className="record-table__action"
                     data-dropdown-root={menuOpenId === r.id ? '' : undefined}
-                    style={{ position: 'relative' }}
                   >
                     <div className="row-actions">
                       <button
                         className="row-action"
                         title="Tùy chọn"
+                        aria-label={`Tùy chọn tuyến ${r.name}`}
+                        aria-expanded={menuOpenId === r.id}
                         onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === r.id ? null : r.id); }}
                       >
                         <MoreHorizontal size={14} />
@@ -151,7 +156,7 @@ export default function RoutesConfigPage() {
                           : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
-                          onClick={() => { setMenuOpenId(null); crud.setEditingId(r.id); }}>
+                          onClick={() => { setMenuOpenId(null); crud.setError(null); crud.setEditingId(r.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
@@ -172,9 +177,10 @@ export default function RoutesConfigPage() {
           </div>
         </div>
         <div className="table-foot">
-          <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> tuyến đường</span>
+          {isFetching ? <span role="status">Đang cập nhật tuyến đường…</span> : <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> tuyến đường</span>}
         </div>
       </div>
+      {isError && <div className="cfg-form-error" role="alert">Không thể cập nhật danh sách tuyến đường. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void refetch()}>Thử lại</button></div>}
       {crud.error && <div style={{ textAlign: 'center', color: 'var(--danger)', marginTop: 12 }}>{crud.error}</div>}
       {confirmDialog}
     </div>

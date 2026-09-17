@@ -88,3 +88,13 @@ export function parseCarrier(value: string): { carrierType: 'OWN' | 'EXTERNAL'; 
     ? { carrierType: 'EXTERNAL', externalCarrierId }
     : null;
 }
+
+/** Stable unique row key. Fulfillment rows key on the fulfillment id; branch
+ *  rows (not yet decomposed) on their container id — the wire sends a null
+ *  fulfillment id there, and keying on it floods the console with
+ *  "two children with the same key, null" on every render. */
+export function detailRowKey(row: DispatchDetailPlanRow): string {
+  if (row.fulfillmentId != null) return `f-${row.fulfillmentId}`;
+  if (row.shipmentContainerId != null) return `c-${row.shipmentContainerId}`;
+  return `s-${row.shipmentId}-${row.shipmentCode ?? 'lot'}`;
+}

@@ -19,7 +19,6 @@ import { AccountingLockBanner } from '../components/shipment/AccountingLockBanne
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { useOnline } from '../hooks/useOnline';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { expensePhotoUploadErrorMessage } from '../features/forwarder/forwarder-expense-model';
 import { ForwarderExpenseForm } from '../features/forwarder/ForwarderExpenseForm';
@@ -44,7 +43,6 @@ interface ForwarderTripWorkspaceProps {
 
 export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: ForwarderTripWorkspaceProps) {
   const navigate = useNavigate();
-  const online = useOnline();
 
   const { data: trip, isLoading: loading, error: queryError } = useForwarderTripDetail(tripId);
   const queryClient = useQueryClient();
@@ -177,7 +175,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   ];
 
   async function handleCollectPaperOrder() {
-    if (!trip || !online) return;
+    if (!trip) return;
     setPaperOrderSubmitting(true);
     try {
       const idempotencyKey = buildIdempotencyKey('forwarder', 'paper-handoff', tripId, 'version', trip.version);

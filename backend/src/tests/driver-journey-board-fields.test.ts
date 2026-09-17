@@ -302,7 +302,7 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     // contract fields the FE surface renders.
     assert.equal(detail.factoryAddress, `Địa chỉ ${suffix}-0`, 'site street address rides the detail wire');
     assert.equal(detail.khoPhone, null, 'site without contact_phone → kho phone hidden path');
-    assert.equal(detail.invoiceMaster, null, 'customer without master data → no master block');
+    assert.deepEqual(detail.invoiceMaster, { companyName: customer.name, address: null, taxCode: null }, 'known customer legal name is retained when address/tax are missing');
     assert.ok(detail.knownTagLabels.length > 0, 'tag pool must ride on the detail response');
     assert.ok(detail.knownTagLabels.every((label) => typeof label === 'string'));
   });
@@ -353,8 +353,8 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
 
 // One delivery-stage resolution shared by the journey card and the
 // fulfillment detail (delivery-stage.ts): free text ?? snapshot site ?? port,
-// with the dropoff port resurfacing as the Trả cont rỗng depot only when it
-// names a DIFFERENT place than the delivery point.
+// with the canonical IMPORT dropoff port retained even for same-place delivery.
+// EXPORT exposes a separate return stage only when different from delivery.
 describe('delivery-stage chain — card + detail share one resolution', () => {
   test('IMPORT with distinct depot: snapshot site delivers, port becomes the return depot on both surfaces', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
@@ -417,6 +417,47 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
     assert.equal(card.returnDepotName, null, 'port == delivery → no second row');
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
     assert.equal(detail.returnDepotName, null);
+  });
+
+  test('DRV-R02 IMPORT retains a same-place canonical return port and never substitutes the factory for a missing port', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy nhập');
+    const depot = await mkPort('Cảng giao và trả rỗng');
+    const common = { driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null, tradeDirection: 'IMPORT' as const };
+    const same = await mkContainerTrip({ ...common, deliveryLocation: depot.name, dropoffPortId: depot.id });
+    const missing = await mkContainerTrip({ ...common, deliveryLocation: 'Nhà máy nhận hàng' });
+    const board = await getDriverJourneyBoard(driver.id);
+    for (const [fixture, expectedDepot, expectedDelivery] of [
+      [same, depot.name, depot.name], [missing, null, 'Nhà máy nhận hàng'],
+    ] as const) {
+      const card = board.items.find((c) => c.fulfillmentId === fixture.fulfillment.id)!;
+      assert.equal(card.returnDepotName, expectedDepot);
+      assert.equal(card.dropPortName, expectedDelivery);
+      const detail = await getDriverFulfillmentDetail(driver.id, fixture.fulfillment.id);
+      assert.equal(detail.returnDepotName, expectedDepot);
+      assert.equal(detail.deliveryLocation, expectedDelivery);
+    }
+  });
+
+  test('DRV-R03/R04 partial invoice data and blank shipment contact preserve configured factory details', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy thông tin');
+    await db.update(s.operationalSites).set({
+      contactName: ' Chị An ', contactPhone: ' 0909000001 ',
+      liftFeeInvoiceName: ' ', liftFeeInvoiceAddress: ' Địa chỉ pháp lý ', liftFeeTaxCode: ' 2301234567 ',
+    }).where(eq(s.operationalSites.id, site.id));
+    const { shipment, fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+    await db.update(s.shipments).set({ contactName: ' ', contactPhone: ' ' }).where(eq(s.shipments.id, shipment.id));
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.contactName, 'Chị An');
+    assert.equal(detail.contactPhone, '0909000001');
+    assert.deepEqual(detail.invoiceFactory, { name: null, address: 'Địa chỉ pháp lý', taxCode: '2301234567' });
+    assert.equal(detail.invoiceInfo?.liftFeeTaxCode?.trim(), '2301234567');
+    assert.equal(detail.invoiceMaster?.companyName, customer.name, 'customer is an independent invoice party');
   });
 
   test('all sources null → null drop and no return depot', async () => {

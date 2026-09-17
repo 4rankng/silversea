@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
-  CloudOff,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -129,7 +128,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const focusRowKey = searchParams.get('row');
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
-  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [respondingItemId, setRespondingItemId] = useState<string | null>(null);
   const [disputeItemId, setDisputeItemId] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState('');
@@ -200,15 +198,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     setSearchParams(params, { replace: true });
   }, [data, focusRowKey, setSearchParams]);
 
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
+
 
   const items = data?.items ?? [];
   const stale = data ? Date.now() - new Date(data.asOf).getTime() > STALE_AFTER_MS : false;
@@ -232,7 +222,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   };
 
   const sendOrderExchange = async (item: OperationsWorkInboxItem) => {
-    if (item.orderExchangeState === 'COMPLETED' || !online) return;
+    if (item.orderExchangeState === 'COMPLETED') return;
     const action = item.orderExchangeState === 'PENDING' ? 'start' : 'complete';
     const idempotencyKey = buildIdempotencyKey('forwarder', 'order-exchange', item.shipmentId, action, 'version', item.shipmentVersion);
     setRespondingItemId(item.id);
@@ -312,11 +302,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
         </button>
       </header>
 
-      {!online && (
-        <div className="role-work-inbox__notice" role="status">
-          <CloudOff size={16} aria-hidden="true" /> Đang ngoại tuyến. Lệnh Vận hành và Tài xế chỉ hiển thị hoàn tất sau khi máy chủ xác nhận.
-        </div>
-      )}
+
       {refreshError && data && (
         <div className="role-work-inbox__notice is-warning" role="alert">
           <AlertTriangle size={16} aria-hidden="true" /> Không thể làm mới; đang hiển thị dữ liệu gần nhất.

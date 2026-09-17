@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +19,35 @@ describe('ComboBox', () => {
     );
 
     expect(screen.getByText('Khách hàng').closest('[data-input-size="sm"]')).toBeTruthy();
+  });
+
+  it('reclaims narrow control width without changing the accessible field or clear action', () => {
+    render(<ComboBox label="Cảng nâng" size="sm" items={[{ id: '1', label: 'Cảng Mipec' }]}
+      selectedKey="1" onClear={vi.fn()}>
+      {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+    </ComboBox>);
+    const input = screen.getByRole('combobox', { name: 'Cảng nâng' });
+    const boundary = input.closest('.uui-combobox');
+    expect(boundary).toHaveAttribute('data-default-search-icon');
+    expect(boundary?.querySelector('[data-combobox-search]')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('button', { name: 'Xoá' })).toBeTruthy();
+    const css = readFileSync('src/components/untitled-ui/base/select/combobox.css', 'utf8');
+    expect(css).toMatch(/container:\s*uui-combobox \/ inline-size/);
+    expect(css).toMatch(/@container uui-combobox \(max-width: 192px\)/);
+    expect(css).toMatch(/\[data-combobox-search\]\s*\{\s*display: none/);
+    expect(css).toMatch(/\[data-default-search-icon\] \[data-combobox-value\]\s*\{\s*gap: 0;\s*padding-inline-start: 6px/);
+    expect(css).toMatch(/input\[role='combobox'\]\s*\{\s*padding-inline-start: 0/);
+  });
+
+  it('keeps custom semantic leading icons outside the narrow search-icon rule', () => {
+    render(<ComboBox label="Nhà máy" icon={<span data-testid="factory-icon">F</span>}
+      items={[{ id: '1', label: 'Factory A' }]}>
+      {(item) => <SelectItem id={item.id} label={item.label} />}
+    </ComboBox>);
+    const boundary = screen.getByRole('combobox', { name: 'Nhà máy' }).closest('.uui-combobox');
+    expect(boundary).not.toHaveAttribute('data-default-search-icon');
+    expect(boundary?.querySelector('[data-combobox-search]')).toBeNull();
+    expect(screen.getByTestId('factory-icon')).toBeTruthy();
   });
 
   // Regression guard for TC-CUS-CREATE-038 (bug 2026-09-08): when a sibling

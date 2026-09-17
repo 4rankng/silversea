@@ -66,6 +66,13 @@ function buildContainerPatch(
       carrierType, externalCarrierId, externalCarrierVehicleId: matchedVehicle?.id ?? null,
     } : {}),
     ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber !== base.plateNumber ? { plateNumber: draft.plateNumber.trim() || null } : {}),
+    // Clear parity with the detail-table editor (20260916_6): an emptied
+    // plate alone is NOT a clear on EXTERNAL rows with a selected vehicle —
+    // the service falls back to the vehicle's stored plate. Emptied from an
+    // assigned plate ⇒ send the explicit flag.
+    ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber.trim() === '' && (base.plateNumber ?? '') !== ''
+      ? { clearVehicle: true as const }
+      : {}),
     ...(permissions.containerTypeEditable && draft.containerTypeId !== base.containerTypeId ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
     ...(permissions.routeEditable && draft.routeId !== base.routeId ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
     ...(permissions.liftSiteEditable && draft.liftSiteId !== base.liftSiteId ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
@@ -76,6 +83,7 @@ function buildContainerPatch(
 
 // ContainerLineRow lives in CusContainerLedgerRow.tsx (ceiling extraction).
 import { ContainerLineRow } from './CusContainerLedgerRow';
+import { useAppointmentSaveExit } from './use-appointment-save-exit';
 export function ContainerLedger({
   detail,
   onLineSaved,
@@ -114,10 +122,27 @@ export function ContainerLedger({
   const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
 
-  // Reset drafts whenever detail.containers operational signatures change
+  // Re-sync drafts only for lines whose server-side operational truth actually
+  // changed — a wholesale reset on every detail refresh wiped unsaved edits on
+  // rows the save loop had not reached yet: row 1's success refreshed the
+  // detail, the signature join changed, and row 2's in-progress draft silently
+  // reverted (and a failed row-2 save then lost it for good).
   const signatureKey = detail.containers.map(lineOperationalSignature).join('|');
+  const lineSignaturesRef = useRef<Map<number, string>>(new Map());
   useEffect(() => {
-    setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
+    const previous = lineSignaturesRef.current;
+    const signatures = new Map<number, string>();
+    for (const line of detail.containers) signatures.set(line.id, lineOperationalSignature(line));
+    lineSignaturesRef.current = signatures;
+    setDrafts((prev) => {
+      const next: Record<number, ContainerLineDraft> = {};
+      for (const line of detail.containers) {
+        next[line.id] = previous.get(line.id) === signatures.get(line.id) && prev[line.id]
+          ? prev[line.id]
+          : lineDraft(line);
+      }
+      return next;
+    });
   }, [signatureKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirtyLineIds = useMemo(() => {
@@ -140,22 +165,6 @@ export function ContainerLedger({
   }, [detail.containers, drafts]);
 
   const isDirty = dirtyLineIds.size > 0;
-
-  // Ref mirror for deferred callbacks: effects flush after timers, so a
-  // timeout-scheduled exit would otherwise read a stale dirty set and trip
-  // the host's discard-confirm instead of closing the drawer.
-  const dirtyLineIdsRef = useRef<Set<number>>(dirtyLineIds);
-  useEffect(() => {
-    dirtyLineIdsRef.current = new Set(dirtyLineIds);
-  }, [dirtyLineIds]);
-
-  // _42: the settle-poll exit must also wait for the saving flag to clear —
-  // an exit fired during the saving teardown hits the host's while-saving
-  // guard (stranded mid-exit) instead of closing the drawer cleanly.
-  const savingRef = useRef(saving);
-  useEffect(() => {
-    savingRef.current = saving;
-  }, [saving]);
 
   const onDirtyChangeRef = useRef(onDirtyChange);
   const onSavingChangeRef = useRef(onSavingChange);
@@ -244,27 +253,7 @@ export function ContainerLedger({
     }
   }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
 
-  /** Persist a single container's appointment directly — bypasses the draft
-   *  dirty-tracking so the Enter key in the popover saves immediately without
-   *  waiting for a React re-render cycle. */
-
-  // Enter-save exits must wait for the saved line's draft reset (refetch +
-  // effect flush loses the race against a bare timeout), then take the
-  // host's guarded close. Bounded at 2s worst-case.
-  const scheduleExit = useCallback(() => {
-    let attempt = 0;
-    const tryExit = () => {
-      // Settle on BOTH clean drafts and a cleared saving flag — closing
-      // mid-teardown is what occasionally left the rung on a broken surface.
-      if ((dirtyLineIdsRef.current.size === 0 && !savingRef.current) || attempt >= 60) {
-        onAppointmentSavedAndExit?.();
-        return;
-      }
-      attempt += 1;
-      setTimeout(tryExit, 50);
-    };
-    setTimeout(tryExit, 0);
-  }, [onAppointmentSavedAndExit]);
+  const scheduleExit = useAppointmentSaveExit(isDirty, saving, onAppointmentSavedAndExit);
 
   /** _34: dismissal without commit — revert the line's appointment draft to
    *  its base so Escape/outside never leak the abandoned value on reopen. */

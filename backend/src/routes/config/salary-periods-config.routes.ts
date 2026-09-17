@@ -40,7 +40,7 @@ salaryPeriodsRouter.get('/resolve', asyncHandler(async (req: Request, res: Respo
   const month = parseInt(req.query.month as string, 10);
   const year = parseInt(req.query.year as string, 10);
   if (!month || !year || month < 1 || month > 12) {
-    return res.status(400).json({ error: 'Tháng và năm là bắt buộc (month 1-12, year >= 2000)' });
+    throw new ApiError(400, 'Tháng và năm là bắt buộc (month 1-12, year >= 2000)');
   }
   res.json(await resolveSalaryPeriodDateRange(month, year));
 }));
@@ -139,7 +139,7 @@ salaryPeriodsAdminRouter.post('/', asyncHandler(async (req: Request, res: Respon
 
 salaryPeriodsAdminRouter.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = salaryPeriodSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật kỳ lương.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
@@ -239,7 +239,7 @@ salaryPeriodsAdminRouter.get('/closes', asyncHandler(async (_req: Request, res: 
 
 salaryPeriodsAdminRouter.get('/closes/:period', asyncHandler(async (req: Request, res: Response) => {
   const row = await getSalaryPeriodClose(req.params.period as string);
-  if (!row) return res.status(404).json({ error: 'Kỳ này chưa chốt' });
+  if (!row) throw new ApiError(404, 'Kỳ này chưa chốt');
   res.json(row);
 }));
 

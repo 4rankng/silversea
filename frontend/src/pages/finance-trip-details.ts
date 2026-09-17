@@ -53,7 +53,8 @@ export function toFinanceTripDetail(trip: TripDetail): FinanceTripDetail {
   const driverAndAllowances = isExternal
     ? 0
     : amount(trip.driverSalary) + amount(trip.twoPointDeliveryBonus) + amount(trip.vehicleShiftAllowance);
-  const reconstructedCost = fuelOrHireCost + roadAllowance + tollAndCompanyTickets + driverAndAllowances;
+  const reconciledExtraCost = amount(trip.reconciledExtraCost);
+  const reconstructedCost = fuelOrHireCost + roadAllowance + tollAndCompanyTickets + driverAndAllowances + reconciledExtraCost;
   const totalCost = amount(trip.totalCost);
   const costDifference = totalCost - reconstructedCost;
 
@@ -68,6 +69,7 @@ export function toFinanceTripDetail(trip: TripDetail): FinanceTripDetail {
     roadAllowance,
     tollAndCompanyTickets,
     driverAndAllowances,
+    reconciledExtraCost,
     totalCost,
     allocatedFleetFixedCost: 0,
     totalCostWithFleetFixedCost: totalCost,

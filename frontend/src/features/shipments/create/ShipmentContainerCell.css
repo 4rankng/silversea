@@ -13,3 +13,6 @@
 .csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
 .csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }
 .csc-container-cell__subvalue { display: block; padding: 0 10px 6px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; word-break: break-word; }
+
+.csc-container-cell--persistent .csc-container-cell__display { display: none; }
+.csc-container-cell--persistent .csc-container-cell__editor > * { opacity: 1; }

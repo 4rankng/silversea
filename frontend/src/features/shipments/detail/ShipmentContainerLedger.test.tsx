@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   ShipmentCusContainerFlatRow,
@@ -162,10 +162,10 @@ const baseDetail = () => ({
   containers: [],
 }) as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(mode: ShipmentDetailEditMode) {
-  const row = baseRow();
+function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
   const onCancelEdit = vi.fn();
   const onSaveNotes = vi.fn(async () => {});
+  const onSaveSchedule = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -180,14 +180,14 @@ function renderLedger(mode: ShipmentDetailEditMode) {
       onCancelEdit={onCancelEdit}
       onSaveRoute={vi.fn(async () => {})}
       onSaveVehicle={vi.fn(async () => {})}
-      onSaveSchedule={vi.fn(async () => {})}
+      onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
       onSaveIdentity={vi.fn(async () => {})}
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit, onSaveNotes };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
@@ -204,12 +204,6 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
   it('documents editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('documents');
     fireEvent.pointerDown(document.body);
-    expect(onCancelEdit).toHaveBeenCalledTimes(1);
-  });
-
-  it('documents editor closes on outside mousedown', () => {
-    const { onCancelEdit } = renderLedger('documents');
-    fireEvent.mouseDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
@@ -262,10 +256,62 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])('schedule editor retains its draft while picking a portaled time (mobile=%s)', async (mobile) => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: mobile && query === '(max-width: 640px)', media: query,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+    })));
+    try {
+      const { onCancelEdit } = renderLedger('schedule');
+      const time = screen.getByLabelText('Giờ trả hàng');
+      fireEvent.pointerDown(time); fireEvent.mouseDown(time); act(() => time.focus()); fireEvent.click(time);
+      const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
+      const exact = within(dialog).getByLabelText('Giờ chính xác (HH:mm)');
+      fireEvent.pointerDown(exact); fireEvent.mouseDown(exact); act(() => exact.focus()); fireEvent.click(exact);
+      fireEvent.change(exact, { target: { value: '1417' } });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+      fireEvent.keyDown(exact, { key: 'Enter' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' })).not.toBeInTheDocument());
+      expect(time).toHaveValue('14:17');
+      expect(onCancelEdit).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /^Lưu lịch trình/ })).toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it('schedule editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('schedule');
     fireEvent.pointerDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('VID-CUS-14: native date input commits before Enter when no change event arrives', async () => {
+    const { onSaveSchedule } = renderLedger('schedule', baseRow({ customerAppointmentAt: null, transportDate: null }));
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    const date = screen.getByLabelText('Ngày trả hàng') as HTMLInputElement;
+    // The buffered date input emits the ISO contract as soon as the typed
+    // DD/MM/YYYY text is complete.
+    fireEvent.change(date, { target: { value: '23/09/2026' } });
+    expect(screen.getByRole('button', { name: /^Lưu lịch trình/ })).toBeEnabled();
+    fireEvent.keyDown(date, { key: 'Enter' });
+    await waitFor(() => expect(onSaveSchedule).toHaveBeenCalledTimes(1));
+    expect(onSaveSchedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      transportDate: null, customerAppointmentAt: '2026-09-23T16:17',
+    });
+  });
+
+  it.each(['Enter', 'Save'])('VID-CUS-14: %s cannot reuse a previous date while native date segments are incomplete', async (action) => {
+    const { onSaveSchedule } = renderLedger('schedule');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    const date = screen.getByLabelText('Ngày trả hàng') as HTMLInputElement;
+    // Partial typed text never emits the ISO contract.
+    fireEvent.change(date, { target: { value: '15/09/' } });
+    if (action === 'Enter') fireEvent.keyDown(date, { key: 'Enter' });
+    else fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+    expect(onSaveSchedule).not.toHaveBeenCalled();
+    // The invalid field's validationMessage (or the editor fallback) surfaces
+    // as the save error and the partial text stays in the open editor.
+    expect(screen.getByRole('alert')).toHaveTextContent(/.+/);
+    expect((date as HTMLInputElement).value).toBe('15/09/');
   });
 
   it('identity editor closes on outside pointerdown', () => {
@@ -302,6 +348,23 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     return { view, onStartEdit };
   }
 
+  it.each(['IMPORT', 'EXPORT'] as const)('SCHEDULE-LAYOUT-01 keeps time/date above the %s operation', (direction) => {
+    const { view } = renderLedgerWithRow(baseRow({ direction, customerAppointmentAt: '2026-09-15T08:00:00.000Z' }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('15:00 15/09/2026');
+    expect(schedule.lastElementChild).toHaveTextContent(direction === 'IMPORT' ? /^trả hàng$/ : /^đóng hàng$/);
+    expect(schedule.lastElementChild?.textContent).not.toContain('15/09');
+  });
+
+  it('SCHEDULE-LAYOUT-02 keeps an unknown appointment and missing-date warning explicit', () => {
+    const { view } = renderLedgerWithRow(baseRow({ customerAppointmentAt: null, transportDate: null }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('Thiếu ngày vận chuyển');
+    expect(schedule).toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule).toHaveTextContent('Cập nhật theo từng container');
+    expect(schedule.querySelector('.ops-schedule__datetime')).toBeNull();
+  });
+
   it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
     const row = baseRow({
       transportDate: null,
@@ -315,7 +378,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view } = renderLedgerWithRow(row);
 
-    const toggle = screen.getByRole('button', { name: /Thiếu 3 thông tin/ });
+    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Số container')).toBeNull();
     // Key dispatch blockers render without expanding anything: the schedule
@@ -334,7 +397,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view, onStartEdit } = renderLedgerWithRow(row);
 
-    fireEvent.click(screen.getByRole('button', { name: /Thiếu 2 thông tin/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
     expect(onStartEdit).toHaveBeenCalledWith(row, 'container', expect.stringContaining('shipment-detail-missing-CONTAINER_NUMBER-'));
     fireEvent.click(screen.getByRole('button', { name: 'Biển số xe' }));
@@ -380,9 +443,9 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     const { view, onSaveSchedule } = renderScheduleEditor('LCL');
 
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    const dateInputs = document.querySelectorAll('input[type="date"]');
+    const dateInputs = document.querySelectorAll('input[placeholder="DD/MM/YYYY"]');
     expect(dateInputs).toHaveLength(2);
-    fireEvent.change(dateInputs[1], { target: { value: '2026-09-20' } });
+    fireEvent.change(dateInputs[1], { target: { value: '20/09/2026' } });
     fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
     expect(onSaveSchedule).toHaveBeenCalledTimes(1);
     const [, , draft] = onSaveSchedule.mock.calls[0];
@@ -393,11 +456,79 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     view.unmount();
   });
 
+  it('invalid typed 24h time stays in the editor without saving', async () => {
+    const { onSaveSchedule } = renderScheduleEditor('FCL');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '25:99' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+    expect(onSaveSchedule).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nhập giờ từ 00:00 đến 23:59');
+    expect(screen.getByLabelText('Giờ trả hàng')).toHaveValue('25:99');
+  });
+
   it('FCL rows keep the schedule editor appointment-only', () => {
     const { view } = renderScheduleEditor('FCL');
 
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
-    expect(document.querySelectorAll('input[type="date"]')).toHaveLength(1);
+    expect(document.querySelectorAll('input[placeholder="DD/MM/YYYY"]')).toHaveLength(1);
     view.unmount();
+  });
+});
+
+describe('vehicle plate clear affordance (20260916_6)', () => {
+  const editable = () => ({ canRead: true, canEdit: true });
+  const lineWithPlate = () => ({
+    ...baseLine(),
+    carrierType: 'EXTERNAL',
+    externalCarrierId: 7,
+    externalCarrierVehicleId: 9,
+    carrierName: 'Nhà xe A',
+    plateNumber: '29C-123.45',
+    permissions: { ...baseLine().permissions },
+  });
+
+  function renderVehicleEditor(overrides: Record<string, unknown> = {}) {
+    const row = baseRow({ carrierName: 'Nhà xe A', plateNumber: '29C-123.45' });
+    const onSaveVehicle = vi.fn(async () => {});
+    const view = render(
+      <ShipmentContainerLedger
+        rows={[row]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={{ row, detail: baseDetail(), line: { ...lineWithPlate(), ...overrides } as never, mode: 'vehicle' }}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={onSaveVehicle}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+    );
+    return { onSaveVehicle };
+  }
+
+  it('offers a clear action for an assigned plate and sends clearVehicle on save', async () => {
+    const { onSaveVehicle } = renderVehicleEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa biển số' }));
+    const plate = screen.getByLabelText('Biển số xe') as HTMLInputElement;
+    expect(plate.value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveVehicle).toHaveBeenCalledTimes(1));
+    expect(onSaveVehicle).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      carrierType: 'EXTERNAL',
+      clearVehicle: true,
+      externalCarrierId: 7,
+    }));
+  });
+
+  it('does not offer the clear action when no plate is assigned', () => {
+    renderVehicleEditor({ plateNumber: null });
+    expect(screen.queryByRole('button', { name: 'Xóa biển số' })).toBeNull();
   });
 });

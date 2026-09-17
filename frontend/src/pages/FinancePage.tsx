@@ -15,8 +15,9 @@ import { SummaryRail } from '../design-system';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
 import { compactNum, EMPTY_CAP, EMPTY_TRIPS, EMPTY_YEARLY, marginPct, useFinanceDerived, yoyClass, yoyPct } from './finance-derived';
 import { groupFinanceTripDetails, type FinanceTripDetail } from './finance-trip-details';
+import { CostCheck, TripAmount, MaintenanceDetails } from './finance-trip-display';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
-import type { PnlMaintenanceItem, PnlTruck } from '@tingting/shared';
+import type { PnlTruck } from '@tingting/shared';
 import type { PnlAllocationReasonCode } from '@tingting/shared/src/types';
 import './FinancePage.css';
 import '../styles/table-sort.css';
@@ -725,6 +726,7 @@ export default function FinancePage() {
                                   <TripAmount label="Đi đường" value={detail.roadAllowance} />
                                   <TripAmount label="Phí trạm/vé CT" value={detail.tollAndCompanyTickets} />
                                   <TripAmount label="Lương & phụ cấp" value={detail.driverAndAllowances} />
+                                  {Boolean(detail.reconciledExtraCost) && <TripAmount label="Phát sinh đã đối chiếu" value={detail.reconciledExtraCost ?? 0} />}
                                   <TripAmount label="PB đội xe" value={detail.allocatedFleetFixedCost} />
                                   <TripAmount label="Tổng chi phí" value={detail.totalCost} />
                                   <TripAmount label="Lãi gộp biến phí" value={detail.profit} emphasized />
@@ -868,7 +870,7 @@ export default function FinancePage() {
                                               <td data-label="Phí trạm / vé CT" className="num">{detail.tollAndCompanyTickets ? formatNumber(detail.tollAndCompanyTickets) : '—'}</td>
                                               <td data-label="Lương & phụ cấp" className="num">{detail.driverAndAllowances ? formatNumber(detail.driverAndAllowances) : '—'}</td>
                                               <td data-label="PB đội xe" className="num">{detail.allocatedFleetFixedCost ? formatNumber(detail.allocatedFleetFixedCost) : '—'}</td>
-                                              <td data-label="Biến phí" className="num"><strong>{formatNumber(detail.totalCost)}</strong></td>
+                                              <td data-label="Biến phí" className="num"><strong>{formatNumber(detail.totalCost)}</strong>{Boolean(detail.reconciledExtraCost) && <small className="truck-trip-route">Phát sinh đã đối chiếu: {formatNumber(detail.reconciledExtraCost ?? 0)}</small>}</td>
                                               <td data-label="LN sau PB" className="num" style={{ color: detail.netProfitAfterFleetFixedCost >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>{formatNumber(detail.netProfitAfterFleetFixedCost)}</td>
                                               <td data-label="Đối chiếu"><CostCheck matches={detail.costMatches} difference={detail.costDifference} /></td>
                                             </tr>
@@ -942,57 +944,6 @@ export default function FinancePage() {
             </Panel>
           )}
         </>
-      )}
-    </div>
-  );
-}
-
-function CostCheck({ matches, difference }: { matches: boolean; difference: number }) {
-  return matches ? (
-    <span className="cost-check cost-check--ok" title="Các khoản chi phí cộng lại khớp với tổng chi phí đã lưu">
-      <CheckCircle2 size={14} aria-hidden="true" /> Khớp
-    </span>
-  ) : (
-    <span className="cost-check cost-check--warning" title={`Chênh ${formatNumber(Math.abs(difference))} ₫ so với tổng chi phí đã lưu`}>
-      <AlertTriangle size={14} aria-hidden="true" /> Cần kiểm tra {formatNumber(Math.abs(difference))}₫
-    </span>
-  );
-}
-
-function TripAmount({ label, value, emphasized = false }: { label: string; value: number; emphasized?: boolean }) {
-  return (
-    <div className={emphasized ? 'truck-trip-amount truck-trip-amount--emphasized' : 'truck-trip-amount'}>
-      <span>{label}</span>
-      <strong>{formatNumber(value)}₫</strong>
-    </div>
-  );
-}
-
-function MaintenanceDetails({ truck, trailer, items }: { truck: number; trailer: number; items: PnlMaintenanceItem[] }) {
-  if (truck <= 0 && trailer <= 0) return null;
-  return (
-    <div className="truck-maintenance-details">
-      <div className="truck-maintenance-note">
-        Chi phí phát sinh ngoài từng lệnh trong kỳ:
-        {truck > 0 ? <> đầu kéo <strong>{formatNumber(truck)}₫</strong></> : null}
-        {truck > 0 && trailer > 0 ? ' · ' : null}
-        {trailer > 0 ? <> rơ-moóc <strong>{formatNumber(trailer)}₫</strong></> : null}.
-      </div>
-      {items.length > 0 && (
-        <div className="truck-maintenance-list">
-          {items.map(item => (
-            <Link key={item.id} to={`/expenses/${item.id}/edit`} className="truck-maintenance-item">
-              <span className="truck-maintenance-item__main">
-                <strong>{item.categoryName}</strong>
-                <small>
-                  {item.vehicleComponent === 'TRAILER' ? 'Rơ-moóc' : 'Đầu kéo'} · {item.supplierName} · {new Date(item.expenseDate).toLocaleDateString('vi-VN')}
-                  {item.note ? ` · ${item.note}` : ''}
-                </small>
-              </span>
-              <span className="truck-maintenance-item__amount">{formatNumber(item.amount)}₫ <ExternalLink size={12} aria-hidden="true" /></span>
-            </Link>
-          ))}
-        </div>
       )}
     </div>
   );

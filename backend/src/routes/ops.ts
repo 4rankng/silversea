@@ -15,6 +15,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
 import { ApiError } from '../errors';
+import { parseId as sharedParseId } from './utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { formatLocalDate, sniffImageType } from '../lib/format';
@@ -52,10 +53,7 @@ const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có
 const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const id = Number.parseInt(raw ?? '', 10);
-  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, `${label} không hợp lệ.`);
-  return id;
+  return sharedParseId(value, label);
 }
 
 function requireOpsIdempotencyKey(req: Request): string {
@@ -133,6 +131,9 @@ router.get('/expense-types', OPS_ONLY, asyncHandler(async (_req: Request, res: R
 }));
 
 const expenseCreateSchema = z.object({
+  costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
+  invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   shipmentId: z.number().int().positive(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50),
@@ -143,6 +144,10 @@ const expenseCreateSchema = z.object({
 });
 
 const expensePatchSchema = z.object({
+  expectedVersion: z.number().int().positive().optional(),
+  costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
+  invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),

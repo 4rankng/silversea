@@ -40,16 +40,15 @@ const defaultDeps: TripCommandDeps = {
 
 /**
  * These trip-lifecycle notifications only ever target the driver
- * (`targetDriverId`, no `targetRoles`/`targetUserId`) — driver-only, so the
- * deep link can safely key on the fulfillment. `DriverTripDetailPage`
- * (`/my-trips/:id`) reads that route param as a fulfillment id, not a trip
- * id — `relatedEntityType: 'trips'` would send the driver to
- * `/my-trips/{tripId}`, which 404s. `fulfillmentId` is null for trips
- * created outside the fulfillment-issuance flow (legacy `/api/trips`); the
- * driver then lands on the trip list instead of a dead link.
+ * (`targetDriverId`, no `targetRoles`/`targetUserId`). `DriverTripDetailPage`
+ * (`/my-trips/:id`) reads that route param as a TRIP id (card 20260915_1
+ * re-key: getDriverTrip(tripId)), so the deep link keys on the trip.
+ * `fulfillmentId` is null for trips created outside the fulfillment-issuance
+ * flow (legacy `/api/trips`) — the id itself is still a valid trip id, so the
+ * link stays correct; the old fulfillment-keyed links are what 404'd.
  */
-function driverTripEntity(trip: Pick<TripRecord, 'fulfillmentId'>): { relatedEntityType: string; relatedEntityId?: number } {
-  return { relatedEntityType: 'shipment_fulfillments', relatedEntityId: trip.fulfillmentId ?? undefined };
+function driverTripEntity(trip: Pick<TripRecord, 'id'>): { relatedEntityType: string; relatedEntityId: number } {
+  return { relatedEntityType: 'trips', relatedEntityId: trip.id };
 }
 
 function emitTripCreatedNotification(

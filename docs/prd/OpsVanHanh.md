@@ -2,7 +2,9 @@
 
 **Dự án:** TTransport — Silver Sea
 
-**Cập nhật:** 14/09/2026
+**Cập nhật:** 16/09/2026
+
+**Nguồn bổ sung:** `các chi phí.docx` — chi phí Ops, bảng phơi phiếu và hoàn ứng. Hình minh họa từ phần mềm cũ xác định thông tin cần quản lý, không bắt buộc sao chép bố cục cũ.
 
 Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
 
@@ -188,7 +190,54 @@ Không mở rộng sang ứng dụng native, làm việc ngoại tuyến, bản 
 
 Loại chứng từ bắt buộc cho từng loại phí phải có căn cứ nghiệp vụ. Nơi chưa rõ, cần làm rõ nội dung đó; không tự đặt giấy tờ mới hoặc dùng một bước phê duyệt để thay thế.
 
-## 9. Tài liệu liên quan
+## 9. Chi phí Ops và hoàn ứng
+
+### 9.1 Phân loại và số tiền
+
+Một khoản chi giữ riêng **Thực chi** (tiền Ops đã trả khi làm hàng), **Thực thu — thu khách** (số tính cho khách và ghi công nợ), **Đã thu/Đã trả** theo phiếu tiền và thông tin chứng từ. Thực thu có thể bằng 0, nhỏ hơn, bằng hoặc lớn hơn thực chi; không tự ép bằng nhau. Ví dụ Ops chi 500.000đ, tính khách 300.000đ nhưng khách chưa trả: thực thu 300.000đ, đã thu 0đ, còn phải thu 300.000đ, chênh lệch khoản phí −200.000đ. Khách trả 100.000đ thì đã thu 100.000đ, còn phải thu 200.000đ; thực thu và thực chi không đổi. Có hóa đơn không đồng nghĩa đã được khách thanh toán. Không có hóa đơn không đồng nghĩa không cần biên lai, hoặc luôn được tính thêm cho khách.
+
+| Nhóm | Nội dung cần hỗ trợ | Thu khách |
+|---|---|---|
+| Chi hộ có hóa đơn — nâng | Nâng vỏ, nâng hàng, lưu bãi tại điểm nâng | Mặc định có thu khách; số thu và số chi vẫn sửa độc lập theo quyền |
+| Chi hộ có hóa đơn — hạ | Hạ vỏ, hạ hàng, lưu vỏ, lưu bãi tại điểm hạ | Như nhóm nâng |
+| Chi hộ có hóa đơn — khác | Hạ tầng công nghệ, gia hạn, vệ sinh, soi chiếu, kiểm hóa, bốc xếp, công nhân, cơ sở hạ tầng, lưu kho | Có tên phí cụ thể, số hóa đơn và số tiền |
+| Giao nhận Ops không hóa đơn | Làm hàng luồng xanh/vàng/đỏ, chọn vỏ, chi hải quan và khoản chi ngoài liên quan | Thực chi và số thu khách độc lập; giữ được khoản công ty chịu |
+| Phát sinh Ops không hóa đơn | Sửa tờ khai, ship Lạch Huyện, công nhân, ngoài giờ, nợ phơi, xe nâng, kẹp chì hải quan, bóc tem nguy hiểm | Ghi tên phí; CUS/kế toán xác định khoản thu thêm khách theo thỏa thuận |
+
+Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và chứng từ; CUS/kế toán có quyền xác định số thu khách và lý do công ty chịu hoặc thu khác thực chi. Khoản đã nằm trong đơn giá trọn gói vẫn là chi phí nhưng không tự thu thêm lần nữa. Không tự lấy màu luồng hải quan làm mức tiền nếu chưa có bảng giá được xác định.
+
+Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách phải đọc được tại kế hoạch điều vận và nơi CUS/kế toán xử lý khoản thu.
+
+### 9.2 Xác nhận chi phí và bảng hoàn ứng
+
+Kế toán có thể chọn một hoặc nhiều dòng để **ghi nhận đối chiếu**; ghi người và ngày đối chiếu thực tế. Đây là thao tác trực tiếp, không tạo người duyệt, cấp duyệt, trạng thái chờ duyệt hay điều kiện hoàn thành chuyến. Khoản đã chi từ quỹ Ops chỉ trừ quỹ một lần khi ghi nhận thực chi; đối chiếu, thêm hóa đơn và lập bảng hoàn ứng không trừ lại.
+
+Bảng hỗ trợ lọc ngày/đợt đề nghị, nhân viên, lô và khách hàng; xem theo lô hoặc nhân viên. Hiển thị ngày lập, ngày đối chiếu, người đề nghị, khách/nhà máy, Bill/Booking/tờ khai, container, hai nhóm chi phí có/không hóa đơn và ghi chú. Chọn tất cả phải nói rõ phạm vi chọn và tổng tiền.
+
+Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đợt**, **tiền ứng thực nhận được phân bổ**, **công ty cần trả thêm**, **Ops cần hoàn lại**, **đã quyết toán bằng tiền** và **còn lại**. Một khoản ứng hay chi không được tính toàn bộ vào nhiều đợt.
+
+**Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần.
+
+### 9.3 Tiêu chí nghiệm thu bổ sung
+
+| Mã | Tình huống và kết quả cần đạt |
+|---|---|
+| AC-CP-OPS-01 | Ghi nâng/hạ/phí khác có hóa đơn: mở lại giữ đúng nhóm, tên, lô/container, người chi, số hóa đơn, thực chi và số thu khách; mặc định thu khách không tạo phiếu thu tiền. |
+| AC-CP-OPS-02 | Ghi chi giao nhận 100.000đ, số thu khách 0đ và lý do đã bao gồm trong hợp đồng: chi phí vẫn 100.000đ, không thêm 100.000đ vào debit. |
+| AC-CP-OPS-03 | Thử chi 500.000đ/thu 300.000đ/chưa trả: công nợ 300.000đ, đã thu 0đ, chênh lệch −200.000đ. Ghi phát sinh 120.000đ, thỏa thuận thu 150.000đ: giữ hai số độc lập; CUS thấy ghi chú/nguồn phí; số thu 150.000đ chỉ được tính một lần trên chứng từ khách. |
+| AC-CP-OPS-04 | Thiếu hóa đơn/ảnh được nhận biết riêng; thêm chứng từ vào khoản cũ không tạo khoản chi mới hoặc đổi số dư quỹ. |
+| AC-CP-OPS-05 | Nhập thay người khác giữ cả người nhập và người thực chi; Ops không đọc/sửa khoản hoặc ảnh ngoài quyền hiện tại. |
+| AC-CP-OPS-06 | Chọn một/nhiều dòng ghi nhận đối chiếu lưu đúng người/ngày, không trừ quỹ lần hai và không tạo luồng phê duyệt. Dòng bị khóa hoặc đổi đồng thời có lỗi rõ. |
+| AC-CP-OPS-07 | Với số dư đầu 0đ, không có giao dịch khác, chi 1.200.000đ từ quỹ Ops và ứng thực nhận 1.000.000đ: công ty cần trả 200.000đ; ví trước thanh toán bổ sung là −200.000đ. Ghi trả 200.000đ: còn phải trả 0đ, ví 0đ. |
+| AC-CP-OPS-08 | Chi 800.000đ, ứng 1.000.000đ: Ops cần hoàn 200.000đ. Ghi nhận hoàn tiền mới giảm nghĩa vụ; việc lập/đối chiếu bảng không giả định đã hoàn. |
+| AC-CP-OPS-09 | Hai đợt cùng nhân viên không dùng trùng một khoản chi hoặc toàn bộ một lần ứng; lọc ngày/đợt/nhân viên và xuất báo cáo cho cùng tổng. |
+| AC-CP-OPS-10 | Sửa thực chi/thu khách khi được phép cần lý do và giữ lịch sử; khoản đã phát hành, thanh toán hoặc khóa kỳ được điều chỉnh có liên kết, không sửa đè số cũ. |
+
+## 10. Tài liệu liên quan
 
 - [Quy trình O2C](QuyTrinhO2C.md).
 - [Màn hình lái xe](ManHinhLaiXe.md).
+
+### Kết nối và thử lại
+
+Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.

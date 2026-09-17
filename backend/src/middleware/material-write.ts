@@ -11,6 +11,7 @@ type HttpMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 interface MaterialWriteRule {
   method: HttpMethod;
   endpoint: string;
+  canonicalAliases?: readonly string[];
   pattern: RegExp;
 }
 
@@ -81,6 +82,20 @@ const CONFIG_CRUD_MATERIAL_WRITE_SPECS: readonly CrudMaterialWriteSpec[] = [
 ];
 
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
+  { method: 'POST', endpoint: 'shipments.invoice-records.save', pattern: /^\/api\/shipments\/[^/]+\/invoice-records$/ },
+  { method: 'POST', endpoint: 'shipments.container-deposits.save', pattern: /^\/api\/shipments\/[^/]+\/container-deposits$/ },
+  { method: 'POST', endpoint: 'expense-accounting.create', pattern: /^\/api\/expense-accounting\/entries$/ },
+  { method: 'POST', endpoint: 'expense-accounting.update', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/update$/ },
+  { method: 'POST', endpoint: 'expense-accounting.confirm', pattern: /^\/api\/expense-accounting\/confirm$/ },
+  { method: 'POST', endpoint: 'expense-accounting.assign', pattern: /^\/api\/expense-accounting\/assignments$/ },
+  { method: 'POST', endpoint: 'expenses.ops-reimburse',
+    canonicalAliases: [IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR, IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT],
+    pattern: /^\/api\/expense-accounting\/vouchers$/ },
+  { method: 'POST', endpoint: 'expense-cash.reverse', pattern: /^\/api\/expense-accounting\/vouchers\/[^/]+\/reverse$/ },
+  { method: 'POST', endpoint: 'expense-cash.allocate', pattern: /^\/api\/expense-accounting\/vouchers\/[^/]+\/allocate$/ },
+  { method: 'POST', endpoint: 'expenses.reconcile', pattern: /^\/api\/expense-accounting\/reconciliations$/ },
+  { method: 'POST', endpoint: 'expenses.reconciliation.refund', pattern: /^\/api\/expense-accounting\/reconciliations\/[^/]+\/refund$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, pattern: /^\/api\/expense-accounting\/advances$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO, pattern: /^\/api\/upload$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_COMPANY_LOGO, pattern: /^\/api\/upload\/company-logo$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE, pattern: /^\/api\/upload\/trips\/[^/]+\/photos\/[^/]+\/delete$/ },
@@ -243,6 +258,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'portal.shipments.customer-events.acknowledge', pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/acknowledge$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DELIVERY_RESPONSE, pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/delivery-response$/ },
   { method: 'POST', endpoint: 'recoverable-costs.rejection-request', pattern: /^\/api\/recoverable-costs\/[^/]+\/request$/ },
+  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_FUND, pattern: /^\/api\/finance\/treasury\/accounts\/[^/]+\/fund$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_SETUP, pattern: /^\/api\/finance\/treasury\/accounts\/setup$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_CUTOVER, pattern: /^\/api\/finance\/treasury\/accounts\/[^/]+\/cutover$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_MOVEMENT_REVERSAL, pattern: /^\/api\/finance\/treasury\/movements\/[^/]+\/reversal$/ },
@@ -311,7 +327,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
 ];
 
 const DECLARED_MATERIAL_WRITE_ENDPOINTS = new Set(
-  MATERIAL_WRITE_RULES.map((rule) => rule.endpoint),
+  MATERIAL_WRITE_RULES.flatMap((rule) => [rule.endpoint, ...(rule.canonicalAliases ?? [])]),
 );
 
 export function listDeclaredMaterialWriteEndpoints(): string[] {
@@ -320,6 +336,7 @@ export function listDeclaredMaterialWriteEndpoints(): string[] {
 
 export interface MaterialWriteMatch {
   endpoint: string;
+  canonicalAliases?: readonly string[];
   method: HttpMethod;
   path: string;
 }
@@ -336,7 +353,7 @@ export function matchDeclaredMaterialWrite(
   const rule = MATERIAL_WRITE_RULES.find((candidate) => (
     candidate.method === upperMethod && candidate.pattern.test(path)
   ));
-  return rule ? { endpoint: rule.endpoint, method: rule.method, path } : null;
+  return rule ? { endpoint: rule.endpoint, method: rule.method, path, ...(rule.canonicalAliases ? { canonicalAliases: rule.canonicalAliases } : {}) } : null;
 }
 
 export function getMaterialWriteContext(req: Request): {

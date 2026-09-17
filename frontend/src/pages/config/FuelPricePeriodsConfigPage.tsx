@@ -6,6 +6,8 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { CONFIG } from '@tingting/shared';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
+import { DateInput } from '../../design-system/forms/DateInput';
+import { formatDate } from '../../lib/format';
 
 const fmtPrice = (v: string) => Number(v).toLocaleString('vi-VN');
 
@@ -29,11 +31,11 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
     <InlineForm colSpan={3}>
       <div style={{ flex: 1, minWidth: 160 }}>
         <Field label="Ngày hiệu lực">
-          <input
+          <DateInput
             className="input"
-            type="date"
+            required
             value={effectiveFrom}
-            onChange={e => setEffectiveFrom(e.target.value)}
+            onChange={setEffectiveFrom}
           />
         </Field>
       </div>
@@ -42,7 +44,8 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
           <input
             className="input"
             type="number"
-            min="0"
+            min="1"
+            required
             step="1"
             inputMode="numeric"
             placeholder="21740"
@@ -94,7 +97,7 @@ export default function FuelPricePeriodsConfigPage() {
         emptyHint="Nhập kỳ giá đầu tiên để động cơ cước tự động có dữ liệu đối chiếu."
         sortFn={(a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom)}
         columns={[
-          { header: 'Ngày hiệu lực', render: r => r.effectiveFrom },
+          { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveFrom) },
           { header: 'Giá dầu DO (đ/lít)', render: r => fmtPrice(r.unitPrice) },
           { header: 'Ghi chú', render: r => r.sourceNote || '—' },
         ]}

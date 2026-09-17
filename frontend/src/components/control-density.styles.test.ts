@@ -9,6 +9,7 @@ const filesUnder = (directory: string, extension: string): string[] => readdirSy
   return entry.isFile() && entry.name.endsWith(extension) ? [relativePath] : [];
 });
 const cssFilesUnder = (directory: string) => filesUnder(directory, '.css');
+const targetsUuiField = (selector: string) => /uui-(?:field|control|input|select)|\[data-input-(?:wrapper|size)/.test(selector.replace(/:not\([^)]*\)/g, ''));
 
 describe('shared control density', () => {
   it('defines compact, default, and touch-safe control tokens', () => {
@@ -68,10 +69,18 @@ describe('shared control density', () => {
     expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*font\s*:/);
     expect(detail).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(shipmentCreate).not.toMatch(/\.csc-section textarea\s*\{[^}]*font\s*:/);
-    expect(input).toContain('max-md:min-h-11');
-    expect(select).toContain('max-md:min-h-11');
+    for (const source of [input, select]) expect(source).toContain('control-geometry.css');
+    const geometry = read('src/components/untitled-ui/base/control-geometry.css');
+    expect(geometry).toMatch(/\[data-uui-control\]\[data-control-size='sm'\]\s*\{[^}]*--uui-control-h:\s*var\(--control-compact-h\)/);
+    expect(geometry).toMatch(/@media \(pointer: coarse\)[\s\S]*--uui-control-h:\s*var\(--control-touch-h\)/);
     expect(nativeSelect).toContain('max-md:min-h-11');
     expect(bufferedDate).toContain('size={size}');
+  });
+
+  it('distinguishes excluded UUI descendants from selectors that actually style UUI fields', () => {
+    expect(targetsUuiField('.form input:not([data-uui-control] > input)')).toBe(false);
+    expect(targetsUuiField('.form .ds-uui-select input:not([type="hidden"])')).toBe(true);
+    expect(targetsUuiField('.form [data-input-wrapper]')).toBe(true);
   });
 
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {
@@ -98,9 +107,8 @@ describe('shared control density', () => {
     const violations = cssFilesUnder('src/pages').concat(cssFilesUnder('src/features')).flatMap((path) => {
       const blocks = [...read(path).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
       return blocks.flatMap(([, selector, declarations]) => {
-        const targetsUuiField = /uui-(?:field|control|input|select)|\[data-input-(?:wrapper|size)/.test(selector);
         const ownsDimensions = /(?:^|;)\s*(?:height|min-height|font(?:-size)?|line-height)\s*:/.test(declarations);
-        return targetsUuiField && ownsDimensions && !isSanctioned(selector) ? [`${path}: ${selector.trim()}`] : [];
+        return targetsUuiField(selector) && ownsDimensions && !isSanctioned(selector) ? [`${path}: ${selector.trim()}`] : [];
       });
     });
 

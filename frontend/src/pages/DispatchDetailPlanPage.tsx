@@ -68,6 +68,8 @@ export default function DispatchDetailPlanPage() {
           onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
           onEnsureFulfillment={detailPlan.ensureFulfillment}
+          autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
+          onAutoOpenConsumed={detailPlan.consumeAutoOpen}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination

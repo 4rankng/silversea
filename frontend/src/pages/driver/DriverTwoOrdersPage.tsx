@@ -17,6 +17,7 @@ import { PageHeader } from '../../components/UI';
 import { useDriverTwoOrders } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { formatDate } from '../../lib/format';
 import './DriverSecondaryPages.css';
 
 interface TripSummary {
@@ -42,7 +43,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
   const status = trip.status as TripStatus;
   return (
     <Link
-      to={trip.fulfillmentId ? `/my-trips/${trip.fulfillmentId}` : '/my-trips'}
+      to={`/my-trips/${trip.id}`}
       className="driver-trip-card"
       data-testid={`two-orders-card-${label}`}
       style={{ '--strip': TRIP_STATUS_COLORS[status], animationDelay: '0ms' } as React.CSSProperties}
@@ -77,24 +78,30 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
 }
 
 export default function DriverTwoOrdersPage() {
-  const { data, isLoading: loading, error: queryError } = useDriverTwoOrders();
+  const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverTwoOrders();
   const error = queryError ? 'Không thể tải thông tin hai lệnh' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (loading) return (
-    <div className="driver-secondary-page" style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)' }}>
-      <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
-      <p style={{ marginTop: 8 }}>Đang tải hai lệnh hôm nay…</p>
+    <div className="driver-secondary-page">
+      <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <div className="driver-secondary-state" role="status">
+        <Loader2 size={20} className="spin" />
+        <p>Đang tải hai lệnh hôm nay…</p>
+      </div>
     </div>
   );
 
   if (error) return (
     <div className="driver-secondary-page">
       <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
-      <div className="empty-state">
+      <div className="empty-state" role="alert">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
         <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi. Vui lòng thử lại sau ít phút.</p>
+        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi.</p>
+        <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+          {isFetching ? 'Đang tải…' : 'Thử lại'}
+        </button>
       </div>
     </div>
   );
@@ -112,7 +119,7 @@ export default function DriverTwoOrdersPage() {
     <div className="driver-secondary-page">
       <PageHeader title={pageTitle} description={pageDescription} />
       <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-trips')} alt="No trips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <h3 className="empty-state-title">Hôm nay không có lệnh</h3>
         <p className="empty-state-desc">Bạn chưa được phân công lệnh nào cho hôm nay.</p>
       </div>
@@ -123,7 +130,7 @@ export default function DriverTwoOrdersPage() {
     <div ref={rootRef} className="driver-secondary-page">
       <PageHeader
         title={pageTitle}
-        description={hasPersistedPair ? `Cặp điều vận ngày ${view.date}` : `${allToday.length} lệnh trong ngày ${view.date}`}
+        description={hasPersistedPair ? `Cặp điều vận ngày ${formatDate(view.date)}` : `${allToday.length} lệnh trong ngày ${formatDate(view.date)}`}
       />
 
       {view.pair && (
@@ -143,11 +150,11 @@ export default function DriverTwoOrdersPage() {
           <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 'var(--text-data-size)' }}>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Xe rỗng</div>
-              <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm != null ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
             </div>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Hiệu suất</div>
-              <div style={{ fontWeight: 700 }}>{view.pair.combinedEfficiencyPercent ? `${view.pair.combinedEfficiencyPercent}%` : '—'}</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.combinedEfficiencyPercent != null ? `${view.pair.combinedEfficiencyPercent}%` : '—'}</div>
             </div>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Đệm thời gian</div>
@@ -175,7 +182,7 @@ export default function DriverTwoOrdersPage() {
         </div>
       )}
 
-      <div className="driver-trips-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="driver-secondary-list">
         {view.pair ? (
           <>
             {view.pair.first ? (

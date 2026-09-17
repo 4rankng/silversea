@@ -7,6 +7,7 @@ import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
+import { DateInput } from '../design-system/forms/DateInput';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -58,10 +59,9 @@ export default function OpsOrdersPage() {
         <div className="ops-orders__controls">
           <label className="ops-orders__date">
             <CalendarDays size={15} aria-hidden />
-            <input
-              type="date"
+            <DateInput
               value={date}
-              onChange={(event) => setDate(event.target.value)}
+              onChange={setDate}
               aria-label="Ngày giao dự kiến"
             />
           </label>

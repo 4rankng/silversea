@@ -106,9 +106,9 @@
 .earnings-equation-card,
 .earnings-ledger-card,
 .earnings-penalties-panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .earnings-equation-card {
@@ -201,8 +201,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -223,7 +224,7 @@
 
 .earnings-ledger-list {
   margin: 0;
-  padding: 4px 16px 12px;
+  padding: 2px 12px 8px;
 }
 
 .earnings-ledger-list div {
@@ -231,7 +232,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
@@ -254,6 +255,7 @@
 
   letter-spacing: 0;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .earnings-ledger-list dd.is-success {
@@ -298,10 +300,12 @@
 }
 
 .earnings-penalties-panel__header {
-  padding: 16px 20px 12px;
+  padding: 10px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
 
 .earnings-penalties-panel__title {
@@ -318,8 +322,8 @@
 .earnings-penalty-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
+  gap: 10px;
+  padding: 10px 12px;
   border-top: 1px solid var(--line);
   transition: background 120ms ease;
 }
@@ -349,6 +353,7 @@
   font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .earnings-penalty-row__date {
@@ -369,7 +374,7 @@
 }
 
 .earnings-penalties-empty {
-  padding: 26px 20px 28px;
+  padding: 20px 12px;
   text-align: center;
   color: var(--ink-3);
   display: flex;
@@ -423,9 +428,9 @@
    .driver-earnings-page (page-scoped, no !important). Reuses --danger /
    --warning + their -soft variants from tokens.css. */
 .driver-earnings-page .vehicle-alerts-strip {
-  margin: 0 0 20px;
-  padding: 14px 16px;
-  border-radius: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
   background: var(--warning-soft);
   border: 1px solid var(--warning);
 }
@@ -453,10 +458,35 @@
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #fff;
+  padding: 8px 0 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
   font-size: var(--text-body-size);
+}
+
+.driver-earnings-page .vehicle-alerts-strip__item:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .earnings-ledger-card__header,
+  .earnings-penalties-panel__header,
+  .earnings-penalty-row {
+    padding-inline: 8px;
+  }
+
+  .earnings-ledger-list {
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .earnings-penalty-row {
+    flex-wrap: wrap;
+  }
+
+  .earnings-penalty-row__amount {
+    margin-inline-start: auto;
+  }
 }
 /* Severity uses the canonical 3×20px status strip (::before), not a
    full-height colored left border. */

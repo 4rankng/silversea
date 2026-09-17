@@ -33,9 +33,9 @@ export default function DriverPenaltyPage() {
 
   const filterMonthNum = monthFilter ? parseInt(monthFilter.split('-')[1]) : 0;
   const filterYearNum = monthFilter ? parseInt(monthFilter.split('-')[0]) : 0;
-  const { data: filterPeriod } = useSalaryPeriod(filterMonthNum, filterYearNum);
+  const { data: filterPeriod, isError: filterPeriodError, refetch: refetchFilterPeriod } = useSalaryPeriod(filterMonthNum, filterYearNum);
 
-  const { data: filteredPenaltiesData } = useDriverPenalties(
+  const { data: filteredPenaltiesData, isFetching: filteredFetching, isError: filteredError, refetch: refetchFiltered } = useDriverPenalties(
     filterPeriod ? { dateFrom: filterPeriod.start, dateTo: filterPeriod.end } : undefined
   );
   const filteredPenalties = useMemo((): DriverPenaltyRow[] => {
@@ -51,7 +51,13 @@ export default function DriverPenaltyPage() {
   const currentYear = now.getFullYear();
   const monthLabel = `T${currentMonth}/${currentYear}`;
 
-  const { data: currentPeriod, isLoading: periodLoading } = useSalaryPeriod(currentMonth, currentYear);
+  const {
+    data: currentPeriod,
+    isLoading: periodLoading,
+    isError: currentPeriodError,
+    isFetching: currentPeriodFetching,
+    refetch: refetchCurrentPeriod,
+  } = useSalaryPeriod(currentMonth, currentYear);
 
   const monthPenalties = useMemo(() => {
     if (!currentPeriod) return [] as DriverPenaltyRow[];
@@ -64,7 +70,10 @@ export default function DriverPenaltyPage() {
   const incidentCount = monthPenalties.length;
   const isSafeThisMonth = incidentCount === 0;
 
-  const isLoadingPeriod = periodLoading;
+  const isLoadingPeriod = periodLoading || loading;
+  const summaryUnavailable = currentPeriodError || (!periodLoading && !currentPeriod);
+  const summaryReady = !isLoadingPeriod && !summaryUnavailable;
+  const isFiltering = Boolean(monthFilter) && !filterPeriodError && (!filterPeriod || filteredFetching);
 
   // A failed fetch must not read as "no violations": the unfiltered query
   // drives every zone on this page, so the error screen gates on THAT call
@@ -99,6 +108,22 @@ export default function DriverPenaltyPage() {
           <Loader2 size={16} className="spin" />
           Đang tải dữ liệu kỳ lương...
         </div>
+      ) : summaryUnavailable ? (
+        <div className="penalty-summary-error" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>Chưa tải được tổng hợp {monthLabel}</strong>
+            <p>Lịch sử vi phạm vẫn có thể xem bên dưới.</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={currentPeriodFetching}
+            onClick={() => void refetchCurrentPeriod()}
+          >
+            {currentPeriodFetching ? 'Đang tải…' : 'Thử lại'}
+          </button>
+        </div>
       ) : (
         <div className={`penalty-status-banner ${isSafeThisMonth ? 'penalty-status-banner--safe' : 'penalty-status-banner--violation'}`}>
           <div className="penalty-status-banner__icon">
@@ -120,10 +145,10 @@ export default function DriverPenaltyPage() {
 
       {/* ── Zone 2: KPI grid ──────────────────────────────────────────────── */}
       <div className="kpi-grid cols-3 penalty-kpi-grid">
-        <div className={`kpi ${incidentCount > 0 ? 'kpi--danger' : 'kpi--success'}`}>
+        <div className={`kpi ${!summaryReady ? 'kpi--neutral' : incidentCount > 0 ? 'kpi--danger' : 'kpi--success'}`}>
           <div className="kpi__top"><span className="kpi__label">Vi phạm {monthLabel}</span></div>
           <div className="kpi__value">
-            {incidentCount}<span className="kpi__value-unit"> vụ</span>
+            {summaryReady ? incidentCount : '—'}{summaryReady && <span className="kpi__value-unit"> vụ</span>}
           </div>
           <div className="kpi__meta">Trong tháng này</div>
           <div className="kpi__watermark" aria-hidden="true">
@@ -131,10 +156,10 @@ export default function DriverPenaltyPage() {
           </div>
         </div>
 
-        <div className={`kpi ${totalMonthAmount > 0 ? 'kpi--warn' : 'kpi--success'}`}>
+        <div className={`kpi ${!summaryReady ? 'kpi--neutral' : totalMonthAmount > 0 ? 'kpi--warn' : 'kpi--success'}`}>
           <div className="kpi__top"><span className="kpi__label">Khấu trừ {monthLabel}</span></div>
           <div className="kpi__value">
-            {totalMonthAmount > 0 ? <Money value={totalMonthAmount} /> : '—'}
+            {summaryReady && totalMonthAmount > 0 ? <Money value={totalMonthAmount} /> : '—'}
           </div>
           <div className="kpi__meta">Trừ vào lương tháng</div>
           <div className="kpi__watermark" aria-hidden="true">
@@ -145,7 +170,7 @@ export default function DriverPenaltyPage() {
         <div className="kpi kpi--neutral">
           <div className="kpi__top"><span className="kpi__label">Tổng biên bản</span></div>
           <div className="kpi__value">
-            {allPenalties.length}<span className="kpi__value-unit"> vụ</span>
+            {loading ? '—' : allPenalties.length}{!loading && <span className="kpi__value-unit"> vụ</span>}
           </div>
           <div className="kpi__meta">Toàn lịch sử</div>
           <div className="kpi__watermark" aria-hidden="true"><AlertOctagon size={72} /></div>
@@ -156,7 +181,7 @@ export default function DriverPenaltyPage() {
       <div className="penalty-data-card">
         <div className="penalty-data-card__header">
           <span className="penalty-data-card__title">
-            Sổ vi phạm · {filteredPenalties.length}
+            Sổ vi phạm{!loading && !isFiltering ? ` · ${filteredPenalties.length}` : ''}
           </span>
           <UuiSelectField
             id="penalty-month-filter"
@@ -165,6 +190,7 @@ export default function DriverPenaltyPage() {
             value={monthFilter}
             onChange={e => setMonthFilter(e.target.value)}
             controlClassName="penalty-month-select"
+            wrapperClassName="penalty-month-field"
             options={[
               { value: '', label: 'Tất cả thời gian' },
               ...Array.from({ length: 12 }, (_, i) => {
@@ -178,10 +204,17 @@ export default function DriverPenaltyPage() {
           />
         </div>
 
-        {loading ? (
-          <div className="penalty-empty-state">
+        {loading || isFiltering ? (
+          <div className="penalty-empty-state" role="status">
             <Loader2 size={24} className="spin" />
             <p className="penalty-empty-state__loading-text">Đang tải…</p>
+          </div>
+        ) : monthFilter && (filterPeriodError || filteredError) ? (
+          <div className="penalty-empty-state" role="alert">
+            <p className="penalty-empty-state__title">Không thể tải kỳ đã chọn</p>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => void (filterPeriodError ? refetchFilterPeriod() : refetchFiltered())}>
+              Thử lại
+            </button>
           </div>
         ) : filteredPenalties.length === 0 ? (
           <div className="penalty-empty-state">

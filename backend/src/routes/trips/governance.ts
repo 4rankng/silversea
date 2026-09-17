@@ -9,6 +9,7 @@ import { tripReopenRequestSchema } from '@tingting/shared';
 import { autoApplyGovernanceAction, requestTripReopen } from '../../services/adjustment-governance.service';
 
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
@@ -56,18 +57,18 @@ router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Respo
   const id = parseInt(req.params.id as string);
   const { departureDate } = req.body;
   if (!departureDate || typeof departureDate !== 'string') {
-    return res.status(400).json({ error: 'Ngày khởi hành không hợp lệ' });
+    throw new ApiError(400, 'Ngày khởi hành không hợp lệ');
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(departureDate)) {
-    return res.status(400).json({ error: 'Định dạng ngày không hợp lệ (YYYY-MM-DD)' });
+    throw new ApiError(400, 'Định dạng ngày không hợp lệ (YYYY-MM-DD)');
   }
   const parsed = Date.parse(departureDate);
   if (isNaN(parsed)) {
-    return res.status(400).json({ error: 'Giá trị ngày không hợp lệ' });
+    throw new ApiError(400, 'Giá trị ngày không hợp lệ');
   }
   if (req.body.expectedVersion !== undefined
       && (!Number.isInteger(req.body.expectedVersion) || req.body.expectedVersion <= 0)) {
-    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+    throw new ApiError(400, 'Phiên bản chuyến đi không hợp lệ');
   }
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);

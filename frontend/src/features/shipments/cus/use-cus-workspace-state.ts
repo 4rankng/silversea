@@ -201,7 +201,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
         },
       };
     });
-    setNotice('Đã lưu dữ liệu container. Xác nhận Kế toán cũ (nếu có) sẽ được kiểm tra lại theo nguồn mới.');
+    setNotice('Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.');
     await loadList();
   }, [loadList]);
 

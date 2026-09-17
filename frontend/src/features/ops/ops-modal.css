@@ -1,3 +1,4 @@
+.ops-modal { --control-mobile-h: var(--control-touch-h); }
 /* Shared ops modal shell — owned by the components that render it, not by
  * any page stylesheet. History: these rules lived in OpsOrdersPage.css, so
  * the same dialogs rendered UNSTYLED inline (no backdrop, no card, joined

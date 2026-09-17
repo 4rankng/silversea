@@ -4,10 +4,10 @@
    dispatch-plan-page__* BEM conventions. */
 
 .detailed-plan-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
@@ -64,9 +64,8 @@
 }
 
 .detailed-plan-filters__field--search {
-  flex: 0 1 360px;
-  width: min(100%, 360px);
-  min-width: 280px;
+  width: 100%;
+  min-width: 0;
 }
 
 .detailed-plan-filters__field--direction,
@@ -95,7 +94,8 @@
 }
 
 .detailed-plan-filters__date-scope-controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: 140px auto auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -110,28 +110,12 @@
 .detailed-plan-filters__date-mode {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 0 1 316px;
-  min-width: 292px;
-  /* Match the sm input height so the toolbar labels baseline-align. */
-  height: 34px;
-  padding: 2px;
-  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-  border-radius: 8px;
-  background: var(--background-color-secondary, #f8fafc);
+  min-width: 234px;
+  gap: 4px;
 }
 
 .detailed-plan-filters__date-shortcut {
-  /* Track is a fixed 34px with 2px padding on all sides (30px inner
-     height); the UUIButton "sm" size ships min-h-[34px] plus 6px vertical
-     padding, which overflows that inner space and pushes the active pill's
-     border out of alignment. Shrink both to fit. */
-  min-height: 30px !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
   min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
   box-shadow: none;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
 }
@@ -273,7 +257,7 @@
 }
 
 .detailed-plan-filters__multi-search-input::placeholder {
-  color: var(--color-fg-quaternary, #94a3b8);
+  color: var(--fg-3);
 }
 
 .detailed-plan-filters__multi-search-clear {
@@ -565,6 +549,13 @@
   line-height: var(--ops-table-primary-line-height);
 }
 
+/* Container codes never render bold and never wrap (user ruling 2026-09-16). */
+.detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
+  font-size: var(--text-caption-size);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .detailed-plan-grid__line--muted {
   /* Fallback is the WCAG-passing slate-500 (4.76:1 on white, 4.55:1 on the
      hover tint): the previous #94a3b8 fallback resolved whenever
@@ -633,6 +624,12 @@
   overflow: hidden;
 }
 
+/* Each note line is a block span so \n is structurally rendered —
+   the -webkit-line-clamp counts these DOM lines, not CSS whitespace. */
+.detailed-plan-grid__note-line {
+  display: block;
+}
+
 .detailed-plan-grid__note-full {
   font-size: var(--text-body-size);
   line-height: 1.55;
@@ -685,6 +682,25 @@
   }
 }
 
+/* Direct release remains one icon target instead of a full-width empty pill. */
+.detailed-plan-grid__note-action--icon {
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.detailed-plan-grid__note-action--icon:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .detailed-plan-grid__note-action--icon {
+    width: var(--control-touch-h, 44px);
+    min-height: var(--control-touch-h, 44px);
+  }
+}
+
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;
   display: inline-block;
@@ -719,11 +735,9 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@container (max-width: 640px) {
+@container (max-width: 960px) {
   .detailed-plan-filters {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .detailed-plan-filters__field--search {
@@ -732,47 +746,44 @@
   }
 
   .detailed-plan-filters__date-scope {
+    grid-column: 1 / -1;
     width: 100%;
   }
 
+  .detailed-plan-filters__toolbar-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .detailed-plan-filters__date-scope-controls {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(124px, 160px) minmax(0, 1fr) auto;
+  }
+
+  .detailed-plan-filters__date-mode { min-width: 0; }
+}
+
+@container (max-width: 640px) {
+  .detailed-plan-filters__date-scope-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .detailed-plan-filters__date-scope .detailed-plan-filters__date {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 1;
     width: 100%;
     min-width: 0;
   }
 
   .detailed-plan-filters__date-mode {
     grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
     min-width: 0;
-    height: auto;
-    min-height: 48px;
   }
 
-  .detailed-plan-filters__date-shortcut {
-    /* Matches the 44px touch standard on phones; the base 30px !important
-       track sizing is for the desktop 34px pill row and needs the stronger
-       override here. */
-    min-height: 44px !important;
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-  }
-
-  .detailed-plan-filters__toolbar-actions { width: 100%; justify-content: space-between; }
-
-  .detailed-plan-filters__drawer-trigger { flex: 1 1 auto; }
-
-  .detailed-plan-filters__search,
-  .detailed-plan-filters__date,
-  .detailed-plan-filters__select,
-  .detailed-plan-filters__multi-trigger {
-    min-height: 44px;
-    font-size: var(--text-control-compact-size);
+  .detailed-plan-filters__clear {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
@@ -899,18 +910,14 @@
 
   /* An all-empty notes cell (no notes, no row action) collapses — it would
      otherwise reserve a labelled blank band at the card tail. */
-  .detailed-plan-grid__cell--blank {
+  td.detailed-plan-grid__cell--blank {
     display: none;
   }
 }
 
-/* Phone records: compact single-band cards. The 390px QA pass showed the
-   block-label treatment giving every section its own label line plus a
-   labelled-but-empty notes tail, and inline field runs splitting short
-   codes mid-token (40'D / C). Phone cards adopt the tablet band's inline
-   label, wrap each field as a whole unit (inline-block — codes never
-   split), collapse all-empty notes cells, and run tighter paddings. The
-   touch-sized allocation trigger remains intact. */
+/* Phone records keep labels above their values. Compact column pairing and
+   supporting cargo metadata preserve density without mixing labels into
+   names or leaving separators at the start of a wrapped field. */
 @container (max-width: 640px) {
   .detailed-plan-grid tbody {
     gap: 8px;
@@ -930,19 +937,30 @@
   }
 
   .detailed-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
+    display: block;
+    margin: 0 0 2px;
     font-size: var(--text-label-size);
   }
 
-  /* Each field is an atomic unit: lines break BETWEEN fields, never inside
-     a code; long names and notes still wrap inside their own box. */
   .detailed-plan-grid__cell .detailed-plan-grid__line {
-    display: inline-block;
+    display: block;
+    margin-right: 0;
     max-width: 100%;
     vertical-align: top;
     overflow-wrap: break-word;
   }
+
+  .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
+    content: none;
+    margin-right: 0;
+  }
+
+  .detailed-plan-grid__cell--container .detailed-plan-grid__line:not(.detailed-plan-grid__line--strong) {
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .detailed-plan-grid__documents-direction { align-self: start; justify-self: start; }
 
   .detailed-plan-grid__cell--schedule,
   .detailed-plan-grid__cell--route,

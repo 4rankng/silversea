@@ -116,6 +116,7 @@ export interface QuickCreateShipmentRequest {
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
+  declarationNumber?: string | null;
   expectedDeliveryDate?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
@@ -165,8 +166,8 @@ export interface ShipmentPricingPreviewRequest {
 export async function quickCreateShipment(
   body: QuickCreateShipmentRequest,
   idempotencyKey: string,
-): Promise<Shipment> {
-  return api.post<Shipment>('/shipments/quick', body, {
+): Promise<Shipment & { initialDeclarationId?: number | null }> {
+  return api.post<Shipment & { initialDeclarationId?: number | null }>('/shipments/quick', body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }

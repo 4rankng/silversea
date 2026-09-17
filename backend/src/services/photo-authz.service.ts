@@ -1,6 +1,8 @@
 import { db } from '../db';
+import type { Tx } from './trip-shared';
 import * as s from '../db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, or } from 'drizzle-orm';
+import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { Role } from '@tingting/shared';
 
 /**
@@ -46,11 +48,12 @@ export type DriverTripPhotoAccess = 'owned' | 'no_profile' | 'not_owned';
 export async function checkDriverTripPhotoAccess(
   userId: number,
   tripId: number,
+  executor: Tx | typeof db = db,
 ): Promise<DriverTripPhotoAccess> {
-  const [driver] = await db.select({ id: s.drivers.id }).from(s.drivers)
+  const [driver] = await executor.select({ id: s.drivers.id }).from(s.drivers)
     .where(eq(s.drivers.userId, userId)).limit(1);
   if (!driver) return 'no_profile';
-  const [trip] = await db.select({ id: s.trips.id }).from(s.trips)
+  const [trip] = await executor.select({ id: s.trips.id }).from(s.trips)
     .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driver.id)))
     .limit(1);
   return trip ? 'owned' : 'not_owned';
@@ -59,10 +62,11 @@ export async function checkDriverTripPhotoAccess(
 export async function authorizeExpensePhoto(
   storageKey: string,
   user: { userId: number; role: Role },
+  executor: Tx | typeof db = db,
 ): Promise<PhotoAuthDecision> {
   // 1. Parallel exact-storage_key lookups against both receipt tables.
-  const [tripRows, expenseRows, fuelRows] = await Promise.all([
-    db.select({
+  const [tripRows, expenseRows, fuelRows, driverRows, opsRows, accountingRows] = await Promise.all([
+    executor.select({
       forwarderId: s.tripExpenses.forwarderId,
       ownerStatus: s.users.status,
       hasCurrentAssignment: sql<boolean>`EXISTS (
@@ -83,11 +87,11 @@ export async function authorizeExpensePhoto(
       .leftJoin(s.users, eq(s.tripExpenses.forwarderId, s.users.id))
       .where(eq(s.tripExpensePhotos.storageKey, storageKey))
       .limit(1),
-    db.select({ id: s.expensePhotos.id })
+    executor.select({ id: s.expensePhotos.id })
       .from(s.expensePhotos)
       .where(eq(s.expensePhotos.storageKey, storageKey))
       .limit(1),
-    db.select({
+    executor.select({
       ownerUserId: s.fuelEvidenceReviews.ownerUserId,
       driverStatus: s.drivers.status,
       ownerUserStatus: s.users.status,
@@ -97,12 +101,24 @@ export async function authorizeExpensePhoto(
       .innerJoin(s.users, eq(s.fuelEvidenceReviews.ownerUserId, s.users.id))
       .where(eq(s.fuelEvidenceReviews.storageKey, storageKey))
       .limit(1),
+    executor.select({ ownerUserId: s.drivers.userId, driverStatus: s.drivers.status, ownerStatus: s.users.status,
+      currentDriverId: s.trips.driverId, claimDriverId: s.driverIncidentalCosts.driverId }).from(s.driverIncidentalCosts)
+      .innerJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
+      .innerJoin(s.users, eq(s.users.id, s.drivers.userId)).innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId))
+      .where(or(eq(s.driverIncidentalCosts.receiptStorageKey, storageKey), sql`${s.driverIncidentalCosts.photoStorageKeys} @> ${JSON.stringify([storageKey])}::jsonb`)),
+    executor.select({ ownerUserId: s.opsExpenseEntries.paidById, ownerStatus: s.users.status,
+      hasCurrentAssignment: sql<boolean>`EXISTS (SELECT 1 FROM user_shipment_links l WHERE l.shipment_id = ${s.opsExpenseEntries.shipmentId} AND l.user_id = ${user.userId})` })
+      .from(s.opsExpensePhotos).innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.opsExpensePhotos.opsExpenseId))
+      .innerJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById)).where(eq(s.opsExpensePhotos.storageKey, storageKey)),
+    executor.select({ source: s.expenseAccountingSources }).from(s.expenseAccountingEvidence)
+      .innerJoin(s.expenseAccountingSources, eq(s.expenseAccountingSources.id, s.expenseAccountingEvidence.expenseAccountingSourceId))
+      .where(eq(s.expenseAccountingEvidence.storageKey, storageKey)),
   ]);
 
   const tripMatch = tripRows.length > 0;
   const expenseMatch = expenseRows.length > 0;
   const fuelMatch = fuelRows.length > 0;
-  if (!tripMatch && !expenseMatch && !fuelMatch) return { allow: false, reason: 'not_found' };
+  if (!tripMatch && !expenseMatch && !fuelMatch && !driverRows.length && !opsRows.length && !accountingRows.length) return { allow: false, reason: 'not_found' };
 
   // 2. Per-table authorization, then 3. STRICTEST-MATCH: allow only if
   // authorized under every matching table.
@@ -124,11 +140,27 @@ export async function authorizeExpensePhoto(
       && fuelRows[0].ownerUserId === user.userId
       && fuelRows[0].driverStatus === 'ACTIVE'
       && fuelRows[0].ownerUserStatus === 'ACTIVE');
-  const allow = okTrip && okExpense && okFuel;
+  const okDriver = driverRows.every(row => FINANCE_ROLES.has(user.role) || (user.role === Role.DRIVER && row.ownerUserId === user.userId
+    && row.ownerStatus === 'ACTIVE' && row.driverStatus === 'ACTIVE' && row.currentDriverId === row.claimDriverId));
+  const okOps = opsRows.every(row => FINANCE_ROLES.has(user.role) || (user.role === Role.OPS && row.ownerUserId === user.userId
+    && row.ownerStatus === 'ACTIVE' && row.hasCurrentAssignment));
+  let okAccounting = true;
+  for (const match of accountingRows) {
+    if (FINANCE_ROLES.has(user.role)) continue;
+    const source = await hydrateExpenseAccountingSource(executor, match.source);
+    if ((source.payerUserId !== user.userId && source.recordedById !== user.userId) || ![Role.OPS, Role.DRIVER].includes(user.role)) { okAccounting = false; continue; }
+    if (user.role === Role.DRIVER) okAccounting = okAccounting && source.tripId != null && (await checkDriverTripPhotoAccess(user.userId, source.tripId, executor)) === 'owned';
+    if (user.role === Role.OPS) {
+      const [assignment] = await executor.select({ id: s.userShipmentLinks.id }).from(s.userShipmentLinks)
+        .where(and(eq(s.userShipmentLinks.userId, user.userId), eq(s.userShipmentLinks.shipmentId, source.shipmentId)));
+      okAccounting = okAccounting && Boolean(assignment);
+    }
+  }
+  const allow = okTrip && okExpense && okFuel && okDriver && okOps && okAccounting;
 
   if (allow) return { allow: true, reason: 'allowed' };
   // A both-tables match that denies is a write-path integrity signal (N6).
-  if ([tripMatch, expenseMatch, fuelMatch].filter(Boolean).length > 1) {
+  if ([tripMatch, expenseMatch, fuelMatch, driverRows.length > 0, opsRows.length > 0, accountingRows.length > 0].filter(Boolean).length > 1) {
     return { allow: false, reason: 'collision' };
   }
   return { allow: false, reason: 'forbidden' };

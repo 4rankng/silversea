@@ -8,6 +8,9 @@ import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
+import type { ExpenseCostGroup } from '@tingting/shared';
+import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable } from './expense-accounting-source.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = typeof db | Tx;
@@ -20,7 +23,16 @@ export interface CreateOpsExpenseInput {
   paidAt: string; // YYYY-MM-DD
   note?: string | null;
   photoStorageKeys?: string[];
+  costGroup?: ExpenseCostGroup;
+  feeName?: string | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
+  recoveryNote?: string | null;
 }
+type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
+  version?: number; costGroup?: ExpenseCostGroup | null; feeName?: string | null; invoiceNumber?: string | null;
+  invoiceDate?: string | null; customerChargeAmount?: string | null; recoveryNote?: string | null;
+};
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -129,18 +141,21 @@ export async function createOpsExpense(
   userId: number,
   input: CreateOpsExpenseInput,
   transaction?: Tx,
-) {
+): Promise<OpsExpenseWriteResult> {
+  if (!transaction) return db.transaction(tx => createOpsExpense(userId, input, tx));
   const executor: Executor = transaction ?? db;
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
-  await assertActiveExpenseType(input.expenseTypeCode);
+  const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
+  await assertShipmentAccountingUnlocked(transaction, input.shipmentId);
 
   const [shipment] = await executor
-    .select({ id: s.shipments.id })
+    .select({ id: s.shipments.id, customerId: s.shipments.customerId })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  if (!shipment.customerId) throw new ApiError(409, 'Lô hàng chưa có khách hàng.');
 
   if (input.shipmentContainerId != null) {
     await assertContainerInShipment(input.shipmentId, input.shipmentContainerId);
@@ -163,20 +178,40 @@ export async function createOpsExpense(
   if (input.photoStorageKeys?.length) {
     await attachPhotoRows(executor, entry.id, userId, input.photoStorageKeys);
   }
-  return entry;
+  const costGroup = input.costGroup ?? (expenseType.requiresInvoice
+    ? input.expenseTypeCode === 'LIFTING' ? 'INVOICED_LIFT' : input.expenseTypeCode === 'LOWERING' ? 'INVOICED_DROP' : 'INVOICED_OTHER'
+    : 'OPS_REGULAR');
+  if (!['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL'].includes(costGroup)) throw new ApiError(400, 'Nhóm chi phí Ops không hợp lệ.');
+  const source = await upsertExpenseAccountingSource(transaction, { sourceKind: 'OPS', sourceId: entry.id,
+    shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,
+    expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName ?? entry.expenseTypeCode,
+    amount: Number(entry.amount), customerChargeAmount: costGroup.startsWith('INVOICED_') ? Number(entry.amount) : 0,
+    expenseDate: entry.paidAt, payerKind: 'USER', payerUserId: userId, payableEntityType: 'FORWARDER', payableEntityId: userId,
+    recordedById: userId, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: entry.note,
+    recoveryNote: input.recoveryNote, photoStorageKeys: input.photoStorageKeys });
+  return { ...entry, version: source.version, costGroup, feeName: source.feeName, invoiceNumber: source.invoiceNumber,
+    invoiceDate: source.invoiceDate, customerChargeAmount: source.customerChargeAmount, recoveryNote: source.recoveryNote };
 }
 
 export async function updateOpsExpense(
   userId: number,
   expenseId: number,
   patch: Partial<Pick<CreateOpsExpenseInput,
-    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode'>> & {
+    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
     shipmentContainerId?: number | null;
+    expectedVersion?: number;
   },
   transaction?: Tx,
-) {
+): Promise<OpsExpenseWriteResult> {
+  if (!transaction) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
   const executor: Executor = transaction ?? db;
   const entry = await getEditableExpense(userId, expenseId);
+  await assertShipmentAccountingUnlocked(transaction, entry.shipmentId);
+  const source = await lockExpenseSource(transaction, 'OPS', expenseId);
+  if (source) {
+    await assertExpenseSourceMutable(transaction, source);
+    if (patch.expectedVersion !== source.version) throw new ApiError(409, 'Khoản chi đã thay đổi. Tải lại trước khi sửa.');
+  }
   const next: Record<string, unknown> = { updatedAt: new Date(), approvalStatus: 'RECORDED' };
   parseOpsMoney(patch.amount ?? entry.amount);
   assertValidPaidAt(patch.paidAt ?? entry.paidAt);
@@ -217,6 +252,18 @@ export async function updateOpsExpense(
   if (!updated) {
     throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái (đã lập phiếu). Tải lại và thử lại.');
   }
+  if (source) {
+    const after = await upsertExpenseAccountingSource(transaction, { ...source, sourceKind: 'OPS', sourceId: expenseId,
+      amount: Number(updated.amount), customerChargeAmount: source.customerChargeAmount == null ? null : Number(source.customerChargeAmount),
+      expenseDate: updated.paidAt, expenseTypeCode: updated.expenseTypeCode, shipmentContainerId: updated.shipmentContainerId,
+      costGroup: patch.costGroup ?? source.costGroup, feeName: patch.feeName ?? source.feeName,
+      invoiceNumber: patch.invoiceNumber === undefined ? source.invoiceNumber : patch.invoiceNumber,
+      invoiceDate: patch.invoiceDate === undefined ? source.invoiceDate : patch.invoiceDate,
+      recoveryNote: patch.recoveryNote === undefined ? source.recoveryNote : patch.recoveryNote, note: updated.note });
+    await transaction.insert(s.auditLogs).values({ userId, message: 'EXPENSE_ACCOUNTING_UPDATED', entityType: 'expense_accounting_source', entityId: source.id,
+      payload: { reason: 'Ops sửa khoản chi chưa đối chiếu', before: source, after } });
+    return { ...updated, version: after.version, costGroup: after.costGroup, invoiceNumber: after.invoiceNumber, invoiceDate: after.invoiceDate };
+  }
   return updated;
 }
 
@@ -225,26 +272,17 @@ export async function deleteOpsExpense(
   expenseId: number,
   transaction?: Tx,
 ): Promise<void> {
+  if (!transaction) return db.transaction(tx => deleteOpsExpense(userId, expenseId, tx));
   const executor: Executor = transaction ?? db;
   await getEditableExpense(userId, expenseId);
-  const photos = await executor
-    .select({ storageKey: s.opsExpensePhotos.storageKey })
-    .from(s.opsExpensePhotos)
-    .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId));
-  const [deleted] = await executor
-    .delete(s.opsExpenseEntries)
-    .where(and(
-      eq(s.opsExpenseEntries.id, expenseId),
-      eq(s.opsExpenseEntries.paidById, userId),
-      inArray(s.opsExpenseEntries.approvalStatus, ['RECORDED', 'DRAFT', 'APPROVED', 'PENDING']),
-      isNull(s.opsExpenseEntries.opsSettlementId),
-    ))
-    .returning({ id: s.opsExpenseEntries.id });
-  if (!deleted) {
-    throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái (đã lập phiếu). Tải lại và thử lại.');
+  const source = await lockExpenseSource(transaction, 'OPS', expenseId);
+  if (source) {
+    await assertExpenseSourceMutable(transaction, source);
+    await transaction.update(s.expenseAccountingSources).set({ status: 'VOIDED', version: source.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, source.id));
   }
-  await executor.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, expenseId));
-  await deleteStorageKeysIfUnreferenced(photos.map((photo) => photo.storageKey));
+  const [voided] = await executor.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
+    .where(and(eq(s.opsExpenseEntries.id, expenseId), eq(s.opsExpenseEntries.paidById, userId), isNull(s.opsExpenseEntries.opsSettlementId))).returning({ id: s.opsExpenseEntries.id });
+  if (!voided) throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái. Tải lại và thử lại.');
 }
 
 /**
@@ -271,12 +309,7 @@ export async function attachOpsExpensePhoto(
   expenseId: number,
   storageKey: string,
 ) {
-  // KP-149 (direct-save): entries are APPROVED at creation, so the edit gate
-  // (which refuses APPROVED rows) must not guard evidence. Attaching a
-  // receipt CURES a "Nợ chứng từ" gap and never changes the expense's
-  // figures — only ownership matters. Removal stays locked on APPROVED rows
-  // (see deleteOpsExpensePhoto), so evidence protection keeps its asymmetry:
-  // add to cure, never remove after approval.
+  // Adding evidence never changes the recorded expense or moves cash.
   const [entry] = await db
     .select({ id: s.opsExpenseEntries.id })
     .from(s.opsExpenseEntries)
@@ -298,6 +331,7 @@ export async function deleteOpsExpensePhoto(userId: number, photoId: number): Pr
   const [photo] = await db
     .select({
       id: s.opsExpensePhotos.id,
+      expenseId: s.opsExpensePhotos.opsExpenseId,
       storageKey: s.opsExpensePhotos.storageKey,
       paidById: s.opsExpenseEntries.paidById,
       approvalStatus: s.opsExpenseEntries.approvalStatus,
@@ -314,6 +348,9 @@ export async function deleteOpsExpensePhoto(userId: number, photoId: number): Pr
   if (photo.opsSettlementId != null) {
     throw new ApiError(400, 'Khoản chi đã nằm trong phiếu quyết toán, không thể xóa ảnh.');
   }
+  const [source] = await db.select({ confirmedAt: s.expenseAccountingSources.confirmedAt }).from(s.expenseAccountingSources)
+    .where(and(eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.sourceId, photo.expenseId)));
+  if (source?.confirmedAt) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');
   await db.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId));
   await deleteStorageKeysIfUnreferenced([photo.storageKey]);
 }
@@ -396,6 +433,13 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
 }
 
 export interface OpsExpenseListRow {
+  version: number;
+  costGroup: ExpenseCostGroup | null;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  customerChargeAmount: string | null;
+  recoveryNote: string | null;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
@@ -434,6 +478,13 @@ export async function listOpsExpenses(filters: {
   const rows = await db
     .select({
       id: s.opsExpenseEntries.id,
+      version: s.expenseAccountingSources.version,
+      costGroup: s.opsExpenseEntries.costGroup,
+      feeName: s.opsExpenseEntries.feeName,
+      invoiceNumber: s.opsExpenseEntries.invoiceNumber,
+      invoiceDate: s.opsExpenseEntries.invoiceDate,
+      customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
+      recoveryNote: s.opsExpenseEntries.recoveryNote,
       shipmentId: s.opsExpenseEntries.shipmentId,
       shipmentCode: s.shipments.shipmentCode,
       containerNumber: s.shipmentContainers.containerNumber,
@@ -455,6 +506,7 @@ export async function listOpsExpenses(filters: {
       ),
     })
     .from(s.opsExpenseEntries)
+    .leftJoin(s.expenseAccountingSources, and(eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id)))
     .leftJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId))
     .leftJoin(
       s.shipmentContainers,
@@ -472,6 +524,7 @@ export async function listOpsExpenses(filters: {
 
   return rows.map((row) => ({
     ...row,
+    version: row.version ?? 1,
     createdAt: row.createdAt.toISOString(),
     hasPhoto: Boolean(row.hasPhoto),
   }));

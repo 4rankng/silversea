@@ -1,3 +1,29 @@
+/* Compact controls adapt to their own column width, including dense desktop
+   tables. Only the default decorative search glyph yields space. */
+.uui-combobox {
+  container: uui-combobox / inline-size;
+}
+
+.uui-combobox [data-combobox-value],
+.uui-combobox__input input[role='combobox'] {
+  min-width: 0;
+}
+
+@container uui-combobox (max-width: 192px) {
+  [data-combobox-search] {
+    display: none;
+  }
+
+  [data-default-search-icon] [data-combobox-value] {
+    gap: 0;
+    padding-inline-start: 6px;
+  }
+
+  [data-default-search-icon] .uui-combobox__input input[role='combobox'] {
+    padding-inline-start: 0;
+  }
+}
+
 /* A combobox has one field boundary. Native-input touch rules must not add
    another height floor or vertical padding inside its value wrapper. */
 @media (max-width: 640px), (pointer: coarse) {
@@ -8,9 +34,5 @@
     padding-block: 0;
   }
 
-  /* Small direct-use fields occupy 44px including the outer border. More
-     specific operational adapter rules retain their compact phone geometry. */
-  .uui-combobox[data-size='sm'] [data-combobox-value] {
-    min-height: calc(var(--control-touch-h) - 2px);
-  }
+
 }

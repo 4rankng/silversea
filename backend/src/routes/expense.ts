@@ -208,10 +208,10 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
-    return res.status(400).json({ error: 'ID không hợp lệ' });
+    throw new ApiError(400, 'ID không hợp lệ');
   }
   const expense = await getExpense(db, id);
-  if (!expense) return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
+  if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
   res.json(expense);
 }));
 
@@ -253,7 +253,7 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   };
   const existing = await getExpense(db, id);
   if (!existing) {
-    return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
+    throw new ApiError(404, 'Không tìm thấy khoản chi phí');
   }
 
   if (isGovernedCompanyExpenseMutation(existing, serviceData) || ['DRAFT', 'PENDING', 'CHECKED'].includes(existing.approvalStatus)) {
@@ -386,21 +386,21 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 router.get('/:id/photos', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!Number.isFinite(id) || id <= 0) throw new ApiError(400, 'ID không hợp lệ');
   const rows = await getExpensePhotoList(id);
   res.json({ items: rows.map(r => ({ ...r, url: `/api/photos/${encodeURIComponent(r.storageKey)}` })) });
 }));
 
 router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!Number.isFinite(id) || id <= 0) throw new ApiError(400, 'ID không hợp lệ');
   const file = req.file;
-  if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
+  if (!file) throw new ApiError(400, 'Không có file tải lên');
   const idempotencyKey = requireIdempotencyKey(req);
   const actorId = getUser(req).userId;
 
   const mime = sniffImageType(file.buffer);
-  if (!mime) return res.status(400).json({ error: 'Định dạng file không được hỗ trợ' });
+  if (!mime) throw new ApiError(400, 'Định dạng file không được hỗ trợ');
 
   // sharp throws when the deploy's libvips lacks the input codec (notably HEIC);
   // surface that as a clean 400 instead of a 500.
@@ -422,7 +422,7 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
     // sharp throws when libvips lacks the input codec (notably HEIC on a slim
     // deploy). Log so ops can detect a codec regression; return a clean 400.
     console.warn('[expenses/:id/photos] sharp failed to process image:', err instanceof Error ? err.message : err);
-    return res.status(400).json({ error: 'Không xử lý được ảnh. Nếu là ảnh HEIC (iPhone), vui lòng đổi sang JPG/PNG rồi tải lại.' });
+    throw new ApiError(400, 'Không xử lý được ảnh. Nếu là ảnh HEIC (iPhone), vui lòng đổi sang JPG/PNG rồi tải lại.');
   }
 
   const fileHash = createHash('sha256').update(processedBuffer).digest('hex');
@@ -489,7 +489,7 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
 router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const photoId = Number(req.params.photoId);
-  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) throw new ApiError(400, 'ID không hợp lệ');
   const idempotencyKey = requireIdempotencyKey(req);
   const actorId = getUser(req).userId;
   await runIdempotent({

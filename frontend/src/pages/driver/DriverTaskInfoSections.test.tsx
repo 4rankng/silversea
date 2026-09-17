@@ -7,7 +7,7 @@ import type { DriverTaskDetail } from '../../api/driverClient';
 /**
  * Component-level coverage for the THÔNG TIN LỆNH fact grid and the
  * THÔNG TIN XUẤT HÓA ĐƠN block: field order, factory block (abbrev with
- * fallback, canonical full name, site address), route-only Tuyến,
+ * fallback, canonical full name, site address), no duplicate route,
  * always-visible warehouse phone, and per-segment fee-invoice rows.
  * The page suite (DriverTripDetailPage.test.tsx) locks the same behavior
  * through the full page render — both must move in lockstep.
@@ -83,7 +83,13 @@ const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver
   ?.querySelector('.driver-task-fact__value')?.textContent;
 
 describe('DriverTaskInfoSections', () => {
-  it('renders the full fact-grid order: schedule+factory, factory block, contact, warehouse phone, container, seal, ports, route', () => {
+  it('VID-DRV-05 does not invent an appointment time from a date-only departure day', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { plannedAt: null } })} />);
+    expect(valueOf('Ngày giờ kế hoạch')).toBe('Chưa chốt lịch');
+    expect(screen.queryByText(/07:00/)).toBeNull();
+  });
+
+  it('VID-DRV-01 renders schedule, factory, contact, container, seal and ports without a duplicate route row', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
@@ -96,7 +102,6 @@ describe('DriverTaskInfoSections', () => {
       'Seal',
       'Cảng nâng',
       'Cảng hạ',
-      'Tuyến',
     ]);
   });
 
@@ -176,20 +181,21 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Số điện thoại liên hệ')).toBe('—');
   });
 
-  it('renders route text on Tuyến — the factory address never leaks into it', () => {
+  it('VID-DRV-01 renders the factory address in the info section, leaving route text to the task header', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    expect(valueOf('Tuyến')).toBe('Cát Lái → Thuận An');
-    expect(valueOf('Tuyến')).not.toContain('KCN Việt Nam');
+    expect(valueOf('Địa chỉ nhà máy')).toBe('KCN Việt Nam – Singapore, Thuận An, Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
+    expect(screen.queryByText('Cát Lái → Thuận An')).toBeNull();
   });
 
-  it('falls back to the route name when no route summary exists, "—" when neither', () => {
+  it('VID-DRV-01 does not recreate a route row for missing summary or route values', () => {
     const { unmount } = render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { routeSummary: null } })} />);
-    expect(valueOf('Tuyến')).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
     unmount();
 
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { routeSummary: null }, routeName: null })} />);
-    expect(valueOf('Tuyến')).toBe('—');
+    expect(valueOf('Tuyến')).toBeUndefined();
   });
 
   it('renders master rows and fee-invoice rows with name · address · MST segments in order', () => {
@@ -233,6 +239,27 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ invoiceFactory: { name: 'Factory Legal Name', address: null, taxCode: null }, invoiceMaster: { companyName: 'Customer', address: 'Customer billing address', taxCode: '123' } })} />);
     expect(screen.getByText('Nhà máy chưa cấu hình: địa chỉ xuất hóa đơn, mã số thuế.')).toBeTruthy();
     expect(screen.getByText('Customer billing address')).toBeTruthy();
+  });
+
+  it('DRV-R03 retains known invoice address and tax ID when the legal name is missing', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      invoiceFactory: { name: null, address: 'Địa chỉ pháp lý nhà máy', taxCode: '2301234567' },
+      fulfillment: { invoiceInfo: {
+        liftFeeInvoiceName: ' ', liftFeeInvoiceAddress: 'Địa chỉ pháp lý nhà máy', liftFeeTaxCode: '2301234567',
+        dropFeeInvoiceName: null, dropFeeInvoiceAddress: null, dropFeeTaxCode: null,
+        cleaningInvoiceName: null, cleaningInvoiceAddress: null, cleaningTaxCode: null,
+      } },
+    })} />);
+    expect(screen.getByText('Nhà máy chưa cấu hình: tên pháp lý.')).toBeTruthy();
+    expect(valueOf('Hóa đơn phí nâng')).toBe('Chưa có tên đơn vị · Địa chỉ pháp lý nhà máy · MST 2301234567');
+  });
+
+  it('DRV-R04 renders a trimmed named contact only once without warehouse-phone duplication', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ' } })} />);
+    expect(valueOf('Số điện thoại liên hệ')).toBe('Chị An · 0909000001');
+    expect(screen.getAllByRole('link', { name: '0909000001' })).toHaveLength(1);
+    expect(labels()).not.toContain('SĐT kho');
+    expect(labels()).not.toContain('SĐT liên hệ');
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -282,7 +309,6 @@ describe('DriverTaskInfoSections', () => {
       'Cảng nâng',
       'Cảng hạ',
       'Trả cont rỗng',
-      'Tuyến',
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
     expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
@@ -320,15 +346,15 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('P1_5: IMPORT with no return depot shows drop port as Cảng hạ and delivery row', () => {
+  it('DRV-R02: IMPORT with no return depot never mislabels the delivery factory as Cảng hạ', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: null, dropPortName: 'Nhà máy Samsung' },
     })} />);
 
-    expect(valueOf('Cảng hạ')).toBe('Nhà máy Samsung');
-    // P1_5: always show delivery address for IMPORT when data exists
+    expect(valueOf('Cảng hạ')).toBe('Chưa có nơi trả rỗng');
     expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
+    expect(labels()).not.toContain('Trả cont rỗng');
   });
 
   it('P1_5: IMPORT with return depot equal to drop port still shows delivery row', () => {

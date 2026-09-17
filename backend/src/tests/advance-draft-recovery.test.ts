@@ -153,3 +153,22 @@ after(async () => {
   if (actorIds.length) { await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, actorIds)); await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds)); await db.delete(s.users).where(inArray(s.users.id, actorIds)); }
   await disconnectRedis(); await client.end();
 });
+
+test('garbage settlement ids reject with 400 instead of a NaN-query 500 (20260916_9 family)', async () => {
+  for (const path of ['/advance-settlements/abc', '/advance-settlements/abc/export']) {
+    const garbage = await fetch(`${base}/api/forwarder/me${path}`, { headers: { Authorization: `Bearer ${users.ops.token}` } });
+    assert.equal(garbage.status, 400, `${path} must 400 on a garbage id`);
+    const body = await garbage.json();
+    assert.match(body.error, /không hợp lệ/);
+  }
+  // Control: a clean numeric miss stays a 404 (not a 400 from the new guard).
+  const miss = await fetch(`${base}/api/forwarder/me/advance-settlements/999999999`, { headers: { Authorization: `Bearer ${users.ops.token}` } });
+  assert.equal(miss.status, 404);
+  // Control: the owner can still read a real settlement.
+  const [row] = await db.select().from(s.advanceSettlements)
+    .where(eq(s.advanceSettlements.forwarderId, users.ops.id)).limit(1);
+  if (row) {
+    const ok = await fetch(`${base}/api/forwarder/me/advance-settlements/${row.id}`, { headers: { Authorization: `Bearer ${users.ops.token}` } });
+    assert.equal(ok.status, 200);
+  }
+});

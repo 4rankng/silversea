@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { ApiError } from '../../errors';
 import { LedgerService } from '../../services/ledger.service';
 import * as financialService from '../../services/financial.service';
 import { getStatementData, exportStatementXlsx, exportStatementHtml, attachmentDisposition, normalizeDateParam } from '../../services/statement.service';
@@ -29,7 +30,7 @@ router.get('/ledger', asyncHandler(async (req: Request, res: Response) => {
 
 router.get('/ledger/balances', asyncHandler(async (req: Request, res: Response) => {
   const entityType = (req.query.entityType || req.query.entity_type) as string;
-  if (!entityType) return res.status(400).json({ error: 'entityType is required' });
+  if (!entityType) throw new ApiError(400, 'entityType is required');
   res.json(await financialService.getEntityBalances(entityType));
 }));
 
@@ -40,7 +41,7 @@ router.get('/ledger/customers/:id/statement', asyncHandler(async (req: Request, 
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   const data = await getStatementData(customerId, dateFrom, dateTo);
-  if (!data) return res.status(404).json({ error: 'Không tìm thấy khách hàng' });
+  if (!data) throw new ApiError(404, 'Không tìm thấy khách hàng');
   res.json(data);
 }));
 
@@ -52,7 +53,7 @@ router.get('/ledger/customers/:id/statement/export', asyncHandler(async (req: Re
   const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
   const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
   const data = await getStatementData(customerId, dateFrom, dateTo);
-  if (!data) return res.status(404).json({ error: 'Không tìm thấy khách hàng' });
+  if (!data) throw new ApiError(404, 'Không tìm thấy khách hàng');
 
   const dateStr = formatLocalDate();
 

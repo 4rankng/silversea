@@ -156,7 +156,7 @@
   font-size: var(--text-section-size);
   font-weight: 700;
   color: var(--ink-2, #4a5550);
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 /* Collapsible section head (20260911_2 BUG 1 — "thu nhỏ vào đỡ chiếm diện
@@ -213,6 +213,12 @@
 .driver-task-finance {
   display: grid;
   gap: 10px;
+}
+
+/* Layout declarations otherwise override the browser's native [hidden]
+   rule, leaving collapsed sections visible and taking up space. */
+.driver-task-grid[hidden] {
+  display: none;
 }
 
 /* Flat fact row — no tile chrome; the section card is the elevation. */
@@ -283,8 +289,8 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--warning, #d97706) 8%, transparent);
   color: var(--ink);
   font-size: var(--text-body-size);
@@ -295,9 +301,9 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px;
-  margin: 0 0 10px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  margin: 0;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--info, #2563eb) 8%, transparent);
   color: var(--ink);
   font-size: var(--text-body-size);
@@ -390,9 +396,9 @@
 .driver-task-step--retry,
 .driver-task-step--conflict,
 .driver-task-step--available {
-  padding: 14px;
+  padding: 10px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: 8px;
 }
 
 .driver-task-step:disabled {
@@ -502,10 +508,10 @@
   display: grid;
   gap: 10px;
   padding: 14px;
-  border-radius: 18px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink, #0f172a) 8%, transparent);
+  box-shadow: none;
 }
 
 .driver-task-footer__summary {
@@ -864,8 +870,8 @@
 
 @media (max-width: 430px) {
   .driver-task-screen {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   .driver-task-header {
@@ -878,8 +884,8 @@
 
   .driver-task-section,
   .driver-task-footer__body {
-    padding: 10px;
-    border-radius: 10px;
+    padding: 8px;
+    border-radius: 8px;
   }
 
   .driver-task-accept-sticky {

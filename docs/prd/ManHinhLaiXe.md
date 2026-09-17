@@ -77,21 +77,24 @@ Cả ba tab dùng bố cục gọn trên điện thoại, máy tính bảng và 
 
 ## 3. Chi Tiết Lệnh
 
-Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề chi tiết có thể ưu tiên tuyến theo mẫu màn hình; quy tắc nhà máy trước, tuyến sau của thẻ tổng quát không buộc thay tiêu đề chi tiết thành tên nhà máy.
+Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu tiên tên viết tắt nhà máy, tuyến đường nằm ngay dưới. Có thể thu gọn phần phụ để tiết kiệm diện tích, nhưng tên nhà máy, tuyến và trạng thái công việc vẫn dễ nhận biết. Tuyến đã xuất hiện ở tiêu đề không lặp thành một dòng trong phần thông tin lệnh; phần đó hiển thị địa chỉ nhà máy.
 
 ### 3.1 Thứ Tự Thông Tin
 
 | Nhóm | Yêu cầu |
 |------|---------|
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
-| Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
+| Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
 | Nhiệm vụ và ghi chú | Nhiệm vụ viết hoa ở dòng riêng; ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa |
 | Thông tin xuất hóa đơn | Tiêu đề từng bên/nhóm thông tin đặt **trước** tên, địa chỉ, mã số thuế của bên đó |
-| Xe thực hiện | Biển số đầu kéo và moóc, đọc được nguyên mã |
 | Bằng chứng và hành động | Ảnh container/chì/biên bản; thao tác phù hợp giai đoạn và luồng e-POD |
 
 Tên liên hệ và số điện thoại phải cùng nhóm với địa chỉ nhà máy, gọi được qua liên kết điện thoại. Không lặp lại cùng người/số trong các dòng kho bãi và liên hệ khác nhau. Nếu có người liên hệ khác với vai trò thật sự khác, giữ họ ở chi tiết kèm nhãn vai trò; không xóa thông tin hữu ích chỉ để rút ngắn màn hình.
+
+Tác vụ và ghi chú lái xe đặt ngay sau thông tin công việc, trước thông tin xuất hóa đơn, để hướng dẫn vận chuyển được đọc trước dữ liệu thanh toán. Hai dòng này vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh.
+
+Lịch kế hoạch trên thẻ và chi tiết phải thống nhất. Khi chưa có ngày giờ kế hoạch xác định, hiển thị **Chưa chốt lịch**; không suy ra giờ hẹn từ một ngày xuất phát không có giờ.
 
 Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể riêng. Không lấy tên/mã số thuế khách hàng thay cho hồ sơ nhà máy đang thiếu. Các nhóm hóa đơn nâng, hạ, vệ sinh dùng hồ sơ tương ứng theo [Master data nhà máy](MasterDataNhaMay.md); không âm thầm gộp các hồ sơ khác nhau. Thiếu hồ sơ phải được thể hiện rõ, kể cả khi toàn bộ nhóm chưa có dữ liệu.
 
@@ -164,9 +167,61 @@ Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh b
 9. Lái xe chụp/chọn, xem, thay và xóa ảnh được trên điện thoại phù hợp; chứng từ vẫn đọc rõ. Các thao tác chính dùng được bằng bàn phím trên máy tính, thông báo lỗi đọc được và bàn phím ảo không che nút cần dùng.
 10. Thu nhập hiển thị đúng tài khoản và kỳ, phân biệt tạm tính/đã chốt/đã trả; Kỷ luật thể hiện lý do, ngày, ảnh hưởng và loại biên bản đã hủy khỏi khấu trừ hiện hành. Tài khoản hiển thị đúng danh tính/xe, chỉ sửa theo quyền và không lộ dữ liệu tài khoản trước sau đăng xuất hoặc đổi người đăng nhập.
 
-## 8. Điểm Còn Cần Làm Rõ
+## 8. Chi phí lái xe
+
+**Nguồn:** `các chi phí.docx`, phần chi phí lái xe, cập nhật 16/09/2026. Lái xe cần khai báo tại đúng công việc và xem lại kết quả. Không phải dùng màn quản trị hay nhập lại thông tin lô, xe và tài xế đã có.
+
+Giữ nguyên phụ cấp tiền đường và ca đã thỏa thuận. Phần cầu đường dùng ước tính khi chưa có số thực tế đã đối chiếu; khi có thì số thực tế thay phần ước tính, không cộng thêm cả hai. Ví dụ ước tính 100.000đ, vé đối chiếu 80.000đ: tổng giảm 20.000đ, phụ cấp không đổi. Phát sinh riêng chỉ tính một lần; công việc kẹp/kết hợp dùng chung nguồn phí, không nhân theo số container. Điều chỉnh/hủy đối chiếu cập nhật theo nguồn còn hiệu lực và giữ lịch sử.
+
+### 8.1 Nhóm chi phí
+
+| Nhóm | Loại phí | Quy tắc thu khách và thanh toán |
+|---|---|---|
+| Chi phí lô hàng có hóa đơn | Nâng, hạ, vệ sinh, lưu bãi, lưu kho và phí có hóa đơn khác | Mặc định thu khách, có số hóa đơn; kế toán đối chiếu và đưa đúng khoản vào chi hộ phải thu, không tự đánh dấu khách đã trả |
+| Chi phí lô hàng không hóa đơn | Công nhân tại kho, hàn container, cân lốp, đảo vỏ, đóng/trả hai điểm, đảo hàng, xe nâng/hạ Đăng Khoa và tên phí tự nhập | Công ty chịu, không thu khách; theo dõi chi phí xe và khoản cần thanh toán cho người thực chi; có thể có phiếu thu/biên lai viết tay |
+| Tiền đường | Tiền tuyến, vé cầu đường, phụ cấp phát sinh và sửa chữa dọc đường | Không thu khách; theo dõi trong tiền đường để kế toán đối chiếu/thanh toán và tính chi phí xe |
+
+Mỗi khoản có ngày chi, công việc, nhóm/tên phí, số tiền thực tế, người trả tiền, hóa đơn nếu có, ảnh/chứng từ và ghi chú. Lái xe chỉ khai báo trong công việc của mình; không được tự thay đổi số thu khách hoặc ghi đã thanh toán từ quỹ công ty. Kế toán được sửa số sai khi còn điều kiện, có lý do và lịch sử.
+
+### 8.2 Mức tham chiếu và nhập thực tế
+
+| Khoản | Mức trong yêu cầu khách hàng |
+|---|---:|
+| Phụ cấp làm nâng/hạ Lạch Huyện, TIL, Hateco | 50.000đ |
+| Trả đêm | 100.000đ |
+| Chạy hàng quay đầu | 100.000đ |
+| Chạy quá tải | 200.000đ |
+| Đảo chuyển ICD/Đăng Khoa | 200.000đ |
+| Chạy chủ nhật | 200.000đ |
+| Lưu ca | 200.000đ |
+| Container 45’HC hoặc container lạnh | 200.000đ |
+
+Đây là mức gợi ý khi người dùng chọn khoản phát sinh thực tế; không tự phát sinh tiền chỉ vì tên cảng, thứ trong tuần hoặc loại container trùng điều kiện. Phụ cấp 50.000đ khác với phí nâng/hạ có hóa đơn. Cách tính theo lượt/chuyến/container/ngày và cộng dồn trong kẹp/kết hợp phải theo định mức được cấu hình rõ; không tự nhân theo số dòng container. Tiền tuyến, soi, kiểm hóa và sửa chữa chưa có giá trong tài liệu phải nhập thực tế hoặc theo định mức đã xác định, không tự đặt giá 0.
+
+### 8.3 Tiêu chí nghiệm thu
+
+| Mã | Tình huống và kết quả cần đạt |
+|---|---|
+| AC-CP-LX-01 | Lái xe mở khai báo chi phí từ chuyến được giao; thông tin lô/xe/tài xế đúng, chọn được chi phí lô hoặc tiền đường; lưu và mở lại được trên điện thoại. |
+| AC-CP-LX-02 | Phí nâng có hóa đơn 500.000đ xuất hiện đúng nhóm chi hộ lô; số hóa đơn đọc được; ghi nhận/đối chiếu không đồng nghĩa đã thu khách hay đã trả lái xe. |
+| AC-CP-LX-03 | Chi công nhân 100.000đ không hóa đơn giữ phiếu thu nếu có, không tạo phải thu khách, được tính vào chi phí xe đúng một lần. |
+| AC-CP-LX-04 | Ước tính cầu đường 100.000đ, thực tế đối chiếu 80.000đ thì tổng giảm 20.000đ, không đổi phụ cấp; điều chỉnh/đảo giữ nguồn và không cộng trùng. Vé cầu đường/sửa đèn/vá lốp được nhập số tiền và chứng từ thực tế; xuất hiện trong tiền đường và khoản thanh toán lái xe, không vào debit khách. |
+| AC-CP-LX-05 | Chọn trả đêm gợi ý 100.000đ, quá tải gợi ý 200.000đ; người dùng biết là mức gợi ý, chưa lưu thì chưa tạo chi phí; kế toán điều chỉnh có lý do. |
+| AC-CP-LX-06 | Thiếu định mức tuyến/soi/kiểm hóa được báo rõ và cho ghi thực tế theo quyền; không hiển thị đã tính đủ bằng 0đ. |
+| AC-CP-LX-07 | Phụ cấp 50.000đ và phí nâng có hóa đơn là hai loại khác nhau; kẹp/kết hợp không tự tạo hai khoản giống nhau vì có hai dòng công việc. |
+| AC-CP-LX-08 | Khoản do công ty trả trực tiếp không đồng thời trở thành tiền phải hoàn cho lái xe; phân biệt người ghi và người thực chi. |
+| AC-CP-LX-09 | Bấm lưu hai lần/thử lại sau mất phản hồi chỉ có một khoản; ảnh lỗi cho bổ sung trên khoản đã có, không phải ghi tiền lại. |
+| AC-CP-LX-10 | Không thêm/sửa tiền ngoài phân công hoặc kỳ khóa; chuyến hủy không tạo khoản mới. Thiếu đối chiếu chi phí không chặn hoàn thành vận chuyển khi đủ điều kiện giao nhận. |
+
+## 9. Điểm Còn Cần Làm Rõ
 
 - Bộ chứng từ bắt buộc phù hợp với công việc LCL, thay cho phiếu hạ container; không áp đặt yêu cầu ảnh container khi không có container.
 - Khi có nhiều người liên hệ hoặc bên xuất hóa đơn hợp lệ, cần thống nhất bên nào được sử dụng cho từng công việc và loại phí.
 
 Các điểm này cần được làm rõ với người phụ trách nghiệp vụ trước khi xác định yêu cầu chi tiết.
+
+### Kết nối và thử lại
+
+Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
+
+- Chi phí trên chuyến đang tồn tại nhưng chưa gắn lô hàng vẫn nhập và xem lại được theo quyền hiện hành. Chỉ liên kết sổ đối chiếu lô khi có lô thật; không tạo lô/chuyến giả và không mất người chi, chứng từ hoặc số tiền đã nhập.

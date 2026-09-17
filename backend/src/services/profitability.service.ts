@@ -109,6 +109,7 @@ export async function captureProfitabilityAttributionSnapshot(
     customerCommission: s.tripsComposite.customerCommission,
     totalCost: s.tripsComposite.totalCost,
     externalFreightCost: s.tripsComposite.externalFreightCost,
+    reconciledExtraCost: s.tripsComposite.reconciledExtraCost,
   }).from(s.tripsComposite)
     .innerJoin(s.customers, eq(s.customers.id, s.tripsComposite.customerId))
     .innerJoin(s.routes, eq(s.routes.id, s.tripsComposite.routeId))
@@ -173,7 +174,7 @@ export async function captureProfitabilityAttributionSnapshot(
   });
   const revenue = recordedTripRevenue(trip);
   const directCost = trip.carrierType === 'EXTERNAL'
-    ? Number(trip.externalFreightCost ?? 0)
+    ? Number(trip.externalFreightCost ?? 0) + Number(trip.reconciledExtraCost ?? 0)
     : Number(trip.totalCost ?? 0);
   const missingCount = dimensions.filter(item => item.attributionStatus === 'MISSING').length;
   const [snapshot] = await tx.insert(s.profitabilitySnapshots).values({

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
+import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -56,9 +56,7 @@ vi.mock('../hooks/useBackShortcut', () => ({
   useBackShortcut: vi.fn(),
 }));
 
-vi.mock('../hooks/useOnline', () => ({
-  useOnline: () => true,
-}));
+
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
@@ -245,7 +243,7 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it.each(['COMPLETED', 'CANCELLED'])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
+  it.each([TripStatus.COMPLETED, TripStatus.CANCELED])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
     });
@@ -256,12 +254,24 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
   });
 
+  it('DRV-FOLLOWUP-004 keeps a cancelled order read-only while retaining document access', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: TripStatus.CANCELED }), isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Tác vụ tài xế');
+    expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hoàn tất lệnh vận chuyển/ })).toBeNull();
+    expect(screen.getByText('Chuyến đã hủy')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toHaveAttribute('href', '/my-trips/88/pod');
+  });
+
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
-  // BOTH cost forms are hidden (kế toán từ từ): "Nhập chi phí lô hàng" and
-  // the fuel-refill "Báo cáo đổ dầu". 27.8's "GIỮ NGUYÊN" covers the fuel
-  // SCREENSHOT upload, not the refill cost form. The e-POD widget is
-  // moved to its own /pod page; here we verify it is NOT in the tree.
-  it('hides both cost forms, removes milestone/income modules', async () => {
+  // Expense entry is now enabled by the customer expense requirements.
+  // Fuel screenshots and the separate e-POD route retain their own roles.
+  it('restores shipment cost entry while keeping the separate fuel form hidden', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -272,8 +282,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
-    // cost form hidden
-    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
     // e-POD widget hidden (moved to /pod)
     expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
     // fuel-refill cost form hidden (Phần 1; GIỮ NGUYÊN is the screenshot upload)
@@ -469,7 +478,7 @@ describe('DriverTripDetailPage', () => {
   // with the factory (short name), then the working facts (container, ports)
   // — the Tuyến address line is demoted below them — and container number +
   // type + seal still share one line.
-  it('renders the bug5 field order: factory, contact, container, seal, ports, then Tuyến (no standalone phone row)', async () => {
+  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
@@ -484,7 +493,6 @@ describe('DriverTripDetailPage', () => {
       'Seal',
       'Cảng nâng',
       'Cảng hạ',
-      'Tuyến',
     ]);
     // BUG 5: the fixture has no short name → the grid falls back to the
     // full factory name.
@@ -499,7 +507,7 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
-    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
     // KP-191: container number paired with type code; seal on own row.
     expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
     expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
@@ -534,12 +542,13 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
-  it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
+  it('renders driver notes separately and identifies absent site rules even when notes exist', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
           ...makeTaskDetail().fulfillment!,
           driverNotes: 'QA e2e: vào kho mang mũ bảo hộ, cân tại cầu 3',
+          siteRules: [],
         },
       }),
       isLoading: false,
@@ -550,7 +559,7 @@ describe('DriverTripDetailPage', () => {
 
     expect(await screen.findByTestId('driver-task-driver-notes')).toBeTruthy();
     expect(screen.getByText(/cân tại cầu 3/)).toBeTruthy();
-    expect(screen.getByText('Mang đầy đủ PPE')).toBeTruthy();
+    expect(screen.getByText('Chưa có quy định tại điểm làm hàng.')).toBeTruthy();
 
     // Note absent + rules absent → the empty state stays truthful.
     useDriverTaskDetailMock.mockReturnValue({
@@ -563,7 +572,7 @@ describe('DriverTripDetailPage', () => {
     });
     unmount();
     renderPage();
-    expect(await screen.findByText(/Chưa có ghi chú cho chuyến này/)).toBeTruthy();
+    expect(await screen.findByText('Chưa có quy định tại điểm làm hàng.')).toBeTruthy();
   });
 
   it('shows the accounting lock and disables field actions', async () => {
@@ -626,9 +635,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('51R-55555')).toBeNull();
   });
 
-  // TC-DA-002 (superseded placement): the factory site street address now
-  // renders in its own "Địa chỉ nhà máy" row; Tuyến carries route text only.
-  it('Tuyến row carries route text only; the factory address renders in its own row', async () => {
+  it('VID-DRV-01 keeps the route once in the header and the factory address in order information', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -647,7 +654,26 @@ describe('DriverTripDetailPage', () => {
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
-    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
+    expect(screen.getAllByText('Cát Lái → Bình Dương')).toHaveLength(1);
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+  });
+
+  it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
+    renderPage();
+    await screen.findByText('Thông tin lệnh');
+
+    const info = document.getElementById('driver-task-info-grid')!;
+    const notes = screen.getByTestId('task-note-section');
+    const invoice = document.getElementById('driver-task-invoice-grid')!;
+    expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    expect(info.hidden).toBe(true);
+    expect(invoice.hidden).toBe(true);
+    expect(notes).toBeVisible();
   });
 
   // _30: the standalone warehouse-phone row is removed at the source — the
@@ -892,14 +918,14 @@ describe('DriverTripDetailPage', () => {
     expect(note.textContent).not.toContain('KIỂM HÓA');
   });
 
-  it('_36: Tác vụ and Ghi chú render as separate labeled lines', async () => {
-    const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
+  it('DRV-R01: uppercase tasks and original multiline notes render as separate labeled lines', async () => {
+    const tags = ['Kiểm hóa', 'Quay đầu'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         knownTagLabels: tags,
         fulfillment: {
           ...makeTaskDetail().fulfillment!,
-          driverNotes: 'KIỂM HÓA; QUAY ĐẦU\nghép cont với lô khác, cẩn thận seal',
+          driverNotes: 'Kiểm hóa; Quay đầu\nGọi chị An trước khi đến\nKiểm tra seal tại kho',
         },
       }),
       isLoading: false,
@@ -911,7 +937,8 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText('Tác vụ')).toBeTruthy();
     expect(screen.getByText('Ghi chú')).toBeTruthy();
     const note = screen.getByTestId('driver-task-driver-notes');
-    expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
+    expect(note.textContent).toContain('Gọi chị An trước khi đến\nKiểm tra seal tại kho');
+    expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(['KIỂM HÓA', 'QUAY ĐẦU']);
   });
 
   // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
@@ -1028,12 +1055,16 @@ describe('busy-trip recovery', () => {
     useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = vi.spyOn(driverClient, 'recordProgress').mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'));
-    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', tripId: 61, fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     await waitFor(() => expect(board).toHaveBeenCalledOnce());
+    // Card 20260916_8: the backend's busy-trip message must reach the driver
+    // through BOTH surfaces — the transient toast (message text as thrown by
+    // the API layer) and the inline banner.
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.stringContaining('Xe đang chạy chuyến TRP-TEST-1') })));
     expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
-    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/99');
+    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
     else {
       expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
       expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('Liên hệ điều vận');

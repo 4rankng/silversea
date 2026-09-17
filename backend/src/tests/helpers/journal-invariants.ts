@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
  * Replaces the former hardcoded `{idx, tag}` arrays: new migrations require
  * zero test edits. What stays protected:
  *   - append-only ordering (contiguous idx from 0, non-decreasing `when`)
- *   - tag shape (NNNN_name) and uniqueness
+ *   - legacy index or timestamp tag shape and uniqueness
  *   - every journal entry has its .sql file on disk
  *   - the genesis entry is the consolidated baseline
  *   - the journal never shrinks below a floor passed by each caller
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const drizzleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../drizzle');
 
 const GENESIS_TAG = '0000_flexible-baseline';
-const TAG_PATTERN = /^\d{4}_\S+$/;
+const TAG_PATTERN = /^(?:\d{4}|\d{14})_\S+$/;
 
 export interface JournalEntry {
   idx: number;
@@ -49,7 +49,7 @@ export async function assertJournalInvariants(journal: Journal, minCount: number
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]!;
     assert.equal(entry.idx, i, `entry ${i} has idx ${entry.idx} — journal indices must be contiguous from 0`);
-    assert.match(entry.tag, TAG_PATTERN, `tag "${entry.tag}" must match NNNN_name`);
+    assert.match(entry.tag, TAG_PATTERN, `tag "${entry.tag}" must use an index or timestamp prefix`);
     assert.ok(!seenTags.has(entry.tag), `duplicate journal tag "${entry.tag}"`);
     seenTags.add(entry.tag);
     if (i > 0) {

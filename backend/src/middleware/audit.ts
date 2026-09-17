@@ -267,5 +267,6 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
     fullPath,
     isLoginPath,
     declaredMaterialWriteEndpoint: declaredMaterialWrite?.endpoint,
+    declaredCanonicalAliases: declaredMaterialWrite?.canonicalAliases,
   }, next);
 }

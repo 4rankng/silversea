@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Truck } from 'lucide-react';
 import './config-page.css';
+import './customer-form.css';
 import { UuiSelectField } from '../../design-system';
 import {
   buildCustomerDebitNoteModeOptions,
@@ -33,8 +34,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="field"><label>{label} {children}</label></div>;
 }
 
-export function CustomerForm({ saving, item, onsave, oncancel }: {
-  saving: boolean; item?: Customer; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+export function CustomerForm({ saving, item, error, onsave, oncancel }: {
+  saving: boolean; item?: Customer; error?: string | null; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
@@ -64,6 +65,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
 
   return (
     <div className="customer-form">
+      <div className="customer-form__body">
       <div className="cfg-form-columns">
         <Field label="Tên khách hàng *">
           <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên…" required />
@@ -73,7 +75,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Tên ngắn">
           <input className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên viết tắt dùng trong vận hành…" />
         </Field>
@@ -82,7 +84,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Người liên hệ">
           <input className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Tên người liên hệ…" />
         </Field>
@@ -91,7 +93,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Kế toán liên hệ">
           <input className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên kế toán…" />
         </Field>
@@ -100,7 +102,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
 
-      <div className="cfg-form-columns">
+      <div className="cfg-form-columns cfg-form-columns--compact">
         <Field label="Hạn mức tín dụng">
           <input className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
         </Field>
@@ -177,7 +179,9 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         ]}
       />
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+      {error && <p className="cfg-form-error" role="alert">{error}</p>}
+      </div>
+      <div className="customer-form__actions">
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>
         <button type="button" className="btn btn--primary" onClick={() => {
           onsave({
@@ -185,15 +189,14 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
             // Sent even when blank: '' is the deliberate "clear" for the
             // operational label (displays fall back to the full name).
             shortName: shortName.trim(),
-            // Empty optionals are OMITTED, not nulled — customerSchema declares
-            // these .optional() (absent ok, null rejected), so a null payload
-            // fails create/update with "Expected string, received null".
-            taxCode: taxCode.trim() || undefined,
-            contactPerson: contactPerson.trim() || undefined,
-            phone: phone.trim() || undefined,
-            contactInfo: contactInfo.trim() || undefined,
-            accountantName: accountantName.trim() || undefined,
-            accountantPhone: accountantPhone.trim() || undefined,
+            // Empty strings deliberately clear existing identity fields.
+            // Omission means "unchanged" on update; null is not accepted.
+            taxCode: taxCode.trim(),
+            contactPerson: contactPerson.trim(),
+            phone: phone.trim(),
+            contactInfo: contactInfo.trim(),
+            accountantName: accountantName.trim(),
+            accountantPhone: accountantPhone.trim(),
             creditLimit: creditLimit ? String(creditLimit) : undefined,
             creditWarningThreshold: fromThresholdPercent(creditWarningThreshold),
             paymentTermDays: paymentTermDays.trim() === '' ? null : Number(paymentTermDays),

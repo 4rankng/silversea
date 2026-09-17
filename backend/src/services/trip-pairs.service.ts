@@ -22,6 +22,8 @@ import {
 import type { Tx } from './trip-shared';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-settings.service';
+import { lockTripFinancialAuthority, TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE } from './trip-financial-authority-lock.service';
+import { refreshExpenseTripCosts } from './expense-trip-cost.service';
 
 interface TripRowForPairing {
   id: number;
@@ -49,6 +51,7 @@ interface TripRowForPairing {
   tollPerStationApplied: string | null;
   tollDeduction: string | null;
   tollCost: string | null;
+  reconciledTollCost: string | null;
   routeDistanceKm?: number | null;
 }
 
@@ -93,7 +96,7 @@ function backhaulTollDeductionForSecond(trip: TripRowForPairing): {
 } {
   const grossToll = (trip.tollsStations ?? 0) * Number(trip.tollPerStationApplied ?? 0);
   const previousNetToll = Number(trip.tollCost ?? 0);
-  const newNetToll = Math.max(0, grossToll - grossToll);
+  const newNetToll = trip.reconciledTollCost == null ? 0 : Number(trip.reconciledTollCost);
   return {
     tollDeduction: String(grossToll),
     tollCost: String(newNetToll),
@@ -304,6 +307,7 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     tollPerStationApplied: s.tripFinancialState.tollPerStationApplied,
     tollDeduction: s.tripFinancialState.tollDeduction,
     tollCost: s.tripFinancialState.tollCost,
+    reconciledTollCost: s.tripFinancialState.reconciledTollCost,
   }).from(s.trips)
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
@@ -421,6 +425,7 @@ export async function createTripPair(
   transaction?: Tx,
 ): Promise<TripPairRecord> {
   const execute = async (tx: Tx) => {
+    await lockTripFinancialAuthority(tx, [input.firstTripId, input.secondTripId]);
     const tripReferences = await tx.select({ shipmentId: s.trips.shipmentId })
       .from(s.trips)
       .where(and(inArray(s.trips.id, [input.firstTripId, input.secondTripId]), isNull(s.trips.deletedAt)));
@@ -590,6 +595,7 @@ export async function createTripPair(
         updatedAt: new Date(),
       }).where(eq(s.tripPairs.id, pair.id));
     }
+    await refreshExpenseTripCosts(tx, input.firstTripId);
 
     // Non-blocking advisories. KEP on different routes is allowed by spec —
     // the warning makes the dispatcher's explicit decision visible.
@@ -625,6 +631,13 @@ async function breakPersistedTripPair(tx: Tx, args: {
   secondTripId: number;
   secondSalaryStash: number | null;
 }) {
+  // The status transition already holds trip rows. Never wait for a financial
+  // authority held by a command waiting on those rows; report a retryable
+  // conflict and roll back the transition instead of creating a deadlock.
+  for (const tripId of [args.firstTripId, args.secondTripId].sort((a, b) => a - b)) {
+    const [lock] = await tx.execute<{ acquired: boolean }>(sql`SELECT pg_try_advisory_xact_lock(${TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE}, ${tripId}) AS acquired`);
+    if (!lock.acquired) throw new ApiError(409, 'Chi phí chuyến đang thay đổi. Vui lòng tải lại và thử lại thao tác tách cặp.');
+  }
   await tx.update(s.tripPairs).set({
     status: 'BROKEN',
     breakReason: args.breakReason,
@@ -649,12 +662,13 @@ async function breakPersistedTripPair(tx: Tx, args: {
       tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
       tollDeduction: s.tripsComposite.tollDeduction,
       tollCost: s.tripsComposite.tollCost,
+      reconciledTollCost: s.tripsComposite.reconciledTollCost,
       totalCost: s.tripsComposite.totalCost,
       revenue: s.tripsComposite.revenue,
       grossProfit: s.tripsComposite.grossProfit,
     }).from(s.tripsComposite).where(eq(s.tripsComposite.id, args.survivingTripId)).limit(1);
     if (survivor && Number(survivor.tollDeduction ?? 0) > 0) {
-      const grossToll = (survivor.tollsStations ?? 0) * Number(survivor.tollPerStationApplied ?? 0);
+      const grossToll = survivor.reconciledTollCost == null ? (survivor.tollsStations ?? 0) * Number(survivor.tollPerStationApplied ?? 0) : Number(survivor.reconciledTollCost);
       const previousNetToll = Number(survivor.tollCost ?? 0);
       const restoredCostDelta = grossToll - previousNetToll;
       const restoredTotalCost = Math.max(0, Number(survivor.totalCost ?? 0) + restoredCostDelta);
@@ -707,6 +721,9 @@ async function breakPersistedTripPair(tx: Tx, args: {
       });
     }
   }
+  // The receipt stays owned by its original native claim; only the derived
+  // distribution changes when work ceases to share a trip pair.
+  for (const tripId of [args.firstTripId, args.secondTripId].sort((a, b) => a - b)) await refreshExpenseTripCosts(tx, tripId);
 }
 
 export async function applyTripPairLifecycleEffects(

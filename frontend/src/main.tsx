@@ -10,6 +10,8 @@ import { retireOfflineStorage } from './lib/retire-offline-storage';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      networkMode: 'always',
+      refetchOnReconnect: true,
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 5 * 60 * 1000, // 5 minutes default staleTime

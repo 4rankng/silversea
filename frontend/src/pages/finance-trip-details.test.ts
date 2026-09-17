@@ -38,6 +38,13 @@ describe('finance trip detail', () => {
     expect(detail.costDifference).toBe(0);
   });
 
+  it('counts separately reconciled extras exactly once in visible cost reconstruction', () => {
+    const detail = toFinanceTripDetail(trip({ reconciledExtraCost: '150000', totalCost: '5450000' }));
+    expect(detail.reconciledExtraCost).toBe(150000);
+    expect(detail.costDifference).toBe(0);
+    expect(detail.costMatches).toBe(true);
+  });
+
   it('flags a stored total that does not match its visible inputs', () => {
     const detail = toFinanceTripDetail(trip({ totalCost: '5400000' }));
 

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, X } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { api } from '../../lib/api';
 import { CONFIG } from '@tingting/shared';
 import { qk } from '../../api/keys';
@@ -53,7 +54,10 @@ export function BaseSalaryEditModal({
       // Default to the first day of next month.
       const now = new Date();
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      setEffectiveDate(nextMonth.toISOString().slice(0, 10));
+      // Local-midnight ISO conversion would slip a day in timezones ahead of
+      // UTC (2026-10-01 local +07 -> 2026-09-30Z), so build the ISO date
+      // from the calendar fields directly.
+      setEffectiveDate(`${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`);
     }
   }, [isOpen, currentBaseSalary]);
 
@@ -145,10 +149,9 @@ export function BaseSalaryEditModal({
         />
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-body-size)' }}>
           Ngày hiệu lực
-          <input
-            type="date"
+          <DateInput
             value={effectiveDate}
-            onChange={(e) => setEffectiveDate(e.target.value)}
+            onChange={setEffectiveDate}
             className="input"
             aria-label="Ngày hiệu lực"
           />

@@ -38,7 +38,12 @@ describe("TruckFormModal desktop density", () => {
     expect(styles).toContain("--fleet-form-row-gap: 24px");
     expect(styles).toContain("min-height: var(--control-compact-h)");
     expect(styles).toContain("font-size: var(--text-control-compact-size)");
-    expect(operationalStyles).toContain("calc(var(--control-compact-h) - 2px)");
+    // The shared UUI boundary owns compact and coarse-pointer heights.
+    // An operational override must not shrink the touch target again.
+    const geometry = readFileSync(resolve(process.cwd(), "src/components/untitled-ui/base/control-geometry.css"), "utf8");
+    expect(geometry).toContain("--uui-control-h: var(--control-compact-h)");
+    expect(geometry).toMatch(/@media \(pointer: coarse\)[\s\S]*--uui-control-h:\s*var\(--control-touch-h\)/);
+    expect(operationalStyles).not.toContain("calc(var(--control-compact-h) - 2px)");
     expect(operationalStyles).toContain(
       ".ds-uui-select--operational .ds-uui-select__control > button > span p",
     );

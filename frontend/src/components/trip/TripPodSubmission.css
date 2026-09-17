@@ -108,6 +108,7 @@
      card itself refuses to shrink below its content and bleeds into the
      neighboring column. */
   min-width: 0;
+  align-content: start;
   gap: 12px;
 }
 
@@ -185,6 +186,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-self: start;
 }
 
 .trip-pod__action,
@@ -194,9 +196,9 @@
   justify-content: center;
   gap: 8px;
   /* AC-NFR-003: e-POD Chụp / Tải tệp / HOÀN THÀNH CHUYẾN ≥48px touch target. */
-  min-height: 48px;
+  min-height: 44px;
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
   font-size: var(--text-control-size);
   font-weight: 700;
@@ -209,7 +211,7 @@
 @media (max-width: 640px) {
   #root .trip-pod__action,
   #root .trip-pod__submit {
-    min-height: 48px;
+    min-height: 44px;
   }
 }
 
@@ -384,6 +386,18 @@
        sit empty and starve the two real cards of width. minmax(0,1fr) keeps
        the tracks content-independent so wide children can't inflate them. */
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 8px;
+    align-content: start;
+  }
+  .trip-pod__card {
+    /* Both groups share content-sized header, action and file tracks.
+       A wrapped heading grows the shared header, never the button row. */
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    align-items: start;
+  }
+  .trip-pod__grid[data-editable="false"] .trip-pod__card {
+    grid-row: span 2;
   }
   /* Side-by-side groups separate with a column hairline (the SummaryRail
      ruled-divider convention) instead of the mobile border-top divider.
@@ -407,12 +421,27 @@
   }
 
   .trip-pod__actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .trip-pod__file-time {
     white-space: normal;
   }
+}
+
+.trip-pod__head { flex-wrap: wrap; }
+.trip-pod__card { gap: 8px; }
+.trip-pod__card-head > div:first-child { min-width: 0; }
+.trip-pod__card-title { font-size: var(--text-body-size); gap: 4px; }
+.trip-pod__card-help { margin-top: 4px; font-size: var(--text-data-size); }
+.trip-pod__required { min-height: 20px; padding-inline: 6px; }
+.trip-pod__subtitle { margin-top: 4px; font-size: var(--text-caption-size); }
+.trip-pod__file-download { min-width: 0; min-height: 44px; max-width: 100%; padding: 4px 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.trip-pod__file-download svg { flex: 0 0 15px; }
+.trip-pod__file-download .trip-pod__file-name { text-decoration: underline; text-underline-offset: 3px; }
+.trip-pod__file-download:disabled { cursor: wait; opacity: .7; }
+@media (max-width: 420px) {
+  .trip-pod__head, .trip-pod__card-head { display: flex; }
 }
 
 /* Ticket 36d0183d: uploaded e-POD images render as tappable thumbnails
@@ -432,5 +461,5 @@
   display: block;
   width: 72px;
   height: 72px;
-  object-fit: cover;
+  object-fit: contain;
 }

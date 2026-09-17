@@ -75,6 +75,9 @@ describe('driverClient fulfillment contract', () => {
     expect(result.id).toBe(55);
     expect(result.fulfillment?.id).toBe(88);
     expect(result.fulfillment?.siteRules).toEqual(['Gọi trước khi vào kho']);
+    // VID-DRV-05: departureDate has no time and cannot become a made-up
+    // 07:00 appointment through JavaScript's date-only UTC parsing.
+    expect(result.fulfillment?.plannedAt).toBeNull();
     expect(result.currentPod).toMatchObject({ id: 22, tripId: 55, fulfillmentId: 88 });
     // Legacy nullable child arrays are normalized before any driver screen reads them.
     const legacyWire = await getMock.mock.results[0]!.value;
@@ -82,6 +85,9 @@ describe('driverClient fulfillment contract', () => {
     const legacyResult = await driverClient.getTaskDetail(88);
     expect(legacyResult.containers).toEqual([]);
     expect(legacyResult.legs).toEqual([]);
+    const plannedStartAt = '2026-09-15T08:17:00.000Z';
+    getMock.mockResolvedValueOnce({ ...legacyWire, trip: { ...legacyWire.trip, plannedStartAt } });
+    expect((await driverClient.getTaskDetail(88)).fulfillment?.plannedAt).toBe(plannedStartAt);
   });
 
   it('maps the wire-level tradeDirection onto the task detail (A6 IMPORT cross-check input)', async () => {

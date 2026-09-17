@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { composeNote, parseNote, normalizeNote } from '../../../lib/dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
+import { DispatchDriverNote } from './DispatchDriverNote';
 import { DispatchTaskTagManagerPopover } from './DispatchTaskTagManagerPopover';
 
 /** Quick-select tag composer for the dispatch edit modal's driver note
@@ -76,11 +77,16 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
       const status = (submitError as { status?: number }).status;
       if (status === 409) {
         // The pool already holds this label in some casing — select it and
-        // continue instead of blocking the dispatcher.
+        // continue instead of blocking the dispatcher. Re-adding a tag that
+        // is ALREADY selected must not write a second copy into the note
+        // (that rendered duplicated Tác vụ chips on the driver app); it still
+        // closes the input with the same "đã chọn tag có sẵn" feedback.
         const normalized = label.normalize('NFC').toLowerCase().trim();
         const existing = labels.find((item) => item.normalize('NFC').toLowerCase().trim() === normalized);
         if (existing) {
-          onChange(composeNote([...selectedLabels, existing], manualText));
+          if (!selectedLabels.includes(existing)) {
+            onChange(composeNote([...selectedLabels, existing], manualText));
+          }
           setNewLabel('');
           setIsAdding(false);
           setAddNotice('Tag đã tồn tại — đã chọn tag có sẵn.');
@@ -183,7 +189,9 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
               />
             </div>
             {value !== null && value !== '' && (
-              <p className="dispatch-assignment-dialog__notes-preview">Hiển thị: {value}</p>
+              <div className="dispatch-assignment-dialog__notes-preview" aria-label="Xem trước ghi chú lái xe">
+                <DispatchDriverNote value={value} labels={labels} />
+              </div>
             )}
           </>
         )}

@@ -73,6 +73,83 @@ describe('API session expiry', () => {
   });
 });
 
+describe('cross-tab API session isolation', () => {
+  it('does not clear another tab’s newer token before the storage event arrives', async () => {
+    api.setToken('tab-A-token');
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>((resolve) => { resolveResponse = resolve; })));
+    const pending = api.get('/shipments');
+    // Deliberately bypass api.setToken: another tab changes storage while
+    // this JavaScript context still has A in its cached token.
+    localStorage.setItem('token', 'tab-B-token');
+    resolveResponse(new Response(JSON.stringify({ error: 'A revoked' }), { status: 401 }));
+    try {
+      await expect(pending).rejects.toBeInstanceOf(ApiError);
+      expect(localStorage.getItem('token')).toBe('tab-B-token');
+      expect(getToken()).toBe('tab-B-token');
+      expect(listener).not.toHaveBeenCalled();
+    } finally { unsubscribe(); api.clearToken(); }
+  });
+});
+
+describe('cross-tab API actor caches and retries', () => {
+  afterEach(() => { api.clearToken(); vi.restoreAllMocks(); });
+
+  it('changes cache ownership before a queued storage event can clear the prior actor state', async () => {
+    api.setToken('A');
+    let resolve!: (r: Response) => void;
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockImplementationOnce(() => new Promise<Response>((r) => { resolve = r; }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.post('/trucks', { plate: 'QA' })).rejects.toMatchObject({ status: 503 });
+    const lateRead = api.get('/trucks/42');
+    localStorage.setItem('token', 'B');
+    resolve(new Response('{}', { status: 200 }));
+    await lateRead;
+    await api.post('/trucks', { plate: 'QA' });
+    const first = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    const next = fetchMock.mock.calls[2][1].headers as Record<string, string>;
+    expect(next.Authorization).toBe('Bearer B');
+    expect(next['Idempotency-Key']).not.toBe(first['Idempotency-Key']);
+  });
+
+  it('does not repopulate version hints from a late response for another actor', async () => {
+    api.setToken('A');
+    let resolve!: (r: Response) => void;
+    const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>((r) => { resolve = r; }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const oldRead = api.get('/trucks/42');
+    api.setToken('B');
+    resolve(new Response(JSON.stringify({ id: 42, updatedAt: '2026-09-15T01:00:00Z' }), { status: 200 }));
+    await oldRead;
+    await api.put('/trucks/42', { name: 'B edit' });
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>)['If-Unmodified-Since']).toBeUndefined();
+  });
+
+  it.each(['before fetch', 'during fetch'])('does not replay A mutation under B when identity changes %s', async (phase) => {
+    api.setToken('A');
+    let resolve!: (r: Response) => void;
+    const deferred = new Promise<Response>((r) => { resolve = r; });
+    const missing = () => new Response(JSON.stringify({ code: 'VERSION_TOKEN_REQUIRED' }), { status: 428 });
+    const fetchMock = phase === 'before fetch'
+      ? vi.fn().mockReturnValueOnce(deferred).mockResolvedValue(new Response(JSON.stringify({ updatedAt: '2026-09-15T01:00:00Z' }), { status: 200 }))
+      : vi.fn().mockResolvedValueOnce(missing()).mockReturnValueOnce(deferred).mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const pending = api.put('/trucks/42', { name: 'A edit' });
+    const outcome = expect(pending).rejects.toMatchObject({ status: 428 });
+    if (phase === 'during fetch') await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    localStorage.setItem('token', 'B');
+    resolve(phase === 'before fetch' ? missing() : new Response(JSON.stringify({ updatedAt: '2026-09-15T01:00:00Z' }), { status: 200 }));
+    await outcome;
+    expect(fetchMock).toHaveBeenCalledTimes(phase === 'before fetch' ? 1 : 2);
+    expect(localStorage.getItem('token')).toBe('B');
+  });
+});
+
 describe('API mutation transaction keys', () => {
   beforeEach(() => {
     api.clearToken();

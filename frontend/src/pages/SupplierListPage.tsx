@@ -118,10 +118,10 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       }
     >
       <div className="flex flex-col gap-4">
-        <EntityFormSection icon={Building2} label="Thông tin nhà xe">
+        <EntityFormSection icon={Building2} label="Thông tin nhà cung cấp">
           <Input
             size="sm"
-            label="Tên nhà xe"
+            label="Tên nhà cung cấp"
             isRequired
             icon={Building2}
             value={name}
@@ -455,7 +455,7 @@ export default function SupplierListPage() {
             </colgroup>
             <thead>
               <tr>
-                <SortHeader label="Tên nhà xe" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Tên nhà cung cấp" sortKey="name" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Mã NCC" sortKey="shortName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} />
@@ -490,7 +490,7 @@ export default function SupplierListPage() {
                     onClick={() => navigate(`/suppliers/${s.id}`)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
                   >
-                    <td className="suppliers-page__cell suppliers-page__cell--name" data-label="Tên nhà xe" style={{ position: 'relative' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--name" data-label="Tên nhà cung cấp" style={{ position: 'relative' }}>
                       <StatusStrip status={s.status} />
                       <span style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                         {s.name}

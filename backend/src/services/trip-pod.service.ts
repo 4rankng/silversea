@@ -268,8 +268,14 @@ export async function loadOwnedFulfillmentTrip(
   executor: Tx | typeof db,
   fulfillmentId: number,
   driverId: number,
-  options: { forUpdate?: boolean } = {},
+  options: { forUpdate?: boolean; includeCanceled?: boolean; canceledConflict?: string } = {},
 ): Promise<OwnedFulfillmentTrip> {
+  // Driver-visible reads must include the driver's OWN canceled fulfillments
+  // (20260916_7: the canceled-trip banner and read-only document views died
+  // in a 404 because this scope excluded them). Mutations pass
+  // canceledConflict so a canceled row yields one coherent 409 instead of a
+  // stray 404/400 depending on which guard ran first.
+  const includeCanceled = options.includeCanceled || Boolean(options.canceledConflict);
   const query = executor.select({
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
@@ -279,16 +285,17 @@ export async function loadOwnedFulfillmentTrip(
     paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
     fulfillmentId: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
+    fulfillmentCanceledAt: s.shipmentFulfillments.canceledAt,
     driverId: s.trips.driverId,
   }).from(s.shipmentFulfillments)
     .innerJoin(s.trips, and(
       eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-      ne(s.trips.status, 'CANCELED'),
+      ...(includeCanceled ? [] : [ne(s.trips.status, 'CANCELED')]),
       isNull(s.trips.deletedAt),
     ))
     .where(and(
       eq(s.shipmentFulfillments.id, fulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
+      ...(includeCanceled ? [] : [isNull(s.shipmentFulfillments.canceledAt)]),
       eq(s.trips.driverId, driverId),
     ))
     .limit(1);
@@ -297,6 +304,9 @@ export async function loadOwnedFulfillmentTrip(
   const row = rows[0];
   if (!row) {
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
+  }
+  if (options.canceledConflict && (row.fulfillmentCanceledAt !== null || row.tripStatus === 'CANCELED')) {
+    throw new ApiError(409, options.canceledConflict);
   }
   return {
     ...row,
@@ -498,7 +508,7 @@ export async function listPodSubmissionsForDriver(
   driverId: number,
   fulfillmentId: number,
 ): Promise<DriverPodSubmissionView[]> {
-  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId, { includeCanceled: true });
   return db.transaction(async (tx) => {
     const rows = await tx.select({
       id: s.tripPodSubmissions.id,
@@ -537,7 +547,7 @@ export async function createPodSubmission(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 201,
     create: async (tx) => {
-      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       if (ownedTrip.tripVersion !== args.expectedVersion) {
@@ -613,7 +623,7 @@ export async function attachPodFile(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 200,
     create: async (tx) => {
-      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       const submission = await loadSubmissionTx(tx, {
@@ -729,7 +739,7 @@ export async function submitPod(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 200,
     create: async (tx) => {
-      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       const submission = await loadSubmissionTx(tx, {
@@ -791,7 +801,7 @@ export async function getDriverPodFileForDownload(args: {
   assertPositiveInteger(args.fileId, 'Tệp e-POD');
 
   return db.transaction(async (tx) => {
-    const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: false });
+    const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: false, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
     const [fileRow] = await tx.select({
       id: s.tripPodFiles.id,
       storageKey: s.tripPodFiles.storageKey,

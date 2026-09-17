@@ -13,6 +13,8 @@ export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes
   prefix?: ReactNode;
   suffix?: ReactNode;
   className?: string;
+  /** Compact operational geometry; coarse pointers retain the shared touch floor. */
+  controlSize?: 'sm' | 'md';
 }
 
 export function TextField({
@@ -23,13 +25,14 @@ export function TextField({
   prefix,
   suffix,
   className,
+  controlSize = 'md',
   ...input
 }: TextFieldProps) {
   const generatedId = useId();
   const id = input.id ?? generatedId;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [input['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
-  const cls = ['ds-field', error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
+  const cls = ['ds-field', `ds-field--${controlSize}`, error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
     <div className={cls}>
@@ -40,11 +43,11 @@ export function TextField({
       {prefix || suffix ? (
         <div className="ds-field__input-group">
           {prefix && <span className="ds-field__affix">{prefix}</span>}
-          <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
+          <input {...input} id={id} required={required} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
           {suffix && <span className="ds-field__affix">{suffix}</span>}
         </div>
       ) : (
-        <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
+        <input {...input} id={id} required={required} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
       )}
       {error ? (
         <span id={errorId} className="ds-field__msg ds-field__msg--error">{error}</span>

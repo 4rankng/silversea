@@ -33,7 +33,12 @@ export function FormActions({ saving, isedit, onsave, oncancel, ondelete, deleti
         <button type="button" className="btn btn--secondary btn--sm" disabled={saving || deleting} onClick={oncancel}>
           <X size={12} /> Hủy
         </button>
-        <button type="button" className="btn btn--primary btn--sm" disabled={saving || deleting} onClick={onsave}>
+        <button type="button" className="btn btn--primary btn--sm" disabled={saving || deleting} onClick={(event) => {
+          const form = event.currentTarget.closest('[data-config-form], form');
+          const invalid = form?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input:invalid, select:invalid, textarea:invalid');
+          if (invalid) { invalid.focus(); invalid.reportValidity(); return; }
+          onsave();
+        }}>
           {saving ? <Loader2 size={12} className="spin" /> : <Save size={12} />}
           {isedit ? 'Cập nhật' : 'Thêm'}
         </button>

@@ -116,7 +116,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const row = await getDebitNoteTemplateById(id);
-  if (!row) return res.status(404).json({ error: 'Không tìm thấy' });
+  if (!row) throw new ApiError(404, 'Không tìm thấy');
   res.json(row);
 }));
 
@@ -146,7 +146,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
 // PUT /:id — update (full form; transactional single-default enforcement)
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
+  if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = debitNoteTemplateSchema.parse(req.body);
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật mẫu giấy báo nợ.');
   const expectedUpdatedAt = requireExpectedUpdatedAt(

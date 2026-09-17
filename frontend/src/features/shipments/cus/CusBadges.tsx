@@ -36,7 +36,7 @@ export function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }
         {confirmationIsCurrent
           ? <CircleCheck size={16} aria-hidden="true" />
           : <AlertTriangle size={16} aria-hidden="true" />}
-        <span><small>Kế toán xác nhận</small><strong>{accountingConfirmationLabel(item.accountingConfirmation)}</strong></span>
+        <span><small>Đối soát tài chính</small><strong>{accountingConfirmationLabel(item.accountingConfirmation)}</strong></span>
       </div>
     </div>
   );

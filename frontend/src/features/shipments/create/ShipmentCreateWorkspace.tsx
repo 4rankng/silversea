@@ -34,6 +34,7 @@ import {
   type ShipmentCreateFormState,
   type ShipmentCreateIssue,
 } from './shipment-create-model';
+import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
@@ -68,6 +69,10 @@ function formatContainerAppointment(value: string) {
   return formatDateTime24(value) || value;
 }
 
+function hasDateDraft(scope: ParentNode | null | undefined, invalidOnly = false) {
+  return Array.from(scope?.querySelectorAll<HTMLInputElement>('[data-date-input], [data-split-datetime] input:not([type="hidden"])') ?? []).some((input) => input.value.trim() !== '' && (!invalidOnly || !input.validity.valid));
+}
+
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
@@ -76,6 +81,7 @@ export function ShipmentCreateWorkspace() {
   // Customer-facing note — kept separate from `form.operationalNotes` per the
   // two-note model. `ShipmentCreateFormState` (owned by shipment-create-model)
   // has not been widened yet, so this lives as its own state slice here.
+  const workspaceFormRef = useRef<HTMLFormElement>(null);
   const [customerNotes, setCustomerNotes] = useState('');
   const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
   const [loading, setLoading] = useState(true);
@@ -223,6 +229,7 @@ export function ShipmentCreateWorkspace() {
     const hasFormData = Object.entries(form).some(([key, value]) => (
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
+        : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : Array.isArray(value) ? value.length > 0
         : value !== ''
     ));
@@ -470,8 +477,8 @@ export function ShipmentCreateWorkspace() {
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm || form.extraDeliveryDates.some(Boolean))
-      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
+      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.extraDeliveryDates.some(Boolean)) || hasDateDraft(workspaceFormRef.current, true)
+      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
       return;
@@ -493,7 +500,6 @@ export function ShipmentCreateWorkspace() {
       extraDeliveryDates: [],
     }));
     setContainers([newContainer()]);
-    setCustomerNotes('');
     clearFeedback();
   }
 
@@ -502,8 +508,8 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
-  function removeContainer(row: ContainerRow) {
-    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '');
+  function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
+    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
       setPendingContainerDelete(row);
       return;
@@ -528,20 +534,11 @@ export function ShipmentCreateWorkspace() {
     if (row) discardContainer(row);
   }
 
-  function focusIssue(fieldId: string) {
-    const field = document.querySelector(`[data-field-id="${fieldId}"]`);
-    if (!(field instanceof HTMLElement)) return;
-    const reduceMotion = typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    field.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-    const control = field.matches('button, input, select, textarea, [tabindex]')
-      ? field
-      : field.querySelector('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-    if (control instanceof HTMLElement) control.focus({ preventScroll: true });
-  }
 
   function goBack() {
-    if (isDirty) {
+    // Date controls keep incomplete/invalid text locally until it can become
+    // a model value. That visible draft still belongs to the user on cancel.
+    if (isDirty || hasDateDraft(workspaceFormRef.current)) {
       setBackConfirmOpen(true);
       return;
     }
@@ -554,6 +551,8 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
+    if (incomplete) { incomplete.focus(); incomplete.reportValidity(); return; }
     const result = await runSave(intent);
     if (result.issues.length > 0) {
       window.requestAnimationFrame(() => focusIssue(result.issues[0].fieldId));
@@ -574,20 +573,8 @@ export function ShipmentCreateWorkspace() {
        * inline in the breadcrumb area instead — keeps a11y (text is
        * reachable) and removes the layout-side effect. */}
       <h1 className="csc-page__title">Tạo lô hàng</h1>
-      <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
+      <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
-        {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1) — fixed at the very top of
-            the intake form, visible without scrolling. Toggling never clears
-            typed data; it only switches validation + field locking. */}
-        <label className="csc-adhoc-toggle" data-field-id="shipment-is-adhoc">
-          <input
-            type="checkbox"
-            checked={form.isAdHoc}
-            onChange={(event) => update('isAdHoc', event.target.checked)}
-            disabled={Boolean(saving)}
-          />
-          <span>Lệnh chạy ngoài (Tối ưu xe rỗng)</span>
-        </label>
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
@@ -640,7 +627,7 @@ export function ShipmentCreateWorkspace() {
             )}
 
             {/* SỐ TỜ KHAI */}
-            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
+            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={50} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
 
           </div>
         </ShipmentCreateSection>
@@ -913,22 +900,24 @@ export function ShipmentCreateWorkspace() {
                     label="Trọng lượng (kg)"
                     value={formatContainerWeight(row.cargoWeightKg)}
                     placeholder="Nhập kg"
-                    className="csc-container-cell--numeric"
+                    className="csc-container-cell--numeric csc-container-cell--weight"
                     onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
                   >
                     <TextField label="Trọng lượng (kg)" hideLabel type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Ngày giờ đóng trả"
+                    alwaysVisible
+                    className="csc-container-cell--appointment"
                     value={formatContainerAppointment(row.customerAppointmentAt)}
                     placeholder="Chọn ngày giờ"
                     fieldId={`container-${row.key}-customer-appointment`}
                     error={issueByField.get(`container-${row.key}-customer-appointment`)}
                     onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
                   >
-                    <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel required value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
+                    <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
                   </ShipmentContainerCell>
-                  <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>
+                  <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>
               );})}</>}
             />

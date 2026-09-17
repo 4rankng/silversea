@@ -10,6 +10,8 @@ function position(overrides: Partial<TreasuryPosition> & Pick<TreasuryPosition, 
   return {
     code: `ACC-${overrides.accountId}`,
     type: 'BANK',
+    fundCode: null,
+    version: 1,
     currency: 'VND',
     openingBalance: 0,
     totalIn: 0,

@@ -4,7 +4,7 @@
  *
  * 3a0bd5af: the card carries the trip's LAST-leg loadingType (ĐÓNG/TRẢ —
  * destination semantics, same rule the billing draft applies) and the
- * factory site address for the Tuyến line, alongside the existing fields.
+ * factory site address separately from the configured route name.
  */
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -34,15 +34,17 @@ export interface DriverJourneyCard {
    */
   pairLocked: boolean;
   scheduledAt: string | null;
+  /** Optional during rollout; completion time for the selected history month. */
+  historyAt?: string | null;
   factoryName: string | null;
   factoryShortName: string | null;
-  /** 3a0bd5af: factory site street address — Tuyến line prefers it. */
+  /** 3a0bd5af: factory site street address, kept for detail; the card uses routeName. */
   factoryAddress: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
-  /** Stage-2 empty-container return depot — distinct from the delivery point;
-   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  /** Canonical container dropoff port for IMPORT, including same-place delivery;
+   *  for other directions only a distinct return stage is exposed. */
   returnDepotName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;

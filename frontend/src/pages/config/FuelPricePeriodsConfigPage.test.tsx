@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -41,10 +41,9 @@ function renderForm(props: Record<string, unknown> = {}) {
 const SAVE = 'Thêm';
 
 function fillFuelForm(host: HTMLElement, date: string, price: string, note: string) {
-  fireEvent.change(host.querySelector('input[type="date"]') as HTMLInputElement, { target: { value: date } });
-  fireEvent.change(host.querySelector('input[type="number"]') as HTMLInputElement, { target: { value: price } });
-  const inputs = host.querySelectorAll('input');
-  fireEvent.change(inputs[2], { target: { value: note } });
+  fireEvent.change(within(host).getByLabelText('Ngày hiệu lực'), { target: { value: date } });
+  fireEvent.change(within(host).getByLabelText('Giá dầu DO mới (đ/lít)'), { target: { value: price } });
+  fireEvent.change(within(host).getByLabelText('Ghi chú (tùy chọn)'), { target: { value: note } });
 }
 
 describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
@@ -71,7 +70,7 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     const onSave = vi.fn();
     const host = renderForm({ onSave });
 
-    fillFuelForm(host.container as HTMLElement, '2026-09-10', '21740', 'Petrolimex 18/7');
+    fillFuelForm(host.container as HTMLElement, '10/09/2026', '21740', 'Petrolimex 18/7');
     fireEvent.click(screen.getByText(SAVE));
 
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -82,4 +81,3 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     });
   });
 });
-

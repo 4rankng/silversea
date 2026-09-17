@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DetailedPlanFilters } from './DetailedPlanFilters';
@@ -43,6 +43,24 @@ async function pickCheckbox(label: string, facetName: string) {
 }
 
 describe('DetailedPlanFilters', () => {
+  it('keeps the latest facet suggestions when an earlier search resolves later (DSP-FU-005)', async () => {
+    let resolveEarlier!: (items: Array<{ id: number; name: string }>) => void;
+    const loadDeliveryPointFacets = vi.fn((query?: string) => query === 'Mỹ'
+      ? new Promise<Array<{ id: number; name: string }>>((resolve) => { resolveEarlier = resolve; })
+      : Promise.resolve(query === 'Mỹ Đình' ? [{ id: 9, name: 'ICD Mỹ Đình' }] : []));
+    render(<DetailedPlanFilters filters={EMPTY_DETAILED_PLAN_FILTERS} onChange={vi.fn()}
+      loadDeliveryPointFacets={loadDeliveryPointFacets}
+      loadPickupPortFacets={vi.fn().mockResolvedValue([])} loadDropoffPortFacets={vi.fn().mockResolvedValue([])} zones={TEST_ZONES} />);
+    openFilterDrawer();
+    openFacet('điểm trả');
+    const search = within(getPicker('điểm trả')).getByLabelText(/Tìm điểm trả/);
+    fireEvent.change(search, { target: { value: 'Mỹ' } });
+    await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'));
+    fireEvent.change(search, { target: { value: 'Mỹ Đình' } });
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument());
+    await act(async () => resolveEarlier([{ id: 8, name: 'Mỹ Tho' }]));
+    expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument();
+  });
   it('provides visible labels and forwards dispatch-specific filter changes', async () => {
     const onChange = vi.fn();
     const { container } = render(
@@ -76,7 +94,8 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ date: '' });
 
     const drawer = openFilterDrawer();
-    expect(document.querySelectorAll('[data-input-wrapper]')).toHaveLength(4);
+    expect(within(drawer).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
+    expect(within(drawer).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
 
     expect(screen.getByText('Tìm nhanh')).toBeTruthy();
     expect(screen.getAllByText('Ngày vận chuyển')).toHaveLength(1);
@@ -102,10 +121,13 @@ describe('DetailedPlanFilters', () => {
 
     const hourFrom = screen.getByLabelText('Giờ từ');
     const hourTo = screen.getByLabelText('Giờ đến');
-    expect(hourFrom.getAttribute('type')).toBe('time');
-    expect(hourTo.getAttribute('type')).toBe('time');
+    expect(hourFrom).toHaveAttribute('type', 'text');
+    expect(hourFrom).toHaveAttribute('placeholder', 'HH:mm');
+    expect(hourTo).toHaveAttribute('type', 'text');
     fireEvent.change(hourFrom, { target: { value: '07:30' } });
+    fireEvent.blur(hourFrom);
     fireEvent.change(hourTo, { target: { value: '09:45' } });
+    fireEvent.blur(hourTo);
     expect(onChange).toHaveBeenCalledWith({ hourFrom: '07:30' });
     expect(onChange).toHaveBeenCalledWith({ hourTo: '09:45' });
 
@@ -152,7 +174,7 @@ describe('DetailedPlanFilters', () => {
     // Multi-select popover must stay open after a click — selections live inside.
     expect(getPopover('điểm trả')).toBeTruthy();
     // Click outside the popover to close.
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
   });
 
@@ -270,7 +292,7 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ date: '' });
   });
 
-  it('keeps the Xóa lọc button always visible and disables it when no filter is active', () => {
+  it('keeps Xóa lọc available to reset incomplete local filter drafts', () => {
     const onChange = vi.fn();
     render(
       <DetailedPlanFilters
@@ -285,10 +307,10 @@ describe('DetailedPlanFilters', () => {
 
     const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
     expect(clearButton).toBeTruthy();
-    // With no filter, the button must be present (no layout jump) but disabled.
-    expect(clearButton.getAttribute('disabled')).not.toBeNull();
+    // No committed filter can still have an incomplete buffered input draft.
+    expect(clearButton).toBeEnabled();
     fireEvent.click(clearButton);
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
   });
 
   it('renders Hôm nay / Hôm sau / Tất cả / Xóa lọc together so the row never jumps', () => {
@@ -336,7 +358,7 @@ describe('DetailedPlanFilters', () => {
     });
   });
 
-  it('clears every filter back to the today-based default from one coherent toolbar action', () => {
+  it('clears every filter back to the unfiltered default from one coherent toolbar action', () => {
     const onChange = vi.fn();
     const { rerender } = render(
       <DetailedPlanFilters
@@ -379,8 +401,8 @@ describe('DetailedPlanFilters', () => {
       />,
     );
     expect(screen.queryByText('Mặc định: mọi ngày vận chuyển')).toBeNull();
-    // The button is still in the DOM, just disabled.
-    expect(screen.getByRole('button', { name: 'Xóa lọc' }).getAttribute('disabled')).not.toBeNull();
+    // Retain a reset path for a partially typed date/time draft.
+    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled();
   });
 
   it('lets a user clear all selections from inside the popover footer', async () => {

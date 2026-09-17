@@ -41,7 +41,7 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 3 đang áp dụng' }));
     const drawer = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
     expect(within(drawer).getByRole('heading', { name: 'Phân xe và ngày giao' })).toBeTruthy();
-    expect(within(drawer).getByRole('heading', { name: 'Cảng và nhà xe' })).toBeTruthy();
+    expect(within(drawer).getByRole('heading', { name: 'Nhà xe' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Tất cả các ngày' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
@@ -75,8 +75,8 @@ describe('MasterPlanFilters', () => {
     expect(triggerRule).toContain('height: var(--control-compact-h)');
     expect(triggerRule).toContain('font-size: var(--control-compact-font-size)');
     expect(triggerRule).toContain('line-height: var(--control-compact-line-height)');
-    expect(selectRule).toContain('height: var(--control-compact-h)');
-    expect(selectRule).toContain('min-height: var(--control-compact-h)');
+    // Shared selects own their dimensions; this view sizes only its bespoke facet.
+    expect(selectRule).not.toMatch(/(?:min-)?height:/);
     // Compact mobile contract (ticket 6770b9cb): the phone facet trigger is
     // 32px/11px at ≤640px instead of the old ≤767px 44px touch rule.
     expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.master-plan-filters__facet-trigger\s*\{[\s\S]*?height:\s*var\(--control-mobile-h\);/);

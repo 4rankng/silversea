@@ -16,9 +16,9 @@ describe('dispatcher catalogue headers', () => {
     },
   );
 
-  it('keeps the action on the desktop right rail and stacks it only on phones', () => {
+  it('keeps the action beside the title with compact phone spacing', () => {
     expect(css).toMatch(/\.dispatch-catalogs__page-header\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/);
-    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.dispatch-catalogs__page-header\s*\{[\s\S]*?flex-direction:\s*column;/);
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.dispatch-catalogs__page-header\s*\{[\s\S]*?align-items:\s*flex-start;[\s\S]*?gap:\s*8px;/);
   });
 
   it('reflows every catalogue row into labelled mobile records without horizontal overflow', () => {

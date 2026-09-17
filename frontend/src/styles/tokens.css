@@ -320,6 +320,8 @@
   --z-modal: 300;
   --z-confirm: 350;
   --z-popover: 400;
+  --z-nested-popover: 410;
+  --z-picker-modal: 420;
   --z-toast: 500;
   --z-tooltip: 600;
   --z-max: 700;

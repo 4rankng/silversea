@@ -81,6 +81,9 @@ export type {
 } from './types';
 
 export { parseThreshold } from './types';
+export { shipmentInvoiceRecordSchema, containerDepositSchema } from './schemas/shipment-finance';
+export type { ShipmentInvoiceRecordInput, ContainerDepositInput } from './schemas/shipment-finance';
+export type { ShipmentInvoiceRecord, ContainerDepositRecord, ShipmentFinanceRecords } from './types/shipment-finance';
 
 export { canonicalFreightDescription } from './calculations/billingDocument';
 export { isCompanyInfoConfigured } from './company-info';
@@ -386,3 +389,7 @@ export type {
   PenaltyInsightsQuery,
   PenaltyListSortKey,
 } from './schemas/penalty-list';
+export * from './expense-accounting';
+export type { DriverIncidentalCostInput } from './schemas';
+
+export * from './schemas/treasury';

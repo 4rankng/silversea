@@ -22,11 +22,16 @@ const baseOptions: LoggerOptions = {
   mixin: () => traceMixin(),
 };
 
-const isProd = process.env.NODE_ENV === 'production';
+// Pretty transport owns a worker thread. Keep it out of test workers and
+// redirected/CI output; those consumers expect plain structured logs and must
+// be able to terminate without waiting for a development-only transport.
+const usePretty = process.env.NODE_ENV !== 'production'
+  && process.env.NODE_ENV !== 'test'
+  && process.env.NODE_TEST_CONTEXT == null
+  && process.stdout.isTTY === true;
 
-const options: LoggerOptions = isProd
-  ? baseOptions
-  : {
+const options: LoggerOptions = usePretty
+  ? {
       ...baseOptions,
       transport: {
         target: 'pino-pretty',
@@ -36,7 +41,8 @@ const options: LoggerOptions = isProd
           ignore: 'pid,hostname',
         },
       },
-    };
+    }
+  : baseOptions;
 
 const logger = pino(options);
 

@@ -31,23 +31,33 @@
 .dtp-day.is-today { box-shadow: inset 0 0 0 1px var(--accent, #2563eb); }
 .dtp-day.is-selected { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
 
-/* Time panel (24h only) */
-.dtp-time { flex: 1 1 168px; width: 168px; min-width: 148px; max-width: 100%; }
-.dtp-time__readout { text-align: center; font-family: var(--font-data, monospace); font-weight: 700; color: var(--ink, #1f2937); padding: 4px 0 6px; }
-.dtp-time__label { margin-top: 6px; margin-bottom: 3px; font-weight: 600; color: var(--ink-3, #6b7280); }
-.dtp-pills { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; max-height: 132px; overflow-y: auto; padding: 2px; border: 1px solid var(--line, #d1d5db); border-radius: 6px; }
-.dtp-pill { display: grid; place-items: center; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--ink, #1f2937); font-size: var(--text-caption-size, 12px); }
-.dtp-pill.is-active { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
-.dtp-pill:hover { background: var(--surface-3, #eef2f7); }
+/* Compact 24h columns built with the shared React Aria listbox primitive. */
+.dtp-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; min-width: 0; }
+.dtp-time__column { min-width: 0; }
+.dtp-time__label { padding: 2px 0 4px; text-align: center; font-size: var(--text-caption-size); font-weight: 600; color: var(--ink-3); }
+.dtp-time__list { position: relative; height: 128px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; outline: none; }
+.dtp-time__option { display: grid; place-items: center; min-height: 32px; border-radius: 5px; font-size: var(--text-data-size); cursor: pointer; outline: none; }
+.dtp-time__option[data-selected] { background: var(--accent); color: var(--white, #fff); font-weight: 600; }
+.dtp-time__option[data-hovered]:not([data-selected]) { background: var(--surface-3); }
+.dtp-time__option[data-focus-visible] { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (pointer: coarse), (max-width: 767px) {
+  .dtp-time__list { height: 132px; }
+  .dtp-time__option { min-height: 44px; }
+}
 
-/* Portaled variant: fixed to the viewport (computed from the trigger rect),
-   so scroll containers can never clip the panel. */
+/* Portaled variant: the trigger rect is baked into the host's inline
+   `top`/`left` (position: fixed at the host). The dialog child anchors to
+   the host — no second fixed positioning layer, otherwise the dialog
+   detaches from the computed trigger rect and lands wherever the browser
+   feels like placing a fixed element with no top/left. */
 .dtp-popover--portal {
-  position: fixed;
+  position: relative;
   width: max-content;
 }
 
-/* Appointment-dialog design (card _43) */
+/* Appointment-dialog design (card _43). The host is the only fixed layer;
+   `top`/`left` come from the trigger rect computed in
+   BufferedUuiDateTimeInput.openPicker. */
 .dtp-dialog-host { position: fixed; z-index: 60; }
 .dtp-dialog { flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 24px)); }
 .dtp-dialog__head { display: flex; align-items: center; gap: 7px; color: var(--ink, #1f2937); }
@@ -77,3 +87,30 @@
 .dtp-dialog__strip { display: flex; align-items: center; }
 .dtp-dialog__strip .dtp-dialog__pills { flex: 1; }
 .dtp-dialog .dtp-pill { min-height: 22px; padding: 0 7px; }
+
+/* The host owns viewport coordinates. A second fixed child with top:100%
+   places the picker below the viewport instead of below its trigger. */
+.dtp-dialog-host > .dtp-dialog {
+  position: static;
+  inset: auto;
+  width: min(396px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  box-sizing: border-box;
+}
+
+/* Keep both columns beside one another in the full appointment dialog. */
+.dtp-dialog .dtp-time { flex: 0 0 auto; width: 100%; }
+
+/* Common appointment shortcuts retain the shared compact pill appearance. */
+.dtp-pill { display: grid; place-items: center; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font-size: var(--text-caption-size); }
+.dtp-pill.is-active { background: var(--accent); color: var(--white, #fff); font-weight: 600; }
+.dtp-pill:hover { background: var(--surface-3); }
+
+.dtp-time__exact { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 6px; }
+.dtp-time__exact > label { grid-column: 1 / -1; font-size: var(--text-caption-size); color: var(--ink-3); }
+.dtp-time__exact > input { min-width: 0; width: 100%; height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-1); color: var(--ink); font: inherit; font-size: var(--text-data-size); }
+.dtp-time__exact > input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dtp-time__exact > input[aria-invalid=true] { border-color: var(--danger); }
+.dtp-time__exact > button { min-width: 52px; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--accent); color: var(--white, #fff); font-size: var(--text-data-size); }
+.dtp-time__error { grid-column: 1 / -1; font-size: var(--text-caption-size); color: var(--danger); }
+@media (max-width: 640px) { .dtp-time__exact > input, .dtp-time__exact > button { min-height: 44px; } }

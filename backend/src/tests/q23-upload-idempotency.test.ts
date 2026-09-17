@@ -127,6 +127,16 @@ async function prioritizeDurableJobs(jobIds: number[]) {
     .where(inArray(s.durableEffectJobs.id, jobIds));
 }
 
+/** Truth read: the worker's return set is a hint (its scan can be displaced
+ *  by other due rows); the committed row is what the assert cares about. */
+async function durableJobStatusById(jobId: number) {
+  const [row] = await db.select({ status: s.durableEffectJobs.status })
+    .from(s.durableEffectJobs)
+    .where(eq(s.durableEffectJobs.id, jobId))
+    .limit(1);
+  return row?.status;
+}
+
 before(async () => {
   const [actor] = await db.insert(s.users).values({
     username: `q23-upload-${suffix}`,
@@ -342,12 +352,11 @@ describe('Q23 operational evidence replay', () => {
     }
 
     await prioritizeDurableJobs(leakedJobs.map((row) => row.id));
-    const processed = await processDueDurableEffectJobs(1000, {
+    await processDueDurableEffectJobs(1000, {
       now: () => new Date(Date.now() + 60_000),
     });
     for (const row of leakedJobs) {
-      const processedRow = processed.find((job) => job.id === row.id);
-      assert.equal(processedRow?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+      assert.equal(await durableJobStatusById(row.id), DURABLE_EFFECT_STATUS.SUCCEEDED);
     }
     for (const storageKey of leakedStorageKeys) {
       assert.equal(await storageService.exists(storageKey), false);
@@ -374,11 +383,10 @@ describe('Q23 operational evidence replay', () => {
     assert.equal(await storageService.exists(failedStorageKey), true);
 
     await prioritizeDurableJobs([failedJob.id]);
-    const firstWorkerPass = await processDueDurableEffectJobs(10, {
+    await processDueDurableEffectJobs(10, {
       now: () => new Date(Date.now() + 60_000),
     });
-    const cleanedJob = firstWorkerPass.find((job) => job.id === failedJob.id);
-    assert.equal(cleanedJob?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    assert.equal(await durableJobStatusById(failedJob.id), DURABLE_EFFECT_STATUS.SUCCEEDED);
     assert.equal(await storageService.exists(failedStorageKey), false);
 
     const retry = await uploadPhoto(key);
@@ -427,11 +435,10 @@ describe('Q23 operational evidence replay', () => {
     assert.equal(await storageService.exists(storageKey), true);
 
     await prioritizeDurableJobs([deleteJob.id]);
-    const processed = await processDueDurableEffectJobs(10, {
+    await processDueDurableEffectJobs(10, {
       now: () => new Date(Date.now() + 60_000),
     });
-    const processedDelete = processed.find((job) => job.id === deleteJob.id);
-    assert.equal(processedDelete?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    assert.equal(await durableJobStatusById(deleteJob.id), DURABLE_EFFECT_STATUS.SUCCEEDED);
     assert.equal(await storageService.exists(storageKey), false);
   });
 });

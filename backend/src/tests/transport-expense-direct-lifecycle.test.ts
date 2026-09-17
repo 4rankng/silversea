@@ -97,7 +97,8 @@ test('recorded settlement correction preserves original snapshots and writes an 
   assert.equal(saved.totalExpenseAmount, '1200');
   assert.equal(saved.status, 'RECORDED');
   assert.equal(saved.version, settlement.version + 1);
-  const audit = await tx.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'financial-action'), eq(s.auditLogs.entityId, settlement.id)));
+  const audit = await tx.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'financial-action'),
+    eq(s.auditLogs.entityId, settlement.id), eq(s.auditLogs.userId, f.actor.id)));
   assert.equal(audit.length, 1);
   assert.equal(audit[0].userId, f.actor.id);
   assert.equal(audit[0].payload?.event, 'FINANCIAL_ACTION_APPLIED');
@@ -116,7 +117,7 @@ test('recorded settlement reversal retains audit and appends exactly one reversi
   const reversals = entries.filter(e => e.txnType === TxnType.ADJUSTMENT);
   assert.equal(reversals.length, 1);
   assert.equal(Number(reversals[0].credit), 1500);
-  const audit = await tx.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'financial-action'), eq(s.auditLogs.entityId, settlement.id)));
+  const audit = await tx.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'financial-action'), eq(s.auditLogs.entityId, settlement.id), eq(s.auditLogs.userId, f.actor.id)));
   assert.equal(audit.length, 1);
   assert.equal(audit[0].userId, f.actor.id);
   assert.equal(audit[0].payload?.event, 'FINANCIAL_ACTION_APPLIED');

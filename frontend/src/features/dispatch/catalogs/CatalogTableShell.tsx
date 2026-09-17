@@ -13,12 +13,14 @@ export function CatalogTableShell({
   onSearchChange,
   searchPlaceholder,
   totalLabel,
+  filters,
   children,
 }: {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
   totalLabel: string;
+  filters?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -34,6 +36,7 @@ export function CatalogTableShell({
           icon={SearchSm}
           inputProps={{ type: 'search' }}
         />
+        {filters}
         <span className="dispatch-catalogs__count">{totalLabel}</span>
       </div>
       <Panel flush>{children}</Panel>

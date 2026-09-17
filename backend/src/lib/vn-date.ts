@@ -27,8 +27,8 @@ function vnParts(now: Date = new Date(Date.now())): VnParts {
 }
 
 /** Today's date as YYYY-MM-DD in Vietnam. */
-export function todayIsoVn(): string {
-  const { year, month, day } = vnParts();
+export function todayIsoVn(now: Date = new Date()): string {
+  const { year, month, day } = vnParts(now);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${year}-${pad(month)}-${pad(day)}`;
 }

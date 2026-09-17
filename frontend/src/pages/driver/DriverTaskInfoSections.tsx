@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone, Route } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
+import { driverLocationLabels } from '../../features/driver/driver-display';
 
 /**
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
@@ -14,8 +15,8 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  * → Container / lô hàng
  * (each container number paired with its type code) → CẢNG NÂNG | CẢNG HẠ
  * (direction-aware: IMPORT swaps Cảng hạ to the empty-container return depot)
- * → Trả cont rỗng / Địa chỉ giao hàng (when distinct) → TUYẾN (route text
- * only). ĐẦU KÉO and RƠ MOÓC are both OFF this surface: the wire fields
+ * → Trả cont rỗng / Địa chỉ giao hàng (when applicable). Route text belongs
+ * to the task header, not a second fact row. ĐẦU KÉO and RƠ MOÓC are OFF this surface: the wire fields
  * stay, only the rows are dropped.
  */
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
@@ -32,8 +33,8 @@ function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; la
 
 /** One fee-invoice row reads "name · address · MST x" — each segment hides
  *  itself when its field is missing. */
-function feeInvoiceValue(name: string, address: string | null | undefined, taxCode: string | null | undefined): string {
-  return `${name}${address ? ` · ${address}` : ''}${taxCode ? ` · MST ${taxCode}` : ''}`;
+function feeInvoiceValue(name: string | null | undefined, address: string | null | undefined, taxCode: string | null | undefined): string {
+  return `${name?.trim() || 'Chưa có tên đơn vị'}${address?.trim() ? ` · ${address.trim()}` : ''}${taxCode?.trim() ? ` · MST ${taxCode.trim()}` : ''}`;
 }
 
 /**
@@ -69,12 +70,13 @@ function CollapsibleSectionHead({ id, label, summary, open, onToggle }: {
   );
 }
 
-export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
+export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDetail; children?: ReactNode }) {
   // Both sections start expanded (the driver should see everything on
   // arrival); collapsing is an explicit per-visit space-saving choice.
   const [infoOpen, setInfoOpen] = useState(true);
   const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
+  const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
   const containers = trip.containers ?? [];
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
 
@@ -82,17 +84,15 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   // Cảng hạ is the empty-container return depot (where the driver returns
   // the empty container); for EXPORT it is the conventional drop port.
   const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
-  const isImport = trip.tradeDirection === 'IMPORT';
-  const cangHa = isImport
-    ? (fulfillment?.returnDepotName ?? rawDropPoint)
-    : rawDropPoint;
+  const locations = driverLocationLabels(trip.tradeDirection, rawDropPoint === '—' ? null : rawDropPoint, fulfillment?.returnDepotName);
+  const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có nơi trả rỗng' : '—');
 
   // For IMPORT: always show the delivery address when it exists, even when
   // it matches the return depot (the driver needs to see where to deliver).
   // For EXPORT: show the empty-container return depot when it differs from
   // the drop point (existing behaviour).
-  const showDeliveryLocationRow = isImport && rawDropPoint !== '—';
-  const showReturnDepotRow = !isImport && fulfillment?.returnDepotName && fulfillment.returnDepotName !== cangHa;
+  const showDeliveryLocationRow = Boolean(locations.delivery);
+  const showReturnDepotRow = Boolean(locations.returnDepot);
 
   // KP-191: each container number paired with its own type code
   // (e.g. "MNBU12345543 · 40DC"). Seals render on their own row below.
@@ -108,8 +108,8 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
 
   // KP-010: contact name and callable phone grouped together beneath the
   // factory address, labeled "Số điện thoại liên hệ".
-  const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
-  const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
+  const contactName = fulfillment?.contactName?.trim() || trip.instructions?.contactName?.trim() || null;
+  const contactPhone = fulfillment?.contactPhone?.trim() || trip.instructions?.contactPhone?.trim() || null;
   const contactFieldValue = contactName && contactPhone
     ? <>{contactName} · <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a></>
     : contactPhone
@@ -147,14 +147,14 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* Row 1 — NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY (short name), per the
               mobile target sketch: the plan time pairs with the destination
               the driver scans for first. */}
-          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
+          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={plannedAt ? formatDateTime(plannedAt) : 'Chưa chốt lịch'} />
           <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} />
           {/* Full factory name: canonical site name from the container
               factory join; dashes when missing OR when it would duplicate
               the abbrev row above. */}
           <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} fullWidth />
-          {/* Factory site street address in its own row — the Tuyến row
-              below stays route text only. */}
+          {/* The customer's order-info row is the factory street address;
+              route text remains visible in the task header. */}
           <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
           {/* KP-010: contact name + callable phone grouped together
               beneath the factory address. */}
@@ -177,21 +177,17 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
               the return depot. For EXPORT: empty-container return depot
               when it differs from the drop point. */}
           {showDeliveryLocationRow ? (
-            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={rawDropPoint} />
+            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={locations.delivery} />
           ) : null}
           {showReturnDepotRow ? (
-            <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={fulfillment!.returnDepotName!} />
+            <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={locations.returnDepot} />
           ) : null}
-          {/* Route text only — the factory address renders in its own row
-              above; falls back through route summary → route name. */}
-          <TaskFact
-            icon={<Route size={16} />}
-            label="Tuyến"
-            value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)}
-            fullWidth
-          />
         </div>
       </section>
+
+      {/* Operational instructions precede billing details and remain outside
+          both independently collapsible sections. */}
+      {children}
 
       {/* 2a618442 / paper-form spec: "THÔNG TIN XUẤT HÓA ĐƠN" is a STRUCTURAL
           section — it always renders; rows show their values or the
@@ -236,13 +232,13 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             </>
           ) : null}
           {/* Fee-invoice rows carry their own explicit per-fee labels. */}
-          {invoiceInfo?.liftFeeInvoiceName && (
+          {(invoiceInfo?.liftFeeInvoiceName?.trim() || invoiceInfo?.liftFeeInvoiceAddress?.trim() || invoiceInfo?.liftFeeTaxCode?.trim()) && (
             <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />
           )}
-          {invoiceInfo?.dropFeeInvoiceName && (
+          {(invoiceInfo?.dropFeeInvoiceName?.trim() || invoiceInfo?.dropFeeInvoiceAddress?.trim() || invoiceInfo?.dropFeeTaxCode?.trim()) && (
             <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={feeInvoiceValue(invoiceInfo.dropFeeInvoiceName, invoiceInfo.dropFeeInvoiceAddress, invoiceInfo.dropFeeTaxCode)} fullWidth />
           )}
-          {invoiceInfo?.cleaningInvoiceName && (
+          {(invoiceInfo?.cleaningInvoiceName?.trim() || invoiceInfo?.cleaningInvoiceAddress?.trim() || invoiceInfo?.cleaningTaxCode?.trim()) && (
             <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={feeInvoiceValue(invoiceInfo.cleaningInvoiceName, invoiceInfo.cleaningInvoiceAddress, invoiceInfo.cleaningTaxCode)} fullWidth />
           )}
         </div>

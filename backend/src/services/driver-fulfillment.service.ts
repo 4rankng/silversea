@@ -16,10 +16,13 @@ import {
   Role,
   TripStatus,
   type DriverIncidentalCostType,
+  type DriverIncidentalCostInput,
 } from '@tingting/shared';
+import { upsertExpenseAccountingSource } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { syncAttendanceAfterStatusChange, toBusinessDateString } from './trip-attendance-sync.service';
@@ -161,7 +164,7 @@ export async function recordDriverFulfillmentProgress(args: {
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
@@ -254,7 +257,7 @@ export async function listDriverFulfillmentProgress(
   fulfillmentId: number,
   driverId: number,
 ): Promise<DriverProgressEvent[]> {
-  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId, { includeCanceled: true });
   const rows = await db.select().from(s.driverProgressEvents)
     .where(and(
       eq(s.driverProgressEvents.tripId, ownedTrip.tripId),
@@ -266,15 +269,9 @@ export async function listDriverFulfillmentProgress(
 
 // ─── M8.4 slice 3: driver incidental costs ───────────────────────────────────
 //
-// Driver-reported out-of-pocket expenses (per-diem, lift fee, parking, toll,
-// fuel, other) against a trip. Distinct from `tripExpenses` (forwarder-scoped,
-// buy/sell, supplier, approval workflow) — this is a lightweight driver-only
-// record that feeds salary/settlement reconciliation. Idempotent create
-// (reuses `runIdempotent` + `idempotency_keys` from M10.1) so the offline-
-// queue replay doesn't duplicate (PRD M08-04-03).
-//
-// COMPLETED trips reject new incidental costs — unlike progress events (append-
-// only audit logs), costs affect financials, so completion = immutable.
+// Native driver claims feed accounting reconciliation. Explicit manual retries
+// use the same command key; completed trips accept documentary additions until
+// the shipment accounting lock is applied.
 
 export interface DriverIncidentalCost {
   id: number;
@@ -305,9 +302,17 @@ async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
-  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+  input: DriverIncidentalCostInput,
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
+  const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
+  if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
+  const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim() ? input.amount : 0;
+  if (input.receiptStorageKey) {
+    const [photo] = await tx.select({ id: s.tripPhotos.id }).from(s.tripPhotos).where(and(
+      eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
+    if (!photo) throw new ApiError(400, 'Ảnh biên lai phải do bạn tải lên cho chuyến này.');
+  }
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
     tripId,
     driverId,
@@ -317,8 +322,31 @@ async function insertDriverIncidentalCostTx(
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,
     recordedBy,
+    payerKind: input.payerKind ?? 'USER',
+    costGroup: group,
+    feeName: input.feeName ?? input.costType,
+    customerChargeAmount: String(customerChargeAmount),
+    invoiceNumber: input.invoiceNumber?.trim() || null,
+    invoiceDate: input.invoiceDate || null,
+    photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],
   }).returning();
-  return row as DriverIncidentalCost;
+  const [trip] = await tx.select({ shipmentId: s.trips.shipmentId, customerId: s.trips.customerId, truckId: s.trips.truckId }).from(s.trips).where(eq(s.trips.id, tripId));
+  // Standalone trips retain their native claim. Accounting linkage starts only
+  // when the real shipment exists; never manufacture a shipment for a fee.
+  if (!trip?.shipmentId) {
+    await tx.insert(s.auditLogs).values({ userId: recordedBy, message: 'DRIVER_INCIDENTAL_COST_RECORDED',
+      entityType: 'driver_incidental_cost', entityId: row.id, payload: { paymentHistoryKnown: true, tripId } });
+    return row as DriverIncidentalCost;
+  }
+  const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: row.id, shipmentId: trip.shipmentId,
+    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: input.costType, costGroup: group,
+    feeName: input.feeName ?? input.costType, amount: input.amount,
+    customerChargeAmount,
+    expenseDate: input.occurredAt, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    payerKind: input.payerKind ?? 'USER', payerUserId: input.payerKind === 'COMPANY' ? null : recordedBy, payableEntityType: input.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: input.payerKind === 'COMPANY' ? null : driverId,
+    recordedById: recordedBy, note: input.note, photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [] });
+  const [saved] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, row.id));
+  return { ...saved, version: source.version } as DriverIncidentalCost;
 }
 
 async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverIncidentalCost> {
@@ -331,12 +359,12 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
 /**
  * Record a driver incidental cost. Server-side idempotent: same key + same
  * body → 201 first / 200 replay (no duplicate); same key + different body →
- * 409 (Q23). COMPLETED trips reject (409) — costs affect financials.
+ * 409 (Q23). Canceled and accounting-locked trips reject new costs.
  */
 export async function recordIncidentalCost(
   tripId: number,
   driverId: number,
-  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+  input: DriverIncidentalCostInput,
   recordedBy: number,
   idempotencyKey: string | undefined,
 ): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {
@@ -350,7 +378,10 @@ export async function recordIncidentalCost(
     createdBy: recordedBy,
     entityType: 'driver_incidental_cost',
     create: async (tx) => {
+      await lockTripFinancialAuthority(tx, [tripId]);
       await assertTripAcceptsIncidentalCostTx(tx, tripId);
+      const [assigned] = await tx.select({ driverId: s.trips.driverId }).from(s.trips).where(eq(s.trips.id, tripId)).for('update');
+      if (assigned?.driverId !== driverId) throw new ApiError(409, 'Công việc vừa thay đổi lái xe. Vui lòng tải lại.');
       return insertDriverIncidentalCostTx(tx, tripId, driverId, input, recordedBy);
     },
     load: async (id, tx) => loadDriverIncidentalCostTx(tx, id),
@@ -364,7 +395,13 @@ export async function listIncidentalCosts(tripId: number, driverId: number): Pro
   const rows = await db.select().from(s.driverIncidentalCosts)
     .where(eq(s.driverIncidentalCosts.tripId, tripId))
     .orderBy(desc(s.driverIncidentalCosts.createdAt));
-  return rows as DriverIncidentalCost[];
+  const enriched = rows.length ? await db.select().from(s.expenseAccountingSources)
+    .where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), inArray(s.expenseAccountingSources.sourceId, rows.map(row => row.id)))) : [];
+  return rows.map(row => {
+    const source = enriched.find(item => item.sourceId === row.id);
+    return { ...row, version: source?.version ?? 1, costGroup: row.costGroup, feeName: row.feeName,
+      invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate };
+  }) as DriverIncidentalCost[];
 }
 
 export interface DriverFulfillmentCompletionResult {
@@ -435,7 +472,7 @@ export async function completeOwnedFulfillmentTrip(args: {
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
       await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');

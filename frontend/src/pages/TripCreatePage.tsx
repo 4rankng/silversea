@@ -28,6 +28,7 @@ export default function TripCreatePage() {
   const [exceptionReason, setExceptionReason] = React.useState('');
   const [exceptionCeiling, setExceptionCeiling] = React.useState('');
   const [exceptionError, setExceptionError] = React.useState('');
+  const formRef = React.useRef<HTMLDivElement>(null);
   const canRecordException = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const options = useTripOptions();
   const [creditBlock, setCreditBlock] = React.useState<{
@@ -59,7 +60,22 @@ export default function TripCreatePage() {
     ? creditBlock.proposedAmount
     : Math.round((form.suggestedPrice ?? 0) * expectedContainerCount);
 
+  const validateVisibleFields = () => {
+    const invalidInput = formRef.current?.querySelector<HTMLInputElement>('input:invalid');
+    if (!invalidInput) return true;
+    // Some optional sections collapse; expose the invalid input before focus.
+    let disclosure = invalidInput.closest('details');
+    while (disclosure) {
+      disclosure.open = true;
+      disclosure = disclosure.parentElement?.closest('details') ?? null;
+    }
+    invalidInput.focus();
+    invalidInput.reportValidity();
+    return false;
+  };
+
   const submitTrip = async () => {
+    if (!validateVisibleFields()) return false;
     const tripId = await form.handleSubmit(undefined);
     if (tripId) {
       navigate(`/trips/${tripId}`);
@@ -90,7 +106,7 @@ export default function TripCreatePage() {
 
         </section>
 
-        <div className="tc-create-bento" id="trip-new-form">
+        <div ref={formRef} className="tc-create-bento" id="trip-new-form">
           <div className="tc-bento-main">
             <TripInfoCard
               customers={options.customers}
@@ -179,6 +195,7 @@ export default function TripCreatePage() {
               <input id="credit-exception-ceiling" className="form-input" inputMode="numeric" value={exceptionCeiling} onChange={event => setExceptionCeiling(event.target.value)} />
               {exceptionError && <p role="alert" style={{ color: 'var(--danger)' }}>{exceptionError}</p>}
               <button type="button" className="btn btn--primary" disabled={form.submitting} onClick={async () => {
+                if (!validateVisibleFields()) return;
                 const ceiling = Number(exceptionCeiling.replace(/[.,\s]/g, ''));
                 if (!exceptionReason.trim() || !Number.isSafeInteger(ceiling) || ceiling <= 0) { setExceptionError('Nhập lý do và tổng hạn mức ngoại lệ hợp lệ.'); return; }
                 setExceptionError('');
@@ -207,4 +224,3 @@ const creditMetricLabelStyle: React.CSSProperties = {
   fontSize: 12,
   color: 'var(--fg-3)',
 };
-

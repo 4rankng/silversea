@@ -2,13 +2,13 @@ import type { DispatchTruck } from '../../../api/dispatchPlanningClient';
 
 /** Mirror of the backend issue gate (inferTrailerTypeFromContainerCode in
  *  dispatch-planning-utils.service.ts): a container code starting with 20
- *  needs a 20FT trailer, anything else 40FT. Null container info → no
+ *  uses20FT for a single load or40FT for a DOUBLE pair; larger shells use40FT. Null container info → no
  *  signal, no annotation — same "only block on a provable mismatch" stance
  *  as the backend. */
-export function requiredTrailerTypeForContainer(label: string | null | undefined): '20FT' | '40FT' | null {
+export function requiredTrailerTypeForContainer(label: string | null | undefined, classification?: string): '20FT' | '40FT' | null {
   const normalized = label?.trim().toUpperCase() ?? '';
   if (!normalized) return null;
-  return normalized.startsWith('20') ? '20FT' : '40FT';
+  return normalized.startsWith('20') && classification !== 'DOUBLE' ? '20FT' : '40FT';
 }
 
 export function trailerMismatchSuffix(truckTrailerType: string | null, required: '20FT' | '40FT' | null): string {

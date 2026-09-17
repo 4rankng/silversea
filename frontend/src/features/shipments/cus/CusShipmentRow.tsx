@@ -29,12 +29,14 @@ import {
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
+  scheduleTimestamp,
   SHIPMENT_BUCKET_COLORS,
   splitContainerSummaryLines,
   vehicleReadinessLabel,
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
+import { formatDateTimeShort } from '../../../lib/format';
 
 export interface CusShipmentRowProps {
   item: ShipmentCusWorkspaceListItem;
@@ -55,11 +57,12 @@ export function CusShipmentRow({
   onStartQuickEdit, onOpenAction, onOpenDetail,
 }: CusShipmentRowProps) {
   const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
-  const primarySignal = derivePrimaryShipmentSignal(item);
+  const primarySignal = derivePrimaryShipmentSignal(item, ['schedule']);
   const PrimarySignalIcon = primarySignal?.icon;
   const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
   const customerNoteLines = noteLines(item.customerNotes);
   const operationalNoteLines = noteLines(item.operationalNotes);
+  const hasNotes = customerNoteLines.length > 0 || operationalNoteLines.length > 0;
   // Customer feedback L2 — when a date filter is active,
   // narrow the schedule + cargo cells to that day only.
   const filteredGroups = filterAppointmentGroupsByDate(
@@ -71,11 +74,22 @@ export function CusShipmentRow({
     ? aggregateContainerSummary(filteredGroups)
     : '';
   const hasDateFilter = Boolean(dateFrom || dateTo);
+  const lotScheduleValue = scheduleTimestamp(item);
+  const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-    {(hasDateFilter ? filteredGroups : item.appointmentGroups).map((group) => (
+    {groupsToShow.map((group) => (
       <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
     ))}
+    {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
+        writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the
+        readiness rule counts only per-container appointments — so without this
+        fallback the user's saved schedule never appears in the cell. Render the
+        lot-level schedule whenever no appointment group is on display; the
+        readiness chip above still warns while container appointments are open. */}
+    {groupsToShow.length === 0 && lotScheduleValue && (
+      <span key="lot-schedule-fallback" className="cus-schedule-lot-fallback">{formatDateTimeShort(lotScheduleValue)}</span>
+    )}
     <span>{vehicleReadinessLabel(item)}</span>
     <DispatchIssueStatusSummaryChip
       plated={item.operational.plateAssignedContainers}
@@ -150,9 +164,9 @@ export function CusShipmentRow({
             aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
             onClick={() => onStartQuickEdit(item, 'schedule')}
           >{scheduleContent}</button>
-        ) : <div className="cus-inline-trigger cus-inline-trigger--readonly">{scheduleContent}</div>}
+        ) : <div className="cus-inline-trigger cus-inline-trigger--readonly" data-cell-label="Lịch trình & điều xe">{scheduleContent}</div>}
       </td>
-      <td data-label="Ghi chú" className="cus-dashboard-cell--editable">
+      <td data-label="Ghi chú" className={`cus-dashboard-cell--editable${hasNotes ? '' : ' cus-dashboard-cell--empty-notes'}`}>
         <button
           id={`cus-inline-notes-${item.id}`}
           type="button"
@@ -168,7 +182,7 @@ export function CusShipmentRow({
               typed breaks away. Pre-wrap + 2-line clamp keeps the breaks. */}
           {customerNoteLines.length > 0 && <span className="cus-note-preview__customer cus-note-clamp">{customerNoteLines.join('\n')}</span>}
           {operationalNoteLines.length > 0 && <span className="cus-note-internal cus-note-clamp">{operationalNoteLines.join('\n')}</span>}
-          {customerNoteLines.length === 0 && operationalNoteLines.length === 0 && <span className="cus-note-preview__customer cus-note-preview__customer--empty">—</span>}
+          {!hasNotes && <span className="cus-note-preview__customer cus-note-preview__customer--empty">Thêm ghi chú</span>}
         </button>
       </td>
       <td data-label="Trạng thái">

@@ -8,8 +8,11 @@ describe('Input', () => {
     render(<Input aria-label="Tìm kiếm" size="sm" />);
 
     const input = screen.getByLabelText('Tìm kiếm');
-    expect(input).toHaveClass('min-h-[32px]', 'text-[length:var(--text-control-compact-size)]', 'max-md:min-h-[42px]', 'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]');
-    expect(input.parentElement).toHaveClass('min-h-[34px]', 'max-md:min-h-11');
+    expect(input).toHaveClass('text-[length:var(--text-control-compact-size)]', 'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]');
+    expect(input.parentElement).toHaveAttribute('data-uui-control', 'input');
+    expect(input.parentElement).toHaveAttribute('data-control-size', 'sm');
+    // The shared boundary owns responsive height; the child must not add another floor.
+    expect(input.className).not.toMatch(/(?:^|\s|:)min-h-/);
   });
 
   it('reserves space for its invalid-state icon', () => {

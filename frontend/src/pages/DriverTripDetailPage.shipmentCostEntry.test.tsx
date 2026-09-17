@@ -10,22 +10,8 @@ function freshClient() {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Phần 4 ticket (2026-08-28 customer feedback): the e-POD section and the
- * cost-entry form have been REMOVED from the trip detail page.
- *
- *   - e-POD lives on its own screen at /my-trips/:id/pod
- *     (DriverTripPodPage). The trip detail page's "Hoàn thành" CTA now
- *     navigates there instead of hosting the e-POD widget inline.
- *   - The cost-entry form is hidden (kế toán tài chính is the post-trial
- *     phase per the trial-readiness plan, "từ từ"). Backend schema +
- *     endpoints are retained for the next phase.
- *   - The fuel-refill report ("Báo cáo đổ dầu") is HIDDEN too — Phần 1 lists
- *     it beside the cost-entry form as coded-but-temporarily-hidden. 27.8's
- *     "GIỮ NGUYÊN" line covers the fuel SCREENSHOT upload, which stays.
- *
- * This suite now asserts the COST-FORM IS ABSENT, the e-POD widget is absent,
- * the fuel-refill cost form is absent, and a "Hoàn tất lệnh vận chuyển" CTA navigates
- * to the pod page.
+ * Driver expense entry is available in the expense rollout. POD remains on
+ * its dedicated screen; the unrelated fuel-refill form stays hidden.
  */
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
@@ -59,10 +45,6 @@ vi.mock('../hooks/useDriverQueries', () => ({
   useDriverEvidenceStatus: useDriverEvidenceStatusMock,
 }));
 
-vi.mock('../hooks/useOnline', () => ({
-  useOnline: () => true,
-}));
-
 vi.mock('../hooks/useGeolocation', () => ({
   useGeolocation: () => ({ awaitAccurateSample: vi.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 5, timestamp: 0 }) }),
 }));
@@ -91,7 +73,7 @@ vi.mock('../api/driverClient', () => ({
 
 import DriverTripDetailPage from './DriverTripDetailPage';
 
-describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
+describe('DriverTripDetailPage — expense and POD layout', () => {
   beforeEach(() => {
     useDriverTaskDetailMock.mockReturnValue({
       data: {
@@ -126,7 +108,7 @@ describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
     });
   });
 
-  it('hides the cost-entry form (kế toán từ từ)', () => {
+  it('shows expense entry for the assigned driver during an active trip', () => {
     render(
       <QueryClientProvider client={freshClient()}>
         <MemoryRouter initialEntries={['/my-trips/9']}>
@@ -136,7 +118,7 @@ describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    expect(screen.getByTestId('shipment-cost-entry-form')).toBeInTheDocument();
   });
 
   it('hides the e-POD widget (moved to /pod screen)', () => {

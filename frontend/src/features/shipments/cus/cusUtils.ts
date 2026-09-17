@@ -66,7 +66,7 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return date.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
 /**
@@ -185,11 +185,11 @@ export function accountingConfirmationLabel(
   confirmation: ShipmentCusWorkspaceListItem['accountingConfirmation'],
 ): string {
   if (confirmation.status === 'CONFIRMED') {
-    return `Đã xác nhận: ${formatDateTimeShort(confirmation.confirmedAt)}`;
+    return `Đã đối soát: ${formatDateTimeShort(confirmation.confirmedAt)}`;
   }
-  if (confirmation.status === 'STALE') return 'Cần xác nhận lại';
-  if (confirmation.status === 'UNAVAILABLE') return 'Chưa đủ dữ liệu xác nhận';
-  return 'Chờ xác nhận';
+  if (confirmation.status === 'STALE') return 'Cần đối soát lại';
+  if (confirmation.status === 'UNAVAILABLE') return 'Chưa đủ dữ liệu đối soát';
+  return 'Chưa đối soát';
 }
 
 export function safeError(error: unknown, fallback: string): string {
@@ -312,7 +312,7 @@ export function deriveShipmentSignals(item: ShipmentCusWorkspaceListItem): Shipm
   }
   if (!item.action.enabled && item.action.kind !== 'NONE' && !signals.some((signal) => signal.key === 'confirmation' || signal.key === 'debit-note')) {
     const label = item.action.kind === 'LOCK'
-      ? 'Chờ Kế toán'
+      ? 'Chờ đối soát'
       : item.action.kind === 'CONFIRM_FINANCE'
         ? 'Chưa thể xác nhận'
         : 'Chưa thể điều chỉnh';
@@ -327,8 +327,8 @@ const SHIPMENT_SIGNAL_TONE_PRIORITY: Record<ShipmentSignalTone, number> = {
   info: 2,
 };
 
-export function derivePrimaryShipmentSignal(item: ShipmentCusWorkspaceListItem): ShipmentSignal | null {
-  return deriveShipmentSignals(item).reduce<ShipmentSignal | null>((primary, signal) => {
+export function derivePrimaryShipmentSignal(item: ShipmentCusWorkspaceListItem, displayedKeys: readonly string[] = []): ShipmentSignal | null {
+  return deriveShipmentSignals(item).filter((signal) => !displayedKeys.includes(signal.key)).reduce<ShipmentSignal | null>((primary, signal) => {
     if (!primary) return signal;
     return SHIPMENT_SIGNAL_TONE_PRIORITY[signal.tone] < SHIPMENT_SIGNAL_TONE_PRIORITY[primary.tone]
       ? signal

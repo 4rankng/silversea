@@ -1,3 +1,5 @@
+import { expenseMetadataColumns } from './expense-metadata';
+import type { ExpenseCostGroup } from '@tingting/shared';
 // Extracted verbatim from the original schema.ts split; behavior identical.
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
@@ -115,6 +117,9 @@ export const expensePhotos = pgTable('expense_photos', {
 
 
 export const tripExpenses = pgTable('trip_expenses', {
+  costGroup: text('cost_group').$type<ExpenseCostGroup>(),
+  feeName: text('fee_name'),
+  recoveryNote: text('recovery_note'),
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').notNull(),
   version: integer('version').notNull().default(1),
@@ -346,6 +351,7 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
 
 
 export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
+  ...expenseMetadataColumns(),
   id: serial('id').primaryKey(),
   tripId: integer('trip_id')
     .notNull(),

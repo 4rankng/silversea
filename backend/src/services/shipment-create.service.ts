@@ -15,12 +15,15 @@ import {
   toNullableTimestamp,
 } from './shipment-shared.service';
 import { getShipment } from './shipment-detail-reads.service';
+import { upsertShipmentDeclaration, listShipmentDeclarations } from './shipment-documents.service';
 import {
   type CreateShipmentInput,
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
+  findDeclarationReferenceConflict,
   throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
 
@@ -45,6 +48,7 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
 // ─── Create ─────────────────────────────────────────────────────────────────
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
+  await assertShipmentMasterRefsExist(tx, input);
   assertShipmentDocumentReferences(input);
   // Hybrid intake (MasterDataNhaMay §2.1): a catalog id wins and its raw text
   // is cleared; ad-hoc rows keep the raw text with a null id. The factory
@@ -69,6 +73,11 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
       duplicate,
       duplicate.field === 'blNumber' ? 'bill' : 'booking',
     );
+  }
+  const declarationNumber = normalizeDocumentReference(input.declarationNumber);
+  if (declarationNumber) {
+    const conflict = await findDeclarationReferenceConflict(tx, declarationNumber);
+    if (conflict) throwShipmentReferenceConflict(conflict, 'declaration');
   }
   if (input.operationalSiteId != null && customerId != null) {
     await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId);
@@ -122,6 +131,16 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     version: 1,
   }).returning();
 
+  // Initial declaration belongs to the same intake transaction. A duplicate
+  // or failed declaration must never leave a partially created shipment.
+  let initialDeclarationId: number | null = null;
+  if (declarationNumber) {
+    const declaration = await upsertShipmentDeclaration(shipment.id, {
+      declarationNumber, scope: 'SINGLE', updatedBy: input.createdBy ?? actor?.userId ?? null,
+    }, actor, tx);
+    initialDeclarationId = declaration.id;
+  }
+
   // 2. Backfill the unique shipmentCode from the row id. Same tx ⇒ atomic.
   const shipmentCode = formatShipmentCode(shipment.id, shipment.createdAt);
   const [finalized] = await tx.update(s.shipments)
@@ -155,13 +174,33 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     await ensureReadyShipmentHandoff(tx, finalized, input.createdBy ?? actor?.userId ?? null);
   }
 
-  return finalized;
+  return { shipment: finalized, initialDeclarationId };
 }
 
 export async function createShipment(input: CreateShipmentInput, actor?: AuthUser, transaction?: Tx) {
-  return transaction
+  const result = await (transaction
     ? createShipmentTx(transaction, input, actor)
-    : db.transaction((tx) => createShipmentTx(tx, input, actor));
+    : db.transaction((tx) => createShipmentTx(tx, input, actor)));
+  return result.shipment;
+}
+
+// A competing request may win a unique index after the advisory pre-check.
+// Read its committed record only after our failed transaction has rolled back.
+async function rethrowCreateConflict(error: unknown, input: CreateShipmentInput): Promise<never> {
+  const wrapped = error as { code?: string; constraint_name?: string; cause?: { code?: string; constraint_name?: string } };
+  const pg = wrapped?.cause?.code ? wrapped.cause : wrapped;
+  if (pg?.code === '23505') {
+    if (pg.constraint_name === 'shipment_declarations_number_uniq_idx') {
+      const declaration = normalizeDocumentReference(input.declarationNumber);
+      const conflict = declaration ? await findDeclarationReferenceConflict(db, declaration) : null;
+      if (conflict) throwShipmentReferenceConflict(conflict, 'declaration');
+    } else if (pg.constraint_name === 'shipments_bl_number_active_uniq_idx'
+      || pg.constraint_name === 'shipments_booking_ref_active_uniq_idx') {
+      const conflict = await findShipmentReferenceConflict(db, input);
+      if (conflict) throwShipmentReferenceConflict(conflict, conflict.field === 'blNumber' ? 'bill' : 'booking');
+    }
+  }
+  throw error;
 }
 
 // ─── Quick create (M10.1) ───────────────────────────────────────────────────
@@ -176,15 +215,24 @@ export async function createShipmentIdempotent(
   input: CreateShipmentInput,
   idempotencyKey: string | undefined,
   actor?: AuthUser,
-): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>>; replayed: boolean }> {
+): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>> & { initialDeclarationId: number | null }; replayed: boolean }> {
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_QUICK_CREATE,
     idempotencyKey,
     payload: input,
     createdBy: input.createdBy ?? null,
     entityType: 'shipment',
-    create: async (tx) => createShipmentTx(tx, input, actor),
-    load: async (id, tx) => getShipment(id, tx),
-  });
-  return { shipment: result, replayed };
+    create: async (tx) => {
+      const { shipment, initialDeclarationId } = await createShipmentTx(tx, input, actor);
+      return { ...shipment, initialDeclarationId };
+    },
+    load: async (id, tx) => {
+      const shipment = await getShipment(id, tx);
+      const declarations = input.declarationNumber ? await listShipmentDeclarations(id, tx) : [];
+      return { ...shipment, initialDeclarationId: declarations[0]?.id ?? null };
+    },
+  }).catch((error: unknown) => rethrowCreateConflict(error, input));
+  // Older response snapshots predate initial declarations and have no ID.
+  // New snapshots retain the original ID even if that declaration is edited.
+  return { shipment: { ...result, initialDeclarationId: result.initialDeclarationId ?? null }, replayed };
 }

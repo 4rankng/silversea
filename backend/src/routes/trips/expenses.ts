@@ -197,7 +197,7 @@ router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Respo
     getEntityId: () => eid,
   });
   if ('error' in outcome.result) {
-    return res.status(outcome.result.status).json({ error: outcome.result.error });
+    throw new ApiError(outcome.result.status, outcome.result.error);
   }
 
   if (outcome.expense) {

@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { receiptCommandIdentity } from './cash-command-identity.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -36,6 +37,8 @@ export interface PaymentReceiptInput extends TreasuryPaymentFields {
   amount?: number;
   payments?: PaymentInstruction[];
   allocatedBy?: number | null;
+  /** Explicit customer deposit: never apply FIFO to unrelated receivables. */
+  unappliedOnly?: boolean;
 }
 
 interface NormalizedPaymentReceiptInput {
@@ -47,6 +50,7 @@ interface NormalizedPaymentReceiptInput {
   requestHash: string;
   allocatedBy: number | null;
   treasury: ResolvedTreasuryPaymentContract;
+  unappliedOnly: boolean;
 }
 
 interface PersistedPaymentReceiptResult extends PaymentReceiptResult {
@@ -142,6 +146,7 @@ function normalizePaymentReceiptInput(
   }
 
   const payments = normalizePaymentInstructions(input.payments);
+  if (input.unappliedOnly && payments) throw new ApiError(400, 'Phiếu thu chưa phân bổ không được kèm chỉ dẫn chuyến.');
   const explicitTotal = payments?.reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
   const receivedAmount = input.amount !== undefined ? Number(input.amount) : explicitTotal;
   assertPositiveWholeAmount(receivedAmount, 'amount');
@@ -159,6 +164,7 @@ function normalizePaymentReceiptInput(
     receiptId,
     amount: receivedAmount,
     payments,
+    ...(input.unappliedOnly ? { unappliedOnly: true } : {}),
   };
   const requestHash = hashPayload(
     treasury.treasuryAccountId == null
@@ -175,6 +181,7 @@ function normalizePaymentReceiptInput(
     requestHash,
     allocatedBy: input.allocatedBy ?? null,
     treasury,
+    unappliedOnly: input.unappliedOnly ?? false,
   };
 }
 
@@ -244,7 +251,7 @@ type CustomerPaymentLedgerRowInput = {
   note: string;
 };
 
-async function getTripReceivableState(
+export async function getTripReceivableState(
   tx: Tx,
   customerId: number,
   tripIds?: number[],
@@ -682,7 +689,7 @@ async function createOrReplayPaymentReceiptTx(
         issueTimestamp: authority.issueTimestamp,
       });
     }
-  } else {
+  } else if (!input.unappliedOnly) {
     const candidates = [...new Map(
       [...authorityByTripId.values()].map((candidate) => [
         `${candidate.targetType}:${candidate.targetId}`,
@@ -864,6 +871,7 @@ export async function requestPaymentReceiptGovernance(input: {
         amount: normalized.receivedAmount,
         payments: normalized.payments,
         allocationMethod: normalized.allocationMethod,
+        unappliedOnly: normalized.unappliedOnly,
         allocatedBy: normalized.allocatedBy,
         requestHash: normalized.requestHash,
         treasuryAccountId: treasury.treasuryAccountId,
@@ -934,6 +942,7 @@ export async function applyPaymentReceiptGovernanceAction(
     amount,
     payments,
     allocatedBy,
+    unappliedOnly: afterSnapshot?.unappliedOnly === true,
   }, treasury));
 
   let treasuryMovementId: number | null = null;
@@ -1013,6 +1022,9 @@ export async function requestPaymentRefundGovernance(
       .limit(1)
       .for('update');
     if (!receipt) throw new ApiError(404, 'Phiếu thu không tồn tại');
+    const [expenseVoucher] = await tx.select({ id: s.expenseCashVouchers.id }).from(s.expenseCashVouchers)
+      .where(and(eq(s.expenseCashVouchers.paymentReceiptId, receipt.id), eq(s.expenseCashVouchers.status, 'RECORDED'))).limit(1);
+    if (expenseVoucher) throw new ApiError(409, 'Phiếu thu có phân bổ chi phí; dùng Hoàn tác tại lịch sử phiếu chi phí để cập nhật đúng từng khoản.');
     if (amount > Number(receipt.unappliedAmount)) {
       throw new ApiError(409, 'Số tiền hoàn vượt quá khoản chưa phân bổ của phiếu thu');
     }
@@ -1170,11 +1182,24 @@ export async function applyPaymentRefundGovernanceAction(
   };
 }
 
+/** Shared receipt authority for direct UI and transaction-composed expense commands. */
+export async function recordPaymentReceiptTx(tx: Tx, input: PaymentReceiptInput): Promise<PersistedPaymentReceiptResult> {
+  const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
+  const result = await createOrReplayPaymentReceiptTx(tx, normalizePaymentReceiptInput(input, treasury));
+  if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
+    if (!input.allocatedBy) throw new ApiError(400, 'Thiếu người ghi nhận phiếu thu.');
+    await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'IN',
+      amount: result.receivedAmount, valueDate: treasury.valueDate, physicalReference: treasury.physicalReference,
+      paymentContractVersion: treasury.paymentContractVersion, paymentReceiptId: result.id, sourceVersion: result.version,
+      externalReference: result.receiptId, createdBy: input.allocatedBy });
+  }
+  return result;
+}
+
 export async function recordPaymentReceipt(
   input: PaymentReceiptInput,
 ): Promise<PersistedPaymentReceiptResult> {
-  const normalized = normalizePaymentReceiptInput(input);
-  return db.transaction((tx) => createOrReplayPaymentReceiptTx(tx, normalized));
+  return db.transaction((tx) => recordPaymentReceiptTx(tx, input));
 }
 
 export async function recordPaymentReceiptIdempotent(args: {
@@ -1182,23 +1207,17 @@ export async function recordPaymentReceiptIdempotent(args: {
   idempotencyKey: string | undefined;
   createdBy?: number | null;
 }): Promise<PaymentReceiptMutationResult> {
-  const normalized = normalizePaymentReceiptInput({
-    ...args.input,
-    allocatedBy: args.createdBy ?? args.input.allocatedBy ?? null,
-  });
-
   const { result, replayed } = await runIdempotent<PersistedPaymentReceiptResult>({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
     idempotencyKey: args.idempotencyKey,
-    payload: {
-      customerId: normalized.customerId,
-      receiptId: normalized.receiptId,
-      amount: normalized.receivedAmount,
-      payments: normalized.payments,
-    },
+    payload: receiptCommandIdentity(args.input),
     createdBy: args.createdBy ?? null,
     entityType: 'payment_receipt',
-    create: async (tx) => createOrReplayPaymentReceiptTx(tx, normalized),
+    replayResult: async (snapshot, tx) => {
+      const saved = snapshot as { id: number; applicationResult?: { paymentReceiptId?: number } };
+      return { ...(await loadPaymentReceiptResultTx(tx, saved.applicationResult?.paymentReceiptId ?? saved.id)), created: false };
+    },
+    create: async (tx) => recordPaymentReceiptTx(tx, { ...args.input, allocatedBy: args.createdBy ?? args.input.allocatedBy }),
     load: async (entityId, tx) => ({
       ...(await loadPaymentReceiptResultTx(tx, entityId)),
       created: false,

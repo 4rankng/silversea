@@ -3,6 +3,8 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
+import { assertResourceAvailability } from './dispatch-resource-availability.service';
+export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
 import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
@@ -22,9 +24,10 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
+import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 
 
-import { and, count, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -227,78 +230,6 @@ export async function replaceTripContainersForFulfillment(
 }
 
 
-export async function assertResourceAvailability(
-  tx: Tx,
-  args: {
-    tripId: number | null;
-    truckId: number | null;
-    trailerId: number | null;
-    driverId: number | null;
-    plannedStartAt: Date;
-    plannedEndAt: Date;
-    /**
-     * Kẹp context: when the trip being issued carries a 20' container, a
-     * conflicting row that ALSO carries a 20' container on the SAME departure
-     * day is the pairing partner (2×20' on one mooc), not a double booking.
-     * Without this exemption the second leg of a kẹp plan can never be
-     * issued — the pair (trip_pairs) is only created after both trips exist.
-     * Mirrors the KEP eligibility rules in createTripPair (same departure
-     * day + two 20' shells). Everything else (40' mixes, other days,
-     * non-pairable shapes) keeps the strict conflict.
-     */
-    kepContext?: {
-      issuingContainerIsTwentyFoot: boolean;
-      /** trips.departure_date basis (UTC slice of plannedStartAt) — the same value createTrip stores. */
-      departureDate: string;
-    } | null;
-  },
-) {
-  const predicates = [];
-  if (args.truckId != null) predicates.push(eq(s.trips.truckId, args.truckId));
-  if (args.trailerId != null) predicates.push(eq(s.trips.trailerId, args.trailerId));
-  if (args.driverId != null) predicates.push(eq(s.trips.driverId, args.driverId));
-  if (predicates.length === 0) return;
-
-  const conflicts = await tx.select({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
-    truckId: s.trips.truckId,
-    trailerId: s.trips.trailerId,
-    driverId: s.trips.driverId,
-    departureDate: s.trips.departureDate,
-    hasTwentyFootContainer: sql<boolean>`exists (
-      select 1 from trip_containers tc
-      left join container_types ct on ct.id = tc.container_type_id
-      where tc.trip_id = trips.id
-        and ct.code like '20%'
-    )`,
-  }).from(s.trips)
-    .where(and(
-      or(...predicates)!,
-      isNull(s.trips.deletedAt),
-      inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
-      args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
-      isNotNull(s.trips.plannedStartAt),
-      isNotNull(s.trips.plannedEndAt),
-      lt(s.trips.plannedStartAt, args.plannedEndAt),
-      gt(s.trips.plannedEndAt, args.plannedStartAt),
-    ));
-  const blocking = args.kepContext?.issuingContainerIsTwentyFoot
-    ? conflicts.filter((row) =>
-      row.departureDate !== args.kepContext!.departureDate
-      || !row.hasTwentyFootContainer,
-    )
-    : conflicts;
-  if (blocking.find((row) => args.truckId != null && row.truckId === args.truckId)) {
-    throw new ApiError(409, 'Xe đầu kéo đã bị trùng lịch kế hoạch.');
-  }
-  if (blocking.find((row) => args.trailerId != null && row.trailerId === args.trailerId)) {
-    throw new ApiError(409, 'Rơ-moóc đã bị trùng lịch kế hoạch.');
-  }
-  if (blocking.find((row) => args.driverId != null && row.driverId === args.driverId)) {
-    throw new ApiError(409, 'Tài xế đã bị trùng lịch kế hoạch.');
-  }
-}
 
 
 export async function issueOrderCreateOrUpdate(
@@ -472,7 +403,8 @@ export async function issueOrderCreateOrUpdate(
       if (
         container?.code
         && resolvedTrailerType != null
-        && resolvedTrailerType !== inferTrailerTypeFromContainerCode(container.code)
+        && resolvedTrailerType !== (fulfillment.dispatchClassification === 'DOUBLE' && container.code.startsWith('20')
+          ? '40FT' : inferTrailerTypeFromContainerCode(container.code))
       ) {
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }
@@ -585,12 +517,14 @@ export async function issueOrderCreateOrUpdate(
     driverId,
     plannedStartAt,
     plannedEndAt,
-    // Kẹp eligibility rides the issuing container's shell size: only a 20'
-    // shell may share its truck/trailer/driver window with another 20' trip
-    // on the same departure day (the pairing partner).
+    cargoWeightKg,
+    vehicleCapacityKg,
+    // Both rows must be explicitly Kẹp and share one physical rig. The
+    // business day is Vietnam-local, including windows crossing UTC midnight.
     kepContext: {
       issuingContainerIsTwentyFoot: (containerRoute?.containerTypeCode ?? '').startsWith('20'),
-      departureDate: plannedStartAt.toISOString().slice(0, 10),
+      classification: fulfillment.dispatchClassification,
+      departureDate: localDateInBusinessZone(plannedStartAt),
     },
   });
 
@@ -659,6 +593,7 @@ export async function issueOrderCreateOrUpdate(
     trip = linked ? toLiveTripRow(linked) : null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
+    await syncShipmentExpenseSources(tx, shipment.id, input.actor.userId);
     // Auto freight pricing: the dispatch order is the definitive rate lock —
     // the dispatcher's rate key (else the fulfillment container's class) at
     // the container's own appointment date, falling back to the shipment's
@@ -723,8 +658,10 @@ export async function issueOrderCreateOrUpdate(
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, fulfillment.id),
+      or(
+        and(eq(s.notifications.relatedEntityType, 'trips'), eq(s.notifications.relatedEntityId, trip.id)),
+        and(eq(s.notifications.relatedEntityType, 'shipment_fulfillments'), eq(s.notifications.relatedEntityId, fulfillment.id)),
+      ),
       driverUserId != null ? eq(s.notifications.userId, driverUserId) : undefined,
     ));
     if (
@@ -931,4 +868,3 @@ export async function completeExternalCarrierDispatchOrder(
 
   return { ok: true, tripId: trip.tripId, fulfillmentId: input.fulfillmentId, replayed };
 }
-

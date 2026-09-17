@@ -46,7 +46,10 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
           </StatusPill>
           {trip.tradeDirection ? (
             <span className="driver-task-close-chip" data-testid="close-status-chip">
-              {trip.tradeDirection === 'EXPORT' ? 'Đóng' : 'Trả'}
+              {/* Unknown values render the em-dash (pill-axis convention) —
+                  the DB enum is IMPORT/EXPORT only, so this branch is
+                  unreachable-by-data but keeps the chip honest by contract. */}
+              {trip.tradeDirection === 'EXPORT' ? 'Đóng' : trip.tradeDirection === 'IMPORT' ? 'Trả' : '—'}
             </span>
           ) : null}
           {expanded && trip.customerName && (

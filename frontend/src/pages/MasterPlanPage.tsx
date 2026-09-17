@@ -47,8 +47,10 @@ export default function MasterPlanPage() {
       });
       masterPlan.replaceItem({ ...shipment, operationalNotes: notes, version: response.version } as ShipmentListItem);
       toast({ kind: 'success', message: 'Đã lưu ghi chú điều phối.' });
-    } catch {
+    } catch (error) {
       toast({ kind: 'error', message: 'Không lưu được ghi chú điều phối. Vui lòng thử lại.' });
+      // The editor awaits this rejection to retain its draft for a retry.
+      throw error;
     }
   }, [masterPlan, toast]);
 
@@ -90,41 +92,24 @@ export default function MasterPlanPage() {
 
         {masterPlan.dispatchSummary && (
           <div className="master-plan-cargo-summary">
-            <span className="master-plan-cargo-summary__label">Sản lượng:</span>
-            <span className="master-plan-cargo-summary__count">
-              {masterPlan.dispatchSummary.totalFclContainers} cont
+            <span className="master-plan-cargo-summary__group">
+              <span className="master-plan-cargo-summary__label">Sản lượng:</span>
+              <span className="master-plan-cargo-summary__count">{masterPlan.dispatchSummary.totalFclContainers} cont</span>
             </span>
-            {(masterPlan.dispatchSummary.size20ft > 0 || masterPlan.dispatchSummary.size40ft > 0 || masterPlan.dispatchSummary.sizeOther > 0) && (
-              <>
-                <span className="master-plan-cargo-summary__separator">(</span>
-                {masterPlan.dispatchSummary.size20ft > 0 && (
-                  <>
-                    <span className="master-plan-cargo-summary__count">20': {masterPlan.dispatchSummary.size20ft}</span>
-                    {(masterPlan.dispatchSummary.size40ft > 0 || masterPlan.dispatchSummary.sizeOther > 0) && (
-                      <span className="master-plan-cargo-summary__separator"> · </span>
-                    )}
-                  </>
-                )}
-                {masterPlan.dispatchSummary.size40ft > 0 && (
-                  <>
-                    <span className="master-plan-cargo-summary__count">40': {masterPlan.dispatchSummary.size40ft}</span>
-                    {masterPlan.dispatchSummary.sizeOther > 0 && (
-                      <span className="master-plan-cargo-summary__separator"> · </span>
-                    )}
-                  </>
-                )}
-                {masterPlan.dispatchSummary.sizeOther > 0 && (
-                  <span className="master-plan-cargo-summary__count">Khác: {masterPlan.dispatchSummary.sizeOther}</span>
-                )}
-                <span className="master-plan-cargo-summary__separator">)</span>
-              </>
+            {masterPlan.dispatchSummary.size20ft > 0 && (
+              <span className="master-plan-cargo-summary__count">20′: {masterPlan.dispatchSummary.size20ft}</span>
+            )}
+            {masterPlan.dispatchSummary.size40ft > 0 && (
+              <span className="master-plan-cargo-summary__count">40′: {masterPlan.dispatchSummary.size40ft}</span>
+            )}
+            {masterPlan.dispatchSummary.sizeOther > 0 && (
+              <span className="master-plan-cargo-summary__count">Khác: {masterPlan.dispatchSummary.sizeOther}</span>
             )}
             {masterPlan.dispatchSummary.lclFulfillments > 0 && (
-              <>
-                <span className="master-plan-cargo-summary__separator"> · </span>
+              <span className="master-plan-cargo-summary__group">
                 <span className="master-plan-cargo-summary__label">Lẻ:</span>
                 <span className="master-plan-cargo-summary__count">{masterPlan.dispatchSummary.lclFulfillments} lô</span>
-              </>
+              </span>
             )}
             {presenceDropPlates.length > 0 && masterPlan.presence && (
               <span

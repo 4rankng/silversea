@@ -68,7 +68,7 @@ export function ShipmentMissingFieldsSummary({
         aria-controls={listId}
         onClick={() => setOpen((value) => !value)}
       >
-        Thiếu {missingFields.length} thông tin{open ? ' ▴' : ' ▾'}
+        Thiếu dữ liệu{open ? ' ▴' : ' ▾'}
       </button>
       {open && (
         <span className="shipment-container-ledger__missing-fields-list" id={listId} role="group" aria-label="Thông tin còn thiếu">

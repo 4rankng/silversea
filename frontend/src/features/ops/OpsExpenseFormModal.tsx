@@ -1,15 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useCreateOpsExpense, useAttachOpsExpensePhoto } from '../../hooks/useOpsQueries';
+import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd, localDateInputValue } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { DateInput } from '../../design-system/forms/DateInput';
+import { NumberField } from '../../design-system/forms/NumberField';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOpsExpenseFinancialDraft } from './OpsExpenseFinancialFields';
 interface Props {
   order: OpsOrderItem;
   onClose: () => void;
@@ -29,15 +32,17 @@ interface PendingPhoto {
 export function OpsExpenseFormModal({ order, onClose }: Props) {
   const { data: typesData } = useOpsExpenseTypes();
   const createExpense = useCreateOpsExpense();
-  const attachPhoto = useAttachOpsExpensePhoto();
   const { toast } = useToast();
 
   const [containerChoice, setContainerChoice] = useState<string>('LOT');
   const [typeCode, setTypeCode] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
   const [paidAt, setPaidAt] = useState(localDateInputValue());
   const [note, setNote] = useState('');
+  const [financial, setFinancial] = useOpsExpenseFinancialDraft();
+  const savingRef = useRef(false);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -66,28 +71,26 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     return options;
   }, [groupedTypes]);
 
-  const amountClean = amount.replace(/[^\d-]/g, '');
-  const isNegative = amountClean.startsWith('-');
-  const amountDigits = amountClean.replace(/-/g, '');
-  const amountError = isNegative ? 'Số tiền phải là số dương' : null;
-  const amountValid = /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative;
-  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading;
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  const amountError = amount === '' || amountValid ? undefined
+    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
-  async function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
-    setUploading(true);
+  async function handleFiles(files: FileList | File[] | null) {
+    if (!files?.length || uploading || savingRef.current) return;
+    if (files.length + photos.length > 20) { toast({ kind: 'error', message: 'Mỗi khoản chi tối đa 20 ảnh. Chọn ít ảnh hơn.' }); return; }
+    const remaining = Array.from(files);
+    setPendingFiles(remaining); setUploading(true);
     try {
-      const uploaded: PendingPhoto[] = [];
-      for (const file of Array.from(fileList)) {
+      while (remaining.length) {
+        const file = remaining[0];
         const compressed = await compressImageFile(file, { maxDimension: 2048 });
-        const uploaded1 = await opsClient.uploadExpensePhoto(compressed);
-        uploaded.push({ storageKey: uploaded1.storageKey, name: file.name });
+        const result = await opsClient.uploadExpensePhoto(compressed);
+        setPhotos(current => [...current, { storageKey: result.storageKey, name: file.name }]);
+        remaining.shift(); setPendingFiles([...remaining]);
       }
-      // Server caps photoStorageKeys at 20 per expense (zod); enforce the
-      // same bound client-side so Save can never 400 on the count.
-      setPhotos((current) => [...current, ...uploaded].slice(0, 20));
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại.' });
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.' });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -96,33 +99,37 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || savingRef.current) return;
+    savingRef.current = true;
     const containerId = containerChoice === 'LOT' ? null : Number(containerChoice);
     try {
       await createExpense.mutateAsync({
         shipmentId: order.id,
         shipmentContainerId: containerId,
         expenseTypeCode: typeCode,
-        amount: amountDigits,
+        amount: String(amount),
         paidAt,
         note: note.trim() || null,
         photoStorageKeys: photos.map((photo) => photo.storageKey),
+        ...opsFinancialPayload(financial),
       });
       toast({ kind: 'success', message: 'Đã ghi nhận khoản chi.' });
       onClose();
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Lưu khoản chi thất bại.' });
+    } finally {
+      savingRef.current = false;
     }
   }
 
   const busy = createExpense.isPending;
 
   return (
-    <OpsModalBackdrop onClose={onClose} ariaLabel="Khai báo chi phí">
+    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploading) onClose(); }} ariaLabel="Khai báo chi phí">
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Khai báo chi phí</h2>
-          <button type="button" aria-label="Đóng" onClick={onClose}><X size={18} /></button>
+          <button type="button" aria-label="Đóng" disabled={busy || uploading} onClick={onClose}><X size={18} /></button>
         </header>
 
         <div className="ops-modal__body">
@@ -150,27 +157,22 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               label="Loại phí"
               required
               value={typeCode}
-              onChange={(event) => setTypeCode(event.target.value)}
+              onChange={(event) => {
+                const type = typesData?.items.find((item) => item.code === event.target.value);
+                setTypeCode(event.target.value);
+                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(event.target.value, type?.requiresInvoice === true) }));
+              }}
               options={expenseTypeOptions}
             />
-            <label>
-              Số tiền (VND) *
-              <input
-                value={amountDigits ? `${isNegative ? '-' : ''}${formatVnd(amountDigits)}` : (isNegative ? '-' : '')}
-                aria-invalid={Boolean(amountError)}
-                aria-describedby={amountError ? 'ops-create-amount-error' : undefined}
-                onChange={(event) => setAmount(event.target.value)}
-                inputMode="numeric"
-                placeholder="0"
-                required
-              />
-              {amountError && <span id="ops-create-amount-error" role="alert" className="ops-field-error">{amountError}</span>}
-            </label>
+            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
+              min={1} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
-              <input type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} required />
+              <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
+
+          <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={busy || uploading} />
 
           <label className="ops-form-note">
             Ghi chú
@@ -199,6 +201,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 onChange={(event) => void handleFiles(event.target.files)}
               />
             </div>
+            {pendingFiles.length > 0 && !uploading && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handleFiles(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {photos.length > 0 && (
               <ul className="ops-form-photos__list">
                 {photos.map((photo) => (
@@ -220,9 +223,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{attachPhoto.isPending ? 'Đang đính kèm ảnh…' : `Tổng: ${amountDigits ? formatVnd(amountDigits) : 0} ₫`}</div>
+          <div>{`Tổng: ${amountValid ? formatVnd(String(amount)) : '—'} ₫`}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Đóng</button>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>
               {busy ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>

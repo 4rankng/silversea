@@ -6,6 +6,7 @@
 
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import type { updateShipment, updateShipmentDeclaration } from '../../../api/shipmentClient';
+import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { scheduleTime, type ShipmentQuickEditDraft } from './cusUtils';
 
 export type QuickEditField = ShipmentQuickEditDraft['field'];
@@ -91,7 +92,7 @@ export function quickEditSaveIdentity(draft: ShipmentQuickEditDraft, item: Shipm
  */
 export function buildQuickEditPayload(draft: ShipmentQuickEditDraft, item: ShipmentCusWorkspaceListItem): QuickEditShipmentPayload {
   const scheduleValue = draft.date && draft.time
-    ? new Date(`${draft.date}T${draft.time}:00`).toISOString()
+    ? localDateTimeToIso(`${draft.date}T${draft.time}`)
     : null;
   return draft.field === 'identity' ? {
     expectedVersion: item.version,

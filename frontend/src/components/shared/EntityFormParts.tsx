@@ -2,6 +2,7 @@ import { type ReactNode, useContext } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { InputBase, TextField } from '../untitled-ui/base/input/input';
 import { Label } from '../untitled-ui/base/input/label';
+import { HintText } from '../untitled-ui/base/input/hint-text';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { ModalCompactContext } from '../UI';
 
@@ -28,7 +29,7 @@ export function EntityFormSection({ icon: Icon, label, children }: { icon: Lucid
 /** Numeric input with an in-field unit suffix ("ngày", "tấn", "L/100km").
  * Composes the kit's TextField + InputBase so the label stays associated
  * with the input for free; the suffix is a pointer-events-none overlay. */
-export function UnitInput({ label, unit, icon, value, onChange, placeholder, min, max, isRequired, autoFocus, size, padClassName = 'pr-12' }: {
+export function UnitInput({ label, unit, icon, value, onChange, placeholder, min, max, step, hint, isRequired, autoFocus, size, padClassName = 'pr-12' }: {
   label: string;
   unit: string;
   icon?: LucideIcon;
@@ -37,6 +38,8 @@ export function UnitInput({ label, unit, icon, value, onChange, placeholder, min
   placeholder?: string;
   min?: number;
   max?: number;
+  step?: number | 'any';
+  hint?: ReactNode;
   isRequired?: boolean;
   autoFocus?: boolean;
   size?: 'sm' | 'md';
@@ -53,12 +56,14 @@ export function UnitInput({ label, unit, icon, value, onChange, placeholder, min
           type="number"
           min={min}
           max={max}
+          step={step}
           placeholder={placeholder}
           icon={icon}
           inputClassName={padClassName}
         />
         <span className="entity-unit-suffix" aria-hidden="true">{unit}</span>
       </div>
+      {hint && <HintText>{hint}</HintText>}
     </TextField>
   );
 }

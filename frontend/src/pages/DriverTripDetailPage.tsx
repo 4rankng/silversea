@@ -13,14 +13,16 @@ import {
   StickyNote,
   Zap,
 } from 'lucide-react';
-import { DriverProgressEventType } from '@tingting/shared';
+import { DriverProgressEventType, TripStatus } from '@tingting/shared';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
+import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '../api/keys';
@@ -28,7 +30,6 @@ import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } fro
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
 import { formatCurrency } from '../lib/format';
-import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
@@ -41,16 +42,22 @@ import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
+  // A different order owns a fresh editor, feedback and photo-viewer session.
+  return <DriverTripDetailContent key={id} />;
+}
+
+function DriverTripDetailContent() {
+  const { id } = useParams<{ id: string }>();
+  useDriverScreenEntry(id);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const online = useOnline();
   const geolocation = useGeolocation();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
-  const [blockingFulfillmentId, setBlockingFulfillmentId] = useState<number | null>(null);
+  const [blockingTripId, setBlockingTripId] = useState<number | null>(null);
 
   const tripId = Number(id);
   const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
@@ -81,6 +88,9 @@ export default function DriverTripDetailPage() {
   }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
+  const completed = trip?.status === TripStatus.COMPLETED;
+  const cancelled = trip?.status === TripStatus.CANCELED;
+  const closed = completed || cancelled;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
 
   const latestCompletedIndex = useMemo(() => {
@@ -102,7 +112,7 @@ export default function DriverTripDetailPage() {
   const operationTags = operationNote.selectedLabels;
 
   async function handleMilestone(eventType: MilestoneType) {
-    if (!trip || !validFulfillmentId || !online || ['COMPLETED', 'CANCELLED'].includes(trip.status)) return;
+    if (!trip || !validFulfillmentId || closed) return;
     const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
     if (milestoneIndex !== nextMilestoneIndex) return;
     const idempotencyKey = buildIdempotencyKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
@@ -120,7 +130,7 @@ export default function DriverTripDetailPage() {
       const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
       // KP-087: detect blocking-trip rejection and surface the trip code
       const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(.+?)\. Vui lòng/);
-      setBlockingFulfillmentId(null);
+      setBlockingTripId(null);
       if (blockingMatch) {
         const code = blockingMatch[1];
         setBlockingTripCode(code);
@@ -130,7 +140,7 @@ export default function DriverTripDetailPage() {
         try {
           const board = await driverClient.getJourneyBoard();
           const owned = board.items.find(item => item.tripCode === code && item.bucket !== 'HISTORY');
-          if (owned) setBlockingFulfillmentId(owned.fulfillmentId);
+          if (owned) setBlockingTripId(owned.tripId);
         } catch {
           // Keep the specific reason and an honest dispatch handoff below.
         }
@@ -144,11 +154,7 @@ export default function DriverTripDetailPage() {
   }
 
   async function handleUploadFuelEvidence(file: File) {
-    if (!trip) return;
-    if (!online) {
-      toast({ kind: 'warning', message: 'Cần có mạng để gửi ảnh nhiên liệu cho kế toán.' });
-      return;
-    }
+    if (!trip || cancelled) return;
     setUploadingFuelEvidence(true);
     try {
       const location = await geolocation.awaitAccurateSample();
@@ -315,7 +321,7 @@ export default function DriverTripDetailPage() {
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
-  const showAcceptStickyBar = !['COMPLETED', 'CANCELLED'].includes(trip.status) && acceptState !== 'done';
+  const showAcceptStickyBar = !closed && acceptState !== 'done';
   const acceptClickable = acceptState === 'available' && !accepting;
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
@@ -323,17 +329,7 @@ export default function DriverTripDetailPage() {
     <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
 
-      {!online && (
-        <section className="driver-task-section driver-task-section--banner">
-          <div className="driver-task-sync" role="status">
-            <AlertTriangle size={16} />
-            <div>
-              <strong>Đang ngoại tuyến</strong>
-              <p>Cần kết nối mạng để gửi lệnh. Vui lòng kiểm tra mạng và thử lại.</p>
-            </div>
-          </div>
-        </section>
-      )}
+
 
       {/* Spec Phần 3 / AC-DISPATCH-002: acceptance is direct while the Ops
           field-confirmation module is unfinished — guide the driver to check
@@ -355,7 +351,7 @@ export default function DriverTripDetailPage() {
 
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 
-      <DriverTaskInfoSections trip={trip} />
+      <DriverTaskInfoSections trip={trip}>
 
       {/* Card _36 (paper-form spec): Tác vụ and Ghi chú are STRUCTURAL rows —
           they always render, filled from the saved dispatch note
@@ -370,7 +366,7 @@ export default function DriverTripDetailPage() {
         {operationTags.length > 0 ? (
           <div className="driver-task-ops" data-testid="operation-chips">
             {visibleOperationTags.map((tag) => (
-              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
+              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
             ))}
             {shouldCollapseChips && (
               <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
@@ -394,10 +390,12 @@ export default function DriverTripDetailPage() {
           <p className="driver-task-empty">Không có ghi chú.</p>
         )}
       </section>
+      </DriverTaskInfoSections>
 
       <section className="driver-task-section">
         <DriverContainerCard
           tripId={trip.id}
+          readOnly={closed}
           containers={trip.containers}
           contPhotoKey={contPhotoKey}
           sealPhotoKey={sealPhotoKey}
@@ -420,8 +418,8 @@ export default function DriverTripDetailPage() {
               </li>
             ))}
           </ul>
-        ) : driverNotes ? null : (
-          <p className="driver-task-empty">Chưa có ghi chú cho chuyến này.</p>
+        ) : (
+          <p className="driver-task-empty">Chưa có quy định tại điểm làm hàng.</p>
         )}
       </section>
 
@@ -446,7 +444,7 @@ export default function DriverTripDetailPage() {
                     : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
                 </div>
               </div>
-              <button
+              {!cancelled && <button
                 type="button"
                 className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}
                 disabled={uploadingFuelEvidence}
@@ -454,14 +452,10 @@ export default function DriverTripDetailPage() {
               >
                 <Camera size={16} />
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
-              </button>
+              </button>}
             </div>
 
-            {!online && (
-              <div className="driver-task-fuel-offline">
-                Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
-              </div>
-            )}
+
 
             {latestFuelEvidence && (
               <div className="driver-task-fuel-details">
@@ -509,27 +503,29 @@ export default function DriverTripDetailPage() {
         </section>
       )}
 
-      {/* Phần 1 ticket: BOTH cost forms ("Nhập chi phí lô hàng" and "Báo cáo
-          đổ dầu") are coded but temporarily hidden — kế toán tài chính is the
-          post-trial phase. Backend schema + endpoints retained. 27.8's
-          "GIỮ NGUYÊN" covers the fuel SCREENSHOT upload below, not this form. */}
+      <ShipmentCostEntryForm key={tripId} tripId={tripId}
+        totalRoadAllowance={trip.totalRoadAllowance}
+        costSubmissionNote={trip.costSubmissionNote}
+        readOnly={cancelled || Boolean(accountingLock)} />
 
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>Hoàn tất lệnh vận chuyển</strong>
-            <p>
-              Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "HOÀN THÀNH CHUYẾN" ở đó — hệ thống
-              gửi e-POD và chốt chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
-            </p>
-            {(!hasYardReceipt || !hasSignedNote) && (
+            <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
+            <p>{closed ? 'Xem lại phiếu bãi và biên bản giao nhận đã lưu.' : 'Thêm phiếu bãi / phiếu hạ và biên bản giao nhận, rồi hoàn thành chuyến.'}</p>
+            {!closed && (!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
                 {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
               </ul>
             )}
           </div>
-          {trip.status === 'IN_TRANSIT' ? (
+          {closed ? (
+            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
+              <FileCheck2 size={18} />
+              <span>Xem chứng từ giao hàng</span>
+            </Link>
+          ) : trip.status === 'IN_TRANSIT' ? (
             <button
               type="button"
               className="driver-task-complete"
@@ -577,8 +573,8 @@ export default function DriverTripDetailPage() {
             <div>
               <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
               <div>
-                {blockingFulfillmentId != null
-                  ? <Link className="driver-task-link" to={`/my-trips/${blockingFulfillmentId}`}>Mở chuyến đang chạy</Link>
+                {blockingTripId != null
+                  ? <Link className="driver-task-link" to={`/my-trips/${blockingTripId}`}>Mở chuyến đang chạy</Link>
                   : <span>Liên hệ điều vận để xử lý chuyến đang chạy. Chỉ thử nhận lại khi xe đã sẵn sàng.</span>}
               </div>
             </div>

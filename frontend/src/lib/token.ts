@@ -56,3 +56,33 @@ export function clearToken(): void {
 export function invalidateTokenCache(): void {
   cachedToken = undefined;
 }
+
+/** Clear only the token rejected by the server. Read shared storage afresh:
+ * another tab may have signed in before its storage event reaches this tab. */
+export function isCurrentToken(expected: string | null): boolean {
+  let current = cachedToken;
+  try { current = localStorage.getItem(STORAGE_KEY); } catch { /* In-memory fallback. */ }
+  if (current === undefined) current = readToken();
+  cachedToken = current;
+  return current === expected;
+}
+
+export function clearTokenIfCurrent(expected: string | null): boolean {
+  if (!isCurrentToken(expected)) return false;
+  clearToken();
+  return true;
+}
+
+/** Browser storage events come only from other documents. Re-read the
+ * current value rather than trusting an event queued before a newer login. */
+export function onStoredTokenChange(listener: (token: string | null) => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handle = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY && event.key !== null) return;
+    if (event.storageArea && event.storageArea !== localStorage) return;
+    invalidateTokenCache();
+    listener(getToken());
+  };
+  window.addEventListener('storage', handle);
+  return () => window.removeEventListener('storage', handle);
+}

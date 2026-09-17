@@ -17,6 +17,7 @@ import * as s from '../db/schema';
 import { composeDriverTaskNote, parseDriverTaskNote } from '@tingting/shared';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { getDriverFulfillmentDetail } from '../services/driver.service';
+import { updateShipment } from '../services/shipment-update.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const V2_NOTE = composeDriverTaskNote(['HẾT HẠN', 'ĐẢO VỎ'], 'xuất container trước 17h');
@@ -138,6 +139,26 @@ describe('driver task-note format v2 — backend passthrough contract', () => {
       parseDriverTaskNote(cardB.operationalNotes, boardB.knownTagLabels),
       parsed,
     );
+  });
+
+  test('DRV-R01 CUS note save reaches board and detail as the same task/manual text without customer-note leakage', async () => {
+    const fixture = await mkNotesTrip({ notes: 'Ghi chú trước đó' });
+    const note = composeDriverTaskNote(['HẾT HẠN', 'ĐẢO VỎ'], 'Gọi chị An trước khi đến\nKiểm tra seal trước khi rời kho');
+    // CUS route maps its driverNotes alias onto operationalNotes before this
+    // service. Keep customer-only text distinct from the driver authority.
+    await updateShipment(fixture.shipment.id, {
+      expectedVersion: fixture.shipment.version,
+      operationalNotes: note,
+      customerNotes: 'Ghi chú nội bộ cho khách\nKhông phải ghi chú lái xe',
+    });
+    const board = await getDriverJourneyBoard(fixture.driver.id);
+    const card = board.items.find((item) => item.tripId === fixture.trip.id)!;
+    const detail = await getDriverFulfillmentDetail(fixture.driver.id, fixture.fulfillment.id);
+    assert.equal(card.operationalNotes, note);
+    assert.equal(detail.driverNotes, note);
+    const expected = { selectedLabels: ['HẾT HẠN', 'ĐẢO VỎ'], manualText: 'Gọi chị An trước khi đến\nKiểm tra seal trước khi rời kho' };
+    assert.deepEqual(parseDriverTaskNote(card.operationalNotes, board.knownTagLabels), expected);
+    assert.deepEqual(parseDriverTaskNote(detail.driverNotes, detail.knownTagLabels), expected);
   });
 
   test('driver fulfillment detail carries driverNotes verbatim + the tag pool', async () => {

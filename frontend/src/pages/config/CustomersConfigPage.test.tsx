@@ -99,27 +99,38 @@ beforeEach(() => {
 describe('CustomersConfigPage client-side sorting', () => {
   it('keeps all summary metrics and customer fields in the compact layout', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
     const summary = screen.getByRole('group', { name: 'Tổng quan khách hàng' });
     for (const label of ['Tổng khách hàng', 'Đang hoạt động', 'Top 4 chiếm', 'Tạm khoá']) {
       expect(within(summary).getByText(label)).toBeInTheDocument();
     }
     const row = container.querySelector('.cfg-customer-table tbody tr') as HTMLTableRowElement;
     expect(row.querySelectorAll('td[data-label]:not(.record-table__action)')).toHaveLength(12);
-    fireEvent.click(within(row).getByRole('button', { name: 'Tùy chọn' }));
+    // Compact records expose every desktop field in the native disclosure.
+    const details = row.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(within(details).getByText('Thông tin chi tiết')).toBeInTheDocument();
+    expect(details.querySelectorAll('dt')).toHaveLength(12);
+    for (const label of ['Tên đầy đủ', 'Tên viết tắt', 'Địa chỉ', 'SĐT liên hệ', 'Hạn thanh toán cước']) {
+      expect(within(details).getByText(label)).toBeInTheDocument();
+    }
+    fireEvent.click(within(details).getByText('Thông tin chi tiết'));
+    expect(details.open).toBe(true);
+    expect(within(details).getByText('Khách hàng An')).toBeVisible();
+    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng Khách hàng An' }));
     expect(within(row).getByRole('button', { name: 'Sửa' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Xoá' })).toBeInTheDocument();
   });
 
   it('keeps the fetch order until a header is used', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
     expect(nameOrder(container)).toEqual(['Khách hàng An', 'Khách hàng Bình', 'Khách hàng Cường']);
   });
 
   it('sorts by name via the Vietnamese collation', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tên Khách hàng' }));
     await waitFor(() => expect(nameOrder(container)).toEqual([
@@ -141,7 +152,7 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
   it('shows the create button and per-row action menu for DISPATCHER', async () => {
     authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
 
     expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeInTheDocument();
     expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
@@ -150,7 +161,7 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
 
   it('renders the action column for full catalog editors', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
 
     expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
     expect(container.querySelector('.record-table__action')).not.toBeNull();

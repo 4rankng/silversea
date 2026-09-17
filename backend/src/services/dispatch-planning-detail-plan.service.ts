@@ -7,10 +7,11 @@ import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAM
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
+import { listDetailPlanPageKeys, pageKeyPredicate } from './dispatch-detail-plan-page';
 import { ApiError } from '../errors';
 
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
-import { getActiveAssignment } from './truck-driver-assignment.service';
+import { getActiveAssignment, getActiveAssignmentsByTruckIds } from './truck-driver-assignment.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 
@@ -25,6 +26,21 @@ import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 
 
+
+/** Resolve planned OWN vehicle names in a batch; issued trips use their own
+ * driver record below, never the truck's potentially newer roster. */
+async function loadPlannedDriverNames(tx: Tx, plates: string[]): Promise<Map<string, string>> {
+  const uniquePlates = [...new Set(plates)];
+  if (uniquePlates.length === 0) return new Map();
+  const trucks = await tx.select({ id: s.trucks.id, plate: s.trucks.licensePlate })
+    .from(s.trucks)
+    .where(and(inArray(s.trucks.licensePlate, uniquePlates), isNull(s.trucks.deletedAt)));
+  const assignments = await getActiveAssignmentsByTruckIds(tx, trucks.map((truck) => truck.id));
+  return new Map(trucks.flatMap((truck) => {
+    const assignment = assignments.get(truck.id);
+    return assignment ? [[truck.plate, assignment.driverName] as const] : [];
+  }));
+}
 
 export interface ListDispatchDetailPlanRowsInput {
   actor: AuthUser;
@@ -96,6 +112,7 @@ export interface DispatchDetailPlanMutationResult {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    assignedDriverName: string | null;
     /** True once the trip's driver acknowledged (ORDER_RECEIVED) — locks
      *  reassignment; always false for fulfillment-less rows. */
     driverAccepted: boolean;
@@ -281,6 +298,22 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
+    const unionFilters = {
+      q: input.q,
+      date,
+      direction: input.direction ?? null,
+      pickupIds,
+      dropoffIds,
+      deliveryPointIds,
+      hourFrom,
+      hourTo,
+      zone: input.zone ?? null,
+      assignmentStatus: input.assignmentStatus ?? null,
+    };
+    const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
+    const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);
+    const branchContainerIds = pageKeys.flatMap((key) => key.fulfillmentId == null && key.containerId != null ? [key.containerId] : []);
+
     const [rows, totals] = await Promise.all([
       tx.select({
       fulfillmentId: s.shipmentFulfillments.id,
@@ -357,10 +390,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         eq(s.tripPairs.id, s.trips.activeTripPairId),
         eq(s.tripPairs.status, 'ACTIVE'),
       ))
-      .where(filters)
-      .orderBy(...dispatchDetailPriorityOrderSql())
-      .limit(limit)
-      .offset((page - 1) * limit),
+      .where(and(filters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
+      .orderBy(...dispatchDetailPriorityOrderSql()),
       tx.select({ total: sql<number>`count(*)` })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
@@ -373,33 +404,23 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // containers that never decomposed ride the page through a second
     // branch query — same row shape, fulfillment-owned fields nulled — so
     // dispatchers can see and allocate lots stuck before the write-path
-    // fix. Both branches page at the same offset; the merged slice keeps
-    // the shared priority order and the total adds both counts.
-    const unionFilters = {
-      q: input.q,
-      date,
-      direction: input.direction ?? null,
-      pickupIds,
-      dropoffIds,
-      deliveryPointIds,
-      hourFrom,
-      hourTo,
-      zone: input.zone ?? null,
-      assignmentStatus: input.assignmentStatus ?? null,
-    };
+    // fix. The global identity page has already selected both sources;
+    // hydrate only those rows and retain the combined total.
     const [unionRows, unionCount] = await Promise.all([
-      listFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds, limit, (page - 1) * limit),
+      listFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds, limit, 0, branchContainerIds),
       countFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds),
     ]);
-    const pageRows = [...rows, ...unionRows]
-      .sort(compareDetailPlanRows)
-      .slice(0, limit);
+    const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
     const portIds = pageRows.flatMap((row) => [row.pickupPortId, row.dropoffPortId]).filter((id): id is number => id != null);
-    const [declarations, carriers, ports, platedCounts] = await Promise.all([
+    const tripIds = pageRows.flatMap((row) => row.tripId == null ? [] : [row.tripId]);
+    const plannedOwnPlates = pageRows.flatMap((row) => row.tripId == null
+      && row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+      ? [row.plannedVehiclePlateNumber] : []);
+    const [declarations, carriers, ports, platedCounts, tripDrivers, plannedDriverNames] = await Promise.all([
       loadDeclarationNumbers(tx, shipmentIds),
       carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
       portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: PORT_OPERATIONAL_NAME }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
@@ -413,7 +434,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           isNull(s.shipmentFulfillments.canceledAt),
         ))
         .groupBy(s.shipmentFulfillments.shipmentId),
+      tripIds.length === 0 ? [] : tx.select({
+        tripId: s.tripsComposite.id,
+        carrierType: s.tripsComposite.carrierType,
+        driverName: s.drivers.name,
+        externalDriverName: s.tripsComposite.externalDriverName,
+      }).from(s.tripsComposite)
+        .leftJoin(s.drivers, eq(s.drivers.id, s.tripsComposite.driverId))
+        .where(inArray(s.tripsComposite.id, tripIds)),
+      loadPlannedDriverNames(tx, plannedOwnPlates),
     ]);
+    const tripDriverNames = new Map(tripDrivers.map((trip) => [trip.tripId,
+      trip.carrierType === 'EXTERNAL' ? trip.externalDriverName : trip.driverName]));
     const carriersById = new Map(carriers.map((row) => [row.id, row]));
     const portsById = new Map(ports.map((row) => [row.id, row]));
     const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
@@ -484,6 +516,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             externalCarrierId: row.plannedExternalCarrierId,
             externalCarrierVehicleId: row.plannedExternalCarrierVehicleId,
             assignedPlate: row.plannedVehiclePlateNumber,
+            assignedDriverName: row.tripId != null
+              ? tripDriverNames.get(row.tripId) ?? null
+              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                ? plannedDriverNames.get(row.plannedVehiclePlateNumber) ?? null
+                : null,
             pairKind: row.pairStatus === 'ACTIVE' && (row.pairKind === 'KEP' || row.pairKind === 'KET_HOP')
               ? row.pairKind
               : null,
@@ -1197,6 +1234,13 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
 
+  const assignedDriverName = vehicle != null
+    ? vehicle.assignedDriverName
+    : input.carrierType === 'OWN' && updatedFulfillment.plannedVehiclePlateNumber
+      ? (await loadPlannedDriverNames(tx, [updatedFulfillment.plannedVehiclePlateNumber]))
+        .get(updatedFulfillment.plannedVehiclePlateNumber) ?? null
+      : null;
+
   // Planning saves never notify the driver — dispatch-order issuance
   // (issueOrderCreateOrUpdate) owns the driver notification, so the driver
   // never sees or taps into a job that has no trips row yet.
@@ -1217,7 +1261,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       carrierName,
       externalCarrierId: plannedExternalCarrierId,
       externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,
-      assignedPlate: vehicle?.plannedVehiclePlateNumber ?? updatedFulfillment.plannedVehiclePlateNumber,
+      assignedPlate: updatedFulfillment.plannedVehiclePlateNumber,
+      assignedDriverName,
       // Plan saves only reach rows without a live trip (the per-row live-trip
       // guard keeps issued rows un-editable), so no acceptance can exist.
       driverAccepted: false,

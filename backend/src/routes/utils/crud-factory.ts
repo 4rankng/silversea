@@ -17,7 +17,7 @@ import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { parsePagination } from './pagination';
 import { throwValidation } from '../../lib/validation';
-import { ApiError } from '../../errors';
+import { ApiError, isPgUniqueViolation } from '../../errors';
 import { getUser } from '../../middleware/auth';
 import {
   buildCrudIdempotencyEndpoint,
@@ -92,11 +92,9 @@ export interface CrudRouterOptions<
 }
 
 function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
-  // Drizzle wraps postgres errors; the underlying code is usually on err.cause.code.
-  const e = err as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
-  const pgCode = e.code || e.cause?.code;
-  if (pgCode !== '23505') return null;
+  if (!isPgUniqueViolation(err)) return null;
 
+  const e = err as { cause?: { detail?: string }; detail?: string };
   const detail = e.cause?.detail || e.detail || '';
   const fieldMatch = detail.match(/Key \(([^)]+)\)/);
   const field = fieldMatch ? fieldMatch[1] : 'trường';

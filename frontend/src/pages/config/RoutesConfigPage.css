@@ -1,0 +1,70 @@
+.routes-config-page .routes-table .record-table__action { position: relative; }
+.routes-config-page .routes-table tbody tr:hover { background: var(--surface); }
+.routes-config-page .routes-table thead th:nth-child(1) { width: 10%; }
+.routes-config-page .routes-table thead th:nth-child(2) { width: 23%; }
+.routes-config-page .routes-table thead th:nth-child(3) { width: 16%; }
+.routes-config-page .routes-table thead th:nth-child(4) { width: 17%; }
+.routes-config-page .routes-table thead th:nth-child(5) { width: 10%; }
+.routes-config-page .routes-table thead th:nth-child(6) { width: 9%; }
+.routes-config-page .routes-table thead th:nth-child(7) { width: 11%; }
+.routes-config-page .routes-table thead th:nth-child(8) { width: 44px !important; }
+
+/* The row's identity is its name. Optional empty facts remain in the edit
+   form, without forcing an empty label/value block into each narrow record. */
+@container (max-width: 1100px) {
+  .routes-config-page .routes-table { display: block; min-width: 0; table-layout: auto; }
+  .routes-config-page .routes-table thead { display: none; }
+  .routes-config-page .routes-table tbody { display: grid; gap: 0; }
+  .routes-config-page .routes-table tbody tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 16px;
+    padding: 10px 8px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--surface);
+  }
+  .routes-config-page .routes-table tbody tr td {
+    display: block;
+    grid-column: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    line-height: 1.45;
+  }
+  .routes-config-page .routes-table tbody tr td::before {
+    display: block;
+    content: attr(data-label);
+    margin-bottom: 1px;
+    color: var(--ink-3);
+    font-size: var(--text-caption-size);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .routes-config-page .routes-table tbody tr td[data-empty] { display: none; }
+  .routes-config-page .routes-table tbody tr td.routes-table__name {
+    order: -1;
+    grid-column: 1 / -1;
+    padding-right: 40px;
+    min-height: 28px;
+    align-content: center;
+  }
+  .routes-config-page .routes-table tbody tr td.routes-table__name::before,
+  .routes-config-page .routes-table tbody tr td.record-table__action::before { display: none; }
+  .routes-config-page .routes-table tbody tr td.routes-table__note { grid-column: 1 / -1; }
+  .routes-config-page .routes-table tbody tr td.routes-table__distance:not([data-empty])::after { content: ' km'; }
+  .routes-config-page .routes-table tbody tr td.record-table__action { position: absolute; top: 2px; right: 0; width: 44px; padding: 0; }
+  .routes-config-page .routes-table .row-action { min-width: 44px; min-height: 44px; }
+}
+
+@container (min-width: 680px) and (max-width: 1100px) {
+  .routes-config-page .routes-table tbody tr { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 20px; }
+}
+
+.route-form__compact-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-column: 1 / -1; gap: 12px; min-width: 0; }
+.route-form__compact-pair > * { min-width: 0; }

@@ -5,7 +5,7 @@
  * duplicate guard. Seeded by migration 0058; dispatcher-created labels join
  * the same pool.
  */
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -17,6 +17,17 @@ import type { AuthUser } from '../middleware/auth';
  *  rows. */
 export function normalizeDispatchTaskTagLabel(label: string): string {
   return label.normalize('NFC').toLowerCase().trim();
+}
+
+// Applied migration 0066 stored three GẮP labels under a legacy "gặp" key.
+// Compare the visible label too, so existing installations cannot recreate
+// those labels as duplicate chips. Keep the stored-key comparison for the
+// unique constraint and normalize Unicode just like the public boundary.
+function matchingTaskTagLabel(normalized: string) {
+  return or(
+    eq(s.dispatchTaskTags.normalizedLabel, normalized),
+    sql`lower(btrim(normalize(${s.dispatchTaskTags.label}, NFC))) = ${normalized}`,
+  );
 }
 
 /** Active tags for the composer's chip row: the canonical operation-tag set
@@ -63,6 +74,20 @@ export async function createDispatchTaskTag(input: { label: string; actor: AuthU
     normalizedLabel: normalized,
     createdBy: input.actor?.userId ?? null,
   };
+  const matches = await db.select().from(s.dispatchTaskTags)
+    .where(matchingTaskTagLabel(normalized));
+  if (matches.some((row) => row.isActive)) throw new ApiError(409, 'Tag đã tồn tại.');
+  // Prefer the row already owning the canonical unique key if historical
+  // duplicates were both deactivated. Never delete another custom record.
+  const existing = matches.find((row) => row.normalizedLabel === normalized) ?? matches[0];
+  if (existing) {
+    const [revived] = await db.update(s.dispatchTaskTags)
+      .set({ ...values, isActive: true })
+      .where(and(eq(s.dispatchTaskTags.id, existing.id), eq(s.dispatchTaskTags.isActive, false)))
+      .returning();
+    if (revived) return { id: revived.id, label: revived.label };
+    throw new ApiError(409, 'Tag đã tồn tại.');
+  }
   const [inserted] = await db.insert(s.dispatchTaskTags).values(values)
     .onConflictDoNothing({ target: s.dispatchTaskTags.normalizedLabel }).returning();
   if (inserted) return { id: inserted.id, label: inserted.label };
@@ -104,14 +129,12 @@ export async function updateDispatchTaskTag(input: { id: number; label: string; 
     .from(s.dispatchTaskTags)
     .where(eq(s.dispatchTaskTags.id, input.id));
   if (!existing) throw new ApiError(404, 'Tag không tồn tại.');
-  if (existing.normalizedLabel !== normalized) {
-    // Key is held by another row (active or not) — 409, never auto-resurrect
-    // another row's soft-deleted label via a rename.
-    const [conflict] = await db.select({ id: s.dispatchTaskTags.id })
-      .from(s.dispatchTaskTags)
-      .where(eq(s.dispatchTaskTags.normalizedLabel, normalized));
-    if (conflict) throw new ApiError(409, 'Tag đã tồn tại.');
-  }
+  // A legacy visible label may have an incorrect key; exclude this row so
+  // repairing its own key remains allowed, while other labels stay unique.
+  const [conflict] = await db.select({ id: s.dispatchTaskTags.id })
+    .from(s.dispatchTaskTags)
+    .where(and(ne(s.dispatchTaskTags.id, input.id), matchingTaskTagLabel(normalized)));
+  if (conflict) throw new ApiError(409, 'Tag đã tồn tại.');
   await db.update(s.dispatchTaskTags)
     .set({ label: trimmed, normalizedLabel: normalized })
     .where(eq(s.dispatchTaskTags.id, input.id));

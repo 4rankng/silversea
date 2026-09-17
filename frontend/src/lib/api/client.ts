@@ -1,8 +1,7 @@
 import { MUTATION_METHODS, hasIdempotencyKey, ensureMutationTransactionKey } from './mutation-identity';
 import { ApiError } from './errors';
-import { assertConnectionForMutation } from '../connection';
 import { notifySessionExpired } from './session';
-import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../token';
+import { getToken, setToken as storeToken, clearToken as storeClearToken, clearTokenIfCurrent, isCurrentToken, invalidateTokenCache } from '../token';
 
 type MutationOptions = {
   expectedUpdatedAt?: string;
@@ -14,8 +13,6 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 type RequestInitWithSkip = RequestInit & MutationOptions;
 type UploadOptions = MutationOptions;
-
-const RETRYABLE_COMMAND_KEY_TTL_MS = 5 * 60 * 1000;
 
 type GeneratedCommandKey = {
   fingerprint: string;
@@ -41,11 +38,11 @@ const HEALED_VERSION_TOKEN = Symbol('healedVersionToken');
 const VERSION_TOKEN_REQUIRED = 'VERSION_TOKEN_REQUIRED';
 
 class ApiClient {
+  private requestCacheToken: string | null | undefined;
   private readonly updatedAtByPath = new Map<string, string>();
   private readonly retryableCommandKeys = new Map<string, {
     activeRequests: number;
     key: string;
-    expiresAt: number;
   }>();
 
   constructor() {
@@ -54,15 +51,20 @@ class ApiClient {
     getToken();
   }
 
-  setToken(token: string) {
+  /** Discard actor-specific request state without changing shared credentials. */
+  resetSessionCaches() {
+    this.requestCacheToken = undefined;
     this.updatedAtByPath.clear();
     this.retryableCommandKeys.clear();
+  }
+
+  setToken(token: string) {
+    this.resetSessionCaches();
     storeToken(token);
   }
 
   clearToken() {
-    this.updatedAtByPath.clear();
-    this.retryableCommandKeys.clear();
+    this.resetSessionCaches();
     storeClearToken();
   }
 
@@ -76,6 +78,7 @@ class ApiClient {
     options?: RequestInitWithSkip,
     skipContentType = false,
   ): Promise<T> {
+    const initiatingToken = getToken();
     try {
       return await this.requestOnce<T>(path, options, skipContentType);
     } catch (error) {
@@ -92,7 +95,7 @@ class ApiClient {
         && ['PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())
         && !options?.expectedUpdatedAt
         && !(options as RequestInitWithSkip & { [HEALED_VERSION_TOKEN]?: boolean })[HEALED_VERSION_TOKEN];
-      if (!healable) throw error;
+      if (!healable || !isCurrentToken(initiatingToken)) throw error;
       if (import.meta.env.DEV) {
         console.warn(
           `[api] ${options?.method} ${path} omitted expectedUpdatedAt — self-healed from a fresh row fetch.`
@@ -100,7 +103,7 @@ class ApiClient {
         );
       }
       const fresh = await this.get<{ updatedAt?: string }>(path);
-      if (!fresh?.updatedAt) throw error;
+      if (!fresh?.updatedAt || !isCurrentToken(initiatingToken)) throw error;
       return this.requestOnce<T>(path, {
         ...options,
         headers: {
@@ -117,10 +120,11 @@ class ApiClient {
     options?: RequestInitWithSkip,
     skipContentType = false,
   ): Promise<T> {
-    if (options?.method && MUTATION_METHODS.has(options.method.toUpperCase())) {
-      assertConnectionForMutation();
-    }
     const token = getToken();
+    if (this.requestCacheToken !== token) {
+      this.resetSessionCaches();
+      this.requestCacheToken = token;
+    }
     const headers: Record<string, string> = {
       ...(skipContentType ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -175,7 +179,7 @@ class ApiClient {
     if (generatedCommandKey) {
       this.releaseMutationTransactionKey(generatedCommandKey);
     }
-    this.rememberUpdatedAt(path, options?.method, result);
+    if (isCurrentToken(token)) this.rememberUpdatedAt(path, options?.method, result);
     return result;
   }
 
@@ -202,9 +206,10 @@ class ApiClient {
     const fingerprint = explicitFingerprint
       ? `${method}:${this.normalizePath(path)}:${explicitFingerprint}`
       : `${method}:${this.normalizePath(path)}:${options?.body ?? ''}`;
-    const now = Date.now();
+    // An unknown outcome stays retryable until success or an account change.
+    // Expiring this key could post the same money twice after a slow recovery.
     const existing = this.retryableCommandKeys.get(fingerprint);
-    if (existing && existing.expiresAt > now) {
+    if (existing) {
       existing.activeRequests += 1;
       return { fingerprint, key: existing.key };
     }
@@ -213,7 +218,6 @@ class ApiClient {
     this.retryableCommandKeys.set(fingerprint, {
       activeRequests: 1,
       key,
-      expiresAt: now + RETRYABLE_COMMAND_KEY_TTL_MS,
     });
     return { fingerprint, key };
   }
@@ -277,8 +281,7 @@ class ApiClient {
     if (res.status !== 401 || !requestToken) return;
     // Ignore a late 401 from an older request after the user has already
     // established a newer session.
-    if (getToken() !== requestToken) return;
-    storeClearToken();
+    if (!clearTokenIfCurrent(requestToken)) return;
     notifySessionExpired();
   }
 
@@ -353,7 +356,6 @@ class ApiClient {
 
   /** POST JSON body and receive a binary blob response. */
   async postForBlob(url: string, body: unknown): Promise<Blob> {
-    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -375,7 +377,6 @@ class ApiClient {
 
   /** POST JSON body and receive a text response (e.g. HTML). */
   async postForText(url: string, body: unknown): Promise<string> {
-    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

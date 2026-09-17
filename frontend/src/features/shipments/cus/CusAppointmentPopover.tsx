@@ -9,11 +9,9 @@ import {
 import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
 import { useFocusTrap } from '../../../hooks/useFocusTrap';
-import { parseDateTime24 } from '../../../lib/format';
 import { getOffsetDateString, parseDateTimeParts } from './cusAppointmentUtils';
-import { DateTimePickerDialog } from '../../../design-system/forms/DateTimePickerPanels';
+import { SplitDateTimeField } from '../../../design-system/forms/SplitDateTimeField';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 
 export interface CusAppointmentPopoverProps {
@@ -47,15 +45,15 @@ export function CusAppointmentPopover({
 }: CusAppointmentPopoverProps) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [explicit, setExplicit] = useState(false);
+  const explicitRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const committing = useRef(false);
   const session = useRef(0);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const pickerTriggerRef = useRef<HTMLButtonElement>(null);
-  useClickOutside(panelRef, () => setPanelOpen(false), { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef] });
+  const wasOpen = useRef(false);
+  const lastPublishedValue = useRef(value);
   useFocusTrap(popoverRef, isOpen);
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -68,40 +66,36 @@ export function CusAppointmentPopover({
   useLayoutEffect(() => {
     session.current += 1;
     committing.current = false;
+    explicitRef.current = false;
+    setExplicit(false);
     setSaving(false);
     return () => { session.current += 1; };
   }, [isOpen]);
 
-  // Sync state whenever opened or value changes
+  // Preserve partial drafts when the parent echoes a published value.
+  // A new, appointment-less editor opens empty; only an explicit action
+  // chooses a date/time. External server changes still replace the draft.
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      wasOpen.current = false;
+      return;
+    }
+    const opening = !wasOpen.current;
+    wasOpen.current = true;
+    if (opening || value !== lastPublishedValue.current) {
+      lastPublishedValue.current = value;
       setSaveError('');
       const parts = parseDateTimeParts(value);
-      setDate(parts.date || getOffsetDateString(0));
-      setTime(parts.time || '08:00');
+      setDate(parts.date);
+      setTime(parts.time);
     }
   }, [isOpen, value]);
-
-  // Combined 24h text input (see the input block below): the draft date+time
-  // state rehydrates it on pills/presets, and a complete "HH:mm DD/MM/YYYY"
-  // entry splits back into the draft state AND emits the recomposed naive
-  // value — same wire shape the old native inputs produced. Incomplete
-  // typing never fires.
-  const buffered = useBufferedDateTimeValue({
-    value: date && time ? `${date}T${time}` : '',
-    onChange: (next) => {
-      if (committing.current) return;
-      const [nextDate, nextTime] = next ? next.split('T') : ['', ''];
-      setDate(nextDate);
-      setTime(nextTime.slice(0, 5));
-      onChange(next);
-    },
-  });
 
   useClickOutside(popoverRef, onClose, {
     escapeKey: true,
     enabled: isOpen,
     additionalRefs: triggerRef ? [triggerRef] : [],
+    ignoreSelector: '[data-time-picker-overlay], .time-picker__popup, [data-date-picker]',
   });
 
   const coords = usePopoverPosition(popoverRef, triggerRef, isOpen);
@@ -109,36 +103,61 @@ export function CusAppointmentPopover({
 
   if (!isOpen) return null;
 
-  const updateDateTime = (newDate: string, newTime: string) => {
+  const publishDateTime = (next: string) => {
     if (committing.current) return;
-    setDate(newDate);
-    setTime(newTime);
-    if (newDate) {
-      onChange(`${newDate}T${newTime || '08:00'}`);
-    } else {
-      onChange('');
+    explicitRef.current = true;
+    setExplicit(true);
+    const [nextDate = '', nextTime = ''] = next.split('T');
+    setDate(nextDate);
+    setTime(nextTime.slice(0, 5));
+    setSaveError('');
+    lastPublishedValue.current = next;
+    onChange(next);
+  };
+
+  const updateDateTime = (newDate: string, newTime: string) => {
+    publishDateTime(newDate ? `${newDate}T${newTime || '08:00'}` : '');
+  };
+
+  const updateField = (next: string) => {
+    if (committing.current) return;
+    explicitRef.current = true;
+    setExplicit(true);
+    // The shared field emits '' while incomplete so forms cannot submit an old
+    // timestamp. This popover also owns a parent draft that survives dismissal;
+    // do not turn an abandoned partial edit into a cleared appointment there.
+    const fields = popoverRef.current?.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
+    if (!next && fields && Array.from(fields).some((input) => input.value.trim())) {
+      setDate('');
+      setTime('');
+      setSaveError('');
+      return;
     }
+    publishDateTime(next);
   };
 
   const handleClear = () => {
     if (committing.current) return;
-    setDate('');
-    setTime('');
-    onChange('');
+    publishDateTime('');
     onClose();
   };
 
-  const commit = () => {
+  const commit = (confirmedValue?: string) => {
     if (committing.current) return;
-    const input = popoverRef.current?.querySelector<HTMLInputElement>('.cus-appointment-input');
-    const raw = input?.value.trim() ?? '';
-    const composed = raw ? parseDateTime24(raw) : '';
-    if (composed === null) {
-      setSaveError('Nhập ngày giờ đầy đủ theo định dạng HH:mm DD/MM/YYYY.');
-      input?.focus();
+    if (!value && !explicitRef.current) {
+      setSaveError('Chưa chọn ngày giờ để lưu.');
       return;
     }
+    const invalidInput = popoverRef.current?.querySelector<HTMLInputElement>('[data-split-datetime] input:invalid');
+    if (invalidInput) {
+      setSaveError('Nhập đủ giờ HH:mm và ngày DD/MM/YYYY hợp lệ.');
+      invalidInput.focus();
+      invalidInput.reportValidity();
+      return;
+    }
+    const composed = confirmedValue ?? (date && time ? `${date}T${time}` : '');
     setSaveError('');
+    lastPublishedValue.current = composed;
     onChange(composed);
     // _34: a missing commit path is a configuration error — surface it in
     // the popover instead of silently closing as if the save happened.
@@ -168,6 +187,9 @@ export function CusAppointmentPopover({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+    // Portalled selectors are separate keyboard layers, including their buttons.
+    if ((event.target as HTMLElement).closest('[data-date-picker], [data-time-picker-overlay], .time-picker__popup')) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -191,7 +213,6 @@ export function CusAppointmentPopover({
     <>
       <div
         className="cus-appointment-backdrop"
-        style={coords ? { zIndex: 1040 } : undefined}
         data-escape-boundary="true"
         onClick={(e) => {
           e.stopPropagation();
@@ -215,7 +236,6 @@ export function CusAppointmentPopover({
           left: `${coords.left}px`,
           right: 'auto',
           bottom: 'auto',
-          zIndex: 1050,
         } : undefined}
         role="dialog"
         aria-modal="true"
@@ -268,54 +288,16 @@ export function CusAppointmentPopover({
           </button>
         </div>
 
-        {/* Keep the visible value in 24h format; the clipped native input only opens the picker. */}
         <div className="cus-appointment-popover__inputs">
-          <div className="cus-appointment-input-wrap">
-            <label htmlFor={`${idPrefix}-datetime`}>Ngày giờ</label>
-            <div className="cus-appointment-input-row">
-              <input
-                ref={buffered.ref}
-                id={`${idPrefix}-datetime`}
-                type="text"
-                inputMode="numeric"
-                className="cus-appointment-input"
-                disabled={saving}
-                placeholder={DATE_TIME_24_PLACEHOLDER}
-                maxLength={16}
-                autoComplete="off"
-                defaultValue={buffered.defaultValue}
-                onChange={buffered.onChange}
-                onBlur={buffered.onBlur}
-              />
-              <button
-                type="button"
-                ref={pickerTriggerRef}
-                className="cus-appointment-picker-btn"
-                aria-label="Chọn ngày giờ từ lịch"
-                aria-haspopup="dialog"
-                aria-expanded={panelOpen}
-                disabled={saving}
-                title="Mở lịch chọn ngày giờ"
-                onClick={() => setPanelOpen((v) => !v)}
-              >
-                <Calendar size={14} aria-hidden="true" />
-              </button>
-              {panelOpen && (
-                <div ref={panelRef} className="dtp-dialog-host cus-appointment-dtp">
-                  <DateTimePickerDialog
-                    title={`Giờ hẹn đóng/trả — ${containerLabel}`}
-                    value={date && time ? `${date}T${time}` : ''}
-                    onConfirm={(composed) => {
-                      const [d = '', t = ''] = composed.split('T');
-                      updateDateTime(d, t);
-                      setPanelOpen(false);
-                    }}
-                    onClose={() => setPanelOpen(false)}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+          <SplitDateTimeField
+            id={`${idPrefix}-datetime`}
+            label="Giờ hẹn đóng/trả"
+            hideLabel
+            value={date && time ? `${date}T${time}` : ''}
+            onChange={updateField}
+            onCommit={commit}
+            disabled={saving}
+          />
         </div>
 
         {/* Quick Time Shortcuts */}
@@ -354,9 +336,9 @@ export function CusAppointmentPopover({
           <button
             type="button"
             className="btn btn--primary"
-            disabled={saving}
+            disabled={saving || (!value && !explicit)}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={commit}
+            onClick={() => commit()}
           >
             {saving ? 'Đang lưu…' : 'Xác nhận'}
           </button>

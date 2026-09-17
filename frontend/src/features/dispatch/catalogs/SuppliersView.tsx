@@ -70,7 +70,7 @@ export function SuppliersView() {
         </Button>
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid" style={{ marginBottom: 16 }}>
+      <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
         <KPI label="Tổng (toàn bộ trang)" value={total} unit="NCC" icon={Store} />
         <KPI label="Đang hoạt động (trang này)" value={activeCount} unit="NCC" icon={Store} variant="success" />
       </div>
@@ -100,6 +100,7 @@ export function SuppliersView() {
                   <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} />
                   <SortHeader label="Loại" sortKey="types" sort={sort} onSortChange={applySort} />
                   <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
+                  <th aria-label="Thao tác" />
                 </tr>
               </thead>
               <tbody>
@@ -108,15 +109,13 @@ export function SuppliersView() {
                     key={s.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => crud.showEdit(s.id)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(s.id); } }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Chỉnh sửa nhà thầu ${s.shortName || s.name}`}
                   >
-                    <td data-label="Tên" style={{ fontWeight: 600 }}>{s.shortName || s.name}</td>
-                    <td data-label="Liên hệ">{s.contactPerson ?? '—'}</td>
-                    <td data-label="SĐT">{s.phone ?? '—'}</td>
-                    <td data-label="Loại">
+                    <td data-label="Tên" style={{ fontWeight: 600 }}>
+                      <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa nhà thầu ${s.shortName || s.name}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(s.id); }}>{s.shortName || s.name}</button>
+                    </td>
+                    <td data-label="Liên hệ" data-empty={!s.contactPerson?.trim() || undefined}>{s.contactPerson || '—'}</td>
+                    <td data-label="SĐT" data-empty={!s.phone?.trim() || undefined}>{s.phone || '—'}</td>
+                    <td data-label="Loại" data-empty={!s.types?.length || undefined}>
                       {(s.types ?? [])
                         .map((t) => SUPPLIER_TYPE_LABELS[t] || t)
                         .join(', ') || '—'}
@@ -126,7 +125,7 @@ export function SuppliersView() {
                         {s.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng hoạt động'}
                       </BadgeWithDot>
                     </td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    <td data-label="Thao tác" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="btn btn--danger-outline btn--sm"

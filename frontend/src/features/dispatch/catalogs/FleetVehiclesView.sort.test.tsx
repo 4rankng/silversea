@@ -42,10 +42,7 @@ function renderView() {
 }
 
 function bodyRows() {
-  // Data rows have role="button" (clickable for edit); header row is role="row".
-  const header = screen.getAllByRole('row');
-  const buttons = screen.getAllByRole('button', { name: /chỉnh sửa xe/i });
-  return buttons.length > 0 ? buttons : header.slice(1);
+  return Array.from(document.querySelectorAll<HTMLTableRowElement>('tbody tr'));
 }
 
 function plateColumn(): string[] {
@@ -56,7 +53,7 @@ function plateColumn(): string[] {
 function driverColumn(): Array<string | null> {
   return bodyRows().map((row) => {
     const cell = row.querySelector('td[data-label="Tài xế được gán"]');
-    return cell?.textContent === '—' ? null : cell?.textContent ?? null;
+    return cell?.textContent === '—' || cell?.textContent === 'Chưa phân công' ? null : cell?.textContent ?? null;
   });
 }
 

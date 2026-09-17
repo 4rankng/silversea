@@ -3,7 +3,7 @@
 //
 // Usage:
 //   STAGING_URL=https://vantai.tingting.vip \
-//   node testplan/qa/scripts/run-all.mjs customer-regression
+//   node testplan/qa/scripts/run-all.mjs chungtu-regression
 
 import path from 'node:path';
 import fs from 'node:fs/promises';

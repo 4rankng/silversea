@@ -75,7 +75,7 @@ describe('DispatchAllocationPopover', () => {
     } as never);
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={onSaved} />);
 
-    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm nhà xe/ })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
     await waitFor(() => screen.getByLabelText(/Nhà xe dòng 2/));
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 2"), { target: { value: '2' } });
@@ -209,7 +209,7 @@ describe('DispatchAllocationPopover', () => {
   it('flags duplicate vendor rows', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
-    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm nhà xe/ })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
     // Second row auto-picks the first unused option (EXTERNAL:77); force it to
     // OWN so it collides with row 1.

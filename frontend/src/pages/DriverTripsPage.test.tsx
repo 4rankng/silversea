@@ -12,6 +12,10 @@ vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
 }));
 
+vi.mock('../hooks/useMonth', () => ({
+  useMonth: () => ({ month: 8, year: 2026 }),
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => navigateMock };
@@ -103,12 +107,53 @@ describe('DriverTripsPage', () => {
     expect(await screen.findByText('00:30 - 07/09')).toBeTruthy();
   });
 
+  it('filters history by the completion month rather than the planned departure month', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tripId: 51, fulfillmentId: 91, bucket: 'HISTORY', factoryName: 'Completed in August', scheduledAt: '2026-07-31T02:00:00Z', historyAt: '2026-08-01T02:00:00Z' }),
+      card({ tripId: 52, fulfillmentId: 92, bucket: 'HISTORY', factoryName: 'Completed in July', scheduledAt: '2026-08-01T02:00:00Z', historyAt: '2026-07-31T02:00:00Z' }),
+    ]));
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
+    expect(screen.getByText('Completed in August')).toBeVisible();
+    expect(screen.queryByText('Completed in July')).toBeNull();
+  });
+
+  it('VID-DRV-05 clearly identifies an unconfirmed schedule instead of an ambiguous dash', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: null })]));
+    renderPage();
+    expect(screen.getByText('Chưa chốt lịch')).toBeTruthy();
+  });
+
   it('renders the Trả rỗng port line when the card carries a distinct return depot', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ returnDepotName: 'Bãi JJ LOGISTICS' })]));
     renderPage();
 
     const depotLine = await screen.findByText(/Bãi JJ LOGISTICS/);
     expect(depotLine.textContent).toContain('Trả rỗng');
+  });
+
+  it.each([
+    ['Bãi trả rỗng', 'Nhà máy nhận hàng', 'Bãi trả rỗng', true],
+    ['Cùng một cảng', 'Cùng một cảng', 'Cùng một cảng', true],
+    [null, 'Nhà máy nhận hàng', 'Chưa có nơi trả rỗng', true],
+  ])('DRV-R02 IMPORT uses canonical return port %s without a duplicate return row', (depot, delivery, expected, showDelivery) => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ tradeDirection: 'IMPORT', returnDepotName: depot, dropPortName: delivery })]));
+    renderPage();
+    const drop = screen.getByText('Hạ').parentElement!;
+    expect(drop.textContent).toBe(`Hạ ${expected}`);
+    expect(screen.queryByText('Trả rỗng')).toBeNull();
+    expect(Boolean(screen.queryByText('Giao hàng'))).toBe(showDelivery);
+    if (showDelivery) expect(screen.getByText('Giao hàng').parentElement!.textContent).toBe(`Giao hàng ${delivery}`);
+  });
+
+  it('DRV-R01 keeps uppercase tasks and multiline driver notes on separate rows', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ operationalNotes: 'Đảo vỏ; Kiểm hóa\nGọi chị An trước khi đến\nKiểm tra seal tại kho' })], ['Đảo vỏ', 'Kiểm hóa']));
+    const { container } = renderPage();
+    const tasks = container.querySelector('.driver-journey-card__ops')!;
+    expect(tasks.textContent).toBe('Tác vụĐẢO VỎKIỂM HÓA');
+    const note = container.querySelector('.driver-journey-card__ops-note')!;
+    expect(note.textContent).toBe('Ghi chú Gọi chị An trước khi đến\nKiểm tra seal tại kho');
+    expect(note.previousElementSibling).toBe(tasks);
   });
 
   it('shows the New Orders tab by default with tab counts', async () => {

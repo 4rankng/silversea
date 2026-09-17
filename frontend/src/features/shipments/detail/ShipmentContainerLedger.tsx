@@ -14,6 +14,7 @@ import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { USearchableField } from '../create/uui-fields';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
@@ -65,6 +66,9 @@ export interface ShipmentVehicleDraft {
   externalCarrierVehicleId: number | null;
   plateNumber: string | null;
   newExternalCarrier: { name: string; plateNumber: string } | null;
+  /** Explicit removal: an emptied plate alone is NOT a clear on EXTERNAL
+   *  rows (the service falls back to the carrier vehicle's stored plate). */
+  clearVehicle?: boolean;
 }
 
 export interface ShipmentScheduleDraft {
@@ -171,6 +175,10 @@ function InlineEditor({
   const [carrierId, setCarrierId] = useState(initialCarrier);
   const [newCarrierName, setNewCarrierName] = useState('');
   const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
+  // 20260916_6: an explicit clear action — an emptied plate alone is NOT a
+  // clear on EXTERNAL rows (the service falls back to the carrier vehicle's
+  // stored plate), so the save must carry the clearVehicle flag.
+  const [clearVehicleRequested, setClearVehicleRequested] = useState(false);
   const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
   const [appointmentDate, setAppointmentDate] = useState(appointmentInput?.slice(0, 10) ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
@@ -201,7 +209,7 @@ function InlineEditor({
     if (!saving) onCancel();
   }, {
     escapeKey: true,
-    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover',
+    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [data-time-picker-overlay], .time-picker__popup, [data-date-picker]',
   });
   const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
     value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
@@ -261,6 +269,13 @@ function InlineEditor({
   }, []);
 
   const save = async () => {
+    const invalidInput = Array.from(editorRef.current?.querySelectorAll<HTMLInputElement>('input') ?? [])
+      .find((input) => !input.validity.valid);
+    if (invalidInput) {
+      setSaveError(invalidInput.validationMessage || 'Kiểm tra thông tin chưa hợp lệ trước khi lưu.');
+      invalidInput.focus();
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -305,6 +320,19 @@ function InlineEditor({
           throw new Error('Nhập đủ tên nhà xe mới và biển số xe.');
         }
         if (!carrierId) throw new Error('Chọn nhà xe trước khi lưu.');
+        if (clearVehicleRequested) {
+          // The explicit clear beats any draft plate text: the user asked to
+          // remove the assignment, so drop the vehicle selection too.
+          await onSaveVehicle(line, {
+            carrierType: 'EXTERNAL',
+            externalCarrierId: carrierId === 'NEW_EXTERNAL' ? null : Number(carrierId),
+            externalCarrierVehicleId: null,
+            plateNumber: null,
+            newExternalCarrier: null,
+            clearVehicle: true,
+          });
+          return;
+        }
         await onSaveVehicle(line, {
           carrierType: 'EXTERNAL',
           externalCarrierId: carrierId === 'NEW_EXTERNAL' ? null : Number(carrierId),
@@ -315,6 +343,7 @@ function InlineEditor({
             : null,
         });
       } else if (mode === 'schedule') {
+        if (scheduleTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleTime)) throw new Error('Nhập giờ từ 00:00 đến 23:59 (HH:mm).');
         if (scheduleTime && !appointmentDate) throw new Error('Chọn ngày đóng/trả trước khi nhập giờ.');
         if (appointmentDate && !scheduleTime) throw new Error('Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.');
         await onSaveSchedule(line, row, {
@@ -342,6 +371,7 @@ function InlineEditor({
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
+        if ((event.target as HTMLElement).closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
         if (event.key === 'Escape' && !saving) {
           event.preventDefault();
           event.stopPropagation();
@@ -433,8 +463,12 @@ function InlineEditor({
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
-          {carrierId && carrierId !== 'OWN' && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length > 0 && <label><span>Biển số đã lưu</span><SearchableSelect id={`shipment-detail-vehicle-${line.id}`} value={matchedVehicle ? String(matchedVehicle.id) : ''} onChange={(value) => { const vehicle = detail.selectors.carrierVehicles.find((item) => item.id === Number(value)); setPlateNumber(vehicle?.licensePlate ?? ''); }} options={vehicleOptions} placeholder="Chọn biển số" searchPlaceholder="Tìm biển số" disabled={saving || !line.permissions.plateEditable} /></label>}
-          <label><span>Biển số xe</span><input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || !line.permissions.plateEditable} /></label>
+          {carrierId && carrierId !== 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={vehicleOptions.map((vehicle) => ({ value: vehicle.label, label: vehicle.label, searchText: vehicle.searchText }))} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
+          {carrierId && carrierId !== 'NEW_EXTERNAL' && line.plateNumber && line.permissions.plateEditable && (
+            <small className="shipment-container-ledger__plate-clear">
+              <button type="button" disabled={saving} onClick={() => { setPlateNumber(''); setClearVehicleRequested(true); }}>Xóa biển số</button>
+            </small>
+          )}
           {carrierId === 'OWN' && <small>Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
           {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
         </div>
@@ -646,9 +680,9 @@ export function ShipmentContainerLedger({
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
-                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule">
+                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong>{appointmentInput ? (scheduleTime || formatDate(appointmentInput.slice(0, 10))) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${formatDate(appointmentInput.slice(0, 10))} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
@@ -657,7 +691,6 @@ export function ShipmentContainerLedger({
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                         : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
-                      {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
                     </div>)}
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>

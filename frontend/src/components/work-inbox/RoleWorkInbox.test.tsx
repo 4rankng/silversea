@@ -120,11 +120,12 @@ describe('RoleWorkInbox', () => {
     expect(screen.getByText('SHP-14')).toBeTruthy();
   });
 
-  it('shows the offline truth and never reports a queued role command as complete', async () => {
+  it('loads business data without treating the browser hint as a backend outage', async () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     apiGet.mockResolvedValue(response([operationsItem]));
     renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
-    expect(await screen.findByText(/chỉ hiển thị hoàn tất sau khi máy chủ xác nhận/)).toBeTruthy();
+    expect(await screen.findByText('SHP-14')).toBeTruthy();
+    expect(screen.queryByText(/Đang ngoại tuyến/)).toBeNull();
   });
 
   it('isolates customer reads and submits a versioned confirmation with a stable idempotency key', async () => {

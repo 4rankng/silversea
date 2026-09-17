@@ -35,7 +35,9 @@
 .searchable-select__value,
 .searchable-select__placeholder {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .searchable-select__placeholder {

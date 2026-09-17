@@ -520,7 +520,11 @@ export function factoryInvoiceProfile(row: {
     { name: row.liftFeeInvoiceName, address: row.liftFeeInvoiceAddress, taxCode: row.liftFeeTaxCode },
     { name: row.dropFeeInvoiceName, address: row.dropFeeInvoiceAddress, taxCode: row.dropFeeTaxCode },
     { name: row.cleaningInvoiceName, address: row.cleaningInvoiceAddress, taxCode: row.cleaningTaxCode },
-  ].find((profile) => profile.name != null) ?? null;
+  ].map((profile) => ({
+    name: profile.name?.trim() || null,
+    address: profile.address?.trim() || null,
+    taxCode: profile.taxCode?.trim() || null,
+  })).find((profile) => profile.name || profile.address || profile.taxCode) ?? null;
 }
 
 export interface DriverFulfillmentDetail {
@@ -543,7 +547,7 @@ export interface DriverFulfillmentDetail {
   factoryFullName: string | null;
   /** Factory site street address (own "Địa chỉ nhà máy" row on the driver grid). */
   factoryAddress: string | null;
-  /** Kho site phone — the warehouse-phone row always renders, tel link or "—". */
+  /** Legacy site phone; the UI uses one combined named contact row. */
   khoPhone: string | null;
   /** TC-DA-005: shipment customer master-data invoice block (hidden when all null). */
   invoiceMaster: { taxCode: string | null; companyName: string | null; address: string | null } | null;
@@ -561,8 +565,8 @@ export interface DriverFulfillmentDetail {
   plannedReturnAt: string | null;
   pickupLocation: string | null;
   deliveryLocation: string | null;
-  /** Stage-2 empty-container return depot — distinct from the delivery point;
-   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  /** Canonical container dropoff port for IMPORT, including same-place delivery;
+   *  for other directions only a distinct return stage is exposed. */
   returnDepotName: string | null;
   contactName: string | null;
   contactPhone: string | null;
@@ -580,7 +584,7 @@ export async function getDriverFulfillmentDetail(
   driverId: number,
   fulfillmentId: number,
 ): Promise<DriverFulfillmentDetail> {
-  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId, { includeCanceled: true });
   const trip = await getDriverTripDetail(driverId, ownedTrip.tripId);
   if (!trip) {
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
@@ -741,20 +745,24 @@ export async function getDriverFulfillmentDetail(
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
     pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
     deliveryLocation: deliveryStage.deliveryName,
-    returnDepotName: deliveryStage.returnDepotName,
-    contactName: shipmentRow.contactName
+    returnDepotName: shipmentRow.tradeDirection === 'IMPORT'
+      ? (shipmentRow.containerDropoffPortName?.trim() || null)
+      : deliveryStage.returnDepotName,
+    contactName: (shipmentRow.contactName?.trim() || null)
       ?? deliverySiteContact.name
-      ?? shipmentRow.siteContactName
+      ?? (shipmentRow.siteContactName?.trim() || null)
       ?? null,
-    contactPhone: shipmentRow.contactPhone
+    contactPhone: (shipmentRow.contactPhone?.trim() || null)
       ?? deliverySiteContact.phone
-      ?? shipmentRow.siteContactPhone
+      ?? (shipmentRow.siteContactPhone?.trim() || null)
       ?? null,
     driverNotes: shipmentRow.driverNotes ?? null,
     siteSnapshot,
     invoiceInfo: [
-      shipmentRow.liftFeeInvoiceName, shipmentRow.dropFeeInvoiceName, shipmentRow.cleaningInvoiceName,
-    ].some((value) => value != null) ? {
+      shipmentRow.liftFeeInvoiceName, shipmentRow.liftFeeInvoiceAddress, shipmentRow.liftFeeTaxCode,
+      shipmentRow.dropFeeInvoiceName, shipmentRow.dropFeeInvoiceAddress, shipmentRow.dropFeeTaxCode,
+      shipmentRow.cleaningInvoiceName, shipmentRow.cleaningInvoiceAddress, shipmentRow.cleaningTaxCode,
+    ].some((value) => Boolean(value?.trim())) ? {
       liftFeeInvoiceName: shipmentRow.liftFeeInvoiceName,
       liftFeeInvoiceAddress: shipmentRow.liftFeeInvoiceAddress,
       liftFeeTaxCode: shipmentRow.liftFeeTaxCode,
@@ -772,7 +780,7 @@ export async function getDriverFulfillmentDetail(
     trip,
     // TC-DA-005: shipment customer master-data invoice block; FE hides the
     // block when every member is null (graceful hide per spec).
-    invoiceMaster: shipmentRow.customerTaxCode != null || shipmentRow.customerAddress != null
+    invoiceMaster: Boolean(shipmentRow.customerCompanyName?.trim() || shipmentRow.customerTaxCode?.trim() || shipmentRow.customerAddress?.trim())
       ? {
         taxCode: shipmentRow.customerTaxCode,
         companyName: shipmentRow.customerCompanyName,

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TripPodStatus } from '@tingting/shared';
+import { TripPodStatus, TripStatus } from '@tingting/shared';
+import type { TripPodSubmissionProps } from '../components/trip/TripPodSubmission';
 
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
@@ -17,12 +18,14 @@ const {
   toastMock,
   submitPodMock,
   completeTripMock,
+  podSubmissionMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
   refetchMock: vi.fn(),
   toastMock: vi.fn(),
   submitPodMock: vi.fn(),
   completeTripMock: vi.fn(),
+  podSubmissionMock: vi.fn((_props: TripPodSubmissionProps) => <div data-testid="trip-pod-submission">pod</div>),
 }));
 
 vi.mock('../api/driverClient', () => ({
@@ -41,9 +44,7 @@ vi.mock('../hooks/useBackShortcut', () => ({
   useBackShortcut: vi.fn(),
 }));
 
-vi.mock('../hooks/useOnline', () => ({
-  useOnline: () => true,
-}));
+
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
@@ -54,7 +55,7 @@ vi.mock('../components/shared/Toast', () => ({
 }));
 
 vi.mock('../components/trip/TripPodSubmission', () => ({
-  default: () => <div data-testid="trip-pod-submission">pod</div>,
+  default: podSubmissionMock,
 }));
 
 vi.mock('../lib/idempotency', () => ({
@@ -129,6 +130,7 @@ describe('DriverTripPodPage', () => {
     toastMock.mockReset();
     submitPodMock.mockReset().mockResolvedValue({});
     completeTripMock.mockReset().mockResolvedValue({});
+    podSubmissionMock.mockClear();
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -149,7 +151,7 @@ describe('DriverTripPodPage', () => {
     // Both mandatory photos are listed as missing and completion is gated.
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/i }).hasAttribute('disabled')).toBe(true);
   });
 
   it('enables Hoàn thành chuyến once both mandatory photos are on the draft', async () => {
@@ -168,7 +170,7 @@ describe('DriverTripPodPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
+    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/i });
     expect(complete.hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
     expect(screen.queryByText(/Thiếu/)).toBeNull();
@@ -210,7 +212,7 @@ describe('DriverTripPodPage', () => {
     });
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
+    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/i });
     fireEvent.click(complete);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
@@ -228,7 +230,7 @@ describe('DriverTripPodPage', () => {
       isLoading: false, error: null, isError: false, refetch: refetchMock,
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Hoàn thành chuyến/i }));
     await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: error.message }));
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
@@ -259,7 +261,93 @@ describe('DriverTripPodPage', () => {
     renderPage();
 
     expect(await screen.findByRole('status', { name: 'Lô hàng đã khóa kế toán' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/i }).hasAttribute('disabled')).toBe(true);
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe('Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.');
+  });
+
+  it('parses the dispatch note — task tags render as chips, manual text as the note', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: ['BỐC HÀNG'],
+        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG\nGọi cổng 2' },
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    expect(screen.getByTestId('pod-operation-chips')).toBeTruthy();
+    expect(screen.getByTestId('pod-operation-chips').textContent).toContain('BỐC HÀNG');
+    expect(screen.getByText('Gọi cổng 2')).toBeTruthy();
+    // The composed raw note must never leak as a literal blob.
+    expect(screen.queryByText('BỐC HÀNG\nGọi cổng 2')).toBeNull();
+  });
+
+  it('renders a tags-only dispatch note as chips without an empty note paragraph', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: ['BỐC HÀNG'],
+        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG' },
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    expect(screen.getByTestId('pod-operation-chips')).toBeTruthy();
+    // Exactly one rendering of the tag (the chip) — no raw note paragraph.
+    expect(screen.getAllByText('BỐC HÀNG')).toHaveLength(1);
+    expect(document.querySelector('.driver-trip-pod-note p')).toBeNull();
+  });
+
+  it('DRV-FOLLOWUP-001 blocks completion during document preparation and enables it after the operation ends', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' }]) }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    const complete = screen.getByRole('button', { name: /Hoàn thành chuyến/i });
+    expect(complete).toBeEnabled();
+    act(() => podSubmissionMock.mock.lastCall?.[0].onBusyChange?.(true));
+    expect(complete).toBeDisabled();
+    expect(complete).toHaveTextContent('Đang lưu chứng từ…');
+    fireEvent.click(complete);
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    act(() => podSubmissionMock.mock.lastCall?.[0].onBusyChange?.(false));
+    expect(complete).toBeEnabled();
+  });
+
+  it.each([
+    [TripStatus.COMPLETED, 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'],
+    [TripStatus.CANCELED, 'Chuyến đã hủy. Không thể thay đổi chứng từ.'],
+  ])('DRV-FOLLOWUP-001 makes %s documents read-only and removes completion controls', (status, reason) => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe(reason);
+    expect(document.querySelector('.driver-task-footer')).toBeNull();
+  });
+
+  it('AC-CP-KT-22 lets the API determine availability without closing the POD form', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' }]) }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    submitPodMock.mockRejectedValueOnce(new Error('Máy chủ không khả dụng'));
+    renderPage();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến/i }));
+    await waitFor(() => expect(submitPodMock).toHaveBeenCalledTimes(1));
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
   });
 
   // Offline queue conflict/recovery tests removed — completion now uses direct API calls.

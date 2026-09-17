@@ -4,17 +4,18 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 
-/* The authenticated shell owns scrolling through .app-body. Keep its tall
-   ledger content from promoting the document root to a second scroll surface. */
+/* The authenticated shell owns scrolling through .app-body. Clip prevents
+   focused portal content from programmatically scrolling these viewport layers;
+   overflow:hidden would still make each one a scroll container. */
 html:has(body .app),
 body:has(.app) {
-  overflow: hidden;
+  overflow: clip;
 }
 
 body:has(.app) #root {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
 }
 
 body {
@@ -74,4 +75,3 @@ img { display: block; }
 #root .app :where(button, a, [role='button']):hover {
   transform: none;
 }
-

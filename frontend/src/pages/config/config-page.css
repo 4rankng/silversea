@@ -1307,7 +1307,10 @@
 .cfg-page .cfg-catalogue-summary { flex: 1 1 auto; min-width: 0; }
 .cfg-page .cfg-catalogue-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 8px; color: var(--ink-2); }
 @media (max-width: 640px) {
-  .cfg-page .toolbar:has(.cfg-catalogue-search) { flex-wrap: wrap; padding: 8px 0; gap: 8px; }
+  .cfg-page .toolbar:has(.cfg-catalogue-search) { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 8px; gap: 6px 8px; }
   .cfg-page .cfg-catalogue-search { max-width: none; flex-basis: calc(100% - 96px); }
-  .cfg-page .cfg-catalogue-summary { order: 3; flex-basis: 100%; }
+  .cfg-page .cfg-catalogue-summary { order: 3; grid-column: 1 / -1; }
+  .cfg-page--fuel-price-periods .record-table tbody td[data-label='STT'] { display: none; }
+  .cfg-page--fuel-price-periods .record-table tbody td { text-align: left; }
+  .cfg-page--fuel-price-periods .record-table tbody td[data-label='Ghi chú'] { grid-column: 1 / -1; }
 }

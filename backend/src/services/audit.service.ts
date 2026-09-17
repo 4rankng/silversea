@@ -25,6 +25,8 @@ interface AuditRequestContext {
   fullPath: string;
   isLoginPath: boolean;
   declaredMaterialWriteEndpoint?: string;
+  declaredCanonicalAliases?: readonly string[];
+  resolvedMaterialWriteEndpoint?: string;
 }
 
 const auditRequestContextStorage = new AsyncLocalStorage<AuditRequestContext>();
@@ -38,6 +40,20 @@ export function runWithAuditRequestContext<T>(
 
 export function getAuditRequestContext(): AuditRequestContext | undefined {
   return auditRequestContextStorage.getStore();
+}
+
+/** Bind a shared HTTP adapter to the canonical command it actually executes. */
+export function resolveSharedAdapterAuditEndpoint(endpoint: string): void {
+  const context = getAuditRequestContext();
+  // Ordinary routes keep their declared identity and existing registry checks.
+  if (!context?.declaredCanonicalAliases) return;
+  if (!context.declaredMaterialWriteEndpoint
+    || (endpoint !== context.declaredMaterialWriteEndpoint && !context.declaredCanonicalAliases.includes(endpoint))
+    || (context.resolvedMaterialWriteEndpoint != null && context.resolvedMaterialWriteEndpoint !== endpoint)) {
+    throw new Error(`Undeclared material write alias ${endpoint} for ${context.req.method} ${context.fullPath}`);
+  }
+  context.resolvedMaterialWriteEndpoint = endpoint;
+  context.res.locals.materialWriteEndpoint = endpoint;
 }
 
 export function extractAuditEntityType(path: string): string | null {
@@ -263,7 +279,7 @@ export async function persistMaterialWriteSuccessAuditInTransaction(args: {
       statusCode: args.statusCode,
       outcome: 'SUCCEEDED',
       body: args.responseBody,
-      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      materialWriteEndpoint: context.resolvedMaterialWriteEndpoint ?? context.declaredMaterialWriteEndpoint,
       idempotencyKeyPresent: true,
     }),
   } as const;
@@ -323,7 +339,7 @@ export async function persistMaterialWriteAttemptAuditInTransaction(args: {
       statusCode: args.statusCode,
       outcome: 'ACCEPTED',
       body: args.responseBody,
-      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      materialWriteEndpoint: context.resolvedMaterialWriteEndpoint ?? context.declaredMaterialWriteEndpoint,
       idempotencyKeyPresent: true,
     }),
   });
@@ -371,7 +387,7 @@ export async function persistMaterialWriteConflictAuditInTransaction(args: {
       statusCode: 409,
       outcome: 'CONFLICT',
       body: args.responseBody,
-      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      materialWriteEndpoint: context.resolvedMaterialWriteEndpoint ?? context.declaredMaterialWriteEndpoint,
       idempotencyKeyPresent: true,
     }),
   });

@@ -168,31 +168,32 @@ export function FleetVehiclesView() {
         </Button>
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
+      <div className="kpi-grid dispatch-catalogs__summary dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
         <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
         <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
         <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
-      <UuiSelectField
-        label="Lọc theo nhà xe"
-        hideLabel
-        ariaLabel="Lọc theo nhà xe"
-        inline
-        width="content"
-        value={carrierFilter}
-        onChange={(e) => setCarrierFilter(e.target.value)}
-        options={[
-          { value: '', label: 'Tất cả nhà xe' },
-          { value: 'UNASSIGNED', label: 'Chưa phân nhà xe' },
-          ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
-        ]}
-      />
       <CatalogTableShell
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm biển số hoặc tài xế…"
         totalLabel={`${filtered.length}/${trucks.length} xe`}
+        filters={(
+          <UuiSelectField
+            label="Lọc theo nhà xe"
+            hideLabel
+            ariaLabel="Lọc theo nhà xe"
+            wrapperClassName="dispatch-catalogs__carrier-filter"
+            value={carrierFilter}
+            onChange={(e) => setCarrierFilter(e.target.value)}
+            options={[
+              { value: '', label: 'Tất cả nhà xe' },
+              { value: 'UNASSIGNED', label: 'Chưa phân nhà xe' },
+              ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+          />
+        )}
       >
         {loading ? (
           <div className="dispatch-catalogs__empty">Đang tải…</div>
@@ -220,15 +221,13 @@ export function FleetVehiclesView() {
                     key={t.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => crud.showEdit(t.id)}
-                    onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); crud.showEdit(t.id); } }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Chỉnh sửa xe ${t.licensePlate}`}
                   >
-                    <td data-label="Biển số" className="dispatch-catalogs__plate">{t.licensePlate}</td>
-                    <td data-label="Nhà xe">{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>
-                    <td data-label="Rơ-moóc đang nối">{trailer ? trailer.licensePlate : '—'}</td>
-                    <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? '—'}</td>
+                    <td data-label="Biển số" className="dispatch-catalogs__plate">
+                      <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa xe ${t.licensePlate}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(t.id); }}>{t.licensePlate}</button>
+                    </td>
+                    <td data-label="Nhà xe" data-empty={t.carrierId == null || undefined}>{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>
+                    <td data-label="Rơ-moóc đang nối" data-empty={!trailer || undefined}>{trailer ? trailer.licensePlate : '—'}</td>
+                    <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? 'Chưa phân công'}</td>
                     <td data-label="Trạng thái">
                       <BadgeWithDot
                         size="sm"

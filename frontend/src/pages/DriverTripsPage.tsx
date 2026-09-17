@@ -2,10 +2,13 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
+import { useMonth } from '../hooks/useMonth';
+import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
 import { formatCardTimeShort } from '../lib/format';
 import { Tabs } from '../design-system/Tabs';
+import { driverLocationLabels } from '../features/driver/driver-display';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -86,7 +89,8 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const isNew = card.bucket === 'NEW';
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber) || isPresent(card.containerTypeName);
-  const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
+  const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
+  const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.delivery) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
   const tradeLabel = tradeDirectionLabel(card);
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
@@ -109,7 +113,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
-          {formatCardTimeShort(card.scheduledAt)}
+          {card.scheduledAt ? formatCardTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
         </span>
       </div>
 
@@ -165,14 +169,19 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
                   <span className="driver-journey-card__port-label">Nâng</span> {card.loadingPortName}
                 </span>
               ) : null}
-              {isPresent(card.dropPortName) ? (
+              {isPresent(locations.drop) || card.tradeDirection === 'IMPORT' ? (
                 <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Hạ</span> {card.dropPortName}
+                  <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? 'Chưa có nơi trả rỗng'}
                 </span>
               ) : null}
-              {isPresent(card.returnDepotName) ? (
+              {isPresent(locations.delivery) ? (
                 <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Trả rỗng</span> {card.returnDepotName}
+                  <span className="driver-journey-card__port-label">Giao hàng</span> {locations.delivery}
+                </span>
+              ) : null}
+              {isPresent(locations.returnDepot) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Trả rỗng</span> {locations.returnDepot}
                 </span>
               ) : null}
             </div>
@@ -182,14 +191,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
 
       {/* 5. Operation tasks (tác vụ) — chips from operationalNotes */}
       {operationTags.length > 0 ? (
-        <div className="driver-journey-card__ops">
+        <div className="driver-journey-card__ops" aria-label="Tác vụ">
+          <span className="driver-journey-card__port-label">Tác vụ</span>
           {operationTags.map((opTag) => (
-            <span key={opTag} className="driver-journey-card__ops-tag">{opTag}</span>
+            <span key={opTag} className="driver-journey-card__ops-tag">{opTag.toLocaleUpperCase('vi-VN')}</span>
           ))}
         </div>
       ) : null}
       {isPresent(operationManualText) ? (
-        <p className="driver-journey-card__ops-note">{operationManualText}</p>
+        <p className="driver-journey-card__ops-note"><span className="driver-journey-card__port-label">Ghi chú</span>{' '}{operationManualText}</p>
       ) : null}
 
       {/* KẾT HỢP sequencing lock (TC-GHEP-010) */}
@@ -216,10 +226,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
 
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
+  const { month, year } = useMonth();
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
   // Tag labels ride on the board response — the driver portal fetches nothing
   // from the dispatcher-only tag pool (ticket 53a536f9).
-  const cards = useMemo(() => data?.items ?? [], [data?.items]);
+  const cards = useMemo(() => {
+    const selectedMonth = `${year}-${String(month).padStart(2, '0')}`;
+    return (data?.items ?? []).filter((card) => card.bucket !== 'HISTORY'
+      || formatVietnamDateInput(card.historyAt ?? card.scheduledAt).startsWith(selectedMonth));
+  }, [data?.items, month, year]);
   const tagLabels = data?.knownTagLabels ?? [];
 
   const countsByBucket = useMemo(() => {
@@ -262,7 +277,7 @@ export default function DriverTripsPage() {
             </button>
           </div>
         ) : groupedCardsForTab.length === 0 ? (
-          <p className="driver-journey__empty">{EMPTY_MESSAGE[activeTab]}</p>
+          <p className="driver-journey__empty">{activeTab === 'HISTORY' ? `Chưa có chuyến trong tháng ${month}/${year}.` : EMPTY_MESSAGE[activeTab]}</p>
         ) : (
           <div className="driver-journey__list">
             {groupedCardsForTab.map((group) => (

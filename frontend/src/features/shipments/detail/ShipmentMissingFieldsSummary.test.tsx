@@ -27,13 +27,13 @@ function renderSummary(overrides: Partial<Parameters<typeof ShipmentMissingField
 }
 
 function expand() {
-  fireEvent.click(screen.getByRole('button', { name: /Thiếu 3 thông tin/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
 }
 
 describe('ShipmentMissingFieldsSummary', () => {
   it('collapses to one count line — no field labels render until expanded', () => {
     renderSummary();
-    const toggle = screen.getByRole('button', { name: /Thiếu 3 thông tin/ });
+    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Số container')).toBeNull();
     expect(screen.queryByText('Tờ khai')).toBeNull();
@@ -43,7 +43,7 @@ describe('ShipmentMissingFieldsSummary', () => {
   it('expands to every missing field; the count equals the rendered list', () => {
     renderSummary();
     expand();
-    const toggle = screen.getByRole('button', { name: /Thiếu 3 thông tin/ });
+    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     // aria-controls points at the rendered list's id.
     const list = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
@@ -103,8 +103,8 @@ describe('ShipmentMissingFieldsSummary', () => {
   it('toggles closed again — the row returns to the compact single line', () => {
     renderSummary();
     expand();
-    fireEvent.click(screen.getByRole('button', { name: /Thiếu 3 thông tin/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
     expect(screen.queryByText('Số container')).toBeNull();
-    expect(screen.getByRole('button', { name: /Thiếu 3 thông tin/ }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('button', { name: /Thiếu dữ liệu/ }).getAttribute('aria-expanded')).toBe('false');
   });
 });

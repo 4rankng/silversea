@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const sourceRoot = resolve(process.cwd(), 'src');
 const staticPlaceholderPattern = /\b(?:searchPlaceholder|placeholder)\s*=\s*(?:\{\s*)?["'`]([^"'`]+)["'`]/g;
+const isAllCapsCopy = (value: string) => value !== 'DD/MM/YYYY'
+  && /\p{L}/u.test(value) && value === value.toLocaleUpperCase('vi-VN');
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -24,7 +26,7 @@ describe('placeholder casing contract', () => {
       const source = readFileSync(path, 'utf8');
       return [...source.matchAll(staticPlaceholderPattern)]
         .map((match) => match[1])
-        .filter((value) => /\p{L}/u.test(value) && value === value.toLocaleUpperCase('vi-VN'))
+        .filter(isAllCapsCopy)
         .map((value) => `${path.replace(`${sourceRoot}/`, '')}: ${value}`);
     });
 
@@ -33,7 +35,13 @@ describe('placeholder casing contract', () => {
 
   it('also rejects static JSX values wrapped in braces', () => {
     const source = `const field = <Input placeholder={'MST'} searchPlaceholder={\`MÃ\`} />;`;
-    const allCaps = [...source.matchAll(staticPlaceholderPattern)].map((match) => match[1]);
+    const allCaps = [...source.matchAll(staticPlaceholderPattern)].map((match) => match[1]).filter(isAllCapsCopy);
     expect(allCaps).toEqual(['MST', 'MÃ']);
+  });
+
+  it('allows the exact date-format hint without exempting uppercase copy', () => {
+    const source = '<Input placeholder="DD/MM/YYYY" /><Input placeholder="NGÀY" /><Input placeholder="MST" />';
+    const allCaps = [...source.matchAll(staticPlaceholderPattern)].map((match) => match[1]).filter(isAllCapsCopy);
+    expect(allCaps).toEqual(['NGÀY', 'MST']);
   });
 });
