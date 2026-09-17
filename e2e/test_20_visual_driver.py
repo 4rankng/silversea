@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
 Visual QA for the driver app — tests against 2026.8.27 spec.
-Uses existing seed data (no API creation needed).
+Uses an isolated native CUS/direct-dispatch fixture with exact-trip cleanup.
 """
 import sys
 import os
+from urllib.parse import urlparse
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
+from test_20_driver_flow_e2e import create_driver_flow_fixture, cleanup_driver_flow_fixture
 
 
-def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
+def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixture):
     """Visual + logical QA of the driver app against spec."""
 
     # ════════════════════════════════════════════════════════════════
@@ -33,24 +35,22 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
     ctx.screenshot(page, "TC-3001_driver_landing")
 
     # TC-3002: Bottom nav has 4 tabs
-    bottom_nav = page.locator(".driver-bottom-nav, nav[role='navigation']").last
-    nav_items = bottom_nav.locator("button, a").count() if bottom_nav.count() > 0 else 0
-    if nav_items >= 4:
+    bottom_nav = page.get_by_role("navigation", name="Điều hướng chính", exact=True)
+    nav_items = bottom_nav.locator("button:visible, a:visible").count() if bottom_nav.count() > 0 else 0
+    if bottom_nav.is_visible() and nav_items == 4:
         results.pass_("TC-3002", f"Bottom nav: {nav_items} items")
     else:
-        # Try alternative selectors
-        all_navs = page.locator("nav").count()
-        results.pass_("TC-3002", f"Bottom nav (alt): {all_navs} nav elements", "Mobile-first driver app")
+        results.fail("TC-3002", "Bottom nav must have 4 tabs", f"Observed {nav_items} items")
     ctx.screenshot(page, "TC-3002_bottom_nav")
 
     # TC-3003: Bottom nav tabs are: Hành trình, Thu nhập, Kỷ luật, Tài khoản
-    nav_text = bottom_nav.inner_text() if bottom_nav.count() > 0 else page.locator("nav").last.inner_text()
-    expected_tabs = ["Hành trình", "Thu nhập", "Tài khoản"]
+    nav_text = bottom_nav.inner_text() if bottom_nav.count() > 0 else ""
+    expected_tabs = ["Hành trình", "Thu nhập", "Kỷ luật", "Tài khoản"]
     found_tabs = [t for t in expected_tabs if t in nav_text]
-    if len(found_tabs) >= 3:
+    if len(found_tabs) == len(expected_tabs):
         results.pass_("TC-3003", f"Bottom nav tabs: {found_tabs}")
     else:
-        results.pass_("TC-3003", "Bottom nav tabs", f"Text: {nav_text[:100]}")
+        results.fail("TC-3003", "Bottom nav tabs", f"Missing: {[tab for tab in expected_tabs if tab not in found_tabs]}; text: {nav_text[:100]}")
     ctx.screenshot(page, "TC-3003_nav_tabs")
 
     # ════════════════════════════════════════════════════════════════
@@ -77,7 +77,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
     if active_tab.count() > 0:
         results.pass_("TC-3011", "'Lệnh mới' tab is active by default")
     else:
-        results.pass_("TC-3011", "Default active tab", "Tab activation may use different selector")
+        results.fail("TC-3011", "Default active tab", "No active 'Lệnh mới' tab was located")
     ctx.screenshot(page, "TC-3011_default_tab")
 
     # ════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
     print(f"  Spec §2A: Layer 1 — Card content")
     print(f"{'═'*60}")
 
-    cards = page.locator(".driver-journey-card")
+    cards = page.locator(".driver-journey-card").filter(has_text=fixture["trip"]["tripCode"])
     card_count = cards.count()
     if card_count > 0:
         results.pass_("TC-3020", f"{card_count} card(s) visible in Lệnh mới")
@@ -114,7 +114,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         if factory.count() > 0 and route_el.count() > 0:
             results.pass_("TC-3022", f"Factory + route sections visible")
         else:
-            results.fail("TC-3022", "Card sections", f"factory={factory.count()} route={route_el.count()}")
+            results.fail("TC-3022", "Own fixture card sections", f"factory={factory.count()} route={route_el.count()}")
 
         # TC-3023: Container number rendered bare in __cont-no (no "Cont:" label)
         cont = card.locator(".driver-journey-card__container")
@@ -150,6 +150,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         cards.first.locator(".driver-journey-card__footer").click()
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
+        selected_trip_id = urlparse(page.url).path.rstrip('/').rsplit('/', 1)[-1]
 
         # TC-3030: Navigated to /my-trips/:id
         if "/my-trips/" in page.url:
@@ -163,7 +164,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         if route_section.count() > 0:
             results.pass_("TC-3031", "Block 1: Lộ trình section visible")
         else:
-            results.pass_("TC-3031", "Block 1: Route", "Different label pattern")
+            results.fail("TC-3031", "Block 1: Route", "Expected route section was not located")
         ctx.screenshot(page, "TC-3031_block1_route")
 
         # TC-3032: Block 2 (Hàng hóa): Loại Cont | Số Cont | Số Chì + Camera button
@@ -181,14 +182,14 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         if contact.count() > 0:
             results.pass_("TC-3033", "Block 3: Liên hệ visible")
         else:
-            results.pass_("TC-3033", "Block 3: Contact", "Different label")
+            results.fail("TC-3033", "Block 3: Contact", "Expected contact section was not located")
 
-        # TC-3034: Block 6 (Thông tin xe): Biển số Đầu kéo | Mooc
-        vehicle = page.locator("text=/biển số|đầu kéo|mooc|xe/i")
-        if vehicle.count() > 0:
-            results.pass_("TC-3034", "Block 6: Thông tin xe visible")
+        # Current PRD section 3 removes duplicate truck/trailer detail rows.
+        vehicle_rows = page.get_by_text("Đầu kéo", exact=True).count() + page.get_by_text("Rơ moóc", exact=True).count()
+        if vehicle_rows == 0:
+            results.pass_("TC-3034", "No duplicate truck/trailer rows in order detail")
         else:
-            results.pass_("TC-3034", "Block 6: Vehicle", "Different label")
+            results.fail("TC-3034", "Duplicate vehicle rows in order detail", f"rows={vehicle_rows}")
         ctx.screenshot(page, "TC-3034_block6_vehicle")
 
         # TC-3035: Block 7 (Sticky Bottom): "Nhận lệnh vận chuyển"
@@ -200,7 +201,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
             all_btns = page.locator("button").all_text_contents()
             accept_variants = [b.strip() for b in all_btns if "nhận" in b.lower() or "lệnh" in b.lower()]
             if accept_variants:
-                results.pass_("TC-3035", f"Accept button (variant)", str(accept_variants[:3]))
+                results.fail("TC-3035", "Acceptance control was not identified", f"Only ambiguous text candidates found: {accept_variants[:3]}")
             else:
                 results.fail("TC-3035", "Accept button", "Not found")
 
@@ -208,7 +209,7 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         if accept_btn.count() > 0:
             is_sticky = page.evaluate("""
                 () => {
-                    const btn = document.querySelector('.driver-task-footer, [class*="sticky"]');
+                    const btn = document.querySelector('[data-testid="accept-sticky-bar"]');
                     if (!btn) return 'no-element';
                     const style = window.getComputedStyle(btn);
                     return style.position;
@@ -217,7 +218,9 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
             if is_sticky in ("fixed", "sticky"):
                 results.pass_("TC-3036", f"Sticky button position: {is_sticky}")
             else:
-                results.pass_("TC-3036", f"Sticky position: {is_sticky}", "May use different class")
+                results.fail("TC-3036", "Acceptance control must be fixed or sticky", f"Observed {is_sticky}")
+        else:
+            results.fail("TC-3036", "Acceptance control position", "No identified acceptance control to measure")
 
         # ══════════════════════════════════════════════════════════════
         #  Spec §3: Accept order flow
@@ -236,9 +239,22 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
                 if all_accept.nth(i).is_enabled():
                     accept_btn = all_accept.nth(i)
                     break
-        if accept_btn.count() > 0:
-            accept_btn.first.click()
-            page.wait_for_timeout(2500)
+        if accept_btn.count() > 0 and accept_btn.first.is_disabled():
+            lock_reason = page.get_by_role('status', name='Lô hàng đã khóa kế toán', exact=True)
+            if lock_reason.count() > 0 and lock_reason.is_visible():
+                results.fail("TC-3040", "Own fixture unexpectedly accounting-locked", f"tripId={selected_trip_id}; {lock_reason.inner_text()}")
+            else:
+                results.fail("TC-3040", "Acceptance control disabled", f"tripId={selected_trip_id}; no known accounting-lock reason was rendered")
+        elif accept_btn.count() > 0:
+            with page.expect_response(
+                lambda response: urlparse(response.url).path.startswith('/api/driver/me/fulfillments/')
+                and urlparse(response.url).path.endswith('/progress')
+                and response.request.method == 'POST',
+                timeout=15000,
+            ) as acceptance:
+                accept_btn.first.click()
+            acceptance_status = acceptance.value.status
+            acceptance_detail = acceptance.value.text()[:500] if acceptance_status not in (200, 201) else ""
             ctx.screenshot(page, "TC-3040_after_accept")
 
             # TC-3040: After accept, check if order moved
@@ -252,18 +268,25 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
                 running_tab.first.click()
                 page.wait_for_timeout(1000)
                 running_cards = page.locator(".driver-journey-card")
-                if running_cards.count() > 0:
-                    results.pass_("TC-3040", f"Order in 'Đã nhận' tab ({running_cards.count()} card(s))")
+                board_response = ctx.api.get('/api/driver/me/journey-board')
+                board = board_response.get('data', {})
+                selected = next((row for row in board.get('items', [])
+                                 if str(row.get('tripId')) == selected_trip_id), None)
+                trip_code = selected.get('tripCode') if selected else None
+                matching_cards = running_cards.filter(has_text=trip_code) if trip_code else None
+                if acceptance_status in (200, 201) and board_response.get('status') == 200 and selected and selected.get('bucket') == 'RUNNING' \
+                        and matching_cards is not None and matching_cards.count() > 0:
+                    results.pass_("TC-3040", "Clicked order appears in 'Đã nhận'", f"tripId={selected_trip_id}, tripCode={trip_code}, bucket=RUNNING")
                 else:
-                    results.pass_("TC-3040", "Đã nhận tab", "Empty (may need fresh seed data)")
+                    results.fail("TC-3040", "Clicked order did not appear in 'Đã nhận'", f"tripId={selected_trip_id}, acceptance={acceptance_status}, response={acceptance_detail}, boardAPI={board_response.get('status')}, bucket={selected.get('bucket') if selected else None}, renderedCards={running_cards.count()}")
                 ctx.screenshot(page, "TC-3040_running_tab")
             else:
                 results.fail("TC-3040", "Đã nhận tab", "Tab not found")
         else:
-            results.skip("TC-3040", "Accept flow", "No accept button")
+            results.fail("TC-3040", "Accept flow", "No accept button for own fixture")
 
     else:
-        results.skip("TC-3030-TC-3040", "Detail + Accept", "No cards to test")
+        results.fail("TC-3030-TC-3040", "Detail + Accept", "Own fixture card missing")
 
     # ════════════════════════════════════════════════════════════════
     #  Visual Quality
@@ -282,12 +305,17 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
     else:
         results.fail("TC-3050", "Horizontal overflow on mobile")
 
-    # TC-3051: Font size ≥ 14px
-    font_size = page.evaluate("parseFloat(window.getComputedStyle(document.body).fontSize)")
-    if font_size >= 14:
-        results.pass_("TC-3051", f"Body font: {font_size}px (≥14)")
+    # Approved compact scale: body/data/controls 12px, captions 11px.
+    typography = page.evaluate("""() => ({
+        body: parseFloat(getComputedStyle(document.body).fontSize),
+        useful: [...document.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
+            .filter(el => el.getBoundingClientRect().height > 0)
+            .map(el => parseFloat(getComputedStyle(el).fontSize))
+    })""")
+    if typography["body"] >= 12 and typography["useful"] and min(typography["useful"]) >= 12:
+        results.pass_("TC-3051", "Compact mobile body and useful card text ≥12px")
     else:
-        results.fail("TC-3051", f"Body font: {font_size}px", "Too small")
+        results.fail("TC-3051", "Mobile typography below the approved scale", str(typography))
 
     # TC-3052: Touch targets ≥ 40px
     touch = page.evaluate("""() => {
@@ -305,11 +333,16 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         results.fail("TC-3052", f"{touch['small']}/{touch['total']} buttons < 40px")
 
     # TC-3053: Sidebar hidden on mobile
-    sidebar = page.locator(".sidebar, [class*='sidebar']")
-    if sidebar.count() > 0 and sidebar.first.is_visible():
-        results.fail("TC-3053", "Sidebar visible on mobile")
+    sidebar_in_view = page.locator("aside.sidebar").evaluate_all("""elements => elements.some(el => {
+        const r = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0
+            && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
+    })""")
+    if sidebar_in_view:
+        results.fail("TC-3053", "Sidebar intersects driver mobile viewport")
     else:
-        results.pass_("TC-3053", "Sidebar hidden on mobile (driver app)")
+        results.pass_("TC-3053", "Sidebar absent from driver mobile viewport")
 
     # Desktop viewport
     page.close()
@@ -345,14 +378,28 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         if history_cards.count() > 0:
             results.pass_("TC-3060", f"Lịch sử tab: {history_cards.count()} completed trip(s)")
         else:
-            results.pass_("TC-3060", "Lịch sử tab", "Empty (may need seed data)")
+            empty_history = page.locator('.driver-journey__empty').filter(has_text='Chưa có chuyến')
+            if empty_history.count() > 0 and empty_history.first.is_visible():
+                results.pass_("TC-3060", "History shows its empty state", empty_history.first.inner_text())
+            else:
+                results.fail("TC-3060", "History content", "Neither completed cards nor a visible empty-history state was rendered")
         ctx.screenshot(page, "TC-3060_history_tab")
     else:
         results.fail("TC-3060", "Lịch sử tab", "Tab not found")
     page.close()
 
-    results.pass_("TC-3099", "Visual QA complete")
+    results.pass_("TC-3099", "Visual QA reached its final step; see individual case outcomes")
+
+
+def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
+    fixture = create_driver_flow_fixture(ctx, results)
+    if fixture is None:
+        return
+    try:
+        verify_visual_driver(ctx, results, fixture)
+    finally:
+        cleanup_driver_flow_fixture(fixture, results)
 
 
 if __name__ == "__main__":
-    run_suite("test_20_visual_driver", test_visual_driver, headless=True)
+    sys.exit(run_suite("test_20_visual_driver", test_visual_driver, headless=True))

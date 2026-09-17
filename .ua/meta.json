@@ -1,9 +1,9 @@
 {
-  "lastAnalyzedAt": "2026-09-17T08:47:15.378Z",
-  "gitCommitHash": "756ec1cc96121ed264d361d5a32f2a55a0e007fe",
+  "lastAnalyzedAt": "2026-09-17T13:32:06.264Z",
+  "gitCommitHash": "cfa0753fa85764e829e60bb8fdf5993482885f33",
   "version": "1.0.0",
   "analyzedFiles": 463,
   "analysisState": "uncommitted-working-tree",
   "scope": "Existing .ua ignore configuration: backend, shared, infrastructure and configured top-level documentation; frontend/tests/product documents excluded.",
-  "workingTreeFingerprint": "df195867a6bdfee27716416201366fc8cbbd4d62c8dafc785306c12911181b7a"
+  "workingTreeFingerprint": "4ac7352c83807af39f72910098d43786e70f7b4e56a3c59bdafad4178a353870"
 }

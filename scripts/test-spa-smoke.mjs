@@ -19,17 +19,15 @@
 import puppeteer from "puppeteer";
 import { join } from "node:path";
 import { api, DEFAULT_BACKEND, DEFAULT_FRONTEND, login, ROLES, role } from "./lib/http.mjs";
+import { assessSpaSmoke } from "./lib/spa-smoke-result.mjs";
 import {
-  STANDARD_BROWSER_ARGS,
-  STANDARD_HEADLESS,
-  STANDARD_VIEWPORT,
-  installPageLogging,
   sleep,
   withSession,
   writeArtifact,
 } from "./lib/ui-driver.mjs";
 
 const FRONTEND = process.env.FRONTEND ?? DEFAULT_FRONTEND;
+const BACKEND = process.env.BACKEND ?? DEFAULT_BACKEND;
 const ARTIFACTS = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_spa-smoke`;
 
 const FORBIDDEN = "/admin-center";
@@ -41,12 +39,18 @@ const rolesToRun = process.argv[2] === "all"
 
 async function runRole(roleKey) {
   const spec = role(roleKey);
-  const token = await login(roleKey);
+  const token = await login(roleKey, { backend: BACKEND });
   const log = [];
   log.push(`[${new Date().toISOString()}] role=${roleKey} token-len=${token.length}`);
 
   const result = await withSession(token, async (page, ctx) => {
-    installPageLogging(page, ctx.log);
+    const failedApiResponses = [];
+    page.on("response", (response) => {
+      const url = new URL(response.url());
+      if (url.pathname.startsWith("/api/") && response.status() >= 400) {
+        failedApiResponses.push({ path: url.pathname, status: response.status() });
+      }
+    });
 
     // 1) Visit root, expect redirect to role home
     await page.goto(`${FRONTEND}/`, { waitUntil: "networkidle2", timeout: 15_000 });
@@ -59,8 +63,20 @@ async function runRole(roleKey) {
     await page.goto(`${FRONTEND}${spec.home}`, { waitUntil: "networkidle2", timeout: 15_000 });
     await sleep(600);
     const urlAfterHome = page.url();
-    const homeOk = urlAfterHome.includes(spec.home);
+    const homeOk = new URL(urlAfterHome).pathname === spec.home;
     ctx.log.push(`home visit: ${urlAfterHome} → ${homeOk ? "PASS" : "FAIL"}`);
+    await page.waitForFunction(() => {
+      const main = document.querySelector("main");
+      return Boolean(main?.innerText.trim()) && !main.querySelector('[data-page-loader="true"]');
+    }, { timeout: 15_000 });
+    const homeSurface = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const text = main?.innerText.trim() ?? "";
+      const errorPanel = Boolean(main?.matches('.auth-retry') || main?.querySelector('[data-chunk-error-panel]'))
+        || /Đã xảy ra lỗi|Không thể hiển thị nội dung này|Không thể tải trang/.test(text);
+      return { ready: Boolean(text) && !errorPanel, text: text.slice(0, 1200), errorPanel };
+    });
+    await page.screenshot({ path: join(ARTIFACTS, `${roleKey}_ready-home.png`) });
 
     // Sidebar nav items
     const nav = await page.evaluate(() => {
@@ -75,7 +91,9 @@ async function runRole(roleKey) {
     await page.goto(`${FRONTEND}${FORBIDDEN}`, { waitUntil: "networkidle2", timeout: 15_000 });
     await sleep(800);
     const urlAfterForbidden = page.url();
-    const blockedFromAdmin = !urlAfterForbidden.includes(FORBIDDEN) || roleKey === "admin";
+    const blockedFromAdmin = roleKey === "admin"
+      ? new URL(urlAfterForbidden).pathname === FORBIDDEN
+      : new URL(urlAfterForbidden).pathname === spec.home;
     ctx.log.push(`forbidden ${FORBIDDEN} → ${urlAfterForbidden} → ${blockedFromAdmin ? "BLOCKED-OK" : "LEAKED"}`);
     await page.screenshot({ path: join(ARTIFACTS, `${roleKey}_after-forbidden.png`) });
 
@@ -85,7 +103,7 @@ async function runRole(roleKey) {
     await page.goto(`${FRONTEND}${DISPATCH}`, { waitUntil: "networkidle2", timeout: 15_000 });
     await sleep(600);
     const urlAfterDispatch = page.url();
-    const blockedFromDispatch = !urlAfterDispatch.includes(DISPATCH) || DISPATCH_ALLOWED.has(roleKey);
+    const blockedFromDispatch = new URL(urlAfterDispatch).pathname === (DISPATCH_ALLOWED.has(roleKey) ? DISPATCH : spec.home);
     ctx.log.push(`${DISPATCH} → ${urlAfterDispatch} → ${blockedFromDispatch ? "BLOCKED-OK" : "LEAKED"}`);
 
     return {
@@ -95,22 +113,27 @@ async function runRole(roleKey) {
       urlAfterRoot,
       urlAfterHome,
       homeOk,
+      homeSurface,
+      failedApiResponses,
+      browserErrors: ctx.log.filter((line) => /^(PAGE-EXC|CONSOLE-ERR):/.test(line)),
+      log: [...ctx.log],
       forbiddenAdminBlocked: blockedFromAdmin,
       dispatchBlocked: blockedFromDispatch,
       navItemsCount: nav.length,
       navItems: nav,
     };
-  }, { artifactDir: ARTIFACTS, name: roleKey, puppeteerImpl: puppeteer });
+  }, { artifactDir: ARTIFACTS, name: roleKey, puppeteerImpl: puppeteer,
+    executablePath: process.env.BROWSER_EXECUTABLE_PATH });
 
   // Sanity check: also hit the role's own API endpoint to make sure the
   // token is not just valid in the SPA but also against the backend RBAC.
-  const apiCheck = await api(token, "GET", spec.api);
+  const apiCheck = await api(token, "GET", spec.api, undefined, { backend: BACKEND });
   result.apiSmoke = { endpoint: spec.api, status: apiCheck.status, ok: apiCheck.ok };
   result.log = [...log, ...result.log ?? []];
 
-  const ok = result.homeOk && result.forbiddenAdminBlocked && result.dispatchBlocked;
-  writeArtifact(ARTIFACTS, `${roleKey}.json`, { ...result, ok });
-  return { ...result, ok };
+  const verdict = assessSpaSmoke(result);
+  writeArtifact(ARTIFACTS, `${roleKey}.json`, { ...result, ...verdict });
+  return { ...result, ...verdict };
 }
 
 const summary = { generatedAt: new Date().toISOString(), frontend: FRONTEND, roles: [], allPassed: true };

@@ -28,8 +28,11 @@ if MASTER_DATA_FIXTURE is None:
     # The DATA PM workbook is a customer delivery, not a repo artifact — the
     # suite documents master-data-import behavior that needs it. Skip loudly
     # instead of crashing run_all with a bare traceback.
-    print("SKIP SUITE 16: master-data fixture 'docs/quytrinh/29.7 - DATA PM.xlsx' not present (customer delivery, not committed).")
-    sys.exit(0)
+    results = TestResults('16-dispatch-workflow')
+    results.skip('SUITE-16-FIXTURE', 'Customer master-data workbook is unavailable',
+                 "docs/quytrinh/29.7 - DATA PM.xlsx is a customer delivery, not committed.")
+    results.write_json()
+    sys.exit(0 if results.print_summary() else 1)
 
 ROLE_SURFACES = {
     "admin": "/config/master-data-import",

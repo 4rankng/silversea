@@ -34,8 +34,8 @@ def request_json(api, method, path, body=None, headers=None):
     return result.get("status", 0), result.get("data", result)
 
 
-def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
-    """CUS creates a fixture → Dispatcher issues directly → Driver accepts that exact trip."""
+def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
+    """Create one native CUS/direct-dispatch fixture shared by both driver suites."""
 
     # ════════════════════════════════════════════════════════════════
     #  Phase 0: Gather master data
@@ -247,6 +247,37 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     assert trip.get("driverId") == driver_id, "Dispatch assigned a different driver"
     results.pass_("TC-2023", "Shipment dispatched", f"trip=#{trip.get('id', '?')} truck={truck_id} driver={driver_id}")
 
+    return {
+        "admin_api": admin_api, "shipment_id": shipment_id, "trip": trip,
+        "fulfillment_id": fulfillment_id, "booking_prefix": BOOKING_PREFIX,
+    }
+
+
+def cleanup_driver_flow_fixture(fixture, results):
+    admin_api = fixture["admin_api"]
+    shipment_id = fixture["shipment_id"]
+    trip = fixture["trip"]
+    current = admin_api.get(f"/api/trips/{trip['id']}")
+    current_trip = current.get("data", {})
+    if current.get("status") != 200 or current_trip.get("shipmentId") != shipment_id:
+        results.fail("TC-2098", "Fixture cleanup identity", "Trip read or shipment identity mismatch")
+    elif current_trip.get("status") != "CANCELED":
+        cleanup = admin_api.post(f"/api/trips/{trip['id']}/cancel",
+                                 {"expectedVersion": current_trip["version"]},
+                                 headers={"Idempotency-Key": f"{fixture['booking_prefix']}-cleanup"})
+        if cleanup.get("status") == 200:
+            results.pass_("TC-2098", "Own fixture trip released after assertions")
+        else:
+            results.fail("TC-2098", "Own fixture cleanup", f"status={cleanup.get('status')}")
+
+
+def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
+    fixture = create_driver_flow_fixture(ctx, results)
+    if fixture is None:
+        return
+    shipment_id = fixture["shipment_id"]
+    trip = fixture["trip"]
+    fulfillment_id = fixture["fulfillment_id"]
     try:
         # Dispatcher views UI
         page = ctx.new_page()
@@ -291,8 +322,9 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         # Check bottom nav
         bottom_nav = page.get_by_role("navigation", name="Điều hướng chính")
         nav_items = bottom_nav.locator("button:visible, a:visible")
-        if bottom_nav.is_visible() and nav_items.count() == 5:
-            results.pass_("TC-2032", "Five visible bottom-navigation actions")
+        # docs/prd/ManHinhLaiXe.md specifies four primary driver tabs.
+        if bottom_nav.is_visible() and nav_items.count() == 4:
+            results.pass_("TC-2032", "Four visible bottom-navigation actions")
         else:
             results.fail("TC-2032", "Driver bottom navigation", f"visible actions={nav_items.count()}")
         ctx.screenshot(page, "TC-2032_driver_bottom_nav")
@@ -317,7 +349,10 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             tag = card.locator(".driver-journey-card__tag")
             if tag.count() > 0:
                 tag_text = tag.first.inner_text().strip()
-                results.pass_("TC-2034", f"Card tag: {tag_text}" if tag_text in ("ĐƠN", "KẸP") else f"Card tag unexpected: {tag_text}")
+                if tag_text == "ĐƠN":
+                    results.pass_("TC-2034", f"Single-trip fixture tag: {tag_text}")
+                else:
+                    results.fail("TC-2034", "Single-trip fixture tag", f"Expected ĐƠN, got {tag_text}")
             else:
                 results.fail("TC-2034", "Card tag", "Not found")
 
@@ -361,7 +396,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             if route_text.count() > 0:
                 results.pass_("TC-2041", "Block 1: Route/Lộ trình visible")
             else:
-                results.pass_("TC-2041", "Block 1: Route section", "Different labeling")
+                results.fail("TC-2041", "Block 1: Route section", "Expected route section was not located")
 
             # Block 2: Container info
             cont_info = page.locator("text=/cont|container|số cont|seal|chì/i")
@@ -375,33 +410,39 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             if contact.count() > 0:
                 results.pass_("TC-2043", "Block 3: Liên hệ visible")
             else:
-                results.pass_("TC-2043", "Block 3: Contact", "Different label")
+                results.fail("TC-2043", "Block 3: Contact", "Expected contact section was not located")
 
-            # Block 6: Vehicle
-            vehicle = page.locator("text=/biển số|đầu kéo|mooc|xe/i")
-            if vehicle.count() > 0:
-                results.pass_("TC-2044", "Block 6: Thông tin xe visible")
+            # Current PRD section 3 removes duplicate truck/trailer detail rows.
+            vehicle_rows = page.get_by_text("Đầu kéo", exact=True).count() + page.get_by_text("Rơ moóc", exact=True).count()
+            if vehicle_rows == 0:
+                results.pass_("TC-2044", "No duplicate truck/trailer rows in order detail")
             else:
-                results.pass_("TC-2044", "Block 6: Vehicle", "Different label")
+                results.fail("TC-2044", "Duplicate vehicle rows in order detail", f"rows={vehicle_rows}")
 
             # Block 7: Accept button
-            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-            if accept_btn.count() > 0:
+            accept_bar = page.get_by_test_id("accept-sticky-bar")
+            accept_btn = accept_bar.get_by_role("button", name="Nhận lệnh vận chuyển", exact=True)
+            if accept_btn.count() == 1 and accept_btn.is_visible():
                 results.pass_("TC-2045", "Block 7: 'Nhận lệnh vận chuyển' sticky button present")
                 ctx.screenshot(page, "TC-2045_accept_button")
             else:
                 all_btns = page.locator("button").all_text_contents()
                 accept_variants = [b.strip() for b in all_btns if "nhận" in b.lower() or "lệnh" in b.lower()]
                 if accept_variants:
-                    results.pass_("TC-2045", f"Accept button (variant)", str(accept_variants[:3]))
+                    results.fail("TC-2045", "Sticky acceptance control was not identified", str(accept_variants[:3]))
                 else:
                     results.fail("TC-2045", "Accept button", f"No match. Buttons: {[b.strip()[:30] for b in all_btns[:8]]}")
 
             # Accept the order
-            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-            if accept_btn.count() > 0:
-                accept_btn.first.click()
-                page.wait_for_timeout(2500)
+            if accept_btn.count() == 1 and accept_btn.is_enabled():
+                with page.expect_response(
+                    lambda response: urlparse(response.url).path == f"/api/driver/me/fulfillments/{fulfillment_id}/progress"
+                    and response.request.method == "POST",
+                    timeout=15000,
+                ) as acceptance:
+                    accept_btn.click()
+                acceptance_status = acceptance.value.status
+                acceptance_detail = acceptance.value.text()[:500] if acceptance_status not in (200, 201) else ""
                 ctx.screenshot(page, "TC-2046_after_accept")
 
                 # Go back and check Đã nhận tab
@@ -413,15 +454,17 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
                     running_tab.first.click()
                     page.wait_for_timeout(1000)
                     running_cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
-                    if running_cards.count() == 1:
+                    if acceptance_status in (200, 201) and running_cards.count() == 1:
                         results.pass_("TC-2046", f"Order moved to 'Đã nhận' ({running_cards.count()} card(s))")
                     else:
-                        results.fail("TC-2046", "Đã nhận tab", "No cards found")
+                        results.fail("TC-2046", "Exact accepted fixture in Đã nhận tab",
+                                     f"status={acceptance_status}, matchingCards={running_cards.count()}, response={acceptance_detail}")
                     ctx.screenshot(page, "TC-2046_running_tab")
                 else:
                     results.fail("TC-2046", "Đã nhận tab", "Tab not found")
             else:
-                results.fail("TC-2046", "Accept order", "Button not found")
+                detail = accept_bar.inner_text() if accept_bar.count() else "Sticky acceptance control not found"
+                results.fail("TC-2046", "Accept order unavailable for fixture", detail)
         else:
             results.skip("TC-2040-TC-2046", "Detail + Accept flow", "No order cards")
 
@@ -499,18 +542,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         results.pass_("TC-2099", f"Submission, dispatch, and acceptance checks reached for shipment #{shipment_id}", f"run={RUN_ID}")
 
     finally:
-        current = admin_api.get(f"/api/trips/{trip['id']}")
-        current_trip = current.get("data", {})
-        if current.get("status") != 200 or current_trip.get("shipmentId") != shipment_id:
-            results.fail("TC-2098", "Fixture cleanup identity", "Trip read or shipment identity mismatch")
-        elif current_trip.get("status") != "CANCELED":
-            cleanup = admin_api.post(f"/api/trips/{trip['id']}/cancel",
-                                     {"expectedVersion": current_trip["version"]},
-                                     headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cleanup"})
-            if cleanup.get("status") == 200:
-                results.pass_("TC-2098", "Own fixture trip released after assertions")
-            else:
-                results.fail("TC-2098", "Own fixture cleanup", f"status={cleanup.get('status')}")
+        cleanup_driver_flow_fixture(fixture, results)
 
 
 if __name__ == "__main__":

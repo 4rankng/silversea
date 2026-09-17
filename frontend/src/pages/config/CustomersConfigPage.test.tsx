@@ -92,6 +92,7 @@ function nameOrder(container: HTMLElement): string[] {
 }
 
 beforeEach(() => {
+  authState.context = { user: { userId: 1, username: 'admin', role: 'ADMIN' } };
   getAllCustomers.mockReset().mockResolvedValue(customers);
   fetchAllTrips.mockReset().mockResolvedValue({ items: [] as TripDetail[], total: 0 });
 });
@@ -183,5 +184,51 @@ describe('UI-CD-09 catalog query whitespace', () => {
     expect(input).toHaveValue('que vo');
     fireEvent.change(input, { target: { value: '' } });
     expect(input).toHaveValue('');
+  });
+});
+
+describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
+  it('does not request unavailable trip statistics for CUS', async () => {
+    authState.context = { user: { userId: 2, username: 'cus', role: 'CUS' } };
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    expect(fetchAllTrips).not.toHaveBeenCalled();
+    expect(screen.getByText('Tài khoản không xem doanh thu')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+    fireEvent.change(screen.getByRole('textbox', { name: /Tìm khách hàng/ }), { target: { value: 'An' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('An'));
+    expect(fetchAllTrips).not.toHaveBeenCalled();
+  });
+
+  it('loads the catalog independently and does not refetch statistics for search', async () => {
+    let resolveTrips!: (value: { items: TripDetail[]; total: number }) => void;
+    fetchAllTrips.mockImplementation(() => new Promise(resolve => { resolveTrips = resolve; }));
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.getByText('Đang tải doanh thu…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
+    expect(fetchAllTrips).toHaveBeenCalledTimes(1);
+    expect(fetchAllTrips).toHaveBeenCalledWith({ dateFrom: expect.stringMatching(/^\d{4}-\d{2}-01$/), dateTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    fireEvent.change(screen.getByRole('textbox', { name: /Tìm khách hàng/ }), { target: { value: 'Bình' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('Bình'));
+    expect(fetchAllTrips).toHaveBeenCalledTimes(1);
+    resolveTrips({ items: [], total: 0 });
+    await screen.findByText('Chưa có doanh thu tháng này');
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+  });
+
+  it('keeps customers visible when statistics fail and retries only statistics', async () => {
+    fetchAllTrips.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue({ items: [], total: 0 });
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Không thể tải doanh thu.');
+    expect(screen.queryByText('Chưa có doanh thu tháng này')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
+    const catalogCalls = getAllCustomers.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await screen.findByText('Chưa có doanh thu tháng này');
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+    expect(getAllCustomers).toHaveBeenCalledTimes(catalogCalls);
+    expect(fetchAllTrips).toHaveBeenCalledTimes(2);
   });
 });

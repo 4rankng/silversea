@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react';
@@ -13,7 +14,7 @@ import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
-import type { Customer, TripDetail } from '@tingting/shared';
+import type { Customer } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { CustomerForm } from './CustomerForm';
 import { Input } from '../../components/untitled-ui/base/input/input';
@@ -38,6 +39,8 @@ function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
 }
 
 export default function CustomersConfigPage() {
+  const { user } = useAuth();
+  const canReadTripStats = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DISPATCHER'].includes(user?.role ?? '');
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
   const navigate = useNavigate();
   const handleBack = () => navigate('/config');
@@ -55,39 +58,40 @@ export default function CustomersConfigPage() {
 
   const { data, refetch, isPending, isFetching, isError } = useQuery({
     queryKey: qk.tripForm.customersConfig(searchQuery),
-    queryFn: async () => {
-      const [custList, tripRes] = await Promise.all([
-        configClient.getAllCustomers(searchQuery || undefined),
-        tripClient.fetchAllTrips({}).catch(() => null),
-      ]);
-      const now = new Date();
-      const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const statsMap = new Map<number, { trips: number; revenue: number }>();
-      tripRes?.items.forEach((t: TripDetail) => {
-        const dep = t.departureDate || '';
-        if (dep.startsWith(thisMonth)) {
-          const cid = t.customerId;
-          if (cid) {
-            const s = statsMap.get(cid) || { trips: 0, revenue: 0 };
-            s.trips++;
-            s.revenue += parseFloat(t.revenue || '0');
-            statsMap.set(cid, s);
-          }
-        }
-      });
-      return { customers: custList, customerTripStats: statsMap, tripStatsAvailable: tripRes != null };
-    },
+    queryFn: () => configClient.getAllCustomers(searchQuery || undefined),
     staleTime: 2 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 
-  const customers = useMemo(() => data?.customers ?? [], [data?.customers]);
-  const customerTripStats = useMemo(() => data?.customerTripStats ?? new Map<number, { trips: number; revenue: number }>(), [data?.customerTripStats]);
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const tripStats = useQuery({
+    queryKey: qk.trips.customerCatalogStats(user?.userId, user?.role, thisMonth),
+    queryFn: () => tripClient.fetchAllTrips({
+      dateFrom: `${thisMonth}-01`,
+      dateTo: `${thisMonth}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`,
+    }),
+    enabled: canReadTripStats,
+    staleTime: 2 * 60 * 1000,
+  });
+  const customers = useMemo(() => data ?? [], [data]);
+  const exportStatsUnavailable = canReadTripStats && (tripStats.isFetching || tripStats.isError || !tripStats.data);
+  const customerTripStats = useMemo(() => {
+    const statsMap = new Map<number, { trips: number; revenue: number }>();
+    if (!canReadTripStats) return statsMap;
+    for (const trip of tripStats.data?.items ?? []) {
+      if (!trip.customerId || !trip.departureDate?.startsWith(thisMonth)) continue;
+      const stats = statsMap.get(trip.customerId) ?? { trips: 0, revenue: 0 };
+      stats.trips++;
+      stats.revenue += parseFloat(trip.revenue || '0');
+      statsMap.set(trip.customerId, stats);
+    }
+    return statsMap;
+  }, [canReadTripStats, tripStats.data, thisMonth]);
 
   const crud = useCRUD('/customers', async () => { await refetch(); });
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const now = new Date();
   const monthLabel = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getFullYear()).slice(-2)}`;
   const totalCount = customers.length;
   const activeCount = customers.filter(c => c.status === CustomerStatus.ACTIVE).length;
@@ -154,7 +158,8 @@ export default function CustomersConfigPage() {
         iconName="customer"
         action={
           <div className="page-actions">
-          <button className="btn btn--secondary" disabled={isFetching || isError} onClick={async () => {
+          <button className="btn btn--secondary" disabled={isFetching || isError || exportStatsUnavailable}
+            title={exportStatsUnavailable ? 'Tải xong doanh thu để xuất đầy đủ dữ liệu' : undefined} onClick={async () => {
             const headers = ['Khách hàng', 'MST', 'Liên hệ', 'Chuyến ' + monthLabel, 'Doanh thu ' + monthLabel, 'Hạn mức TD', 'Trạng thái'];
             const rows = filtered.map(c => {
               const stats = customerTripStats.get(c.id);
@@ -203,7 +208,10 @@ export default function CustomersConfigPage() {
         <div className="kpi kpi--warn">
           <div className="kpi__top"><span className="kpi__label">Top 4 chiếm</span></div>
           <div className="kpi__value">{top4Pct ?? '—'}{top4Pct != null && <span className="kpi__value-unit">%</span>}</div>
-          <div className="kpi__meta">{top4Pct == null ? (data?.tripStatsAvailable ? 'Chưa có doanh thu tháng này' : 'Chưa có dữ liệu doanh thu') : top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
+          <div className="kpi__meta">{!canReadTripStats ? 'Tài khoản không xem doanh thu'
+            : tripStats.isError ? <>Không thể tải doanh thu. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void tripStats.refetch(); }}>Thử lại</button></>
+              : tripStats.isPending ? 'Đang tải doanh thu…'
+                : top4Pct == null ? 'Chưa có doanh thu tháng này' : top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
           <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
         </div>
         <div className="kpi kpi--danger">

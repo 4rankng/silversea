@@ -7,7 +7,6 @@ const { getBootstrap, listOperationalSites } = vi.hoisted(() => ({ getBootstrap:
 vi.mock('../../../api/tripClient', () => ({
   tripClient: { getBootstrap },
 }));
-vi.mock('./FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../api/shipmentClient')>(),
   listOperationalSites,
@@ -44,9 +43,8 @@ function fillAppointment(index: number, date: string, time: string) {
   fireEvent.change(timeInput, { target: { value: time } });
 }
 
-/** The pill is visibility-toggled by CSS, so mount-count by class, not role. */
-function copyPills() {
-  return [...document.querySelectorAll<HTMLButtonElement>('.csc-appointment-copy')];
+function copyButton() {
+  return screen.queryByRole('button', { name: /Copy ngày giờ đóng trả/ });
 }
 
 describe('shipment create bulk appointment copy', () => {
@@ -60,7 +58,7 @@ describe('shipment create bulk appointment copy', () => {
     listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
   });
 
-  it('offers copy on the scheduled row while >= 2 rows still lack a schedule', async () => {
+  it('offers hover-copy on the scheduled row while >= 2 rows still lack a schedule', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -71,7 +69,8 @@ describe('shipment create bulk appointment copy', () => {
     fillAppointment(0, '20/09/2026', '09:00');
 
     // Only the scheduled row carries the affordance.
-    expect(copyPills()).toHaveLength(1);
+    expect(copyButton()).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /Copy ngày giờ đóng trả/ })).toHaveLength(1);
   });
 
   it('copy fills every empty appointment and never touches set rows', async () => {
@@ -81,7 +80,7 @@ describe('shipment create bulk appointment copy', () => {
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
 
-    fireEvent.click(copyPills()[0]!);
+    fireEvent.click(copyButton()!);
 
     await waitFor(() => {
       const dates = [0, 1, 2].map((i) => appointmentInputs(i).date.value);
@@ -96,12 +95,36 @@ describe('shipment create bulk appointment copy', () => {
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
     // One row, nothing scheduled: nothing to copy from or to.
-    expect(copyPills()).toHaveLength(0);
+    expect(copyButton()).toBeNull();
 
-    // One scheduled + one empty = exactly one empty row → not even mounted
+    // One scheduled + one empty = exactly one empty row → still hidden
     // (spec: MORE THAN one empty container).
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
-    expect(copyPills()).toHaveLength(0);
+    expect(copyButton()).toBeNull();
+  });
+
+  it.each([
+    ['partial time', '', '14:'],
+    ['partial date', '20/09', ''],
+  ])('preserves a %s draft and counts only truly empty destinations', async (_label, date, time) => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    addContainer();
+    addContainer();
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+    fillAppointment(1, '21/09/2026', '11:30');
+    fillAppointment(2, date, time);
+    fireEvent.click(screen.getAllByRole('button', { name: /Copy ngày giờ đóng trả/ })[0]!);
+    await waitFor(() => expect(appointmentInputs(3).date.value).toBe('20/09/2026'));
+    expect(appointmentInputs(4).time.value).toBe('09:00');
+    expect(appointmentInputs(1).date.value).toBe('21/09/2026');
+    expect(appointmentInputs(1).time.value).toBe('11:30');
+    expect(appointmentInputs(2).date.value).toBe(date);
+    expect(appointmentInputs(2).time.value).toBe(time);
+    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeInTheDocument();
+    expect(copyButton()).toBeNull();
   });
 });

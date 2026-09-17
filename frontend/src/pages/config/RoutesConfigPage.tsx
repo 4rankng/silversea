@@ -75,7 +75,6 @@ export default function RoutesConfigPage() {
       />
 
       <RouteFormModal
-        key={crud.editingId ?? (crud.showAddForm ? 'add' : 'closed')}
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
         error={crud.error}

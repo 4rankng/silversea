@@ -12,7 +12,9 @@ const cacheVersions = new Map<string, number>();
 let cacheVersionSeq = 0;
 
 export function getRedis(): Redis {
-  if (!redis) {
+  // Retry exhaustion ends this client permanently. A later request must make
+  // a fresh connection so a recovered Redis does not require an API restart.
+  if (!redis || redis.status === 'end') {
     redis = new Redis(config.redisUrl, {
       maxRetriesPerRequest: 1,
       lazyConnect: true,
@@ -115,15 +117,10 @@ export async function cacheInvalidatePattern(pattern: string): Promise<void> {
 
 export async function isTokenBlacklisted(jti: string): Promise<boolean> {
   const client = getRedis();
-  try {
-    const exists = await client.exists(`blacklist:${jti}`);
-    return exists === 1;
-  } catch (error) {
-    // Fail-closed: if Redis is down, treat the token as blacklisted.
-    // Rejecting potentially-revoked tokens is safer than allowing them.
-    console.error('[Redis] blacklist check failed:', error);
-    return true;
-  }
+  // Propagate an unavailable revocation store so authentication fails closed
+  // with 503. Only an actual blacklist entry means the session was revoked.
+  const exists = await client.exists(`blacklist:${jti}`);
+  return exists === 1;
 }
 
 export async function blacklistToken(jti: string, ttlSeconds: number): Promise<void> {

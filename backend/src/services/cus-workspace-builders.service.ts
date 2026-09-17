@@ -693,28 +693,19 @@ function containerFieldAccess(
         ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
         : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
   const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
-  // 2026-09-10 user directive: all phê duyệt (approval) flows are removed.
-  // Route/container-number/pickup-drop-off used to flip CUS from DIRECT to a
-  // dispatcher-reviewed REQUEST once the container had a trip or its run date
-  // passed; these fields now save directly for CUS at any point before the
-  // accounting lock. The generic trip-based DIRECT/READ_ONLY split stays for
-  // DISPATCHER and other roles.
-  const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
   const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
     // plateNumber intentionally has no OWN special case: since the internal
     // fleet became plan-able (Cap_nhat_UI_va_logic 1.3) the field follows the
     // generic editable/READ_ONLY mode, mirroring permissions.plateEditable —
     // the plate is a plan; the official dispatch trip confirms it.
-    if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
-      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
-    }
     // Container number is identity, not an operational parameter — the write
     // path has allowed number edits on tripped containers since the
     // value-aware guard landed, and dispatch routinely fills numbers left
-    // blank at intake once the lot is already assigned. DISPATCHER gets the
-    // same direct-write flag CUS has (pre-lock, trip or not); route/ports
-    // stay on the generic split for dispatch.
-    if (key === 'containerNumber' && actor.role === Role.DISPATCHER && !hasActiveLock) {
+    // blank at intake once the lot is already assigned. CUS and DISPATCHER
+    // keep that identity correction pre-lock, trip or not. Route/ports use
+    // the operational gate above because their writer rejects linked-trip
+    // changes. Removing approval flows does not bypass that trip restriction.
+    if (key === 'containerNumber' && (actor.role === Role.CUS || actor.role === Role.DISPATCHER) && !hasActiveLock) {
       return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
     }
     return { mode, reason };

@@ -9247,7 +9247,7 @@
       "type": "file",
       "name": "auth.ts",
       "filePath": "backend/src/middleware/auth.ts",
-      "summary": "Authenticates header or asset tokens through a shared signature, blacklist, active-user, role and customer-scope check before attaching the authenticated actor.",
+      "summary": "Authenticates header or asset tokens through shared signature, blacklist, active-user, role and customer-scope checks; rejects invalid sessions with 401 and denies unavailable dependency checks with 503 without invalidating valid credentials.",
       "tags": [
         "middleware",
         "authentication",
@@ -9258,7 +9258,7 @@
       "complexity": "moderate",
       "lineRange": [
         1,
-        161
+        168
       ]
     },
     {
@@ -9302,9 +9302,9 @@
       "filePath": "backend/src/middleware/auth.ts",
       "lineRange": [
         95,
-        127
+        134
       ],
-      "summary": "Verifies JWT, blacklist, active-user role and customer scope and returns the accepted actor or sends a 401.",
+      "summary": "Verifies JWT, revocation, active-user role and customer scope; accepts the actor or denies access with 401 for rejected credentials and 503 for unavailable dependencies so clients retain valid sessions during outages.",
       "tags": [
         "service",
         "business-rule",
@@ -9318,8 +9318,8 @@
       "name": "authMiddleware",
       "filePath": "backend/src/middleware/auth.ts",
       "lineRange": [
-        129,
-        134
+        136,
+        141
       ],
       "summary": "Verifies the Bearer JWT against the Redis blacklist and active users table, forces re-login when role or customer scope drifted, and attaches the AuthUser to req.user.",
       "tags": [
@@ -9335,8 +9335,8 @@
       "name": "assetAuthMiddleware",
       "filePath": "backend/src/middleware/auth.ts",
       "lineRange": [
-        142,
-        151
+        149,
+        158
       ],
       "summary": "Auth variant for static-asset routes (img tags) that cannot set headers: accepts the JWT via a ?token= query param, scoped narrowly to keep tokens out of general API URL logs.",
       "tags": [
@@ -9352,8 +9352,8 @@
       "name": "getUser",
       "filePath": "backend/src/middleware/auth.ts",
       "lineRange": [
-        158,
-        161
+        165,
+        168
       ],
       "summary": "Type-safe accessor for req.user that throws a 401 ApiError when unset, preventing non-null assertion crashes if routes are reorganized.",
       "tags": [
@@ -10736,7 +10736,7 @@
       "type": "file",
       "name": "cus-workspace-builders.service.ts",
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
-      "summary": "CUS workspace projections for operational readiness, appointment groups, missing fields and role-based edit access. Canonical container port IDs control display names, while container-less and LCL schedules can use lot closing or planned-return timestamps when the expected date is absent.",
+      "summary": "Builds CUS workspace readiness, appointment groups, missing fields and role-based edit access. Canonical container port IDs control display names; route and port fields mirror the linked-trip write restriction, while CUS/dispatcher container-number identity correction remains direct before accounting lock.",
       "tags": [
         "service",
         "read-model",
@@ -10747,7 +10747,7 @@
       "complexity": "complex",
       "lineRange": [
         1,
-        814
+        805
       ]
     },
     {
@@ -10927,9 +10927,9 @@
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
       "lineRange": [
         677,
-        732
+        723
       ],
-      "summary": "Derives field-level edit permissions from actor role, accounting lock and linked trip; factory edits are operational and remain locked after a trip is created.",
+      "summary": "Derives field access from actor role, accounting lock and linked trip. Route, port and factory fields follow the operational trip restriction; CUS and dispatcher may correct container-number identity before accounting lock even after a trip exists.",
       "tags": [
         "business-rule",
         "service",
@@ -10943,8 +10943,8 @@
       "name": "buildAppointmentGroups",
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
       "lineRange": [
-        756,
-        796
+        747,
+        787
       ],
       "summary": "Groups container appointments by site and time window for the schedule panel.",
       "tags": [
@@ -10960,8 +10960,8 @@
       "name": "readSiteSnapshotSite",
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
       "lineRange": [
-        799,
-        814
+        790,
+        805
       ],
       "summary": "Extracts a site half from a JSONB site snapshot with a safe fallback.",
       "tags": [
@@ -20778,7 +20778,7 @@
       "type": "file",
       "name": "redis.ts",
       "filePath": "backend/src/lib/redis.ts",
-      "summary": "Redis client singleton and cache utility layer: lazy connection bootstrap, namespaced JSON cache get/invalidate/pattern-invalidate helpers, and the JWT token blacklist checks used by auth middleware.",
+      "summary": "Manages a lazy shared Redis connection, recreates ended clients after retry exhaustion, provides versioned JSON cache helpers, and performs JWT blacklist reads that propagate dependency failures to authentication.",
       "tags": [
         "redis",
         "caching",
@@ -20786,7 +20786,11 @@
         "singleton",
         "token-blacklist"
       ],
-      "complexity": "moderate"
+      "complexity": "moderate",
+      "lineRange": [
+        1,
+        133
+      ]
     },
     {
       "id": "function:backend/src/lib/redis.ts:getRedis",
@@ -20795,9 +20799,9 @@
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
         14,
-        27
+        29
       ],
-      "summary": "Lazily creates and returns the shared Redis client singleton, reading connection settings from app config.",
+      "summary": "Returns the shared Redis client, lazily creating it initially or after its connection reaches the terminal end state so later requests can recover without an API restart.",
       "tags": [
         "utility",
         "contract",
@@ -20811,8 +20815,8 @@
       "name": "disconnectRedis",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        29,
-        34
+        31,
+        36
       ],
       "summary": "disconnect Redis within the redis module.",
       "tags": [
@@ -20828,10 +20832,10 @@
       "name": "cacheGet",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        36,
-        75
+        38,
+        77
       ],
-      "summary": "Fetches a Redis key and JSON-parses the cached value, returning null on misses, parse failures, or connection errors.",
+      "summary": "Reads a cached JSON result or invokes the supplied fetch function on a miss or Redis failure, deduplicates concurrent fetches, and caches results only if their invalidation version remains current.",
       "tags": [
         "utility",
         "contract",
@@ -20845,8 +20849,8 @@
       "name": "cacheInvalidate",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        77,
-        92
+        79,
+        94
       ],
       "summary": "Deletes a single cache key, tolerating missing keys and connection failures.",
       "tags": [
@@ -20862,8 +20866,8 @@
       "name": "cacheInvalidatePattern",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        94,
-        110
+        96,
+        112
       ],
       "summary": "Bulk-invalidates every cache key matching a glob pattern via Redis SCAN iteration.",
       "tags": [
@@ -20879,10 +20883,10 @@
       "name": "isTokenBlacklisted",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        116,
-        127
+        118,
+        124
       ],
-      "summary": "Checks whether a JWT token's session ID appears in the revoked-token blacklist.",
+      "summary": "Checks the real Redis blacklist for a JWT session ID; returns true only for a stored revocation and propagates connection failures so authentication denies access with a retryable 503.",
       "tags": [
         "utility",
         "contract",
@@ -20896,8 +20900,8 @@
       "name": "blacklistToken",
       "filePath": "backend/src/lib/redis.ts",
       "lineRange": [
-        129,
-        132
+        126,
+        129
       ],
       "summary": "blacklist Token within the redis module.",
       "tags": [
@@ -98397,8 +98401,8 @@
       "Casbin",
       "OpenTelemetry"
     ],
-    "analyzedAt": "2026-09-17T08:47:15.378Z",
-    "gitCommitHash": "756ec1cc96121ed264d361d5a32f2a55a0e007fe",
+    "analyzedAt": "2026-09-17T13:32:06.264Z",
+    "gitCommitHash": "cfa0753fa85764e829e60bb8fdf5993482885f33",
     "analysisState": "uncommitted-working-tree",
     "workingTreeFingerprint": "731010e912ba47d44f9d6d1ee9a00ad1e0deab192852335806d166441c0b2862"
   }

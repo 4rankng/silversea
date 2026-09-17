@@ -40,6 +40,7 @@ import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
+import { emptyAppointmentKeys, hasDateDraft } from './shipment-date-drafts';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
 import { ShippingLineAddDialog } from './ShippingLineAddDialog';
 import { RouteCreateDialog } from './RouteCreateDialog';
@@ -68,10 +69,6 @@ function formatContainerWeight(value: string) {
 // Time-first 24h per the combined date+time contract (docs/design-system.md).
 function formatContainerAppointment(value: string) {
   return formatDateTime24(value) || value;
-}
-
-function hasDateDraft(scope: ParentNode | null | undefined, invalidOnly = false) {
-  return Array.from(scope?.querySelectorAll<HTMLInputElement>('[data-date-input], [data-split-datetime] input:not([type="hidden"])') ?? []).some((input) => input.value.trim() !== '' && (!invalidOnly || !input.validity.valid));
 }
 
 export function ShipmentCreateWorkspace() {
@@ -527,12 +524,12 @@ export function ShipmentCreateWorkspace() {
   function copyAppointmentToEmpty(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
-    const targetCount = containers.filter((row) => row.key !== fromKey && !row.customerAppointmentAt).length;
-    if (!targetCount) return;
+    const targetKeys = emptyAppointmentKeys(containers, workspaceFormRef.current);
+    if (!targetKeys.size) return;
     setContainers((current) => current.map((row) => (
-      row.key !== fromKey && !row.customerAppointmentAt ? { ...row, customerAppointmentAt: source } : row
+      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: source } : row
     )));
-    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetCount} container chưa có lịch` });
+    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
   }
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
@@ -948,6 +945,7 @@ export function ShipmentCreateWorkspace() {
                       <button
                         type="button"
                         className="csc-appointment-copy"
+                        disabled={Boolean(saving)}
                         onClick={() => copyAppointmentToEmpty(row.key)}
                         title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
                         aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}

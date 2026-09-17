@@ -10,6 +10,7 @@ import traceback
 from pathlib import Path
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
+from suite_contract import all_cases_pass
 
 BASE_URL = os.environ.get('SILVERSEA_URL', 'http://localhost:7174')
 API_URL = os.environ.get('SILVERSEA_API', 'http://localhost:3001')
@@ -126,7 +127,7 @@ class TestResults:
                 if r['status'] == 'FAIL':
                     print(f'    ❌ {r["tc_id"]}: {r["title"]} — {r["detail"]}')
         print(f'{"="*60}')
-        return self.failed == 0
+        return all_cases_pass(self.results)
 
     def write_json(self, path: str = None):
         path = path or str(SCREENSHOT_DIR / f'{self.suite_name}_results.json')

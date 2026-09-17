@@ -518,7 +518,8 @@ def main() -> bool:
                 page.goto(f"{BASE_URL}/shipments?searchSuffix={BOOK_SUFFIX_QUERY}")
                 wait_for_page_ready(page)
                 page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
-                page.wait_for_timeout(300)
+                fixture_row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
+                fixture_row.wait_for(state="visible", timeout=10_000)
                 overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
                 visible_fixture = page.get_by_text(f"BLCUS{BOOK_SUFFIX_STORED}", exact=False).count() > 0
 

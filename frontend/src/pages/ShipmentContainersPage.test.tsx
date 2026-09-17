@@ -414,6 +414,32 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     }
   });
 
+  it('SISPROD-CUS-ACCESS shows linked-trip ports read-only while keeping container identity editable', async () => {
+    const linkedRow = {
+      ...response.items[1],
+      dispatchStatus: 'CREATED' as const,
+      routeEditable: false,
+      liftSiteEditable: false,
+      dropoffSiteEditable: false,
+      fieldAccess: {
+        ...directContainerAccess,
+        routeId: { mode: 'READ_ONLY' as const, reason: 'Container đã có chuyến thực tế.' },
+        liftSiteId: { mode: 'READ_ONLY' as const, reason: 'Container đã có chuyến thực tế.' },
+        dropoffSiteId: { mode: 'READ_ONLY' as const, reason: 'Container đã có chuyến thực tế.' },
+      },
+    };
+    apiGet.mockResolvedValueOnce({ ...response, items: [linkedRow], total: 1 });
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    expect(screen.queryByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Chỉnh sửa ô thông số container CONT-002/ })).toBeEnabled();
+    expect(document.querySelector('[data-label="Địa điểm nâng / hạ"] .shipment-container-ledger__cell-trigger--read-only')).not.toBeNull();
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(apiPut).not.toHaveBeenCalled();
+  });
+
   it('opens an editor from the cell\'s single control', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);

@@ -178,6 +178,26 @@
   color: var(--danger, #dc2626);
 }
 
+.notif-page__feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--danger, #dc2626);
+  font-size: var(--text-body-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.notif-page__feedback p {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
 /* ── Load more ─────────────────────────────────────────────────────────── */
 
 .notif-page__loadmore {

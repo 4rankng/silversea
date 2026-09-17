@@ -5,6 +5,7 @@ import re
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 def test_driver_portal(ctx: SilverseaTestContext, results: TestResults):
@@ -478,11 +479,12 @@ def test_driver_portal(ctx: SilverseaTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/my-penalties')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    has_filter = assert_element_visible(page, 'select, input[type="month"], [class*="filter"], [class*="month"], [class*="period"]', timeout=5000)
-    if has_filter:
+    month_filter = page.get_by_role('combobox', name='Thời gian', exact=True)
+    try:
+        month_filter.wait_for(state='visible', timeout=15000)
         results.pass_('TC-1143', 'Month/period filter visible')
-    else:
-        results.pass_('TC-1143', 'Penalties page loaded (filter may use different selector)')
+    except PlaywrightTimeoutError:
+        results.fail('TC-1143', 'Month/period filter', 'Visible Thời gian combobox was not found')
     ctx.screenshot(page, 'TC-1143_penalty_filter')
     page.close()
 

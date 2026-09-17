@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "756ec1cc96121ed264d361d5a32f2a55a0e007fe",
-  "generatedAt": "2026-09-17T08:47:14.688Z",
+  "gitCommitHash": "cfa0753fa85764e829e60bb8fdf5993482885f33",
+  "generatedAt": "2026-09-17T13:32:07.743Z",
   "files": {
     ".dockerignore": {
       "filePath": ".dockerignore",
@@ -150,7 +150,7 @@
     },
     "backend/src/config/index.ts": {
       "filePath": "backend/src/config/index.ts",
-      "contentHash": "90798eba88bd931d5624e77973bf403ed9559b88cb649644bde74ba7cb56e6af",
+      "contentHash": "760757847772121835b5b9d4e612576433fe58d88c7c6892abcb13263f972c61",
       "functions": [
         {
           "name": "parseTrustProxy",
@@ -1573,14 +1573,14 @@
     },
     "backend/src/lib/redis.ts": {
       "filePath": "backend/src/lib/redis.ts",
-      "contentHash": "91bf445b5547673a60c785195b0f54c61439a1a936484c658ecf70a80454d29d",
+      "contentHash": "92880ad5224d08b611c93801c5acbffd3685693e6b68f0f964677e7e18eb5679",
       "functions": [
         {
           "name": "getRedis",
           "params": [],
           "returnType": "Redis",
           "exported": true,
-          "lineCount": 14
+          "lineCount": 16
         },
         {
           "name": "disconnectRedis",
@@ -1625,7 +1625,7 @@
           ],
           "returnType": "Promise<boolean>",
           "exported": true,
-          "lineCount": 12
+          "lineCount": 7
         },
         {
           "name": "blacklistToken",
@@ -1662,7 +1662,7 @@
         "isTokenBlacklisted",
         "blacklistToken"
       ],
-      "totalLines": 137,
+      "totalLines": 134,
       "hasStructuralAnalysis": true
     },
     "backend/src/lib/report-cache.ts": {
@@ -2205,7 +2205,7 @@
     },
     "backend/src/middleware/auth.ts": {
       "filePath": "backend/src/middleware/auth.ts",
-      "contentHash": "0b3675fa8ecd6f17f41f811fee6942999a2e07d6ca121b389674a9ff86e29c18",
+      "contentHash": "90581a8a7f162f6c141b16ec21287aebbdcc9a668c1d9a9c226517abd509c2d4",
       "functions": [
         {
           "name": "normalizeCustomerIds",
@@ -2263,7 +2263,7 @@
           ],
           "returnType": "Promise<AuthUser | null>",
           "exported": false,
-          "lineCount": 33
+          "lineCount": 40
         },
         {
           "name": "authMiddleware",
@@ -2364,7 +2364,7 @@
         "assetAuthMiddleware",
         "getUser"
       ],
-      "totalLines": 162,
+      "totalLines": 169,
       "hasStructuralAnalysis": true
     },
     "backend/src/middleware/casbin.ts": {
@@ -21522,7 +21522,7 @@
     },
     "backend/src/services/cus-workspace-builders.service.ts": {
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
-      "contentHash": "77886947bd55fcbdc837c379e55c5d94491c70e9a89558ce6ff31d078eff5e34",
+      "contentHash": "888778dc995ef60e206e9d2b3e4c9b4217a33d8df9661440210945f6fceefc84",
       "functions": [
         {
           "name": "currentAssignmentIdentity",
@@ -21661,7 +21661,7 @@
           ],
           "returnType": "ShipmentCusWorkspaceContainerLine['fieldAccess']",
           "exported": false,
-          "lineCount": 56
+          "lineCount": 47
         },
         {
           "name": "uniqueNonEmpty",
@@ -21784,7 +21784,7 @@
         "shipmentFieldAccess",
         "countContainerTypes"
       ],
-      "totalLines": 815,
+      "totalLines": 806,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/cus-workspace-mapping.service.ts": {

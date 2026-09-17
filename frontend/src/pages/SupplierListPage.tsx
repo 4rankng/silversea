@@ -489,7 +489,7 @@ export default function SupplierListPage() {
                   <tr key={s.id} role="button" tabIndex={0}
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/suppliers/${s.id}`)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
                   >
                     <td className="suppliers-page__cell suppliers-page__cell--name" data-label="Tên nhà cung cấp" style={{ position: 'relative' }}>
                       <StatusStrip status={s.status} />
@@ -517,7 +517,7 @@ export default function SupplierListPage() {
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" data-dropdown-root={menuOpenId === s.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
-                        <button className="row-action" onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
+                        <button type="button" className="row-action" aria-label={`Tùy chọn nhà cung cấp ${s.name}`} aria-expanded={menuOpenId === s.id} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />
                         </button>
                       </div>
@@ -552,7 +552,6 @@ export default function SupplierListPage() {
       </div>
 
       <SupplierFormModal
-        key={editingId ?? (showAddForm ? 'add' : 'closed')}
         isOpen={showAddForm || editingId != null}
         saving={saving}
         item={editingId != null ? suppliers.find(s => s.id === editingId) : undefined}

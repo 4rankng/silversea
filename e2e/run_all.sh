@@ -2,7 +2,8 @@
 # Run all Silversea E2E test suites.
 # Usage:
 #   ./e2e/run_all.sh           # Run all
-#   ./e2e/run_all.sh 00 13     # Run specific suites
+#   ./e2e/run_all.sh 00 20     # Run every script for these suite numbers
+#   ./e2e/run_all.sh --list     # List selected scripts without starting the stack
 
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -13,6 +14,26 @@ if ! command -v python3 &>/dev/null; then
     exit 1
 fi
 
+# Discover actual files, including multiple scripts sharing a suite number.
+LIST_ONLY=false
+if [ "${1:-}" = "--list" ]; then
+    LIST_ONLY=true
+    shift
+fi
+SUITE_LIST=$(python3 "$DIR/suite_contract.py" list "$DIR" "$@")
+if [ "$LIST_ONLY" = true ]; then
+    echo "$SUITE_LIST"
+    exit 0
+fi
+SCRIPTS=()
+while IFS= read -r script; do
+    SCRIPTS+=("$script")
+done <<< "$SUITE_LIST"
+
+# Validate explicit pairing before assigning defaults or starting any workflows.
+echo "🔍 Checking effective E2E targets..."
+python3 "$DIR/target_contract.py"
+
 # Check Playwright
 if ! python3 -c "from playwright.sync_api import sync_playwright" 2>/dev/null; then
     echo "📦 Installing Playwright..."
@@ -20,37 +41,10 @@ if ! python3 -c "from playwright.sync_api import sync_playwright" 2>/dev/null; t
     python3 -m playwright install chromium
 fi
 
-# Check server connectivity
-check_port() {
-    # Try IPv4 first, then IPv6 — vite/node often binds to only one stack.
-    python3 -c "
-import socket
-for fam, addr in ((socket.AF_INET, ('127.0.0.1', $1)), (socket.AF_INET6, ('::1', $1))):
-    s = socket.socket(fam)
-    s.settimeout(2)
-    try:
-        s.connect(addr)
-        s.close()
-        exit(0)
-    except OSError:
-        continue
-exit(1)
-" 2>/dev/null
-}
-
-echo "🔍 Checking servers..."
-# The runner targets the local Silversea stack only. Every override remains in
-# the SILVERSEA namespace so an adjacent checkout cannot redirect this suite.
+# Defaults are local; paired explicit staging URLs remain supported. Validation
+# and connectivity above use the effective targets, not unrelated local ports.
 FRONTEND_PORT="${SILVERSEA_FRONTEND_PORT:-7174}"
 BACKEND_PORT="${SILVERSEA_BACKEND_PORT:-3001}"
-if ! check_port "$FRONTEND_PORT"; then
-    echo "❌ Frontend not running on :$FRONTEND_PORT. Run 'make dev' first."
-    exit 1
-fi
-if ! check_port "$BACKEND_PORT"; then
-    echo "❌ Backend not running on :$BACKEND_PORT. Run 'make dev' first."
-    exit 1
-fi
 export SILVERSEA_URL="${SILVERSEA_URL:-http://localhost:$FRONTEND_PORT}"
 export SILVERSEA_API="${SILVERSEA_API:-http://localhost:$BACKEND_PORT}"
 # The persisted dispatch suite uses a deliberately explicit local database URL
@@ -59,39 +53,15 @@ export SILVERSEA_DATABASE_URL="${SILVERSEA_DATABASE_URL:-postgres://postgres:pos
 E2E_ARTIFACT_ROOT="${SILVERSEA_SCREENSHOTS:-/tmp/silversea-e2e}"
 export SILVERSEA_SCREENSHOTS="$E2E_ARTIFACT_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$SILVERSEA_SCREENSHOTS"
-echo "✅ Servers ready (frontend :$FRONTEND_PORT, backend :$BACKEND_PORT)"
+echo "✅ Effective frontend and API targets are reachable"
 
-# Determine which suites to run
-SUITES=()
-if [ $# -eq 0 ]; then
-    for i in $(seq 0 19); do
-        SUITES+=("$(printf '%02d' $i)")
-    done
-else
-    for arg in "$@"; do
-        SUITES+=("$(printf '%02d' "$((10#$arg))")")
-    done
-fi
-
-# Run suites
-TOTAL_PASS=0
-TOTAL_FAIL=0
-TOTAL_SKIP=0
+# Run every selected script, retaining individual failures and incomplete results.
 FAILED_SUITES=()
 SUITE_TIMEOUT_SECONDS="${SILVERSEA_SUITE_TIMEOUT_SECONDS:-300}"
 
-for suite in "${SUITES[@]}"; do
-    SCRIPT="$DIR/test_${suite}_*.py"
-    # `|| true` keeps `set -o pipefail` from aborting the whole runner when a
-    # suite number has no script (e.g. 12-14, 17) — the ⚠️ branch below is the
-    # intended handling for gaps.
-    MATCH=$(ls $SCRIPT 2>/dev/null | head -1 || true)
-    if [ -z "$MATCH" ]; then
-        echo "⚠️  No test script for suite $suite"
-        continue
-    fi
+for SCRIPT in "${SCRIPTS[@]}"; do
     echo ""
-    if ! python3 - "$MATCH" "$SUITE_TIMEOUT_SECONDS" <<'PY'
+    if ! python3 - "$SCRIPT" "$SUITE_TIMEOUT_SECONDS" <<'PY'
 import subprocess
 import sys
 import os
@@ -112,7 +82,7 @@ except subprocess.TimeoutExpired:
     sys.exit(124)
 PY
     then
-        FAILED_SUITES+=("$suite")
+        FAILED_SUITES+=("$(basename "$SCRIPT")")
     fi
 done
 
@@ -122,28 +92,11 @@ echo "============================================================"
 echo "  E2E Test Results"
 echo "============================================================"
 
-# Aggregate from JSON results
-python3 -c "
-import json, glob, os
-files = sorted(glob.glob(os.path.join(os.environ['SILVERSEA_SCREENSHOTS'], '*_results.json')))
-total = passed = failed = skipped = 0
-for f in files:
-    d = json.load(open(f))
-    total += d['total']
-    passed += d['passed']
-    failed += d['failed']
-    skipped += d['skipped']
-print(f'  Suites: {len(files)}  |  Total: {total}  |  ✅ Pass: {passed}  |  ❌ Fail: {failed}  |  ⏭️  Skip: {skipped}')
-if failed > 0:
-    print()
-    for f in files:
-        d = json.load(open(f))
-        if d['failed'] > 0:
-            print(f'  ❌ {d[\"suite\"]}: {d[\"failed\"]} failures')
-            for r in d['results']:
-                if r['status'] == 'FAIL':
-                    print(f'     - {r[\"tc_id\"]}: {r[\"detail\"]}')
-"
+# A zero child exit is insufficient: every selected script must leave a
+# non-empty all-PASS result artifact. SKIP/BLOCKED remain visible and fail QA.
+if ! python3 "$DIR/suite_contract.py" summarize "$SILVERSEA_SCREENSHOTS" "${#SCRIPTS[@]}"; then
+    FAILED_SUITES+=("incomplete-result-evidence")
+fi
 
 echo "============================================================"
 echo ""

@@ -3,6 +3,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 def get_first_trip_id(api: ApiClient) -> int:
     """Get first trip ID from the API."""
@@ -187,12 +188,20 @@ def test_trips(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/trips')
     page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    page_content = page.content()
-    if trip_payload['customerReference'] in page_content or 'E2E-TEST' in page_content:
-        results.pass_('TC-0107', 'Trip reference visible in list')
+    trip_code = created_trip.get('tripCode')
+    if trip_code:
+        # This fixture is outside the current month. Search is the real UI's
+        # cross-period lookup and the table displays tripCode, not customerReference.
+        page.get_by_role('textbox', name='Tìm chuyến đi', exact=True).fill(trip_code)
+        trip_link = page.locator(f'a[href="/trips/{trip_id}"]').filter(has_text=trip_code)
+        try:
+            trip_link.first.wait_for(state='visible', timeout=15000)
+            results.pass_('TC-0107', 'Created trip code visible in matching list link', trip_code)
+        except PlaywrightTimeoutError:
+            results.fail('TC-0107', 'Created trip code in list', f'No visible link for trip #{trip_id}, code={trip_code}')
     else:
-        results.pass_('TC-0107', 'Trip list renders (reference may be in different format)')
+        results.skip('TC-0107', 'Created trip code in list', 'Trip creation did not return a tripCode')
+    ctx.screenshot(page, 'TC-0107_trip_code_search')
     page.close()
 
     # ── TC-0108: Health check works ──

@@ -173,6 +173,8 @@ export const qk = {
     /** List view — invalidates any paged/filtered list. */
     list: (...args: unknown[]) => ['trips', ...args] as const,
     monthly: (year: number, month: number, salaryStart: string | undefined) => ['trips', 'monthly', year, month, salaryStart] as const,
+    customerCatalogStats: (userId: number | undefined, role: string | undefined, month: string) =>
+      ['trips', 'customer-catalog-stats', userId, role, month] as const,
     created: ['trips', 'created'],
     costs: (month: number, year: number, salaryStart: string | undefined) =>
       ['trip-costs', month, year, salaryStart] as const,

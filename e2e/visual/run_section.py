@@ -25,6 +25,7 @@ if str(HERE.parent) not in sys.path:  # e2e/
 
 from visual.lib.runner import run_section  # noqa: E402
 from visual.lib.reporter import build_summary  # noqa: E402
+from suite_contract import all_cases_pass  # noqa: E402
 
 REPO_ROOT = HERE.parents[1]
 QA_VISUAL = REPO_ROOT / "qa" / "visual"
@@ -102,8 +103,8 @@ def main() -> int:
     except Exception as e:
         print(f"[visual] warn: SUMMARY.md build failed: {e}", file=sys.stderr)
 
-    # Exit non-zero if any failures.
-    return 1 if summary["totals"]["fail"] > 0 else 0
+    # A blocked/skipped or empty run is incomplete evidence, not a green gate.
+    return 0 if all_cases_pass(summary.get("results")) else 1
 
 
 if __name__ == "__main__":

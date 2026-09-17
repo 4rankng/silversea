@@ -820,13 +820,18 @@ describe('CUS container-flat projection', () => {
     for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
       assert.equal(future.fieldAccess[key].mode, 'DIRECT', `future.fieldAccess.${key}`);
     }
+    for (const row of [past, future]) {
+      assert.equal(row.routeEditable, true);
+      assert.equal(row.liftSiteEditable, true);
+      assert.equal(row.dropoffSiteEditable, true);
+    }
     // Fields outside the plan's scope (route/container-number/pickup-drop-off)
     // keep their existing trip-based gate, unaffected by the date cutoff.
     assert.equal(past.fieldAccess.containerTypeId.mode, 'DIRECT');
     assert.equal(past.fieldAccess.cargoWeightKg.mode, 'DIRECT');
   });
 
-  test('DISPATCHER edits containerNumber directly (trip or not); route/ports keep the generic split', async () => {
+  test('SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity writable but route/ports read-only', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const dispatcherActor: AuthUser = {
       userId: 0,
@@ -870,8 +875,9 @@ describe('CUS container-flat projection', () => {
     assert.equal(trippedRow.fieldAccess.liftSiteId.mode, 'READ_ONLY');
     assert.equal(trippedRow.fieldAccess.dropoffSiteId.mode, 'READ_ONLY');
 
-    // Same line through CUS (unconditional plan-field override) and
-    // ACCOUNTANT (viewer) — the dispatcher branch changed neither.
+    // CUS sees the same operational restriction as the authoritative writer.
+    // The old DIRECT override advertised route/port edits that always fail
+    // the linked-trip guard; container-number identity remains writable.
     const cusView = await listCusShipmentContainers(
       { page: 1, limit: 20, searchSuffix: marker },
       cusActor,
@@ -879,7 +885,19 @@ describe('CUS container-flat projection', () => {
     const cusRow = cusView.items.find((row) => row.containerNumber === `DSP${marker}T`);
     assert.ok(cusRow);
     assert.equal(cusRow.fieldAccess.containerNumber.mode, 'DIRECT');
-    assert.equal(cusRow.fieldAccess.routeId.mode, 'DIRECT');
+    const cusDetail = await getCusShipmentWorkspaceDetail(trippedShipment.id, cusActor);
+    const cusLine = cusDetail.containers.find((line) => line.id === trippedContainer.id);
+    assert.ok(cusLine);
+    assert.equal(cusLine.fieldAccess.containerNumber.mode, 'DIRECT');
+    for (const key of ['routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+      assert.equal(cusRow.fieldAccess[key].mode, 'READ_ONLY', `list ${key}`);
+      assert.equal(cusLine.fieldAccess[key].mode, 'READ_ONLY', `detail ${key}`);
+      assert.match(cusLine.fieldAccess[key].reason, /chuyến thực tế/);
+    }
+    for (const key of ['routeEditable', 'liftSiteEditable', 'dropoffSiteEditable'] as const) {
+      assert.equal(cusRow[key], false, `list ${key}`);
+      assert.equal(cusLine.permissions[key], false, `detail ${key}`);
+    }
 
     const accountantView = await listCusShipmentContainers(
       { page: 1, limit: 20, searchSuffix: marker },
@@ -918,6 +936,15 @@ describe('CUS container-flat projection', () => {
       const lockedRow = lockedView.items.find((row) => row.containerNumber === `DSP${marker}L`);
       assert.ok(lockedRow);
       assert.equal(lockedRow.fieldAccess.containerNumber.mode, 'READ_ONLY');
+      const cusLockedView = await listCusShipmentContainers(
+        { page: 1, limit: 20, searchSuffix: marker },
+        cusActor,
+      );
+      const cusLockedRow = cusLockedView.items.find((row) => row.containerNumber === `DSP${marker}L`);
+      assert.ok(cusLockedRow);
+      for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+        assert.equal(cusLockedRow.fieldAccess[key].mode, 'READ_ONLY', `locked CUS ${key}`);
+      }
     } finally {
       await db.delete(s.shipmentAccountingLocks)
         .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
@@ -2762,6 +2789,39 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
         return true;
       },
     );
+  });
+
+  test('SISPROD-CUS-ACCESS linked-trip CUS route and port changes still reject with no partial write', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+    const route = await seedRoute();
+    const ports = await seedLiftDropPorts();
+    const readState = () => Promise.all([
+      db.select({
+        routeId: s.shipmentContainers.routeId,
+        pickupPortId: s.shipmentContainers.pickupPortId,
+        dropoffPortId: s.shipmentContainers.dropoffPortId,
+      }).from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id)),
+      db.select({ version: s.shipments.version }).from(s.shipments).where(eq(s.shipments.id, shipment.id)),
+    ]);
+    const before = await readState();
+    for (const update of [{ routeId: route.id }, { liftSiteId: ports.liftPortId }, { dropoffSiteId: ports.dropPortId }]) {
+      await assert.rejects(
+        () => updateCusShipmentContainerLine({
+          shipmentId: shipment.id,
+          containerId: container.id,
+          input: { expectedShipmentVersion: shipment.version, ...update },
+          actor: cusActor,
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.statusCode, 409);
+          assert.match(error.message, /Container đã gắn chuyến xe \(TRP-NUM-/);
+          return true;
+        },
+      );
+      assert.deepEqual(await readState(), before);
+    }
   });
 
   test('a same-value appointment echo does not trip the guard on a tripped row', async () => {

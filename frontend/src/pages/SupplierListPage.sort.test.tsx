@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Supplier } from '@tingting/shared';
@@ -46,6 +46,10 @@ function supplierFixture(id: number, name: string): Supplier {
   } as unknown as Supplier;
 }
 
+function LocationProbe() {
+  return <output data-testid="location">{useLocation().pathname}</output>;
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -54,6 +58,7 @@ function renderPage() {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <SupplierListPage />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -121,5 +126,22 @@ describe('SupplierListPage server-side sort headers', () => {
     expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();
     expect(lastGetUrl()).not.toContain('sortBy');
     expect(lastGetUrl()).not.toContain('sortDir');
+  });
+
+  it('names row menus and keeps nested keyboard actions separate from row navigation', async () => {
+    renderPage();
+    const menu = await screen.findByRole('button', { name: 'Tùy chọn nhà cung cấp Garage Auto 123' });
+    expect(menu).toHaveAttribute('type', 'button');
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.keyDown(menu, { key: 'Enter' });
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
+    fireEvent.click(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+    const row = menu.closest('tr');
+    expect(row).not.toBeNull();
+    fireEvent.keyDown(within(row!).getByRole('button', { name: 'Sửa' }), { key: ' ' });
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
+    fireEvent.keyDown(row!, { key: 'Enter' });
+    expect(screen.getByTestId('location')).toHaveTextContent('/suppliers/1');
   });
 });

@@ -40,6 +40,7 @@ export default function NotificationsPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     refetch,
     isFetching,
   } = useInfiniteNotifications(20);
@@ -52,11 +53,14 @@ export default function NotificationsPage() {
 
   const handleTap = useCallback(
     (notification: Notification) => {
-      if (!notification.isRead) markAsRead.mutate(notification.id);
+      if (!notification.isRead) {
+        markAll.reset();
+        markAsRead.mutate(notification.id);
+      }
       const destination = user ? resolveNotificationRoute(notification, user.role) : null;
       if (destination) navigate(destination);
     },
-    [markAsRead, navigate, user],
+    [markAll, markAsRead, navigate, user],
   );
 
   return (
@@ -71,7 +75,7 @@ export default function NotificationsPage() {
             type="button"
             className="notif-page__markall"
             disabled={markAll.isPending}
-            onClick={() => markAll.mutate()}
+            onClick={() => { markAsRead.reset(); markAll.mutate(); }}
           >
             <CheckCheck size={16} />
             <span>Đọc tất cả</span>
@@ -79,14 +83,20 @@ export default function NotificationsPage() {
         )}
       </header>
 
+      {(markAll.isError || markAsRead.isError) && (
+        <p className="notif-page__feedback" role="alert">
+          Không thể đánh dấu đã đọc. Vui lòng thử lại.
+        </p>
+      )}
+
       <div className="notif-page__list">
         {isLoading ? (
           <div className="notif-page__state">
             <Loader2 size={20} className="spin" />
             <p>Đang tải thông báo…</p>
           </div>
-        ) : error ? (
-          <div className="notif-page__state notif-page__state--error">
+        ) : error && allItems.length === 0 ? (
+          <div className="notif-page__state notif-page__state--error" role="alert">
             <BellOff size={28} />
             <p>Không thể tải thông báo.</p>
             <button
@@ -105,6 +115,14 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <>
+            {error && !isFetchNextPageError && (
+              <div className="notif-page__feedback" role="alert">
+                <p>Không thể cập nhật thông báo. Dữ liệu đang hiển thị có thể đã cũ.</p>
+                <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+                  Thử lại
+                </button>
+              </div>
+            )}
             {allItems.map((notification) => (
               <button
                 key={notification.id}
@@ -124,18 +142,25 @@ export default function NotificationsPage() {
             ))}
 
             {hasNextPage && (
-              <button
-                type="button"
-                className="notif-page__loadmore"
-                disabled={isFetchingNextPage}
-                onClick={() => fetchNextPage()}
-              >
-                {isFetchingNextPage ? (
-                  <Loader2 size={16} className="spin" />
-                ) : (
-                  'Tải thêm'
+              <>
+                {isFetchNextPageError && (
+                  <p className="notif-page__feedback" role="alert">
+                    Không thể tải thêm thông báo. Vui lòng thử lại.
+                  </p>
                 )}
-              </button>
+                <button
+                  type="button"
+                  className="notif-page__loadmore"
+                  disabled={isFetchingNextPage}
+                  onClick={() => fetchNextPage()}
+                >
+                  {isFetchingNextPage ? (
+                    <Loader2 size={16} className="spin" />
+                  ) : (
+                    'Tải thêm'
+                  )}
+                </button>
+              </>
             )}
           </>
         )}

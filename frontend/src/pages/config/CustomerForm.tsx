@@ -11,6 +11,7 @@ import {
 } from '../../lib/customerDebitNoteMode';
 import { qk } from '../../api/keys';
 import { configClient } from '../../api/configClient';
+import { useAuth } from '../../hooks/useAuth';
 import type { Customer, DebitNoteTemplate } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 
@@ -37,6 +38,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export function CustomerForm({ saving, item, error, onsave, oncancel }: {
   saving: boolean; item?: Customer; error?: string | null; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
+  const { user } = useAuth();
+  const canEditTemplate = ['ADMIN', 'MANAGER', 'ACCOUNTANT'].includes(user?.role ?? '');
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
   const [taxCode, setTaxCode] = useState(item?.taxCode || '');
@@ -57,6 +60,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
   const { data: templates } = useQuery<DebitNoteTemplate[]>({
     queryKey: qk.catalogs.debitNoteTemplates,
     queryFn: () => configClient.getDebitNoteTemplates(),
+    enabled: canEditTemplate,
     staleTime: 60_000,
   });
 
@@ -166,7 +170,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         <textarea className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="SĐT, email, địa chỉ khác…" rows={3} style={{ resize: 'vertical' }} />
       </Field>
 
-      <UuiSelectField
+      {canEditTemplate ? <UuiSelectField
         label="Mẫu giấy báo nợ"
         value={debitNoteTemplateId === null || debitNoteTemplateId === undefined ? '' : String(debitNoteTemplateId)}
         onChange={e => setDebitNoteTemplateId(e.target.value === '' ? null : Number(e.target.value))}
@@ -177,7 +181,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
             label: `${t.name}${t.isDefault ? ' — mặc định' : ''}`,
           })),
         ]}
-      />
+      /> : <p className="text-sm text-tertiary">Mẫu giấy báo nợ do bộ phận kế toán quản lý.</p>}
 
       {error && <p className="cfg-form-error" role="alert">{error}</p>}
       </div>

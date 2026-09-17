@@ -32,7 +32,7 @@ export const DEFAULT_PASSWORD = "Abc123";
  * because the page is empty" from a "blank because the role can't see it".
  */
 export const ROLES = Object.freeze({
-  admin:    { username: "admin",    home: "/dashboard",              api: "/auth/users?limit=1" },
+  admin:    { username: "admin",    home: "/config",                 api: "/auth/users?limit=1" },
   giamdoc:  { username: "giamdoc",  home: "/dashboard",              api: "/trips?limit=1" },
   ketoan:   { username: "ketoan",   home: "/accounting",             api: "/recoverable-costs?limit=1" },
   cus:      { username: "cus",      home: "/shipments",              api: "/customers?limit=1" },

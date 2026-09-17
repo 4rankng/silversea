@@ -317,22 +317,21 @@
   .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
 }
 
-/* Bulk appointment entry (20260917_3): a compact Copy pill sits under the
-   appointment inputs, right-aligned to the date field. The slot is always
-   reserved (visibility, not display) so hover never reflows the row. */
-.csc-appointment-copy {
-  visibility: hidden;
+/* Reserve the action below the inputs so reveal never covers a date or time
+   field. Keyboard focus and compact/touch layouts expose the same action. */
+.csc-container-cell--appointment .csc-container-cell__editor { flex-direction: column; align-items: stretch; gap: 4px; }
+.csc-container-cell--appointment .csc-appointment-copy {
   display: inline-flex;
+  visibility: hidden;
+  align-self: flex-end;
   align-items: center;
-  gap: 4px;
-  justify-self: end;
-  align-self: end;
-  width: fit-content;
-  margin-left: auto;
-  padding: 1px 9px;
-  font-size: 11px;
+  justify-content: center;
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 12px;
+  font-size: var(--text-control-size);
   font-weight: 600;
-  line-height: 16px;
   border: 1px solid #0e7a4f;
   border-radius: 999px;
   background: #ecfdf5;
@@ -340,8 +339,10 @@
   cursor: pointer;
 }
 .csc-appointment-copy:hover { background: #d1fae5; }
-.csc-appointment-copy:focus-visible { visibility: visible; outline: 2px solid #0e7a4f; outline-offset: 1px; }
-.csc-container-row:hover .csc-appointment-copy { visibility: visible; }
-@media (max-width: 640px) {
-  .csc-appointment-copy { display: none; }
+.csc-appointment-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.csc-container-cell--appointment .csc-appointment-copy:disabled { cursor: not-allowed; opacity: 0.5; }
+.csc-container-row:hover .csc-appointment-copy,
+.csc-container-row:focus-within .csc-appointment-copy { visibility: visible; }
+@media (max-width: 640px), (pointer: coarse) {
+  .csc-container-cell--appointment .csc-appointment-copy { visibility: visible; }
 }
