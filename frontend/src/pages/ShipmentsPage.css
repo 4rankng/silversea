@@ -1919,7 +1919,7 @@
    default; appears on row hover so the table stays calm. */
 .cus-appointment-cell { position: relative; }
 .cus-appointment-copy {
-  display: none;
+  visibility: hidden;
   position: absolute;
   top: 50%;
   right: 6px;
@@ -1928,14 +1928,14 @@
   font-size: 11px;
   font-weight: 600;
   border: 1px solid #0e7a4f;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #ecfdf5;
   color: #0e7a4f;
   cursor: pointer;
   z-index: 2;
 }
 .cus-appointment-copy:hover { background: #d1fae5; }
-.cus-container-row:hover .cus-appointment-copy { display: inline-flex; }
+.cus-container-row:hover .cus-appointment-copy { visibility: visible; }
 .cus-appointment-trigger {
   display: flex;
   align-items: center;

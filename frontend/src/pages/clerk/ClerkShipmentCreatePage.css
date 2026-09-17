@@ -317,29 +317,33 @@
   .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
 }
 
-/* Reserve the action below the inputs so reveal never covers a date or time
-   field. Keyboard focus and compact/touch layouts expose the same action. */
-.csc-container-cell--appointment .csc-container-cell__editor { flex-direction: column; align-items: stretch; gap: 4px; }
+/* Copy is an OVERLAY parked ON TOP of the time input: inside the row so the
+   hover chain never breaks while moving to it, zero layout footprint.
+   Rectangle with rounded corners — not a pill (user ruling 2026-09-17). */
+.csc-container-cell--appointment .csc-container-cell__editor { position: relative; }
 .csc-container-cell--appointment .csc-appointment-copy {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 0;
+  min-height: 0;
+  z-index: 2;
   display: inline-flex;
   visibility: hidden;
-  align-self: flex-end;
   align-items: center;
-  justify-content: center;
-  width: auto;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 6px 12px;
-  font-size: var(--text-control-size);
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 16px;
   border: 1px solid #0e7a4f;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #ecfdf5;
   color: #0e7a4f;
   cursor: pointer;
 }
-.csc-appointment-copy:hover { background: #d1fae5; }
-.csc-appointment-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.csc-container-cell--appointment .csc-appointment-copy:hover { background: #d1fae5; }
+.csc-container-cell--appointment .csc-appointment-copy:focus-visible { visibility: visible; outline: 2px solid var(--accent); outline-offset: 2px; }
 .csc-container-cell--appointment .csc-appointment-copy:disabled { cursor: not-allowed; opacity: 0.5; }
 .csc-container-row:hover .csc-appointment-copy,
 .csc-container-row:focus-within .csc-appointment-copy { visibility: visible; }
