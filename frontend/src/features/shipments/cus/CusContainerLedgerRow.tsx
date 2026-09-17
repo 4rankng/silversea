@@ -25,6 +25,8 @@ export function ContainerLineRow({
   completing,
   onAppointmentCommit,
   onAppointmentCancel,
+  showCopyAppointment,
+  onCopyAppointmentToEmpty,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -41,6 +43,11 @@ export function ContainerLineRow({
    *  Return false to keep the popover open on failure. */
   onAppointmentCommit?: (val: string) => Promise<boolean> | boolean | void;
   onAppointmentCancel?: () => void;
+  /** Bulk entry: this row's appointment can be copied to every line whose
+   *  appointment is still empty (shown while hovering set rows when the
+   *  table still has empties to fill). */
+  showCopyAppointment?: boolean;
+  onCopyAppointmentToEmpty?: () => void;
 }) {
   const [, setSelectOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
@@ -180,6 +187,17 @@ export function ContainerLineRow({
               {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
             </span>
           </button>
+          {showCopyAppointment && (
+            <button
+              type="button"
+              className="cus-appointment-copy"
+              onClick={onCopyAppointmentToEmpty}
+              title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
+              aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
+            >
+              Copy
+            </button>
+          )}
           <CusAppointmentPopover
             isOpen={appointmentOpen}
             value={draft.customerAppointmentAt}

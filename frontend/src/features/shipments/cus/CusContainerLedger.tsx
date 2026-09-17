@@ -220,6 +220,29 @@ export function ContainerLedger({
     }));
   }, [detail.containers]);
 
+  // Bulk appointment entry (20260917_1): multi-container lots that deliver
+  // together forced one-popover-per-container entry. A row that already has
+  // an appointment offers a copy affordance that fills every line whose
+  // appointment is still empty — never overwriting a set one.
+  const effectiveAppointment = useCallback((lineId: number) => (
+    drafts[lineId]?.customerAppointmentAt || detail.containers.find((c) => c.id === lineId)?.customerAppointmentAt || ''
+  ), [detail.containers, drafts]);
+  const emptyAppointmentCount = detail.containers.filter((c) => !effectiveAppointment(c.id)).length;
+  const copyAppointmentToEmpty = useCallback((fromLineId: number) => {
+    const source = effectiveAppointment(fromLineId);
+    if (!source) return;
+    const targets = detail.containers.filter((c) => c.id !== fromLineId && !effectiveAppointment(c.id));
+    if (targets.length === 0) return;
+    setDrafts((prev) => ({
+      ...prev,
+      ...Object.fromEntries(targets.map((c) => [c.id, {
+        ...(prev[c.id] || lineDraft(c)),
+        customerAppointmentAt: source,
+      }])),
+    }));
+    toast({ kind: 'success', message: `Đã copy giờ hẹn sang ${targets.length} cont chưa có lịch — nhớ lưu thay đổi` });
+  }, [detail.containers, effectiveAppointment, toast]);
+
   const discardAll = useCallback(() => {
     setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
   }, [detail.containers]);
@@ -383,6 +406,8 @@ export function ContainerLedger({
                   completing={completing}
                   onAppointmentCommit={(val) => commitAppointment(line.id, val)}
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
+                  showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 2}
+                  onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
                 />
               ))}
             </tbody>

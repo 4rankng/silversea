@@ -1913,6 +1913,29 @@
   position: relative;
 }
 
+/* Bulk appointment copy (20260917_1): a row that already has an
+   appointment offers a hover-revealed overlay button that copies its
+   datetime to every line whose appointment is still empty. Hidden by
+   default; appears on row hover so the table stays calm. */
+.cus-appointment-cell { position: relative; }
+.cus-appointment-copy {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #0e7a4f;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #0e7a4f;
+  cursor: pointer;
+  z-index: 2;
+}
+.cus-appointment-copy:hover { background: #d1fae5; }
+.cus-container-row:hover .cus-appointment-copy { display: inline-flex; }
 .cus-appointment-trigger {
   display: flex;
   align-items: center;
