@@ -241,8 +241,23 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
   baseFuelPrice: numeric('base_fuel_price', { precision: 12, scale: 4 }).notNull(),
   // Lag days before new fuel price applies (NEWEB = 1; others TBD).
   fuelLagDays: integer('fuel_lag_days').notNull().default(0),
+  // Whether the lag above is a customer-confirmed term. False = the value is
+  // provisional (the API forces an explicit input, but the stored 0 must not
+  // be read as an agreed term). See CuocPhiThietKeDB.md §8 (20260917_11).
+  fuelLagConfirmed: boolean('fuel_lag_confirmed').notNull().default(false),
+  // Surcharge threshold confirmation state — three states per 20260917_11
+  // criterion 1 (PRD CuocPhiThietKeDB.md §8 forbids reading an empty cell as
+  // "always adjust"):
+  //   'UNSET'  — no customer confirmation yet (the historical NULL rows).
+  //   'NONE'   — customer confirmed NO threshold (always adjust).
+  //   'PCT'    — threshold confirmed as a percentage (surcharge_threshold_pct).
+  //   'ABS'    — threshold confirmed as VNĐ/liter (surcharge_threshold_abs).
+  surchargeThresholdMode: varchar('surcharge_threshold_mode', { length: 10 })
+    .notNull()
+    .default('UNSET'),
   // Surcharge threshold — minimum price change to trigger adjustment.
-  // Two modes: percentage OR absolute (VNĐ/liter). NULL = no threshold (always adjust).
+  // Two modes: percentage OR absolute (VNĐ/liter). NULL is allowed only while
+  // mode = 'UNSET' (never yet confirmed); mode 'NONE' also keeps both NULL.
   // Per docx §2 B: "Hệ thống hỗ trợ cấu hình ngưỡng biến động giá dầu tối thiểu
   // theo 2 dạng tùy chọn".
   surchargeThresholdPct: numeric('surcharge_threshold_pct', { precision: 5, scale: 2 }),
