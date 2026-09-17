@@ -100,7 +100,7 @@ export function appointmentGroupFactorySegment(factoryName: string | null): stri
 
 export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {
   const { totalContainers, plateAssignedContainers, vehicleReadiness } = item.operational;
-  if (vehicleReadiness === 'READY') return 'Đã phân xe';
+  if (vehicleReadiness === 'READY') return 'Đã điều xe';
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
   const waiting = Math.max(0, totalContainers - plateAssignedContainers);
   if (waiting >= totalContainers) return 'Toàn bộ chờ phân xe';
@@ -170,12 +170,12 @@ export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
 /** Container dispatch chip vocabulary (customer decision 2026-09-08, revised
  * the same evening): "Đã tạo chuyến" while a CREATED trip still misses its
  * ngày đóng/trả; "Chờ phân xe" once the date is set (or nothing scheduled)
- * but no vehicle is on the line; "Đã phân xe" once a vehicle is allocated —
+ * but no vehicle is on the line; "Đã điều xe" once a vehicle is allocated —
  * the same plate the Phân xe column shows; "Đang chạy"/"Hoàn thành" follow
  * the trip. */
 export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
   if (status === 'CREATED') return 'Đã tạo chuyến';
-  if (status === 'PLANNED') return 'Đã phân xe';
+  if (status === 'PLANNED') return 'Đã điều xe';
   if (status === 'IN_TRANSIT') return 'Đang chạy';
   if (status === 'COMPLETED') return 'Hoàn thành';
   return 'Chờ phân xe';

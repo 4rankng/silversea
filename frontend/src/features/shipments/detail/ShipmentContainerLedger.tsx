@@ -87,7 +87,7 @@ type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
  
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
-  PLANNED: { label: 'Đã phân xe', color: 'blue' },
+  PLANNED: { label: 'Đã điều xe', color: 'blue' },
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
   IN_TRANSIT: { label: 'Đang chạy', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
