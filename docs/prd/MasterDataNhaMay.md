@@ -1,27 +1,25 @@
-# Master Data: Khách Hàng — Nhà Máy — Tuyến Đường — Vị Trí
+# Danh mục: Khách hàng — Nhà máy — Tuyến đường — Vị trí
 
 **Dự án:** TTransport — Silver Sea
 
-**Nguồn nghiệp vụ:** `2026.9.6_Logic_nghiep_vu.docx` — Phần 1 và yêu cầu bổ sung về tên nhà máy, địa chỉ, liên hệ và thông tin xuất hóa đơn.
-
-**Liên quan:** [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
 
 CUS và Điều vận cần chọn đúng khách hàng, nhà máy và địa điểm khi lập công việc. Lái xe và Ops cần biết chính xác nơi làm hàng cùng người liên hệ. Người quản lý danh mục cần cập nhật thông tin thuận tiện, còn Kế toán cần phân biệt đúng khách hàng và các bên xuất hóa đơn.
 
-## 1. Hai Luồng Tạo Lô
+## 1. Hai luồng tạo lô
 
 | Luồng | Phạm vi | Quy tắc chính |
 |-------|---------|---------------|
 | Luồng chuẩn | Khách hàng và nhà máy thuộc danh mục | Chọn khách hàng → chọn nhà máy của khách hàng → điền tuyến và vị trí theo nhà máy |
-| Lệnh chạy ngoài | Cuốc vãng lai để tối ưu xe rỗng | Cho phép thông tin riêng của công việc và không bắt buộc có định mức cước; vẫn giữ phân quyền và các điều kiện hợp lệ khác |
+| Lệnh chạy ngoài | Hàng đi xin từ bên ngoài cho hôm thiếu lệnh hoặc đoạn xa nhà | Chỉ có cước do khách báo và các phí chi hộ; dạng lô đặc biệt bỏ qua nhiều thao tác/chi phí; vẫn giữ phân quyền và các điều kiện hợp lệ khác |
 
-Lựa chọn **Lệnh chạy ngoài (Tối ưu xe rỗng)** ở đầu form phân biệt hai luồng. Cho phép thông tin ngoài danh mục không có nghĩa tự thêm danh mục hoặc bỏ kiểm tra dữ liệu.
+Lựa chọn **Lệnh chạy ngoài** ở đầu form phân biệt hai luồng. Cho phép thông tin ngoài danh mục không có nghĩa tự thêm danh mục hoặc bỏ kiểm tra dữ liệu.
 
 App cần Internet để xem danh mục hiện hành và lưu thay đổi. Người được phân quyền tạo/sửa danh mục thao tác trực tiếp, không qua phê duyệt nội bộ. Người chỉ được lập công việc không tự có thêm quyền quản lý danh mục. Lịch sử thay đổi phải cho biết ai đã sửa, sửa nội dung gì và khi nào.
 
-## 2. Quan Hệ Và Thông Tin Cần Quản Lý
+## 2. Quan hệ và thông tin cần quản lý
 
-### 2.1 Khách Hàng, Nhà Máy, Tuyến Và Vị Trí
+### 2.1 Khách hàng, nhà máy, tuyến và vị trí
 
 - Một khách hàng có thể có nhiều nhà máy.
 - Mỗi nhà máy thuộc một khách hàng, có một vị trí đóng/trả hàng và một tuyến vận chuyển được cấu hình. Nhiều nhà máy có thể cùng thuộc một tuyến.
@@ -29,7 +27,7 @@ App cần Internet để xem danh mục hiện hành và lưu thay đổi. Ngư�
 - Hai nhà máy có cùng tên ngắn vẫn là hai nhà máy riêng; người dùng phải phân biệt được bằng tên đầy đủ, khách hàng hoặc địa chỉ.
 - Nhà máy và kho là các loại địa điểm khác nhau. Quy tắc tuyến cố định của nhà máy không mặc nhiên áp dụng cho mọi địa điểm khác.
 
-### 2.2 Phạm Vi Trong Lô Nhiều Container
+### 2.2 Phạm vi trong lô nhiều container
 
 Một lô hàng nguồn có thể gồm nhiều container. Nhà máy, tuyến và vị trí phải thuộc đúng công việc của từng container. Các container trong cùng lô có thể làm hàng tại các nhà máy hoặc tuyến khác nhau; không ép cả lô dùng chung một tuyến.
 
@@ -39,7 +37,7 @@ Cảng nâng, cảng hạ và nơi trả vỏ cũng thuộc đúng công việc.
 
 Với LCL, lưu và hiển thị địa điểm, lịch cùng thông tin công việc hàng lẻ mà không cần container. Trường bắt buộc phải phù hợp với loại hàng; không yêu cầu container giả để nhập tuyến hoặc lịch.
 
-### 2.3 Dữ Liệu Hiển Thị Của Nhà Máy
+### 2.3 Dữ liệu hiển thị của nhà máy
 
 | Nhóm | Yêu cầu |
 |------|---------|
@@ -53,7 +51,7 @@ Nhà máy, khách hàng và bên xuất hóa đơn không thay thế cho nhau. N
 
 Không lặp cùng người và số điện thoại ở nhiều dòng với nhãn khác nhau. Nếu có nhiều người liên hệ thực sự khác vai trò, giữ thông tin riêng và ghi rõ vai trò.
 
-### 2.4 Thông Tin Hiện Hành Và Lịch Sử
+### 2.4 Thông tin hiện hành và lịch sử
 
 Thông tin danh mục mới được dùng cho công việc lập mới. Sửa tên, địa chỉ, liên hệ hoặc bên xuất hóa đơn trong danh mục không tự thay đổi công việc đã hoàn thành hoặc hồ sơ tài chính đã phát hành. Những hồ sơ này phải giữ thông tin nhận diện, địa chỉ và bên xuất hóa đơn đã sử dụng để người dùng tra cứu, giải thích và đối chiếu lịch sử.
 
@@ -61,11 +59,11 @@ Với công việc đang thực hiện, kể cả lệnh đã phát hoặc lái 
 
 Không âm thầm đổi tuyến, địa điểm làm hàng hoặc bên xuất hóa đơn do một lần sửa danh mục. Việc điều chỉnh hồ sơ tài chính đã phát hành thực hiện theo quy tắc tài chính tương ứng, không bằng cách sửa ngầm danh mục. Nhà máy đổi tên hoặc ngừng hoạt động vẫn phải tra cứu được trong công việc cũ.
 
-## 3. Giao Diện Luồng Chuẩn
+## 3. Giao diện luồng chuẩn
 
 Áp dụng khi không bật **Lệnh chạy ngoài** trên form của CUS hoặc Điều vận có chọn nhà máy.
 
-### 3.1 Chọn Theo Quan Hệ Khách Hàng — Nhà Máy
+### 3.1 Chọn theo quan hệ khách hàng — nhà máy
 
 1. Chọn khách hàng.
 2. Xem các nhà máy còn được sử dụng của khách hàng đó.
@@ -78,7 +76,7 @@ Tìm nhà máy theo mã, tên viết tắt, tên đầy đủ hoặc địa ch�
 
 Tuyến/vị trí không cho sửa vẫn phải có nhãn và dễ đọc. Khi cần, dùng chỉ dẫn ngắn **Theo nhà máy** để giải thích; không chỉ dùng màu xám khiến người dùng không biết vì sao không sửa được.
 
-### 3.2 Dữ Liệu Thiếu Và Không Còn Hoạt Động
+### 3.2 Dữ liệu thiếu và không còn hoạt động
 
 | Tình huống | Hành vi cần có |
 |------------|----------------|
@@ -90,7 +88,7 @@ Tuyến/vị trí không cho sửa vẫn phải có nhãn và dễ đọc. Khi c
 
 Ngoại lệ chọn tuyến chỉ dành cho nhà máy cũ **chưa có tuyến cấu hình**. Tuyến chọn thuộc công việc hiện tại, không tự sửa danh mục nhà máy và không cho ghi đè tuyến đã cấu hình. Nhà máy tạo mới phải có tuyến; việc sửa danh mục là thao tác riêng của người có quyền.
 
-### 3.3 Tạo Nhanh Danh Mục
+### 3.3 Tạo nhanh danh mục
 
 Người có quyền được tạo nhanh khách hàng, nhà máy hoặc danh mục liên quan ngay khi lập công việc. Tạo nhanh là thêm mục dùng chung thật sự, khác với nhập tên riêng cho lệnh chạy ngoài.
 
@@ -98,24 +96,25 @@ Sau khi lưu thành công, mục mới được chọn ngay với tên, thông t
 
 Lỗi nằm trong form đang mở, sát trường cần sửa và đọc được khi hộp thoại mở. Người dùng bàn phím được đưa đến vị trí cần xử lý; không phải đóng form mới thấy lỗi.
 
-## 4. Lệnh Chạy Ngoài
+## 4. Lệnh chạy ngoài
 
-**Bản chất nghiệp vụ.** Lệnh chạy ngoài là những lô/con hàng **không do SilverSea tạo ra**, mà đi xin từ bên ngoài để tránh xe chạy rỗng trong những hôm không đủ lệnh hoặc đoạn chạy xa nhà. Đây là **một dạng lô hàng đặc biệt**:
+**Bản chất nghiệp vụ.** Lệnh chạy ngoài là những lô/con hàng **không do SilverSea tạo ra**, mà **đi xin từ bên ngoài** để chạy vào những hôm **không đủ lệnh** hoặc **đoạn xa nhà**. Đây là **một dạng lô hàng đặc biệt**:
 
-- Doanh thu chỉ gồm **cước do khách báo giá** và **các phí chi hộ** — không áp bảng định mức cước nội bộ.
+- Trường hợp này **chỉ có cước do khách báo và các phí chi hộ** — không áp bảng định mức cước nội bộ. Việc không áp bảng định mức là **bản chất của loại lô này**, không phải một cơ chế bỏ qua (bypass) kiểm tra để lưu nhanh: hệ thống **không có** van "tích chọn để bỏ qua kiểm tra cước phí".
 - Là lô đặc biệt được **bỏ qua nhiều thao tác hoặc chi phí** không áp dụng; danh sách bước bỏ qua cụ thể cần chốt lại với nghiệp vụ khi triển khai.
 - Vẫn là lô hàng đầy đủ về quy trình vận hành (xem các mục dưới): chỉ nới phần thuộc danh mục và định mức, không nới chất lượng dữ liệu và phân quyền.
+- Không dùng cách gọi "cuốc vãng lai để tối ưu xe rỗng": mục đích của loại lô này là nhận hàng từ bên ngoài khi thiếu lệnh hoặc chạy xa nhà, không phải tối ưu xe rỗng.
 
-### 4.1 Lựa Chọn Và Phạm Vi Áp Dụng
+### 4.1 Lựa chọn và phạm vi áp dụng
 
-Lựa chọn **Lệnh chạy ngoài (Tối ưu xe rỗng)** mặc định tắt và nằm ở vị trí dễ thấy đầu form.
+Lựa chọn **Lệnh chạy ngoài** mặc định tắt và nằm ở vị trí dễ thấy đầu form.
 
-- Khi bật, cho nhập thông tin ngoài danh mục cùng tuyến/vị trí phù hợp với lô; không bắt buộc có định mức cước phí mới lưu được.
+- Khi bật, cho nhập thông tin ngoài danh mục cùng tuyến/vị trí phù hợp với lô. Lô chạy ngoài **không dùng bảng định mức cước nội bộ** — chỉ có cước do khách báo và các phí chi hộ. Đây là bản chất của loại lô, **không phải** bỏ qua kiểm tra cước phí để lưu nhanh.
 - Khi tắt, trở lại luồng chuẩn. Nếu còn thông tin riêng không hợp lệ với luồng chuẩn, chỉ rõ trường cần chọn lại từ danh mục trước khi lưu.
 - Bật/tắt không âm thầm xóa nội dung đã gõ. Mở lại công việc phải thấy đúng lựa chọn và thông tin đã lưu.
 - Vẫn kiểm tra quyền, trường bắt buộc, ngày, số lượng, số tiền và định dạng container phù hợp với công việc. Không dùng số container tùy ý hoặc container giả để vượt điều kiện.
 
-### 4.2 Chọn Danh Mục Hoặc Nhập Thông Tin Riêng
+### 4.2 Chọn danh mục hoặc nhập thông tin riêng
 
 Khách hàng, nhà máy, tuyến và cảng nâng/hạ có thể được chọn từ danh mục hoặc nhập riêng cho công việc khi chạy ngoài.
 
@@ -134,7 +133,7 @@ Quy tắc:
 5. Tên đã lưu phải đọc lại được trên các màn hình liên quan. Không bỏ trống, hiện mã lỗi hoặc gộp các lô riêng biệt vì cùng không dùng danh mục.
 6. Cảng và địa điểm vẫn thuộc đúng container/công việc trong lô nhiều container.
 
-### 4.3 Tìm Kiếm Và Thao Tác Bàn Phím
+### 4.3 Tìm kiếm và thao tác bàn phím
 
 - Bấm để xem danh sách, gõ để tìm; không phân biệt hoa/thường hoặc dấu tiếng Việt.
 - Khi luồng cho phép nhập riêng, tên chưa có trong danh mục không bị mất khi chuyển sang trường khác, bấm ngoài hoặc nhấn Esc.
@@ -143,7 +142,7 @@ Quy tắc:
 - **+ Tạo mới** là hành động riêng và vẫn dùng được theo quyền khi bật chạy ngoài.
 - Người dùng công cụ đọc màn hình nhận biết được tên trường, mục đang chọn và kết quả tìm kiếm.
 
-### 4.4 Sử Dụng Thông Tin Ở Các Phân Hệ
+### 4.4 Sử dụng thông tin ở các phân hệ
 
 | Phân hệ | Yêu cầu |
 |---------|---------|
@@ -158,7 +157,7 @@ Nhãn **Chạy ngoài** xuất hiện một lần tại vị trí nhận diện 
 
 Đối soát công nợ phải giữ đúng chủ thể và công việc. Không thêm bước phê duyệt nội bộ cho lô chạy ngoài; các quy tắc công nợ và xuất hóa đơn áp dụng theo nghiệp vụ tương ứng.
 
-## 5. Yêu Cầu Giao Diện Dùng Chung
+## 5. Yêu cầu giao diện dùng chung
 
 Danh mục nhiều dữ liệu cần tìm kiếm thuận tiện và xem được nhiều bản ghi hữu ích. Máy tính giữ bảng gọn; máy tính bảng và điện thoại ưu tiên tên, khách hàng, địa điểm và hành động cần dùng, mở thông tin phụ khi cần. Tránh một bản ghi biến thành nhiều hàng cao hoặc có hàng trống cho dữ liệu không tồn tại.
 
@@ -168,14 +167,14 @@ Tên dài, số điện thoại và mã nhận diện vẫn đọc được. Nú
 
 Mất kết nối phải báo rõ chưa thể lưu, giữ nội dung đang làm trên màn hình và cảnh báo nếu rời trang sẽ làm mất phần chưa lưu. Khi có mạng, người dùng chủ động tiếp tục. Nếu chưa biết lần lưu trước đã thành công hay chưa, hệ thống cần làm rõ kết quả trước khi thử lại để tránh tạo mục trùng. Không có chế độ làm việc ngoại tuyến hoặc tự gửi lại thao tác.
 
-## 6. Tiêu Chí Nghiệm Thu
+## 6. Tiêu chí nghiệm thu
 
 1. Chọn khách hàng chỉ thấy nhà máy hợp lệ của khách hàng đó; đổi khách hàng không giữ nhà máy cũ sai quan hệ. Việc tìm kiếm hoặc tải danh sách không làm mất lựa chọn mới nhất.
 2. Luồng chuẩn điền đúng tuyến/vị trí của từng nhà máy. Một lô có hai container tại hai nhà máy khác nhau vẫn giữ đúng tuyến và địa điểm của mỗi công việc.
 3. Nhà máy cũ thiếu tuyến cho phép chọn tuyến hợp lệ riêng cho công việc; không phát lệnh khi còn thiếu, không sửa ngầm danh mục và không ghi đè tuyến đã có. Tạo nhà máy mới phải có tuyến.
 4. Nhà máy ngừng hoạt động, danh sách rỗng, đang tải và lỗi tải có thông báo khác nhau cùng bước xử lý phù hợp. Công việc cũ vẫn xem được nhà máy đã sử dụng.
 5. Tên ngắn, tên đầy đủ, địa chỉ, liên hệ và thông tin xuất hóa đơn đúng chủ thể. Chi tiết lái xe giữ thứ tự và nhãn theo [Màn hình lái xe](ManHinhLaiXe.md), không lấy khách hàng thay cho nhà máy thiếu thông tin.
-6. Lệnh chạy ngoài mặc định tắt; bật/tắt giữ nội dung đang nhập và áp dụng đúng quy tắc. Lô đủ thông tin hợp lệ vẫn lưu được khi chưa có định mức cước.
+6. Lệnh chạy ngoài mặc định tắt; bật/tắt giữ nội dung đang nhập và áp dụng đúng quy tắc. Lô chạy ngoài chỉ dùng cước do khách báo và các phí chi hộ; không có cơ chế tích chọn để bỏ qua kiểm tra cước phí.
 7. Chọn danh mục hoặc nhập riêng rồi mở lại đều giữ đúng thông tin. Phối hợp hai cách nhập không làm sai quan hệ hoặc tự tăng danh mục. Người không có quyền quản lý danh mục không thể dùng tạo nhanh để thêm mục.
 8. Tạo nhanh thành công thì chọn được ngay. Lỗi, gián đoạn hoặc thử lại không tạo mục trùng, không làm mất bản nháp và không báo thành công sai.
 9. Lô chạy ngoài hợp lệ đi qua lập lô, phân xe, phát lệnh và được CUS, Điều vận, lái xe, Ops đọc đúng tên/địa điểm. LCL đi qua công việc phù hợp mà không có container giả; hàng nhập phân biệt điểm giao với nơi trả vỏ.
@@ -183,6 +182,6 @@ Mất kết nối phải báo rõ chưa thể lưu, giữ nội dung đang làm 
 11. Sửa danh mục áp dụng cho công việc mới; công việc hoàn thành và hồ sơ tài chính đã phát hành giữ đúng thông tin đã sử dụng. Cập nhật công việc đang thực hiện là thao tác chủ động theo quyền, xem được nội dung cũ/mới, có lịch sử và thông báo đến lái xe/Ops liên quan.
 12. Danh sách và chi tiết nhận diện gọn lệnh chạy ngoài, lọc ra đúng các lệnh đã chọn chạy ngoài và không lặp nhãn cạnh từng trường.
 
-## 7. Câu Hỏi Nghiệp Vụ Còn Mở
+## 7. Câu hỏi nghiệp vụ còn mở
 
 Khi một công việc hoặc loại phí có nhiều người liên hệ hay bên xuất hóa đơn cùng hợp lệ, cần thống nhất bên nào được sử dụng và người dùng cần thấy những lựa chọn nào. Trong khi chưa rõ, phải thể hiện các bên theo đúng vai trò đã biết và chỉ rõ phần cần bổ sung; không lấy thông tin của bên khác để che phần thiếu.

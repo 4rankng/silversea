@@ -1,12 +1,9 @@
 # Phương án tính cước tự động — Yêu cầu sản phẩm
 
-> **Cập nhật 14/09/2026.** Mô tả trải nghiệm và quy tắc nghiệp vụ cần đạt. Người
-> có quyền lưu trực tiếp, không qua phê duyệt nội bộ. Giữ kiểm tra dữ liệu, quyền
-> sửa và kỳ đã khóa. Cần Internet để làm việc. Xem [mục lục PRD](README.md).
->
-> **Nguồn yêu cầu:** phương án tính cước khách hàng ngày 09/09, các trả lời về
-> cước Long Minh và bảng báo giá `18.7 - BG Long Minh T7.xlsx`. Các số tham chiếu
-> không phải thông báo giá hiện hành; đầu vào chưa chốt được nêu ở §8.
+Tài liệu mô tả trải nghiệm cấu hình giá và quy tắc tính cước tự động theo Ngày vận
+chuyển, cách xử lý khi thiếu giá và cách điều chỉnh giá trên bảng kê. Xem thêm:
+[mục lục PRD](README.md), [công thức cước](CuocPhiPhuPhiDau.md),
+[dữ liệu cước](CuocPhiThietKeDB.md).
 
 ## 1. Mục tiêu và phạm vi
 
@@ -27,7 +24,7 @@ tự áp biểu cước này cho khách khác khi chưa biết hợp đồng c�
 Vai trò không có quyền không được sửa giá; bỏ bước duyệt không đồng nghĩa mở
 quyền tài chính cho mọi người.
 
-## 2. Quy tắc tính cước đã chốt
+## 2. Quy tắc tính cước
 
 ```
 Số lít tính cước = Km một chiều × 2 × Định mức lít/km
@@ -46,11 +43,8 @@ Tổng cước K = J + H
 - **Ngày vận chuyển** là mốc chọn kỳ và khóa cước. NEWEB áp giá sau **1 ngày**;
   không suy ra số ngày trễ cho hai tuyến còn lại.
 
-Ba lựa chọn Câu 1=B, Câu 2=A, Câu 4=A được chốt ngày 09/09. Mốc Ngày vận chuyển
-được ghi trong phương án khách hàng ngày 09/09 và tổng hợp ngày 10/09, thay cho
-câu hỏi 2b trước đó. Xem [quy tắc và quyết định đã ghi nhận](CuocPhiPhuPhiDau.md#7-cách-vận-hành-khi-giá-dầu-đổi).
-
-Công thức chi tiết và các bảng giá tham chiếu giữ tại
+Các số tham chiếu trong tài liệu này không phải thông báo giá hiện hành; đầu vào chưa
+chốt được nêu ở §8. Quy tắc và công thức gốc giữ tại
 [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md).
 
 ## 3. Bốn nhóm điều khoản áp giá

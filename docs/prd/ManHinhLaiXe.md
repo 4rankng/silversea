@@ -1,14 +1,10 @@
-# Màn Hình & Luồng Vận Hành App Lái Xe
-
-**Dự án:** TTransport — Silver Sea
-
-**Nguồn nghiệp vụ:** `2026.8.27_Man_hinh_lai_xe.docx` và yêu cầu bổ sung về thông tin công việc, ảnh chứng từ và bố cục màn hình lái xe.
-
-**Liên quan:** [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Kẹp và Kết hợp](LoHangKepKetHop.md), [Master data nhà máy](MasterDataNhaMay.md), [Vận hành Ops](OpsVanHanh.md).
+# Màn hình & luồng vận hành app lái xe
 
 Tài liệu xác định sản phẩm phục vụ lái xe từ lúc nhận lệnh đến khi hoàn thành công việc. Lái xe cần biết đi đâu, làm gì, liên hệ ai và nộp chứng từ nào; Điều vận, CUS và Ops cần theo dõi đúng tiến độ của phần việc liên quan.
 
-## 1. Phạm Vi Và Nguyên Tắc Vận Hành
+Xem thêm: [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Kẹp và Kết hợp](LoHangKepKetHop.md), [Master data nhà máy](MasterDataNhaMay.md), [Vận hành Ops](OpsVanHanh.md).
+
+## 1. Phạm vi và nguyên tắc vận hành
 
 - App **cần Internet** để xem thông tin hiện hành và ghi nhận thao tác. Khi mất kết nối, giải thích rõ việc chưa thể lưu; không cho làm việc ngoại tuyến hoặc tự gửi lại thao tác khi có mạng.
 - Không có bước phê duyệt nội bộ, người kiểm tra/người duyệt hoặc trạng thái chờ duyệt để hoàn thành công việc. **Lái xe nhận lệnh vận chuyển** là xác nhận tiếp nhận công việc thật, vẫn được giữ.
@@ -16,11 +12,11 @@ Tài liệu xác định sản phẩm phục vụ lái xe từ lúc nhận lện
 - Ảnh, biên lai và chi phí thuộc đúng công việc, chỉ người có quyền mới được thêm hoặc sửa.
 - Dữ liệu trọng tâm xuất hiện trước, trình bày gọn trên điện thoại, máy tính bảng và máy tính. Không dùng chữ quá lớn, khoảng đệm dư hoặc nhiều lớp thẻ trang trí.
 
-## 2. Điều Hướng Và Đơn Vị Công Việc
+## 2. Điều hướng và đơn vị công việc
 
 Điều hướng chính gồm bốn tab: **Hành trình**, **Thu nhập**, **Kỷ luật**, **Tài khoản**. Màn hình **Hành trình** có ba tab: **Lệnh mới**, **Đã nhận**, **Lịch sử**. Số lượng và trạng thái trong các tab phải theo công việc thực tế của tài khoản đang đăng nhập.
 
-### 2.1 Lô Hàng, Container Và Công Việc Vận Chuyển
+### 2.1 Lô hàng, container và công việc vận chuyển
 
 Một **lô hàng nguồn** có thể gồm nhiều container. Mỗi công việc vận chuyển có mã nhận diện, phân xe, tiến độ và bằng chứng riêng, đồng thời vẫn thuộc đúng lô hàng nguồn.
 
@@ -29,7 +25,7 @@ Một **lô hàng nguồn** có thể gồm nhiều container. Mỗi công việ
 - Với LCL, thẻ thể hiện công việc vận chuyển hàng lẻ của lô, với thông tin hàng và ngày vận chuyển phù hợp. Không tạo container giả, không yêu cầu ảnh/số container không tồn tại chỉ để đi qua luồng FCL.
 - Quan hệ giữa các thẻ KẸP/KẾT HỢP lấy từ cặp ghép có hiệu lực. Giữ từng thẻ riêng, đặt liền kề và có dấu hiệu chung đủ rõ; không suy ra quan hệ chỉ vì trùng biển số hoặc trùng ngày.
 
-### 2.2 Thẻ Tổng Quát
+### 2.2 Thẻ tổng quát
 
 Thẻ cần đủ dữ liệu để lái xe nhận diện và chọn đúng công việc mà không phải mở lần lượt từng thẻ.
 
@@ -60,14 +56,14 @@ Không lặp lại biển số, tài xế hoặc mã tham chiếu trên mọi d�
 
 Giờ hẹn tại nhà máy, giờ tiếp nhận lệnh và thời điểm thực tế bắt đầu chạy phải có nhãn đúng nghĩa. Không hiển thị giờ hẹn như bằng chứng xe đã xuất phát. Ngày nghiệp vụ theo Việt Nam; giữ đủ phút khi phát lệnh và đọc lại, không tự đổi thành giờ tròn.
 
-### 2.3 Cảng Theo Chiều Vận Chuyển
+### 2.3 Cảng theo chiều vận chuyển
 
 - Với hàng nhập, **Cảng hạ** là nơi trả vỏ rỗng của công việc. Điểm giao hàng/nhà máy không được dùng thay cho nơi trả vỏ chỉ vì trường đó có dữ liệu.
 - Với hàng xuất, cảng nâng/hạ thể hiện đúng điểm lấy vỏ và điểm hạ hàng theo lệnh.
 - Nếu điểm giao hàng khác nơi trả vỏ, giữ cả hai dưới nhãn đúng nghĩa. Hai điểm có thể trùng tên nhưng khác vai trò; nhãn vẫn phải giúp lái xe hiểu đúng điểm cần đến.
 - Khi chưa xác định được điểm cần thiết, hiển thị rõ **Chưa có thông tin** và hướng bổ sung phù hợp quyền; không tạo địa điểm giả hoặc mượn địa điểm của công việc khác.
 
-### 2.4 Thu Nhập, Kỷ Luật Và Tài Khoản
+### 2.4 Thu nhập, kỷ luật và tài khoản
 
 - **Thu nhập:** Lái xe xem thu nhập của chính mình theo kỳ đã chọn, các khoản cấu thành, tổng và khoản điều chỉnh có giải thích. Phân biệt khoản tạm tính, kỳ đã chốt và tiền đã trả theo sự kiện thực tế; không coi đã chốt là đã thanh toán. Cách tính và mức tiền tuân theo quy tắc lương đang áp dụng, không đặt công thức riêng trên màn hình lái xe.
 - **Kỷ luật:** Lái xe xem các biên bản của mình, ngày vi phạm, lý do, số tiền hoặc ảnh hưởng liên quan và trạng thái hiện hành. Biên bản đã hủy vẫn có thể xem lại nhưng không còn được cộng vào khoản khấu trừ hiện hành. Số tổng và chi tiết phải khớp nhau, không chỉ phân biệt bằng màu.
@@ -75,11 +71,11 @@ Giờ hẹn tại nhà máy, giờ tiếp nhận lệnh và thời điểm thự
 
 Cả ba tab dùng bố cục gọn trên điện thoại, máy tính bảng và máy tính. Số tiền, kỳ, ngày và biển số đọc được nguyên cụm; trạng thái rỗng giải thích rõ thay vì khiến người dùng hiểu thành chưa tải xong hoặc mất dữ liệu.
 
-## 3. Chi Tiết Lệnh
+## 3. Chi tiết lệnh
 
 Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu tiên tên viết tắt nhà máy, tuyến đường nằm ngay dưới. Có thể thu gọn phần phụ để tiết kiệm diện tích, nhưng tên nhà máy, tuyến và trạng thái công việc vẫn dễ nhận biết. Tuyến đã xuất hiện ở tiêu đề không lặp thành một dòng trong phần thông tin lệnh; phần đó hiển thị địa chỉ nhà máy.
 
-### 3.1 Thứ Tự Thông Tin
+### 3.1 Thứ tự thông tin
 
 | Nhóm | Yêu cầu |
 |------|---------|
@@ -100,9 +96,9 @@ Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể ri
 
 Các phần dài có thể thu gọn độc lập. Tiêu đề phần có tóm tắt đủ nhận diện, biểu thị trạng thái mở/đóng và điều khiển được bằng bàn phím. Thông tin cốt lõi về công việc không bị đẩy xuống dưới một vùng minh họa hoặc thẻ dịch vụ rỗng lớn.
 
-## 4. Nhận Lệnh, Thực Hiện Và Hoàn Thành
+## 4. Nhận lệnh, thực hiện và hoàn thành
 
-### 4.1 Lệnh Mới
+### 4.1 Lệnh mới
 
 Sau khi Điều vận phát lệnh hợp lệ cho đúng tài xế, công việc xuất hiện ở **Lệnh mới**. Thông báo phải mở đúng công việc; khi đang trực tuyến, danh sách cần làm mới để thấy lệnh mới và phân công mới. Khi mở thông báo, lái xe phải thấy phân công và trạng thái hiện hành.
 
@@ -110,14 +106,14 @@ Bấm **Nhận lệnh vận chuyển** xác nhận tiếp nhận công việc tr
 
 Nếu xe/tài xế/moóc còn bận ở công việc khác, giữ ràng buộc đúng và hiển thị bền vững lý do cùng mã/liên kết tới công việc đang chặn mà người dùng được quyền xem. Hướng dẫn bước cần làm; không chỉ đưa nút tải lại khiến lái xe lặp lại cùng lỗi. Cặp KẸP hợp lệ được xử lý theo quan hệ dùng chung tài nguyên, không được coi thành xung đột giữa hai thành viên.
 
-### 4.2 Thực Hiện Công Việc
+### 4.2 Thực hiện công việc
 
 - Tiến độ và ảnh cập nhật đúng công việc/container đang mở; không làm hoàn thành các phần việc khác trong cùng lô hàng.
 - KẸP vận chuyển đồng thời hai container, nhưng từng công việc vẫn giữ mốc và bằng chứng riêng.
 - KẾT HỢP thực hiện nối tiếp: hoàn thành trả hàng Lệnh 1 rồi mới được bắt đầu đóng hàng Lệnh 2. Màn hình phải nêu lý do khi phần việc sau chưa thể bắt đầu.
 - Khi công việc đã được người khác phân lại, hủy hoặc sửa, giải thích thay đổi và giữ nội dung đang nhập để người dùng đối chiếu. Chỉ cho tiếp tục thao tác phù hợp với phân công hiện hành; không âm thầm ghi đè thay đổi của người khác.
 
-### 4.3 e-POD Và Hoàn Thành
+### 4.3 e-POD và hoàn thành
 
 Bấm **Hoàn tất lệnh vận chuyển** mở màn hình chứng từ giao nhận điện tử (e-POD) của công việc. Với công việc container (FCL), giữ hai nhóm bằng chứng bắt buộc:
 
@@ -134,7 +130,7 @@ Khi hệ thống xác nhận hoàn thành, thẻ chuyển sang **Lịch sử** v
 
 Với LCL, ghi nhận hoàn thành cho công việc hàng lẻ, không phụ thuộc vào container. Bộ chứng từ thay cho phiếu hạ container chưa được xác định đầy đủ và phải làm rõ theo nghiệp vụ hàng lẻ; không tự coi bộ chứng từ FCL là bắt buộc cho mọi công việc LCL. Không yêu cầu số container hoặc ảnh container giả để đóng lệnh.
 
-## 5. Ảnh, Biên Lai Và Khôi Phục Khi Có Lỗi
+## 5. Ảnh, biên lai và khôi phục khi có lỗi
 
 Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh biên bản không xuất hiện thành hai khối tải/xóa độc lập. Giữ ảnh thu nhỏ gọn; bấm hoặc dùng bàn phím để xem toàn ảnh, phóng to và di chuyển để đọc nội dung. Đóng bằng Esc được và vị trí điều khiển bàn phím trở về ảnh vừa mở.
 
@@ -145,7 +141,7 @@ Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh b
 - Xóa/thay ảnh cần cập nhật theo kết quả đã lưu và quyền sở hữu hiện hành. Nếu công việc đã giao cho người khác hoặc người dùng hết quyền, giải thích rõ và ngừng cho sửa/xóa.
 - Luồng lưu ảnh/biên lai của một khoản chi đã có phải giữ đúng khoản chi đó; không yêu cầu tạo lại khoản chi để bổ sung chứng từ.
 
-## 6. Giao Diện Và Khả Năng Truy Cập
+## 6. Giao diện và khả năng truy cập
 
 - Ưu tiên cuộn dọc và nhiều thông tin hữu ích trong một màn hình. Tận dụng chiều rộng điện thoại, tránh nhiều lớp lề hoặc thẻ trang trí lồng nhau.
 - Văn bản và trường nhập dễ đọc, đủ tương phản. Không thu nhỏ dữ liệu quan trọng để ép vừa, cũng không dùng tiêu đề hoặc thẻ quá khổ.
@@ -154,7 +150,7 @@ Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh b
 - Người dùng bàn phím và công cụ đọc màn hình nhận biết được từng trường, nút và trạng thái mở/đóng. Lỗi nằm sát trường cần sửa; vị trí đang điều khiển luôn rõ.
 - Khi thu gọn/đổi tab/quay lại danh sách, giữ ngữ cảnh công việc phù hợp. Trạng thái mạng và lỗi không được chiếm toàn bộ màn hình hoặc lặp lại thành nhiều thông báo giống nhau.
 
-## 7. Tiêu Chí Nghiệm Thu
+## 7. Tiêu chí nghiệm thu
 
 1. Kiểm tra cùng một bộ dữ liệu ở điện thoại, máy tính bảng và máy tính: nhà máy trước tuyến trên thẻ; đủ thao tác, cảng, số–loại; tên dài không vỡ mã hoặc che hành động.
 2. Lô nhiều container tạo đúng số phần việc FCL; container thiếu số vẫn hiện loại; LCL đi qua tạo, phân xe, phát lệnh, nhận lệnh và đọc lại mà không có container giả.
@@ -169,7 +165,7 @@ Mỗi loại ảnh có một vị trí quản lý rõ ràng. Cùng một ảnh b
 
 ## 8. Chi phí lái xe
 
-**Nguồn:** `các chi phí.docx`, phần chi phí lái xe, cập nhật 16/09/2026. Lái xe cần khai báo tại đúng công việc và xem lại kết quả. Không phải dùng màn quản trị hay nhập lại thông tin lô, xe và tài xế đã có.
+Lái xe cần khai báo tại đúng công việc và xem lại kết quả. Không phải dùng màn quản trị hay nhập lại thông tin lô, xe và tài xế đã có.
 
 Giữ nguyên phụ cấp tiền đường và ca đã thỏa thuận. Phần cầu đường dùng ước tính khi chưa có số thực tế đã đối chiếu; khi có thì số thực tế thay phần ước tính, không cộng thêm cả hai. Ví dụ ước tính 100.000đ, vé đối chiếu 80.000đ: tổng giảm 20.000đ, phụ cấp không đổi. Phát sinh riêng chỉ tính một lần; công việc kẹp/kết hợp dùng chung nguồn phí, không nhân theo số container. Điều chỉnh/hủy đối chiếu cập nhật theo nguồn còn hiệu lực và giữ lịch sử.
 
@@ -215,14 +211,14 @@ Mỗi khoản đã lưu có thao tác xem/bổ sung chứng từ ngay trong danh
 | AC-CP-LX-09 | Bấm lưu hai lần/thử lại sau mất phản hồi chỉ có một khoản; ảnh lỗi cho bổ sung trên khoản đã có, không phải ghi tiền lại. |
 | AC-CP-LX-10 | Không thêm/sửa tiền ngoài phân công hoặc kỳ khóa; chuyến hủy không tạo khoản mới. Thiếu đối chiếu chi phí không chặn hoàn thành vận chuyển khi đủ điều kiện giao nhận. |
 
-## 9. Điểm Còn Cần Làm Rõ
+## 9. Điểm còn cần làm rõ
 
 - Bộ chứng từ bắt buộc phù hợp với công việc LCL, thay cho phiếu hạ container; không áp đặt yêu cầu ảnh container khi không có container.
 - Khi có nhiều người liên hệ hoặc bên xuất hóa đơn hợp lệ, cần thống nhất bên nào được sử dụng cho từng công việc và loại phí.
 
 Các điểm này cần được làm rõ với người phụ trách nghiệp vụ trước khi xác định yêu cầu chi tiết.
 
-### Kết nối và thử lại
+## 10. Kết nối và thử lại
 
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
 

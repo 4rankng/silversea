@@ -1,9 +1,7 @@
 # Yêu cầu dữ liệu cước và lịch sử giá
 
-> **Yêu cầu sản phẩm — cập nhật 14/09/2026.** Người có quyền lưu trực tiếp dữ liệu
-> cước và điều chỉnh được phép, không qua phê duyệt nội bộ. Giữ quyền truy cập,
-> ngày hiệu lực, lịch sử và kỳ đã khóa. Cần Internet để làm việc. Tài liệu mô tả
-> sản phẩm cần đạt; xem [mục lục PRD](README.md).
+Tài liệu mô tả dữ liệu cước cần quản lý: nguồn hình thành một mức cước, ngày hiệu lực,
+cách giải thích số tiền và bảo toàn lịch sử. Xem thêm: [mục lục PRD](README.md).
 
 ## 1. Mục tiêu và người sử dụng
 

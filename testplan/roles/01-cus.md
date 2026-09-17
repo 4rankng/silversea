@@ -145,31 +145,39 @@ applies (silent redirect to `/shipments`).
 10. **CUS-SHIP-10 — Ad-hoc order flag (`Lệnh chạy ngoài`)**
     - **Given** a CUS user on `/shipments/new`
     - **When** they inspect the top of the form without scrolling
-    - **Then** a checkbox labelled exactly
-      `Lệnh chạy ngoài (Tối ưu xe rỗng)` is present and **unchecked by
-      default**, on both desktop and mobile (tap target ≥ 44 px).
+    - **Then** a checkbox labelled exactly `Lệnh chạy ngoài` is present and
+      **unchecked by default**, on both desktop and mobile (tap target ≥ 44 px).
     - **When** it is checked
     - **Then** `Tuyến đường` and `Vị trí đóng/trả hàng` **unlock** for manual
-      entry, and cước-phí quota validation is bypassed so the shipment can
-      be saved and handed to Điều vận immediately.
+      entry, so a shipment SilverSea did not originate (taken from outside on
+      days short of orders or far from home) can be entered with its own
+      names. The flag **never switches off a validation**: an ad-hoc shipment
+      has no internal freight norm to apply — its revenue is the
+      **customer-reported freight plus disbursement (chi hộ) fees** — and that
+      is a property of the shipment type, not a bypass to save faster.
     - **When** it is unchecked again while free text is present
     - **Then** the user is warned (Vietnamese) that those fields must be
       re-picked from the catalogue — typed data is **not** silently wiped.
     - The flag persists on the shipment (`is_ad_hoc`) and is still checked
       when the shipment is reopened for editing.
-    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1.
-    - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`.
+    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1; `testplan/2026-09-18-adhoc-definition.md`.
+    - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`, `TC-ADHOC-DEF-01`.
     - **Evidence**: screenshots of the flag off → on → off sequence.
 
-11. **CUS-SHIP-11 — Ad-hoc bypass is scoped to cước phí only**
+11. **CUS-SHIP-11 — Ad-hoc shipments carry no freight-norm bypass; revenue is customer-reported only**
     - **Given** the ad-hoc flag is **on**
     - **When** the user submits with an ISO-6346-invalid container number,
       an invalid/inverted date pair, a quantity ≤ 0, or an empty required
       field
     - **Then** **every one** of those is still rejected with a specific
       Vietnamese error. The flag never relaxes data-safety validation.
-    - **Cases**: `TC-CUS-CREATE-029`.
-    - **Evidence**: 4 error screenshots.
+    - **When** an ad-hoc shipment is priced
+    - **Then** no internal freight norm (bảng định mức cước) is applied —
+      revenue is the customer-reported freight plus chi hộ fees. There is
+      **no** flag-driven "skip the cước check" path, and no UI copy or docs
+      may describe one (see `TC-ADHOC-DEF-02`).
+    - **Cases**: `TC-CUS-CREATE-029`, `TC-ADHOC-DEF-02`.
+    - **Evidence**: 4 error screenshots + the pricing projection for the ad-hoc shipment.
 
 12. **CUS-SHIP-12 — Free text stores `Raw_*` with a null ID, and never
     touches master data**

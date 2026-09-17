@@ -2,10 +2,6 @@
 
 **Dự án:** TTransport — Silver Sea
 
-**Cập nhật:** 16/09/2026
-
-**Nguồn bổ sung:** `các chi phí.docx` — chi phí Ops, bảng phơi phiếu và hoàn ứng. Hình minh họa từ phần mềm cũ xác định thông tin cần quản lý, không bắt buộc sao chép bố cục cũ.
-
 Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
 
 ## 1. Vấn đề cần giải quyết
@@ -247,11 +243,11 @@ Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và s
 - [Quy trình O2C](QuyTrinhO2C.md).
 - [Màn hình lái xe](ManHinhLaiXe.md).
 
-### Kết nối và thử lại
+## 11. Kết nối và thử lại
 
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
 
-### Tra cứu đối chiếu và chỉ dẫn vận hành
+## 12. Tra cứu đối chiếu và chỉ dẫn vận hành
 
 OPS xem được các đợt hoàn ứng của mình, lọc theo kỳ hoặc nội dung, mở từng khoản nguồn và xuất đúng các dòng đang lọc. Kế toán xem lịch sử phiếu gồm phân bổ, quỹ, tham chiếu, ngày tiền và ngày/lý do đảo. Giá trị phân bổ lịch sử tách khỏi số tiền hiện tại của khoản nguồn.
 

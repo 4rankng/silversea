@@ -118,7 +118,8 @@ export interface LockShipmentFreightRateArgs {
 /**
  * Insert one freight-rate snapshot for the shipment. Skips (returns null)
  * without writing when auto pricing is not applicable YET:
- *   - ad-hoc shipments (Lệnh chạy ngoài bypass the engine entirely), or
+ *   - ad-hoc shipments (Lệnh chạy ngoài: no internal freight norm applies —
+ *     revenue is the customer-reported freight plus chi hộ fees), or
  *   - no catalog customer/route, or
  *   - no derivable rate key (no typed container and no override) — LCL
  *     shipments without a dispatcher rate key lock at dispatch instead.
@@ -141,8 +142,9 @@ export async function lockShipmentFreightRate(
     .where(and(eq(s.shipments.id, args.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) return null;
-  // Lệnh chạy ngoài bypasses the pricing engine by design (free-text cuốc,
-  // no catalog customer/route contract).
+  // Lệnh chạy ngoài: bảng định mức cước nội bộ không áp dụng — doanh thu chỉ
+  // gồm cước do khách báo và phí chi hộ (spec §4). Đây là bản chất của loại
+  // lô, không phải cơ chế bỏ qua kiểm tra cước phí.
   if (shipment.isAdHoc) return null;
   if (shipment.customerId == null || shipment.routeId == null) return null;
 

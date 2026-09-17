@@ -68,7 +68,7 @@ export const trips = pgTable('trips', {
     .references(() => shipmentFulfillments.id, { onDelete: 'restrict' }),
   sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
-  // O2C POD-recovery gate (docs/prd/O2C dev.md). Distinct from digital e-POD
+  // O2C POD-recovery gate (docs/prd/QuyTrinhO2C.md). Distinct from digital e-POD
   // acceptance (TripPodStatus.ACCEPTED): this records "Đã thu hồi chứng từ gốc
   // (POD mộc đỏ)" — the physical paper return. The IN_TRANSIT → COMPLETED
   // transition throws if null; shipment closure requires it set.

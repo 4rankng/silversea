@@ -2,11 +2,9 @@
 
 **Dự án:** TTransport — Silver Sea
 
-**Cập nhật:** 16/09/2026
-
-**Nguồn bổ sung:** `các chi phí.docx` — phân loại chi phí, phơi phiếu, quỹ, báo cáo thu/trả và theo dõi hóa đơn/cược container.
-
 Tài liệu xác định trải nghiệm từ khi tiếp nhận nhu cầu vận chuyển đến khi hoàn thành công việc, đủ hồ sơ và thu tiền. Mỗi bên cần biết phần việc của mình, thông tin còn thiếu và bước tiếp theo, không phải nhập lại dữ liệu đã có hoặc dò qua nhiều màn hình để biết một lô đang ở đâu.
+
+Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.md), [vận hành hiện trường](OpsVanHanh.md), [màn hình lái xe](ManHinhLaiXe.md).
 
 ## 1. Mục tiêu, người sử dụng và phạm vi
 
@@ -134,7 +132,7 @@ Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các 
 
 **Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
-Bản chất: lệnh chạy ngoài là hàng **không do SilverSea tạo ra**, đi xin từ bên ngoài cho ngày thiếu lệnh hoặc đoạn chạy xa nhà — chỉ có **cước do khách báo** và **phí chi hộ**, không áp định mức nội bộ; là dạng lô đặc biệt được bỏ qua nhiều thao tác/chi phí không áp dụng (danh sách bỏ qua cụ thể chốt khi triển khai).
+Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.md](MasterDataNhaMay.md) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
 
 Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
@@ -396,7 +394,7 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 
 Bộ chứng từ bắt buộc cho LCL thay phiếu hạ container cần được chốt với người phụ trách nghiệp vụ. Điều kiện hợp đồng hoặc nguồn thông tin còn chưa rõ cần được xác định trước khi áp dụng; không tự đặt giá, giấy tờ mới hoặc thêm phê duyệt để thay thế câu trả lời.
 
-### Kết nối và thử lại
+## 11. Kết nối và thử lại
 
 Khi mở một trang đã đăng nhập mà máy chủ tạm lỗi, giữ phiên và địa chỉ trang, hiện nút thử lại; không chuyển người dùng về đăng nhập như thể mật khẩu đã hết hiệu lực. Chỉ yêu cầu đăng nhập lại khi phiên thực sự không còn hợp lệ.
 

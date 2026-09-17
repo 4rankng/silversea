@@ -1,16 +1,14 @@
-# Lô Hàng Kẹp & Lô Hàng Kết Hợp
+# Lô hàng kẹp & lô hàng kết hợp
 
 **Dự án:** TTransport — Silver Sea
 
-**Nguồn nghiệp vụ:** `2026.9.6_Logic_nghiep_vu.docx` — Phần 2 và yêu cầu ghép hai container 20FT.
-
-**Liên quan:** [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
 
 Điều vận cần ghép các công việc phù hợp để tận dụng xe, moóc và hành trình. Lái xe cần hiểu hai công việc chạy đồng thời hay nối tiếp. CUS và Kế toán cần giữ đúng lô hàng, chứng từ, doanh thu và chi phí của từng công việc khi ghép.
 
-## 1. Định Nghĩa Nghiệp Vụ
+## 1. Định nghĩa nghiệp vụ
 
-### 1.1 KẸP — Hai Container 20FT Chạy Đồng Thời
+### 1.1 KẸP — hai container 20FT chạy đồng thời
 
 Ghép **hai container 20FT** lên cùng một moóc có khả năng chở hai vị trí 20FT, dùng chung đầu kéo và tài xế, vận chuyển đồng thời. Trường hợp thường gặp là một container có hàng và một container rỗng.
 
@@ -19,7 +17,7 @@ Ghép **hai container 20FT** lên cùng một moóc có khả năng chở hai v�
 - **Tổng trọng lượng hàng của cả hai container** phải phù hợp với năng lực của tổ hợp đầu kéo/moóc. Từng container đủ tải riêng chưa có nghĩa cả cặp đủ tải.
 - Thông tin hàng, tiến độ và bằng chứng của từng container vẫn được theo dõi riêng.
 
-### 1.2 KẾT HỢP — Tái Dùng Vỏ, Thực Hiện Nối Tiếp
+### 1.2 KẾT HỢP — tái dùng vỏ, thực hiện nối tiếp
 
 Xe đưa container đến trả hàng Lệnh 1, giữ lại vỏ để đi đóng hàng Lệnh 2 thay vì chạy rỗng về bãi. Hai lệnh dùng chung đầu kéo, moóc và tài xế nhưng thực hiện nối tiếp.
 
@@ -27,7 +25,7 @@ Xe đưa container đến trả hàng Lệnh 1, giữ lại vỏ để đi đón
 
 Chỉ được bắt đầu đóng hàng Lệnh 2 sau khi hoàn thành phần trả hàng Lệnh 1. Tiết kiệm hành trình rỗng không làm gộp chứng từ hoặc doanh thu của hai công việc.
 
-## 2. Lô Hàng Và Quan Hệ Ghép
+## 2. Lô hàng và quan hệ ghép
 
 Một **lô hàng nguồn có thể gồm nhiều container**. Mỗi công việc vận chuyển có phân công, lịch, tiến độ và bằng chứng riêng, đồng thời vẫn thuộc đúng lô hàng nguồn.
 
@@ -43,9 +41,9 @@ Không ép tách một lô nhiều container thành nhiều lô chỉ để ghé
 
 Công việc LCL được nhận diện và theo dõi riêng mà không cần container. Không tạo container giả để đưa LCL vào quy tắc ghép hai container 20FT.
 
-## 3. Phân Xe Và Quản Lý Cặp
+## 3. Phân xe và quản lý cặp
 
-### 3.1 Tạo Cặp
+### 3.1 Tạo cặp
 
 Người làm Điều vận có quyền phân xe chọn hai công việc phù hợp, chọn loại ghép và đầu kéo, moóc, tài xế dùng chung. Hai công việc phải cùng ngày vận hành; tuyến, giờ và điểm làm hàng phải phù hợp với cách ghép.
 
@@ -56,13 +54,13 @@ Người làm Điều vận có quyền phân xe chọn hai công việc phù h�
 
 Sau khi lưu thành công, cả hai công việc cùng có phân công và quan hệ ghép đúng. Nếu không thể lưu đủ cả cặp, thông báo rõ lý do và không để lại một nửa phân công khiến người dùng hiểu nhầm đã ghép xong.
 
-### 3.2 Dùng Chung Xe, Moóc Và Tài Xế
+### 3.2 Dùng chung xe, moóc và tài xế
 
 Cặp KẸP hợp lệ không được tự chặn công việc thứ hai vì xe đang phục vụ công việc thứ nhất trong chính cặp đó. Công việc khác ngoài cặp vẫn phải bị chặn nếu gây trùng lịch hoặc vượt năng lực.
 
 Khi hai người cùng phân xe, hệ thống không được xác nhận thành công cho các phân công mâu thuẫn. Người không thể hoàn tất phải thấy xe/moóc/tài xế nào đã được sử dụng và có thể chọn lại phương án phù hợp.
 
-### 3.3 Sửa, Hủy Và Phân Lại
+### 3.3 Sửa, hủy và phân lại
 
 - Người có quyền được sửa hoặc bỏ ghép trực tiếp trong phạm vi trạng thái công việc cho phép; không có bước phê duyệt nội bộ.
 - Khi đổi hoặc bỏ một thành viên, cập nhật quan hệ ghép, lịch sử dụng xe/moóc/tài xế, chi phí và lương của phần còn lại. Cặp đã bỏ không còn cho phép chồng lịch.
@@ -73,7 +71,7 @@ Khi hai người cùng phân xe, hệ thống không được xác nhận thành
 
 Mọi thao tác cần Internet. Khi chưa thể xác định đã lưu hay chưa, trạng thái phải nói rõ và làm rõ kết quả trước khi người dùng thử lại. Không cho làm việc ngoại tuyến hoặc tự gửi lại khi có mạng.
 
-## 4. Hiển Thị Cho Điều Vận, CUS Và Lái Xe
+## 4. Hiển thị cho Điều vận, CUS và lái xe
 
 Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, bỏ nhãn hoạt động nhưng vẫn xem được lịch sử.
 
@@ -83,15 +81,15 @@ Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. 
 
 Trên điện thoại, máy tính bảng và máy tính, người dùng phải đọc nhanh được cặp và hành động cần làm. Trình bày xe/moóc/tài xế dùng chung gọn một lần khi phù hợp; tránh thẻ lồng nhau, khoảng trống lớn hoặc nhân đôi khối thông tin. Số container, biển số và loại container phải đọc nguyên cụm. Nút dễ chạm, có nhãn rõ và dùng được bằng bàn phím.
 
-## 5. Chi Phí, Lương Và Doanh Thu
+## 5. Chi phí, lương và doanh thu
 
-### 5.1 Phí Của Hành Trình Dùng Chung
+### 5.1 Phí của hành trình dùng chung
 
 Phí đường bộ/VETC của **cùng một hành trình thực tế dùng chung** chỉ ghi nhận một lần cho cặp. Không lấy phí một hành trình nhân với số container.
 
 Các khoản phí thật sự khác nhau của hai chặng vẫn được ghi nhận riêng. Kế toán phải đối chiếu được tổng phí, khoản nào dùng chung và khoản nào thuộc từng công việc. Khi bỏ ghép hoặc tính lại, áp dụng cách tính phù hợp với hành trình còn lại mà không ghi thêm cùng một khoản phí.
 
-### 5.2 Lương Tài Xế
+### 5.2 Lương tài xế
 
 **Lương chuyến ghép = Lương cuốc cơ bản + Phụ phí KẸP hoặc KẾT HỢP.**
 
@@ -99,11 +97,11 @@ Phụ phí lấy theo mức lương đã cấu hình cho loại ghép. Không tr
 
 Kỳ lương đã chốt và việc điều chỉnh tiếp tục theo quy tắc lương chung. Không âm thầm thay đổi lịch sử lương hoặc tạo thêm bước phê duyệt cho chuyến ghép.
 
-### 5.3 Khoản Riêng Của Từng Lô/Container
+### 5.3 Khoản riêng của từng lô/container
 
 Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi vẫn thuộc đúng lô/container phát sinh. Cùng xe không đồng nghĩa cùng khách hàng hoặc cùng bên xuất hóa đơn. Tổng hợp không được vừa cộng tổng lô vừa cộng lại các khoản của từng container.
 
-## 6. Bảng So Sánh
+## 6. Bảng so sánh
 
 | Tiêu chí | Đơn | KẸP | KẾT HỢP |
 |----------|-----|-----|---------|
@@ -117,7 +115,7 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 | Lương | Cuốc đơn | Cơ bản + phụ phí KẸP | Cơ bản + phụ phí KẾT HỢP |
 | Bằng chứng/tiến độ | Theo công việc | Riêng từng công việc | Riêng từng công việc và đúng thứ tự |
 
-## 7. Tiêu Chí Nghiệm Thu
+## 7. Tiêu chí nghiệm thu
 
 1. Ghép được hai container 20FT trên moóc 40FT phù hợp, cùng đầu kéo và tài xế. Cả hai công việc đều thể hiện đúng cặp và phân công sau khi lưu.
 2. Từ chối container 40FT trong cặp hai 20FT, container thứ ba, công việc đã thuộc cặp khác và tổng trọng lượng vượt năng lực; mỗi trường hợp có lý do dễ hiểu.
