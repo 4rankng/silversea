@@ -15,6 +15,11 @@ const fieldAdapters = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/uui-fields.tsx'),
   'utf8',
 );
+// USearchableField lives in its own module; uui-fields.tsx only re-exports it.
+const searchableFieldSource = readFileSync(
+  resolve(process.cwd(), 'src/features/shipments/create/uui-searchable-field.tsx'),
+  'utf8',
+);
 const uuiSelectSource = readFileSync(
   resolve(process.cwd(), 'src/design-system/forms/UuiSelectField.tsx'),
   'utf8',
@@ -162,11 +167,12 @@ describe('shipment create responsive layout', () => {
     // Create-page adapters default to compact density. Search/select adapters
     // expose semantic sizing so other forms can match their native controls.
     expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(3);
-    expect(fieldAdapters).toMatch(/export function USearchableField\(\{\s*size = 'sm'/);
-    expect(fieldAdapters).toMatch(/<ComboBox\s+size=\{size\}/);
+    expect(searchableFieldSource).toMatch(/export function USearchableField\(\{\s*size = 'sm'/);
+    expect(searchableFieldSource).toMatch(/<ComboBox\s+size=\{size\}/);
     expect(uuiSelectSource).toContain("size = 'sm'");
     expect(uuiSelectSource.match(/size=\{size\}/g)).toHaveLength(2);
     expect(fieldAdapters).not.toContain('size="md"');
+    expect(searchableFieldSource).not.toContain('size="md"');
     expect(containerEditorSource).not.toContain('Số lượng cont');
     expect(containerEditorSource.match(/type="number"/g)).toHaveLength(1);
     expect(containerEditorSource).toContain('id="container-add-count"');

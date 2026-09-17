@@ -542,7 +542,9 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.keyDown(factory, { key: 'ArrowDown' });
     fireEvent.change(factory, { target: { value: '  nm01  ' } });
     const option = await screen.findByRole('option', { name: /Nhà máy Long Minh/ });
-    expect(option).toHaveTextContent('NM01');
+    // The code still MATCHES the query but is no longer rendered in the option:
+    // the search chain bloated every row of the dropdown (20260917_13).
+    expect(option).not.toHaveTextContent('NM01');
     expect(factory).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(option);
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));

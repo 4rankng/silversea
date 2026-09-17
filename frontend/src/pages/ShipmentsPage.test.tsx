@@ -633,7 +633,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     const record = within(masterRow());
     expect(record.getByText('Lịch đã quá hạn')).toBeTruthy();
-    expect(record.getByText('Đã phân xe')).toBeTruthy();
+    expect(record.getByText('Đã điều xe')).toBeTruthy();
     expect(record.getByText('Đã phát lệnh 1/2 cont')).toBeTruthy();
     expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
   });
