@@ -225,13 +225,27 @@ before(async () => {
 });
 
 after(async () => {
+  // Restoring the captured settings can legitimately fail (the Q01 red is
+  // rooted in an orphaned salary.payroll_business_unit_id in the environment).
+  // The teardown must survive that: an open HTTP server handle wedges the
+  // whole in-process tsx run, and a throw here used to skip server.close
+  // entirely (20260917_17).
   try {
     await saveAppSettings(originalSettings);
+  } catch (error) {
+    console.error('[final-q01-coverage] settings restore failed in after():', error);
+  }
+  try {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
+  } catch {
+    // Already closed — nothing to do.
+  }
 
+  // Fixture cleanup; the redis close below must run even if a delete throws.
+  try {
     if (idempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
     }
@@ -268,8 +282,9 @@ after(async () => {
     }
   } finally {
     await disconnectRedis();
-    // Close the pool only after fixture cleanup has finished.
-    await client.end({ timeout: 5 });
+    // The postgres client is SHARED across the whole in-process tsx run —
+    // ending it here kills the database for every file that runs after this
+    // one (20260917_17). The process teardown reclaims the sockets.
   }
 });
 
