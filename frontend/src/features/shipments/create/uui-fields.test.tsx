@@ -148,6 +148,25 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
     expect(onChange).toHaveBeenCalledWith('2');
   });
 
+  it('20260917_13: long searchText is matched but never rendered in the option DOM', async () => {
+    const LONG = 'NEWEB-1 CÔNG TY TNHH NEWEB VIỆT NAM Lô đất CN01, Khu công nghiệp Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình, Việt Nam';
+    function FactoryHarness() {
+      const [value, setValue] = useState('');
+      return <USearchableField label="Nhà máy" value={value} onChange={setValue} searchable
+        options={[{ value: 'ne', label: 'NEWEB-1', searchText: LONG }]} />;
+    }
+    render(<FactoryHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    await openMenu(input);
+    // The full search chain (code + full name + address) must not leak into
+    // the rendered option list — the customer sees only the short name.
+    expect(screen.queryByText(LONG)).not.toBeInTheDocument();
+    // Typing by address still filters to the factory (AC 2: no search loss).
+    fireEvent.change(input, { target: { value: 'Đồng Văn' } });
+    expect(await screen.findByRole('option', { name: /NEWEB-1/ })).toBeVisible();
+    expect(screen.queryByText(LONG)).not.toBeInTheDocument();
+  });
+
   it('VID-CUS-SELECT-01 clears the selected ID before searching for and choosing a replacement', async () => {
     function CatalogHarness() {
       const [value, setValue] = useState('1');

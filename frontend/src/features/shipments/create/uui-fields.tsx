@@ -273,7 +273,7 @@ export function USearchableField({
         items={options.map((option) => ({
           id: option.value,
           label: option.label,
-          ...(option.searchText ? { supportingText: option.searchText } : {}),
+          searchText: option.searchText,
         }))}
         placeholder={placeholder}
         isDisabled={disabled}
@@ -285,14 +285,16 @@ export function USearchableField({
         popoverClassName={popoverClassName}
         className="csc-uui-field csc-control-boundary"
       >
-        {(item: { id: string | number; label?: string; supportingText?: string }) => (
+        {(item: { id: string | number; label?: string; searchText?: string }) => (
           <SelectItem
             id={item.id}
             value={item}
             data-value={String(item.id)}
             className={optionClassName}
             label={item.label}
-            supportingText={item.supportingText}
+            // The search chain rides textValue (filter-only) — rendering it
+            // as supportingText bloated every dropdown row (20260917_13).
+            textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
           />
         )}
       </ComboBox>
