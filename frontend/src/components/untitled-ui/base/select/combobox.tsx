@@ -195,6 +195,21 @@ export function normalizeSearchText(value: string): string {
         .trim();
 }
 
+/** Filter predicate for combobox option lists: a query that matches any
+ *  part of an item's label or supporting text keeps the item. Extracted
+ *  from FilteredListBox so the matching contract stays unit-testable
+ *  (jsdom cannot mount the react-aria popover). */
+export function filterComboboxItems<T extends { label?: string }>(
+    items: T[],
+    query: string,
+): T[] {
+    const q = normalizeSearchText(query);
+    if (!q) return items;
+    return items.filter((item) =>
+        normalizeSearchText(`${item.label ?? ""} ${(item as { supportingText?: string }).supportingText ?? ""}`).includes(q),
+    );
+}
+
 /** ListBox that narrows `items` by the combobox's current input text
  *  (diacritic-insensitive). React-aria never filters for us; without this
  *  the option list shows the whole catalog no matter what the user types. */
@@ -202,9 +217,7 @@ const FilteredListBox = ({ items, children, ...rest }: AriaListBoxProps<SelectIt
     const state = useContext(ComboBoxStateContext);
     const query = normalizeSearchText(state?.inputValue ?? "");
     const filtered = query && items
-        ? items.filter((item) => normalizeSearchText(
-            `${item.label ?? ""} ${(item as { supportingText?: string }).supportingText ?? ""}`,
-        ).includes(query))
+        ? filterComboboxItems(items, query)
         : items;
     return <AriaListBox {...rest} items={filtered}>{children}</AriaListBox>;
 };
