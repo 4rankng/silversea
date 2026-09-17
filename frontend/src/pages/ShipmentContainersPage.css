@@ -561,3 +561,10 @@
   .shipment-container-ledger__editor-grid select,
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: var(--control-touch-h); min-height: var(--control-touch-h); }
 }
+
+/* Cột hiển thị (column visibility, 20260917_4): compact checkbox row in the
+   filters footer, tokens-consistent with the date-actions cluster. */
+.shipments-detail-filters__columns { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; grid-column: 1 / -1; }
+.shipments-detail-filters__columns-label { color: var(--ink-2); font-weight: var(--fw-semibold); font-size: var(--text-caption-size); }
+.shipments-detail-filters__columns-option { display: inline-flex; align-items: center; gap: 5px; color: var(--ink); font-size: var(--text-caption-size); cursor: pointer; }
+.shipments-detail-filters__columns-option input { accent-color: var(--accent); width: 14px; height: 14px; }

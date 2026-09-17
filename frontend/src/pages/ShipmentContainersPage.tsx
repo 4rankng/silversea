@@ -141,6 +141,26 @@ export default function ShipmentContainersPage() {
   // Phone/tablet: secondary criteria collapse so records start higher.
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  // Column visibility (20260917_4): user-configurable hide/show, persisted in
+  // localStorage. The three identity columns (khách hàng, chứng từ, thông số)
+  // are pinned and cannot hide — the horizontal-scroll context stays readable.
+  const HIDEABLE_COLUMNS: Array<{ key: string; label: string }> = [
+    { key: 'route', label: 'Địa điểm nâng / hạ' },
+    { key: 'schedule', label: 'Lịch trình' },
+    { key: 'vehicle', label: 'Phân xe' },
+    { key: 'notes', label: 'Ghi chú' },
+    { key: 'status', label: 'Trạng thái' },
+  ];
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('cus-containers-hidden-cols') ?? '[]') as string[]; } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('cus-containers-hidden-cols', JSON.stringify(hiddenColumns)); } catch { /* private mode */ }
+  }, [hiddenColumns]);
+  const toggleColumn = (key: string) => setHiddenColumns((current) => (
+    current.includes(key) ? current.filter((k) => k !== key) : [...current, key]
+  ));
+
   const resetFilters = () => {
     setDateResetKey((key) => key + 1);
     appliedSearchRef.current = '';
@@ -238,6 +258,20 @@ export default function ShipmentContainersPage() {
                 <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter" />
               </div>
             </div>
+            <div className="shipments-detail-filters__columns">
+              <span className="shipments-detail-filters__columns-label">Cột hiển thị</span>
+              {HIDEABLE_COLUMNS.map(({ key, label }) => (
+                <label key={key} className="shipments-detail-filters__columns-option">
+                  <input
+                    type="checkbox"
+                    checked={!hiddenColumns.includes(key)}
+                    onChange={() => toggleColumn(key)}
+                  />
+                  {label}
+                </label>
+              ))}
+              <button type="button" className="shipments-detail-filters__reset" onClick={() => setHiddenColumns([])}>Mặc định</button>
+            </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
                 <UUIButton
@@ -283,7 +317,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={hiddenColumns} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
         </>}
       </section>
     </div>

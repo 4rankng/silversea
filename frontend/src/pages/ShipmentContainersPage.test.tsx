@@ -961,3 +961,37 @@ describe('Trạng thái dữ liệu filter (20260917_3)', () => {
     expect(screen.queryByRole('button', { name: /Bộ lọc nâng cao · 1/ })).toBeNull();
   });
 });
+
+describe('Cột hiển thị — column visibility (20260917_4)', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('unchecking a column removes it from the grid and persists to localStorage', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all']}><ShipmentContainersPage /></MemoryRouter>);
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Phân xe' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Phân xe' }));
+    expect(screen.queryByRole('columnheader', { name: 'Phân xe' })).toBeNull();
+    const stored = JSON.parse(localStorage.getItem('cus-containers-hidden-cols') ?? '[]');
+    expect(stored).toContain('vehicle');
+  });
+
+  it('pre-seeded hidden columns stay hidden after reload and Mặc định restores them', async () => {
+    localStorage.setItem('cus-containers-hidden-cols', JSON.stringify(['route', 'schedule']));
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all']}><ShipmentContainersPage /></MemoryRouter>);
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
+    expect(screen.queryByRole('columnheader', { name: 'Địa điểm nâng / hạ' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Lịch trình' })).toBeNull();
+    // Identity columns are pinned — always present.
+    expect(screen.getByRole('columnheader', { name: 'Khách hàng & lộ trình' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mặc định' }));
+    expect(screen.getByRole('columnheader', { name: 'Địa điểm nâng / hạ' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Lịch trình' })).toBeTruthy();
+    expect(localStorage.getItem('cus-containers-hidden-cols')).toBe('[]');
+  });
+});
