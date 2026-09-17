@@ -54,16 +54,6 @@ export const recoverableCostListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 }).strict();
 
-export const recoverableCostRequestSchema = z.object({
-  decision: z.enum(['APPROVED', 'REJECTED']),
-  expectedVersion: z.coerce.number().int().positive(),
-  reason: z.string().trim().min(1).max(1000),
-  evidence: z.object({
-    reviewNote: z.string().trim().min(1).max(1000),
-    attachmentRefs: z.array(z.string().trim().min(1).max(255)).max(20).default([]),
-  }).strict(),
-}).strict();
-
 export const sendDebitNoteForConfirmationSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   recipientEmail: z.string().trim().email().optional(),
@@ -200,7 +190,6 @@ export type CustomerVisibleEventContent = z.infer<typeof customerVisibleEventCon
 export type CreateCustomerVisibleEventInput = z.infer<typeof createCustomerVisibleEventSchema>;
 export type AcknowledgeCustomerEventInput = z.infer<typeof acknowledgeCustomerEventSchema>;
 export type RecoverableCostListQuery = z.infer<typeof recoverableCostListQuerySchema>;
-export type RecoverableCostRequestInput = z.infer<typeof recoverableCostRequestSchema>;
 export type SendDebitNoteForConfirmationInput = z.infer<typeof sendDebitNoteForConfirmationSchema>;
 export type PortalDebitNoteDecisionInput = z.infer<typeof portalDebitNoteDecisionSchema>;
 export type DirectMoneyTreasuryInput = z.infer<typeof directMoneyTreasurySchema>;

@@ -4,6 +4,7 @@ import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
+import { Btn } from '../components/UI';
 import { useState } from 'react';
 import { getAuthenticatedPhotoUrl } from '../lib/api/photo';
 import { PhotoViewer } from '../components/PhotoViewer';
@@ -57,6 +58,7 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                       </>
                     ) : (
                       <UuiSelectField
+                        size="md"
                         id="paymentStatus"
                         label="Trạng thái thanh toán"
                         required
@@ -72,8 +74,8 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
   </>;
 }
 
-interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
-export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
+interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; saveDisabled?: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
+export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveDisabled, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
   // Receipt thumbnails sit behind the JWT: the raw URL 401s in an <img>, so
   // every src goes through the token-append helper (fresh blob: previews
   // pass through unchanged). A failed load gets a retryable hint — retry
@@ -161,26 +163,25 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                   </div>
 
                   <div className="expense-actions">
-                    <button
+                    <Btn
                       type="button"
-                      className="btn btn--secondary expense-btn-cancel"
+                      variant="secondary"
+                      size="md"
+                      className="expense-btn-cancel"
                       onClick={handleBack}
                     >
                       Hủy
-                    </button>
-                    <button
+                    </Btn>
+                    <Btn
                       type="submit"
-                      className="btn btn--primary expense-btn-submit"
-                      disabled={submitting || uploading}
+                      variant="primary"
+                      size="md"
+                      className="expense-btn-submit"
+                      disabled={submitting || uploading || saveDisabled}
+                      icon={submitting ? <Loader2 size={18} className="spin" /> : isEdit ? <Check size={18} /> : <Plus size={18} />}
                     >
-                      {submitting ? (
-                        <><Loader2 size={18} className="spin" /> Đang lưu…</>
-                      ) : isEdit ? (
-                        <><Check size={18} /> Cập nhật</>
-                      ) : (
-                        <><Plus size={18} /> Lưu chi phí</>
-                      )}
-                    </button>
+                      {submitting ? 'Đang lưu…' : isEdit ? 'Cập nhật' : 'Lưu chi phí'}
+                    </Btn>
                   </div>
                 </div>
       {viewerIndex != null && (

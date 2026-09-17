@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "90c1c2784c4588018bf914e65210330dae8deeb3",
-  "generatedAt": "2026-09-16T15:50:02.270Z",
+  "gitCommitHash": "756ec1cc96121ed264d361d5a32f2a55a0e007fe",
+  "generatedAt": "2026-09-17T08:47:14.688Z",
   "files": {
     ".dockerignore": {
       "filePath": ".dockerignore",
@@ -45,7 +45,7 @@
     },
     "backend/drizzle.config.ts": {
       "filePath": "backend/drizzle.config.ts",
-      "contentHash": "4cfba2e2b6c5f2d71dd6b1ce55310de6f0b39954a453cb359f189c513105dab1",
+      "contentHash": "d3e911ae4ff4db1e906f4db5987db9f6d4cde48b7590cbe119e9525d442eb574",
       "functions": [],
       "classes": [],
       "imports": [
@@ -150,7 +150,7 @@
     },
     "backend/src/config/index.ts": {
       "filePath": "backend/src/config/index.ts",
-      "contentHash": "28b79f8764c35b2bd7c70bf948d2ed821e57102d93cd6fd3d457352b4f081d94",
+      "contentHash": "90798eba88bd931d5624e77973bf403ed9559b88cb649644bde74ba7cb56e6af",
       "functions": [
         {
           "name": "parseTrustProxy",
@@ -529,7 +529,7 @@
     },
     "backend/src/db/schema/expense-accounting.ts": {
       "filePath": "backend/src/db/schema/expense-accounting.ts",
-      "contentHash": "feace5c3e34e8ef291c2b288579da0be160eacab294816381a793a11e4e22b95",
+      "contentHash": "9e71d40b3e9c98bdada778364eecc71e3ecf7ed7de9814c97c9e9220b399d84f",
       "functions": [],
       "classes": [],
       "imports": [
@@ -569,7 +569,7 @@
         "truckAccountantAssignments",
         "expenseAccountingEvidence"
       ],
-      "totalLines": 59,
+      "totalLines": 60,
       "hasStructuralAnalysis": true
     },
     "backend/src/db/schema/expense-metadata.ts": {
@@ -609,7 +609,7 @@
     },
     "backend/src/db/schema/financial.ts": {
       "filePath": "backend/src/db/schema/financial.ts",
-      "contentHash": "b586f6249110d8979dc83bf25378a3c730e3d2de645f2f44e00f5086b7673f37",
+      "contentHash": "1df7324a59dd68e1bb9b905d90514e7e66d70541a1d148d058151c42ae602fc8",
       "functions": [],
       "classes": [],
       "imports": [
@@ -689,7 +689,7 @@
         "profitabilitySnapshots",
         "profitabilitySnapshotDimensions"
       ],
-      "totalLines": 758,
+      "totalLines": 754,
       "hasStructuralAnalysis": true
     },
     "backend/src/db/schema/index.ts": {
@@ -2527,7 +2527,7 @@
     },
     "backend/src/middleware/material-write.ts": {
       "filePath": "backend/src/middleware/material-write.ts",
-      "contentHash": "3835c3862a92d345cbe04144e379987dbc32df3dbbd06b54fae1eb2f6320f20a",
+      "contentHash": "e1daf011e1ab43e08b3b21317f71eea82034f13796901656a595ca56b5a233c2",
       "functions": [
         {
           "name": "escapeRegexPath",
@@ -2602,7 +2602,7 @@
         "matchDeclaredMaterialWrite",
         "getMaterialWriteContext"
       ],
-      "totalLines": 378,
+      "totalLines": 380,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/app-settings.ts": {
@@ -3143,7 +3143,7 @@
     },
     "backend/src/routes/config/catalog-crud.routes.ts": {
       "filePath": "backend/src/routes/config/catalog-crud.routes.ts",
-      "contentHash": "c2f3fd174ce8b22bea2479fe9fffa40c69103a1e8d273b6d34366d73ba9edb1b",
+      "contentHash": "a4ddcf5cc1265efb6b4c9c6d9c0ef6ce0495679a90cd010b266d5fdee283ec18",
       "functions": [
         {
           "name": "portalBootstrap",
@@ -3381,7 +3381,7 @@
       "exports": [
         "catalogBootstrapRouter"
       ],
-      "totalLines": 909,
+      "totalLines": 912,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/config/config-helpers.ts": {
@@ -5132,7 +5132,7 @@
     },
     "backend/src/routes/expense-accounting-cash.ts": {
       "filePath": "backend/src/routes/expense-accounting-cash.ts",
-      "contentHash": "0daed450687f8402965b9909a1b5ce4233f4d9f5704ed3024ed3e6b9fcdef2ce",
+      "contentHash": "23bb64103c635ed5187bff46f0530e7b698f8a2816b9728bd899b38033e31af1",
       "functions": [
         {
           "name": "parse",
@@ -5147,6 +5147,12 @@
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "../services/expense-reconciliation-release.service",
+          "specifiers": [
+            "releaseExpenseReconciliation"
+          ]
+        },
         {
           "source": "express",
           "specifiers": [
@@ -5257,12 +5263,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 103,
+      "totalLines": 114,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/expense-accounting.ts": {
       "filePath": "backend/src/routes/expense-accounting.ts",
-      "contentHash": "6a4a2db16b7678d217a4f2de9e709528d8d280e2349a452109b4df0602b2da49",
+      "contentHash": "074adbf371b7ddb2454535a18133b13d81fe47bce2a882f9c9a210f640222585",
       "functions": [
         {
           "name": "parse",
@@ -5277,6 +5283,12 @@
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "../services/expense-accounting-correction.service",
+          "specifiers": [
+            "correctAccountingExpense"
+          ]
+        },
         {
           "source": "multer",
           "specifiers": [
@@ -5388,7 +5400,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 79,
+      "totalLines": 90,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/expense.ts": {
@@ -5755,7 +5767,7 @@
     },
     "backend/src/routes/financial/advances.routes.ts": {
       "filePath": "backend/src/routes/financial/advances.routes.ts",
-      "contentHash": "3f34b706aee351586bcf9c544c103294f2aa45d3b8ca25c43077e83297a5f871",
+      "contentHash": "96ba1be13971f2f439837fb34de8836e860db97ee3f2a6ab4b3734466649af65",
       "functions": [],
       "classes": [],
       "imports": [
@@ -5785,7 +5797,7 @@
             "NotificationType",
             "Role",
             "accountantSettlementExpensePatchSchema",
-            "governanceActionDecisionSchema",
+            "directFinancialActionSchema",
             "updateAdvanceSettlementSchema"
           ]
         },
@@ -6129,7 +6141,7 @@
     },
     "backend/src/routes/financial/debt-offsets.routes.ts": {
       "filePath": "backend/src/routes/financial/debt-offsets.routes.ts",
-      "contentHash": "48e0078df25f811081af2741dfcd9bdd5ad5a81a51410269fbb32c3ba895f536",
+      "contentHash": "2058d44abc3673d6ef978100fb33da4d0d84800a596df4c069194602a4ae4204",
       "functions": [],
       "classes": [],
       "imports": [
@@ -6151,7 +6163,7 @@
           "specifiers": [
             "Role",
             "debtOffsetSchema",
-            "governanceActionDecisionSchema"
+            "directFinancialActionSchema"
           ]
         },
         {
@@ -6183,7 +6195,6 @@
           "specifiers": [
             "getDualEntities",
             "createDebtOffset",
-            "approveDebtOffset",
             "listDebtOffsets",
             "requestDebtOffsetCancelGovernance"
           ]
@@ -6209,7 +6220,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 111,
+      "totalLines": 103,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/financial/freight-rate.routes.ts": {
@@ -6312,7 +6323,7 @@
     },
     "backend/src/routes/financial/fuel-invoices.routes.ts": {
       "filePath": "backend/src/routes/financial/fuel-invoices.routes.ts",
-      "contentHash": "246444713a90da672f973cd7f5fa75b49e440e9270bf58d59bbda278f8c6474e",
+      "contentHash": "c6dac519fdf87d21720275674aa5c5fa42bf655dd51c7d8ac4a347e5b5c7b69b",
       "functions": [
         {
           "name": "parseId",
@@ -6447,7 +6458,7 @@
     },
     "backend/src/routes/financial/index.ts": {
       "filePath": "backend/src/routes/financial/index.ts",
-      "contentHash": "4ffd12ba35247beffef1b97721abe84ce158558ecd2ddcc9bb7718e3ee4f8ae3",
+      "contentHash": "d0d020a75c59b51b33f1d6dfd111535968f6a9b6f7cbc58abf2f1d4fd8f75f9e",
       "functions": [],
       "classes": [],
       "imports": [
@@ -6543,7 +6554,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 63,
+      "totalLines": 54,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/financial/ledger.routes.ts": {
@@ -8588,7 +8599,7 @@
     },
     "backend/src/routes/ops.ts": {
       "filePath": "backend/src/routes/ops.ts",
-      "contentHash": "a8ef2f853bb662c7ffe936ab8145bac3457a7b6493e276d62079395b2dc2d5b5",
+      "contentHash": "3f4e7f3a9e77c4706b1593d288a3263c68c376d5c1c42f8bc16ae83c98e1b161",
       "functions": [
         {
           "name": "parseId",
@@ -8781,7 +8792,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 398,
+      "totalLines": 399,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/portal/index.ts": {
@@ -9034,7 +9045,7 @@
     },
     "backend/src/routes/salary.ts": {
       "filePath": "backend/src/routes/salary.ts",
-      "contentHash": "98bdba94f79be33269b7b2eff7d024148b0c6908738d6c432d0583c1eb1ae4ee",
+      "contentHash": "35fbacdfe72e06510871c4636ac515e5ce3eb172a400dce0b89f967cd96e7d3f",
       "functions": [
         {
           "name": "requireMaterialIdempotencyKey",
@@ -9241,7 +9252,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 539,
+      "totalLines": 537,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/shipments/coordination.routes.ts": {
@@ -10469,7 +10480,7 @@
     },
     "backend/src/routes/trips/expenses.ts": {
       "filePath": "backend/src/routes/trips/expenses.ts",
-      "contentHash": "339bf60e27048f27d6f9949c84889a5a4dd76ff5dbd657419b1341169560f0aa",
+      "contentHash": "ea2d5060bef3dc8fa8f5a7474591785219d7b16cba68f5f7c818f78addda9cd4",
       "functions": [],
       "classes": [],
       "imports": [
@@ -10785,7 +10796,7 @@
     },
     "backend/src/routes/trips/index.ts": {
       "filePath": "backend/src/routes/trips/index.ts",
-      "contentHash": "4769dab1a6ce11ee65700c9490006341d048584876a8ab6524aeb5f20bcaa19d",
+      "contentHash": "48aadf1c584ff32f293ef4cd77aef77ff1b3e2d58d5d4e7bb9831c2b25df8f99",
       "functions": [],
       "classes": [],
       "imports": [
@@ -10863,7 +10874,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 50,
+      "totalLines": 49,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/trips/pod.ts": {
@@ -11188,7 +11199,7 @@
     },
     "backend/src/routes/upload.ts": {
       "filePath": "backend/src/routes/upload.ts",
-      "contentHash": "2e971f98d2fd64eddb8c05839364a7a8c1cc75fb79115defa0d7fa2f6c7a830b",
+      "contentHash": "a4f5c46930f90a262b7c4a1bf636257afca95b0e18cb66de94626b528f9cc026",
       "functions": [
         {
           "name": "withMaterialWriteAuditContext",
@@ -11533,7 +11544,7 @@
     },
     "backend/src/routes/utils/crud-factory.ts": {
       "filePath": "backend/src/routes/utils/crud-factory.ts",
-      "contentHash": "5e3e1e0d4b2e943d2c4f1a0f7988674aafdb52456fb3a38921ffdbd69c9e5980",
+      "contentHash": "ac226bd32b4ce3a62189e4cc83c7c4d8200590f200217d4db206f6e198810acd",
       "functions": [
         {
           "name": "column",
@@ -11555,14 +11566,6 @@
           "lineCount": 9
         },
         {
-          "name": "isPendingGovernanceResult",
-          "params": [
-            "value"
-          ],
-          "exported": false,
-          "lineCount": 6
-        },
-        {
           "name": "createCrudRouter",
           "params": [
             "table",
@@ -11570,7 +11573,7 @@
             "options"
           ],
           "exported": true,
-          "lineCount": 388
+          "lineCount": 385
         }
       ],
       "classes": [],
@@ -11692,7 +11695,7 @@
       "exports": [
         "createCrudRouter"
       ],
-      "totalLines": 499,
+      "totalLines": 489,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/utils/idempotency.ts": {
@@ -14334,7 +14337,7 @@
     },
     "backend/src/services/adjustment-governance.service.ts": {
       "filePath": "backend/src/services/adjustment-governance.service.ts",
-      "contentHash": "e75687d521402ed1fa23001a2b310963290544cd14a271b548454276667baea7",
+      "contentHash": "f00ebc90531e2da25c5b88ac4b9ad9493779b105eb2022b65515ae84ddf843b2",
       "functions": [
         {
           "name": "requireReason",
@@ -14411,7 +14414,7 @@
             "action"
           ],
           "exported": false,
-          "lineCount": 30
+          "lineCount": 24
         },
         {
           "name": "applyTripGovernanceAction",
@@ -14531,7 +14534,7 @@
           "source": "./governance-action-core.service",
           "specifiers": [
             "applyGovernanceActionDirect",
-            "assertActiveApprovalApplication",
+            "assertActiveDirectApplication",
             "buildGovernanceAction",
             "GovernanceActionRow",
             "GovernanceApplyAdapter"
@@ -14571,18 +14574,6 @@
           "source": "./fuel-invoice.service",
           "specifiers": [
             "applyFuelInvoiceGovernanceAction"
-          ]
-        },
-        {
-          "source": "./credit-limit.service",
-          "specifiers": [
-            "applyCreditOverrideGovernanceAction"
-          ]
-        },
-        {
-          "source": "./approval.service",
-          "specifiers": [
-            "applyTripExpenseGovernanceAction"
           ]
         },
         {
@@ -14633,12 +14624,12 @@
         "requestCompletedTripCancellation",
         "autoApplyGovernanceAction"
       ],
-      "totalLines": 794,
+      "totalLines": 786,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance-consumption.service.ts": {
       "filePath": "backend/src/services/advance-consumption.service.ts",
-      "contentHash": "208a528ebd80326161d265d3e0e39527320a27b02799ed60fbdbaa6be3df9d50",
+      "contentHash": "d9acd3be31b2476092456eae36cc83018771b069940d5e5675e0e6ab1ae6a578",
       "functions": [
         {
           "name": "getAdvanceConsumedAmounts",
@@ -14649,7 +14640,18 @@
           ],
           "returnType": "Promise<Map<number, number>>",
           "exported": true,
-          "lineCount": 19
+          "lineCount": 20
+        },
+        {
+          "name": "filterWholeSettlementAdvances",
+          "params": [
+            "executor",
+            "candidates",
+            "excludeSettlementId"
+          ],
+          "returnType": "Promise<T[]>",
+          "exported": true,
+          "lineCount": 15
         }
       ],
       "classes": [],
@@ -14660,6 +14662,7 @@
             "and",
             "eq",
             "inArray",
+            "isNull",
             "ne",
             "notInArray"
           ]
@@ -14681,17 +14684,24 @@
           "specifiers": [
             "Tx"
           ]
+        },
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
+          ]
         }
       ],
       "exports": [
-        "getAdvanceConsumedAmounts"
+        "getAdvanceConsumedAmounts",
+        "filterWholeSettlementAdvances"
       ],
-      "totalLines": 26,
+      "totalLines": 49,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance-draft.service.ts": {
       "filePath": "backend/src/services/advance-draft.service.ts",
-      "contentHash": "7e60fce87c32acf01214c72d9c5560cab07b393a9532f9f4b330d79f49a1483d",
+      "contentHash": "ec43df9cf0122543c0e1d8ad2580c9241f55ed99ff898b08b709ff745dcc477a",
       "functions": [
         {
           "name": "resolveAdvanceDraft",
@@ -14700,7 +14710,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 48
+          "lineCount": 42
         }
       ],
       "classes": [],
@@ -14739,23 +14749,77 @@
           "specifiers": [
             "ApiError"
           ]
-        },
-        {
-          "source": "./ledger.service",
-          "specifiers": [
-            "LedgerService"
-          ]
         }
       ],
       "exports": [
         "resolveAdvanceDraft"
       ],
-      "totalLines": 57,
+      "totalLines": 50,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/advance-funding.service.ts": {
+      "filePath": "backend/src/services/advance-funding.service.ts",
+      "contentHash": "fbf2f729f34e314cacbf41a70c79b7e650c5f046b829f0fc3002cc368fc5d4d6",
+      "functions": [
+        {
+          "name": "getAdvanceFundedAmounts",
+          "params": [
+            "executor",
+            "requestIds",
+            "asOfDate"
+          ],
+          "returnType": "Promise<Map<number, number>>",
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "inArray",
+            "isNull",
+            "lte"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "TxnType",
+            "round2dp"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [
+        "getAdvanceFundedAmounts"
+      ],
+      "totalLines": 26,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance-request.service.ts": {
       "filePath": "backend/src/services/advance-request.service.ts",
-      "contentHash": "4d0677ea3c0fec60d723b99ff208b43df8978e838d7acb67b95b38491087b42b",
+      "contentHash": "faa8d280993bd06710b8fb0218dffe9a7c9b842fa802396d72ef3b712e5abc2e",
       "functions": [
         {
           "name": "createAdvanceRequest",
@@ -14765,7 +14829,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 40
+          "lineCount": 27
         },
         {
           "name": "buildAdvanceRequestConditions",
@@ -14773,7 +14837,7 @@
             "filters"
           ],
           "exported": false,
-          "lineCount": 28
+          "lineCount": 27
         },
         {
           "name": "advanceRequestOrderBy",
@@ -14790,7 +14854,7 @@
             "filters"
           ],
           "exported": true,
-          "lineCount": 23
+          "lineCount": 24
         },
         {
           "name": "listAdvanceRequestsPaginated",
@@ -14845,7 +14909,6 @@
             "and",
             "desc",
             "inArray",
-            "notInArray",
             "ilike",
             "sql",
             "count",
@@ -14854,15 +14917,15 @@
           ]
         },
         {
-          "source": "@tingting/shared",
+          "source": "./advance-funding.service",
           "specifiers": [
-            "TxnType"
+            "getAdvanceFundedAmounts"
           ]
         },
         {
-          "source": "./ledger.service",
+          "source": "./advance-consumption.service",
           "specifiers": [
-            "LedgerService"
+            "filterWholeSettlementAdvances"
           ]
         },
         {
@@ -14893,7 +14956,7 @@
         "getAdvanceRequestCounts",
         "getAdvanceRequest"
       ],
-      "totalLines": 237,
+      "totalLines": 224,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance-settlement-reversal.service.ts": {
@@ -15070,7 +15133,7 @@
     },
     "backend/src/services/advance-settlement.service.ts": {
       "filePath": "backend/src/services/advance-settlement.service.ts",
-      "contentHash": "83584e039e76ec7a7e2a1e4a4b17a286ab6b1ff1c9bf23b5d70acc11f9ba06b7",
+      "contentHash": "baad5e5fae50989037e46f13826549ae4f7a29fc2f6b8ce0805272e20cb76c03",
       "functions": [
         {
           "name": "createAdvanceSettlement",
@@ -15096,7 +15159,7 @@
             "filters"
           ],
           "exported": true,
-          "lineCount": 100
+          "lineCount": 102
         },
         {
           "name": "listAdvanceSettlementsPaginated",
@@ -15114,7 +15177,7 @@
             "executor"
           ],
           "exported": true,
-          "lineCount": 68
+          "lineCount": 64
         },
         {
           "name": "assertSettlementBalanced",
@@ -15200,6 +15263,12 @@
           ]
         },
         {
+          "source": "./advance-consumption.service",
+          "specifiers": [
+            "filterWholeSettlementAdvances"
+          ]
+        },
+        {
           "source": "./notification.service",
           "specifiers": [
             "emitNotification"
@@ -15222,7 +15291,7 @@
         {
           "source": "./source-change.service",
           "specifiers": [
-            "propagateExpenseApprovals"
+            "propagateRecordedExpenses"
           ]
         },
         {
@@ -15245,12 +15314,12 @@
         "getAdvanceSettlement",
         "updateAdvanceSettlement"
       ],
-      "totalLines": 656,
+      "totalLines": 654,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance-shared.service.ts": {
       "filePath": "backend/src/services/advance-shared.service.ts",
-      "contentHash": "f849ead6e63a05f11f836150c60518741ae729643c7c3c8f0b23c02597426e9a",
+      "contentHash": "f3d6f01266274e3949da0fccf4ab704aedbf336b9b5350fab6211283f396f40c",
       "functions": [
         {
           "name": "assertExpectedVersion",
@@ -15299,7 +15368,7 @@
             "executor"
           ],
           "exported": true,
-          "lineCount": 70
+          "lineCount": 75
         },
         {
           "name": "clampPageLimit",
@@ -15313,14 +15382,23 @@
           "lineCount": 6
         },
         {
-          "name": "autoOffsetExpenseApproval",
+          "name": "autoOffsetRecordedExpense",
           "params": [
             "tx",
             "expenseId"
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 150
+          "lineCount": 151
+        },
+        {
+          "name": "getOutstandingAdvanceBalances",
+          "params": [
+            "forwarderUserId"
+          ],
+          "returnType": "Promise<{\n  totalOutstanding: number;\n  items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;\n}>",
+          "exported": true,
+          "lineCount": 19
         },
         {
           "name": "getOutstandingAdvanceBalance",
@@ -15329,18 +15407,17 @@
           ],
           "returnType": "Promise<number>",
           "exported": true,
-          "lineCount": 15
-        },
-        {
-          "name": "getOutstandingAdvanceBalances",
-          "params": [],
-          "returnType": "Promise<{\n  totalOutstanding: number;\n  items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;\n}>",
-          "exported": true,
-          "lineCount": 22
+          "lineCount": 3
         }
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
+          ]
+        },
         {
           "source": "./advance-consumption.service",
           "specifiers": [
@@ -15404,23 +15481,23 @@
         "enrichWithNames",
         "enrichSettlementWithRequests",
         "clampPageLimit",
-        "autoOffsetExpenseApproval",
-        "getOutstandingAdvanceBalance",
-        "getOutstandingAdvanceBalances"
+        "autoOffsetRecordedExpense",
+        "getOutstandingAdvanceBalances",
+        "getOutstandingAdvanceBalance"
       ],
-      "totalLines": 425,
+      "totalLines": 388,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance.service.ts": {
       "filePath": "backend/src/services/advance.service.ts",
-      "contentHash": "f25720a4c865f3c818d169af0b73c13d213fc1645a245f7a932855457e66bf22",
+      "contentHash": "fae07fc9d872abc22015b9cef624dd6ffc417b263a019bd7868df9691199ce2a",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [
         "AdvanceError",
         "generateSettlementCode",
-        "autoOffsetExpenseApproval",
+        "autoOffsetRecordedExpense",
         "getOutstandingAdvanceBalance",
         "getOutstandingAdvanceBalances",
         "createAdvanceRequest",
@@ -15814,7 +15891,7 @@
     },
     "backend/src/services/app-settings.service.ts": {
       "filePath": "backend/src/services/app-settings.service.ts",
-      "contentHash": "5bb51bb182470ebaa9a5dd43ea979f0b80177991c0f27dab906fe1a9bc864567",
+      "contentHash": "24ae9c1a9333315a93287e906fcbd3ff244558d3f0fdb7c0e26644a3aea54094",
       "functions": [
         {
           "name": "parseNumberSetting",
@@ -16246,153 +16323,6 @@
         "cascadeDeleteUserLinks"
       ],
       "totalLines": 194,
-      "hasStructuralAnalysis": true
-    },
-    "backend/src/services/approval.service.ts": {
-      "filePath": "backend/src/services/approval.service.ts",
-      "contentHash": "03bef47907f65051eee7a75a284877cbf34f51408d43ec1889bdee542416df66",
-      "functions": [
-        {
-          "name": "transitionApproval",
-          "params": [
-            "tx",
-            "opts"
-          ],
-          "returnType": "Promise<{ outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }>",
-          "exported": true,
-          "lineCount": 107
-        },
-        {
-          "name": "processExpenseApproval",
-          "params": [
-            "tripId",
-            "expenseId",
-            "actorId",
-            "actorRole",
-            "action",
-            "transaction",
-            "expectedExpenseVersion"
-          ],
-          "returnType": "Promise<GuardedResult | { ok: true; outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }>",
-          "exported": true,
-          "lineCount": 38
-        },
-        {
-          "name": "requestTripExpenseDecision",
-          "params": [
-            "input"
-          ],
-          "returnType": "Promise<GovernanceActionRow>",
-          "exported": true,
-          "lineCount": 72
-        },
-        {
-          "name": "applyTripExpenseGovernanceAction",
-          "params": [
-            "tx",
-            "action"
-          ],
-          "returnType": "Promise<GovernanceApplyResult>",
-          "exported": true,
-          "lineCount": 50
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "eq",
-            "sql"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "FINANCIAL_ROLES"
-          ]
-        },
-        {
-          "source": "../lib/tx",
-          "specifiers": [
-            "runInTx"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "./trip-shared",
-          "specifiers": [
-            "Tx"
-          ]
-        },
-        {
-          "source": "./fuel-recon-guard.service",
-          "specifiers": [
-            "assertFuelReconClear"
-          ]
-        },
-        {
-          "source": "./invoice-required.service",
-          "specifiers": [
-            "assertInvoiceRequiredForExpense"
-          ]
-        },
-        {
-          "source": "./source-change.service",
-          "specifiers": [
-            "propagateExpenseApproval"
-          ]
-        },
-        {
-          "source": "./trip-financial-authority-lock.service",
-          "specifiers": [
-            "lockTripFinancialAuthority"
-          ]
-        },
-        {
-          "source": "./governance-policy",
-          "specifiers": [
-            "assertCanMakeGovernanceAction"
-          ]
-        },
-        {
-          "source": "./governance-action-core.service",
-          "specifiers": [
-            "buildGovernanceAction"
-          ]
-        },
-        {
-          "source": "./governance-transition.service",
-          "specifiers": [
-            "GovernanceActionRow",
-            "GovernanceApplyResult"
-          ]
-        },
-        {
-          "source": "./shipment-accounting-lock.service",
-          "specifiers": [
-            "assertTripShipmentAccountingUnlocked"
-          ]
-        }
-      ],
-      "exports": [
-        "transitionApproval",
-        "processExpenseApproval",
-        "requestTripExpenseDecision",
-        "applyTripExpenseGovernanceAction"
-      ],
-      "totalLines": 320,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/ar-split-report.service.ts": {
@@ -17452,7 +17382,7 @@
     },
     "backend/src/services/billing-document-draft.service.ts": {
       "filePath": "backend/src/services/billing-document-draft.service.ts",
-      "contentHash": "9e97e64da883c0839b2233105b161667f3d76f8ce73c88763e7b9e3d31289705",
+      "contentHash": "376b3178a23939d89f8288721579ab3fe50255658e1d92fb9d8d98be64da00dd",
       "functions": [
         {
           "name": "buildCustomerDebitLines",
@@ -18101,7 +18031,7 @@
     },
     "backend/src/services/billing-document-invariants.service.ts": {
       "filePath": "backend/src/services/billing-document-invariants.service.ts",
-      "contentHash": "de28175197349e9fbdd32aae101366b226df35545cb11dd39afc4bae554314e9",
+      "contentHash": "f9291ea447aaab943b3037c96de75facee669dfe4380665b5647693f6604d5cf",
       "functions": [
         {
           "name": "tripSourceIds",
@@ -19696,7 +19626,7 @@
     },
     "backend/src/services/billing-line-assembly.service.ts": {
       "filePath": "backend/src/services/billing-line-assembly.service.ts",
-      "contentHash": "f5193e845e4e7abf2b8bcdbc2785bd8b328f06bb702a443e0273814a56587d15",
+      "contentHash": "eeaab90a152ae5d0cb086508bb03fca8dec5f2ada06bfbad059f01743f31231b",
       "functions": [
         {
           "name": "assembleBillingLines",
@@ -20705,7 +20635,7 @@
     },
     "backend/src/services/credit-limit.service.ts": {
       "filePath": "backend/src/services/credit-limit.service.ts",
-      "contentHash": "0f509a63684517d816f396502fd172115b56f4332f34b94549c721b960acc2d2",
+      "contentHash": "64355bee197448063ab697580fdbd63516a8f4c826ac24d865ca1a41795b33e8",
       "functions": [
         {
           "name": "decodeCreditOverrideCursor",
@@ -20882,17 +20812,7 @@
           ],
           "returnType": "Promise<CreditOverrideView>",
           "exported": true,
-          "lineCount": 72
-        },
-        {
-          "name": "applyCreditOverrideGovernanceAction",
-          "params": [
-            "tx",
-            "action"
-          ],
-          "returnType": "Promise<GovernanceApplyResult>",
-          "exported": true,
-          "lineCount": 51
+          "lineCount": 71
         },
         {
           "name": "creditOverrideSortContinuation",
@@ -21028,25 +20948,11 @@
           "specifiers": [
             "getAppSettings"
           ]
-        },
-        {
-          "source": "./governance-policy",
-          "specifiers": [
-            "assertCanMakeGovernanceAction"
-          ]
-        },
-        {
-          "source": "./governance-action-core.service",
-          "specifiers": [
-            "GovernanceActionRow",
-            "GovernanceApplyResult"
-          ]
         }
       ],
       "exports": [
         "checkCreditLimit",
         "createCreditOverrideRequest",
-        "applyCreditOverrideGovernanceAction",
         "CREDIT_OVERRIDE_SORT_KEYS",
         "listCreditOverrideRequests",
         "getCreditOverrideRequest",
@@ -21054,7 +20960,7 @@
         "assertCreditLimit",
         "consumeShipmentCreditOverride"
       ],
-      "totalLines": 854,
+      "totalLines": 783,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/crypto.ts": {
@@ -21133,7 +21039,7 @@
     },
     "backend/src/services/cus-shipment-workspace-reads.service.ts": {
       "filePath": "backend/src/services/cus-shipment-workspace-reads.service.ts",
-      "contentHash": "16efef03f955d957568d7aa3d91ddccdc0bda2e44b6e3aa20fbdc5b75347a478",
+      "contentHash": "8b6a2f5053376fa03be638a45c84608a7847a35fd688d91dc8a2e1d9e4aaf736",
       "functions": [
         {
           "name": "normalizeCarrierName",
@@ -21196,7 +21102,7 @@
             "executor"
           ],
           "exported": false,
-          "lineCount": 84
+          "lineCount": 85
         },
         {
           "name": "loadShipmentRow",
@@ -21275,7 +21181,7 @@
           ],
           "returnType": "Promise<ShipmentCusContainerFlatResponse>",
           "exported": true,
-          "lineCount": 145
+          "lineCount": 146
         }
       ],
       "classes": [],
@@ -21407,12 +21313,12 @@
         "getCusShipmentWorkspaceDetail",
         "listCusShipmentContainers"
       ],
-      "totalLines": 1103,
+      "totalLines": 1105,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/cus-shipment-workspace-writes.service.ts": {
       "filePath": "backend/src/services/cus-shipment-workspace-writes.service.ts",
-      "contentHash": "7b35e255cac7a732277dbb22307f72749dcd445c319911b23f202d5249d61ded",
+      "contentHash": "f0e140b7c00a4876df0d69d31da25813f0e8817ead6dc61c9864a51f364fec4c",
       "functions": [
         {
           "name": "requireWorkspaceWriter",
@@ -21476,7 +21382,7 @@
           ],
           "returnType": "Promise<ShipmentCusContainerLineUpdateResult>",
           "exported": true,
-          "lineCount": 424
+          "lineCount": 484
         }
       ],
       "classes": [],
@@ -21550,7 +21456,8 @@
         {
           "source": "./shipment-fulfillment.service",
           "specifiers": [
-            "ensureShipmentFulfillmentsInTx"
+            "ensureShipmentFulfillmentsInTx",
+            "operationalSiteSnapshot"
           ]
         },
         {
@@ -21595,7 +21502,7 @@
       "exports": [
         "updateCusShipmentContainerLine"
       ],
-      "totalLines": 700,
+      "totalLines": 760,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/cus-shipment-workspace.service.ts": {
@@ -21615,7 +21522,7 @@
     },
     "backend/src/services/cus-workspace-builders.service.ts": {
       "filePath": "backend/src/services/cus-workspace-builders.service.ts",
-      "contentHash": "ac74ffb6d18177f3bc50d13e982001873b8bea6da3682567a3f58563d9db991c",
+      "contentHash": "77886947bd55fcbdc837c379e55c5d94491c70e9a89558ce6ff31d078eff5e34",
       "functions": [
         {
           "name": "currentAssignmentIdentity",
@@ -21691,7 +21598,7 @@
           ],
           "returnType": "ShipmentCusWorkspaceContainerLine",
           "exported": true,
-          "lineCount": 89
+          "lineCount": 90
         },
         {
           "name": "containerMissingFields",
@@ -21754,7 +21661,7 @@
           ],
           "returnType": "ShipmentCusWorkspaceContainerLine['fieldAccess']",
           "exported": false,
-          "lineCount": 55
+          "lineCount": 56
         },
         {
           "name": "uniqueNonEmpty",
@@ -21877,7 +21784,7 @@
         "shipmentFieldAccess",
         "countContainerTypes"
       ],
-      "totalLines": 813,
+      "totalLines": 815,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/cus-workspace-mapping.service.ts": {
@@ -23035,7 +22942,7 @@
     },
     "backend/src/services/debtOffset.service.ts": {
       "filePath": "backend/src/services/debtOffset.service.ts",
-      "contentHash": "6db3719ff8f680d1c99e057292c868f0c74e83f834fc9320c4941269ca95724f",
+      "contentHash": "7e884011a316303400575ccb6a3a24f362454c35eb9505ba61b41446d37b0011",
       "functions": [
         {
           "name": "debtOffsetStatusVersion",
@@ -23089,18 +22996,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 65
-        },
-        {
-          "name": "approveDebtOffset",
-          "params": [
-            "id",
-            "actorId",
-            "actorRole",
-            "transaction"
-          ],
-          "exported": true,
-          "lineCount": 72
+          "lineCount": 87
         },
         {
           "name": "cancelDebtOffset",
@@ -23122,15 +23018,6 @@
           "lineCount": 16
         },
         {
-          "name": "requestDebtOffsetApprovalGovernance",
-          "params": [
-            "input"
-          ],
-          "returnType": "Promise<GovernanceActionRow>",
-          "exported": true,
-          "lineCount": 61
-        },
-        {
           "name": "requestDebtOffsetCancelGovernance",
           "params": [
             "input"
@@ -23147,7 +23034,7 @@
           ],
           "returnType": "Promise<GovernanceApplyResult>",
           "exported": true,
-          "lineCount": 54
+          "lineCount": 37
         }
       ],
       "classes": [],
@@ -23199,12 +23086,6 @@
           ]
         },
         {
-          "source": "./approval.service",
-          "specifiers": [
-            "transitionApproval"
-          ]
-        },
-        {
           "source": "./legal-partner.service",
           "specifiers": [
             "PARTNER_DEFAULT_CURRENCY"
@@ -23239,14 +23120,12 @@
       "exports": [
         "getDualEntities",
         "createDebtOffset",
-        "approveDebtOffset",
         "cancelDebtOffset",
         "listDebtOffsets",
-        "requestDebtOffsetApprovalGovernance",
         "requestDebtOffsetCancelGovernance",
         "applyDebtOffsetGovernanceAction"
       ],
-      "totalLines": 625,
+      "totalLines": 470,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/delivery-stage.ts": {
@@ -23330,7 +23209,7 @@
     },
     "backend/src/services/disbursement-period.service.ts": {
       "filePath": "backend/src/services/disbursement-period.service.ts",
-      "contentHash": "4e4b09e57bda90522d0d69d0b8511df8ca0f065cb0f73c4bdfdf07a204e6014b",
+      "contentHash": "ce314426dd6ff99cfac21450268ee9e08823fb5c85a99a7a97b1b9077ea3e760",
       "functions": [
         {
           "name": "checkDisbursementAllocation",
@@ -23594,6 +23473,57 @@
         "pageKeyPredicate"
       ],
       "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/dispatch-expense-notes.service.ts": {
+      "filePath": "backend/src/services/dispatch-expense-notes.service.ts",
+      "contentHash": "6a847043ab40b85f63a3f0868de9cec618197b1ce58315388362d3738651a26b",
+      "functions": [
+        {
+          "name": "loadDispatchExpenseNotes",
+          "params": [
+            "shipmentIds",
+            "executor"
+          ],
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "asc",
+            "eq",
+            "inArray",
+            "isNotNull"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [
+        "loadDispatchExpenseNotes"
+      ],
+      "totalLines": 30,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/dispatch-handoff.service.ts": {
@@ -24020,7 +23950,7 @@
     },
     "backend/src/services/dispatch-planning-detail-plan.service.ts": {
       "filePath": "backend/src/services/dispatch-planning-detail-plan.service.ts",
-      "contentHash": "0164530989b3e8f4c9b96c2a2d0787c57b7e3f5e5d082824dbc509e5d0f90ff4",
+      "contentHash": "b1b495f76972c8462aba6150cc1410d82c21a3c8544b5f76335d34156e989aa9",
       "functions": [
         {
           "name": "loadPlannedDriverNames",
@@ -24080,7 +24010,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 307
+          "lineCount": 309
         },
         {
           "name": "listDispatchDeliveryPointFacets",
@@ -24222,6 +24152,12 @@
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "./dispatch-expense-notes.service",
+          "specifiers": [
+            "loadDispatchExpenseNotes"
+          ]
+        },
         {
           "source": "./dispatch-planning-utils.service",
           "specifiers": [
@@ -24367,7 +24303,7 @@
         "requireDispatchZone",
         "listZoneTruckPresence"
       ],
-      "totalLines": 1471,
+      "totalLines": 1474,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/dispatch-planning-queries.service.ts": {
@@ -25326,7 +25262,7 @@
     },
     "backend/src/services/driver-fulfillment.service.ts": {
       "filePath": "backend/src/services/driver-fulfillment.service.ts",
-      "contentHash": "6d3004f2f3011b1a701b4d51a23cc635a26a85c9d5864731a7613e294d3434f6",
+      "contentHash": "c34eacfc2f92b659079fd02ad2cc2f8a59109a910dfb8396aa6b3cbba4cdc4ab",
       "functions": [
         {
           "name": "assertKetHopSequencingAllowedTx",
@@ -25346,11 +25282,12 @@
             "driverId",
             "eventType",
             "occurredAtIso",
-            "actorUserId"
+            "actorUserId",
+            "evidence"
           ],
           "returnType": "Promise<DriverProgressEvent>",
           "exported": false,
-          "lineCount": 41
+          "lineCount": 44
         },
         {
           "name": "recordDriverFulfillmentProgress",
@@ -25365,11 +25302,12 @@
           "name": "customerPublicationForDriverEvent",
           "params": [
             "eventType",
-            "occurredAt"
+            "occurredAt",
+            "inferredFromCompletion"
           ],
           "returnType": "{ title: string; message: string } | null",
           "exported": false,
-          "lineCount": 9
+          "lineCount": 18
         },
         {
           "name": "syncDriverFulfillmentStartSideEffects",
@@ -25465,7 +25403,7 @@
           ],
           "returnType": "Promise<{ trip: DriverFulfillmentCompletionResult; replayed: boolean }>",
           "exported": true,
-          "lineCount": 109
+          "lineCount": 110
         },
         {
           "name": "getCompletionEvidenceStatus",
@@ -25613,7 +25551,7 @@
         "completeOwnedFulfillmentTrip",
         "getCompletionEvidenceStatus"
       ],
-      "totalLines": 563,
+      "totalLines": 576,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/driver-journey-board.service.ts": {
@@ -26865,9 +26803,106 @@
       "totalLines": 399,
       "hasStructuralAnalysis": true
     },
+    "backend/src/services/expense-accounting-correction.service.ts": {
+      "filePath": "backend/src/services/expense-accounting-correction.service.ts",
+      "contentHash": "0f05c78cae750bd0b7ec9445cfcc86211f5dc477ef66220e2e7d9810993e2695",
+      "functions": [
+        {
+          "name": "correctAccountingExpense",
+          "params": [
+            "tx",
+            "actor",
+            "kind",
+            "id",
+            "input"
+          ],
+          "exported": true,
+          "lineCount": 65
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "isNull",
+            "notInArray",
+            "sql"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "TxnType",
+            "ExpenseAccountingUpdate",
+            "ExpenseSourceKind"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./shipment-accounting-lock.service",
+          "specifiers": [
+            "assertShipmentAccountingUnlocked"
+          ]
+        },
+        {
+          "source": "./expense-accounting-source.service",
+          "specifiers": [
+            "hydrateExpenseAccountingSource",
+            "upsertExpenseAccountingSource"
+          ]
+        },
+        {
+          "source": "./expense-accounting-write.service",
+          "specifiers": [
+            "getExpenseForCommand",
+            "requireExpenseFinance",
+            "updateAccountingExpense",
+            "confirmAccountingExpenses",
+            "ExpenseActor"
+          ]
+        },
+        {
+          "source": "./ledger.service",
+          "specifiers": [
+            "LedgerService"
+          ]
+        },
+        {
+          "source": "./source-change.service",
+          "specifiers": [
+            "propagateRecordedExpense"
+          ]
+        }
+      ],
+      "exports": [
+        "correctAccountingExpense"
+      ],
+      "totalLines": 79,
+      "hasStructuralAnalysis": true
+    },
     "backend/src/services/expense-accounting-create.service.ts": {
       "filePath": "backend/src/services/expense-accounting-create.service.ts",
-      "contentHash": "363a559dc1b5f7069c5787f53cc8c4e7db8be980f8912495eb57781204681af9",
+      "contentHash": "1a6d96f7830b8f7a810aa73b4d2c82d5fcaf5d51db61cc78d2398b249c03e767",
       "functions": [
         {
           "name": "createAccountingExpense",
@@ -26877,7 +26912,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 50
+          "lineCount": 65
         }
       ],
       "classes": [],
@@ -26936,6 +26971,7 @@
           "source": "./expense-accounting-write.service",
           "specifiers": [
             "requireExpenseFinance",
+            "syncExpenseBillingSource",
             "ExpenseActor"
           ]
         }
@@ -26943,7 +26979,7 @@
       "exports": [
         "createAccountingExpense"
       ],
-      "totalLines": 61,
+      "totalLines": 76,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-evidence.service.ts": {
@@ -27057,7 +27093,7 @@
     },
     "backend/src/services/expense-accounting-photo.service.ts": {
       "filePath": "backend/src/services/expense-accounting-photo.service.ts",
-      "contentHash": "129fc0c0e2093fd04daf4c84b6c2b8754cbdbffc61ae4caa91cf29536978c257",
+      "contentHash": "3958d446a4ed4c9bd9b946856947de4212887ce00ee06987c20140e8ba3b1825",
       "functions": [
         {
           "name": "attachAccountingExpensePhoto",
@@ -27068,11 +27104,23 @@
             "file"
           ],
           "exported": true,
-          "lineCount": 14
+          "lineCount": 24
         }
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "eq"
+          ]
+        },
+        {
+          "source": "./expense-owner-scope.service",
+          "specifiers": [
+            "assertExpenseOwnerWriteScope"
+          ]
+        },
         {
           "source": "node:crypto",
           "specifiers": [
@@ -27138,12 +27186,12 @@
       "exports": [
         "attachAccountingExpensePhoto"
       ],
-      "totalLines": 26,
+      "totalLines": 38,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-reads.service.ts": {
       "filePath": "backend/src/services/expense-accounting-reads.service.ts",
-      "contentHash": "a99d6104ee9e0dfb238ef9e0c5f27b4f10c2e036cd4aed9589da69022822123e",
+      "contentHash": "187ed693cb5ce732af9a107a356e24b166c47df64b06c19df5ae113fb9726f35",
       "functions": [
         {
           "name": "isFinance",
@@ -27268,7 +27316,7 @@
           ],
           "returnType": "Promise<Source[]>",
           "exported": false,
-          "lineCount": 68
+          "lineCount": 70
         },
         {
           "name": "loadExpenseAccountingEntries",
@@ -27282,7 +27330,7 @@
           ],
           "returnType": "Promise<ExpenseAccountingEntry[]>",
           "exported": true,
-          "lineCount": 68
+          "lineCount": 70
         },
         {
           "name": "listExpenseAccountingEntries",
@@ -27324,7 +27372,7 @@
           ],
           "returnType": "Promise<ExpenseVoucher>",
           "exported": true,
-          "lineCount": 20
+          "lineCount": 24
         },
         {
           "name": "listExpenseVouchers",
@@ -27344,7 +27392,7 @@
           ],
           "returnType": "Promise<ExpenseReconciliation>",
           "exported": true,
-          "lineCount": 19
+          "lineCount": 29
         },
         {
           "name": "listExpenseReconciliations",
@@ -27371,7 +27419,7 @@
             "direction"
           ],
           "exported": true,
-          "lineCount": 23
+          "lineCount": 25
         },
         {
           "name": "getExpenseAccountingReport",
@@ -27381,7 +27429,7 @@
             "tx"
           ],
           "exported": true,
-          "lineCount": 17
+          "lineCount": 18
         },
         {
           "name": "getExpenseAccountingCatalog",
@@ -27390,11 +27438,35 @@
             "tx"
           ],
           "exported": true,
-          "lineCount": 27
+          "lineCount": 25
         }
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "./expense-advance-asof.service",
+          "specifiers": [
+            "projectExpenseAdvancesAsOf"
+          ]
+        },
+        {
+          "source": "drizzle-orm/pg-core",
+          "specifiers": [
+            "alias"
+          ]
+        },
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
+          ]
+        },
+        {
+          "source": "./advance-consumption.service",
+          "specifiers": [
+            "getAdvanceConsumedAmounts"
+          ]
+        },
         {
           "source": "./expense-cash-voucher-source.service",
           "specifiers": [
@@ -27420,7 +27492,6 @@
           "source": "@tingting/shared",
           "specifiers": [
             "Role",
-            "TxnType",
             "EXPENSE_COST_GROUP_LABELS",
             "DRIVER_EXPENSE_SUGGESTIONS",
             "OPS_EXPENSE_SUGGESTIONS",
@@ -27490,12 +27561,12 @@
         "getExpenseAccountingReport",
         "getExpenseAccountingCatalog"
       ],
-      "totalLines": 372,
+      "totalLines": 395,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-reconciliation.service.ts": {
       "filePath": "backend/src/services/expense-accounting-reconciliation.service.ts",
-      "contentHash": "9c637514765ee09c0a78cbf133ea6b8038c07ca0e61ffb739f2db419cb4d3179",
+      "contentHash": "6b4255ee0f98b432cd0d08a0586c7c19701812e45e7a89356abb43a48b54152a",
       "functions": [
         {
           "name": "createExpenseReconciliation",
@@ -27505,7 +27576,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 51
+          "lineCount": 50
         },
         {
           "name": "recordFundedOpsAdvance",
@@ -27515,7 +27586,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 18
+          "lineCount": 22
         },
         {
           "name": "refundExpenseReconciliation",
@@ -27526,7 +27597,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 22
+          "lineCount": 23
         }
       ],
       "classes": [],
@@ -27549,6 +27620,12 @@
           "source": "node:crypto",
           "specifiers": [
             "randomUUID"
+          ]
+        },
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
           ]
         },
         {
@@ -27629,12 +27706,12 @@
         "recordFundedOpsAdvance",
         "refundExpenseReconciliation"
       ],
-      "totalLines": 111,
+      "totalLines": 116,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-source.service.ts": {
       "filePath": "backend/src/services/expense-accounting-source.service.ts",
-      "contentHash": "278487c55e09be08c4a520444a2cb13b5660e6e7935dfff7eda21d91e4c81962",
+      "contentHash": "568c28ee2940a08268cd641c0746b1b1fac02ee80e604e244748e5d871c6c9d5",
       "functions": [
         {
           "name": "hydrateExpenseAccountingSource",
@@ -27644,7 +27721,7 @@
           ],
           "returnType": "Promise<ExpenseAccountingSource>",
           "exported": true,
-          "lineCount": 47
+          "lineCount": 48
         },
         {
           "name": "lockExpenseSource",
@@ -27781,7 +27858,7 @@
         "ensureLegacyExpenseSource",
         "assertActiveExpensePayer"
       ],
-      "totalLines": 194,
+      "totalLines": 195,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-voucher.service.ts": {
@@ -27960,8 +28037,24 @@
     },
     "backend/src/services/expense-accounting-work.service.ts": {
       "filePath": "backend/src/services/expense-accounting-work.service.ts",
-      "contentHash": "d4e34b60faee67fb224c88ad96d9161a41696ebaaade6f10f09b04cde3115147",
+      "contentHash": "03552ede60bffcf0b4bcb641f785468ea0668174c3e2212e4b3215e34fd00e64",
       "functions": [
+        {
+          "name": "businessDay",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "amount",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
         {
           "name": "sum",
           "params": [
@@ -27974,11 +28067,23 @@
           "name": "listExpenseAccountingWork",
           "params": [
             "actor",
-            "query"
+            "query",
+            "transaction"
           ],
           "returnType": "Promise<ExpenseWorkList>",
           "exported": true,
-          "lineCount": 54
+          "lineCount": 67
+        },
+        {
+          "name": "filterExpenseWorkRow",
+          "params": [
+            "row",
+            "query",
+            "search"
+          ],
+          "returnType": "ExpenseWorkRow[]",
+          "exported": true,
+          "lineCount": 17
         }
       ],
       "classes": [],
@@ -27997,6 +28102,7 @@
           "specifiers": [
             "Role",
             "round2dp",
+            "ExpenseAccountingEntry",
             "ExpenseListQuery",
             "ExpenseWorkList",
             "ExpenseWorkRow"
@@ -28006,6 +28112,12 @@
           "source": "../db",
           "specifiers": [
             "db"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
           ]
         },
         {
@@ -28034,14 +28146,15 @@
         }
       ],
       "exports": [
-        "listExpenseAccountingWork"
+        "listExpenseAccountingWork",
+        "filterExpenseWorkRow"
       ],
-      "totalLines": 66,
+      "totalLines": 101,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-accounting-write.service.ts": {
       "filePath": "backend/src/services/expense-accounting-write.service.ts",
-      "contentHash": "e92c5cbf343a7d85f1dae8e98e97f02a73a3d44aee61718e85e8b7e9dafe7c15",
+      "contentHash": "5142c0c5083704dd46ffee7ab53be8e15edf463b50725b0a8c6df55aa39f4b92",
       "functions": [
         {
           "name": "requireExpenseFinance",
@@ -28068,7 +28181,7 @@
             "ref"
           ],
           "exported": true,
-          "lineCount": 18
+          "lineCount": 19
         },
         {
           "name": "auditExpenseChange",
@@ -28092,7 +28205,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 75
+          "lineCount": 85
         },
         {
           "name": "syncExpenseBillingSource",
@@ -28203,7 +28316,7 @@
         {
           "source": "./source-change.service",
           "specifiers": [
-            "propagateExpenseApproval"
+            "propagateRecordedExpense"
           ]
         },
         {
@@ -28216,6 +28329,12 @@
           "source": "./trip-financial-authority-lock.service",
           "specifiers": [
             "lockTripFinancialAuthority"
+          ]
+        },
+        {
+          "source": "./expense-owner-scope.service",
+          "specifiers": [
+            "assertExpenseOwnerWriteScope"
           ]
         },
         {
@@ -28260,7 +28379,83 @@
         "confirmAccountingExpenses",
         "assignTruckAccountant"
       ],
-      "totalLines": 232,
+      "totalLines": 244,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/expense-advance-asof.service.ts": {
+      "filePath": "backend/src/services/expense-advance-asof.service.ts",
+      "contentHash": "64d26d9f40964d6b5e12883ae90b79f72d2c2a85003a6f37f08901747fd77186",
+      "functions": [
+        {
+          "name": "releaseSources",
+          "params": [
+            "payload"
+          ],
+          "returnType": "Snapshot[] | null",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "projectExpenseAdvancesAsOf",
+          "params": [
+            "executor",
+            "entries",
+            "asOfDate"
+          ],
+          "returnType": "Promise<ExpenseAccountingEntry[]>",
+          "exported": true,
+          "lineCount": 38
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "gt",
+            "inArray",
+            "isNull",
+            "lte",
+            "or"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "ExpenseAccountingEntry"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
+          ]
+        }
+      ],
+      "exports": [
+        "projectExpenseAdvancesAsOf"
+      ],
+      "totalLines": 55,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-cash-command.service.ts": {
@@ -28522,6 +28717,79 @@
       "totalLines": 23,
       "hasStructuralAnalysis": true
     },
+    "backend/src/services/expense-owner-scope.service.ts": {
+      "filePath": "backend/src/services/expense-owner-scope.service.ts",
+      "contentHash": "02c6bd469353aa99f1927eb373f9beaf91bcced9fbe343688cbd99d842209c75",
+      "functions": [
+        {
+          "name": "assertOpsExpenseAssignment",
+          "params": [
+            "tx",
+            "userId",
+            "shipmentId"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "assertExpenseOwnerWriteScope",
+          "params": [
+            "tx",
+            "actor",
+            "source"
+          ],
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "isNull"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "Role"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
+          "source": "./expense-accounting-source.service",
+          "specifiers": [
+            "ExpenseAccountingSource"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        }
+      ],
+      "exports": [
+        "assertOpsExpenseAssignment",
+        "assertExpenseOwnerWriteScope"
+      ],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
     "backend/src/services/expense-receipt-allocation.service.ts": {
       "filePath": "backend/src/services/expense-receipt-allocation.service.ts",
       "contentHash": "990aacdebff8afd561181f1e5e78f0963bb5a306723a97c427d75e1f3ac769f8",
@@ -28636,6 +28904,71 @@
         "reverseExpenseReceipt"
       ],
       "totalLines": 122,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/expense-reconciliation-release.service.ts": {
+      "filePath": "backend/src/services/expense-reconciliation-release.service.ts",
+      "contentHash": "d2fd3afba2b07c45fe8f352b21d6e5a516102d9fb680629170a9770867854ad9",
+      "functions": [
+        {
+          "name": "releaseExpenseReconciliation",
+          "params": [
+            "tx",
+            "actor",
+            "id",
+            "reason"
+          ],
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "inArray",
+            "or"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./expense-accounting-write.service",
+          "specifiers": [
+            "requireExpenseFinance",
+            "ExpenseActor"
+          ]
+        },
+        {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        }
+      ],
+      "exports": [
+        "releaseExpenseReconciliation"
+      ],
+      "totalLines": 32,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/expense-source-trip-link.service.ts": {
@@ -28817,7 +29150,7 @@
     },
     "backend/src/services/expense.service.ts": {
       "filePath": "backend/src/services/expense.service.ts",
-      "contentHash": "7e28a5c20197004fd7802f029183dc6e82546463fd540368d96556c879307bae",
+      "contentHash": "80111da43c8867664b40de60f38183ce798212f52b131579ee635919e7147949",
       "functions": [
         {
           "name": "lockAndValidateExpenseReferences",
@@ -29133,7 +29466,7 @@
     },
     "backend/src/services/financial-posting.service.ts": {
       "filePath": "backend/src/services/financial-posting.service.ts",
-      "contentHash": "baf85a963e67752a8f868dcaa1ad4f4d169c6782e04528f358935ec750aa7458",
+      "contentHash": "3369c5f367018fe909e9fd57c44f32f769c7be8f67e670cbfdd042c998c50e0a",
       "functions": [
         {
           "name": "getActiveFinancialPosting",
@@ -29500,7 +29833,7 @@
     },
     "backend/src/services/financial.service.ts": {
       "filePath": "backend/src/services/financial.service.ts",
-      "contentHash": "b8ab35c1d0c9cf1e18a08ac909742bed4599aea79a71b793f225cfe66f916e74",
+      "contentHash": "e094b404f6ffc4c98af6afd3183034382ea18b2eb9614fa0eb7717d69de71fd3",
       "functions": [
         {
           "name": "recordPayment",
@@ -29661,7 +29994,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 10
+          "lineCount": 11
         },
         {
           "name": "recordDriverPayoutIdempotent",
@@ -30084,7 +30417,7 @@
         "requestCarrierPaymentGovernance",
         "applyCarrierPaymentGovernanceAction"
       ],
-      "totalLines": 1316,
+      "totalLines": 1317,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/forwarder-container.service.ts": {
@@ -30664,8 +30997,18 @@
     },
     "backend/src/services/forwarder.service.ts": {
       "filePath": "backend/src/services/forwarder.service.ts",
-      "contentHash": "c1e927e24ac82e679f8df7f25906ad2743f06584daf5fef691f396e76d1183b7",
+      "contentHash": "4cd5b74d0d4f01e4f97d5669ff5c988b869e655361f5f2be8c391087c134e48d",
       "functions": [
+        {
+          "name": "lockTripExpenseMutation",
+          "params": [
+            "tx",
+            "expenseId"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 6
+        },
         {
           "name": "getTripExpenseRequiredFieldError",
           "params": [
@@ -30739,7 +31082,16 @@
           ],
           "returnType": "Promise<typeof s.tripExpenses.$inferSelect>",
           "exported": true,
-          "lineCount": 77
+          "lineCount": 78
+        },
+        {
+          "name": "assertCanonicalExpenseWrite",
+          "params": [
+            "tx",
+            "expenseId"
+          ],
+          "exported": false,
+          "lineCount": 6
         },
         {
           "name": "updateTripExpense",
@@ -30751,7 +31103,7 @@
           ],
           "returnType": "Promise<typeof s.tripExpenses.$inferSelect | null>",
           "exported": true,
-          "lineCount": 156
+          "lineCount": 157
         },
         {
           "name": "updateForwarderTripExpense",
@@ -30832,7 +31184,7 @@
           ],
           "returnType": "Promise<GuardedResult>",
           "exported": true,
-          "lineCount": 36
+          "lineCount": 37
         },
         {
           "name": "listUnlinkedTripExpenses",
@@ -30970,12 +31322,6 @@
           ]
         },
         {
-          "source": "./approval.service",
-          "specifiers": [
-            "GuardedResult"
-          ]
-        },
-        {
           "source": "drizzle-orm",
           "specifiers": [
             "eq",
@@ -31031,9 +31377,22 @@
           ]
         },
         {
+          "source": "./expense-accounting-source.service",
+          "specifiers": [
+            "assertExpenseSourceMutable",
+            "hydrateExpenseAccountingSource"
+          ]
+        },
+        {
           "source": "./shipment-accounting-lock.service",
           "specifiers": [
             "assertTripShipmentAccountingUnlocked"
+          ]
+        },
+        {
+          "source": "./trip-financial-authority-lock.service",
+          "specifiers": [
+            "lockTripFinancialAuthority"
           ]
         }
       ],
@@ -31079,7 +31438,7 @@
         "listActiveSuppliersForForwarder",
         "getTripExpensesForRoute"
       ],
-      "totalLines": 1234,
+      "totalLines": 1256,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/freight-pricing-engine.service.ts": {
@@ -31325,7 +31684,7 @@
     },
     "backend/src/services/fuel-ap-recon.service.ts": {
       "filePath": "backend/src/services/fuel-ap-recon.service.ts",
-      "contentHash": "2d0b6a40933d81710cbdcc339f9dd8900c75ba47747b0bba5fa649e960e16c79",
+      "contentHash": "2488d0db468e870000a4a46c01370de854644b440af8eb7703e02c3bc5046b00",
       "functions": [
         {
           "name": "getFuelApReconciliation",
@@ -31397,7 +31756,7 @@
       "exports": [
         "getFuelApReconciliation"
       ],
-      "totalLines": 318,
+      "totalLines": 314,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/fuel-evidence-review.service.ts": {
@@ -31890,132 +32249,6 @@
       "totalLines": 799,
       "hasStructuralAnalysis": true
     },
-    "backend/src/services/fuel-recon-guard.service.ts": {
-      "filePath": "backend/src/services/fuel-recon-guard.service.ts",
-      "contentHash": "9253322aaee1e17ed18daa64a9716ffd6b1965c32572849ca4c65d6ef0110d2b",
-      "functions": [
-        {
-          "name": "isFuelExpenseType",
-          "params": [
-            "expenseType"
-          ],
-          "returnType": "boolean",
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "monthRangeFromDate",
-          "params": [
-            "dateStr"
-          ],
-          "returnType": "{ from: string; to: string } | null",
-          "exported": true,
-          "lineCount": 17
-        },
-        {
-          "name": "hasFuelReconExplanation",
-          "params": [
-            "supplierId",
-            "periodFrom",
-            "periodTo"
-          ],
-          "returnType": "Promise<boolean>",
-          "exported": true,
-          "lineCount": 15
-        },
-        {
-          "name": "recordFuelReconExplanation",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 52
-        },
-        {
-          "name": "listFuelReconExplanations",
-          "params": [
-            "opts"
-          ],
-          "exported": true,
-          "lineCount": 15
-        },
-        {
-          "name": "assertFuelReconClear",
-          "params": [
-            "expenseId",
-            "tx"
-          ],
-          "returnType": "Promise<void>",
-          "exported": true,
-          "lineCount": 57
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "../db",
-          "specifiers": [
-            "db"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "and",
-            "asc",
-            "eq",
-            "gte",
-            "lte"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "./trip-shared",
-          "specifiers": [
-            "Tx"
-          ]
-        },
-        {
-          "source": "./fuel-ap-recon.service",
-          "specifiers": [
-            "getFuelApReconciliation"
-          ]
-        },
-        {
-          "source": "./period-lock.service",
-          "specifiers": [
-            "assertFuelPeriodCanAbsorbLateApproval"
-          ]
-        },
-        {
-          "source": "./application-owned-uniqueness.service",
-          "specifiers": [
-            "lockApplicationOwnedUniqueness"
-          ]
-        }
-      ],
-      "exports": [
-        "isFuelExpenseType",
-        "monthRangeFromDate",
-        "hasFuelReconExplanation",
-        "recordFuelReconExplanation",
-        "listFuelReconExplanations",
-        "assertFuelReconClear"
-      ],
-      "totalLines": 216,
-      "hasStructuralAnalysis": true
-    },
     "backend/src/services/fuel-voucher.service.ts": {
       "filePath": "backend/src/services/fuel-voucher.service.ts",
       "contentHash": "5a90bcc404e5878b5b97b9c922fb345e26f23d828a0869da2768551fd7186aba",
@@ -32304,10 +32537,10 @@
     },
     "backend/src/services/governance-action-core.service.ts": {
       "filePath": "backend/src/services/governance-action-core.service.ts",
-      "contentHash": "dea3ca5d4a8c1e8391fca9ef4a18f88beca468125eb2e29eeb3d31fd4a77ab2a",
+      "contentHash": "cbed180f323741bf0a4fc2ca7f7f26d15bbd56627ccd9b5442e7889a8a605886",
       "functions": [
         {
-          "name": "assertActiveApprovalApplication",
+          "name": "assertActiveDirectApplication",
           "params": [
             "tx",
             "actionId"
@@ -32317,7 +32550,7 @@
           "lineCount": 14
         },
         {
-          "name": "setGovernanceApprovalAfterApplyHookForTest",
+          "name": "setDirectActionAfterApplyHookForTest",
           "params": [
             "hook"
           ],
@@ -32325,7 +32558,7 @@
           "lineCount": 5
         },
         {
-          "name": "applyWithinActiveApproval",
+          "name": "applyWithinActiveDirectAction",
           "params": [
             "tx",
             "action",
@@ -32351,7 +32584,7 @@
           ],
           "returnType": "Promise<{\n  action: GovernanceActionRow;\n  result: GovernanceApplyResult | void;\n}>",
           "exported": true,
-          "lineCount": 93
+          "lineCount": 86
         }
       ],
       "classes": [],
@@ -32383,8 +32616,7 @@
         {
           "source": "./governance-policy",
           "specifiers": [
-            "assertCanApproveGovernanceAction",
-            "assertCanCheckGovernanceAction",
+            "assertCanApplyGovernanceAction",
             "getMissingGovernanceEvidence"
           ]
         },
@@ -32397,27 +32629,18 @@
         }
       ],
       "exports": [
-        "assertActiveApprovalApplication",
-        "setGovernanceApprovalAfterApplyHookForTest",
+        "assertActiveDirectApplication",
+        "setDirectActionAfterApplyHookForTest",
         "buildGovernanceAction",
         "applyGovernanceActionDirect"
       ],
-      "totalLines": 284,
+      "totalLines": 273,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/governance-policy.ts": {
       "filePath": "backend/src/services/governance-policy.ts",
-      "contentHash": "5a41a48e28b045a2b447a51fe8c526ee13eb7a43ec598889d685715bd87d3098",
+      "contentHash": "3121cf0a0fd24f1bcf2665ac06f1bc5b0032fbcc7fe03988772d4b7f9b5a4ed9",
       "functions": [
-        {
-          "name": "capabilitiesForRole",
-          "params": [
-            "role"
-          ],
-          "returnType": "ReadonlySet<GovernanceCapability>",
-          "exported": false,
-          "lineCount": 3
-        },
         {
           "name": "policyForAction",
           "params": [
@@ -32447,15 +32670,14 @@
           "lineCount": 11
         },
         {
-          "name": "assertCapability",
+          "name": "assertRole",
           "params": [
-            "actionKind",
             "role",
-            "stage"
+            "allowedRoles"
           ],
           "returnType": "void",
           "exported": false,
-          "lineCount": 23
+          "lineCount": 5
         },
         {
           "name": "assertCanMakeGovernanceAction",
@@ -32468,43 +32690,14 @@
           "lineCount": 3
         },
         {
-          "name": "assertCanCheckGovernanceAction",
+          "name": "assertCanApplyGovernanceAction",
           "params": [
-            "action",
-            "actor"
-          ],
-          "returnType": "void",
-          "exported": true,
-          "lineCount": 9
-        },
-        {
-          "name": "assertCanApproveGovernanceAction",
-          "params": [
-            "action",
-            "actor"
-          ],
-          "returnType": "void",
-          "exported": true,
-          "lineCount": 9
-        },
-        {
-          "name": "canViewGovernanceAction",
-          "params": [
+            "actionKind",
             "role"
           ],
-          "returnType": "boolean",
+          "returnType": "void",
           "exported": true,
           "lineCount": 3
-        },
-        {
-          "name": "getGovernanceAllowedActions",
-          "params": [
-            "action",
-            "actor"
-          ],
-          "returnType": "GovernanceAllowedAction[]",
-          "exported": true,
-          "lineCount": 48
         }
       ],
       "classes": [],
@@ -32513,8 +32706,6 @@
           "source": "@tingting/shared",
           "specifiers": [
             "GovernanceActionKind",
-            "GovernanceAllowedAction",
-            "GovernanceCapability",
             "GovernanceSubjectType",
             "Role"
           ]
@@ -32531,12 +32722,9 @@
         "getGovernancePolicy",
         "getMissingGovernanceEvidence",
         "assertCanMakeGovernanceAction",
-        "assertCanCheckGovernanceAction",
-        "assertCanApproveGovernanceAction",
-        "canViewGovernanceAction",
-        "getGovernanceAllowedActions"
+        "assertCanApplyGovernanceAction"
       ],
-      "totalLines": 718,
+      "totalLines": 384,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/governance-subject-format.ts": {
@@ -32645,7 +32833,7 @@
     },
     "backend/src/services/governance-transition.service.ts": {
       "filePath": "backend/src/services/governance-transition.service.ts",
-      "contentHash": "61475444e6049b90f0a198e14eed95faa9e3e27dce57237e5120f2a7adeb83d7",
+      "contentHash": "288a80dbbd8fd350c619f2a1c1b201487d2cbcf3b43f01325b17c2f2d8175187",
       "functions": [
         {
           "name": "isDirectMoneyGovernanceActionKind",
@@ -32726,8 +32914,8 @@
         }
       ],
       "exports": [
-        "assertActiveApprovalApplication",
-        "setGovernanceApprovalAfterApplyHookForTest",
+        "assertActiveDirectApplication",
+        "setDirectActionAfterApplyHookForTest",
         "GovernanceApplyAdapter",
         "GovernanceApplyResult",
         "GovernanceActionRow",
@@ -32904,121 +33092,9 @@
       "totalLines": 497,
       "hasStructuralAnalysis": true
     },
-    "backend/src/services/invoice-required.service.ts": {
-      "filePath": "backend/src/services/invoice-required.service.ts",
-      "contentHash": "5559c8207a045f927bb53ae6d37c6e8437ad7bb448ddb3653eaff80a2bce3f6d",
-      "functions": [
-        {
-          "name": "checkTripExpenseInvoice",
-          "params": [
-            "expenseTypeId",
-            "invoiceNumber",
-            "invoiceDate"
-          ],
-          "returnType": "Promise<InvoiceCheckResult>",
-          "exported": true,
-          "lineCount": 13
-        },
-        {
-          "name": "checkExpenseInvoice",
-          "params": [
-            "categoryId",
-            "invoiceNumber",
-            "invoiceDate"
-          ],
-          "returnType": "Promise<InvoiceCheckResult>",
-          "exported": true,
-          "lineCount": 13
-        },
-        {
-          "name": "checkInvoiceFields",
-          "params": [
-            "requiresInvoice",
-            "invoiceNumber",
-            "invoiceDate"
-          ],
-          "returnType": "InvoiceCheckResult",
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "assertInvoiceRequired",
-          "params": [
-            "result",
-            "label"
-          ],
-          "returnType": "void",
-          "exported": true,
-          "lineCount": 8
-        },
-        {
-          "name": "checkTripExpenseInvoiceByCode",
-          "params": [
-            "expenseTypeCode",
-            "invoiceNumber",
-            "invoiceDate"
-          ],
-          "returnType": "Promise<InvoiceCheckResult>",
-          "exported": true,
-          "lineCount": 14
-        },
-        {
-          "name": "assertInvoiceRequiredForExpense",
-          "params": [
-            "expenseId",
-            "tx"
-          ],
-          "returnType": "Promise<void>",
-          "exported": true,
-          "lineCount": 25
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "../db",
-          "specifiers": [
-            "db"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "eq"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "./trip-shared",
-          "specifiers": [
-            "Tx"
-          ]
-        }
-      ],
-      "exports": [
-        "checkTripExpenseInvoice",
-        "checkExpenseInvoice",
-        "assertInvoiceRequired",
-        "checkTripExpenseInvoiceByCode",
-        "assertInvoiceRequiredForExpense"
-      ],
-      "totalLines": 148,
-      "hasStructuralAnalysis": true
-    },
     "backend/src/services/ledger.service.ts": {
       "filePath": "backend/src/services/ledger.service.ts",
-      "contentHash": "b45be44883d3e8df1dfe5f3a24f51660b27bf8cf73d5dda5d978c4d010557450",
+      "contentHash": "afe12ec4b8a63193f17b552eedec3340607751dbb4ea390d453d2a6bbdfec93a",
       "functions": [
         {
           "name": "buildSupplierDueDateFields",
@@ -33749,7 +33825,7 @@
     },
     "backend/src/services/master-data-import.service.ts": {
       "filePath": "backend/src/services/master-data-import.service.ts",
-      "contentHash": "586a9f784d9cd780f2deec57d1166eb9a4d3267ac102d1e1b6bb1919b3f42387",
+      "contentHash": "01b5ba4788e9ceac251ce4fa27e892a63648c3d1782ed8f082ce0cbaa5bcdd0f",
       "functions": [
         {
           "name": "requireAdmin",
@@ -35101,7 +35177,7 @@
     },
     "backend/src/services/ops-expenses.service.ts": {
       "filePath": "backend/src/services/ops-expenses.service.ts",
-      "contentHash": "3a0db294af55215f23bf250b1f697a1a830205c5256c7fe3b1d20ea0fe3f2f9a",
+      "contentHash": "4a8f337749e9e61a17ef662b44e2ec7647f07f581e1ce641131c2c3787ae3eaf",
       "functions": [
         {
           "name": "parseOpsMoney",
@@ -35145,20 +35221,11 @@
           "name": "getEditableExpense",
           "params": [
             "userId",
-            "expenseId"
+            "expenseId",
+            "executor"
           ],
           "exported": false,
           "lineCount": 15
-        },
-        {
-          "name": "entryOwnerMatches",
-          "params": [
-            "userId",
-            "expenseId"
-          ],
-          "returnType": "Promise<boolean>",
-          "exported": false,
-          "lineCount": 8
         },
         {
           "name": "attachPhotoRows",
@@ -35191,7 +35258,7 @@
           ],
           "returnType": "Promise<OpsExpenseWriteResult>",
           "exported": true,
-          "lineCount": 55
+          "lineCount": 56
         },
         {
           "name": "updateOpsExpense",
@@ -35203,7 +35270,7 @@
           ],
           "returnType": "Promise<OpsExpenseWriteResult>",
           "exported": true,
-          "lineCount": 73
+          "lineCount": 76
         },
         {
           "name": "deleteOpsExpense",
@@ -35214,7 +35281,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 17
+          "lineCount": 18
         },
         {
           "name": "deleteStorageKeysIfUnreferenced",
@@ -35233,7 +35300,7 @@
             "storageKey"
           ],
           "exported": true,
-          "lineCount": 22
+          "lineCount": 11
         },
         {
           "name": "deleteOpsExpensePhoto",
@@ -35243,13 +35310,13 @@
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 27
+          "lineCount": 14
         },
         {
           "name": "listOpsExpensePhotos",
           "params": [
             "userId",
-            "isApprover",
+            "canReviewFinancialEvidence",
             "expenseId"
           ],
           "returnType": "Promise<OpsExpensePhotoRow[]>",
@@ -35280,7 +35347,7 @@
           ],
           "returnType": "Promise<OpsExpenseListRow[]>",
           "exported": true,
-          "lineCount": 70
+          "lineCount": 75
         },
         {
           "name": "sumBig",
@@ -35303,6 +35370,12 @@
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "./ops-legacy-expense-history.service",
+          "specifiers": [
+            "listLegacyOpsExpenseHistory"
+          ]
+        },
         {
           "source": "../db",
           "specifiers": [
@@ -35354,6 +35427,12 @@
           ]
         },
         {
+          "source": "./expense-owner-scope.service",
+          "specifiers": [
+            "assertOpsExpenseAssignment"
+          ]
+        },
+        {
           "source": "./shipment-accounting-lock.service",
           "specifiers": [
             "assertShipmentAccountingUnlocked"
@@ -35375,7 +35454,7 @@
         "listOpsExpenses",
         "groupOpsExpensesForSettlement"
       ],
-      "totalLines": 609,
+      "totalLines": 590,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/ops-fleet.service.ts": {
@@ -35461,6 +35540,66 @@
       "totalLines": 201,
       "hasStructuralAnalysis": true
     },
+    "backend/src/services/ops-legacy-expense-history.service.ts": {
+      "filePath": "backend/src/services/ops-legacy-expense-history.service.ts",
+      "contentHash": "1da5fd80be05dc62dda3a49f7f517d226f5ec3cd2a73357e9fbb037784a7c899",
+      "functions": [
+        {
+          "name": "listLegacyOpsExpenseHistory",
+          "params": [
+            "userId",
+            "status"
+          ],
+          "returnType": "Promise<OpsExpenseListRow[]>",
+          "exported": true,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "inArray"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "Role"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "./ops-expenses.service",
+          "specifiers": [
+            "OpsExpenseListRow"
+          ]
+        },
+        {
+          "source": "./expense-accounting-reads.service",
+          "specifiers": [
+            "loadExpenseAccountingEntries"
+          ]
+        }
+      ],
+      "exports": [
+        "listLegacyOpsExpenseHistory"
+      ],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
     "backend/src/services/ops-orders.service.ts": {
       "filePath": "backend/src/services/ops-orders.service.ts",
       "contentHash": "6eea65d2f57bb0dd5054944601dd233dd0a13599df8ac7296febd76a4e789f6e",
@@ -35532,7 +35671,7 @@
     },
     "backend/src/services/ops-settlement-export.service.ts": {
       "filePath": "backend/src/services/ops-settlement-export.service.ts",
-      "contentHash": "3f294dcfbd19656738efe612c893d11acb6569ddf25c1c2dcff814f3d527af66",
+      "contentHash": "0d96dd2f85abf4349eac6f03dc3d9f8cb7b77966a35ebe3e43ffe523c1c2630e",
       "functions": [
         {
           "name": "exportOpsSettlementXlsx",
@@ -35569,7 +35708,7 @@
       "exports": [
         "exportOpsSettlementXlsx"
       ],
-      "totalLines": 89,
+      "totalLines": 97,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/ops-settlements.service.ts": {
@@ -35693,7 +35832,7 @@
     },
     "backend/src/services/ops-wallet.service.ts": {
       "filePath": "backend/src/services/ops-wallet.service.ts",
-      "contentHash": "5cb7fa2b1474f8a7860557f557971db55ca8e80cefe0fbf1fc9395c246dd3af4",
+      "contentHash": "8f0ffd31148bfcb71bf382f5818e0cce7ba335b05d34f3a990a74106628b84a6",
       "functions": [
         {
           "name": "sumAmounts",
@@ -35716,15 +35855,22 @@
         {
           "name": "getOpsWalletSummary",
           "params": [
-            "userId"
+            "userId",
+            "executor"
           ],
           "returnType": "Promise<OpsWalletSummary>",
           "exported": true,
-          "lineCount": 38
+          "lineCount": 47
         }
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "TxnType"
+          ]
+        },
         {
           "source": "../db",
           "specifiers": [
@@ -35738,13 +35884,27 @@
           ]
         },
         {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
           "source": "drizzle-orm",
           "specifiers": [
             "and",
             "eq",
             "isNull",
             "ne",
-            "or"
+            "notExists",
+            "or",
+            "inArray"
           ]
         }
       ],
@@ -35752,7 +35912,7 @@
         "computeOpsWalletSummary",
         "getOpsWalletSummary"
       ],
-      "totalLines": 109,
+      "totalLines": 121,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/pair-salary-settings.service.ts": {
@@ -35844,7 +36004,7 @@
     },
     "backend/src/services/payment-allocation.service.ts": {
       "filePath": "backend/src/services/payment-allocation.service.ts",
-      "contentHash": "b479b515451695782ed9b6329344b956a17cd168c5eaeec9976a47ede5e954cd",
+      "contentHash": "1a368e7b2499891f33ce518d46670ac4e8e1a96e234cdc7225e89c4fab53186a",
       "functions": [
         {
           "name": "toPublicPaymentReceiptResult",
@@ -40438,7 +40598,7 @@
     },
     "backend/src/services/salary-period-close-shared.service.ts": {
       "filePath": "backend/src/services/salary-period-close-shared.service.ts",
-      "contentHash": "2376f7f6d5f0ccc8655400b9eb1d50ba862bc36b28e062195a8cf52697caf541",
+      "contentHash": "249b9f6b38795515f2c3c9df088ffcec80c6a0c6db595d6a986193503b6bf825",
       "functions": [
         {
           "name": "toBusinessDateString",
@@ -41092,7 +41252,7 @@
     },
     "backend/src/services/settlement-export.service.ts": {
       "filePath": "backend/src/services/settlement-export.service.ts",
-      "contentHash": "35b30bb250e5107cc3afdf049031ad4cd99a3ea7db0eb7c7ad74b79169a86638",
+      "contentHash": "e7a4eb1f817d3ca0aceaa6e862b083820ade945f243083b0bd424764b7a87b10",
       "functions": [
         {
           "name": "buildPrintRows",
@@ -41106,11 +41266,12 @@
         {
           "name": "buildSettlementExportData",
           "params": [
-            "id"
+            "id",
+            "executor"
           ],
           "returnType": "Promise<SettlementExportData | null>",
           "exported": true,
-          "lineCount": 5
+          "lineCount": 29
         },
         {
           "name": "renderSettlementHtml",
@@ -41228,6 +41389,12 @@
           ]
         },
         {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        },
+        {
           "source": "../lib/format",
           "specifiers": [
             "escapeHtml",
@@ -41245,12 +41412,12 @@
         "previewSettlementHtml",
         "previewSettlementXlsx"
       ],
-      "totalLines": 674,
+      "totalLines": 699,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/settlement-validation.ts": {
       "filePath": "backend/src/services/settlement-validation.ts",
-      "contentHash": "e7a7f62f4f871cafef10b8983d978e258ff3248efc170fd1d4e820c358dca3b6",
+      "contentHash": "65e24023930e4efe07b4070bcfed3c4aba203cd706ecedc676c0cb00a6b97934",
       "functions": [
         {
           "name": "assertCurrentForwarderExpenseAssignments",
@@ -41268,7 +41435,7 @@
           ],
           "returnType": "Promise<{ advanceRequests: typeof s.advanceRequests.$inferSelect[]; tripExpenses: typeof s.tripExpenses.$inferSelect[] }>",
           "exported": true,
-          "lineCount": 117
+          "lineCount": 122
         }
       ],
       "classes": [
@@ -41287,6 +41454,12 @@
           "source": "../db",
           "specifiers": [
             "db"
+          ]
+        },
+        {
+          "source": "./advance-funding.service",
+          "specifiers": [
+            "getAdvanceFundedAmounts"
           ]
         },
         {
@@ -41319,7 +41492,7 @@
         "assertCurrentForwarderExpenseAssignments",
         "validateSettlementInputs"
       ],
-      "totalLines": 181,
+      "totalLines": 187,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-accounting-confirm.service.ts": {
@@ -41702,7 +41875,7 @@
     },
     "backend/src/services/shipment-accounting-lock-shared.service.ts": {
       "filePath": "backend/src/services/shipment-accounting-lock-shared.service.ts",
-      "contentHash": "2339a73849c2b6df80771822a3c0b6568c9730907cbce4e4bb54cfa88921ee9f",
+      "contentHash": "98f6b91b4752ea645ae1b4a3ed0576b8f3ffd550314796bb0fb3f8937ef9bb8d",
       "functions": [
         {
           "name": "financialPostingChecksum",
@@ -43021,7 +43194,7 @@
     },
     "backend/src/services/shipment-finance-records.service.ts": {
       "filePath": "backend/src/services/shipment-finance-records.service.ts",
-      "contentHash": "84d033c2b44627c229655c70e9ff0d4f29c9f4d077fc9775b967df7d4cc5fe9d",
+      "contentHash": "7a1edd560f6421dc1fdae9edc31e6416e68ffd3529f354816ea6fe68229f0346",
       "functions": [
         {
           "name": "canWriteShipmentFinance",
@@ -43050,7 +43223,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 54
+          "lineCount": 63
         },
         {
           "name": "writableShipment",
@@ -43084,7 +43257,7 @@
             "actor"
           ],
           "exported": true,
-          "lineCount": 61
+          "lineCount": 69
         },
         {
           "name": "saveContainerDepositRecord",
@@ -43104,7 +43277,7 @@
             "shipmentId"
           ],
           "exported": true,
-          "lineCount": 12
+          "lineCount": 14
         }
       ],
       "classes": [],
@@ -43118,6 +43291,7 @@
             "desc",
             "eq",
             "gte",
+            "inArray",
             "ilike",
             "isNull",
             "lt",
@@ -43194,6 +43368,19 @@
           ]
         },
         {
+          "source": "./expense-source-trip-link.service",
+          "specifiers": [
+            "linkExpenseToRealTrip",
+            "expenseTripCandidates"
+          ]
+        },
+        {
+          "source": "./expense-accounting-write.service",
+          "specifiers": [
+            "syncExpenseBillingSource"
+          ]
+        },
+        {
           "source": "./shipment-accounting-lock-shared.service",
           "specifiers": [
             "lockShipment"
@@ -43208,7 +43395,7 @@
         "saveContainerDepositRecord",
         "shipmentFinanceOptions"
       ],
-      "totalLines": 203,
+      "totalLines": 224,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-finance-snapshot.service.ts": {
@@ -43358,7 +43545,7 @@
     },
     "backend/src/services/shipment-fulfillment.service.ts": {
       "filePath": "backend/src/services/shipment-fulfillment.service.ts",
-      "contentHash": "5aaadd40c16b8ca3ca80189bddba5775451730e6fe7f0af9daa9725c03746edb",
+      "contentHash": "177058b126f2abc8e96b670f9011030c255b362f4f61bad2df6ee0cc6bfe9133",
       "functions": [
         {
           "name": "publicSiteSnapshot",
@@ -43398,6 +43585,14 @@
           "lineCount": 13
         },
         {
+          "name": "operationalSiteSnapshot",
+          "params": [
+            "site"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
           "name": "loadSiteSnapshot",
           "params": [
             "tx",
@@ -43405,7 +43600,7 @@
           ],
           "returnType": "Promise<Record<string, unknown>>",
           "exported": false,
-          "lineCount": 43
+          "lineCount": 27
         },
         {
           "name": "listActiveRows",
@@ -43447,7 +43642,7 @@
           ],
           "returnType": "Promise<Map<number, Record<string, unknown>>>",
           "exported": false,
-          "lineCount": 47
+          "lineCount": 32
         },
         {
           "name": "createShipmentFulfillments",
@@ -43564,6 +43759,7 @@
         }
       ],
       "exports": [
+        "operationalSiteSnapshot",
         "ensureShipmentFulfillmentsInTx",
         "createShipmentFulfillments",
         "assertFulfillmentBelongsToShipment",
@@ -43571,7 +43767,7 @@
         "assertFulfillmentReadyForDispatch",
         "isFulfillmentRequired"
       ],
-      "totalLines": 432,
+      "totalLines": 418,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-governance.service.ts": {
@@ -44099,7 +44295,7 @@
     },
     "backend/src/services/shipment-lifecycle.service.ts": {
       "filePath": "backend/src/services/shipment-lifecycle.service.ts",
-      "contentHash": "608ab4b5b58c10d521aea5e38b459426489a652e7803a9a69bca813ae0c452ac",
+      "contentHash": "84579a9f4ff94671daa49f444bcbbfe6e962e551d8be609ecd23733d88cc223c",
       "functions": [
         {
           "name": "isRoutineShipmentCloseWriter",
@@ -44304,7 +44500,7 @@
     },
     "backend/src/services/shipment-queries.service.ts": {
       "filePath": "backend/src/services/shipment-queries.service.ts",
-      "contentHash": "44a433ad534bee2b8b574a58b6416779ce6456ec63aa764572238f3f22d810ff",
+      "contentHash": "780c16e905720f4470e5dc6683223e3bd654c1f289394d59e148fd3cef75e39b",
       "functions": [
         {
           "name": "inferContainerBucket",
@@ -44523,7 +44719,7 @@
             "options"
           ],
           "exported": true,
-          "lineCount": 259
+          "lineCount": 262
         },
         {
           "name": "normalizeShipmentStatusValue",
@@ -44568,7 +44764,14 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
-            "canonicalShipmentStatus"
+            "canonicalShipmentStatus",
+            "Role"
+          ]
+        },
+        {
+          "source": "./dispatch-expense-notes.service",
+          "specifiers": [
+            "loadDispatchExpenseNotes"
           ]
         },
         {
@@ -44671,7 +44874,7 @@
         "normalizeShipmentStatusValue",
         "normalizeShipmentRow"
       ],
-      "totalLines": 1331,
+      "totalLines": 1335,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-recovery.service.ts": {
@@ -45404,7 +45607,7 @@
     },
     "backend/src/services/snapshot-services.ts": {
       "filePath": "backend/src/services/snapshot-services.ts",
-      "contentHash": "408f85666c33cdaa4f2b1a1cadd9ba0788f424cad0ad980bfcab66d5150f1127",
+      "contentHash": "303703dad66df255e01bcfe39e273d11fd9bed774ab58603daa0499626f300a1",
       "functions": [],
       "classes": [
         {
@@ -45493,7 +45696,7 @@
     },
     "backend/src/services/source-change.service.ts": {
       "filePath": "backend/src/services/source-change.service.ts",
-      "contentHash": "bc05d77a87ed009b9d36ac1bb5d25c674dd763f95834edd677d066f3b98fe816",
+      "contentHash": "01dfaa574ad8fdf6fbfc054795c4ed0f033f5bb8438fa7a5fa4ec90ea743f020",
       "functions": [
         {
           "name": "isBillableTripStatus",
@@ -45637,17 +45840,17 @@
           "lineCount": 16
         },
         {
-          "name": "appendLateApprovedServiceFeeTx",
+          "name": "appendRecordedServiceFeeTx",
           "params": [
             "tx",
             "expenseId"
           ],
           "returnType": "Promise<void>",
           "exported": false,
-          "lineCount": 73
+          "lineCount": 75
         },
         {
-          "name": "appendLateApprovedVendorExpenseTx",
+          "name": "appendRecordedVendorExpenseTx",
           "params": [
             "tx",
             "expenseId"
@@ -45667,7 +45870,7 @@
           "lineCount": 14
         },
         {
-          "name": "propagateExpenseApproval",
+          "name": "propagateRecordedExpense",
           "params": [
             "tx",
             "input"
@@ -45677,7 +45880,7 @@
           "lineCount": 35
         },
         {
-          "name": "propagateExpenseApprovals",
+          "name": "propagateRecordedExpenses",
           "params": [
             "tx",
             "expenseIds"
@@ -45792,10 +45995,10 @@
       ],
       "exports": [
         "propagateTripFinancialSourceChange",
-        "propagateExpenseApproval",
-        "propagateExpenseApprovals"
+        "propagateRecordedExpense",
+        "propagateRecordedExpenses"
       ],
-      "totalLines": 755,
+      "totalLines": 757,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/statement-customer.service.ts": {
@@ -47823,7 +48026,7 @@
     },
     "backend/src/services/trip-figure-updates.service.ts": {
       "filePath": "backend/src/services/trip-figure-updates.service.ts",
-      "contentHash": "a3077aa579a2bde81c87d00cfd432a1cf097c2b9fdeab349bec8e5f5080d592e",
+      "contentHash": "fac758be752ed11d34615e2679f365cb88f63fa4dea3aa0556243e061017bee3",
       "functions": [
         {
           "name": "getTripStatusOr404",
@@ -47978,7 +48181,7 @@
         {
           "source": "./governance-action-core.service",
           "specifiers": [
-            "assertActiveApprovalApplication"
+            "assertActiveDirectApplication"
           ]
         },
         {
@@ -48873,7 +49076,7 @@
     },
     "backend/src/services/trip-pod.service.ts": {
       "filePath": "backend/src/services/trip-pod.service.ts",
-      "contentHash": "ea4e71112e39f43961168dd3bfe12aba63d0bb93d4f4580e624c03bbf6121b8a",
+      "contentHash": "0f3205fde0863a38134aec779a9443f4dde5fe2f47e834825615b734b8050c1f",
       "functions": [
         {
           "name": "hashBuffer",
@@ -49702,7 +49905,7 @@
     },
     "backend/src/services/trip-status-machine.service.ts": {
       "filePath": "backend/src/services/trip-status-machine.service.ts",
-      "contentHash": "fb69b211f8d0d7e55a1b25f87ec916068d1dc7f1793dddf2265d2e759e1f8d61",
+      "contentHash": "8abeeb906cfed77e14b1d19e412cd9fc764bdea70d432efdafbee902cfa00b1f",
       "functions": [
         {
           "name": "transitionTripStatus",
@@ -49787,7 +49990,7 @@
         {
           "source": "./governance-action-core.service",
           "specifiers": [
-            "assertActiveApprovalApplication"
+            "assertActiveDirectApplication"
           ]
         },
         {
@@ -50929,7 +51132,7 @@
     },
     "docker-compose.dev.yml": {
       "filePath": "docker-compose.dev.yml",
-      "contentHash": "bd39beb53292fef9fa3154f6205102fdf5428ffadea28910c5cdb1149d4ac811",
+      "contentHash": "6b2b7ebec68d29ff9e42373147138c3a82b20bf15c3469d65067ba19f537065e",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -50956,7 +51159,7 @@
     },
     "Makefile": {
       "filePath": "Makefile",
-      "contentHash": "d2bf68c27a5ef45fb261118e7368f7345d488dd283bfd6e696a5bd0f14ea2762",
+      "contentHash": "d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -51366,7 +51569,7 @@
     },
     "shared/src/constants/api-paths.ts": {
       "filePath": "shared/src/constants/api-paths.ts",
-      "contentHash": "3dd09f68c544b579fa0299f83314c20cbc6e590082850e2865f058ef018a4f6d",
+      "contentHash": "9116cd8d5b196ea0a42aad9ae30d1667fa3763a45ed9f1d97a19198657573b6c",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -51388,12 +51591,12 @@
         "SYSTEM",
         "SALARY"
       ],
-      "totalLines": 264,
+      "totalLines": 258,
       "hasStructuralAnalysis": true
     },
     "shared/src/constants/index.ts": {
       "filePath": "shared/src/constants/index.ts",
-      "contentHash": "9984e4d57049e048b0db363cb72b4282a18dfbee10650f80d227169aa8cfe727",
+      "contentHash": "efaa186769ec66af11a0ed54af35415c712b657bd2304249dd99e8fedb61a3ad",
       "functions": [
         {
           "name": "canonicalShipmentStatus",
@@ -51448,7 +51651,6 @@
         "NO_INVOICE_POLICY_DEFAULTS",
         "CARRIER_TYPE_LABELS",
         "SETTLEMENT_METHOD_LABELS",
-        "APPROVAL_STATUS_LABELS",
         "TRUCK_CAP_ROLE_LABELS",
         "ADVANCE_REQUEST_STATUS_LABELS",
         "ADVANCE_SETTLEMENT_STATUS_LABELS",
@@ -51465,7 +51667,7 @@
         "DISPATCH_CLASSIFICATIONS",
         "DISPATCH_CLASSIFICATION_LABELS"
       ],
-      "totalLines": 760,
+      "totalLines": 746,
       "hasStructuralAnalysis": true
     },
     "shared/src/driverTaskNote.ts": {
@@ -51514,7 +51716,7 @@
     },
     "shared/src/expense-accounting.ts": {
       "filePath": "shared/src/expense-accounting.ts",
-      "contentHash": "c4466170afafa68f4212831d8cb62af7b6b410128a103d11c03fd9070336277a",
+      "contentHash": "2067f0ed84467c59bbe40209eda1680b433c6485b92e8ec83474f9b94d29062b",
       "functions": [],
       "classes": [],
       "imports": [
@@ -51548,7 +51750,7 @@
         "expenseListQuerySchema",
         "expenseAccountingCreateSchema"
       ],
-      "totalLines": 138,
+      "totalLines": 143,
       "hasStructuralAnalysis": true
     },
     "shared/src/governance/source-authority.ts": {
@@ -51608,7 +51810,7 @@
     },
     "shared/src/index.ts": {
       "filePath": "shared/src/index.ts",
-      "contentHash": "011ba1dd391622310602fc17b08753a30f668e41e2b7c8a810606057e9504c1f",
+      "contentHash": "d23bddb8044c75965f11e8bf8ab53137ad49d317edc01c8d71764b8d41bf7be4",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -51694,12 +51896,10 @@
         "PRICING_ENGINE",
         "CarrierType",
         "SettlementMethod",
-        "ApprovalStatus",
         "DebitNoteMode",
         "TruckCapRole",
         "CARRIER_TYPE_LABELS",
         "SETTLEMENT_METHOD_LABELS",
-        "APPROVAL_STATUS_LABELS",
         "TRUCK_CAP_ROLE_LABELS",
         "FINANCIAL_ROLES",
         "isFinancialRole",
@@ -51838,7 +52038,6 @@
         "Port",
         "SealType",
         "DebtOffset",
-        "ApprovalItemType",
         "VehicleAlertField",
         "VehicleAlertStatus",
         "VehicleAlert",
@@ -52015,7 +52214,6 @@
         "createCustomerVisibleEventSchema",
         "acknowledgeCustomerEventSchema",
         "recoverableCostListQuerySchema",
-        "recoverableCostRequestSchema",
         "sendDebitNoteForConfirmationSchema",
         "portalDebitNoteDecisionSchema",
         "directMoneyTreasurySchema",
@@ -52056,7 +52254,6 @@
         "CUS_SEARCH_PATTERN",
         "shipmentCusLockSchema",
         "shipmentCusReopenRequestSchema",
-        "shipmentCusReopenDecisionSchema",
         "shipmentCusContainerLineUpdateSchema",
         "shipmentCusContainerLineUpdateResultSchema",
         "shipmentRecoveryRecordSchema",
@@ -52087,7 +52284,6 @@
         "ShipmentCusDocumentCustodyUpdateInput",
         "ShipmentCusLockInput",
         "ShipmentCusReopenRequestInput",
-        "ShipmentCusReopenDecisionInput",
         "ShipmentCusContainerLineUpdateInput",
         "ShipmentCusContainerLineUpdateResult",
         "ShipmentRecoveryRecordInput",
@@ -52179,7 +52375,6 @@
         "CreateCustomerVisibleEventInput",
         "AcknowledgeCustomerEventInput",
         "RecoverableCostListQuery",
-        "RecoverableCostRequestInput",
         "SendDebitNoteForConfirmationInput",
         "PortalDebitNoteDecisionInput",
         "DirectMoneyTreasuryInput",
@@ -52238,16 +52433,9 @@
         "isSourceAuthorityActionAllowed",
         "GOVERNANCE_SUBJECT_TYPES",
         "GOVERNANCE_ACTION_KINDS",
-        "GOVERNANCE_ACTION_STATUSES",
-        "GOVERNANCE_CAPABILITIES",
-        "GOVERNANCE_ALLOWED_ACTIONS",
-        "governanceActionDecisionSchema",
+        "directFinancialActionSchema",
         "GovernanceSubjectType",
         "GovernanceActionKind",
-        "GovernanceActionStatus",
-        "GovernanceCapability",
-        "GovernanceAllowedAction",
-        "GovernanceActionDecisionInput",
         "SourceAuthorityKind",
         "DependentAuthorityKind",
         "AuthorityFieldFamily",
@@ -52274,7 +52462,7 @@
         "PenaltyListSortKey",
         "DriverIncidentalCostInput"
       ],
-      "totalLines": 396,
+      "totalLines": 386,
       "hasStructuralAnalysis": true
     },
     "shared/src/navigation/pageCatalog.ts": {
@@ -52310,7 +52498,7 @@
     },
     "shared/src/schemas/cus-shipment-workspace.ts": {
       "filePath": "shared/src/schemas/cus-shipment-workspace.ts",
-      "contentHash": "0feb6f6ccb55572301f2a03f4a255709bd66fa2a129a41daae7f0f66f370e6e4",
+      "contentHash": "83dba6cabe7cd961d26cc8f2838b82f76a034c11eab27c8f433756b3581f27da",
       "functions": [
         {
           "name": "refineTransportDateOrder",
@@ -52366,7 +52554,6 @@
         "shipmentCusDocumentCustodyUpdateSchema",
         "shipmentCusLockSchema",
         "shipmentCusReopenRequestSchema",
-        "shipmentCusReopenDecisionSchema",
         "shipmentCusContainerLineUpdateSchema",
         "shipmentCusContainerLineUpdateResultSchema",
         "shipmentRecoveryRecordSchema",
@@ -52375,12 +52562,12 @@
         "shipmentCusContainerFlatResponseSchema",
         "shipmentCusWorkspaceListResponseSchema"
       ],
-      "totalLines": 754,
+      "totalLines": 751,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/customer-service-finance.ts": {
       "filePath": "shared/src/schemas/customer-service-finance.ts",
-      "contentHash": "9d74bae0dde8780b15c6e79c648569f1325351cac83bfd43df0519f42de195df",
+      "contentHash": "5b167d6682a9b970e68b62384de600f9cab2e8fc0d0b722402baf5d5e5cdfe40",
       "functions": [],
       "classes": [],
       "imports": [
@@ -52398,7 +52585,6 @@
         "acknowledgeCustomerEventSchema",
         "RECOVERABLE_COST_SORT_KEYS",
         "recoverableCostListQuerySchema",
-        "recoverableCostRequestSchema",
         "sendDebitNoteForConfirmationSchema",
         "portalDebitNoteDecisionSchema",
         "directMoneyTreasurySchema",
@@ -52411,7 +52597,7 @@
         "accountingTransportRegisterRowSchema",
         "accountingTransportRegisterResponseSchema"
       ],
-      "totalLines": 216,
+      "totalLines": 205,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/email-settings.ts": {
@@ -52498,7 +52684,7 @@
     },
     "shared/src/schemas/governance-action.ts": {
       "filePath": "shared/src/schemas/governance-action.ts",
-      "contentHash": "081cc101b7bbb8fc3353bd536a3064e87a4cd0c56c94f4dd78de9f29e31f9295",
+      "contentHash": "37a150898311bee1054fff16fa157e02c7aa27644ea51b1244e7d94cfa111dab",
       "functions": [],
       "classes": [],
       "imports": [
@@ -52512,17 +52698,14 @@
       "exports": [
         "GOVERNANCE_SUBJECT_TYPES",
         "GOVERNANCE_ACTION_KINDS",
-        "GOVERNANCE_ACTION_STATUSES",
-        "GOVERNANCE_CAPABILITIES",
-        "GOVERNANCE_ALLOWED_ACTIONS",
-        "governanceActionDecisionSchema"
+        "directFinancialActionSchema"
       ],
-      "totalLines": 121,
+      "totalLines": 83,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/index.ts": {
       "filePath": "shared/src/schemas/index.ts",
-      "contentHash": "bebb7235ccace99a9c37a923965d7b59d4e36160dec871caa1b48efe0911834a",
+      "contentHash": "19e76b03c42323ebfc11515fe1f659dcf5521173d9a78b9aa3c70b122191508b",
       "functions": [
         {
           "name": "fixedScaleDecimal",
@@ -52740,7 +52923,7 @@
         "tripExpenseCompletionSchema",
         "accountantSettlementExpensePatchSchema"
       ],
-      "totalLines": 2101,
+      "totalLines": 2104,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/ocr-settings.ts": {
@@ -52812,7 +52995,7 @@
     },
     "shared/src/schemas/shipment-finance.ts": {
       "filePath": "shared/src/schemas/shipment-finance.ts",
-      "contentHash": "2eeb690945be52624fac3c14c4a2c22685874a6fd1254377af12ebf76a4d5aaf",
+      "contentHash": "f0ae665640d93558f9330d4924ddc942d778ce7f0aa5507309cac976a6e2df30",
       "functions": [],
       "classes": [],
       "imports": [
@@ -52827,7 +53010,7 @@
         "shipmentInvoiceRecordSchema",
         "containerDepositSchema"
       ],
-      "totalLines": 55,
+      "totalLines": 56,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/treasury.ts": {
@@ -52926,7 +53109,7 @@
     },
     "shared/src/types/index.ts": {
       "filePath": "shared/src/types/index.ts",
-      "contentHash": "a28be1dd6784ed9553b239dc2b45034b336746ef081574ee3de63617fea53699",
+      "contentHash": "c69c236aa63c14f96676678915e87b86ad183efc5a778dbdd0be6f4e614ea3ab",
       "functions": [
         {
           "name": "parseThreshold",
@@ -52974,17 +53157,17 @@
         "DispatchClassification",
         "parseThreshold"
       ],
-      "totalLines": 2254,
+      "totalLines": 2247,
       "hasStructuralAnalysis": true
     },
     "shared/src/types/shipment-finance.ts": {
       "filePath": "shared/src/types/shipment-finance.ts",
-      "contentHash": "a837b892c9df9288170db7477cfb9df2b6071164bc9b3dd2a5ca35033ae8ab74",
+      "contentHash": "1dd4313a63f7ded24e24857ad3e3419497e11a73ac7586715e445ab508b7a1d8",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 44,
+      "totalLines": 45,
       "hasStructuralAnalysis": true
     },
     "tsconfig.base.json": {

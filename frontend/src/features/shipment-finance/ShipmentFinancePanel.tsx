@@ -17,7 +17,7 @@ const statusLabels: Record<ContainerDepositRecord['status'], string> = {
   WAITING_DOCUMENTS: 'Chưa nộp chứng từ', WAITING_REFUND: 'Chờ hoàn cược', PARTIAL: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn đủ',
 };
 
-export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmentId?: number; readOnly?: boolean }) {
+export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingLocked = false }: { shipmentId?: number; readOnly?: boolean; accountingLocked?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const cache = useQueryClient();
@@ -35,8 +35,9 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
   const activeView = financial ? view : 'invoice';
   const count = activeView === 'invoice' ? query.data?.invoiceTotal ?? 0 : query.data?.depositTotal ?? 0;
   const pageSize = query.data?.pageSize ?? 25;
-  const editable = financial && query.data?.canWrite && !readOnly;
-  const openEditor = (next: FinanceEditor) => { if (editable) setEditor(next); };
+  const canFollowUp = financial && query.data?.canWrite && !readOnly;
+  const editable = canFollowUp && !accountingLocked;
+  const openEditor = (next: FinanceEditor) => { if (editable || (canFollowUp && next.kind === 'deposit' && next.record)) setEditor(next); };
 
   return <section className="shipment-finance" aria-label="Hóa đơn và cược container">
     <header className="shipment-finance__header">
@@ -79,7 +80,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
                 <dl><div><dt>Tiền cược</dt><dd>{money(record.amount)}</dd></div><div><dt>Đã hoàn</dt><dd>{money(record.recoveredAmount)}</dd></div><div><dt>Còn lại</dt><dd>{money(record.outstandingAmount)}</dd></div></dl>
                 <dl><div><dt>Ngày cược</dt><dd>{formatDate(record.depositDate)}</dd></div><div><dt>Nộp chứng từ</dt><dd>{formatDate(record.documentsSubmittedDate)}</dd></div><div><dt>Tiền về</dt><dd>{formatDate(record.refundReceivedDate)}</dd></div></dl>
                 {record.note && <p>{record.note}</p>}
-                {editable && <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEditor({ kind: 'deposit', record })}>Cập nhật cược {record.billNumber}</button>}
+                {canFollowUp && <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEditor({ kind: 'deposit', record })}>Cập nhật cược {record.billNumber}</button>}
               </article>)}
             </div>}
           {count > pageSize && <nav className="shipment-finance__pagination" aria-label="Trang hồ sơ">
@@ -88,7 +89,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
             <button type="button" className="btn btn--ghost btn--sm" disabled={page * pageSize >= count || query.isFetching} onClick={() => setPage(page + 1)}>Sau</button>
           </nav>}
         </div>}
-    {editor && <ShipmentFinanceForm editor={editor} shipmentId={shipmentId} onClose={() => setEditor(null)} onSaved={() => {
+    {editor && <ShipmentFinanceForm principalLocked={accountingLocked} editor={editor} shipmentId={shipmentId} onClose={() => setEditor(null)} onSaved={() => {
       setEditor(null); toast({ message: 'Đã lưu hồ sơ', kind: 'success' });
       void cache.invalidateQueries({ queryKey: qk.shipmentFinance.all });
       void cache.invalidateQueries({ queryKey: qk.expenseAccounting.all });

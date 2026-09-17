@@ -215,6 +215,6 @@ router.post(
   }),
 );
 
-// KP-152: approve endpoint removed — fuel invoices are APPROVED at creation.
+// KP-152: approve endpoint removed — fuel invoices are recorded directly at creation.
 
 export default router;

@@ -564,7 +564,7 @@ export async function createPodSubmission(args: {
         throw new ApiError(409, 'Đã có một e-POD đang mở cho tác vụ này.');
       }
       if (latest?.status === TripPodStatus.ACCEPTED) {
-        throw new ApiError(409, 'e-POD đã được duyệt và không thể tạo phiên bản mới.');
+        throw new ApiError(409, 'e-POD đã được xác nhận và không thể tạo phiên bản mới.');
       }
       if (latest && latest.status !== TripPodStatus.REJECTED) {
         throw new ApiError(409, 'Không thể tạo phiên bản e-POD mới cho tác vụ này.');

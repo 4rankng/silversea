@@ -4,8 +4,7 @@
  * Phần 4 ticket 2026-08-28 customer feedback: the e-POD section used to live
  * inline in the trip detail page alongside the cost form. The customer asked
  * for e-POD to move to its OWN screen that the driver sees AFTER the trip is
- * ended, and for the cost form to be hidden (kế toán tài chính is the post-trial
- * phase per the trial-readiness plan, "từ từ"). This page owns the e-POD
+ * accepted. Driver expenses remain on trip detail. This page owns the e-POD
  * lifecycle: ensure-draft, upload files, submit, and complete the trip.
  *
  * The trip detail page (`DriverTripDetailPage`) keeps the task info, the
@@ -24,12 +23,12 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripStatus } from '@tingting/shared';
-import { StatusPill } from '../components/UI';
+import { StatusPill, useConfirm } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
-import { useBackShortcut } from '../hooks/useBackShortcut';
+import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
@@ -52,6 +51,8 @@ export function DriverTripPodPage() {
   useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  const [pendingFiles, setPendingFiles] = useState(false);
 
   const fulfillmentId = Number(fulfillmentIdParam);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -196,6 +197,7 @@ export function DriverTripPodPage() {
     }
     setCompleting(true);
     try {
+      if (pendingFiles && !await confirm('Còn tệp bổ sung chưa gửi. Bỏ tệp này và hoàn thành với chứng từ đã lưu?', { variant: 'warning', confirmLabel: 'Bỏ tệp và hoàn thành' })) return;
       if (currentSubmission?.status === 'DRAFT') {
         const podSubmitted = await handleSubmitPod(currentSubmission);
         if (!podSubmitted) return;
@@ -221,14 +223,19 @@ export function DriverTripPodPage() {
     return TRIP_STATUS_LABELS[trip.status] ?? trip.status;
   }, [trip]);
 
-  const handleBack = useCallback(
+  const navigateBack = useCallback(
     // The POD route is fulfillment-scoped; the detail route is trip-scoped.
     () => navigate(trip?.id ? `/my-trips/${trip.id}` : '/my-trips', { replace: true }),
     [navigate, trip?.id],
   );
   // ESC/hardware back mirrors the header back button: both return to the trip
   // detail the driver came from, not straight to the journey board.
-  useBackShortcut(handleBack);
+  const handleBack = usePageLeaveGuard({
+    dirty: pendingFiles, saving: documentBusy || submitting || completing,
+    message: 'Còn tệp chưa gửi. Bỏ tệp và rời trang?',
+    confirm: (message) => confirm(message, { variant: 'warning', confirmLabel: 'Bỏ tệp và rời trang' }),
+    onBack: navigateBack,
+  });
 
   if (!validFulfillmentId) {
     return (
@@ -281,6 +288,7 @@ export function DriverTripPodPage() {
 
   return (
     <div ref={rootRef} className="driver-task-screen driver-trip-pod-screen">
+      {confirmDialog}
       <header className="driver-task-header">
         <button
           type="button"
@@ -340,6 +348,7 @@ export function DriverTripPodPage() {
             disabled={submitting || completing}
             readOnlyReason={documentReadOnlyReason}
             onBusyChange={setPreparingPod}
+            onPendingChange={setPendingFiles}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
           />

@@ -318,10 +318,10 @@ export enum Role {
   DISPATCHER = 'DISPATCHER',
 }
 
-/** Roles that can approve expense approvals and access financial reports. */
+/** Roles that can record financial operations and access financial reports. */
 export const FINANCIAL_ROLES: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
-/** Check whether a role belongs to the financial/approval group. */
+/** Check whether a role belongs to the financial operations group. */
 export function isFinancialRole(role: Role | string | undefined): boolean {
   return !!role && (FINANCIAL_ROLES as readonly string[]).includes(role);
 }
@@ -353,13 +353,6 @@ export enum CarrierType {
 export enum SettlementMethod {
   COMPANY_DIRECT = 'COMPANY_DIRECT',
   OPS_ADVANCE = 'OPS_ADVANCE',
-}
-
-export enum ApprovalStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  RETURN_FOR_EVIDENCE = 'RETURN_FOR_EVIDENCE',
 }
 
 export enum DebitNoteMode {
@@ -540,13 +533,6 @@ export const CARRIER_TYPE_LABELS: Record<CarrierType, string> = {
 export const SETTLEMENT_METHOD_LABELS: Record<SettlementMethod, string> = {
   [SettlementMethod.COMPANY_DIRECT]: 'Công ty trả trực tiếp',
   [SettlementMethod.OPS_ADVANCE]: 'Chi hộ tạm ứng',
-};
-
-export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
-  [ApprovalStatus.PENDING]: 'Chờ duyệt',
-  [ApprovalStatus.APPROVED]: 'Đã duyệt',
-  [ApprovalStatus.REJECTED]: 'Từ chối',
-  [ApprovalStatus.RETURN_FOR_EVIDENCE]: 'Bổ sung chứng từ',
 };
 
 /** B2 — Vietnamese labels for `truck_cap_table.role`. */

@@ -21,9 +21,9 @@ export {
   NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, PORTAL, WORKSPACES, NOTIFICATIONS, SALARY, PRICING_ENGINE,
-  CarrierType, SettlementMethod, ApprovalStatus, DebitNoteMode,
+  CarrierType, SettlementMethod, DebitNoteMode,
   TruckCapRole,
-  CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS, APPROVAL_STATUS_LABELS,
+  CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
@@ -67,7 +67,6 @@ export type {
   AdvanceRequest, AdvanceRequestWithRefs, AdvanceSettlement, AdvanceSettlementWithRefs,
   ContainerType, Port, SealType,
   DebtOffset,
-  ApprovalItemType,
   VehicleAlertField, VehicleAlertStatus, VehicleAlert,
   Tire, TirePosition,
   BillingDocument, BillingDocumentOfficialIdentitySnapshot, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
@@ -147,7 +146,7 @@ export {
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
   customerVisibleEventContentSchema, createCustomerVisibleEventSchema,
   acknowledgeCustomerEventSchema, recoverableCostListQuerySchema,
-  recoverableCostRequestSchema, sendDebitNoteForConfirmationSchema,
+  sendDebitNoteForConfirmationSchema,
   portalDebitNoteDecisionSchema, directMoneyTreasurySchema,
   profitabilityReportQuerySchema, CUSTOMER_VISIBLE_EVENT_TYPES,
   PROFITABILITY_DIMENSIONS, accountingTransportRegisterQuerySchema,
@@ -184,7 +183,6 @@ export {
   CUS_SEARCH_PATTERN,
   shipmentCusLockSchema,
   shipmentCusReopenRequestSchema,
-  shipmentCusReopenDecisionSchema,
   shipmentCusContainerLineUpdateSchema,
   shipmentCusContainerLineUpdateResultSchema,
   shipmentRecoveryRecordSchema,
@@ -217,7 +215,6 @@ export type {
   ShipmentCusDocumentCustodyUpdateInput,
   ShipmentCusLockInput,
   ShipmentCusReopenRequestInput,
-  ShipmentCusReopenDecisionInput,
   ShipmentCusContainerLineUpdateInput,
   ShipmentCusContainerLineUpdateResult,
   ShipmentRecoveryRecordInput,
@@ -274,7 +271,7 @@ export type {
   CancelShipmentFulfillmentInput, TripPodFileMetadataInput,
   CustomerVisibleEventContent, CreateCustomerVisibleEventInput,
   AcknowledgeCustomerEventInput, RecoverableCostListQuery,
-  RecoverableCostRequestInput, SendDebitNoteForConfirmationInput,
+  SendDebitNoteForConfirmationInput,
   PortalDebitNoteDecisionInput, DirectMoneyTreasuryInput,
   ProfitabilityDimension, ProfitabilityReportQuery,
   AccountingTransportOwnership, AccountingTransportReadiness,
@@ -334,22 +331,15 @@ export {
   isSourceAuthorityActionAllowed,
 } from './governance/source-authority';
 
-// ─── Q15 maker/checker/approver governance contracts ───────────────────────
+// ─── Direct financial action contracts and historical audit vocabulary ───
 export {
   GOVERNANCE_SUBJECT_TYPES,
   GOVERNANCE_ACTION_KINDS,
-  GOVERNANCE_ACTION_STATUSES,
-  GOVERNANCE_CAPABILITIES,
-  GOVERNANCE_ALLOWED_ACTIONS,
-  governanceActionDecisionSchema,
+  directFinancialActionSchema,
 } from './schemas/governance-action';
 export type {
   GovernanceSubjectType,
   GovernanceActionKind,
-  GovernanceActionStatus,
-  GovernanceCapability,
-  GovernanceAllowedAction,
-  GovernanceActionDecisionInput,
 } from './schemas/governance-action';
 export type {
   SourceAuthorityKind,

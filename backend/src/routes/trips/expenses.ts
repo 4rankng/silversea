@@ -1,5 +1,5 @@
 /**
- * Trip expenses: adjustments, expense CRUD, and governed approve/reject
+ * Trip expenses: direct adjustments and expense CRUD
  * decisions. Handler bodies moved verbatim from routes/trips.ts.
  */
 import { Router } from 'express';

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { and, eq } from 'drizzle-orm';
 import { Role, TxnType } from '@tingting/shared';
+import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -29,7 +30,8 @@ async function fixture(tx: Tx) {
 async function settlementFixture(tx: Tx) {
   const f = await fixture(tx);
   const [expense] = await tx.insert(s.tripExpenses).values({ tripId: f.trip.id, forwarderId: f.owner.id, createdBy: f.owner.id, expenseType: 'OTHER', buyAmount: '1000', sellAmount: '0', invoiceNumber: 'QA-EVIDENCE', approvalStatus: 'RECORDED', settlementMethod: 'OPS_ADVANCE' }).returning();
-  const [advance] = await tx.insert(s.advanceRequests).values({ requesterId: f.owner.id, amount: '1500', reason: 'QA direct funds', status: 'RECORDED' }).returning();
+  const [account] = await tx.insert(s.treasuryAccounts).values({ code: `DIRECT-${f.owner.id}`, name: 'Direct lifecycle cash', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: f.actor.id, updatedBy: f.actor.id }).returning();
+  const advance = await recordFundedOpsAdvance(tx, { userId: f.actor.id, role: Role.ACCOUNTANT }, { opsUserId: f.owner.id, amount: 1500, reason: 'QA direct funds', treasuryAccountId: account.id, valueDate: '2026-09-10', physicalReference: `DIRECT-${f.owner.id}` });
   await tx.insert(s.tripExpenseCompletionScopes).values({ tripId: f.trip.id, tripContainerId: null, status: 'COMPLETED', completedBy: f.actor.id, completedAt: new Date() });
   return { ...f, expense, advance };
 }

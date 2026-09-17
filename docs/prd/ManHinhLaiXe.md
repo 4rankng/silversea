@@ -181,7 +181,9 @@ Giữ nguyên phụ cấp tiền đường và ca đã thỏa thuận. Phần c�
 | Chi phí lô hàng không hóa đơn | Công nhân tại kho, hàn container, cân lốp, đảo vỏ, đóng/trả hai điểm, đảo hàng, xe nâng/hạ Đăng Khoa và tên phí tự nhập | Công ty chịu, không thu khách; theo dõi chi phí xe và khoản cần thanh toán cho người thực chi; có thể có phiếu thu/biên lai viết tay |
 | Tiền đường | Tiền tuyến, vé cầu đường, phụ cấp phát sinh và sửa chữa dọc đường | Không thu khách; theo dõi trong tiền đường để kế toán đối chiếu/thanh toán và tính chi phí xe |
 
-Mỗi khoản có ngày chi, công việc, nhóm/tên phí, số tiền thực tế, người trả tiền, hóa đơn nếu có, ảnh/chứng từ và ghi chú. Lái xe chỉ khai báo trong công việc của mình; không được tự thay đổi số thu khách hoặc ghi đã thanh toán từ quỹ công ty. Kế toán được sửa số sai khi còn điều kiện, có lý do và lịch sử.
+Mỗi khoản có ngày chi, công việc, nhóm/tên phí, số tiền thực tế, người trả tiền, hóa đơn nếu có, ảnh/chứng từ và ghi chú. Lái xe chỉ khai báo trong công việc của mình; không được tự thay đổi số thu khách hoặc ghi đã thanh toán từ quỹ công ty. Kế toán được sửa số sai khi còn điều kiện, có lý do và lịch sử. Sau đối chiếu, kế toán ghi khoản thay thế có liên kết, giữ nguyên khoản gốc; vé cầu đường thay thế chỉ được tính một lần và không đổi phụ cấp đã thỏa thuận.
+
+Mỗi khoản đã lưu có thao tác xem/bổ sung chứng từ ngay trong danh sách chi phí. Bổ sung ảnh không mở form nhập tiền mới, không tạo khoản chi hoặc bút toán mới; ảnh tải lỗi được giữ để thử lại thủ công. Khi công việc đã chuyển cho lái xe khác, yêu cầu bổ sung đang mở phải bị từ chối và giữ nội dung chưa gửi.
 
 ### 8.2 Mức tham chiếu và nhập thực tế
 

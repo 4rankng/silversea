@@ -463,3 +463,6 @@
   height: 72px;
   object-fit: contain;
 }
+
+.trip-pod__pending { margin-block: var(--space-2); overflow-wrap: anywhere; color: var(--text-secondary); }
+.trip-pod__pending .trip-pod__actions { margin-top: var(--space-2); }

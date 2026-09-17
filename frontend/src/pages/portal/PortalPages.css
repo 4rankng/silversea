@@ -940,3 +940,16 @@ a.portal-list__row:focus-visible {
   font-weight: var(--fw-semibold);
 }
 @media(max-width:639px){.portal-timeline__meta{align-items:flex-start;flex-direction:column;gap:2px}.portal-timeline .portal-button{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));width:100%;min-height:48px}}
+
+/* One rhythm for statement filters, including the shared date input. */
+.portal-filters input,
+.portal-filters .portal-button {
+  min-height: var(--control-default-h);
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .portal-filters input,
+  .portal-filters .portal-button {
+    min-height: var(--control-touch-h);
+  }
+}

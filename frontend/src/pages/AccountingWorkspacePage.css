@@ -58,22 +58,18 @@
 .accounting-register__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--fs-md); }
 .accounting-register__heading p { margin: 0; color: var(--fg-3); font-size: var(--fs-xs); }
 
-/* One wrapping toolbar row on the shared filter-control scale — search input,
- * divider, inline selects, conditional reset. */
-.accounting-register__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.accounting-register__search { display: grid; grid-template-columns: minmax(200px, 1fr) auto; flex: 1 1 300px; max-width: 440px; min-width: 0; }
+/* Shared labelled controls align at the bottom of each wrapping row. */
+.accounting-register__toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.accounting-register__search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 0; flex: 1 1 300px; max-width: 440px; min-width: 0; }
+.accounting-register__search-label { grid-column: 1 / -1; color: var(--fg-1); font-size: var(--text-label-size); line-height: 1.5; font-weight: 600; }
 .accounting-register__search input { min-width: 0; min-height: var(--filter-control-h); padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
 .accounting-register__search button { min-height: var(--filter-control-h); padding: 0 12px; border: 1px solid var(--border-2); border-left: 0; border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); font-weight: 700; cursor: pointer; }
-.accounting-register__divider { width: 1px; height: var(--filter-control-h); background: var(--border-1); }
-.accounting-register__toolbar .ds-uui-select { flex: 0 1 auto; min-width: 0; }
-.accounting-register__select { min-height: var(--filter-control-h); background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; color: var(--ink); font-family: var(--font-body); cursor: pointer; }
-.accounting-register__select:hover { background: var(--surface); border-color: var(--line-2); }
+.accounting-register__toolbar .ds-uui-select { flex: 1 1 150px; min-width: 0; }
 .accounting-register__reset { display: inline-flex; align-items: center; gap: 5px; min-height: var(--filter-control-h); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--filter-control-font-size); font-weight: 700; cursor: pointer; }
 .accounting-register__reset:hover { color: var(--fg-1); background: var(--bg-2); }
 
-/* Table card — chrome only; overflow stays visible (record-table contract)
- * so the sticky thead pins against the app-body scrollport. */
-.accounting-register__wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+/* The shared table owns its row treatment; no second card around it. */
+.accounting-register__wrap { background: transparent; }
 .accounting-register__table tbody tr { cursor: pointer; }
 .accounting-register__table tbody tr[aria-disabled='true'] { cursor: default; }
 
@@ -106,6 +102,18 @@
 .accounting-register__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; color: var(--fg-3); }
 .accounting-register__footer small { font-size: var(--text-caption-size); }
 
+@container (max-width: 1100px) {
+  .accounting-register__table tbody td.num { text-align: left; }
+  .accounting-register__table tbody tr td.record-table__action { padding-inline: 14px; }
+  .accounting-register__table .record-table__action a { min-height: var(--control-touch-h); }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .accounting-register__toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .accounting-register__search { grid-column: 1 / -1; max-width: none; }
+  .accounting-register__reset { grid-column: 1 / -1; justify-self: end; }
+}
+
 @media (max-width: 700px) {
   .accounting-page { gap: 14px; }
   .accounting-period { align-items: stretch; flex-direction: column; padding: 10px 0; }
@@ -123,7 +131,6 @@
   /* Toolbar stacks: search full-width, filters pair two-up. */
   .accounting-register__toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .accounting-register__search { grid-column: 1 / -1; max-width: none; flex-basis: auto; }
-  .accounting-register__divider { display: none; }
   .accounting-register__toolbar .ds-uui-select { min-width: 0; }
   .accounting-register__reset { grid-column: 1 / -1; justify-content: center; }
   .accounting-selection { align-items: stretch; flex-wrap: wrap; padding: 12px 14px; }
@@ -134,10 +141,8 @@
 }
 
 @media (max-width: 360px) {
-  .accounting-period__fields { grid-template-columns: 1fr; }
   .accounting-workflow { grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 10px; }
   .accounting-workflow__icon { width: 38px; height: 38px; }
   .accounting-tabs { width: 100%; }
   .accounting-tabs .ds-tabs__btn { flex: 1; min-width: 0; justify-content: center; padding: 0 8px; }
-  .accounting-register__toolbar { grid-template-columns: 1fr; }
 }

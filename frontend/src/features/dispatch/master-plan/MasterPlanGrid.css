@@ -213,6 +213,7 @@
 
 @media (max-width: 640px) {
   .master-plan-filters__facet-trigger {
+    --control-mobile-h: var(--control-touch-h);
     min-height: var(--control-mobile-h);
     height: var(--control-mobile-h);
     font-size: var(--fs-3xs);

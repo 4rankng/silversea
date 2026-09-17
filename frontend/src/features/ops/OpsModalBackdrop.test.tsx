@@ -1,8 +1,34 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { UuiSelectField } from '../../design-system';
 
 describe('OpsModalBackdrop', () => {
+  it('lets a searchable child consume Escape without discarding its parent dialog', async () => {
+    const onClose = vi.fn();
+    function Form() {
+      const [value, setValue] = useState('');
+      return <OpsModalBackdrop ariaLabel="Chi phí" onClose={onClose}><div className="ops-modal">
+        <UuiSelectField label="Loại phí" value={value} onChange={event => setValue(event.target.value)} options={[
+          { value: '', label: 'Chọn loại phí' },
+          ...['Nâng', 'Hạ', 'Cân', 'Bốc xếp', 'Khác'].map(label => ({ value: label, label })),
+        ]} />
+        <button>Lưu</button>
+      </div></OpsModalBackdrop>;
+    }
+    render(<Form />);
+    const input = screen.getByRole('combobox');
+    await act(async () => { input.focus(); fireEvent.click(input); });
+    fireEvent.change(input, { target: { value: 'Nâng' } });
+    await screen.findByRole('listbox');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Chi phí' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Lưu' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   it('contains focus, preserves the opener across rerenders and restores scroll on close', () => {
     const opener = document.createElement('button');
     document.body.append(opener);

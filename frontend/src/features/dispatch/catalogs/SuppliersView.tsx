@@ -30,6 +30,7 @@ export function SuppliersView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const searchQuery = search.trim().replace(/\s+/g, ' ');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const crud = useCatalogCreate('/suppliers');
   const { confirm, dialog } = useConfirm();
@@ -37,15 +38,15 @@ export function SuppliersView() {
   // Server-side pagination + search + sort (same contract as the admin page);
   // typing resets to page 1 after a short debounce, sorting resets immediately.
   useEffect(() => {
-    if (search === '') {
+    if (searchQuery === '') {
       setPage(1);
       return;
     }
     const t = setTimeout(() => setPage(1), 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [searchQuery]);
 
-  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, search, sort);
+  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, searchQuery, sort);
   const applySort = (key: string) => {
     setPage(1);
     setSort((current) => nextTableSort(current, key));

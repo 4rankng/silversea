@@ -140,11 +140,11 @@ describe('shipment create cargo-mode toggle data scope', () => {
   it('guards an LCL warehouse-only selection before clearing it', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
-    fireEvent.click(screen.getByLabelText('Khách hàng'));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Khách hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    await waitFor(() => expect(screen.getByLabelText('Kho lấy hàng')).not.toBeDisabled());
-    fireEvent.click(screen.getByLabelText('Kho lấy hàng'));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Kho lấy hàng' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('combobox', { name: 'Kho lấy hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Kho A' }));
     fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();

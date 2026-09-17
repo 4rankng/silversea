@@ -6,7 +6,7 @@
 // WRITE-ONLY UNTIL THE CUT: running this against staging BEFORE the fix is
 // deployed would create orphan rows (phantom refs saved as 201/200). The case
 // therefore degrades to verdict SKIP when it sees the pre-fix behavior
-// (201/200) — run-all treats SKIP as non-failing — and passes only post-cut.
+// (201/200) — run-all treats SKIP as unverified and returns nonzero — and passes only post-cut.
 // The operator must still not RUN it pre-cut; the SKIP branch is a guard,
 // not an invitation.
 //

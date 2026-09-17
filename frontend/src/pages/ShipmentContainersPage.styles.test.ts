@@ -9,6 +9,21 @@ const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments
 const railCss = readFileSync(resolve(process.cwd(), 'src/design-system/SummaryRail.css'), 'utf8');
 
 describe('shipment detail workboard styling', () => {
+  it('UI-CD-14 leaves nested shared control inputs to their own component styling', () => {
+    const selector = css.match(/(\.shipment-container-ledger__editor-grid input[^,]+),/)?.[1];
+    expect(selector).toBeTruthy();
+    const grid = document.createElement('div');
+    grid.className = 'shipment-container-ledger__editor-grid';
+    grid.innerHTML = '<label><input id="native"></label><div data-uui-control><input id="direct"></div><div data-uui-control><div><div><input id="nested"></div></div></div>';
+    expect(grid.querySelector('#native')!.matches(selector!)).toBe(true);
+    expect(grid.querySelector('#direct')!.matches(selector!)).toBe(false);
+    expect(grid.querySelector('#nested')!.matches(selector!)).toBe(false);
+  });
+
+  it('UI-CD-14 retains equal touch sizing on coarse-pointer tablets', () => {
+    expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
+  });
+
   it('keeps an ultrawide operational canvas bounded without a card shell', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
   });
@@ -170,13 +185,13 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="schedule"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).not.toContain('data-mode="appointment"');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] > input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     // The appointment-popover redesign (7ad16f89) pairs the ngày/giờ fields
     // side by side inside the schedule tray — giờ leads (f495a3c4 order), so
     // the narrow giờ column comes first and the date keeps the wide track.
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid--schedule\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.8fr\)\s*minmax\(0, 1\.2fr\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] > input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-default-h\);[^}]*min-height:\s*var\(--control-default-h\);[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;[^}]*border-top:\s*1px solid var\(--line-2\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding-inline:\s*12px;/);
     expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
@@ -187,8 +202,9 @@ describe('shipment detail workboard styling', () => {
     // Labels stay visible at every width — the icon-only skin (hidden
     // [data-text]) is gone, so no rule may target the text span again.
     expect(css).not.toMatch(/\.shipment-container-ledger__edit-action \[data-text\]/);
-    // A disabled Save reads as a gray pill, not brand-green at half opacity.
-    expect(css).toMatch(/\.shipment-container-ledger__edit-action:disabled\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*color:\s*var\(--ink-4\);[^}]*opacity:\s*1;/);
+    expect(css).toContain('.shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }');
+    // Disabled Save keeps legible muted text and an icon with the same color.
+    expect(css).toMatch(/\.shipment-container-ledger__edit-action:disabled\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*color:\s*var\(--ink-3\);[^}]*opacity:\s*1;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*40px;[^}]*height:\s*40px;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);

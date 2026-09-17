@@ -13,7 +13,7 @@ import { TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE } from '../services/trip-financ
 import { insertTripComposite, getTripCompositeInTx, upsertTripFinancialState } from '../services/trip-composite.service';
 import { refreshExpenseTripCosts } from '../services/expense-trip-cost.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
-import { autoOffsetExpenseApproval } from '../services/advance-shared.service';
+import { autoOffsetRecordedExpense } from '../services/advance-shared.service';
 import { getAdvanceConsumedAmounts } from '../services/advance-consumption.service';
 import { createExpenseReconciliation, recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { createExpenseVoucher } from '../services/expense-accounting-voucher.service';
@@ -310,8 +310,19 @@ test('confirmation leaves new-flow advances untouched until explicit reconciliat
     treasuryAccountId: account.id, valueDate: '2026-09-16', physicalReference: crypto.randomUUID() });
   const [legacy] = await tx.insert(s.tripExpenses).values({ tripId: work.id, expenseType: 'OTHER', buyAmount: '50000', sellAmount: '0',
     settlementMethod: 'OPS_ADVANCE', forwarderId: ctx.user.id, approvalStatus: 'RECORDED', expenseDate: '2026-09-16', createdBy: ctx.user.id }).returning();
-  await autoOffsetExpenseApproval(tx, legacy.id);
+  const cashBeforeOffset = await tx.select().from(s.treasuryMovements).where(eq(s.treasuryMovements.treasuryAccountId, account.id));
+  await autoOffsetRecordedExpense(tx, legacy.id);
   assert.equal((await getAdvanceConsumedAmounts(tx, [advance.id])).get(advance.id), 50_000);
+  const [offset] = await tx.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.autoOffsetExpenseId, legacy.id));
+  assert.equal(offset.status, 'RECORDED');
+  assert.doesNotMatch(offset.note ?? '', /duyệt/i);
+  const offsetEntries = await tx.select().from(s.ledger).where(and(eq(s.ledger.txnType, 'OPS_SETTLEMENT'), eq(s.ledger.txnId, offset.id)));
+  assert.equal(offsetEntries.length, 1);
+  assert.match(offsetEntries[0].note ?? '', /ghi nhận/);
+  assert.doesNotMatch(offsetEntries[0].note ?? '', /duyệt/i);
+  await autoOffsetRecordedExpense(tx, legacy.id);
+  assert.equal((await getAdvanceConsumedAmounts(tx, [advance.id])).get(advance.id), 50_000, 'repeat recording never allocates twice');
+  assert.deepEqual(await tx.select().from(s.treasuryMovements).where(eq(s.treasuryMovements.treasuryAccountId, account.id)), cashBeforeOffset, 'reconciliation never creates another cash movement');
   const [native] = await tx.insert(s.tripExpenses).values({ tripId: work.id, expenseType: 'OTHER', buyAmount: '300000', sellAmount: '0',
     costGroup: 'OPS_REGULAR', feeName: 'Chi hộ mới', settlementMethod: 'OPS_ADVANCE', forwarderId: ctx.user.id,
     approvalStatus: 'RECORDED', expenseDate: '2026-09-16', createdBy: ctx.user.id }).returning();

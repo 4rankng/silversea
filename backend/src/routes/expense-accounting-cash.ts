@@ -1,3 +1,4 @@
+import { releaseExpenseReconciliation } from '../services/expense-reconciliation-release.service';
 import { Router } from 'express';
 import { lockExpenseCashSources } from '../services/expense-cash-lock.service';
 import { replayCashAction } from '../services/cash-command-replay.service';
@@ -21,10 +22,21 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   if (!result.success) throwValidation(result.error);
   return result.data;
 }
+// Owner-scoped reads run before the finance-only mutation guard.
+router.get('/reconciliations', asyncHandler(async (req, res) => res.json({ items: await listExpenseReconciliations(getUser(req)) })));
+router.get('/reconciliations/:id', asyncHandler(async (req, res) => res.json(await getExpenseReconciliation(getUser(req), parse(z.coerce.number().int().positive(), req.params.id)))));
 router.use(['/vouchers', '/reconciliations', '/advances'], (req, _res, next) => { requireExpenseFinance(getUser(req)); next(); });
 const positiveId = z.coerce.number().int().positive();
 const fund = { treasuryAccountId: positiveId, valueDate: expenseDateSchema, physicalReference: z.string().trim().min(1).max(160) };
 
+router.post('/reconciliations/:id/release', asyncHandler(async (req, res) => {
+  const actor = getUser(req); const id = parse(positiveId, req.params.id);
+  const input = parse(z.object({ reason: z.string().trim().min(1).max(1000) }).strict(), req.body);
+  const result = await runIdempotent({ endpoint: 'expense-reconciliation.release', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { id, ...input }, createdBy: actor.userId, responseStatusCode: 200,
+    create: async tx => { await releaseExpenseReconciliation(tx, actor, id, input.reason); return getExpenseReconciliation(actor, id, tx); } });
+  res.status(result.statusCode).json(result.result);
+}));
 router.get('/vouchers', asyncHandler(async (req, res) => res.json({ items: await listExpenseVouchers(getUser(req)) })));
 router.post('/vouchers', asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);
@@ -75,7 +87,6 @@ router.post('/vouchers/:id/allocate', asyncHandler(async (req, res) => {
     create: async tx => { await allocateOutstandingExpenseVoucher(tx, actor, id, input.expectedVersion); return getExpenseVoucher(actor, id, tx); } });
   res.json({ ...result.result, replayed: result.replayed });
 }));
-router.get('/reconciliations', asyncHandler(async (req, res) => res.json({ items: await listExpenseReconciliations(getUser(req)) })));
 router.post('/reconciliations', asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseReconciliationSchema, req.body);
   const result = await runIdempotent({ endpoint: 'expenses.reconcile', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),

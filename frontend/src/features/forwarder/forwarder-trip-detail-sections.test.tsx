@@ -58,6 +58,13 @@ describe('ForwarderExpenseRow bill ledger metadata', () => {
     expect(screen.getByText('4/8/2026')).toBeTruthy();
   });
 
+  it('shows a linked settlement as an existing record without implying pending approval', () => {
+    renderRow({ activeSettlementId: 12, approvalStatus: 'RECORDED', settlementMethod: 'OPS_ADVANCE' });
+    expect(screen.getByText('Đã lập phiếu')).toBeVisible();
+    expect(screen.queryByText('Đã gửi kế toán')).not.toBeInTheDocument();
+    expect(screen.getByText('Chi hộ tạm ứng')).toBeVisible();
+  });
+
   it('labels company-direct and no-invoice records explicitly', () => {
     renderRow({ settlementMethod: 'COMPANY_DIRECT', invoiceNumber: null, invoiceDate: null });
     expect(screen.getByText('Công ty trả trực tiếp')).toBeTruthy();

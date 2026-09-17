@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 /**
  * useAutoRefresh — keep an operational workspace (CUS, dispatch, ops, ops
  * workboard) honest when a remote mutation (driver close, OPS handover,
- * accountant approval) flips the underlying state while the user is still
+ * accountant reconciliation) flips the underlying state while the user is still
  * parked on the page.
  *
  * The bug this prevents (reported 2026-08-29 from the 27.8 trial):

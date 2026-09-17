@@ -36,6 +36,11 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it('shows OPS recovery instructions separately from driver notes', () => {
+    render(<MasterPlanGrid items={[item({ opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] })]} onAllocate={vi.fn()} />);
+    expect(screen.getByText(/Khách trả theo chứng từ/)).toHaveTextContent('Giữ bản gốc');
+    expect(screen.getByText('Giao giờ hành chính')).toBeInTheDocument();
+  });
   it('retains a failed note draft and prevents duplicate save requests while pending (DSP-FU-004)', async () => {
     let rejectSave!: (reason: Error) => void;
     const onUpdateNotes = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSave = reject; }));

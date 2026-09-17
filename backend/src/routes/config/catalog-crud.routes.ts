@@ -654,6 +654,9 @@ router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPrice
 router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRateTermSchema, {
   orderByField: 'effectiveDate',
   beforeCreate: async (data, _req, tx) => {
+    if (data.surchargeThresholdPct === undefined && data.surchargeThresholdAbs === undefined) {
+      throw new ApiError(400, 'Chọn ngưỡng biến động giá dầu đã thỏa thuận hoặc xác nhận không áp dụng ngưỡng.');
+    }
     if (data.surchargeThresholdPct != null && data.surchargeThresholdAbs != null) {
       throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
     }
@@ -830,8 +833,8 @@ router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseC
   governance: {
     reasonLabel: 'nhóm chi phí',
     shouldGovernCreate: () => true,
-    // Name-only renames apply directly; policy fields (isRenewable,
-    // reminderLeadDays, status) still queue for maker→checker→approver.
+    // Policy fields use the direct versioned command for audit and invariants;
+    // name-only changes use the ordinary update path.
     shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialExpenseCategoryUpdate(data as ExpenseCategoryPayload, current),
     shouldGovernDelete: () => true,
   },

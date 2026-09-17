@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Shape of the CrudTable props the mock captures — an open record so the
 // tests can read page-specific props (sortFn etc.) without importing the
@@ -69,6 +69,8 @@ function renderForm(props: Record<string, unknown> = {}) {
 const SAVE = 'Thêm';
 const EDIT_SAVE = 'Cập nhật';
 
+afterEach(() => { vi.useRealTimers(); });
+
 describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
   it('renders the CrudTable surface with desc sort by effectiveDate', () => {
     renderPage();
@@ -87,6 +89,81 @@ describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
 
     fireEvent.click(screen.getByText(SAVE));
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not pre-agree a zero delay or no threshold for a new contract', () => {
+    renderPage();
+    renderForm();
+    const lag = screen.getByLabelText('Trễ ngày (lag)') as HTMLInputElement;
+    expect(lag.value).toBe('');
+    expect(lag.required).toBe(true);
+    for (const radio of screen.getAllByRole('radio')) {
+      expect((radio as HTMLInputElement).checked).toBe(false);
+    }
+    expect((screen.getByLabelText('Ngưỡng theo tỷ lệ phần trăm') as HTMLInputElement).required).toBe(true);
+  });
+
+  it('rejects a cleared delay and saves an explicitly entered zero', () => {
+    renderPage();
+    const onSave = vi.fn();
+    renderForm({ onSave, item: PCT_ROW as FreightRateTermRow });
+    const lag = screen.getByLabelText('Trễ ngày (lag)');
+    fireEvent.change(lag, { target: { value: '' } });
+    fireEvent.click(screen.getByText(EDIT_SAVE));
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.change(lag, { target: { value: '0' } });
+    fireEvent.click(screen.getByText(EDIT_SAVE));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ fuelLagDays: 0 }));
+  });
+
+  it('defaults a new effective date to the Vietnam business day across UTC midnight', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-30T18:00:00.000Z'));
+    renderPage();
+    renderForm();
+    expect(screen.getByLabelText('Ngày hiệu lực')).toHaveValue('01/10/2026');
+  });
+
+  it('keeps an existing effective date when another term changes', () => {
+    renderPage();
+    const onSave = vi.fn();
+    renderForm({ onSave, item: PCT_ROW as FreightRateTermRow });
+    expect(screen.getByLabelText('Ngày hiệu lực')).toHaveValue('01/09/2026');
+    fireEvent.change(screen.getByLabelText('% chia sẻ'), { target: { value: '3' } });
+    fireEvent.click(screen.getByText(EDIT_SAVE));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ effectiveDate: '2026-09-01', sharePct: 3 }));
+  });
+
+  it.each(['', '31/02/2027', '20/10'])('blocks an empty or invalid effective date (%s) without losing the draft', (value) => {
+    renderPage();
+    const onSave = vi.fn();
+    renderForm({ onSave, item: PCT_ROW as FreightRateTermRow });
+    const date = screen.getByLabelText('Ngày hiệu lực') as HTMLInputElement;
+    fireEvent.change(date, { target: { value } });
+    fireEvent.click(screen.getByText(EDIT_SAVE));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(date).toHaveFocus();
+    expect(date).toHaveValue(value);
+    expect(date.checkValidity()).toBe(false);
+    expect(screen.getByLabelText('Giá dầu mốc (đ/lít)')).toHaveValue(17842.5926);
+    if (value) expect(screen.getByRole('alert')).toHaveTextContent('Nhập ngày hợp lệ');
+  });
+
+  it('sends a future effective date and dismisses its calendar without cancelling the form', () => {
+    renderPage();
+    const onSave = vi.fn();
+    const onCancel = vi.fn();
+    renderForm({ onSave, onCancel, item: PCT_ROW as FreightRateTermRow });
+    const date = screen.getByLabelText('Ngày hiệu lực');
+    fireEvent.change(date, { target: { value: '20/10/2027' } });
+    fireEvent.click(date);
+    expect(screen.getByRole('dialog', { name: 'Chọn ngày' })).toBeInTheDocument();
+    fireEvent.keyDown(date, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Chọn ngày' })).not.toBeInTheDocument();
+    expect(date).toHaveValue('20/10/2027');
+    expect(onCancel).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText(EDIT_SAVE));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ effectiveDate: '2027-10-20' }));
   });
 
   it('radio disables the non-selected threshold input (XOR)', () => {
@@ -146,4 +223,3 @@ describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
     expect(numInputs.length).toBe(6); // sharePct, km, baseFuel, lag, pct, abs — no multiplier input
   });
 });
-

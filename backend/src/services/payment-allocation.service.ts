@@ -1047,7 +1047,7 @@ export async function requestPaymentRefundGovernance(
       subjectId: receipt.id,
       subjectKey: `payment-receipt:${receipt.id}:refund:v${receipt.version}`,
       actionKind: 'PAYMENT_REFUND',
-      status: 'PENDING_CHECK',
+      status: 'READY',
       reason,
       originalVersion: receipt.version,
       beforeSnapshot: {
@@ -1102,7 +1102,7 @@ export async function applyPaymentRefundGovernanceAction(
   }
   assertPositiveWholeAmount(amount, 'amount');
   if (action.approverId == null) {
-    throw new ApiError(409, 'Yêu cầu hoàn tiền chưa có người phê duyệt');
+    throw new ApiError(409, 'Lệnh hoàn tiền chưa xác định được người thực hiện');
   }
 
   const [receipt] = await tx.select().from(s.paymentReceipts)

@@ -302,7 +302,7 @@
 .dash-wf .wf-sum__change--negative { color: var(--wf-red); }
 .dash-wf .wf-head .wf-acts { display: flex; gap: 9px; flex: 0 0 auto; }
 .dash-wf .wf-btn {
-  min-height: 45px; padding: 0 15px; border-radius: 10px;
+  min-height: var(--control-touch-h); padding: 0 15px; border-radius: 10px;
   font-family: var(--font-body); font-weight: var(--fw-semibold); font-size: var(--text-control-size);
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
   border: 1px solid var(--wf-border-2); background: var(--surface); color: var(--wf-ink);
@@ -343,7 +343,7 @@
   background: none; border: 0; padding: 0;
   border-radius: 8px;
   /* fix visual-audit 2026-06-25 BUG-1: tap target ≥ 36px on desktop */
-  min-height: 45px;
+  min-height: var(--control-touch-h);
   padding-inline: 8px;
   transition: background 120ms ease, color 120ms ease;
 }
@@ -359,7 +359,7 @@
   background: var(--wf-card);
 }
 .dash-wf .wf-chart-toggle__btn {
-  min-height: 45px;
+  min-height: var(--control-touch-h);
   padding: 8px 14px;
   font-family: var(--font-body);
   font-size: var(--text-control-size);
@@ -371,7 +371,7 @@
   transition: background 120ms ease, color 120ms ease;
   line-height: 1.4;
   /* fix visual-audit 2026-06-25 BUG-2: tap target ≥ 32px (pill toggle) */
-  min-height: 45px;
+  min-height: var(--control-touch-h);
 }
 .dash-wf .wf-chart-toggle__btn:hover {
   color: var(--wf-ink);
@@ -1408,12 +1408,12 @@
 
 @media (max-width: 640px) {
   .dash-wf .wf-link {
-    min-height: 45px;
+    min-height: var(--control-touch-h);
     padding: 8px;
   }
 
   .dash-wf .wf-chart-toggle__btn {
-    min-height: 45px;
+    min-height: var(--control-touch-h);
     padding: 8px 12px;
   }
 

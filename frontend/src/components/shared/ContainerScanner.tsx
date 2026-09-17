@@ -18,8 +18,8 @@ import { registerOverlay, unregisterOverlay } from '../../lib/overlayState';
  */
 
 interface ContainerScannerProps {
-  /** Called with a downsized JPEG data URL once a photo is captured or picked. */
-  onCapture: (dataUrl: string) => void;
+  /** Gallery input has unknown capture time; only the live shutter supplies capturedAt. */
+  onCapture: (dataUrl: string, capturedAt?: Date) => void;
   onClose: () => void;
 }
 
@@ -157,17 +157,17 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   }, [flashOn]);
 
   /** Common "I have an image, downsize it, fire onCapture" path. */
-  const finishWith = useCallback(async (rawDataUrl: string, allowRawFallback: boolean) => {
+  const finishWith = useCallback(async (rawDataUrl: string, allowRawFallback: boolean, capturedAt?: Date) => {
     if (busy) return;
     setBusy(true);
     try {
       const finalUrl = await downsizeImageToDataUrl(rawDataUrl);
-      onCapture(finalUrl);
+      onCapture(finalUrl, capturedAt);
     } catch {
       if (allowRawFallback) {
         // Camera frames are canvas-drawn JPEGs (always decodable); a failure
         // here can only be a tainted canvas — the raw frame is still valid JPEG.
-        onCapture(rawDataUrl);
+        onCapture(rawDataUrl, capturedAt);
       } else {
         // A gallery file the browser cannot decode (HEIC outside Safari) would
         // be stored as broken bytes under a .jpg name — reject it instead.
@@ -180,12 +180,13 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   const handleCapture = useCallback(() => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
+    const capturedAt = new Date();
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d')!.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    void finishWith(dataUrl, true);
+    void finishWith(dataUrl, true, capturedAt);
   }, [finishWith]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

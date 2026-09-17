@@ -23,18 +23,19 @@ export default function RoutesConfigPage() {
   const handleBack = () => navigate('/config');
   useBackShortcut(handleBack);
   const [search, setSearch] = useState('');
+  const searchQuery = search.trim().replace(/\s+/g, ' ');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
   const fetchData = useCallback(async () => {
-    const routeList = await configClient.getRoutesList(search || undefined);
+    const routeList = await configClient.getRoutesList(searchQuery || undefined);
     return { routes: routeList };
-  }, [search]);
+  }, [searchQuery]);
 
   const { data, refetch, isPending, isFetching, isError } = useQuery({
-    queryKey: qk.tripForm.routesConfig(search),
+    queryKey: qk.tripForm.routesConfig(searchQuery),
     queryFn: fetchData,
     staleTime: 2 * 60 * 1000,
     placeholderData: keepPreviousData,

@@ -48,7 +48,7 @@ Tổng cước K = J + H
 
 Ba lựa chọn Câu 1=B, Câu 2=A, Câu 4=A được chốt ngày 09/09. Mốc Ngày vận chuyển
 được ghi trong phương án khách hàng ngày 09/09 và tổng hợp ngày 10/09, thay cho
-câu hỏi 2b trước đó. Xem [lịch sử trả lời](CauHoiKhachHang_CuocPhi_2026-09-08.md).
+câu hỏi 2b trước đó. Xem [quy tắc và quyết định đã ghi nhận](CuocPhiPhuPhiDau.md#7-cách-vận-hành-khi-giá-dầu-đổi).
 
 Công thức chi tiết và các bảng giá tham chiếu giữ tại
 [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md).
@@ -214,5 +214,5 @@ Các lựa chọn chưa trả lời không được thay bằng giả định. V
 hoặc lag 0 chỉ để giải thích cách cấu hình, không phải giá trị đã được khách
 chấp nhận. Không cần hỏi lại ba câu đã chốt hoặc mốc Ngày vận chuyển.
 
-Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md) và
+Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở) và
 [yêu cầu dữ liệu/lịch sử](CuocPhiThietKeDB.md).

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ComboBox } from './combobox';
 import { SelectItem } from './select-item';
@@ -153,6 +154,8 @@ describe('ComboBox', () => {
     expect(clearButton).toBeTruthy();
 
     await act(async () => {
+      fireEvent.mouseDown(clearButton);
+      fireEvent.mouseUp(clearButton);
       fireEvent.click(clearButton);
     });
 
@@ -160,3 +163,163 @@ describe('ComboBox', () => {
   });
 });
 
+const FACTORIES = [
+  { id: 'vid', label: 'VID', supportingText: 'Công ty Công nghệ Việt Đăng · KCN Đông Mai' },
+  { id: 'askey', label: 'ASKEY', supportingText: 'Công ty Askey Việt Nam · Bắc Ninh' },
+  { id: 'canon', label: 'CANON', supportingText: 'Công ty Canon · Hà Nội' },
+];
+
+function FactorySearchHarness({ initialValue = '' }: { initialValue?: string }) {
+  const [selectedKey, setSelectedKey] = useState(initialValue);
+  const [inputValue, setInputValue] = useState(FACTORIES.find((factory) => factory.id === initialValue)?.label ?? '');
+  return (
+    <>
+      <ComboBox
+        label="Nhà máy"
+        items={FACTORIES}
+        selectedKey={selectedKey || null}
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        onSelectionChange={(key) => {
+          if (key === null) return;
+          setSelectedKey(String(key));
+          setInputValue(FACTORIES.find((factory) => factory.id === key)?.label ?? '');
+        }}
+        menuTrigger="focus"
+        openOnPress
+      >
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} supportingText={item.supportingText} />}
+      </ComboBox>
+      <output aria-label="Nhà máy đã chọn">{selectedKey}</output>
+      <button type="button">Trường kế tiếp</button>
+    </>
+  );
+}
+
+describe('ComboBox factory search while typing', () => {
+  beforeEach(() => {
+    vi.stubGlobal('innerWidth', 1440);
+    vi.stubGlobal('innerHeight', 900);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 200, y: 470, width: 260, height: 36 }),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  async function focusFactorySearch() {
+    const input = screen.getByRole('combobox', { name: 'Nhà máy' });
+    await act(async () => {
+      input.focus();
+      fireEvent.focusIn(input);
+      fireEvent.click(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    return input;
+  }
+
+  it('preserves committed custom text when Escape dismisses a reopened menu', async () => {
+    function CustomShippingLine() {
+      const [text, setText] = useState('QA CUSTOM SHIPPING 0917');
+      return <><ComboBox label="Nhà máy" items={FACTORIES} selectedKey={text} inputValue={text}
+        allowsCustomValue onInputChange={setText} onSelectionChange={() => undefined} openOnPress>
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} supportingText={item.supportingText} />}
+      </ComboBox><output aria-label="Committed custom value">{text}</output></>;
+    }
+    render(<CustomShippingLine />);
+    const input = await focusFactorySearch();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue('QA CUSTOM SHIPPING 0917');
+    expect(screen.getByLabelText('Committed custom value')).toHaveTextContent('QA CUSTOM SHIPPING 0917');
+  });
+
+  it('selects the short committed label and restores it without searchable metadata on Escape', async () => {
+    render(<FactorySearchHarness initialValue="canon" />);
+    const input = await focusFactorySearch() as HTMLInputElement;
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe('CANON'.length);
+    fireEvent.change(input, { target: { value: 'dong mai' } });
+    input.setSelectionRange(8, 8);
+    fireEvent.focus(input);
+    expect(input.selectionStart).toBe(8);
+    expect(input.selectionEnd).toBe(8);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue('CANON');
+    expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('canon');
+  });
+
+  it('keeps matching results open while typing leading, trailing and repeated whitespace', async () => {
+    render(<FactorySearchHarness />);
+    const input = await focusFactorySearch();
+
+    // Never refocus/reopen after input changes: that previously concealed
+    // the customer-visible failure when an intermediate query closed the menu.
+    for (const query of ['VID', 'VID  ', '  VID  ', '  viet   dang  ', 'mai   vid']) {
+      fireEvent.change(input, { target: { value: query } });
+      await waitFor(() => {
+        expect(input).toHaveValue(query);
+        expect(input).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getAllByRole('option')).toHaveLength(1);
+        expect(screen.getByRole('option', { name: /VID/ })).toBeTruthy();
+      });
+    }
+  });
+
+  it('searches Vietnamese full names and addresses with or without accents and đ', async () => {
+    render(<FactorySearchHarness />);
+    const input = await focusFactorySearch();
+
+    for (const query of ['dong mai', 'ĐÔNG MAI', 'Đông Mai'.normalize('NFD'), 'cong nghe viet dang']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(await screen.findByRole('option', { name: /VID/ })).toBeTruthy();
+      expect(screen.queryByRole('option', { name: /ASKEY/ })).toBeNull();
+      expect(input).toHaveAttribute('aria-expanded', 'true');
+    }
+  });
+
+  it('shows no-results feedback and recovers when the same focused query is corrected or cleared', async () => {
+    render(<FactorySearchHarness />);
+    const input = await focusFactorySearch();
+
+    fireEvent.change(input, { target: { value: 'missing factory xyz' } });
+    expect(await screen.findByText('Không tìm thấy kết quả')).toBeTruthy();
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(input).toHaveFocus();
+    // React Aria exposes its empty-state explanation as a non-selectable
+    // option for screen readers; no catalog option may remain visible.
+    expect(screen.queryByRole('option', { name: /VID|ASKEY|CANON/ })).toBeNull();
+
+    fireEvent.change(input, { target: { value: 'vid' } });
+    expect(await screen.findByRole('option', { name: /VID/ })).toBeTruthy();
+    expect(screen.queryByText('Không tìm thấy kết quả')).toBeNull();
+
+    fireEvent.change(input, { target: { value: '' } });
+    await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(3));
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('keeps the existing selection until a filtered replacement is picked with the keyboard', async () => {
+    render(<FactorySearchHarness initialValue="canon" />);
+    const input = await focusFactorySearch();
+
+    fireEvent.change(input, { target: { value: ' dong   mai ' } });
+    expect(await screen.findByRole('option', { name: /VID/ })).toBeTruthy();
+    expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('canon');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('vid'));
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect((input as HTMLInputElement).value).toContain('VID');
+    fireEvent.blur(input);
+    screen.getByRole('button', { name: 'Trường kế tiếp' }).focus();
+    expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('vid');
+    expect((input as HTMLInputElement).value).toContain('VID');
+  });
+});

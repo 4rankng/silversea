@@ -17,8 +17,6 @@
 > - `/advances` — `frontend/src/pages/AdvanceWorkspacePage.tsx` (Tạm ứng & Hoàn ứng)
 > - `/profit` — `frontend/src/pages/ProfitPage.tsx` (Báo cáo Lợi nhuận)
 > - `/finance` — `frontend/src/pages/FinancePage.tsx` (Báo cáo Lãi lỗ)
-> - `/credit-overrides` — `frontend/src/pages/CreditOverrideQueuePage.tsx` (Duyệt vượt hạn mức)
-> - `/governance-actions` — `frontend/src/pages/GovernanceActionsPage.tsx` (Trung tâm phê duyệt)
 > - `/recoverable-costs` — `frontend/src/pages/RecoverableCostsPage.tsx`
 > - `/shipments` — view-only (operations audit)
 > - `/audit-logs` — `frontend/src/pages/AuditLogPage.tsx` (Nhật ký hệ thống)
@@ -38,8 +36,8 @@ ACCOUNTANT is the **ledger & cash** role. The accountant:
 - Posts journal entries for AP (`VENDOR_EXPENSE`, `VENDOR_PAYMENT`,
   `OPS_ADVANCE`, `OPS_SETTLEMENT`, `EXTERNAL_CARRIER_COST`,
   `FUEL_EXPENSE`).
-- Reviews fuel evidence, recoverable costs, credit overrides, and
-  governance actions.
+- Reconciles fuel evidence and recoverable costs, and performs authorized
+  financial changes directly on the source records.
 - Reads but does not edit most operational data (trips, fleet,
   shipments).
 - **Cannot** dispatch (no `/dispatch`, `/dispatch-detail`).
@@ -71,37 +69,21 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 
 ### Acceptance criteria
 
-1. **ACC-DASH-01 — Hero KPIs render**
-   - **Then** the page shows four hero KPIs at the top:
-     `Tổng phải thu` (AR), `Tổng phải trả` (AP), `Quỹ hiện tại`
-     (treasury), `Lợi nhuận ròng tháng này` (MTD net profit).
-   - **Evidence**: full-page screenshot at 1440px.
-
-2. **ACC-DASH-02 — Numbers match the underlying queries**
-   - **Then** `Tổng phải thu` equals the sum of `customers.balance`
-     across all `ACTIVE` customers; `Tổng phải trả` equals the sum
-     of `suppliers.balance`; `Quỹ hiện tại` matches the treasury
-     position from the `/finance/treasury` page. No off-by-one
-     rounding; rounding to 2 decimal places using `round2dp()`.
-
-3. **ACC-DASH-03 — Drill-down links**
-   - **Given** a hero KPI
-   - **When** the user clicks it
-   - **Then** the page navigates to the relevant list page
-     (`/debt`, `/payables`, `/finance/treasury`, `/profit`) with the
-     current month pre-selected.
-
-4. **ACC-DASH-04 — Month switcher**
-   - **Then** a month picker at the top right allows the user to
-     re-run the KPIs for any past month. Switching the month
-     re-fetches the data and updates all four KPIs in < 1.5 s.
+1. **ACC-DASH-01 — Current accounting workspaces are discoverable**
+   - Open the current accounting navigation and reach transport work, OPS costs/reconciliation, road costs, records and reports permitted for this accountant. Do not require the superseded four-hero-card dashboard layout.
+2. **ACC-DASH-02 — Displayed amounts reconcile with their sources**
+   - Compare each displayed amount with the same date, entity and status scope in its source detail. Distinguish actual expense, customer charge, received/paid cash and remaining debt. Missing historical allocation is unknown, not zero. Do not use a raw sum of cached partner balances as an independent accounting oracle.
+3. **ACC-DASH-03 — Detail and navigation preserve context**
+   - Open source/detail and return. Keep the chosen date/filter/tab and show the corresponding records; no dead or retired approval destination.
+4. **ACC-DASH-04 — Date changes and loading are truthful**
+   - Change the displayed work period/date filters. Show loading, then results for that exact scope; failed requests have an explicit retry. Do not invent a 1.5-second product SLA or show prior results as a completed new query.
 
 ### Test steps
 
-1. Log in as `ACCOUNTANT`. Land on `/accounting`.
-2. Capture the current month.
-3. Click each hero KPI; capture the destination page.
-4. Switch to a different month; capture the new state.
+1. Log in as ACCOUNTANT. Open `/accounting` and the two accounting-cost boards.
+2. Use the current tabs, date controls, text search and source drilldowns at 390/820/1440px.
+3. Change filters, navigate away/back and reload a deep link; verify scope and totals.
+4. Compare selected details with the canonical API/source evidence. Record UI coverage separately from full financial integration tests.
 
 ### Regression hooks
 
@@ -137,7 +119,7 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
      `TRIP_REVENUE`, `PAYMENT_RECEIVED`, `PENALTY`,
      `MANAGEMENT_FEE`, `ADJUSTMENT`. The running balance is shown
      on the right. Each row links to the underlying trip
-     (`/trips/:id`) or governance action (`/governance-actions`).
+     (`/trips/:id`) or the current read-only source/history view. Retired `/governance-actions` is never a destination.
    - **Reference**: `DebtDetailPage.ledger-sort.test.tsx`,
      `DebtDetailPage.payment.test.tsx`.
 
@@ -209,39 +191,37 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 
 ## Flow 4 — Tạm ứng & Hoàn ứng (Advances & settlements)
 
-**Route**: `/advances`
-**Component**: `frontend/src/pages/AdvanceWorkspacePage.tsx`
-**Allow**: `financeReaderOnly`.
+**Route**: `/advances`; existing finance permissions apply.
+**Canonical cases**: `flows/05-ops-quy-chi-phi.md`, `NO-APP-07..11`.
 
 ### Acceptance criteria
 
-1. **ACC-ADV-01 — Tabs: Tạm ứng / Hoàn ứng / Đã đối soát**
-   - **Then** the workspace has three tabs. Each row in the
-     `Tạm ứng` tab shows: `Mã phiếu`, `OPS nhận`, `Số tiền`,
-     `Ngày tạo`, `Trạng thái` (`Chờ duyệt` / `Đã duyệt` /
-     `Đã hoàn ứng` / `Đã hủy`).
-2. **ACC-ADV-02 — Approve an OPS advance**
-   - **Given** an OPS-issued advance in `Chờ duyệt`
-   - **When** the accountant clicks `Duyệt`
-   - **Then** the status flips to `Đã duyệt`, an `OPS_ADVANCE`
-     journal row is posted, the supplier / OPS balance updates.
-3. **ACC-ADV-03 — Settle an advance**
-   - **When** the OPS submits expenses against the advance and
-     the accountant clicks `Đối soát`
-   - **Then** an `OPS_SETTLEMENT` row is posted, the running
-     balance clears the advance (or shows the residual as a
-     new AP), the OPS is informed.
-4. **ACC-ADV-04 — Read-only for OPS once it's been approved**
-   - **Then** an OPS user can no longer edit a `Đã duyệt`
-     advance; the OPS can only view the history.
+1. **ACC-ADV-01 — Request, funding and reconciliation are distinct**
+   - Each row identifies the OPS recipient, requested amount, actual amount funded,
+     outstanding balance and history. An unfunded request is not cash received;
+     no approval status or approval tab is shown.
+2. **ACC-ADV-02 — Record actual funding directly**
+   - The authorized accountant selects the OPS recipient, fund/account, amount,
+     date and source allocation and records the actual advance once. A valid
+     request completes immediately, with a cash reference and audit record;
+     there is no second actor, approval queue or automatic money from a request.
+3. **ACC-ADV-03 — Reconcile without inventing payment**
+   - For an actual 1,000,000đ advance and 1,200,000đ/800,000đ actual expense,
+     reconciliation shows 200,000đ payable to OPS/returnable by OPS respectively.
+     Only a separate actual payment/refund updates the cash balance; partial
+     payments and reversals retain their source allocation and history.
+4. **ACC-ADV-04 — Preserve paid history**
+   - OPS can read the funded advance and its history. Posted cash cannot be
+     overwritten or canceled as an unfunded request; corrections use the existing
+     authorized adjustment/reversal action with a reason and period constraints.
 
 ### Test steps
 
-1. From the seed, find an OPS advance in `Chờ duyệt` (create one
-   via `OPS` if needed).
-2. Approve it as `ACCOUNTANT`. Capture.
-3. Submit a settlement via `OPS`. Reconcile as `ACCOUNTANT`.
-   Capture.
+1. Create an OPS request; verify the balance does not increase.
+2. As an authorized finance user, record funding with its fund and reference;
+   retry the same request and verify one cash movement.
+3. Record expenses, reconcile and verify the residual. Record a partial payment
+   or refund separately; verify balances, permissions and immutable history.
 
 ---
 
@@ -250,84 +230,70 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 **Route**: `/expenses` (list) `/expenses/new` `/expenses/:id/edit`
 **Components**: `frontend/src/pages/ExpenseListPage.tsx`,
 `frontend/src/pages/ExpenseEntryPage.tsx`
-**Allow list**: `financeReaderOnly`. **Allow create/edit**: `ADMIN`
-only (`adminOnly` per `App.tsx:335`).
+**Allow list/create/edit**: `financeReaderOnly` (`ADMIN`, `MANAGER`, `ACCOUNTANT`). Source permissions, posted/locked records and required correction history still apply.
 
 ### Acceptance criteria
 
-1. **ACC-EXP-01 — Read-only list for the accountant**
-   - **Then** the list shows every ad-hoc expense with: `Mã chi
-     phí`, `Loại`, `Số tiền`, `Ngày`, `Người tạo`, `Trạng thái`.
-     No `Sửa` / `Xóa` button is rendered (the accountant
-     cannot create / edit expenses at this endpoint).
-2. **ACC-EXP-02 — Accountant uses the Advance / Settlement / AP
-   pages to post costs**
-   - **Then** the canonical cost-posting path for the accountant
-     is the journal-entry pages (AP, advance settlement), not
-     `/expenses/new`. The `/expenses/new` route is `adminOnly`.
-3. **ACC-EXP-03 — Drill-down**
-   - **When** the user clicks a row
-   - **Then** a read-only detail view shows the receipt upload
-     (if any) and the linked trip.
+1. **ACC-EXP-01 — Accessible expense list**
+   - The accountant can view and search expenses, open the permitted create/edit action, and identify amount, supplier, category, date and status. Historical records remain traceable.
+2. **ACC-EXP-02 — Direct entry with accurate recovery**
+   - `/expenses/new` opens for ACCOUNTANT. Required supplier/category selection supports click-and-type search. Valid data saves directly; no approval step. Failed catalog queries show retry, preserve entered amount/note and disable Save until required choices are available. A failed mutation retains the draft and does not replay automatically.
+3. **ACC-EXP-03 — Existing record and missing-record behavior**
+   - Open an existing expense and verify persisted values/evidence and applicable locks. A missing/inaccessible expense shows the actual error plus retry/return; it must not open a blank editable form that could create a different cost.
 
 ### Test steps
 
-1. Log in as `ACCOUNTANT`. Open `/expenses`.
-2. Try to navigate to `/expenses/new` — confirm redirect to
-   `/accounting`.
-3. Click a row and confirm the read-only detail.
+1. Log in as ACCOUNTANT. Open `/expenses`, type a filter and open a record.
+2. Open `/expenses/new`, search/select supplier and category, enter valid/invalid amounts and use the date picker.
+3. Force a required catalog or save API failure, retry manually, and verify draft preservation with no duplicate submit.
+4. Open a nonexistent edit ID and verify explicit recovery. Inspect 360/390/820/1440px controls, validation and reachable actions.
+
+Current browser and component evidence: FIN-UI-09/10/11/12 in `../2026-09-17-ui-audit-finance-ops.md`; not a claim that every financial mutation was newly browser-run.
 
 ---
 
-## Flow 6 — Duyệt vượt hạn mức (Credit override queue)
+## Flow 6 — Hạn mức tín dụng (Direct authorized changes)
 
-**Route**: `/credit-overrides`
-**Component**: `frontend/src/pages/CreditOverrideQueuePage.tsx`
-**Allow**: `ADMIN`, `MANAGER`, `ACCOUNTANT` (`officeStaffOnly`).
+**Location**: the existing customer financial settings, within current permissions.
+The retired `/credit-overrides` queue is not a working page or alternative command.
 
 ### Acceptance criteria
 
-1. **ACC-CRED-01 — Queue is FIFO and scoped to financial roles**
-   - **Then** the queue lists every pending credit-override
-     request sorted by `createdAt` ascending. Each row:
-     `Mã yêu cầu`, `Khách hàng`, `Hạn mức hiện tại`, `Hạn mức
-     đề xuất`, `Lý do`, `Người yêu cầu`, `Ngày tạo`.
-2. **ACC-CRED-02 — Approve / reject**
-   - **When** the user clicks `Duyệt` / `Từ chối`
-   - **Then** the request's status flips; the customer's
-     `creditLimit` is updated (on approve); an audit-log row
-     is written; the request disappears from the queue.
-3. **ACC-CRED-03 — Re-approval flow**
-   - **Then** an override request that was previously
-     `Từ chối` cannot be re-submitted by the same actor; the
-     original requester must re-create the request.
+1. **ACC-CRED-01 — No credit approval queue**
+   - No navigation, pending queue or form requests a second user's approval.
+     An old approval link cannot revive the retired workflow.
+2. **ACC-CRED-02 — Direct authorized change**
+   - A role already entitled to change the customer's financial settings saves
+     valid values directly. Required reasons, credit rules, access scope,
+     concurrency protection and the before/after audit remain enforced.
+3. **ACC-CRED-03 — Corrections are ordinary authorized edits**
+   - An invalid request shows its error without creating a pending request.
+     A corrected request is validated and saved directly; retry cannot duplicate
+     the change or create a queued re-approval.
 
 ### Test steps
 
-1. As `ADMIN`, create a credit-override request for a customer
-   (or use the seed).
-2. Switch to `ACCOUNTANT` and approve.
-3. Capture before/after.
+1. Open the customer financial settings as an authorized user; change and save
+   a valid value, then read back the value and audit history.
+2. Repeat as an unauthorized role; verify denied access and unchanged data.
+3. Try the retired queue URL/API; verify no action, no queue and no data mutation.
 
 ---
 
-## Flow 7 — Trung tâm phê duyệt (Governance actions)
-
-**Route**: `/governance-actions`
-**Component**: `frontend/src/pages/GovernanceActionsPage.tsx`
-**Allow**: `officeStaffOnly`.
+## Flow 7 — Thao tác tài chính trực tiếp (No approval inbox)
 
 ### Acceptance criteria
 
-1. **ACC-GOV-01 — Inbox of pending actions**
-   - **Then** the page shows every approval-pending action
-     touching the ledger: credit overrides, return-for-evidence
-     requests, salary-period locks, debit-note approvals. Each
-     row links to the underlying entity.
-2. **ACC-GOV-02 — Action execution writes an audit row**
-   - **When** the user clicks `Duyệt` / `Từ chối`
-   - **Then** the action executes server-side; an audit-log row
-     is written; the inbox refreshes.
+1. **ACC-GOV-01 — No governance inbox**
+   - `/governance-actions` is retired, is absent from navigation and cannot be
+     used to submit, check, approve or reject ledger actions. Work is done at
+     the underlying entity with its existing permissions and validation.
+2. **ACC-GOV-02 — Direct commands retain audit and financial safeguards**
+   - Authorized receipt/payment, evidence correction, salary-period close and
+     debit actions complete in the same request and write the corresponding
+     business/audit history. Unauthorized actors remain denied; evidence,
+     version, period locks and idempotency remain enforced. No pending result
+     or second-actor step is introduced.
 
 ---
 
@@ -339,16 +305,16 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Acceptance criteria
 
-1. **ACC-FUEL-01 — Queue of fuel-evidence submissions**
+1. **ACC-FUEL-01 — Fuel evidence to reconcile**
    - **Then** every driver-uploaded fuel receipt waiting for
      review is listed: `Mã chuyến`, `Biển số`, `Lít`, `Số tiền`,
      `Hóa đơn (ảnh)`, `Trạng thái`.
-2. **ACC-FUEL-02 — Approve / reject**
-   - **When** the user clicks `Duyệt`
-   - **Then** a `FUEL_EXPENSE` journal row is posted, the
-     trip's `fuelCost` is updated, the evidence status flips
-     to `Đã duyệt`. On reject, the row is marked `Bổ sung
-     chứng từ` and the driver is asked to re-upload.
+2. **ACC-FUEL-02 — Record or correct evidence directly**
+   - **When** an authorized user records valid fuel evidence
+   - **Then** it is saved directly. Reconciliation updates the existing cost
+     source once; adding or replacing a photo does not post a second cost or
+     money movement. Missing evidence is shown as missing evidence, with an
+     explanation of what to add, rather than an approval/rejection state.
 3. **ACC-FUEL-03 — OCR is rate-limited**
    - **Then** the per-user OCR call is rate-limited (per
      `66cbf165`); the accountant cannot burn through the OCR
@@ -365,7 +331,7 @@ only (`adminOnly` per `App.tsx:335`).
 
 1. As `DRIVER`, submit a fuel receipt for a completed trip.
 2. As `ACCOUNTANT`, open `/accounting/fuel-evidence`.
-3. Approve the receipt. Capture before/after.
+3. Record/reconcile the receipt directly. Capture before/after and verify no duplicate cost.
 
 ---
 
@@ -413,23 +379,17 @@ only (`adminOnly` per `App.tsx:335`).
 1. **ACC-TRS-01 — Capability gating**
    - **Then** a role without `treasury.read` is redirected away
      from `/finance/treasury` and the sidebar item is hidden.
-2. **ACC-TRS-02 — Cash position per account**
-   - **Then** the page shows, per bank / cash account: `Mã tài
-     khoản`, `Loại` (`Tiền mặt` / `Ngân hàng`), `Số dư hiện tại`,
-     `Số dư cuối ngày hôm qua`, `Biến động 7 ngày` (sparkline).
-3. **ACC-TRS-03 — Cash-flow projection**
-   - **Then** the bottom of the page shows a 14-day cash-flow
-     projection: scheduled `PAYMENT_RECEIVED` rows minus scheduled
-     `VENDOR_PAYMENT` / `OPS_ADVANCE` rows. The numbers are in
-     VND and use no decimals.
+2. **ACC-TRS-02 — Actual cash position per account**
+   - Show account identity, cash/bank type, company/TM fund, opening/cutover context and actual posted balance. Drill into the real source transactions. Unknown legacy fund/allocation is explicit; no assumed projected receipt becomes cash.
+3. **ACC-TRS-03 — Historical cutoff and source traceability**
+   - Apply the supported cutoff/filter and verify the resulting balances against actual receipts/payments/reversals. Unpaid requests, scheduled work and created debit are not cash. The old speculative 14-day cash-flow forecast is not a current PRD requirement.
 
 ### Test steps
 
-1. Grant `treasury.read` to `ACCOUNTANT` (it should be there by
-   default in the seed; verify in the seed log).
-2. Open `/finance/treasury`. Capture.
-3. Hover the sparkline; capture the tooltip with the 7-day
-   detail.
+1. Use the existing ACCOUNTANT `treasury.read` permission; do not expand permissions just to make the test pass.
+2. Open `/finance/treasury`, change supported filters, open account/source detail and return.
+3. At 360/390/820/1440px verify account name, code, fund and conversion status occupy separate readable lines and amounts/actions remain reachable.
+4. For money assertions use owned local cash fixtures and actual posting/reversal evidence; screenshots alone do not establish balance correctness.
 
 ---
 
@@ -442,7 +402,7 @@ guard (ADMIN, MANAGER, ACCOUNTANT, CUS-with-capability).
 
 ### Acceptance criteria
 
-1. **ACC-RECON-01 — Flag / approve a recoverable cost row**
+1. **ACC-RECON-01 — Reconcile a recoverable cost row directly**
    - **Then** the accountant can mark a row as `Đã đối soát`
      (reconciled). The flag is server-authoritative (a PATCH to
      the dedicated endpoint, not a direct row update).
@@ -524,10 +484,10 @@ guard (ADMIN, MANAGER, ACCOUNTANT, CUS-with-capability).
 | Read `/finance/treasury`              | cap        | cap   | cap     | ❌         | ❌  | ❌  | ❌     | ❌       |
 | Read `/finance` `/profit`             | ✅         | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
 | Read `/expenses` (list)               | ✅         | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
-| Create / edit expense (`/expenses/new`)| ❌         | ✅    | ❌      | ❌         | ❌  | ❌  | ❌     | ❌       |
+| Create / edit expense (`/expenses/new`)| ✅         | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
 | Read `/accounting/fuel-evidence`      | ✅         | ❌    | ❌      | ❌         | ❌  | ❌  | ❌     | ❌       |
-| Read `/credit-overrides` `/governance-actions` | ✅  | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
-| Approve credit override               | ✅         | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
+| Use retired approval queues           | ❌         | ❌    | ❌      | ❌         | ❌  | ❌  | ❌     | ❌       |
+| Edit customer financial settings     | existing | existing | existing | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Read `/recoverable-costs`             | cap        | ✅    | ✅      | ❌         | ❌  | cap | ❌     | ❌       |
 | Read `/shipments` (audit)             | ✅         | ✅    | ✅      | ✅         | ❌  | ✅  | ❌     | scoped   |
 | Read `/dispatch`                      | ❌         | ✅    | ✅      | ✅         | ❌  | ❌  | ❌     | ❌       |
@@ -536,7 +496,8 @@ guard (ADMIN, MANAGER, ACCOUNTANT, CUS-with-capability).
 | Read `/audit-logs`                    | ✅         | ✅    | ✅      | ❌         | ❌  | ❌  | ❌     | ❌       |
 
 `cap` = requires the capability. `scoped` = row-scoped to own
-shipments.
+shipments. `existing` = only the actions already permitted on that entity;
+removing approvals grants no additional financial permissions.
 
 ## Out of scope (ACCOUNTANT)
 

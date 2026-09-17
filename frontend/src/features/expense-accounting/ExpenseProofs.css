@@ -1,0 +1,10 @@
+.expense-proofs { display: grid; min-width: 0; gap: 10px; }
+.expense-proofs > * { min-width: 0; }
+.expense-proofs .expense-accounting-subtitle { margin: 0; font-size: var(--text-data-size); font-weight: 600; }
+.expense-proofs .expense-accounting-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.expense-proofs .expense-accounting-photos a { display: block; width: 88px; height: 88px; }
+.expense-proofs .expense-accounting-photos img { width: 100%; height: 100%; object-fit: cover; border: 1px solid var(--line); border-radius: 6px; }
+.expense-proofs .expense-accounting-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.expense-proofs .expense-accounting-file > span { overflow-wrap: anywhere; }
+.expense-proofs .expense-accounting-hint { margin: 0; color: var(--fg-2); font-size: var(--text-caption-size); }
+.expense-proofs .expense-accounting-error { margin: 0; color: var(--danger); overflow-wrap: anywhere; }

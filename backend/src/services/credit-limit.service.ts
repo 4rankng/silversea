@@ -6,11 +6,6 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { getAppSettings } from './app-settings.service';
-import { assertCanMakeGovernanceAction } from './governance-policy';
-import {
-  type GovernanceActionRow,
-  type GovernanceApplyResult,
-} from './governance-action-core.service';
 
 const DEFAULT_WARNING_THRESHOLD = 0.8;
 const TIER_ONE_MAX_RATIO = 0.1;
@@ -128,19 +123,6 @@ export interface CreditOverrideRequestInput {
   reason: string;
   shipmentId?: number | null;
   expiresAt?: string | null;
-}
-
-export interface CreditOverrideApprovalResult {
-  request: CreditOverrideView;
-  approvedBy: number;
-}
-
-export interface CreditOverrideDecisionInput {
-  expectedVersion: number;
-}
-
-export interface CreditOverrideRejectionInput extends CreditOverrideDecisionInput {
-  reason: string;
 }
 
 export interface CreditEnforcementResult extends CreditCheckResult {
@@ -390,7 +372,6 @@ export async function createCreditOverrideRequest(
   transaction?: Tx,
 ): Promise<CreditOverrideView> {
   assertCanRequestOverride(actor.role);
-  assertCanMakeGovernanceAction('CREDIT_OVERRIDE_APPROVAL', actor.role);
   const reason = normalizeReason(input.reason);
   if (!reason) {
     throw new ApiError(400, 'Lý do vượt hạn mức là bắt buộc');
@@ -455,58 +436,6 @@ export async function createCreditOverrideRequest(
     return toCreditOverrideView(request);
   };
   return runInTx(transaction, execute);
-}
-
-export async function applyCreditOverrideGovernanceAction(
-  tx: Tx,
-  action: GovernanceActionRow,
-): Promise<GovernanceApplyResult> {
-  if (
-    action.subjectType !== 'CREDIT_OVERRIDE'
-    || action.actionKind !== 'CREDIT_OVERRIDE_APPROVAL'
-    || action.subjectId == null
-    || action.approverId == null
-    || !action.approverRole
-  ) {
-    throw new ApiError(409, 'Yêu cầu không thuộc ngoại lệ tín dụng tín dụng');
-  }
-  const [request] = await tx.select().from(s.creditOverrideRequests)
-    .where(eq(s.creditOverrideRequests.id, action.subjectId))
-    .limit(1)
-    .for('update');
-  if (!request) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
-  if (request.status !== 'PENDING') {
-    throw new ApiError(409, 'Đề nghị vượt hạn mức không còn ở trạng thái chờ duyệt');
-  }
-  if (request.version !== action.originalVersion) {
-    throw new ApiError(409, 'Đề nghị đã được cập nhật. Vui lòng tải lại trước khi duyệt');
-  }
-  if (request.expiresAt && request.expiresAt.getTime() <= Date.now()) {
-    throw new ApiError(409, 'Đề nghị vượt hạn mức đã hết hạn');
-  }
-  const now = action.approvedAt ?? new Date();
-  const [approved] = await tx.update(s.creditOverrideRequests)
-    .set({
-      status: 'APPROVED',
-      approvedBy: action.approverId,
-      approvedRole: action.approverRole,
-      approvedAt: now,
-      version: sql`${s.creditOverrideRequests.version} + 1`,
-      updatedAt: now,
-    })
-    .where(and(
-      eq(s.creditOverrideRequests.id, request.id),
-      eq(s.creditOverrideRequests.status, 'PENDING'),
-      eq(s.creditOverrideRequests.version, action.originalVersion),
-    ))
-    .returning({ id: s.creditOverrideRequests.id });
-  if (!approved) throw new ApiError(409, 'Đề nghị đã được xử lý bởi người khác');
-  return {
-    applicationResult: {
-      creditOverrideRequestId: request.id,
-      approvedBy: action.approverId,
-    },
-  };
 }
 
 /** Sortable columns of the credit-override queue (URL-facing sortBy vocabulary). */

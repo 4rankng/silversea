@@ -249,6 +249,19 @@ interface OperationalSiteName {
   shortName?: string;
 }
 
+/** A different customer's factories cannot remain on a draft. Preserve an
+ * independently chosen route, including a manual ad-hoc route override. */
+export function resetCustomerSite(
+  selection: { operationalSiteId: string; routeId: string },
+  sites: ReadonlyArray<{ id: number; routeId: number | null }>,
+) {
+  const factoryRoute = sites.find((site) => String(site.id) === selection.operationalSiteId)?.routeId;
+  return {
+    operationalSiteId: '',
+    routeId: factoryRoute != null && String(factoryRoute) === selection.routeId ? '' : selection.routeId,
+  };
+}
+
 export function buildShipmentRootPayload(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],

@@ -122,10 +122,8 @@ async function enrichSalaryListWithPostCloseAdjustments(
 
 // GET /api/salary — list all drivers with their salary summary for a given month/year
 
-// 2026-09-10 user directive: remove all phê duyệt flows. Governed salary
-// requests apply directly in-request: the create endpoints run the make
-// stage (transient action record) and the check + approve stages through
-// autoApplyGovernanceAction with the domain apply adapters.
+// Salary commands apply immediately through their domain adapters, with
+// role, evidence and version checks in the same transaction.
 
 router.get('/', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const year = parseInt(req.query.year as string, 10) || new Date().getFullYear();

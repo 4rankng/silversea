@@ -14,7 +14,6 @@ Silver Sea hỗ trợ toàn bộ công việc từ tiếp nhận lô hàng, lậ
 | [CuocPhiPhuPhiDau.md](CuocPhiPhuPhiDau.md) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | `18.7 - BG Long Minh T7.xlsx` và trả lời khách hàng |
 | [CuocPhiThietKeDB.md](CuocPhiThietKeDB.md) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Yêu cầu cước và phương án khách hàng |
 | [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | `Phương án tính cước tự động.docx` |
-| [CauHoiKhachHang_CuocPhi_2026-09-08.md](CauHoiKhachHang_CuocPhi_2026-09-08.md) | Các câu trả lời đã có và thông số hợp đồng còn cần khách hàng xác định | Trao đổi về bảng cước Long Minh |
 
 ## Người dùng và kết quả cần đạt
 
@@ -32,6 +31,8 @@ Silver Sea hỗ trợ toàn bộ công việc từ tiếp nhận lô hàng, lậ
 Tên vai trò không đồng nghĩa được truy cập mọi dữ liệu hoặc thực hiện mọi hành động. Mỗi màn hình chỉ cung cấp thông tin và thao tác trong phạm vi người dùng; cùng một nghiệp vụ phải có ý nghĩa thống nhất giữa các vai trò.
 
 ## Thay đổi có hiệu lực gần nhất
+
+**17/09/2026 — Không còn ngoại lệ phê duyệt nội bộ.** Quy tắc thao tác trực tiếp áp dụng cho mọi nghiệp vụ hiện hành, gồm tạo khách hàng/danh mục, sửa lô, điều vận, hồ sơ giao nhận, chi phí, tạm ứng/hoàn ứng, nhiên liệu, hạn mức tín dụng, chấm công, lương và khóa/mở kỳ. Không giữ màn hình, hàng đợi, nút hoặc thông báo phê duyệt để chờ triển khai sau; không mô phỏng các bước kiểm tra/duyệt phía sau một nút lưu. Người đủ quyền thực hiện đúng nghiệp vụ trực tiếp, người thiếu quyền vẫn bị từ chối. Lịch sử quyết định cũ vẫn đọc được khi cần đối chiếu, nhưng không tạo thao tác duyệt mới hay làm thay đổi tiền đã ghi. Yêu cầu ứng chỉ là yêu cầu cấp tiền; chỉ giao dịch thực tế mới ghi tiền nhận/chi. Nhận lệnh, xác nhận giao hàng, đối chiếu và khóa kỳ giữ đúng ý nghĩa nghiệp vụ riêng.
 
 **16/09/2026 — Chi phí Ops/lái xe, phơi phiếu và thu/trả.** Yêu cầu từ `các chi phí.docx` nằm trong [Ops](OpsVanHanh.md#9-chi-phí-ops-và-hoàn-ứng), [Lái xe](ManHinhLaiXe.md#8-chi-phí-lái-xe) và [O2C](QuyTrinhO2C.md#74-phơi-phiếu-và-phân-công-kế-toán). Chi thực tế, số tính cho khách và tiền đã thu/trả là những thông tin cần tách biệt; đối chiếu không tạo thêm dòng tiền hoặc cấp duyệt. Các điểm nguồn chưa hoàn thiện được ghi tại nghiệp vụ liên quan, không tự suy ra giá hay ngưỡng cảnh báo.
 

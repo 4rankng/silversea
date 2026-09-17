@@ -1,10 +1,9 @@
-import type { LinkedExpense, LinkedRequest } from '../api/forwarderClient';
+import { forwarderClient, type LinkedExpense, type LinkedRequest } from '../api/forwarderClient';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
-import { api } from '../lib/api';
 import {
   useForwarderSettlementDetail,
   useAdminSettlementDetail,
@@ -63,18 +62,16 @@ interface SettlementData {
   eligibleExpenses?: LinkedExpense[];
 }
 
-export function settlementReviewPermissions(input: {
+export function settlementActionPermissions(input: {
   isPortal: boolean;
-  userId?: number;
   role?: string;
-  settlement: Pick<SettlementData, 'status' | 'checkedBy' | 'forwarderId'>;
+  settlement: Pick<SettlementData, 'status'>;
 }) {
-  const isFinancialReviewer = !input.isPortal
+  const canManageSettlements = !input.isPortal
     && (input.role === 'ACCOUNTANT' || input.role === 'ADMIN');
   return {
-    canEditAndCheck: isFinancialReviewer && input.settlement.status === 'DRAFT',
-    canApprove: false,
-    canRequestApprovedGovernance: isFinancialReviewer && input.settlement.status === 'RECORDED',
+    canEditDraft: canManageSettlements && input.settlement.status === 'DRAFT',
+    canCorrectRecorded: canManageSettlements && input.settlement.status === 'RECORDED',
   };
 }
 
@@ -160,6 +157,8 @@ export default function SettlementPrintPage() {
   const error = isPortal ? fwdQuery.error : admQuery.error;
   const { rootRef } = usePageAnimations({ ready: !isLoading });
   const [showPreview, setShowPreview] = useState(false);
+  const [exportPending, setExportPending] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<LinkedExpense | null>(null);
   const [editedAmount, setEditedAmount] = useState('');
@@ -179,13 +178,30 @@ export default function SettlementPrintPage() {
   const handleBack = () => navigate(-1);
   useBackShortcut(handleBack);
 
-  const handlePrint = async () => {
-    const endpoint = isPortal 
-      ? `/forwarder/me/advance-settlements/${id}/export?format=html`
-      : `/finance/advance-settlements/${id}/export?format=html`;
-    const html = await api.postForText(endpoint, {});
-    setPreviewHtml(html);
-    setShowPreview(true);
+  const handleExport = async (format: 'html' | 'xlsx') => {
+    if (exportPending) return;
+    setExportPending(true);
+    setExportError(null);
+    try {
+      const blob = await forwarderClient.getSettlementExport(Number(id), format, isPortal ? 'SELF' : 'OFFICE');
+      if (format === 'html') {
+        setPreviewHtml(await blob.text());
+        setShowPreview(true);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `phieu-thanh-toan-${settlement?.code ?? id}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'Không thể tải phiếu thanh toán. Vui lòng thử lại.');
+    } finally {
+      setExportPending(false);
+    }
   };
 
   const handleIframePrint = () => {
@@ -227,7 +243,7 @@ export default function SettlementPrintPage() {
   const s = settlement as SettlementData;
   const expenses = s.linkedExpenses || [];
   const requests = s.linkedRequests || [];
-  const totalAdvance = requests.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalAdvance = requests.reduce((sum, r) => sum + Number(r.allocatedAmount ?? r.amount), 0);
   const totalExpense = expenses.reduce((sum, e) => sum + Number(e.buyAmount), 0);
   const refund = Number(s.refundAmount || 0);
   const { balance, label: balanceLabel } = settlementBalanceSummary(totalAdvance, totalExpense, refund);
@@ -235,11 +251,10 @@ export default function SettlementPrintPage() {
   const rows = buildPrintRows(expenses);
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const {
-    canEditAndCheck: canEditExpenses,
-    canRequestApprovedGovernance,
-  } = settlementReviewPermissions({
+    canEditDraft: canEditExpenses,
+    canCorrectRecorded,
+  } = settlementActionPermissions({
     isPortal,
-    userId: user?.userId,
     role: user?.role,
     settlement: s,
   });
@@ -318,21 +333,13 @@ export default function SettlementPrintPage() {
               <button className="btn btn--secondary btn--sm" onClick={handleBack}>
                 <ArrowLeft size={14} /> Trở về
               </button>
-              <button className="btn btn--primary btn--sm" onClick={handlePrint}>
+              <button className="btn btn--primary btn--sm" onClick={() => void handleExport('html')} disabled={exportPending}>
                 <Printer size={14} /> In
               </button>
               <button
                 className="btn btn--secondary btn--sm"
-                onClick={() => {
-                  api.getBlob(`/forwarder/me/advance-settlements/${s.id}/export`)
-                    .then(blob => {
-                      const a = document.createElement('a');
-                      a.href = URL.createObjectURL(blob);
-                      a.download = `phieu-thanh-toan-${s.code}.xlsx`;
-                      a.click();
-                      URL.revokeObjectURL(a.href);
-                    });
-                }}
+                onClick={() => void handleExport('xlsx')}
+                disabled={exportPending}
               >
                 <FileSpreadsheet size={14} /> Excel
               </button>
@@ -340,6 +347,8 @@ export default function SettlementPrintPage() {
           }
         />
       </div>
+
+      {exportError && <p className="settlement-finalize__error no-print" role="alert">{exportError}</p>}
 
       <div className="settlement-detail">
         {/* ── Info Grid ── */}
@@ -363,17 +372,17 @@ export default function SettlementPrintPage() {
         {/* ── Advances ── */}
         {requests.length > 0 && (
           <div className="settlement-detail__section">
-            <h2 className="settlement-detail__section-title">Tạm ứng đã nhận</h2>
+            <h2 className="settlement-detail__section-title">Tạm ứng đã sử dụng</h2>
             <div className="settlement-detail__advances">
               {requests.map(r => (
                 <div key={r.id} className="settlement-detail__advance-row">
-                  <span className="settlement-detail__advance-amount">{formatCurrency(Number(r.amount))}</span>
+                  <span className="settlement-detail__advance-amount">{formatCurrency(Number(r.allocatedAmount ?? r.amount))}</span>
                   <span className="settlement-detail__advance-reason">{r.reason}</span>
                   <span className="settlement-detail__advance-date">{new Date(r.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
                 </div>
               ))}
               <div className="settlement-detail__advance-total">
-                <span>Tổng tạm ứng:</span>
+                <span>Tổng tạm ứng đã sử dụng:</span>
                 <strong>{formatCurrency(totalAdvance)}</strong>
               </div>
             </div>
@@ -421,8 +430,8 @@ export default function SettlementPrintPage() {
               </div>
             </div>
           )}
-          <div className="expense-grid">
-            <div className="expense-grid__header">
+          <div className="settlement-expense-grid">
+            <div className="settlement-expense-grid__header">
               <span>Ngày</span>
               <span>Nội dung</span>
               <span>Khách hàng</span>
@@ -431,22 +440,22 @@ export default function SettlementPrintPage() {
               <span>Hóa đơn</span>
             </div>
             {rows.map((row, idx) => (
-              <div key={idx} className="expense-grid__row">
-                <span className="u-muted">{row.date}</span>
-                <span>{row.expenseType}</span>
-                <span className="u-wrap">{row.customer}</span>
-                <span className="u-mono">{row.container}</span>
-                <span className="u-right u-num">{formatCurrency(Number(row.amount))}</span>
-                <span>{row.invoice}</span>
+              <div key={idx} className="settlement-expense-grid__row">
+                <span data-label="Ngày" className="u-muted">{row.date}</span>
+                <span data-label="Nội dung">{row.expenseType}</span>
+                <span data-label="Khách hàng" className="u-wrap">{row.customer}</span>
+                <span data-label="Số cont" className="u-mono">{row.container}</span>
+                <span data-label="Thành tiền" className="u-right u-num">{formatCurrency(Number(row.amount))}</span>
+                <span data-label="Hóa đơn">{row.invoice || "—"}</span>
               </div>
             ))}
-            <div className="expense-grid__total">
+            <div className="settlement-expense-grid__total">
               <span className="u-bold" style={{ gridColumn: '1 / 5' }}>Tổng cộng</span>
               <span className="u-right u-num u-bold">{formatCurrency(totalFromRows)}</span>
               <span></span>
             </div>
           </div>
-          {canRequestApprovedGovernance && (
+          {canCorrectRecorded && (
             <div className="settlement-expense-actions no-print">
               <p className="settlement-editor-hint">
                 Thay đổi có hiệu lực ngay khi lưu; hệ thống giữ lịch sử và bút toán đối ứng.
@@ -506,7 +515,7 @@ export default function SettlementPrintPage() {
         {/* ── Summary ── */}
         <div className="settlement-detail__summary">
           <div className="settlement-detail__summary-card">
-            <div className="settlement-detail__summary-label">Tổng tạm ứng</div>
+            <div className="settlement-detail__summary-label">Tổng tạm ứng đã sử dụng</div>
             <div className="settlement-detail__summary-value">{formatCurrency(totalAdvance)}</div>
           </div>
           <div className="settlement-detail__summary-card">

@@ -125,6 +125,11 @@ Ops bổ sung biên lai ngay từ khoản đã lưu hoặc danh sách nợ chứ
 
 Khoản mới phát sinh không tự chen vào bảng kê đã chốt. Hồ sơ đã khóa không được sửa đè hoặc mất lịch sử; sai sót được xử lý theo quyền điều chỉnh và quy tắc kỳ kế toán. Không có gửi duyệt, duyệt cả phiếu hay từ chối của người thứ hai.
 
+Khi kế toán sửa khoản đã đối chiếu, lưu khoản thay thế có liên kết với khoản gốc, lý do, người sửa và thời điểm; khoản gốc giữ nguyên số tiền và chứng từ trong lịch sử. Các nghĩa vụ cũ được đảo bằng bút toán, không xóa lịch sử hoặc giả định tiền đã hoàn. Nếu khoản còn thuộc phiếu thu/chi, chứng từ khách hàng hoặc đợt hoàn ứng, người dùng được hướng dẫn hoàn tác liên kết trước. Hoàn tác đợt hoàn ứng đã hết giao dịch tiền hiệu lực trả lại quyền phân bổ khoản chi/tiền ứng, giữ bảng kê cũ để tra cứu.
+
+Phân công hiện tại phải được kiểm tra lại lúc lưu hoặc bổ sung/xóa ảnh, kể cả màn hình đã mở trước khi thu hồi phân công. Kế toán nhập thay vẫn giữ riêng người nhập và người chi. Khoản đã đối chiếu hiển thị chỉ đọc đối với Ops; vẫn có thể bổ sung chứng từ khi còn quyền. Ops và kế toán cùng xem một bộ ảnh hiện hành, không giữ ảnh đã xóa ở màn hình còn lại.
+
+
 Xuất Excel và in A4 giữ mã phiếu, người lập, ngày, lô, nhóm hóa đơn, khoản chi và tổng đúng như màn hình. Một lô có nhiều người chi không tạo khoản trùng. Chữ ký trên bản giấy nếu cần không trở thành cấp duyệt trong ứng dụng.
 
 ### 5.5 Những trạng thái cần phân biệt
@@ -216,7 +221,11 @@ Bảng hỗ trợ lọc ngày/đợt đề nghị, nhân viên, lô và khách h
 
 Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đợt**, **tiền ứng thực nhận được phân bổ**, **công ty cần trả thêm**, **Ops cần hoàn lại**, **đã quyết toán bằng tiền** và **còn lại**. Một khoản ứng hay chi không được tính toàn bộ vào nhiều đợt.
 
-**Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần.
+Yêu cầu tạm ứng chỉ ghi nhu cầu, hiển thị “Chưa giao tiền”; không tăng số dư quỹ hoặc khoản ứng được phân bổ. Khi thực tế giao tiền, kế toán chọn đúng yêu cầu đã có để ghi chi, không phải tạo một yêu cầu khác. Yêu cầu cũ chỉ có bút toán nhưng chưa có chứng từ giao tiền không được coi là đã nhận. Đảo giao dịch giao tiền cập nhật số thực nhận, giữ nguyên lịch sử.
+
+Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và số thực chi của đúng Ops, kể cả phí thuộc công việc vận chuyển đã có. Người chi và người nhập hiển thị riêng; phí lịch sử vẫn xem được, không sao chép thành một chi phí mới.
+
+**Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần. Giới hạn trả thêm dựa trên chi phí và khoản ứng đã chọn trong đúng đợt. Tiền ứng chưa phân bổ hoặc dư tiền của đợt khác không tự bù trừ hoặc làm mất khả năng thanh toán đợt này; cùng khoản ứng không được sử dụng lần hai.
 
 ### 9.3 Tiêu chí nghiệm thu bổ sung
 
@@ -241,3 +250,11 @@ Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đ�
 ### Kết nối và thử lại
 
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
+
+### Tra cứu đối chiếu và chỉ dẫn vận hành
+
+OPS xem được các đợt hoàn ứng của mình, lọc theo kỳ hoặc nội dung, mở từng khoản nguồn và xuất đúng các dòng đang lọc. Kế toán xem lịch sử phiếu gồm phân bổ, quỹ, tham chiếu, ngày tiền và ngày/lý do đảo. Giá trị phân bổ lịch sử tách khỏi số tiền hiện tại của khoản nguồn.
+
+Khi cần sửa một đợt đã đối chiếu, kế toán hoàn tác đợt với lý do sau khi đảo các phiếu tiền liên quan. Đợt cũ và nguồn gốc vẫn tra cứu được; không còn nút trả/thu tiền trên đợt đã hoàn tác. Nguồn đã trả lại có thể được điều chỉnh và đối chiếu lại theo quy tắc hiện hành, không tự tạo thêm tiền.
+
+Ghi chú thu hồi/chứng từ của OPS được hiển thị riêng trong cả kế hoạch tổng quát và chi tiết của điều vận, giữ xuống dòng và không trộn vào ghi chú cho lái xe. Khoản đã hủy không còn góp ghi chú vào kế hoạch hiện hành.

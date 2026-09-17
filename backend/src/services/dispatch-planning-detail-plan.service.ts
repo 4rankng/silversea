@@ -1,3 +1,4 @@
+import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 /**
  * dispatch-planning detail — detail-plan grid, facets, plate/carrier/estimate mutations, zone panels.
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
@@ -412,6 +413,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     ]);
     const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
+    const opsRecoveryNotes = input.actor.role === Role.ACCOUNTANT ? new Map<number, string[]>() : await loadDispatchExpenseNotes(shipmentIds, tx);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
@@ -502,6 +504,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           notes: {
             vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,
             customerNote: row.customerNotes,
+            opsRecoveryNotes: opsRecoveryNotes.get(row.shipmentId) ?? [],
           },
           dispatch: {
             tripId: row.tripId,

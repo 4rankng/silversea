@@ -51,6 +51,8 @@ export interface UuiSelectFieldProps {
   wrapperClassName?: string;
   controlClassName?: string;
   popoverClassName?: string;
+  /** Compact filters by default; ordinary form controls can opt into md. */
+  size?: 'sm' | 'md';
 }
 
 const EMPTY_SELECT_KEY = '__EMPTY_SELECT_VALUE__';
@@ -82,6 +84,7 @@ export function UuiSelectField({
   wrapperClassName,
   controlClassName,
   popoverClassName,
+  size = 'sm',
 }: UuiSelectFieldProps) {
   const generatedId = useId();
   const messageId = `${id ?? generatedId}-message`;
@@ -95,7 +98,7 @@ export function UuiSelectField({
   ].filter(Boolean).join(' ');
 
   const items = options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label, isDisabled: option.disabled }));
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? '';
+  const selectedLabel = value ? options.find((option) => option.value === value)?.label ?? '' : '';
 
   // Type-to-search text, independent from the committed `value` so the user
   // can filter freely before picking an option. Resynced with the selected
@@ -103,8 +106,7 @@ export function UuiSelectField({
   const [searchText, setSearchText] = useState(selectedLabel);
   useEffect(() => {
     setSearchText(selectedLabel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, options]);
+  }, [value, selectedLabel]);
 
   const isSearchable = options.length >= SEARCH_THRESHOLD;
 
@@ -113,23 +115,23 @@ export function UuiSelectField({
       {isSearchable ? (
         <UUISelect.ComboBox
           id={id}
-          size="sm"
+          size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
           menuTrigger="focus"
           openOnPress
-          selectedKey={value || EMPTY_SELECT_KEY}
+          selectedKey={value || null}
           inputValue={searchText}
           onInputChange={setSearchText}
           onSelectionChange={(key) => {
             if (key == null) return;
             const nextValue = key === EMPTY_SELECT_KEY ? '' : String(key);
             onChange(asEvent(nextValue));
-            setSearchText(options.find((option) => (option.value || EMPTY_SELECT_KEY) === key)?.label ?? '');
+            setSearchText(nextValue ? options.find((option) => option.value === nextValue)?.label ?? '' : '');
           }}
           items={items}
-          placeholder={placeholder ?? 'Gõ để tìm kiếm'}
+          placeholder={placeholder ?? options.find(option => option.value === '')?.label ?? 'Gõ để tìm kiếm'}
           isDisabled={disabled}
           isRequired={required}
           isInvalid={invalid ?? Boolean(error)}
@@ -143,7 +145,7 @@ export function UuiSelectField({
       ) : (
         <UUISelect
           id={id}
-          size="sm"
+          size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}

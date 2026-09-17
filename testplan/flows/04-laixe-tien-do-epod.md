@@ -2,18 +2,15 @@
 
 > **Vai trò sở hữu:** Lái xe (DRIVER)
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`).
-> **Route chính:** `/my-trips/:id` (e-POD, HOÀN THÀNH CHUYẾN), `/shipments/:id` (e-POD panel)
+> **Route chính:** `/my-trips/:tripId` (chi tiết), `/my-trips/:fulfillmentId/pod` (e-POD, hoàn thành), `/shipments/:id` (e-POD panel)
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667)
-> **PRD nguồn:** Module 08, O2C Bước 3, TC-MO2C-05, TC-MO2C-07
+> **PRD nguồn:** `docs/prd/ManHinhLaiXe.md` hiện hành; Module 08, O2C Bước 3, TC-MO2C-05, TC-MO2C-07
 >
 > **Tổng quan luồng:** Sau khi nhận lệnh (IN_TRANSIT), lái xe nộp e-POD (2 slot bắt buộc) rồi
 > bấm "HOÀN THÀNH CHUYẾN" để chốt chuyến — lô tự động chuyển `Hoàn thành` (full-close path,
-> bỏ qua kế toán review).
+> độc lập với việc kế toán đối chiếu chi phí).
 >
-> **Lưu ý — đã discard (sẽ làm lại):** §4.1 (4 Milestone vận hành: PICKED_UP → LOADING_OR_RETURNING
-> → DELIVERED), §4.2 (Tiền đường theo container), §4.3 (Nhiên liệu + ảnh cột bơm), §4.4 (Container /
-> Seal capture) đã được loại khỏi testplan vì luồng nghiệp vụ này sẽ được thiết kế lại. Khi thiết kế
-> mới ổn định, các TC sẽ được viết lại với ID mới.
+> **Phạm vi hiện hành:** TC-001..006 cũ không được dùng làm cổng bắt buộc mới. Chi phí lái xe đang hoạt động theo AC-CP-LX-01..10; container/seal là hồ sơ bổ sung. Sau khi đã nhận lệnh thật và đủ hai nhóm e-POD lưu thành công, một nút hoàn thành tự ghi các mốc còn thiếu với dấu suy ra, giữ nguyên mốc thực tế đã có. Không yêu cầu đối chiếu chi phí, ảnh cont/seal hay vé cầu đường để hoàn thành.
 
 ---
 
@@ -27,12 +24,13 @@
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** Trip IN_TRANSIT, sẵn sàng upload e-POD
 - **Các bước:**
-  1. Mở e-POD trên `/my-trips/:id` hoặc `/shipments/:id`.
+  1. Mở chi tiết `/my-trips/:tripId`, dùng CTA tới `/my-trips/:fulfillmentId/pod`.
   2. Tải slot 1: "Phiếu bãi / phiếu hạ" (`yard-drop-test.jpg`).
   3. Tải slot 2: "Biên bản giao nhận có ký nhận" (`signed-delivery-test.pdf`).
-  4. Bấm "Gửi e-POD".
+  4. Xác nhận hai nhóm đã lưu/mở được; bấm "Hoàn thành chuyến" để lưu hồ sơ rồi hoàn thành. Không cần nút gửi riêng.
 - **Kết quả mong đợi (Pass):**
-  - Trạng thái e-POD chuyển sang "Chờ duyệt" (SUBMITTED). — wording unified 2026-09-01 per user decision
+  - Hồ sơ được ghi nhận trực tiếp; không có nhãn "Chờ duyệt" hoặc người duyệt.
+    Mã lưu trữ tương thích `SUBMITTED` không trở thành approval gate.
   - Submission ID, version, status được ghi nhận.
   - e-POD neo đúng trip/fulfillment và phiên bản hiện tại.
   - Mở `/shipments/:id` xác nhận đúng trip/fulfillment.
@@ -40,7 +38,8 @@
   - Thiếu 1 slot vẫn gửi được.
   - Submission gắn sai trip.
   - Không có version/history.
-  - Submit tự duyệt hoặc tự hoàn thành trip.
+  - Lưu hồ sơ riêng tự kết thúc vận chuyển khi chưa có hành động hoàn thành,
+    hoặc yêu cầu duyệt trước khi cho phép hoàn thành.
 - **Bằng chứng:** ảnh 2 slot đã tải + ảnh status SUBMITTED + ảnh `/shipments/:id`
 
 ---
@@ -53,7 +52,7 @@
 - **Thiết bị:** Mobile
 - **Các bước:**
   1. Mở e-POD. Chỉ tải "Phiếu bãi / phiếu hạ" (slot 1).
-  2. **Không** tải "Biên bản giao nhận" (slot 2). Thử bấm "Gửi e-POD".
+  2. **Không** tải "Biên bản giao nhận" (slot 2). Thử bấm "Hoàn thành chuyến".
   3. Thử ngược lại: chỉ tải slot 2, thiếu slot 1.
 - **Kết quả mong đợi (Pass):**
   - Bị chặn: "Thiếu hồ sơ bắt buộc" hoặc nút disabled.
@@ -73,7 +72,7 @@
 - **Mức độ:** P2
 - **Các bước:**
   1. Tải đủ 2 slot bắt buộc. Không tải vé cầu đường.
-  2. Bấm "Gửi e-POD".
+  2. Bấm "Hoàn thành chuyến".
 - **Kết quả mong đợi (Pass):**
   - Gửi thành công. Vé cầu đường không bắt buộc.
 - **Bằng chứng:** ảnh e-POD SUBMITTED không có vé cầu đường
@@ -94,13 +93,14 @@
   2. Kiểm tra trạng thái trip + shipment từ `DRIVER`, `CUS`, `DISPATCHER`.
 - **Kết quả mong đợi (Pass):**
   - Trip chuyển sang `COMPLETED` (chốt luôn, không qua "Chờ duyệt phí").
-  - Shipment tự động cập nhật sang `COMPLETED` (nhánh `allCompletedViaDriverClose` bỏ qua expense-scope + podRecoveredAt).
+  - Shipment chỉ chuyển `COMPLETED` khi tất cả công việc cần thiết đã hoàn thành; không bỏ qua các công việc còn lại. Thiếu đối chiếu chi phí/hồ sơ kế toán không chặn đóng vận chuyển.
   - CUS workspace badge hiển thị "Hoàn thành" (PENDING_LOCK bucket + status label).
   - CUS container ledger: `dispatchStatus: COMPLETED` → "Hoàn thành".
   - Dispatcher trips list: trip `status: COMPLETED` → "Hoàn thành" (TRIP_STATUS_LABELS).
   - Driver app footer: nút "Đã hoàn thành chuyến" (disabled).
   - **Cache báo cáo (fix 2026-09-01):** ngay khi chốt chuyến, các cache báo cáo chịu ảnh hưởng bị invalidate (dashboard, dashboard:executive, P&L, total-AR, entity-results, fuel-variance, dashboard-widgets) — không đợi TTL. Trước 2026-09-01 full-close không bust cache nào (dashboard/P&L stale đến hết TTL). Kiểm chứng tự động: test `driver-fulfillment-progress` đặt sentinel key rồiassert đã bị xóa.
-  - **Lưu ý:** Kế toán review (đối soát phí, POD giấy) sẽ build sau — hiện tại lái xe chốt trực tiếp, cost edit sau đó sẽ surface qua AR snapshot + dirty flag (O2C dev-rev1 §Bước 4).
+  - **Lưu ý:** Đối chiếu chi phí và hồ sơ kế toán là nghiệp vụ độc lập, không là
+    điều kiện duyệt để hoàn thành vận chuyển. Điều chỉnh sau ghi sổ giữ lịch sử.
 - **Kỳ vọng sai (Fail nếu):**
   - Trip vẫn `IN_TRANSIT` sau khi bấm "HOÀN THÀNH CHUYẾN" (regression).
   - Shipment vẫn `IN_TRANSIT` (recompute không theo driver close).
@@ -149,49 +149,37 @@
 ## 4.4 — Khóa nộp lại & hoàn thành chuyến sau khi gửi e-POD (regression 2026-08-29)
 
 > Ba lỗi được báo trong ngày trial 08-29: (1) lái xe bấm lại "Chụp" trên e-POD
-> đã gửi duyệt luôn dính lỗi 409 "Đã có một e-POD đang mở cho tác vụ này" vì
+> đã ghi nhận luôn dính lỗi 409 "Đã có một e-POD đang mở cho tác vụ này" vì
 > nút chưa bị khóa; (2) khi bấm "HOÀN THÀNH CHUYẾN" mà bước gửi e-POD thất bại
 > (mất mạng/conflict), hệ thống vẫn cố hoàn thành chuyến → bị server từ chối
 > ngầm, chuyến kẹt ở "Đang chạy"/"Đã nhận" thay vì "Lịch sử"; (3) ở màn rộng
 > ≥700px, 2 thẻ e-POD bắt buộc đè chữ/nút lên nhau.
 
-### TC-LX-TIENDO-013 — Khóa nút Chụp/Tải tệp khi e-POD đã gửi duyệt (SUBMITTED/ACCEPTED)
+### TC-LX-TIENDO-013 — Giữ nguyên phiên bản hồ sơ đã ghi nhận
 
-- **Vai trò:** `DRIVER`
-- **Mức độ:** P0
-- **Thiết bị:** Mobile
-- **Tiền điều kiện:** Đã nộp e-POD thành công (TC-LX-TIENDO-007), trạng thái "Chờ duyệt" hoặc "Đã duyệt" (wording unified 2026-09-01)
-- **Các bước:**
-  1. Mở `/my-trips/:id/pod` của chuyến đã có e-POD SUBMITTED/ACCEPTED.
-  2. Quan sát khu vực 2 slot bắt buộc.
-  3. Thử bấm vào nơi trước đây có nút "Chụp"/"Tải tệp".
-- **Kết quả mong đợi (Pass):**
-  - Không còn nút "Chụp"/"Tải tệp" cho 2 slot — thay bằng dòng chữ "e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này".
-  - Không xuất hiện lỗi "Đã có một e-POD đang mở cho tác vụ này".
-- **Kỳ vọng sai (Fail nếu):**
-  - Nút "Chụp"/"Tải tệp" vẫn hiện & bấm được.
-  - Bấm vào sinh lỗi 409 "Đã có một e-POD đang mở cho tác vụ này".
-- **Bằng chứng:** ảnh màn e-POD ở trạng thái SUBMITTED/ACCEPTED, không còn nút chụp/tải
+- **Vai trò:** `DRIVER`; **Mức độ:** P0; **Thiết bị:** Mobile.
+- **Tiền điều kiện:** chuyến đã lưu đủ hồ sơ; có một phiên bản hồ sơ được ghi nhận.
+- **Các bước:** mở lại hồ sơ; thử thay ảnh trực tiếp của phiên bản đã ghi nhận.
+- **Kết quả mong đợi:** ảnh và lịch sử đã ghi nhận vẫn xem được; phiên bản không
+  bị sửa đè. Nếu cần bổ sung, dùng hành động cập nhật phiên bản phù hợp quyền và
+  trạng thái hiện hành. Nhãn phản ánh đã lưu/đã hoàn thành, không chờ người duyệt.
+- **Fail:** sửa đè lịch sử; nút gây lỗi 409 vì tạo hồ sơ mở thứ hai; dựng bước duyệt.
+- **Bằng chứng:** ảnh hồ sơ, phiên bản và lỗi/quyền tương ứng từ API.
 
 ---
 
-### TC-LX-TIENDO-014 — Vẫn nộp lại được sau khi e-POD bị từ chối (REJECTED)
+### TC-LX-TIENDO-014 — Bổ sung hồ sơ thiếu hoặc sửa sai có lịch sử
 
-- **Vai trò:** `DRIVER` (nộp) + người duyệt e-POD (từ chối trước)
-- **Mức độ:** P0
-- **Thiết bị:** Mobile
-- **Tiền điều kiện:** e-POD của chuyến đã bị từ chối (REJECTED), có lý do từ chối
-- **Các bước:**
-  1. Mở `/my-trips/:id/pod` của chuyến có e-POD REJECTED.
-  2. Kiểm tra banner lý do từ chối hiển thị.
-  3. Bấm "Chụp" hoặc "Tải tệp" cho 1 trong 2 slot bắt buộc, tải file mới.
-- **Kết quả mong đợi (Pass):**
-  - Nút "Chụp"/"Tải tệp" vẫn hiện & bấm được (KHÔNG bị khóa như case SUBMITTED).
-  - Tải file mới thành công, tạo phiên bản e-POD mới (submissionVersion tăng).
-- **Kỳ vọng sai (Fail nếu):**
-  - Nút bị khóa/ẩn giống trạng thái SUBMITTED, lái xe không nộp lại được.
-  - Lỗi "Đã có một e-POD đang mở cho tác vụ này" xuất hiện dù bản trước đã REJECTED.
-- **Bằng chứng:** ảnh banner từ chối + ảnh sau khi tải file mới thành công
+- **Vai trò:** `DRIVER` và vai trò có quyền sửa hồ sơ hiện hành; **Mức độ:** P0.
+- **Tiền điều kiện:** hồ sơ cần bổ sung/sửa sai; gồm mẫu lịch sử có trạng thái
+  `REJECTED` để kiểm tra tương thích, không tạo quyết định từ chối mới.
+- **Các bước:** mở hồ sơ và ghi chú; dùng thao tác bổ sung đang được phép, tải
+  ảnh đúng; lưu rồi đọc lại lịch sử và kiểm tra bằng người không có quyền.
+- **Kết quả mong đợi:** sửa trực tiếp sau kiểm tra quyền, phiên bản và chứng từ;
+  giữ bản trước và lý do. Không cần người duyệt, gửi lại duyệt hay thay trạng thái
+  tài chính/vận chuyển chỉ vì thêm ảnh. Người không có quyền vẫn bị chặn.
+- **Fail:** không thể bổ sung hồ sơ hợp lệ do approval gate; sửa đè hoặc tạo tiền.
+- **Bằng chứng:** hồ sơ trước/sau, phiên bản mới và API từ chối sai quyền.
 
 ---
 
@@ -202,14 +190,14 @@
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** e-POD đang ở DRAFT (chưa gửi), đủ 2 slot bắt buộc; có thể mô phỏng mất mạng/conflict trong lúc gửi (tắt mạng ngay sau khi bấm, hoặc dùng phiên bản trip đã lỗi thời — expectedVersion sai)
 - **Các bước:**
-  1. Mở `/my-trips/:id/pod`, đủ 2 slot bắt buộc, e-POD còn DRAFT.
+  1. Mở `/my-trips/:fulfillmentId/pod`, đủ 2 slot bắt buộc, e-POD còn DRAFT.
   2. Ngắt mạng (hoặc để trip bị đổi version ở tab khác) rồi bấm "HOÀN THÀNH CHUYẾN".
-  3. Quan sát: lệnh gửi e-POD thất bại/queued offline.
+  3. Quan sát: lệnh gửi e-POD thất bại; không được xếp hàng ngoại tuyến.
   4. Bật lại mạng, tải lại trang, kiểm tra trạng thái chuyến.
 - **Kết quả mong đợi (Pass):**
   - Khi bước gửi e-POD chưa xác nhận DONE, lệnh "HOÀN THÀNH CHUYẾN" (COMPLETE) **không được gửi lên server**.
   - Chuyến vẫn ở màn e-POD, chưa điều hướng về `/my-trips`.
-  - Sau khi mạng ổn định và e-POD gửi thành công, bấm lại "HOÀN THÀNH CHUYẾN" mới chuyển chuyến sang "Lịch sử"/"Chờ duyệt phí".
+  - Sau khi mạng ổn định và e-POD gửi thành công, bấm lại "HOÀN THÀNH CHUYẾN" mới chuyển chuyến sang "Lịch sử"/"Hoàn thành".
 - **Kỳ vọng sai (Fail nếu):**
   - Lệnh COMPLETE vẫn được gửi dù e-POD chưa SUBMITTED thành công (server từ chối ngầm, chuyến kẹt ở "Đang chạy"/"Đã nhận", không rõ lý do cho lái xe).
 - **Bằng chứng:** ảnh trạng thái mạng lỗi + ảnh chuyến vẫn ở màn e-POD + ảnh sau khi hoàn thành lại thành công
@@ -223,7 +211,7 @@
 - **Thiết bị:** Mobile ngang / tablet nhỏ, chiều rộng ~700–1000px (đúng ngưỡng breakpoint)
 - **Tiền điều kiện:** Chuyến có e-POD với 2 slot (bất kỳ trạng thái DRAFT/SUBMITTED/REJECTED)
 - **Các bước:**
-  1. Mở `/my-trips/:id/pod` trên thiết bị/trình duyệt rộng ~700–1000px.
+  1. Mở `/my-trips/:fulfillmentId/pod` trên thiết bị/trình duyệt rộng ~700–1000px.
   2. Quan sát 2 thẻ "Phiếu bãi / phiếu hạ" và "Biên bản giao nhận có ký nhận" cạnh nhau.
 - **Kết quả mong đợi (Pass):**
   - 2 thẻ hiển thị tách bạch, có đường phân cách, không chữ/nút nào đè lên thẻ còn lại.
@@ -232,15 +220,17 @@
   - Chữ hoặc nút của thẻ 1 đè lên thẻ 2 (hoặc ngược lại).
 - **Bằng chứng:** ảnh chụp màn hình ở độ rộng ~700–1000px
 
-### TC-LX-TIENDO-017 — Sau khi nộp e-POD, lô hàng vẫn ở "Đang chạy" (skip kế toán: chờ "HOÀN THÀNH CHUYẾN" mới chuyển)
+### TC-LX-TIENDO-017 — Lưu hồ sơ và hoàn thành vận chuyển là hai sự kiện riêng
 
 - **Mã PRD:** O2C Bước 3 → Bước 4, TC-MO2C-07 + fix 2026-08-29 (driver full-close)
 - **Vai trò:** `DRIVER` (driver-side) + `CUS` (CUS-side) + `DISPATCHER` (dispatch-side)
 - **Mức độ:** P0
 - **Thiết bị:** Mobile + Desktop
-- **Tiền điều kiện:** Trip IN_TRANSIT; e-POD ở trạng thái DRAFT với đủ 2 slot bắt buộc. **Quan trọng:** kế toán flow chưa build (theo instruction "skip kế toán for now, we build later") — vì vậy submit e-POD alone **không được** advance shipment sang "Chờ duyệt phí" vì không có ai để approve. Lô chỉ chuyển "Hoàn thành" khi tài xế bấm "HOÀN THÀNH CHUYẾN".
+- **Tiền điều kiện:** Trip IN_TRANSIT; e-POD DRAFT đủ 2 slot bắt buộc. Lưu
+  hồ sơ riêng không hoàn thành vận chuyển. Khi tài xế bấm "HOÀN THÀNH CHUYẾN",
+  lưu hồ sơ thành công rồi hoàn thành trực tiếp; không cần duyệt kế toán.
 - **Các bước:**
-  1. Đăng nhập `DRIVER`, mở `/my-trips/:id/pod`. Upload 2 tệp bắt buộc, bấm "Gửi e-POD" (status SUBMITTED). **Chưa** bấm "HOÀN THÀNH CHUYẾN".
+  1. Đăng nhập DRIVER, tải đủ hai nhóm e-POD. Lưu tệp chỉ cập nhật hồ sơ DRAFT; chưa bấm hoàn thành. Kiểm tra thêm API nộp hồ sơ độc lập nếu cần chứng minh SUBMITTED không tự đóng chuyến (không dựng nút gửi riêng trong UI).
   2. Mở tab khác, đăng nhập `CUS`, mở `/shipments` hoặc chi tiết lô hàng. Quan sát cột trạng thái.
   3. Mở tab khác, đăng nhập `DISPATCHER`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
   4. Quay lại tab lái xe, bấm "HOÀN THÀNH CHUYẾN". Refresh CUS + điều vận, quan sát lại.
@@ -248,9 +238,10 @@
   - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy"** (IN_TRANSIT; wording unified 2026-09-01) — KHÔNG nhảy sang "Chờ duyệt phí".
   - Sau bước 4 ("HOÀN THÀNH CHUYẾN"): CUS + điều vận thấy lô chuyển sang **"Hoàn thành"** (COMPLETED).
   - Lịch sử trạng thái có dòng IN_TRANSIT → COMPLETED, kèm `changedBy` = tài xế và timestamp.
-  - Nhánh "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL) đã bị xóa bỏ vĩnh viễn (removed from vocabulary 2026-09-06): driver close → lô thẳng "Hoàn thành" (COMPLETED). Nếu kế toán flow build lại, thiết kế trạng thái mới thay vì revive PEA.
+  - Không có nhánh "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL). Đối chiếu
+    chi phí, thiếu chứng từ, hoàn thành và thanh toán là các tình trạng riêng.
 - **Kỳ vọng sai (Fail nếu):**
-  - Sau bước 1: lô nhảy sang "Chờ duyệt phí" — sai vì không có kế toán approve (hành vi trước fix vô tình tái hiện).
+  - Sau bước 1: lô nhảy sang "Chờ duyệt phí" hoặc cần người khác duyệt.
   - Sau bước 4: lô không chuyển "Hoàn thành" (full-close path bị break).
 - **Bằng chứng:** ảnh trạng thái CUS + điều vận sau bước 1 (vẫn IN_TRANSIT) + ảnh trạng thái CUS + điều vận sau bước 4 (COMPLETED)
 
@@ -263,7 +254,7 @@
 >
 > Đặc tả yêu cầu: bấm `Hoàn tất lệnh vận chuyển` **không** kết thúc chuyến ngay mà
 > **nhảy bắt buộc** sang màn Upload E-POD; ảnh phải **tự nén trên máy** và **gắn
-> timestamp thực tế**; nút `HOÀN THÀNH CHUYẾN` chỉ sáng khi **cả 2 ảnh đạt 100%**.
+> timestamp thực tế**; nút `HOÀN THÀNH CHUYẾN` chỉ sáng khi **cả hai nhóm chứng từ đã lưu và mở được**. Tiến trình truyền byte 100% chưa đủ. Ảnh thư viện không rõ giờ chụp không được đóng giờ tải lên thay thế.
 
 ### TC-LX-TIENDO-018 — "Hoàn tất lệnh vận chuyển" nhảy bắt buộc sang màn E-POD
 
@@ -295,7 +286,7 @@
 - **Kết quả mong đợi (Pass):**
   - Đúng **2 khu vực**: `Phiếu bãi / Phiếu hạ` và `Biên bản giao nhận` (biên bản **phải có dấu / chữ ký**).
   - Sau bước 2 (mới 1 ảnh): nút `HOÀN THÀNH CHUYẾN` **vẫn mờ / không bấm được**.
-  - Sau bước 3 (đủ 2 ảnh, tiến trình **100%**): nút **sáng** và bấm được.
+  - Sau bước 3 (đủ 2 ảnh, đã lưu thành công, mở được): nút **sáng** và bấm được.
   - Không có đường vòng nào kết thúc chuyến khi thiếu ảnh (kể cả gọi API trực tiếp → bị chặn).
 - **Kỳ vọng sai (Fail nếu):** nút sáng khi mới 1 ảnh; nút sáng khi upload còn đang chạy (< 100%); API cho phép đóng chuyến thiếu ảnh.
 - **Bằng chứng:** ảnh nút mờ sau 1 ảnh + ảnh nút sáng sau 2 ảnh + Network 4xx của API trực tiếp
@@ -327,11 +318,11 @@
 - **Mức độ:** P0
 - **Các bước:**
   1. Ghi giờ thiết bị. Chụp và tải cả 2 ảnh e-POD.
-  2. Xem lại 2 ảnh trong hồ sơ chuyến (cả trên app lái xe và màn duyệt của Kế toán).
+  2. Xem lại 2 ảnh trong hồ sơ chuyến (cả trên app lái xe và màn hồ sơ của Kế toán).
 - **Kết quả mong đợi (Pass):**
   - Cả 2 ảnh mang **timestamp thực tế lúc chụp**, xem lại được ở cả 2 phía.
   - Giờ theo `Asia/Ho_Chi_Minh`, lệch ≤ 1 phút so với đồng hồ thiết bị.
-  - Timestamp là **giờ chụp**, không phải giờ upload hay giờ duyệt.
+  - Timestamp là **giờ chụp**, không phải giờ upload hay giờ ghi nhận. Ảnh thư viện/PDF thiếu metadata giờ chụp giữ trạng thái chưa biết; không suy từ lastModified hoặc thời điểm chọn tệp. Thử lại giữ nguyên thời điểm/byte đã chuẩn bị.
 - **Kỳ vọng sai (Fail nếu):** thiếu timestamp; sai múi giờ; dùng giờ upload.
 - **Bằng chứng:** ảnh đồng hồ thiết bị + 2 ảnh e-POD có timestamp + ảnh màn Kế toán
 
@@ -356,7 +347,7 @@
 
 ## Bảng nghiệm thu — Luồng e-POD & Hoàn thành chuyến (Lái xe)
 
-> **Đã discard (sẽ làm lại):** TC-LX-TIENDO-001 → 006 (4 Milestone vận hành, Tiền đường, Nhiên liệu, Container/Seal) bị loại do luồng nghiệp vụ sẽ được thiết kế lại.
+> TC-LX-TIENDO-001..006 là mã lịch sử. Chi phí và hồ sơ bổ sung kiểm tra theo PRD hiện hành và AC-CP-LX; không dùng ghi chú lịch sử này để ẩn tính năng đang có. Kết quả cũ không thay thế lần chạy hiện tại.
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
@@ -366,13 +357,13 @@
 | __/__/__ | TC-LX-TIENDO-010 | | | HOÀN THÀNH CHUYẾN — full-close path | |
 | __/__/__ | TC-LX-TIENDO-011 | | | Thu nhập/Phiếu lương | |
 | __/__/__ | TC-LX-TIENDO-012 | | | Khoản phạt | |
-| __/__/__ | TC-LX-TIENDO-013 | | | Khóa nút khi đã SUBMITTED/ACCEPTED | |
-| __/__/__ | TC-LX-TIENDO-014 | | | Nộp lại được khi REJECTED | |
+| __/__/__ | TC-LX-TIENDO-013 | | | Giữ nguyên phiên bản hồ sơ đã ghi nhận | |
+| __/__/__ | TC-LX-TIENDO-014 | | | Bổ sung/sửa hồ sơ, tương thích lịch sử | |
 | __/__/__ | TC-LX-TIENDO-015 | | | Không hoàn thành chuyến nếu gửi e-POD lỗi | |
 | __/__/__ | TC-LX-TIENDO-016 | | | Bố cục 2 thẻ e-POD không đè nhau | |
-| __/__/__ | TC-LX-TIENDO-017 | | | e-POD submit giữ "Đang chạy"; chỉ "HOÀN THÀNH CHUYẾN" mới chuyển "Hoàn thành" (skip kế toán) | |
+| __/__/__ | TC-LX-TIENDO-017 | | | e-POD submit giữ "Đang chạy"; chỉ "HOÀN THÀNH CHUYẾN" mới chuyển "Hoàn thành" độc lập kế toán | |
 | __/__/__ | TC-LX-TIENDO-018 | | | Nhảy bắt buộc sang màn E-POD (P0) | |
-| __/__/__ | TC-LX-TIENDO-019 | | | 2 khu vực ảnh, gate 100% mới sáng nút (P0) | |
+| __/__/__ | TC-LX-TIENDO-019 | | | 2 khu vực ảnh, gate hai nhóm lưu thành công (P0) | |
 | __/__/__ | TC-LX-TIENDO-020 | | | Ảnh tự nén trên máy | |
 | __/__/__ | TC-LX-TIENDO-021 | | | Timestamp thực tế lúc chụp (P0) | |
 | __/__/__ | TC-LX-TIENDO-022 | | | Sang tab Lịch sử + đồng bộ Điều vận (P0) | |

@@ -11,6 +11,7 @@ export interface ExpenseAccountingCatalog {
   accountants: Array<{ id: number; name: string }>;
   opsUsers: Array<{ id: number; name: string }>;
   advances: Array<{ id: number; opsUserId: number; amount: number; remainingAmount: number; date: string; name: string | null }>;
+  pendingAdvances?: Array<{ id: number; opsUserId: number; amount: number; reason: string; date: string; name: string | null }>;
   suppliers: Array<{ id: number; name: string }>;
   expenseTypes: Array<{ code: string; name: string }>;
 }
@@ -18,6 +19,7 @@ export interface ExpenseReportFilters extends ExpenseListQuery { direction: 'IN'
 export interface ExpenseReportRow {
   entityType: string; entityId: number; entityName: string; carrierCode: string | null;
   lift: number; drop: number; other: number; total: number; settled: number | null; outstanding: number | null;
+  entries: ExpenseAccountingEntry[];
 }
 export interface ExpenseReport {
   direction: 'IN' | 'OUT'; dateBasis: 'expenseDate'; from: string | null; to: string | null; asOfDate: string;
@@ -52,9 +54,11 @@ export const expenseAccountingClient = {
   reverseVoucher: (id: number, body: { expectedVersion: number; reason: string; valueDate: string; physicalReference: string }, key: string) => api.post<ExpenseVoucher>(`${BASE}/vouchers/${id}/reverse`, body, { headers: { 'Idempotency-Key': key } }),
   list: (params: ExpenseListQuery) => api.get<ExpenseAccountingList>(`${BASE}/entries?${query(params)}`),
   update: (entry: ExpenseSourceRef, body: ExpenseAccountingUpdate) => api.post<ExpenseAccountingEntry>(`${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/update`, body),
+  correct: (entry: ExpenseSourceRef, body: ExpenseAccountingUpdate) => api.post<ExpenseAccountingEntry>(`${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/correct`, body),
   confirm: (entries: ExpenseSourceRef[]) => api.post<{ items: ExpenseAccountingEntry[] }>(`${BASE}/confirm`, { entries }),
   vouchers: () => api.get<{ items: ExpenseVoucher[] }>(`${BASE}/vouchers`),
   createVoucher: (body: ExpenseVoucherInput, key: string) => api.post<ExpenseVoucher>(`${BASE}/vouchers`, body, { headers: { 'Idempotency-Key': key } }),
   reconciliations: () => api.get<{ items: ExpenseReconciliation[] }>(`${BASE}/reconciliations`),
+  releaseReconciliation: (id: number, reason: string, key: string) => api.post(`${BASE}/reconciliations/${id}/release`, { reason }, { headers: { 'Idempotency-Key': key } }),
   reconcile: (body: ExpenseReconciliationInput, key: string) => api.post<ExpenseReconciliation>(`${BASE}/reconciliations`, body, { headers: { 'Idempotency-Key': key } }),
 };

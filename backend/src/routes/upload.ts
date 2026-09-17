@@ -790,12 +790,12 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     // forwarder reading an own-owned trip-expense receipt).
   } else if (opsExpenseMatch) {
     // Ops cash-expense receipts: readable by the authoring Ops (the uid
-    // segment) and by the approver roles that review the evidence
+    // segment) and by financial staff authorized to review the evidence
     // (OpsVanHanh §5.4). Everyone else — including other Ops — is denied.
     const user = getUser(req);
     const ownerUid = parseInt(opsExpenseMatch[1], 10);
-    const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
-    if (user.userId !== ownerUid && !isApprover) {
+    const canReviewFinancialEvidence = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+    if (user.userId !== ownerUid && !canReviewFinancialEvidence) {
       throw new ApiError(403, 'Không có quyền truy cập ảnh này');
     }
   } else if (templateLogoMatch) {

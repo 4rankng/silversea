@@ -1,0 +1,27 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
+const fundAdvance = vi.hoisted(() => vi.fn());
+vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { fundAdvance } }));
+vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => <section>{children}{footer}</section> }));
+import { ExpenseCashDrawer } from './ExpenseCashDrawer';
+const catalog = { staff: [], accounts: [{ id: 3, name: 'Quỹ test', fundCode: 'COMPANY' as const }], accountants: [], opsUsers: [{ id: 7, name: 'OPS Test' }], advances: [], suppliers: [], expenseTypes: [], pendingAdvances: [{ id: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', date: '2026-09-17', name: 'OPS Test' }] };
+beforeEach(() => { fundAdvance.mockReset().mockResolvedValue({ id: 12 }); });
+it('funds the selected existing request and retries with the same command key after a lost response', async () => {
+  fundAdvance.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ id: 12 });
+  const onClose = vi.fn();
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseCashDrawer catalog={catalog} onClose={onClose} /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: /Nhân viên OPS/ })); fireEvent.click(await screen.findByRole('option', { name: 'OPS Test' }));
+  fireEvent.click(screen.getByRole('button', { name: /Yêu cầu ứng/ })); fireEvent.click(await screen.findByRole('option', { name: /#12/ }));
+  expect(screen.getByLabelText(/Tiền tạm ứng/)).toBeDisabled(); expect(screen.getByLabelText(/Tiền tạm ứng/)).toHaveValue(1000000);
+  fireEvent.click(screen.getByRole('button', { name: /Nguồn quỹ/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ công ty' }));
+  fireEvent.click(screen.getByRole('button', { name: /Tài khoản/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ test' }));
+  fireEvent.change(screen.getByLabelText(/Mã tham chiếu/), { target: { value: 'BANK-12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ghi chi tạm ứng' }));
+  await screen.findByText('Mất phản hồi'); expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Ghi chi tạm ứng' }));
+  await waitFor(() => expect(fundAdvance).toHaveBeenCalledTimes(2));
+  expect(fundAdvance.mock.calls[0][0]).toMatchObject({ advanceRequestId: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', treasuryAccountId: 3, physicalReference: 'BANK-12' });
+  expect(fundAdvance.mock.calls[1][1]).toBe(fundAdvance.mock.calls[0][1]);
+});

@@ -373,6 +373,7 @@ const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
 export const shipmentCusWorkspaceContainerLineSchema = z.object({
   id: z.number().int().positive(),
   ordinal: z.number().int().positive(),
+  operationalSiteId: z.number().int().positive().nullable(),
   containerNumber: z.string().nullable(),
   containerTypeId: z.number().int().positive().nullable(),
   containerTypeLabel: z.string().nullable(),
@@ -402,6 +403,7 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
     routeId: z.number().int().positive().nullable(),
   }).strict(),
   fieldAccess: z.object({
+    operationalSiteId: fieldAccessSchema,
     containerNumber: fieldAccessSchema,
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
@@ -509,14 +511,9 @@ export const shipmentCusReopenRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do đề nghị điều chỉnh là bắt buộc').max(2_000),
 }).strict();
 
-export const shipmentCusReopenDecisionSchema = z.object({
-  expectedVersion: z.coerce.number().int().positive(),
-  decision: z.enum(['APPROVE', 'REJECT']),
-  reason: z.string().trim().min(1, 'Lý do xử lý là bắt buộc').max(2_000),
-}).strict();
-
 export const shipmentCusContainerLineUpdateSchema = z.object({
   expectedShipmentVersion: z.coerce.number().int().positive(),
+  operationalSiteId: z.coerce.number().int().positive().nullable().optional(),
   containerNumber: z.string().trim().max(50, 'Số container không được quá 50 ký tự').nullable().optional(),
   cargoWeightKg: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
     const raw = String(value).trim();
@@ -670,6 +667,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
     cargoVolumeCbm: z.string().nullable(),
   }).strict(),
   fieldAccess: z.object({
+    operationalSiteId: fieldAccessSchema,
     containerNumber: fieldAccessSchema,
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
@@ -746,7 +744,6 @@ export type ShipmentCusFinanceConfirmationCreateInput = z.infer<typeof shipmentC
 export type ShipmentCusDocumentCustodyUpdateInput = z.infer<typeof shipmentCusDocumentCustodyUpdateSchema>;
 export type ShipmentCusLockInput = z.infer<typeof shipmentCusLockSchema>;
 export type ShipmentCusReopenRequestInput = z.infer<typeof shipmentCusReopenRequestSchema>;
-export type ShipmentCusReopenDecisionInput = z.infer<typeof shipmentCusReopenDecisionSchema>;
 export type ShipmentCusContainerLineUpdateInput = z.infer<typeof shipmentCusContainerLineUpdateSchema>;
 export type ShipmentCusContainerLineUpdateResult = z.infer<typeof shipmentCusContainerLineUpdateResultSchema>;
 export type ShipmentRecoveryRecordInput = z.infer<typeof shipmentRecoveryRecordSchema>;

@@ -1,0 +1,20 @@
+.config-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+/* The layout owns row spacing, including when the form is portalled outside
+   its config page. Field margins must not add a second gap between rows. */
+.config-inline-form .field {
+  margin-bottom: 0;
+}
+
+@media (pointer: coarse) {
+  .config-inline-form .input:not(textarea) {
+    min-height: var(--control-touch-h);
+  }
+}

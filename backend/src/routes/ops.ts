@@ -1,7 +1,7 @@
 /**
  * Ops field-operations portal (docs/prd/OpsVanHanh.md), mounted at /api/ops
  * behind authMiddleware. Role gates per PRD §2: portal routes are OPS-only,
- * expense/settlement approvals are ADMIN/MANAGER/ACCOUNTANT, truck ops
+ * financial reconciliation is ADMIN/MANAGER/ACCOUNTANT, truck ops
  * assignment is ADMIN-only.
  */
 import { Router } from 'express';
@@ -144,6 +144,7 @@ const expenseCreateSchema = z.object({
 });
 
 const expensePatchSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
   expectedVersion: z.number().int().positive().optional(),
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
@@ -250,13 +251,13 @@ router.delete('/expense-photos/:id', OPS_ONLY, asyncHandler(async (req: Request,
   res.json({ success: true });
 }));
 
-// Receipt review: the author or an approver (ADMIN/MANAGER/ACCOUNTANT) may
+// Receipt review: the author or financial staff (ADMIN/MANAGER/ACCOUNTANT) may
 // list an expense's photos — accounting must see the evidence before deciding.
 router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
-  const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
-  if (!isApprover && user.role !== Role.OPS) throw new ApiError(403, 'Không có quyền truy cập.');
-  res.json({ items: await listOpsExpensePhotos(user.userId, isApprover, parseId(req.params.id)) });
+  const canReviewFinancialEvidence = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+  if (!canReviewFinancialEvidence && user.role !== Role.OPS) throw new ApiError(403, 'Không có quyền truy cập.');
+  res.json({ items: await listOpsExpensePhotos(user.userId, canReviewFinancialEvidence, parseId(req.params.id)) });
 }));
 
 // ── Đề nghị thanh toán ──────────────────────────────────────────────────────

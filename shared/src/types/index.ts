@@ -955,6 +955,8 @@ export interface AdvanceRequest {
 export interface AdvanceRequestWithRefs extends AdvanceRequest {
   requesterName?: string | null;
   approverName?: string | null;
+  /** Posted funding, net of reversals. Absent means unknown, not funded. */
+  fundedAmount?: number;
 }
 
 export interface AdvanceSettlement {
@@ -2233,15 +2235,6 @@ export interface SalaryPeriod {
   updatedAt: string;
   deletedAt: string | null;
 }
-
-// ─── Approval Queue ────────────────────────────────────────────────────────────
-
-export type ApprovalItemType =
-  | 'ancillaryFees'
-  | 'debtOffsets'
-  | 'advances'
-  | 'advanceSettlementsCheck'
-  | 'advanceSettlementsApprove';
 
 /** Resolved salary period date range returned by the resolve endpoint */
 export interface SalaryPeriodRange {

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, isNull, lt, lte, ne, or, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, ilike, isNull, lt, lte, ne, or, type SQL } from 'drizzle-orm';
 import { Role, type ContainerDepositInput, type ContainerDepositRecord, type ShipmentInvoiceRecordInput } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -9,6 +9,8 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureTripExpenseAccountingSource, lockExpenseSource, upsertExpenseAccountingSource } from './expense-accounting-source.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { linkExpenseToRealTrip, expenseTripCandidates } from './expense-source-trip-link.service';
+import { syncExpenseBillingSource } from './expense-accounting-write.service';
 import { lockShipment } from './shipment-accounting-lock-shared.service';
 
 const writers: Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
@@ -75,8 +77,17 @@ export async function listShipmentFinanceRecords(actor: AuthUser, filters: Shipm
       .innerJoin(s.shipments, eq(s.shipments.id, s.containerDepositRecords.shipmentId))
       .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId)).where(depositWhere) : [],
   ]);
+  const invoiceIds = invoices.map(({ record }) => record.id);
+  const mirrorIds = invoices.flatMap(({ record }) => record.sourceExpenseId == null ? [] : [record.sourceExpenseId]);
+  const [invoiceLinks, expenseLinks] = await Promise.all([
+    invoiceIds.length ? q.select({ sourceId: s.expenseAccountingSources.sourceId, tripId: s.expenseAccountingSources.tripId }).from(s.expenseAccountingSources)
+      .where(and(eq(s.expenseAccountingSources.sourceKind, 'INVOICE'), inArray(s.expenseAccountingSources.sourceId, invoiceIds))) : [],
+    mirrorIds.length ? q.select({ id: s.tripExpenses.id, tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, mirrorIds)) : [],
+  ]);
   return {
-    invoices: invoices.map(({ record, ...labels }) => ({ ...record, ...labels })),
+    invoices: invoices.map(({ record, ...labels }) => ({ ...record, ...labels,
+      tripId: record.sourceExpenseId ? expenseLinks.find(link => link.id === record.sourceExpenseId)?.tripId ?? null : invoiceLinks.find(link => link.sourceId === record.id)?.tripId ?? null,
+    })),
     deposits: deposits.map(({ record, ...labels }) => ({ ...record, ...labels,
       outstandingAmount: (BigInt(record.amount) - BigInt(record.recoveredAmount)).toString(),
       status: depositStatus(record.amount, record.recoveredAmount, record.documentsSubmittedDate),
@@ -150,14 +161,22 @@ export async function saveShipmentInvoiceRecord(tx: Tx, shipmentId: number, inpu
   const [record] = existing
     ? await tx.update(s.shipmentInvoiceRecords).set({ ...values, version: existing.version + 1 }).where(eq(s.shipmentInvoiceRecords.id, existing.id)).returning()
     : await tx.insert(s.shipmentInvoiceRecords).values({ ...values, createdBy: actor.userId }).returning();
-  if (!input.sourceExpenseId) await upsertExpenseAccountingSource(tx, {
+  if (!input.sourceExpenseId) {
+    const source = await upsertExpenseAccountingSource(tx, {
     sourceKind: 'INVOICE', sourceId: record.id, shipmentId, customerId: shipment.customerId,
     expenseTypeCode: 'INVOICE_SERVICE', costGroup: 'INVOICE_SERVICE', feeName: 'Chi phí hóa đơn',
     amount: input.supplierFeeAmount, customerChargeAmount: 0, expenseDate: input.invoiceDate,
     invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, payerKind: 'SUPPLIER',
     payableEntityType: 'VENDOR', payableEntityId: input.supplierId, recordedById: actor.userId,
     note: input.note, recoveryNote: 'Chi phí hóa đơn nội bộ, không thu khách.',
-  });
+    });
+    const candidates = await expenseTripCandidates(tx, source);
+    if (!source.tripId && candidates.length > 1 && !input.tripId) {
+      throw new ApiError(400, 'Lô có nhiều công việc. Chọn chuyến chịu chi phí hóa đơn.');
+    }
+    const linked = await linkExpenseToRealTrip(tx, source, input.tripId);
+    if (linked.tripId) await syncExpenseBillingSource(tx, linked, actor.userId);
+  }
   await auditRecord(tx, shipmentId, actor, 'shipment-invoice', existing, record);
   return record;
 }
@@ -198,5 +217,7 @@ export async function shipmentFinanceOptions(actor: AuthUser, shipmentId?: numbe
   }).from(s.tripExpenses).innerJoin(s.trips, and(eq(s.trips.id, s.tripExpenses.tripId), isNull(s.trips.deletedAt)))
     .where(and(eq(s.trips.shipmentId, shipmentId), or(eq(s.tripExpenses.approvalStatus, 'RECORDED'), eq(s.tripExpenses.approvalStatus, 'APPROVED'))))
     .orderBy(desc(s.tripExpenses.id)) : [];
-  return { suppliers, expenses };
+  const trips = shipmentId ? await db.select({ id: s.trips.id, tripCode: s.trips.tripCode }).from(s.trips)
+    .where(and(eq(s.trips.shipmentId, shipmentId), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED'))).orderBy(asc(s.trips.id)) : [];
+  return { suppliers, expenses, trips };
 }

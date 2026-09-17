@@ -25,6 +25,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib
 import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { matchesCatalogSearch } from './catalog-search';
 import { useCatalogCreate } from './useCatalogCreate';
 import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
@@ -132,10 +133,10 @@ export function FleetVehiclesView() {
     if (!needle) return byCarrier;
     return byCarrier.filter((t) => {
       const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
-      return (
-        t.licensePlate.toLowerCase().includes(needle) ||
-        (trailer?.licensePlate ?? '').toLowerCase().includes(needle) ||
-        (driverByTruck.get(t.id) ?? '').toLowerCase().includes(needle)
+      return matchesCatalogSearch(
+        needle,
+        [t.licensePlate, trailer?.licensePlate, driverByTruck.get(t.id)],
+        [t.licensePlate, trailer?.licensePlate],
       );
     });
   }, [trucks, needle, carrierFilter, driverByTruck, trailerById]);

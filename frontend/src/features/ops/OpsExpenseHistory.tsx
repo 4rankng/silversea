@@ -1,3 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { ExpenseProofs } from '../expense-accounting/ExpenseProofs';
 import { useState } from 'react';
 import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -5,7 +8,7 @@ import {
   useDeleteOpsExpense,
 } from '../../hooks/useOpsQueries';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
-import { useConfirm } from '../../components/UI';
+import { Drawer, useConfirm } from '../../components/UI';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { formatVnd } from './opsStatus';
@@ -38,7 +41,7 @@ const STATUS_LABELS: Record<OpsExpenseStatus, string> = {
 };
 
 const isEditableExpense = (row: OpsExpenseRow) =>
-  row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
+  row.sourceKind !== 'TRIP' && !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
 
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
@@ -49,6 +52,7 @@ export function OpsExpenseHistory() {
   const { data, isLoading, isError, refetch } = useOpsWalletExpenses(status);
   const deleteExpense = useDeleteOpsExpense();
   const { confirm, dialog } = useConfirm();
+  const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
 
@@ -90,16 +94,16 @@ export function OpsExpenseHistory() {
           <tbody>
             {items.map((row: OpsExpenseRow) => (
               <tr key={row.id} className="ops-wallet__row">
-                <td data-label="Ngày">{row.paidAt}</td>
+                <td data-label="Ngày">{row.paidAt.split('-').reverse().join('/')}</td>
                 <td data-label="Mã lô">{row.shipmentCode ?? '—'}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
-                <td data-label="Loại phí">{row.expenseTypeName ?? row.expenseTypeCode}</td>
+                <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
                 <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)}</td>
                 <td data-label="Chứng từ">
                   <button
                     type="button"
                     className={`ops-doc-state${row.hasPhoto ? '' : ' is-debt'}`}
-                    onClick={() => isEditableExpense(row) ? setEditing(row) : setPhotosFor(row.id)}
+                    onClick={() => row.sourceKind === 'TRIP' ? setLegacyFor(row) : (isEditableExpense(row) || (row.confirmedAt && row.opsSettlementId == null)) ? setEditing(row) : setPhotosFor(row.id)}
                     title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai'}
                   >
                     <ImageIcon size={13} />
@@ -156,7 +160,20 @@ export function OpsExpenseHistory() {
       {editing && (
         <OpsExpenseEditModal entry={editing} onClose={() => setEditing(null)} />
       )}
+      {legacyFor && <OpsLegacyExpenseDetail row={legacyFor} onClose={() => setLegacyFor(null)} />}
       {dialog}
     </section>
   );
+}
+
+function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose: () => void }) {
+  const query = useQuery({ queryKey: ['ops-legacy-expense', row.sourceId], queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
+  return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
+    <p>{row.shipmentCode} · {row.feeName ?? row.expenseTypeName}</p>
+    <p>Thực chi: <strong>{formatVnd(row.amount)} ₫</strong></p>
+    {row.note && <p style={{ whiteSpace: 'pre-wrap' }}>{row.note}</p>}
+    {query.isLoading && <p role="status">Đang tải chứng từ…</p>}
+    {query.isError && <p role="alert">Chưa tải được khoản chi. <button onClick={() => void query.refetch()}>Thử lại</button></p>}
+    {query.data && <ExpenseProofs entry={query.data} canUpload={false} />}
+  </Drawer>;
 }

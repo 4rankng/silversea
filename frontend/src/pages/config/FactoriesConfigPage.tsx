@@ -22,6 +22,7 @@ import {
   type AdminOperationalSite,
 } from '../../api/shipmentClient';
 import type { Route } from '@tingting/shared';
+import { removeDiacritics } from '../../lib/format';
 import './config-page.css';
 
 type SiteDraft = {
@@ -96,12 +97,11 @@ export default function FactoriesConfigPage() {
   }, [sites]);
 
   const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const terms = removeDiacritics(search).toLocaleLowerCase('vi').trim().split(/\s+/).filter(Boolean);
     const matched = sites.filter((site) => {
       if (customerFilter && String(site.customerId) !== customerFilter) return false;
-      if (!needle) return true;
-      return [site.code, site.name, site.shortName, site.address, site.customerName]
-        .some((value) => (value || '').toLowerCase().includes(needle));
+      const text = removeDiacritics([site.code, site.name, site.shortName, site.address, site.customerName].filter(Boolean).join(' ')).toLocaleLowerCase('vi');
+      return terms.every(term => text.includes(term));
     });
     return sortClientSide(matched, sort, {
       customerName: s => s.customerName,
@@ -212,6 +212,7 @@ export default function FactoriesConfigPage() {
                   <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
+                      : sites.length ? 'Không tìm thấy nhà máy / kho phù hợp. Thử từ khóa khác hoặc xóa bộ lọc.'
                       : 'Chưa có nhà máy / kho nào. Dùng nút "Tạo mới" hoặc form nhận lô của CUS.'}
                   </td>
                 </tr>

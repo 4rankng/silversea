@@ -117,6 +117,22 @@ describe('FactoriesConfigPage', () => {
     expect(await screen.findByText(/Dùng nút "Tạo mới" hoặc form nhận lô của CUS/)).toBeTruthy();
   });
 
+  it('matches Vietnamese terms without accents and recovers from no results', async () => {
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    const input = screen.getByRole('textbox', { name: 'Tìm nhà máy / kho' });
+    for (const query of ['nha may', '  NHA   MAY  ', 'nha may dinh vu', 'FAC-1']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+      expect(screen.queryByText('Kho B')).not.toBeInTheDocument();
+    }
+    fireEvent.change(input, { target: { value: 'no matching site' } });
+    expect(screen.getByText(/Không tìm thấy nhà máy/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+    expect(screen.getByText('Kho B')).toBeInTheDocument();
+  });
+
   it('creates a site from the toolbar button through the customer-picker dialog', async () => {
     renderPage();
     // The button stays disabled until the customer catalog resolves — the

@@ -15,6 +15,8 @@ import { insertTripComposite } from '../services/trip-composite.service';
 import type { AuthUser } from '../middleware/auth';
 import { ApiError } from '../errors';
 import { recordDriverFulfillmentProgress } from '../services/driver.service';
+import { completeOwnedFulfillmentTrip } from '../services/driver-fulfillment.service';
+import { disconnectRedis } from '../lib/redis';
 import {
   attachPodFile,
   createPodSubmission,
@@ -302,6 +304,55 @@ async function createSubmittedPod(args: {
 }
 
 describe('trip pod review workflow', () => {
+  for (const explicitPickup of [false, true]) {
+    test(`completion labels inferred milestones without rewriting explicit events (pickup=${explicitPickup})`, async () => {
+      const tag = `inferred-${explicitPickup}`;
+      const { user, driver } = await createDriverPrincipal(tag);
+      const fixture = await createShipmentFixture({ tag, cargoMode: 'LCL', fulfillmentCount: 1 });
+      const fulfillmentId = fixture.fulfillments[0]!.id;
+      const trip = await createFulfillmentTrip({ tag, shipmentId: fixture.shipment.id, fulfillmentId,
+        customerId: fixture.customer.id, routeId: fixture.route.id, cargoTypeId: fixture.cargoType.id, driverId: driver.id });
+      const explicit = explicitPickup ? [DriverProgressEventType.ORDER_RECEIVED, DriverProgressEventType.PICKED_UP] : [DriverProgressEventType.ORDER_RECEIVED];
+      for (const [index, eventType] of explicit.entries()) {
+        const event = await recordDriverFulfillmentProgress({ fulfillmentId, driverId: driver.id, recordedBy: user.id,
+          idempotencyKey: `${tag}-${eventType}-${suffix}`, input: { eventType, occurredAt: `2026-08-01T0${7 + index}:00:00.000Z`, note: 'Ghi chú thật của tài xế', expectedVersion: trip.version } });
+        createdProgressEventIds.push(event.event.id);
+      }
+      const before = await db.select().from(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, trip.id));
+      await createSubmittedPod({ tag, driverId: driver.id, driverUserId: user.id, fulfillmentId, tripVersion: trip.version });
+      const args = { fulfillmentId, driverId: driver.id, actorUserId: user.id, expectedVersion: trip.version,
+        idempotencyKey: `complete-${tag}-${suffix}`, invalidateReports: async () => undefined };
+      const completed = await completeOwnedFulfillmentTrip(args);
+      assert.equal(completed.trip.status, TripStatus.COMPLETED);
+      const events = await db.select().from(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, trip.id));
+      for (const event of events) if (!createdProgressEventIds.includes(event.id)) createdProgressEventIds.push(event.id);
+      assert.equal(events.length, 4);
+      for (const recorded of before) {
+        const after = events.find(event => event.id === recorded.id)!;
+        assert.equal(after.note, 'Ghi chú thật của tài xế');
+        assert.equal(after.occurredAt.toISOString(), recorded.occurredAt.toISOString());
+      }
+      const publications = await db.select().from(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, fixture.shipment.id));
+      for (const event of events.filter(row => !explicit.includes(row.eventType as typeof explicit[number]))) {
+        assert.match(event.note ?? '', /Suy ra từ hoàn thành chuyến/);
+        assert.match(event.note ?? '', /không phải thời điểm quan sát thực tế/);
+        const publication = publications.find(row => row.eventKey === `driver-progress:${event.id}:${event.eventType}`)!;
+        assert.ok(publication);
+        assert.match(publication.contentSnapshot.message, /suy ra từ/);
+        assert.doesNotMatch(publication.contentSnapshot.message, /Tài xế đã báo/);
+        assert.doesNotMatch(publication.contentSnapshot.message, /Ghi chú thật/);
+      }
+      if (explicitPickup) {
+        const pickup = events.find(event => event.eventType === DriverProgressEventType.PICKED_UP)!;
+        assert.match(publications.find(row => row.eventKey === `driver-progress:${pickup.id}:${pickup.eventType}`)!.contentSnapshot.message, /Tài xế đã báo nhận hàng/);
+      }
+      const replay = await completeOwnedFulfillmentTrip(args);
+      assert.equal(replay.replayed, true);
+      assert.equal((await db.select().from(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, trip.id))).length, 4);
+      assert.equal((await db.select().from(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, fixture.shipment.id))).length, publications.length);
+    });
+  }
+
   test('replacement cancellation creates a new fulfillment and cancels the old trip authority', async () => {
     const managerUser = await createUser(Role.MANAGER, 'replacement-trip');
     const { driver } = await createDriverPrincipal('replacement-trip');
@@ -670,5 +721,5 @@ after(async () => {
     console.warn('[trip-pod-workflow.test] cleanup partial:', (error as Error).message);
   }
   try { await client.end(); } catch { /* ignore */ }
-  process.exit(0);
+  await disconnectRedis();
 });

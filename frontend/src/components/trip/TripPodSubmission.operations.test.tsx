@@ -46,7 +46,9 @@ describe('TripPodSubmission operation boundaries', () => {
     expect(onUploadFile).toHaveBeenCalledTimes(1);
     expect(onBusyChange).toHaveBeenLastCalledWith(false);
     screen.getAllByRole('button', { name: /Chụp|Tải tệp/ }).forEach((button) => expect(button).toBeEnabled());
-    fireEvent.change(inputs[0], { target: { files: [first] } });
+    expect(screen.getByText('first.jpg')).toBeInTheDocument();
+    expect(screen.getByText('first.jpg').closest('.trip-pod__card-head')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }));
     await waitFor(() => expect(onUploadFile).toHaveBeenCalledTimes(2));
     expect(onUploadFile).toHaveBeenLastCalledWith(draft, TripPodFileType.YARD_OR_DROP_RECEIPT, first);
     expect(screen.queryByRole('alert')).toBeNull();

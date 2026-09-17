@@ -8,7 +8,6 @@ import {
 } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
 import { Money } from '../components/shared/Money';
 import { useAdminAdvanceBalances } from '../hooks/useQueries';
 import { forwarderClient } from '../api/forwarderClient';
@@ -92,7 +91,6 @@ interface AdvKPIProps {
   value: number;
   meta: string;
   variant: 'warn' | 'success' | 'danger';
-  iconName: AssetIconName;
   active?: boolean;
   hasItems?: boolean;
   // Omit onClick for a summary-only stat (no filter to toggle). Renders as a
@@ -100,14 +98,13 @@ interface AdvKPIProps {
   onClick?: () => void;
 }
 
-function AdvKPI({ label, value, meta, variant, iconName, active = false, hasItems = false, onClick }: AdvKPIProps) {
+function AdvKPI({ label, value, meta, variant, active = false, hasItems = false, onClick }: AdvKPIProps) {
   const interactive = typeof onClick === 'function';
   const content = (
     <>
       <div className="adv-kpi__label">{label}</div>
       <div className="adv-kpi__value">{value}</div>
       <div className="adv-kpi__meta">{meta}</div>
-      <AssetIcon name={iconName} size={58} className="adv-kpi__asset" />
     </>
   );
   const className = `adv-kpi adv-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' adv-kpi--static'}`;
@@ -339,7 +336,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={countOf(AdvanceRequestStatus.RECORDED)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.RECORDED))} ₫`}
           variant="success"
-          iconName="paid"
           active={statusFilter === AdvanceRequestStatus.RECORDED}
           onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.RECORDED ? '' : AdvanceRequestStatus.RECORDED)}
         />
@@ -348,7 +344,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={countOf(AdvanceRequestStatus.VOIDED)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.VOIDED))} ₫`}
           variant="danger"
-          iconName="unpaid"
           active={statusFilter === AdvanceRequestStatus.VOIDED}
           onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.VOIDED ? '' : AdvanceRequestStatus.VOIDED)}
         />
@@ -357,7 +352,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={balancesData?.items.length ?? 0}
           meta={`${formatNumber(balancesData ? Number(balancesData.totalOutstanding) : 0)} ₫`}
           variant="success"
-          iconName="cashflow"
           hasItems={(balancesData?.items.length ?? 0) > 0}
         />
       </div>

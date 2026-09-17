@@ -142,6 +142,7 @@ after(async () => {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   } finally {
     try {
+      await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds.length ? createdUserIds : [-1]));
       await db.delete(s.userShipmentPins).where(inArray(s.userShipmentPins.userId, createdUserIds.length ? createdUserIds : [-1]));
       if (createdExpenseIds.length) {
         await db.delete(s.auditLogs).where(and(
@@ -294,6 +295,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     }).returning();
     createdShipmentIds.push(shipment.id);
     shipmentId = shipment.id;
+    await db.insert(s.userShipmentLinks).values({ userId: opsUser.id, shipmentId });
 
     const [container] = await db.insert(s.shipmentContainers).values({
       shipmentId,
@@ -384,19 +386,19 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Direct records stay editable until included in a settlement.
     const missingVersion = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '350000' },
+      method: 'PATCH', token: opsToken, body: { amount: '350000', reason: 'Đối chiếu biên lai' },
     });
     assert.equal(missingVersion.status, 409, 'a refreshed source version is required for monetary edits');
     const edit = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '350000', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '350000', reason: 'Đối chiếu biên lai', expectedVersion: created.body.version },
     });
     assert.equal(edit.status, 200);
     assert.equal(edit.body.amount, '350000');
     const stale = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '999999', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '999999', reason: 'Sửa biên lai cũ', expectedVersion: created.body.version },
     });
     assert.equal(stale.status, 409, 'stale edits cannot overwrite a newer source');
-    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1' } });
+    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1', reason: 'Kiểm tra quyền' } });
     assert.equal(forbiddenEdit.status, 404);
   });
 
@@ -417,7 +419,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Author correction does not require an approver.
     const edited = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '90000', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '90000', reason: 'Đối chiếu biên lai', expectedVersion: created.body.version },
     });
     assert.equal(edited.status, 200);
 
@@ -429,8 +431,8 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(attached.status, 201);
   });
 
-  test('wallet summary counts recorded advances and recorded expenses', async () => {
-    // 2,000,000 recorded advance − (350,000 + 90,000 recorded expenses) = 1,560,000
+  test('wallet counts actual expenses but excludes unfunded recorded advance requests', async () => {
+    // A request has no treasury evidence: 0 cash − (350,000 + 90,000 spent).
     const [advance] = await db.insert(s.advanceRequests).values({
       requesterId: opsUser.id,
       amount: '2000000',
@@ -441,10 +443,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const summary = await api('/wallet/summary', { token: opsToken });
     assert.equal(summary.status, 200);
-    assert.equal(summary.body.totalAdvance, '2000000');
+    assert.equal(summary.body.totalAdvance, '0');
     assert.equal(summary.body.approved, '440000');
     assert.equal(summary.body.pending, '0');
-    assert.equal(summary.body.balance, '1560000');
+    assert.equal(summary.body.balance, '-440000');
   });
 
   test('expense history flags missing photos (nợ chứng từ)', async () => {
@@ -461,7 +463,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'RECORDED', 'creation posts status + ledger in-tx');
+    assert.equal(created.body.status, 'RECORDED', 'creation records the request without an approval handoff');
     createdAdvanceIds.push(created.body.id);
   });
 
@@ -470,6 +472,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     // both payers' rows under one shipment code (PRD §5.3 micro-ledger).
     const [ops2] = await db.select({ id: s.users.id }).from(s.users)
       .where(eq(s.users.username, `ops-portal-b-${suffix}`)).limit(1);
+    await db.insert(s.userShipmentLinks).values({ userId: ops2.id, shipmentId });
     const shared = await api('/expenses', {
       method: 'POST', token: ops2Token,
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate },
@@ -513,7 +516,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(settlement.body.totalAmount, '590000'); // 350k + 90k + 150k
 
     // Frozen entries are locked for the author.
-    const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1' } });
+    const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1', reason: 'Kiểm tra quyền' } });
     assert.equal(edit.status, 400);
 
     // Batch decision endpoints no longer exist (removed with the arc).

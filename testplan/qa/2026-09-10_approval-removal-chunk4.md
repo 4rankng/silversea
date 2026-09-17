@@ -1,5 +1,7 @@
 # Regression spec — `18f4a2dd` Chunk 4: direct-money governance auto-apply
 
+> **Historical cycle — superseded 2026-09-17:** keep this record for its dated decisions/evidence only. Retained approval exceptions, maker/checker chains (including automatic chains), pending queues and approve/reject instructions in this old cycle are not current product requirements. Run [NO-APP-01..23](../2026-09-17-no-approval-workflows.md) and current role/flow cases instead. Historical PASS does not verify the new criteria.
+
 **Ticket:** 18f4a2dd (Remove all phê duyệt flows)
 **Chunk:** 4 — Financial maker-checker / direct-money trio
 **Owner (implement):** backend (single writer; uncommitted tree in main checkout)

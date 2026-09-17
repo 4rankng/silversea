@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ContainerScanner } from './ContainerScanner';
 
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('ContainerScanner lifecycle', () => {
   it('exposes a keyboard gallery action and closes with Escape without closing a parent dialog', () => {
@@ -32,5 +32,46 @@ describe('ContainerScanner lifecycle', () => {
     unmount();
     await act(async () => { resolveStream({ getTracks: () => [{ stop }] } as unknown as MediaStream); await pending; });
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('UI-DC-23 capture metadata', () => {
+  function prepareCamera() {
+    const stop = vi.fn();
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn().mockResolvedValue({
+      getTracks: () => [{ stop }], getVideoTracks: () => [{ stop, getCapabilities: () => ({}) }],
+    }) } });
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,YQ==');
+    vi.stubGlobal('Image', class {
+      width = 1200; height = 900; onload?: () => void;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    });
+  }
+  it('supplies the live shutter instant, captured before image processing', async () => {
+    prepareCamera();
+    const onCapture = vi.fn();
+    render(<ContainerScanner onCapture={onCapture} onClose={vi.fn()} />);
+    const video = document.querySelector('video')!;
+    Object.defineProperties(video, { videoWidth: { value: 1200 }, videoHeight: { value: 900 } });
+    const button = await screen.findByRole('button', { name: 'Chụp ảnh' });
+    await waitFor(() => expect(button).toBeEnabled());
+    const before = Date.now();
+    fireEvent.click(button);
+    await waitFor(() => expect(onCapture).toHaveBeenCalledTimes(1));
+    expect(onCapture.mock.calls[0][1]).toBeInstanceOf(Date);
+    expect(onCapture.mock.calls[0][1].getTime()).toBeGreaterThanOrEqual(before);
+    expect(onCapture.mock.calls[0][1].getTime()).toBeLessThanOrEqual(Date.now());
+  });
+  it('does not label gallery selection or file modification time as capture time', async () => {
+    prepareCamera();
+    const onCapture = vi.fn();
+    render(<ContainerScanner onCapture={onCapture} onClose={vi.fn()} />);
+    fireEvent.change(document.querySelector('input[type=file]')!, { target: { files: [
+      new File(['gallery'], 'old-photo.jpg', { type: 'image/jpeg', lastModified: 1600000000000 }),
+    ] } });
+    await waitFor(() => expect(onCapture).toHaveBeenCalledExactlyOnceWith('data:image/jpeg;base64,YQ==', undefined));
   });
 });

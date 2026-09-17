@@ -1,0 +1,22 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, expect, it, vi } from 'vitest';
+const { get, uploadProof } = vi.hoisted(() => ({ get: vi.fn(), uploadProof: vi.fn() }));
+vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { get, uploadProof } }));
+import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
+beforeEach(() => { get.mockReset().mockResolvedValue({ sourceKind: 'DRIVER', sourceId: 5, version: 1, status: 'RECORDED', photoStorageKeys: [] }); uploadProof.mockReset(); });
+it('opens saved evidence on demand and retains a failed file for explicit retry', async () => {
+  uploadProof.mockRejectedValueOnce(new Error('Bạn không còn được phân công chuyến này.')).mockResolvedValueOnce({ storageKey: 'proof.jpg' });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DriverSavedExpenseProofs expenseId={5} /></QueryClientProvider>);
+  expect(get).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Xem / bổ sung chứng từ' }));
+  const picker = await screen.findByLabelText('Bổ sung ảnh chứng từ');
+  fireEvent.change(picker, { target: { files: [new File(['proof'], 'receipt.png', { type: 'image/png' })] } });
+  await screen.findByText('Bạn không còn được phân công chuyến này.');
+  expect(screen.getByText('receipt.png')).toBeInTheDocument();
+  expect(uploadProof).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại ảnh' }));
+  await waitFor(() => expect(uploadProof).toHaveBeenCalledTimes(2));
+  await screen.findByAltText('Chứng từ 1');
+  expect(screen.queryByText('receipt.png')).not.toBeInTheDocument();
+});

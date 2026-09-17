@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, X, Plus, Check } from 'lucide-react';
 import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
-import { PageHeader, useConfirm } from '../components/UI';
+import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
@@ -61,7 +61,7 @@ export default function ExpenseEntryPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
 
-  const { data: expenseCatalogs, isLoading: loadingExpenseCatalogs } = useQuery({
+  const expenseCatalogsQuery = useQuery({
     queryKey: qk.tripForm.expenseFormCatalogs,
     queryFn: async (): Promise<ExpenseCatalogs> => {
       const [suppliers, categories] = await Promise.all([
@@ -72,13 +72,17 @@ export default function ExpenseEntryPage() {
     },
     staleTime: 60 * 1000,
   });
+  const { data: expenseCatalogs, isLoading: loadingExpenseCatalogs } = expenseCatalogsQuery;
+  const catalogsUnavailable = !expenseCatalogs;
   const { suppliers, categories } = resolveExpenseCatalogs(expenseCatalogs);
 
-  const { data: existingExpense, isLoading: loadingExpense } = useQuery<ExpenseWithRefs>({
+  const existingExpenseQuery = useQuery<ExpenseWithRefs>({
     queryKey: qk.tripForm.expense(id!),
     queryFn: () => api.get(`${FINANCIAL.EXPENSE(Number(id))}`),
     enabled: isEdit,
   });
+
+  const { data: existingExpense, isLoading: loadingExpense } = existingExpenseQuery;
 
   const { rootRef } = usePageAnimations({ ready: !loadingExpense });
 
@@ -197,7 +201,7 @@ export default function ExpenseEntryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting || uploading) return;
+    if (submitting || uploading || catalogsUnavailable || (isEdit && !existingExpense)) return;
     setErrors({});
     setPageError('');
 
@@ -327,6 +331,19 @@ export default function ExpenseEntryPage() {
     return <ExpenseLoading />;
   }
 
+  if (isEdit && existingExpenseQuery.isError && !existingExpense) {
+    return <div className="expense-page-wrap">
+      <PageHeader title="Không tải được chi phí" onBack={handleBack} />
+      <div className="expense-page-error" role="alert">
+        <p>{existingExpenseQuery.error instanceof Error ? existingExpenseQuery.error.message : 'Không thể tải phiếu chi. Vui lòng thử lại.'}</p>
+        <div className="expense-error-actions">
+          <Btn onClick={() => void existingExpenseQuery.refetch()} disabled={existingExpenseQuery.isFetching}>Thử lại</Btn>
+          <Btn variant="ghost" onClick={handleBack}>Về danh sách chi phí</Btn>
+        </div>
+      </div>
+    </div>;
+  }
+
   return (
     <div ref={rootRef} className="expense-page-wrap">
       {dialog}
@@ -340,6 +357,10 @@ export default function ExpenseEntryPage() {
         />
 
         <form onSubmit={handleSubmit} className="expense-page-form">
+          {expenseCatalogsQuery.isError && <div className="expense-page-error" role="alert">
+            <p>Không tải được danh mục nhà cung cấp và hạng mục. Nội dung đang nhập được giữ nguyên.</p>
+            <Btn onClick={() => void expenseCatalogsQuery.refetch()} disabled={expenseCatalogsQuery.isFetching}>Tải lại danh mục</Btn>
+          </div>}
           {(pageError || photoError) && (
             <div className="animate-shake expense-page-error">
               <strong>Lỗi:</strong> {pageError || photoError}
@@ -388,11 +409,12 @@ export default function ExpenseEntryPage() {
                   </div>
                 ) : (
                   <UuiSelectField
+                    size="md"
                     id="supplierId"
                     label="Nhà cung cấp"
                     hideLabel
                     value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
-                    disabled={loadingExpenseCatalogs}
+                    disabled={catalogsUnavailable}
                     onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
                     options={[
@@ -435,11 +457,12 @@ export default function ExpenseEntryPage() {
                   </div>
                 ) : (
                   <UuiSelectField
+                    size="md"
                     id="categoryId"
                     label="Hạng mục"
                     hideLabel
                     value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
-                    disabled={loadingExpenseCatalogs}
+                    disabled={catalogsUnavailable}
                     onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
                     options={[
@@ -454,6 +477,7 @@ export default function ExpenseEntryPage() {
               <div className="expense-group">
                 <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
                 <UuiSelectField
+                    size="md"
                   id="expenseType"
                   label="Loại chi phí"
                   hideLabel
@@ -481,6 +505,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số xe <span className="expense-required">*</span></label>
                   <UuiSelectField
+                    size="md"
                     id="truckId"
                     label="Biển số xe"
                     hideLabel
@@ -500,6 +525,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số rơ-moóc <span className="expense-required">*</span></label>
                   <UuiSelectField
+                    size="md"
                     id="truckId"
                     label="Biển số rơ-moóc"
                     hideLabel
@@ -631,7 +657,8 @@ export default function ExpenseEntryPage() {
               </div>
             </fieldset>
 
-            <ExpensePhotoAside photos={photos} uploading={uploading} isEdit={isEdit} submitting={submitting} handleBack={handleBack} removePhoto={removePhoto} handlePhotoUpload={handlePhotoUpload} />
+            <ExpensePhotoAside photos={photos} uploading={uploading} isEdit={isEdit} submitting={submitting}
+                saveDisabled={catalogsUnavailable} handleBack={handleBack} removePhoto={removePhoto} handlePhotoUpload={handlePhotoUpload} />
           </div>
         </form>
       </div>

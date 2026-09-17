@@ -1,5 +1,7 @@
 # Regression spec — `18f4a2dd` Chunk 6: app-settings policy requests
 
+> **Historical cycle — superseded 2026-09-17:** keep this record for its dated decisions/evidence only. Retained approval exceptions, maker/checker chains (including automatic chains), pending queues and approve/reject instructions in this old cycle are not current product requirements. Run [NO-APP-01..23](../2026-09-17-no-approval-workflows.md) and current role/flow cases instead. Historical PASS does not verify the new criteria.
+
 > **DRAFT — awaiting pm sign-off before qa runs.**
 > Shared header (Environment / Accounts / Verification protocol / Evidence bundle / Pass criteria / QA gates / Anti-lying / Not-covered) lives in `testplan/qa/_TEMPLATE.md`; do not duplicate here.
 

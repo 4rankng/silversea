@@ -14,6 +14,7 @@ const recordIdentity = {
 
 export const shipmentInvoiceRecordSchema = z.object({
   ...recordIdentity,
+  tripId: z.number().int().positive().optional(),
   supplierId: z.number().int().positive(),
   invoiceNumber: z.string().trim().min(1, 'Nhập số hóa đơn.').max(100),
   invoiceDate: date,

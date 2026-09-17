@@ -96,6 +96,7 @@ export interface ExpenseAccountingList {
   unknownReceivableCount: number; unknownPayableCount: number; canViewPayments: boolean;
 }
 export interface ExpenseVoucher {
+  reversal?: { valueDate: string; physicalReference: string; amount: number; reason: string | null; reversedById: number | null } | null;
   counterpartyName?: string | null; treasuryAccountName?: string | null;
   unappliedAmount?: number; paymentReceiptId?: number | null;
   id: number; code: string; direction: 'IN' | 'OUT'; treasuryAccountId: number; valueDate: string;
@@ -104,9 +105,11 @@ export interface ExpenseVoucher {
   entries: Array<ExpenseSourceRef & { amount: number }>;
 }
 export interface ExpenseReconciliation {
+  voidedAt?: string | null;
   id: number; code: string; opsUserId: number; from: string; to: string; amount: number; advanceAmount: number;
   initialDifference: number; paidAmount: number; refundedAmount: number; remainingDifference: number;
   entries: ExpenseSourceRef[]; createdAt: string; note: string | null;
+  advances?: Array<{ advanceRequestId: number; amount: number; reason: string | null }>;
 }
 export interface TruckAccountantAssignment {
   truckId: number; truckPlate: string; accountantId: number | null; accountantName: string | null;
@@ -116,6 +119,8 @@ export interface TruckAccountantAssignment {
 export interface ExpenseWorkRow {
   id: string; tripId: number | null; shipmentId: number; shipmentCode: string;
   scheduledAt: string | null; customerName: string; routeName: string | null;
+  factoryName: string | null;
+  roadBreakdown: { roadAllowance: number | null; shiftAllowance: number | null; toll: number | null; extra: number | null; tollBasis: 'ACTUAL' | 'ESTIMATED' | 'UNKNOWN'; sharedWithTripId: number | null };
   containerNumber: string | null; containerType: string | null; classification: string | null;
   liftLocation: string | null; dropLocation: string | null; carrierName: string | null;
   vehiclePlate: string | null; driverName: string | null; operationalNotes: string | null; driverNotes: string | null;

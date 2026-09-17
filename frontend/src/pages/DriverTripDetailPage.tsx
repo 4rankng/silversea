@@ -153,12 +153,12 @@ function DriverTripDetailContent() {
     }
   }
 
-  async function handleUploadFuelEvidence(file: File) {
+  async function handleUploadFuelEvidence(file: File, capturedAt?: Date) {
     if (!trip || cancelled) return;
     setUploadingFuelEvidence(true);
     try {
       const location = await geolocation.awaitAccurateSample();
-      const prepared = await compressImageFile(file, { timestamp: new Date() });
+      const prepared = await compressImageFile(file, { timestamp: capturedAt });
       await driverClient.uploadFuelEvidence({
         tripId: trip.id,
         file: prepared,
@@ -586,9 +586,9 @@ function DriverTripDetailContent() {
 
       {fuelScanning && (
         <ContainerScanner
-          onCapture={(dataUrl) => {
+          onCapture={(dataUrl, capturedAt) => {
             setFuelScanning(false);
-            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'));
+            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'), capturedAt);
           }}
           onClose={() => setFuelScanning(false)}
         />

@@ -48,12 +48,8 @@ describe('qk.* factory — key identity', () => {
       .not.toEqual(qk.shipmentsCus.list({ page: 1, bucket: 'LOCKED' as never }));
   });
 
-  it('keeps credit-override cursors and page sizes in separate cache entries', () => {
-    const base = { status: 'PENDING', customerId: 7 };
-    expect(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 25 }))
-      .not.toEqual(qk.creditOverrides.list({ ...base, cursor: 'cursor-b', limit: 25 }));
-    expect(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 25 }))
-      .not.toEqual(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 50 }));
+  it('does not register a retired credit-approval queue', () => {
+    expect(qk).not.toHaveProperty('creditOverrides');
   });
 
   it('allCatalogKeys is a readonly tuple of strings', () => {

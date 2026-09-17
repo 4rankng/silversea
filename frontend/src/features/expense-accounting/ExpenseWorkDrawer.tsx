@@ -3,7 +3,7 @@ import type { ExpenseAccountingEntry, ExpenseWorkRow } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { ExpenseRegisterRows } from './ExpenseRegisterRows';
 import { WORK_FEE_LABELS, type WorkFeeGroup } from './ExpenseWorkRows';
-import { expenseKey } from './expense-accounting-model';
+import { expenseKey, expenseMoney } from './expense-accounting-model';
 import { useExpenseMutations } from './useExpenseAccounting';
 
 export function ExpenseWorkDrawer({ work, group, onClose, onEdit, onCreate, onVoucher }: {
@@ -30,6 +30,17 @@ export function ExpenseWorkDrawer({ work, group, onClose, onEdit, onCreate, onVo
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
       {selection.length > 0 && <div className="expense-accounting-toolbar-actions"><span>{selection.length} khoản đã chọn</span><button type="button" className="btn btn--secondary btn--sm" disabled={confirm.isPending || selection.some(entry => entry.locked)} onClick={() => void confirmSelection()}>{confirm.isPending ? 'Đang đối chiếu…' : 'Đối chiếu chi phí'}</button></div>}
       {!work.tripId && <p className="expense-accounting-notice">Công việc chưa có chuyến vận chuyển. Các khoản OPS đã khai vẫn được theo dõi; chưa tạo chi phí chuyến giả.</p>}
+      {group === 'road' && work.roadBreakdown && <>
+        <dl className="expense-work-road-breakdown">
+          <div><dt>Phụ cấp tiền đường đã thỏa thuận</dt><dd>{expenseMoney(work.roadBreakdown.roadAllowance)}</dd></div>
+          <div><dt>Phụ cấp ca</dt><dd>{expenseMoney(work.roadBreakdown.shiftAllowance)}</dd></div>
+          <div><dt>Cầu đường · {work.roadBreakdown.tollBasis === 'ACTUAL' ? 'vé đã đối chiếu' : work.roadBreakdown.tollBasis === 'ESTIMATED' ? 'ước tính' : 'chưa xác định'}</dt><dd>{expenseMoney(work.roadBreakdown.toll)}</dd></div>
+          <div><dt>Phát sinh đã đối chiếu</dt><dd>{expenseMoney(work.roadBreakdown.extra)}</dd></div>
+          <div><dt>Tổng tiền đường</dt><dd>{expenseMoney(work.road)}</dd></div>
+        </dl>
+        <p className="expense-accounting-hint">Tổng theo công việc, gồm phụ cấp đã thỏa thuận và chi phí đã đối chiếu. Chứng từ bên dưới tuân theo bộ lọc; vé đã đối chiếu thay phần ước tính, không cộng lại vào tổng.</p>
+        {work.roadBreakdown.sharedWithTripId && <p className="expense-accounting-hint">Công việc ghép với chuyến #{work.roadBreakdown.sharedWithTripId}; phần chi phí dùng chung chỉ tính tại chuyến sở hữu.</p>}
+      </>}
       {rows.length ? <ExpenseRegisterRows rows={rows} selected={selected} selectable canViewPayments onOpen={onEdit} onSelect={(entry, checked) => setSelected(current => { const next = new Set(current); if (checked) next.add(expenseKey(entry)); else next.delete(expenseKey(entry)); return next; })} /> : <p className="expense-accounting-empty">Chưa có khoản chi trong nhóm này.</p>}
     </div>
   </Drawer>;

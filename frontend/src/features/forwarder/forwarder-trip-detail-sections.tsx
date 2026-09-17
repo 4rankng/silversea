@@ -189,7 +189,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                           fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
                           color: '#92400e', background: '#fef3c7',
                           borderRadius: 4, padding: '3px 7px', marginLeft: 6,
-                        }}>Đã gửi kế toán</span>
+                        }}>Đã lập phiếu</span>
                       )}
                       {exp.note && (
                         <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginLeft: 8 }}>{exp.note}</span>

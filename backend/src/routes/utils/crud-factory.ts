@@ -101,13 +101,6 @@ function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
   return new ApiError(409, `${field} đã tồn tại`);
 }
 
-function isPendingGovernanceResult(value: unknown): value is { status: string; actionKind: string } {
-  return typeof value === 'object'
-    && value !== null
-    && 'status' in value
-    && 'actionKind' in value;
-}
-
 export function createCrudRouter<
   TTable extends PgTable,
   TCreate extends AnyZodObject,
@@ -369,7 +362,7 @@ export function createCrudRouter<
     const idempotencyKey = requireIdempotencyKey(req);
     const expectedUpdatedAt = requireExpectedUpdatedAt(req);
     const actor = getUser(req);
-    const { result, replayed } = await runIdempotent({
+    const { result } = await runIdempotent({
       endpoint: buildCrudIdempotencyEndpoint(resource, 'update'),
       idempotencyKey,
       payload: { id, body: req.body, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
@@ -421,9 +414,6 @@ export function createCrudRouter<
       },
     });
     await cacheInvalidate('catalogs:bootstrap');
-    if (isPendingGovernanceResult(result) && result.status === 'PENDING_CHECK') {
-      return res.status(replayed ? 200 : 201).json(result);
-    }
     res.json(result);
   }));
 
@@ -458,7 +448,7 @@ export function createCrudRouter<
             transaction: tx,
           });
           // An immediately applied ADMIN delete has no row to return. Use the
-          // approved audit action to preserve the route's normal success shape.
+          // applied audit action to preserve the route's normal success shape.
           if (outcome.action.status === 'APPROVED') return { ok: true as const, id };
           return outcome.action;
         }

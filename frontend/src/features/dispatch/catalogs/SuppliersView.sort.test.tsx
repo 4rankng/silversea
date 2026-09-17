@@ -94,4 +94,17 @@ describe('SuppliersView server-side sort headers', () => {
       await waitFor(() => expect(lastCall().sort).toEqual({ by: key, dir: 'asc' }));
     }
   });
+
+  it('UI-CD-11 normalizes pasted search whitespace without rewriting the draft', async () => {
+    renderView();
+    const input = screen.getByRole('textbox', { name: 'Tìm tên nhà thầu phụ…' });
+    fireEvent.change(input, { target: { value: '  gara  thanh dong  ' } });
+    await waitFor(() => expect(lastCall().search).toBe('gara thanh dong'));
+    expect(input).toHaveValue('  gara  thanh dong  ');
+    fireEvent.change(input, { target: { value: 'gara thanh dong' } });
+    expect(lastCall().search).toBe('gara thanh dong');
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(lastCall().search).toBe('');
+    expect(input).toHaveValue('   ');
+  });
 });

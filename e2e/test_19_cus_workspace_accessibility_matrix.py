@@ -134,21 +134,26 @@ def check(results: TestResults, tc_id: str, title: str, condition: bool, detail:
 
 def login_page(ctx: SilverseaTestContext, role_key: str, page: Page):
     if role_key != "dispatcher":
-        return ctx.login_as(role_key, page)
+        session = ctx.login_as(role_key, page)
+        if role_key == "clerk":
+            # Finish the post-login route before beginning a second navigation.
+            page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
+        return session
 
-    api = login("dispatcher")
+    login("dispatcher")
     page.goto(f"{BASE_URL}/login")
     wait_for_page_ready(page)
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', DISPATCHER_USERNAME)
     page.fill('input[type="password"]', DISPATCHER_PASSWORD)
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(500)
-    page.evaluate(f'localStorage.setItem("token", "{api.token}")')
-    if "/login" in page.url:
-        page.goto(BASE_URL)
-        wait_for_page_ready(page)
-    return page, api.token, {"role": "DISPATCHER"}
+    # The mounted AuthProvider owns the session created by this UI login.
+    # Replacing it with the earlier API session triggers its stale-session guard.
+    page.wait_for_url(lambda url: "/login" not in url, timeout=15_000)
+    wait_for_page_ready(page)
+    token = page.evaluate('localStorage.getItem("token")')
+    if not token:
+        raise AssertionError("Dispatcher UI login navigated without a session token")
+    return page, token, {"role": "DISPATCHER"}
 
 
 def no_horizontal_overflow(page: Page) -> bool:
@@ -430,7 +435,9 @@ def open_mobile_drawer(page: Page):
     dialog.wait_for(timeout=10_000)
     page.wait_for_function(
         """() => {
-          const transform = getComputedStyle(document.querySelector('[role="dialog"]')).transform;
+          const dialog = document.querySelector('[role="dialog"]');
+          if (!dialog) return false;
+          const transform = getComputedStyle(dialog).transform;
           return transform === 'none' || Math.abs(new DOMMatrixReadOnly(transform).m41) < 1;
         }""",
         timeout=2_500,

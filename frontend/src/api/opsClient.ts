@@ -37,6 +37,8 @@ export interface OpsWalletSummary {
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface OpsExpenseRow {
+  sourceKind?: 'OPS' | 'TRIP';
+  sourceId?: number;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
@@ -55,6 +57,7 @@ export interface OpsExpenseRow {
   paidByName: string | null;
   createdAt: string;
   version?: number;
+  confirmedAt?: string | null;
   costGroup?: ExpenseCostGroup | null;
   feeName?: string | null;
   customerChargeAmount?: number | null;
@@ -159,7 +162,7 @@ export const opsClient = {
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; fundedAmount?: number; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
       `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
     ),
 

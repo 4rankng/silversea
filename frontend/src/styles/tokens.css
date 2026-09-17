@@ -211,7 +211,7 @@
   --control-touch-h: 44px;
   /* Compact geometry is independent from readable typography. Phone text
      uses the same role scale; field text follows the same compact scale on every device. */
-  --control-mobile-h: 32px;
+  --control-mobile-h: var(--control-touch-h);
   --control-mobile-font-size: var(--text-input-touch-size);
   --control-mobile-line-height: 20px;
   --control-compact-font-size: var(--text-control-compact-size);

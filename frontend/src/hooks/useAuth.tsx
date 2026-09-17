@@ -5,6 +5,7 @@ import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
+import './useAuth.css';
 
 export interface AuthUser {
   userId: number;
@@ -247,7 +248,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {error && !user ? <main className="auth-retry" aria-labelledby="auth-retry-title">
+        <h1 id="auth-retry-title">Chưa tải được tài khoản</h1>
+        <p role="alert">Máy chủ tạm thời không khả dụng. Phiên đăng nhập của bạn vẫn được giữ.</p>
+        <button type="button" className="btn btn--primary" disabled={isFetching} onClick={() => void refetch()}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
+      </main> : children}
     </AuthContext.Provider>
   );
 }

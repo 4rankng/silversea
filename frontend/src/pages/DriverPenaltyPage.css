@@ -300,7 +300,12 @@
   color: var(--ink-3);
   border-top: 1px solid var(--line);
 }
+.penalty-empty-state > svg {
+  margin-inline: auto;
+}
 .penalty-empty-state__icon {
+  display: flex;
+  justify-content: center;
   color: var(--success);
   margin-bottom: 12px;
 }

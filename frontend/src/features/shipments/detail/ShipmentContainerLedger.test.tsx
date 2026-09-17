@@ -45,6 +45,7 @@ const baseRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
   operationalNotes: null,
   raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null },
   fieldAccess: {
+    operationalSiteId: access(),
     containerNumber: access(),
     containerTypeId: access(),
     cargoWeightKg: access(),
@@ -83,6 +84,7 @@ const baseLine = () => ({
   containerTypeId: 1,
   containerTypeLabel: "20'DC",
   routeId: 3,
+  operationalSiteId: 17,
   routeName: 'KCN Quế Võ',
   dispatchStatus: 'AWAITING_VEHICLE',
   tripId: null,
@@ -99,6 +101,7 @@ const baseLine = () => ({
   customerAppointmentAt: '2026-09-10T08:00:00.000Z',
   raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null, routeId: 3 },
   fieldAccess: {
+    operationalSiteId: access(),
     containerNumber: access(),
     containerTypeId: access(),
     cargoWeightKg: access(),
@@ -154,7 +157,7 @@ const baseDetail = () => ({
   selectors: {
     routes: [{ id: 3, name: 'KCN Quế Võ', label: 'KCN Quế Võ' }],
     containerTypes: [{ id: 1, code: '20DC', name: "20'DC", label: "20'DC" }],
-    operationalSites: [],
+    operationalSites: [{ id: 17, siteType: 'FACTORY', code: 'ASK-2', name: 'ASKEY-2', label: 'ASKEY-2' }, { id: 18, siteType: 'FACTORY', code: 'ASK-3', name: 'ASKEY-3', label: 'ASKEY-3' }],
     externalCarriers: [],
     carrierVehicles: [],
     ports: [],
@@ -162,10 +165,11 @@ const baseDetail = () => ({
   containers: [],
 }) as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
+function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = baseDetail(), line = baseLine()) {
   const onCancelEdit = vi.fn();
   const onSaveNotes = vi.fn(async () => {});
   const onSaveSchedule = vi.fn(async () => {});
+  const onSaveIdentity = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -173,7 +177,7 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
       today="2026-09-10"
       sort={null}
       onSortChange={vi.fn()}
-      activeEdit={{ row, detail: baseDetail(), line: baseLine(), mode }}
+      activeEdit={{ row, detail, line, mode }}
       editLoadingRowId={null}
       editError={null}
       onStartEdit={vi.fn()}
@@ -182,15 +186,41 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
       onSaveVehicle={vi.fn(async () => {})}
       onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
-      onSaveIdentity={vi.fn(async () => {})}
+      onSaveIdentity={onSaveIdentity}
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
+  it('UI-CD-12 selects the actual container factory and submits its site id', async () => {
+    const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    expect(factory).toHaveValue('ASKEY-2');
+    expect(screen.queryByLabelText('Điểm giao')).toBeNull();
+    fireEvent.focus(factory);
+    fireEvent.change(factory, { target: { value: 'ASK-3' } });
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: 'ASKEY-3' }));
+    expect(onCancelEdit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu /  }));
+    await waitFor(() => expect(onSaveIdentity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ operationalSiteId: 18 })));
+  });
+
+  it('UI-CD-12 keeps LCL parent identity editing and respects a locked FCL factory', () => {
+    const detail = baseDetail();
+    detail.summary.cargoMode = 'LCL';
+    const { unmount } = renderLedger('identity', baseRow(), detail);
+    expect(screen.getByLabelText('Nhà máy')).toHaveValue('ASKEY-2');
+    expect(screen.getByLabelText('Điểm giao')).toBeTruthy();
+    unmount();
+    const lockedLine = baseLine();
+    lockedLine.fieldAccess.operationalSiteId = access('READ_ONLY');
+    renderLedger('identity', baseRow(), baseDetail(), lockedLine);
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toBeDisabled();
+  });
   it('keeps bare Enter as a newline in the notes editor; Ctrl+Enter saves', () => {
     const { onSaveNotes } = renderLedger('notes');
     const notesArea = screen.getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement;

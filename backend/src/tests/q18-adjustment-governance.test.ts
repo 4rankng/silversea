@@ -22,7 +22,6 @@ import {
   deleteTripExpenseGuarded,
   updateTripExpense,
 } from '../services/forwarder.service';
-import { transitionApproval } from '../services/approval.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 import {
   TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE,
@@ -191,7 +190,7 @@ describe('Q18 bounded adjustment governance', () => {
     );
   });
 
-  it('persists exact authority and posts only after three distinct actors', async () => {
+  it('persists exact authority and posts in one authorized direct action', async () => {
     const { trip, customer } = await createTrip();
     const [periodLock] = await db.insert(s.periodLocks).values({
       domain: 'DEBIT_NOTE',
@@ -259,7 +258,7 @@ describe('Q18 bounded adjustment governance', () => {
     });
     assert.equal(approved.status, 'APPROVED');
     assert.equal(approved.makerId, actors[0]!.id);
-    assert.equal(approved.checkerId, actors[2]!.id);
+    assert.equal(approved.checkerId, null);
     assert.equal(approved.approverId, actors[2]!.id);
     assert.equal(approved.approverRole, Role.ADMIN);
     assert.deepEqual(approved.applicationResult, {
@@ -316,7 +315,7 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(posted.length, 1);
   });
 
-  it('blocks direct reopen and applies exceptional reopen only after approval', async () => {
+  it('blocks unguarded reopen and applies the authorized direct reopen', async () => {
     const { trip } = await createTrip('COMPLETED');
     // O2C: COMPLETED is terminal. A direct financial mutation on a completed
     // trip is blocked (it must go through the governed correction flow), and
@@ -337,7 +336,7 @@ describe('Q18 bounded adjustment governance', () => {
         userRole: Role.MANAGER,
       }),
       409,
-      /chỉ được thay đổi sau khi kiểm tra và phê duyệt/,
+      /phải được thay đổi bằng thao tác điều chỉnh/,
     );
     // Direct reopen by an unauthorized role is blocked at the RBAC boundary.
     await expectApiError(
@@ -722,7 +721,7 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(persisted.approvalStatus, 'RECORDED');
   });
 
-  it('fails closed when a legacy trip expense has no attributable maker', async () => {
+  it('records a legacy expense directly without fabricating its unknown original maker', async () => {
     const { trip } = await createTrip();
     const [legacyExpense] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
@@ -735,19 +734,16 @@ describe('Q18 bounded adjustment governance', () => {
       note: 'Legacy maker is unknown',
     }).returning();
     expenseIds.push(legacyExpense.id);
-    await expectApiError(
-      db.transaction((tx) => transitionApproval(tx, {
-        table: 'trip_expenses',
-        id: legacyExpense.id,
-        toStatus: 'APPROVED',
-        actorId: actors[1]!.id,
-        actorRole: Role.MANAGER,
-      })),
-      409,
-      /không xác định được người tạo|đối soát thủ công/,
-    );
+    const recorded = await db.transaction((tx) => updateTripExpense(tx, legacyExpense.id, {
+      note: 'Đối chiếu và bổ sung chi phí lịch sử',
+      invoiceNumber: 'Q18-LEGACY-RECORD',
+      expenseDate: '2026-07-15',
+    }, trip.id));
+    assert.equal(recorded?.approvalStatus, 'RECORDED');
+    assert.equal(recorded?.createdBy, null);
     const [unchanged] = await db.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, legacyExpense.id));
-    assert.equal(unchanged.approvalStatus, 'PENDING');
+    assert.equal(unchanged.approvalStatus, 'RECORDED');
+    assert.equal(unchanged.createdBy, null);
   });
 });

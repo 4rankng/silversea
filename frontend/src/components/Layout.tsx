@@ -770,7 +770,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* Bottom Navigation for Drivers on Mobile */}
         {isDriver && (
           <nav className="bottom-nav" aria-label="Điều hướng chính" ref={bottomNavRef as React.RefObject<HTMLElement>}>
-            {navItems.map(item => {
+            {navItems.filter(item => item.key !== 'my-notifications').map(item => {
               const IconC = item.icon;
               const isActive = !userMenuOpen && item.key === activeKey;
               const displayLabel = item.mobileLabel || item.label;
@@ -817,6 +817,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           roleLabel={getRoleLabel(user.role)}
           onClose={closeUserMenu}
           onOpenProfile={openProfileModal}
+          onOpenNotifications={() => handleNavigate(routes.myNotifications)}
           onOpenPassword={openPasswordModal}
           onLogout={() => { setUserMenuOpen(false); logout(); }}
         />

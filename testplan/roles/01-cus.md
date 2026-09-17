@@ -105,13 +105,12 @@ applies (silent redirect to `/shipments`).
      top of `/shipments` with status `Mới tạo`.
    - **Evidence**: network tab; final URL; toast text.
 
-6. **CUS-SHIP-06 — Maker-checker is bypassed for CUS / DISPATCHER**
+6. **CUS-SHIP-06 — Customer creation is direct**
    - **Given** a CUS user is creating a customer inline (Flow 1.3 above)
    - **When** the form is submitted
    - **Then** the customer is created immediately — no "pending approval"
-     queue, no second-actor gate. (The maker-checker path is reserved
-     for ADMIN/MANAGER; the `shouldGovernCreate` predicate returns
-     `false` for CUS/DISPATCHER per `6ef3b221`.)
+     queue or second-actor gate for any authorized role. Role-specific field
+     permissions still apply; no financial-role approval exception exists.
    - **Evidence**: timing of creation vs. UI; backend logs.
 
 7. **CUS-SHIP-07 — Field-level validation matches the contract**

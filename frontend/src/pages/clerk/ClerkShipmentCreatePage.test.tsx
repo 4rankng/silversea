@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   createRoute: vi.fn(),
   createCustomer: vi.fn(),
   createContainerType: vi.fn(),
+  createSite: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
@@ -40,6 +41,7 @@ vi.mock('../../api/configClient', () => ({
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
+  createOperationalSite: mocks.createSite,
   saveShipmentContainers: mocks.saveContainers,
   createShipmentDeclaration: mocks.createDeclaration,
   updateShipmentDeclaration: mocks.updateDeclaration,
@@ -531,6 +533,129 @@ describe('ClerkShipmentCreatePage', () => {
     })));
   });
 
+  it('TC-CUS-FACTORY-SEARCH-02 searches the factory code and saves the selected factory ID', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    const factory = screen.getByRole('combobox', { name: 'Nhà máy' });
+    fireEvent.focus(factory);
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    fireEvent.change(factory, { target: { value: '  nm01  ' } });
+    const option = await screen.findByRole('option', { name: /Nhà máy Long Minh/ });
+    expect(option).toHaveTextContent('NM01');
+    expect(factory).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(option);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+      containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })],
+    })));
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-05 clears each previous factory and its derived route when customer changes', async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7 ? sites : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(screen.getAllByRole('combobox', { name: 'Nhà máy' })).toHaveLength(2);
+    await choose('Khách hàng', '8');
+    for (const factory of screen.getAllByRole('combobox', { name: 'Nhà máy' })) {
+      expect(factory).toHaveValue('');
+    }
+    for (const route of screen.getAllByRole('combobox', { name: 'Tuyến đường' })) {
+      expect(route).toHaveValue('');
+      expect(route).not.toBeDisabled();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+      containers: [
+        expect.objectContaining({ operationalSiteId: null, routeId: null }),
+        expect.objectContaining({ operationalSiteId: null, routeId: null }),
+      ],
+    })));
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-07 preserves the factory catalog and selection when the same customer is selected again', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    await choose('Khách hàng', '7');
+
+    const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    expect(factory).toHaveValue('Nhà máy Long Minh');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toBeDisabled();
+    // Reopen and select again to prove the catalog still exists, rather
+    // than only asserting a stale selected label that survives an empty list.
+    await choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+      containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })],
+    })));
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-08 clears the LCL factory-derived route when customer changes', async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7 ? sites : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toBeDisabled();
+
+    await choose('Khách hàng', '8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 8, cargoMode: 'LCL', operationalSiteId: null, routeId: null,
+    }), expect.any(String)));
+  });
+
+  it.each(['FCL', 'LCL'])('TC-CUS-FACTORY-SEARCH-08 preserves a manually selected %s route when customer changes', async (mode) => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+      routes: [...bootstrap.routes, { id: 12, name: 'Cái Mép — Mỹ Phước' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7
+      ? [{ ...sites[0], routeId: null }]
+      : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    await choose('Tuyến đường', '12');
+
+    await choose('Khách hàng', '8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cái Mép — Mỹ Phước');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    if (mode === 'LCL') {
+      await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+        customerId: 8, operationalSiteId: null, routeId: 12,
+      }), expect.any(String)));
+    } else {
+      await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+        containers: [expect.objectContaining({ operationalSiteId: null, routeId: 12 })],
+      })));
+    }
+  });
+
   it('shows a resting container value as table text and activates its editor from the full cell', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
@@ -872,5 +997,36 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0]);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     expect(within(dialog).getByLabelText('Mã điểm vận hành')).toBeTruthy();
+  });
+
+  it.each([
+    { mode: 'FCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
+    { mode: 'LCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
+    { mode: 'LCL', siteType: 'WAREHOUSE', label: 'Kho lấy hàng', action: 'Thêm kho' },
+  ])('TC-CUS-FACTORY-SEARCH-09 immediately selects a created $mode $siteType before catalog reload', async ({ mode, siteType, label, action }) => {
+    const created = { ...sites[0], id: 43, code: 'NEW43', name: 'Điểm vận hành mới', shortName: 'Điểm mới', siteType, routeId: siteType === 'FACTORY' ? 11 : null };
+    mocks.createSite.mockResolvedValue(created);
+    mocks.sites.mockResolvedValueOnce(sites).mockImplementation(() => new Promise(() => {}));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
+    const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
+    fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: created.code } });
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: created.name } });
+    fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: created.shortName } });
+    fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: created.address } });
+    if (siteType === 'FACTORY') {
+      fireEvent.click(within(dialog).getByRole('button', { name: /Tuyến đường/ }));
+      fireEvent.click(await screen.findByRole('option', { name: 'Cát Lái — Sóng Thần' }));
+    }
+    fireEvent.click(within(dialog).getByRole('button', { name: action }));
+    await waitFor(() => expect(mocks.createSite).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, siteType })));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('combobox', { name: new RegExp(`^${label}`) })).toHaveValue(created.shortName);
+    if (siteType === 'FACTORY') {
+      expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
+    }
   });
 });

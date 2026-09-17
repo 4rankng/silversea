@@ -1,5 +1,7 @@
 # Kanban shipping reimplementation regressions
 
+> **Current criteria note (2026-09-17):** dated execution notes below are historical. Current no-approval behavior is defined by [NO-APP regressions](2026-09-17-no-approval-workflows.md) and current PRDs. A recorded advance request is not cash funding; legacy approval codes may remain in history but never gate a new action. Re-run changed cases rather than carrying forward old PASS.
+
 Read requirements from all 81 assigned Kanban-PROD documents regardless of their folder status. Completion claims are not acceptance evidence.
 
 | Case | Requirement | Reproduction and expected behavior |

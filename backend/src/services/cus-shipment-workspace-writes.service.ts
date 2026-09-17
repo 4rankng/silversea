@@ -26,7 +26,7 @@ import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
-import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { ensureShipmentFulfillmentsInTx, operationalSiteSnapshot } from './shipment-fulfillment.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -367,8 +367,14 @@ export async function updateCusShipmentContainerLine(args: {
         && new Date(args.input.customerAppointmentAt).getTime() !== container.customerAppointmentAt.getTime()
       )
     );
+    const currentFactoryId = container.operationalSiteId ?? shipment.operationalSiteId ?? null;
+    // Clearing an override restores the shipment factory, matching the read
+    // projection; it does not hide an inherited factory behind a null value.
+    const nextFactoryId = args.input.operationalSiteId ?? shipment.operationalSiteId ?? null;
+    const factoryChanged = args.input.operationalSiteId !== undefined && nextFactoryId !== currentFactoryId;
     const requestedOperationalMutation = (
-      (args.input.containerTypeId !== undefined && args.input.containerTypeId !== container.containerTypeId)
+      factoryChanged
+      || (args.input.containerTypeId !== undefined && args.input.containerTypeId !== container.containerTypeId)
       || (args.input.cargoWeightKg !== undefined && args.input.cargoWeightKg !== container.cargoWeightKg)
       || (args.input.cargoVolumeCbm !== undefined && args.input.cargoVolumeCbm !== container.cargoVolumeCbm)
       || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
@@ -393,6 +399,56 @@ export async function updateCusShipmentContainerLine(args: {
 
     let touched = repairedLegacyCargoMode;
     const now = new Date();
+
+    if (factoryChanged) {
+      const [factory] = nextFactoryId == null ? [] : await tx.select().from(s.operationalSites)
+        .where(and(
+          eq(s.operationalSites.id, nextFactoryId),
+          ...(shipment.customerId != null ? [eq(s.operationalSites.customerId, shipment.customerId)] : []),
+          eq(s.operationalSites.siteType, 'FACTORY'),
+          eq(s.operationalSites.isActive, true),
+          isNull(s.operationalSites.deletedAt),
+        )).limit(1).for('share');
+      if (nextFactoryId != null && !factory) {
+        throw new ApiError(409, 'Nhà máy không còn hoạt động hoặc không thuộc khách hàng của lô hàng.');
+      }
+      const factoryRouteId = factory?.routeId;
+      if (factoryRouteId != null) {
+        await assertActiveContainerRoute(factoryRouteId, tx);
+        if (args.input.routeId !== undefined && args.input.routeId !== factoryRouteId) {
+          throw new ApiError(409, 'Tuyến đường phải khớp với nhà máy vừa chọn. Vui lòng tải lại lựa chọn nhà máy.');
+        }
+      }
+      await tx.update(s.shipmentContainers).set({
+        operationalSiteId: args.input.operationalSiteId ?? null,
+        ...(factoryRouteId != null ? { routeId: factoryRouteId } : {}),
+        updatedAt: now,
+      }).where(eq(s.shipmentContainers.id, container.id));
+      if (factoryRouteId != null) container.routeId = factoryRouteId;
+      // A planned fulfillment must carry the newly selected factory into the
+      // dispatch/driver projections. Running trips remain protected above.
+      fulfillment.siteSnapshot = {
+        ...((fulfillment.siteSnapshot ?? {}) as Record<string, unknown>),
+        deliverySite: factory ? operationalSiteSnapshot(factory) : null,
+      };
+      fulfillment.version += 1;
+      await tx.update(s.shipmentFulfillments).set({
+        siteSnapshot: fulfillment.siteSnapshot,
+        version: fulfillment.version,
+        sourceShipmentVersion: shipment.version + 1,
+        updatedAt: now,
+      }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+      touched = true;
+    }
+
+    if (!factoryChanged && args.input.operationalSiteId === null && container.operationalSiteId != null) {
+      // The explicit override can equal today's parent factory. Still clear
+      // it so a future parent change is inherited, without revalidating or
+      // rewriting the unchanged historical factory snapshot.
+      await tx.update(s.shipmentContainers).set({ operationalSiteId: null, updatedAt: now })
+        .where(eq(s.shipmentContainers.id, container.id));
+      touched = true;
+    }
 
     if (args.input.containerNumber !== undefined) {
       const requestedContainerNumber = trimOrNull(args.input.containerNumber);
@@ -515,7 +571,11 @@ export async function updateCusShipmentContainerLine(args: {
         if (args.input.liftSiteId !== undefined) {
           nextSnapshot.pickupWarehouse = snapshotPort(args.input.liftSiteId);
         }
-        if (args.input.dropoffSiteId !== undefined) {
+        // FCL deliverySite is the factory snapshot when present. Drop-off
+        // ports already have their canonical container column; do not turn
+        // a factory into a port when both fields are edited in one command.
+        const deliverySnapshot = nextSnapshot.deliverySite as { siteType?: string } | null | undefined;
+        if (args.input.dropoffSiteId !== undefined && deliverySnapshot?.siteType !== 'FACTORY') {
           nextSnapshot.deliverySite = snapshotPort(args.input.dropoffSiteId);
         }
         await tx.update(s.shipmentFulfillments).set({

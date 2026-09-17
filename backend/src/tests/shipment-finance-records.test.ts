@@ -1,6 +1,6 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Role, containerDepositSchema, shipmentInvoiceRecordSchema } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -51,7 +51,7 @@ test('KT-16/21: invoice fee has one source; CUS sees invoice but cannot write or
   await isolated(async (tx, actor, shipmentId, supplierId) => {
     const input = shipmentInvoiceRecordSchema.parse({ expectedVersion: 0, supplierId, invoiceNumber: 'VAT-16', invoiceDate: '2026-09-16', faceAmount: 1_000_000, supplierFeeAmount: 50_000 });
     const record = await saveShipmentInvoiceRecord(tx, shipmentId, input, actor);
-    const [link] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.sourceId, record.id));
+    const [link] = await tx.select().from(s.expenseAccountingSources).where(and(eq(s.expenseAccountingSources.sourceKind, 'INVOICE'), eq(s.expenseAccountingSources.sourceId, record.id)));
     const source = await hydrateExpenseAccountingSource(tx, link);
     assert.equal(source.sourceKind, 'INVOICE');
     assert.equal(source.amount, '50000');
@@ -71,7 +71,7 @@ test('KT-16/20: reconciled invoice fees cannot be overwritten and do not create 
   await isolated(async (tx, actor, shipmentId, supplierId) => {
     const input = shipmentInvoiceRecordSchema.parse({ expectedVersion: 0, supplierId, invoiceNumber: 'VAT-LOCKED', invoiceDate: '2026-09-16', faceAmount: 1_000_000, supplierFeeAmount: 50_000 });
     const record = await saveShipmentInvoiceRecord(tx, shipmentId, input, actor);
-    const [source] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.sourceId, record.id));
+    const [source] = await tx.select().from(s.expenseAccountingSources).where(and(eq(s.expenseAccountingSources.sourceKind, 'INVOICE'), eq(s.expenseAccountingSources.sourceId, record.id)));
     assert.equal(source.tripId, null);
     assert.equal(source.linkedTripExpenseId, null);
     await tx.update(s.expenseAccountingSources).set({ confirmedAt: new Date(), confirmedById: actor.userId }).where(eq(s.expenseAccountingSources.id, source.id));
@@ -104,5 +104,74 @@ test('KT-17/18: documentary refund updates remain available after shipment costs
     const [unchanged] = await tx.select().from(s.containerDepositRecords).where(eq(s.containerDepositRecords.id, first.id));
     assert.equal(unchanged.amount, '2000000');
     assert.equal(unchanged.recoveredAmount, '500000');
+  });
+});
+
+test('FIX-WS-INV: single real work links invoice fee once; face value and cash remain independent', async () => {
+  await isolated(async (tx, actor, shipmentId, supplierId) => {
+    const { insertTripComposite } = await import('../services/trip-composite.service');
+    const [shipment] = await tx.select().from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), shipmentId, customerId: shipment.customerId!, routeId: route.id, cargoTypeId: cargo.id, departureDate: '2026-09-17', carrierType: 'OWN' });
+    const cashBefore = await tx.select({ id: s.treasuryMovements.id }).from(s.treasuryMovements);
+    const input = shipmentInvoiceRecordSchema.parse({ expectedVersion: 0, supplierId, invoiceNumber: 'FIX-WS-INV', invoiceDate: '2026-09-17', faceAmount: 1_000_000, supplierFeeAmount: 50_000 });
+    const record = await saveShipmentInvoiceRecord(tx, shipmentId, input, actor);
+    const [source] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.shipmentId, shipmentId));
+    assert.equal(source.tripId, trip.id); assert.ok(source.linkedTripExpenseId);
+    let mirrors = await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, trip.id));
+    assert.equal(mirrors.length, 1); assert.equal(mirrors[0].buyAmount, '50000'); assert.equal(mirrors[0].sellAmount, '0');
+    assert.equal(mirrors[0].supplierId, null, 'billing projection must not create a second vendor liability');
+    assert.equal((await hydrateExpenseAccountingSource(tx, source)).payableEntityId, supplierId);
+    await saveShipmentInvoiceRecord(tx, shipmentId, { ...input, id: record.id, expectedVersion: record.version, note: 'Correct documentary note' }, actor);
+    mirrors = await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, trip.id));
+    assert.equal(mirrors.length, 1);
+    assert.deepEqual(await tx.select({ id: s.treasuryMovements.id }).from(s.treasuryMovements), cashBefore);
+  });
+});
+
+test('FIX-WS-INV: multiple real trips require explicit owner; chosen work receives one invoice mirror', async () => {
+  await isolated(async (tx, actor, shipmentId, supplierId) => {
+    const { insertTripComposite } = await import('../services/trip-composite.service');
+    const [shipment] = await tx.select().from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const work = await tx.insert(s.shipmentFulfillments).values([
+      { shipmentId, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1 },
+      { shipmentId, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1 },
+    ]).returning();
+    const first = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), shipmentId, fulfillmentId: work[0].id, customerId: shipment.customerId!, routeId: route.id, cargoTypeId: cargo.id, departureDate: '2026-09-17' });
+    const second = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), shipmentId, fulfillmentId: work[1].id, customerId: shipment.customerId!, routeId: route.id, cargoTypeId: cargo.id, departureDate: '2026-09-17' });
+    const input = shipmentInvoiceRecordSchema.parse({ expectedVersion: 0, supplierId, invoiceNumber: 'FIX-WS-MULTI', invoiceDate: '2026-09-17', faceAmount: 1_000_000, supplierFeeAmount: 50_000 });
+    // A rejected command must roll back its whole write, as the route transaction does.
+    await assert.rejects(tx.transaction(nested => saveShipmentInvoiceRecord(nested, shipmentId, input, actor)), /Chọn chuyến/);
+    assert.equal((await tx.select().from(s.shipmentInvoiceRecords).where(eq(s.shipmentInvoiceRecords.shipmentId, shipmentId))).length, 0);
+    await saveShipmentInvoiceRecord(tx, shipmentId, { ...input, tripId: second.id }, actor);
+    const [source] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.shipmentId, shipmentId));
+    assert.equal(source.tripId, second.id);
+    assert.equal((await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, first.id))).length, 0);
+    assert.equal((await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, second.id))).length, 1);
+  });
+});
+
+
+test('FIX-WS-INV-PARTIAL: first dispatched work does not silently own a multi-work invoice', async () => {
+  await isolated(async (tx, actor, shipmentId, supplierId) => {
+    const { insertTripComposite } = await import('../services/trip-composite.service');
+    const [shipment] = await tx.select().from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const work = await tx.insert(s.shipmentFulfillments).values([
+      { shipmentId, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1 },
+      { shipmentId, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1 },
+    ]).returning();
+    const first = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), shipmentId, fulfillmentId: work[0].id, customerId: shipment.customerId!, routeId: route.id, cargoTypeId: cargo.id, departureDate: '2026-09-17' });
+    const input = shipmentInvoiceRecordSchema.parse({ expectedVersion: 0, supplierId, invoiceNumber: 'FIX-WS-PARTIAL', invoiceDate: '2026-09-17', faceAmount: 1000000, supplierFeeAmount: 50000 });
+    const invoice = await saveShipmentInvoiceRecord(tx, shipmentId, input, actor);
+    const [source] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.shipmentId, shipmentId));
+    assert.equal(source.tripId, null); assert.equal(source.linkedTripExpenseId, null);
+    await saveShipmentInvoiceRecord(tx, shipmentId, { ...input, id: invoice.id, expectedVersion: invoice.version, tripId: first.id }, actor);
+    const [linked] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+    assert.equal(linked.tripId, first.id); assert.ok(linked.linkedTripExpenseId);
   });
 });

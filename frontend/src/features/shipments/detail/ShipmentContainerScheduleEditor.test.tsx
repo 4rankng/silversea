@@ -23,6 +23,20 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('ScheduleEditorBody', () => {
+  it('uses the Vietnam business day for every quick date across a device midnight', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-16T16:30:00Z'));
+    try {
+      const props = baseProps({ appointmentDate: '', scheduleTime: '' });
+      render(<ScheduleEditorBody {...props} />);
+      for (const [label, day] of [['Hôm nay', '16'], ['Ngày mai', '17'], ['Ngày kia', '18']]) {
+        fireEvent.click(screen.getByRole('button', { name: label }));
+        expect(props.onAppointmentDateChange).toHaveBeenLastCalledWith(`2026-09-${day}`);
+      }
+      fireEvent.click(screen.getByRole('button', { name: '13:30' }));
+      expect(props.onAppointmentDateChange).toHaveBeenLastCalledWith('2026-09-16');
+    } finally { vi.useRealTimers(); }
+  });
   it('renders the editor header without a calendar icon', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);

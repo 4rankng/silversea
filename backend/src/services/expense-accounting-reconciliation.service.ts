@@ -1,6 +1,7 @@
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
 import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { TxnType, Role, type ExpenseReconciliationInput } from '@tingting/shared';
 import * as s from '../db/schema';
@@ -26,11 +27,10 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
   for (const allocation of input.advances) {
     const [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, allocation.advanceRequestId)).for('update');
     if (!advance || advance.requesterId !== input.opsUserId || advance.status !== 'RECORDED') throw new ApiError(409, 'Khoản ứng không còn hợp lệ hoặc khác nhân viên.');
-    const [cash] = await tx.select({ id: s.treasuryMovements.id }).from(s.ledger).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.ledgerEntryId, s.ledger.id))
-      .where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.treasuryMovements.direction, 'OUT'), eq(s.treasuryMovements.status, 'POSTED'))).limit(1);
-    if (!cash) throw new ApiError(409, 'Khoản ứng chưa có giao dịch quỹ xác nhận tiền thực giao. Ghi nhận chi ứng trước.');
+    const fundedAmount = (await getAdvanceFundedAmounts(tx, [advance.id])).get(advance.id) ?? 0;
+    if (fundedAmount <= 0) throw new ApiError(409, 'Khoản ứng chưa có giao dịch quỹ xác nhận tiền thực giao. Ghi nhận chi ứng trước.');
     const used = (await getAdvanceConsumedAmounts(tx, [advance.id])).get(advance.id) ?? 0;
-    if (allocation.amount > Number(advance.amount) - used) throw new ApiError(409, 'Số tiền ứng đã được phân bổ cho đợt khác.');
+    if (allocation.amount > Math.min(Number(advance.amount), fundedAmount) - used) throw new ApiError(409, 'Số tiền ứng đã được phân bổ cho đợt khác.');
     advanceAmount += allocation.amount;
   }
   const sources = [];
@@ -79,8 +79,12 @@ export async function recordFundedOpsAdvance(tx: Tx, actor: ExpenseActor, input:
     [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, input.advanceRequestId)).for('update');
     if (!advance || advance.status !== 'RECORDED' || advance.requesterId !== input.opsUserId || Number(advance.amount) !== input.amount) throw new ApiError(409, 'Khoản ứng thay đổi hoặc không đúng đối tượng/số tiền.');
   } else advance = await createAdvanceRequest(input.opsUserId, { amount: input.amount, reason: input.reason }, tx);
-  const [ledger] = await tx.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, input.opsUserId)));
-  if (!ledger || !treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(409, 'Khoản ứng chưa có nguồn tiền hợp lệ.');
+  let [ledger] = await tx.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, input.opsUserId)));
+  if (ledger && (Number(ledger.credit) !== input.amount || Number(ledger.debit) !== 0)) throw new ApiError(409, 'Bút toán ứng cũ không khớp số tiền; cần đối chiếu trước khi ghi tiền.');
+  if (!ledger) ledger = await LedgerService.postEntry(tx, { txnType: TxnType.OPS_ADVANCE, txnId: advance.id,
+    entityType: 'FORWARDER', entityId: input.opsUserId, debit: 0, credit: input.amount,
+    note: `Tiền ứng thực giao: ${input.reason}`, timestamp: new Date(`${input.valueDate}T00:00:00+07:00`) });
+  if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(409, 'Khoản ứng chưa có nguồn tiền hợp lệ.');
   await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: input.amount,
     valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: ledger.id, sourceVersion: advance.version, paymentContractVersion: 2, createdBy: actor.userId });
   return advance;
@@ -91,6 +95,7 @@ export async function refundExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
   await lockApplicationOwnedUniqueness(tx, 'expense-reconciliation', [id]);
   const [batch] = await tx.select().from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, id)).for('update');
   if (!batch) throw new ApiError(404, 'Không tìm thấy đợt hoàn ứng.');
+  if (batch.voidedAt) throw new ApiError(409, 'Bảng hoàn ứng đã được hủy đối chiếu.');
   const existing = await tx.select({ amount: s.treasuryMovements.amount }).from(s.expenseCashVouchers)
     .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
     .where(and(eq(s.expenseCashVouchers.reconciliationId, id), eq(s.treasuryMovements.direction, 'IN'), eq(s.expenseCashVouchers.status, 'RECORDED')));

@@ -206,7 +206,7 @@ export interface DispatchDetailPlanRow {
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
-  notes: { vehicleNote: string | null; customerNote: string | null };
+  notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     /** Present once the dispatch order has created a live trip. */
     tripId?: number | null;

@@ -7,6 +7,27 @@
 .customer-form-modal input::placeholder,
 .customer-form-modal textarea::placeholder { font-weight: var(--fw-regular, 400); }
 
+/* This portalled form mixes legacy inputs with the shared compact select.
+   Own one height token here so modal phone rules cannot shrink only inputs. */
+.customer-form {
+  --customer-control-h: var(--control-compact-h);
+  --control-mobile-h: var(--control-touch-h);
+}
+.customer-form .field > label {
+  display: grid;
+  gap: 8px;
+  font-size: var(--text-label-size);
+  color: var(--fg-1);
+  line-height: 1.5;
+}
+.customer-form .field input.input {
+  height: var(--customer-control-h);
+  min-height: var(--customer-control-h);
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .customer-form { --customer-control-h: var(--control-touch-h); }
+}
+
 /* Keep the actions outside the field scroller, including when the keyboard
    reduces the available dialog height. Only this form owns the inner scroll. */
 .modal .modal__body:has(> .customer-form) {

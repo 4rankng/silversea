@@ -85,6 +85,9 @@ export function useConfirmShortcuts(opts: {
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
+      // Nested controls (including React Aria comboboxes) consume selection
+      // and dismissal keys before this window-level form shortcut runs.
+      if (e.defaultPrevented) return;
       if (overlayToken != null && !isTopOverlayToken(overlayToken)) return;
       if (e.key === 'Escape' && onCancel) {
         // _34: inner surfaces (appointment popover) own their own Escape —

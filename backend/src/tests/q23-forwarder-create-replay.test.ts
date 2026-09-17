@@ -8,6 +8,7 @@ import { Role, TxnType } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { disconnectRedis } from '../lib/redis';
 import forwarderRoutes from '../routes/forwarder';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -25,6 +26,7 @@ let shipmentId = 0;
 let customerId = 0;
 let routeId = 0;
 let cargoTypeId = 0;
+let treasuryAccountId = 0;
 
 async function requestJson(
   path: string,
@@ -75,6 +77,8 @@ before(async () => {
   ]).returning({ id: s.users.id });
   adminUserId = admin.id;
   forwarderUserId = forwarderUser.id;
+  const [account] = await db.insert(s.treasuryAccounts).values({ code: `Q23-FUND-${suffix}`, name: `Q23 funding ${suffix}`, type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: adminUserId, updatedBy: adminUserId }).returning();
+  treasuryAccountId = account.id;
 
   const [customer] = await db.insert(s.customers).values({
     name: `Q23 Forwarder Customer ${suffix}`,
@@ -181,9 +185,7 @@ describe('Q23 forwarder create-route replay', () => {
       .where(eq(s.advanceRequests.id, requestId));
     assert.equal(stored.length, 1);
 
-    // 2026-09-10 (phê duyệt removed): the create applies immediately —
-    // status RECORDED by the requester, OPS_ADVANCE ledger entry posted in
-    // the same transaction. No PENDING window.
+    // Recording the request is direct and idempotent, but does not deliver cash.
     assert.equal(first.body.status, 'RECORDED');
     const advanceLedger = await db.select({ id: s.ledger.id })
       .from(s.ledger)
@@ -193,7 +195,7 @@ describe('Q23 forwarder create-route replay', () => {
         eq(s.ledger.txnId, requestId),
         eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       ));
-    assert.equal(advanceLedger.length, 1);
+    assert.equal(advanceLedger.length, 0);
   });
 
   it('recorded advance is immutable through removed review and generic mutation endpoints', async () => {
@@ -215,8 +217,7 @@ describe('Q23 forwarder create-route replay', () => {
     assert.equal(after.status, 'RECORDED');
     assert.deepEqual(after, before);
     const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, id)));
-    assert.equal(entries.length, 1);
-    assert.equal(Number(entries[0].credit), 230000);
+    assert.equal(entries.length, 0, 'an immutable request does not invent a cash transfer');
   });
 
   it('replays advance-settlement create with the original 201 status/body and one stored effect', async () => {
@@ -230,6 +231,11 @@ describe('Q23 forwarder create-route replay', () => {
       approvedBy: adminUserId,
       approvedAt: new Date(),
     }).returning({ id: s.advanceRequests.id });
+
+    await db.transaction(tx => recordFundedOpsAdvance(tx, { userId: adminUserId, role: Role.ADMIN }, {
+      opsUserId: forwarderUserId, amount: 1000, advanceRequestId: approvedRequest.id, reason: 'Fund the source for replay test',
+      treasuryAccountId, valueDate: '2026-09-10', physicalReference: `Q23-FUND-${suffix}`,
+    }));
 
     const key = `q23-advance-settlement-create-${suffix}`;
     const payload = {
@@ -308,6 +314,8 @@ after(async () => {
       await db.delete(s.advanceSettlements)
         .where(inArray(s.advanceSettlements.id, settlementIds));
     }
+    await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.treasuryAccountId, treasuryAccountId));
+    await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, treasuryAccountId));
     const createdRequests = await db.select({ id: s.advanceRequests.id })
       .from(s.advanceRequests)
       .where(eq(s.advanceRequests.requesterId, forwarderUserId));

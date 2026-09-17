@@ -12,7 +12,7 @@ import tripsRoutes from '../routes/trips';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import {
   applyGovernanceActionDirect,
-  assertActiveApprovalApplication,
+  assertActiveDirectApplication,
   buildGovernanceAction,
 } from '../services/governance-action-core.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -615,15 +615,15 @@ describe('Q15 trip financial governance', () => {
           retainedActionId = approvalAction.id;
           adapterArgCount = args.length;
           assert.doesNotThrow(() => {
-            assertActiveApprovalApplication(approvalTx, approvalAction.id);
+            assertActiveDirectApplication(approvalTx, approvalAction.id);
           });
           assert.throws(
-            () => assertActiveApprovalApplication(approvalTx, approvalAction.id + 1),
+            () => assertActiveDirectApplication(approvalTx, approvalAction.id + 1),
             /giao dịch có kiểm tra quyền và dữ liệu/,
           );
           await db.transaction(async (differentTx) => {
             assert.throws(
-              () => assertActiveApprovalApplication(differentTx, approvalAction.id),
+              () => assertActiveDirectApplication(differentTx, approvalAction.id),
               /giao dịch có kiểm tra quyền và dữ liệu/,
             );
           });
@@ -640,7 +640,7 @@ describe('Q15 trip financial governance', () => {
     assert.ok(retainedTx);
     assert.ok(retainedActionId);
     assert.throws(
-      () => assertActiveApprovalApplication(retainedTx!, retainedActionId!),
+      () => assertActiveDirectApplication(retainedTx!, retainedActionId!),
       /giao dịch có kiểm tra quyền và dữ liệu/,
       'apply authority must be cleared after the adapter throws and the transaction rolls back',
     );
@@ -661,7 +661,7 @@ describe('Q15 trip financial governance', () => {
       actorId: actors[2]!.id,
       actorRole: Role.ADMIN,
       apply: async (tx, action) => {
-        assert.doesNotThrow(() => assertActiveApprovalApplication(tx, action.id));
+        assert.doesNotThrow(() => assertActiveDirectApplication(tx, action.id));
         benignAuthorityInside = true;
         return { applicationResult: { probe: 'applied' } };
       },

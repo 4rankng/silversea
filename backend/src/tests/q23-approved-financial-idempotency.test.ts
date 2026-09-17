@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { Role, TxnType, type SaveBillingDocumentInput } from '@tingting/shared';
+import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
@@ -42,6 +43,7 @@ const debtOffsetIds: number[] = [];
 const auditLogIds: number[] = [];
 const idempotencyKeys: string[] = [];
 const ledgerIds: number[] = [];
+const fundingAccountIds: number[] = [];
 
 let server: http.Server;
 let baseUrl = '';
@@ -214,7 +216,7 @@ async function postLedgerSeed(entityType: 'CUSTOMER' | 'VENDOR', entityId: numbe
   ledgerIds.push(row.id);
 }
 
-async function createApprovedAdvanceRequest(requesterId: number, amount: number) {
+async function createFundedAdvanceRequest(requesterId: number, amount: number) {
   const [request] = await db.insert(s.advanceRequests).values({
     requesterId,
     amount: String(amount),
@@ -222,6 +224,12 @@ async function createApprovedAdvanceRequest(requesterId: number, amount: number)
     status: 'RECORDED',
   }).returning();
   advanceRequestIds.push(request.id);
+  const [account] = await db.insert(s.treasuryAccounts).values({ code: `Q23-CASH-${request.id}`, name: `Q23 cash ${request.id}`, type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantActor.id, updatedBy: accountantActor.id }).returning();
+  fundingAccountIds.push(account.id);
+  await db.transaction(tx => recordFundedOpsAdvance(tx, { userId: accountantActor.id, role: Role.ACCOUNTANT }, {
+    opsUserId: requesterId, amount, advanceRequestId: request.id, reason: 'Fund request for settlement replay', treasuryAccountId: account.id,
+    valueDate: '2026-09-10', physicalReference: `Q23-CASH-${request.id}`,
+  }));
   return request;
 }
 
@@ -389,6 +397,10 @@ after(async () => {
     await db.delete(s.advanceSettlementRequests).where(inArray(s.advanceSettlementRequests.settlementId, advanceSettlementIds));
     await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, advanceSettlementIds));
   }
+  if (fundingAccountIds.length > 0) {
+    await db.delete(s.treasuryMovements).where(inArray(s.treasuryMovements.treasuryAccountId, fundingAccountIds));
+    await db.delete(s.treasuryAccounts).where(inArray(s.treasuryAccounts.id, fundingAccountIds));
+  }
   if (advanceRequestIds.length > 0) {
     await db.delete(s.ledger).where(and(
       eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
@@ -442,7 +454,7 @@ after(async () => {
 describe('Q23 approved financial route idempotency', () => {
   test('advance settlement update replays the original snapshot and rejects same-key changed payloads', async () => {
     const requester = await createUser(Role.OPS, 'q23-forwarder');
-    const request = await createApprovedAdvanceRequest(requester.id, 500000);
+    const request = await createFundedAdvanceRequest(requester.id, 500000);
     const settlement = await createSettlement(requester.id, [request.id], 'seed pending');
 
     const key = `q23-advance-update-${settlement.id}`;

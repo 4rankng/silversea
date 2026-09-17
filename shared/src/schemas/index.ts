@@ -718,7 +718,7 @@ export const customerSchema = z.object({
   // everywhere via `shortName || name`, so '' is the representable "unset".
   shortName: z.string().trim().max(255).optional(),
   code: z.string().trim().max(80).optional(),
-  taxCode: z.string().optional(),
+  taxCode: z.string().trim().max(20, 'Mã số thuế tối đa 20 ký tự').optional(),
   address: z.string().trim().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
@@ -954,7 +954,10 @@ export const freightRateTermSchema = z.object({
   billingKmOneWay: z.coerce.number().int().positive('Km tính cước (một chiều) phải là số nguyên dương'),
   billingKmMultiplier: nonNegNumeric.default(2),
   baseFuelPrice: positiveNumeric,
-  fuelLagDays: z.coerce.number().int().min(0).default(0),
+  // An unknown contractual lag is not a same-day agreement. Require an
+  // explicit value, accepting the numeric strings sent by existing forms.
+  fuelLagDays: z.union([z.number(), z.string().trim().min(1, 'Nhập độ trễ giá dầu đã thỏa thuận')])
+    .pipe(z.coerce.number().int().min(0)),
   surchargeThresholdPct: positiveNumeric.optional().nullable(),
   surchargeThresholdAbs: positiveNumeric.optional().nullable(),
   effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),
@@ -1112,7 +1115,7 @@ export const supplierSchema = z.object({
   shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
-  taxCode: z.string().optional(),
+  taxCode: z.string().trim().max(20, 'Mã số thuế tối đa 20 ký tự').optional(),
   note: z.string().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
   linkedCustomerId: z.number().int().positive().optional().nullable(),

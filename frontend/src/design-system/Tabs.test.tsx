@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tabs } from './Tabs';
 
 const tabs = [
@@ -9,6 +9,18 @@ const tabs = [
 ];
 
 describe('Tabs keyboard navigation', () => {
+  beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }));
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  it('reveals the active tab inside its strip without scrolling the page', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const left = this.getAttribute('role') === 'tablist' ? 10 : 300;
+      const width = this.getAttribute('role') === 'tablist' ? 200 : 100;
+      return { left, right: left + width, top: 0, bottom: 40, width, height: 40, x: left, y: 0, toJSON: () => ({}) };
+    });
+    render(<Tabs tabs={tabs} value="active" onChange={() => {}} ariaLabel="Công việc" />);
+    expect(screen.getByRole('tablist').scrollLeft).toBe(190);
+    expect(document.documentElement.scrollTop).toBe(0);
+  });
   it('keeps one enabled tab reachable when the selected tab is unavailable', () => {
     render(<Tabs tabs={tabs} value="blocked" onChange={() => {}} ariaLabel="Công việc" />);
     expect(screen.getByRole('tab', { name: 'Tất cả' }).tabIndex).toBe(0);

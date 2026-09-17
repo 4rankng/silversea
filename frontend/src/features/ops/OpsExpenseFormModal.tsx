@@ -30,7 +30,8 @@ interface PendingPhoto {
  * bổ sung ảnh sau (tạo "nợ chứng từ").
  */
 export function OpsExpenseFormModal({ order, onClose }: Props) {
-  const { data: typesData } = useOpsExpenseTypes();
+  const typesQuery = useOpsExpenseTypes();
+  const typesData = typesQuery.data;
   const createExpense = useCreateOpsExpense();
   const { toast } = useToast();
 
@@ -74,7 +75,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
     : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
-  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
+  const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
+  const canSubmit = typesReady && Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
   async function handleFiles(files: FileList | File[] | null) {
     if (!files?.length || uploading || savingRef.current) return;
@@ -133,6 +135,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </header>
 
         <div className="ops-modal__body">
+          {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
+          {typesQuery.isError && <div role="alert">
+            <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
+            <button type="button" className="btn-secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+              {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
+            </button>
+          </div>}
+          {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
           <div className="ops-form-grid">
             <label>
               Mã lô
@@ -156,6 +166,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <UuiSelectField
               label="Loại phí"
               required
+              disabled={!typesReady || busy}
               value={typeCode}
               onChange={(event) => {
                 const type = typesData?.items.find((item) => item.code === event.target.value);

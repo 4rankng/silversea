@@ -301,6 +301,8 @@
 
 ## Bảng nghiệm thu — Luồng Ghép chuyến Kẹp / Kết hợp
 
+> Historical execution below is unchanged. Its OPS approval/optimistic-cash PASS is superseded by the current OPS flow and NO-APP cases; it is not proof of current behavior.
+
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
 | 2026-09-07 | TC-GHEP-001 | agent-browser (qa/2026-09-07_pair-kind-ui-complete/) | PASS | KEP hợp lệ (đồng thời) — dialog click-through; pair_id=219 trips 10111+10112 | `_01.._03 PNGs`, `driver.json` |

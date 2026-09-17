@@ -2,36 +2,20 @@
 
 > **Vai trò sở hữu:** Kế toán (ACCOUNTANT)
 > **Vai trò tham gia:** Admin (cấu hình giá dầu / điều khoản cước), CUS (màn tạo lô xem cước)
-> **Route dự kiến:** cấu hình `/config` (giá dầu kỳ, điều khoản cước); tính cước tại phát hành lô/chứng từ
-> **PRD nguồn:** [`docs/prd/CuocPhiPhuPhiDau.md`](../../docs/prd/CuocPhiPhuPhiDau.md)
-> (công thức + 4 quy tắc đã chốt), [`docs/prd/CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md)
-> (5 bảng + thuật toán `resolveFreightRate()`), câu-hỏi/đáp-chốt tại
-> [`docs/prd/CauHoiKhachHang_CuocPhi_2026-09-08.md`](../../docs/prd/CauHoiKhachHang_CuocPhi_2026-09-08.md)
+> **Phạm vi hiện hành:** giá dầu, điều khoản cước, tính giá khi nhập Ngày vận chuyển và giá cuối trên chứng từ.
+> **PRD nguồn:** [Quy tắc cước](../../docs/prd/CuocPhiPhuPhiDau.md),
+> [Dữ liệu và lịch sử](../../docs/prd/CuocPhiThietKeDB.md),
+> [Phương án tính cước](../../docs/prd/PhuongAnTinhCuocTuDong.md).
 >
-> ---
+> **Đối chiếu lại ngày17/09/2026:** các mã TC được giữ nguyên. Những lần PASS bên dưới là
+> lịch sử, không chứng minh mã hiện tại đã chạy. Không còn yêu cầu thiết kế5bảng hoặc
+> tự áp lag/ngưỡng ví dụ. Mốc chọn giá là **Ngày vận chuyển**, không phải ngày phát hành.
+> Lưu trực tiếp theo quyền, không có phê duyệt. Các đầu vào chưa được khách chốt vẫn
+> thiếu; không đổi thành0, không lấy tiền phụ phí làm tổng cước15T.
 >
-> ## ⚠️ Module CHƯA TRIỂN KHAI — đây là acceptance anchor, chưa phải case chạy được
->
-> Các case dưới đây chốt trước theo đúng quy tắc nghiệp vụ đã có quyết định
-> (testplan-first). Khi module cước (5 bảng + `resolveFreightRate()` +
-> `freight_rate_snapshots`) được triển khai theo `CuocPhiThietKeDB.md` §6.1, bộ này
-> là nghiệm thu bắt buộc. Trạng thái chạy: **ĐÃ CHẠY 2026-09-10** — engine + config
-> CRUD đã land (T1/T2), automated suites xanh (unit/integration), browser regression
-> 2026-09-10: PASS 5/6 nhóm case + 1 PARTIAL — bằng chứng:
-> `testplan/qa/evidence/2026-09-10_flows12-pricing-regression/` (RUN-SUMMARY + checks).
->
-> **Quy tắc đã chốt (2026-09-09) mà mọi case kế thừa:**
->
-> | Quy tắc | Quyết định | Nguồn |
-> |---|---|---|
-> | Dầu dưới mốc 17.842,59 đ/l | `H = max(0, (G−F)×E)` = **0** — không giảm cước | Câu 1 = B |
-> | Cước đã phát hành | **Snapshot, không hồi tố** khi kỳ giá mới mở | Câu 2 = A |
-> | Km tính cước | **Luôn `km một chiều × 2`**, bất kể tận dụng xe | Câu 4 = A |
-> | Áp giá mới | Sau **độ trễ theo tuyến** (`fuel_lag_days`; NEWEB = 1 ngày) | Câu 2 (kèm) |
-> | Làm tròn | `H`, `J` làm tròn riêng đến đồng (HALF_UP) | chốt trước 09-09 |
->
-> ⏳ Đầu vào còn thiếu (không chặn viết case, chỉ chặn chạy): giá gốc 15T (3 tuyến),
-> lag days ASKEY/SUNRISE+SJ, mốc ngày chọn kỳ giá dầu (2b).
+> **Đã chốt:** km×2; H=max(0,(G−F)×E); làm tròn riêng J/H đến đồng; giữ snapshot cũ;
+> NEWEB lag1ngày. **Còn mở:** giá gốc15T, lagASKEY/SUNRISE và điều khoản ngưỡng.
+> Chỉ dùng dữ liệu giả có nhãn trong fixture kiểm thử; không ghi chúng thành hợp đồng thật.
 
 ---
 
@@ -82,7 +66,7 @@
 - **Vai trò:** ACCOUNTANT
 - **Mức độ:** P1
 - **Các bước:**
-  1. Nạp kỳ giá dầu = **17.842,59** đ/l (delta = 0).
+  1. Nạp kỳ giá dầu bằng **giá mốc được lưu với đủ độ chính xác** (ví dụ17.842,5926đ/l ở scale4); không dùng số hiển thị rút gọn17.842,59 để đòi delta=0.
   2. Tính cước lô bất kỳ (vd NEWEB CONT40).
 - **Kết quả mong đợi (Pass):** `H = 0`, cước = `J`. Không lỗi làm tròn dấu chấm
   động (delta phải là 0 chính xác, không −0,0001 do scale thiếu).
@@ -106,7 +90,7 @@
   - Chứng từ lô 12/7 giữ nguyên phụ phí cũ; **không** tự nhảy theo 27.620.
   - `freight_rate_snapshots` của lô 12/7 giữ 4 id tham số của kỳ cũ; `computedAt`
     không đổi.
-  - Lô mới tạo sau thời điểm áp mới dùng giá 27.620.
+  - Lô có Ngày vận chuyển sau thời điểm áp mới (đã tính lag) dùng giá27.620, không phụ thuộc ngày tạo/phát hành.
 - **Kỳ vọng sai (Fail nếu):** bất kỳ job/report nào viết lại cước đã chốt; snapshot
   bị update thay vì insert mới.
 - **Bằng chứng:** DB snapshot trước/sau + ảnh chứng từ 2 mốc thời gian + report diff.
@@ -118,18 +102,16 @@
 - **Tiền điều kiện:** tuyến NEWEB `fuel_lag_days = 1`; có 2 kỳ giá liên tiếp
   (vd 21.740 đến 8/7, 27.620 effective 9/7).
 - **Các bước:**
-  1. Phát hành 2 lô NEWEB: lô A ngày 9/7, lô B ngày 10/7.
+  1. Tạo hai lô cùng ngày nhưng Ngày vận chuyển khác nhau: A9/7, B10/7.
   2. So kỳ giá dầu mà mỗi lô dùng (xem `fuelPricePeriodId` trong snapshot).
 - **Kết quả mong đợi (Pass):**
   - Lô A (9/7) dùng giá **cũ** (effective_from ≤ 9/7 − 1 = 8/7).
   - Lô B (10/7) dùng giá **mới** 27.620.
-  - Tuyến lag = 0 (ASKEY/SUNRISE tạm) dùng giá mới ngay từ effective_from.
+  - Tuyến fixture có **thỏa thuận lag=0 rõ ràng** áp ngay từ effective_from. ASKEY/SUNRISE chưa có lag thì báo thiếu điều khoản; không tự dùng0.
 - **Kỳ vọng sai (Fail nếu):** cả 2 lô cùng một kỳ — lag bị bỏ qua, hoặc lag áp
   sai chiều (lùi ngày thay vì tiến).
 - **Bằng chứng:** 2 dòng snapshot với `fuelPricePeriodId` khác nhau.
-- **Ghi chú:** khi khách trả lời lag ASKEY/SUNRISE (phụ lục 2a), bổ sung assert cho
-  từng tuyến; mốc ngày chọn kỳ (2b) hiện **chưa chốt** — case dùng "ngày phát hành"
-  theo giả định `CuocPhiThietKeDB.md` §4.1, sẽ siết lại khi có đáp án.
+- **Ghi chú:** Ngày vận chuyển đã chốt. Không dùng ngày tạo hoặc ngày phát hành để chọn kỳ. Kiểm tra thêm ngày tạo hôm nay/ngày vận chuyển tương lai và lag làm ngày tra giá trước kỳ đầu tiên.
 
 ## 12.3 — Km khứ hồi & làm tròn
 
@@ -177,10 +159,10 @@
 
 ---
 
-## 12.4 — Auto-pricing engine (sau khi engine wired & snapshot persist) — `ĐÃ CHẠY 2026-09-10 — PASS 5/6`
+## 12.4 — Tính giá, giữ lịch sử và giá cuối
 
 > **Mục đích:** neo [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md)
-> §2.3 (3-step engine) + §2.4 (override) + §2.5 (config CRUD) vào acceptance anchor.
+> §3–7 (ngày áp giá, giá cuối, lịch sử và lỗi) vào tiêu chí nghiệm thu.
 > Kết quả chạy 2026-09-10: **PASS** (a–e) + **PARTIAL** (f — CUS workboard row-level
 > screenshot gap; data layer + bundle verified). Chi tiết claim ladder:
 > `testplan/qa/evidence/2026-09-10_flows12-pricing-regression/RUN-SUMMARY.md`.
@@ -196,7 +178,7 @@
 - **Thiết bị:** Desktop
 - **Tiền điều kiện:** đã seed `freight_rate_terms` (NEWEB `fuel_lag_days=1`),
   `pricing_tables` (CONT20 có `base_price > 0`), `fuel_consumption_norms`,
-  `fuel_price_periods` (kỳ giá mới nhất đang hiệu lực ≥ `transport_date − lag`).
+  `fuel_price_periods` (chọn kỳ mới nhất có ngày hiệu lực **≤** `transport_date − lag`).
 - **Các bước:**
   1. CUS tạo lô NEWEB CONT20 với `transport_date = today`.
   2. Backend gọi `resolveFreightRate()` → snapshot → `persistFreightRateSnapshot()`
@@ -264,37 +246,28 @@
 - **Kỳ vọng sai (Fail nếu):** 200 OK + row có cả 2 cột set; 500 error thiếu validation.
 - **Bằng chứng:** response API + DB không có row mới.
 
-### TC-CUOC-014 — Ratchet single-step: chỉ so với 1 kỳ liền trước (không recursive)
+### TC-CUOC-014 — Nhiều kỳ dưới ngưỡng: không tự chọn quy tắc chưa được chốt
 
-- **Vai trò:** ACCOUNTANT (dev verify)
-- **Mức độ:** P2
-- **Tiền điều kiện:** 3 kỳ giá dầu liên tiếp: 20.000 (kỳ −2) → 21.000 (kỳ −1) →
-  22.500 (kỳ hiện tại); mỗi kỳ cách nhau đều < `threshold_pct = 5%` (delta ~4.8–7%).
-  Tuyến NEWEB `fuel_lag_days = 0` để đơn giản.
-- **Các bước:** tạo lô với `transport_date` thuộc kỳ hiện tại.
-- **Kết quả mong đợi (Pass):** engine so 22.500 với 21.000; nếu < 5% thì ratchet về
-  21.000 (không lùi tiếp về 20.000 ngay cả khi 22.500 vs 20.000 cũng < 5%).
-  Snapshot `fuel_price_period_id` = kỳ −1.
-- **Kỳ vọng sai (Fail nếu):** ratchet về kỳ −2 (recursive — không implement).
-- **Bằng chứng:** UT + DB row + design note trong T1/T6 tests về khả năng KH yêu cầu
-  recursive.
+- **Vai trò:** ACCOUNTANT
+- **Mức độ:** P0
+- **Tiền điều kiện:** hợp đồng chưa chốt mốc so sánh qua nhiều kỳ hoặc xử lý đúng tại ngưỡng.
+- **Các bước:** xem giá cho3kỳ liên tiếp20.000→20.500→21.000, ngưỡng ví dụ5%; kiểm tra cả đúng ngưỡng.
+- **Kết quả mong đợi:** không suy ra quy tắc single-step/recursive từ ví dụ. Chỉ rõ thiếu điều khoản và cho nhập giá có căn cứ theo quyền; không trình bày giá đoán là AUTO đủ điều kiện.
+- **Trạng thái:** quyết định nghiệp vụ còn mở theo PRD§3.2; test thuật toán hiện có không chứng minh khách đã chốt. Không sửa thuật toán hoặc hợp đồng thật chỉ để giữ PASS cũ.
 
 ### TC-CUOC-015 — MANUAL fallback khi thiếu base price (15T)
 
 - **Vai trò:** CLERK (tạo lô) + ACCOUNTANT
 - **Mức độ:** P0
-- **Tiền điều kiện:** `pricing_tables.base_price = 0` cho `15T` ở tuyến NEWEB (xem
-  open item §6.2 mục 8 của `CuocPhiThietKeDB.md`); các tham số khác hợp lệ.
-- **Các bước:** tạo lô NEWEB 15T.
+- **Tiền điều kiện:** Chưa có giá gốc hợp lệ cho15T ở tuyến NEWEB (không có bản giá, hoặc dữ liệu cũ có giá0); các tham số khác hợp lệ. Không nhập giá0 giả vào hợp đồng chỉ để tạo fixture.
+- **Các bước:** Tạo lô NEWEB15T, xem trạng thái cước và thử bổ sung giá có căn cứ bằng tài khoản có quyền.
 - **Kết quả mong đợi (Pass):**
-  - Tạo lô **không bị chặn** (200/201).
-  - `resolveFreightRate()` trả `source = 'MANUAL'`, `total = 0`, `formula` chứa text
-    "Thiếu giá gốc cho 15T — cần nhập tay".
-  - Snapshot row vẫn được tạo với `source = 'MANUAL'` (để truy vết + override sau).
-  - Chi tiết lô hiển thị badge/hint "MANUAL — nhập tay" + ô cho Kế toán nhập cước.
-- **Kỳ vọng sai (Fail nếu):** lô bị chặn tạo; `total = phụ phí` (nhầm nhánh); không có
-  snapshot ⇒ mất truy vết.
-- **Bằng chứng:** DB row + response API + ảnh UI chi tiết lô MANUAL.
+  - Tạo/lưu thông tin lô không phụ thuộc giá **không bị chặn**.
+  - Chỉ rõ thiếu giá gốc và cần nhập giá có căn cứ; không trình bày số0 hoặc riêng phụ phí dầu như tổng cước đã xác định.
+  - Giữ nguồn, lý do thiếu giá và lịch sử khi bổ sung. Nếu phiên bản API dùng snapshot MANUAL có số0 kỹ thuật, UI vẫn phải phân biệt với cước0 đã thỏa thuận. Không bắt tạo một snapshot0 giả chỉ vì chưa đủ đầu vào để tính.
+  - Người có quyền bổ sung giá; chưa đủ giá thì không coi là sẵn sàng phát hành số tiền cho khách.
+- **Kỳ vọng sai (Fail nếu):** Chặn lưu toàn bộ thông tin lô chỉ vì thiếu giá; báo AUTO/tổng phụ phí là tổng cước hợp lệ; hoặc bổ sung giá làm mất nguồn/lịch sử.
+- **Bằng chứng:** Response API, trạng thái hiển thị và lịch sử nguồn trước/sau bổ sung; không suy ra mất truy vết chỉ vì không có snapshot khi chưa đủ căn cứ.
 
 ### TC-CUOC-016 — Snapshot immutability: row cũ giữ nguyên qua mọi thay đổi sau
 
@@ -314,46 +287,38 @@
 - **Ghi chú:** TC này là rào chắn cho **Câu 2 = A — không hồi tố** ở cấp hệ thống, bổ sung
   cho TC-CUOC-004 (chỉ test ở mức "kỳ mới mở").
 
-### TC-CUOC-017 — Debit-note override: PATCH ghi `final_debit_freight` + audit log
+### TC-CUOC-017 — Giá cuối: PUT snapshot override và giữ lịch sử
 
 - **Vai trò:** ACCOUNTANT (lập Bảng kê / Debit Note)
 - **Mức độ:** P0
 - **Các bước:**
-  1. Lô có snapshot `system_calculated_freight = 4.182.000 đ` (NEWEB CONT40, kỳ 21.740).
-  2. Debit Note được tạo cuối tháng gộp các lô.
-  3. Kế toán `PATCH /api/debit-notes/:id/freight` với `final_debit_freight = 4.500.000 đ`
-     + `override_reason = "Thương thảo giảm 318k do đối tác thanh toán sớm"`.
+  1. Lô có snapshot cước hợp đồng4.536.664đ (NEWEB CONT40, kỳ21.740: J4.182.000đ + H354.664đ).
+  2. Xem giá cuối của snapshot dùng cho bảng kê trong phạm vi được cấp.
+  3. Gọi `PUT /api/pricing/snapshots/:id/override` với `finalDebitFreight: 4500000`, `overrideReason: "Thương thảo giảm36.664đ do đối tác thanh toán sớm"` và khóa idempotency theo hợp đồng API hiện hành.
 - **Kết quả mong đợi (Pass):**
-  - Row mới trong `debit_note_overrides` với 4 cột: `debit_note_id`, `system_calculated_freight`
-    (= 4.182.000), `final_debit_freight` (= 4.500.000), `override_reason` (text đầy đủ).
-  - Audit log ghi: actor=ACCOUNTANT, before/after, timestamp.
-  - Bảng kê gửi khách hiển thị `final_debit_freight` (không phải `system_calculated_freight`).
-- **Kỳ vọng sai (Fail nếu):** override ghi đè `system_calculated_freight` (mất truy vết); thiếu
-  audit log; Bảng kê hiển thị nhầm cột.
-- **Bằng chứng:** DB row + audit log + ảnh Bảng kê.
+  - Override gắn đúng `snapshotId` (cột nguồn `snapshot_id`), giữ `systemCalculatedFreight = 4536664`, lưu `finalDebitFreight = 4500000` và lý do đầy đủ. Tạo mới khi chưa có; sửa hợp lệ không tạo bản trùng cho cùng snapshot.
+  - Lịch sử ghi người, thời điểm, giá trước/sau và lý do; không ghi đè snapshot cước hợp đồng.
+  - Bảng kê/chứng từ sử dụng đúng giá cuối trong phạm vi được phép điều chỉnh; khóa kỳ/chứng từ vẫn được bảo vệ, không tự mở lại hồ sơ đã phát hành.
+- **Kỳ vọng sai (Fail nếu):** Mất cước hợp đồng, lý do hoặc lịch sử; sửa sai snapshot/phạm vi; retry sinh tác động trùng; bảng kê hiển thị nhầm số.
+- **Bằng chứng:** Response API, nguồn override/snapshot và lịch sử, ảnh bảng kê. Không tạo bảng/khóa `debit_note_id` chỉ vì ví dụ API cũ từng nhắc tới.
 
-### TC-CUOC-018 — Lý do bắt buộc khi `final ≠ system` (thiếu lý do ⇒ 422)
+### TC-CUOC-018 — Lý do bắt buộc khi giá cuối khác giá hợp đồng
 
 - **Vai trò:** ACCOUNTANT
 - **Mức độ:** P0
-- **Các bước:** PATCH giống TC-CUOC-017 nhưng `override_reason = ""` (rỗng) hoặc chỉ
-  whitespace.
-- **Kết quả mong đợi (Pass):** `422 Unprocessable Entity` — lý do bắt buộc khi
-  `final_debit_freight ≠ system_calculated_freight`. DB không có row mới.
-- **Kỳ vọng sai (Fail nếu):** 200 OK + row với lý do rỗng; hoặc PATCH thành công nhưng
-  Bảng kê thiếu lý do (incomplete audit).
-- **Bằng chứng:** response API + DB không có row + log validation.
+- **Các bước:** Dùng cùng `PUT /api/pricing/snapshots/:id/override`, gửi giá cuối khác giá hợp đồng và `overrideReason` rỗng hoặc chỉ có khoảng trắng.
+- **Kết quả mong đợi (Pass):** API hiện hành trả400 với lỗi lý do bắt buộc; không tạo/sửa override hoặc snapshot. UI giữ giá đang nhập để sửa lý do.
+- **Kỳ vọng sai (Fail nếu):**200 và đã ghi giá khác mà không có lý do, hoặc lỗi làm mất lịch sử đã lưu.
+- **Bằng chứng:** Response API, nguồn trước/sau, lỗi và draft trong UI. Không yêu cầu422 nếu hợp đồng validation hiện hành là400.
 
-### TC-CUOC-019 — Ops-role write attempt trên cước đã chốt ⇒ 403 read-only
+### TC-CUOC-019 — Vai trò không có quyền không được sửa giá cuối
 
-- **Vai trò:** OPS (FORWARDER, ACCOUNTANT, …) — vai trò không thuộc RBAC config cước
+- **Vai trò:** OPS/FORWARDER, DRIVER; ACCOUNTANT có quyền theo phạm vi không nằm trong nhóm bị cấm này.
 - **Mức độ:** P0
-- **Các bước:** với cookie/token của OPS, gọi `PATCH /api/debit-notes/:id/freight` để
-  sửa `final_debit_freight` của Bảng kê đã chốt.
-- **Kết quả mong đợi (Pass):** `403 Forbidden` — OPS không có quyền ghi cước (cờ từ
-  `CuocPhiPhuPhiDau.md` §8: "đóng băng, đối với khâu vận hành").
-- **Kỳ vọng sai (Fail nếu):** 200 OK + DB write; 401 nhầm thay vì 403.
-- **Bằng chứng:** response API + DB không đổi.
+- **Các bước:** Với token hợp lệ của từng vai trò không có quyền, gọi `PUT /api/pricing/snapshots/:id/override` để sửa `finalDebitFreight` của một snapshot thật.
+- **Kết quả mong đợi (Pass):**403 Forbidden; override, cước hợp đồng và chứng từ không thay đổi. Biết URL/snapshotId không mở rộng quyền.
+- **Kỳ vọng sai (Fail nếu):**200 và ghi tiền, hoặc401 che mất kết quả phân quyền dù phiên đăng nhập còn hợp lệ.
+- **Bằng chứng:** API theo từng vai trò và đối chiếu nguồn trước/sau.
 
 ### TC-CUOC-020 — Kế toán nhập kỳ giá dầu mới (`POST /api/config/fuel-prices`) ⇒ 201
 
@@ -397,7 +362,7 @@
   cùng khoá trong cùng thời điểm.
 - **Kỳ vọng sai (Fail nếu):** 2 row trùng khoá.
 
-### TC-CUOC-025 — Lag làm target date < kỳ giá dầu đầu tiên ⇒ engine 404 ⇒ MANUAL fallback
+### TC-CUOC-025 — Ngày tra trước kỳ giá đầu tiên: báo thiếu kỳ dầu, không chặn lưu thông tin lô
 
 - **Vai trò:** ACCOUNTANT (dev verify) + CLERK (tạo lô)
 - **Mức độ:** P0
@@ -417,7 +382,17 @@
 
 ---
 
-## Đăng ký nghiệm thu
+## Đối chiếu hiện hành17/09/2026
+
+- Backend2362/2362 bao gồm engine, snapshot lifecycle, cấu hình và kiểm tra quyền; đây là bằng chứng tự động, không thay cho UI hoặc đồng ý nghiệp vụ ngưỡng.
+- TC001/008 cần fileExcel gốc để xác nhận độc lập48dòng; workbook hiện không có trong đầu vào chạyE2E, không công nhận PASS mới từ bảng số chép lại.
+- TC011/012 chỉ là fixture có giả định rõ để kiểm tra thuật toán; áp hợp đồng thực cần quyết định đầy đủ ởPRD§3.2. TC014 vẫn cần thông tin nghiệp vụ.
+- UI và API tạo điều khoản phải phân biệt chưa nhập lag với số0 được nhập rõ; xemUI-AUD-S24. Không thay đổi lịch sử của hợp đồng đã lưu khi thêm validation.
+- Những API/DB name bên trên là gợi ý kiểm tra phiên bản đang dùng; kết quả sản phẩm, quyền, số tiền và lịch sử là căn cứ. Không tạo thêm bảng vì testplan cũ nhắc tên bảng.
+
+## Lịch sử nghiệm thu — không phải kết quả của bản17/09
+
+Các dòng giữ nguyên dưới đây phục vụ truy vết. Đặc biệt PASS15T với giá mẫu và các lượt ADMIN không chứng minh giá hợp đồng thật hoặc quyền CUS/Kế toán hiện hành.
 
 | Ngày thử | Mã TC | Vai trò | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|---------|-----------|---------|---------|------------|

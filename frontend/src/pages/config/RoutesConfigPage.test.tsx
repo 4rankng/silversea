@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -100,5 +100,23 @@ describe('RoutesConfigPage dispatcher edit/delete access', () => {
 
     expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(8);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
+  });
+});
+
+
+describe('UI-CD-09 catalog query whitespace', () => {
+  it('normalizes API queries while preserving the typed search', async () => {
+    renderPage();
+    await screen.findAllByText('Hải Phòng - Nội Bài');
+    const input = screen.getByRole('textbox', { name: 'Tìm tuyến đường' });
+    fireEvent.change(input, { target: { value: '  que  vo  ' } });
+    await waitFor(() => expect(getRoutesList).toHaveBeenLastCalledWith('que vo'));
+    expect(input).toHaveValue('  que  vo  ');
+    getRoutesList.mockClear();
+    fireEvent.change(input, { target: { value: 'que vo' } });
+    expect(getRoutesList).not.toHaveBeenCalled();
+    expect(input).toHaveValue('que vo');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input).toHaveValue('');
   });
 });

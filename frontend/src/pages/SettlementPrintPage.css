@@ -122,14 +122,14 @@
 }
 
 /* ─── Expense Grid (replaces table) ─── */
-.expense-grid {
+.settlement-expense-grid {
   display: grid;
   grid-template-columns: 70px 100px 1fr 130px 120px 100px;
   gap: 0;
   font-size: var(--fs-sm);
 }
 
-.expense-grid__header {
+.settlement-expense-grid__header {
   display: contents;
   font-weight: 600;
   font-size: var(--fs-2xs);
@@ -138,31 +138,31 @@
   color: var(--ink-3);
 }
 
-.expense-grid__header > span {
+.settlement-expense-grid__header > span {
   padding: 8px 6px;
   border-bottom: 1px solid var(--line-2);
 }
 
-.expense-grid__row {
+.settlement-expense-grid__row {
   display: contents;
 }
 
-.expense-grid__row > span {
+.settlement-expense-grid__row > span {
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   line-height: 1.5;
 }
 
-.expense-grid__row:hover > span {
+.settlement-expense-grid__row:hover > span {
   background: var(--surface-2);
 }
 
-.expense-grid__total {
+.settlement-expense-grid__total {
   display: contents;
 }
 
-.expense-grid__total > span {
+.settlement-expense-grid__total > span {
   padding: 12px 6px 0;
   border-top: 2px solid var(--line-2);
   border-bottom: none;
@@ -170,12 +170,12 @@
 }
 
 /* Utility classes */
-.expense-grid .u-right { text-align: right; }
-.expense-grid .u-num { white-space: nowrap; }
-.expense-grid .u-mono { font-family: var(--font-data); font-size: var(--fs-xs); white-space: nowrap; }
-.expense-grid .u-muted { color: var(--ink-2); white-space: nowrap; }
-.expense-grid .u-wrap { word-break: break-word; overflow-wrap: break-word; }
-.expense-grid .u-bold { font-weight: 700; }
+.settlement-expense-grid .u-right { text-align: right; }
+.settlement-expense-grid .u-num { white-space: nowrap; }
+.settlement-expense-grid .u-mono { font-family: var(--font-data); font-size: var(--fs-xs); white-space: nowrap; }
+.settlement-expense-grid .u-muted { color: var(--ink-2); white-space: nowrap; }
+.settlement-expense-grid .u-wrap { word-break: break-word; overflow-wrap: break-word; }
+.settlement-expense-grid .u-bold { font-weight: 700; }
 
 /* ─── Summary ─── */
 .settlement-detail__summary {
@@ -379,7 +379,7 @@
 }
 
 /* ─── Mobile ─── */
-@media (max-width: 640px) {
+@media screen and (max-width: 640px) {
   .print-preview-overlay {
     background: #e5e7eb;
   }
@@ -453,15 +453,40 @@
     grid-template-columns: 1fr;
   }
 
-  .expense-grid {
-    grid-template-columns: 50px 80px 1fr 100px 100px 80px;
-    font-size: var(--fs-2xs);
-  }
+  .settlement-detail__section { padding: 12px; margin-bottom: 10px; }
+  .settlement-detail__info { margin-bottom: 0; gap: 12px; }
+  .settlement-detail__section-title { margin-bottom: 10px; }
 
-  .expense-grid__header > span,
-  .expense-grid__row > span {
-    padding: 6px 4px;
+  .settlement-expense-grid { display: block; font-size: var(--fs-sm); }
+  .settlement-expense-grid__header { display: none; }
+  .settlement-expense-grid__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding-block: 10px;
+    border-bottom: 1px solid var(--line);
   }
+  .settlement-expense-grid__row > span {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  .settlement-expense-grid__row > span::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--ink-3);
+    font-size: var(--fs-xs);
+  }
+  .settlement-expense-grid__row > :nth-child(3),
+  .settlement-expense-grid__row > :nth-child(6) { grid-column: 1 / -1; }
+  .settlement-expense-grid__row > :nth-child(5) { font-weight: 600; }
+  .settlement-expense-grid__total { display: flex; justify-content: space-between; gap: 12px; }
+  .settlement-expense-grid__total > span { padding-inline: 0; border-top: 0; }
+  .settlement-expense-grid__total > span:last-child { display: none; }
 }
 .settlement-expense-editor {
   display: grid;

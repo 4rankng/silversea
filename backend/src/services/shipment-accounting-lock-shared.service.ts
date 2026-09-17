@@ -114,7 +114,7 @@ export type ShipmentFinanceConfirmationSummary = {
 };
 
 export const SHIPMENT_ACCOUNTING_LOCKED_MESSAGE =
-  'Lô hàng đã được CUS khóa sau khi Kế toán xác nhận. Mọi thay đổi trực tiếp phải đi qua đề nghị điều chỉnh do ADMIN phê duyệt.';
+  'Lô hàng đã được CUS khóa sau khi Kế toán xác nhận. ADMIN cần mở lại lô hàng với lý do hợp lệ trước khi chỉnh sửa.';
 
 export type ChargeProposalRow = FinanceSnapshot['chargeProposals'][number];
 export type ProposalCoverageRow = FinanceSnapshot['proposalCoverage'][number];

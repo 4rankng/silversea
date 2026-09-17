@@ -1,33 +1,15 @@
-/**
- * Wave 3 M6.4 — debt_offsets verification against M06-04 rules.
- *
- * Covers the full M06-04 acceptance criteria:
- *   M06-04-01 happy path        → approve posts paired entries
- *   M06-04-02 missing/invalid   → createDebtOffset clamps + rejects min=0
- *   M06-04-03 exception path    → rejection writes nothing; cancel-after-
- *                                  approve posts reversing entries
- *   M06-04-04 role guard        → non-FINANCIAL roles rejected
- *   M06-04-05 duplicate/concurrent → second approve throws (status check)
- *
- * Plus the canonical M6.4 invariants:
- *   - offset ≤ min(AR, AP) (re-checked at approval)
- *   - booked only after approval
- *   - cancel-after-approve uses reversal (entries restore pre-approval balances)
- */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { TxnType } from '@tingting/shared';
 import {
   createDebtOffset,
-  approveDebtOffset,
   cancelDebtOffset,
   listDebtOffsets,
 } from '../services/debtOffset.service';
-import { transitionApproval } from '../services/approval.service';
 import { LedgerService } from '../services/ledger.service';
 import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 
@@ -151,6 +133,7 @@ function offsetDraft(
     minutesReference: `BB-M64-${suffix}-${customerId}-${supplierId}`,
     minutesDocumentHash: 'm64-hash',
     createdBy,
+    actorRole: 'ADMIN',
     ...overrides,
   };
 }
@@ -172,423 +155,187 @@ describe('M6.4 setup', () => {
 after(async () => {
   const custPattern = `M64 customer ${suffix}%`;
   const supPattern = `M64 supplier ${suffix}%`;
-  const userPattern = `m64-%-${suffix}-%`;
   try {
     if (createdOffsetIds.length > 0) await db.delete(s.debtOffsets).where(inArray(s.debtOffsets.id, createdOffsetIds));
-    // Sweep ALL m64-related ledger rows (approval + cancel entries we may not
-    // have tracked individually) by note prefix.
-    await db.delete(s.ledger).where(sql`${s.ledger.note} LIKE 'm64 test%' OR ${s.ledger.note} = 'Đối trừ công nợ khách hàng và nhà cung cấp' OR ${s.ledger.note} = 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'`);
+    // Scope cleanup to this suite's counterparties, never unrelated ledger rows.
+    await db.delete(s.ledger).where(or(
+      and(eq(s.ledger.entityType, 'CUSTOMER'), inArray(s.ledger.entityId, createdCustomerIds)),
+      and(eq(s.ledger.entityType, 'VENDOR'), inArray(s.ledger.entityId, createdSupplierIds)),
+    ));
     if (createdLedgerIds.length > 0) await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${custPattern}`);
     await db.delete(s.suppliers).where(sql`${s.suppliers.name} LIKE ${supPattern}`);
-    await db.delete(s.users).where(sql`${s.users.username} LIKE ${userPattern}`);
+    await db.delete(s.users).where(inArray(s.users.id, userIds));
   } catch (err) { console.warn('[m64] cleanup:', (err as Error).message); }
   await client.end();
 });
 
-describe('M6.4 — M06-04-02 createDebtOffset validation', () => {
-  test('clamps amount to min(AR, AP) — offset ≤ smaller side', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 5_000_000);
-    await postAp(sup.id, 3_000_000);
+async function fundedPair(ar = 1_000_000, ap = ar) {
+  const pair = await mkLinkedPair();
+  await postAr(pair.cust.id, ar);
+  await postAp(pair.sup.id, ap);
+  return pair;
+}
 
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-    assert.equal(Number(offset.amount), 3_000_000, 'clamped to smaller side');
-    assert.equal(offset.approvalStatus, 'PENDING');
+async function recordPair(pair: Awaited<ReturnType<typeof fundedPair>>, actorRole = 'ADMIN', createdBy = adminUserId) {
+  const row = await createDebtOffset({ ...offsetDraft(pair.cust.id, pair.sup.id, createdBy), actorRole });
+  createdOffsetIds.push(row.id);
+  return row;
+}
+
+async function offsetEntries(id: number) {
+  const [offset] = await db.select().from(s.debtOffsets).where(eq(s.debtOffsets.id, id));
+  assert.ok(offset);
+  return db.select().from(s.ledger).where(and(
+    eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+    eq(s.ledger.txnId, id),
+    or(
+      and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, offset.customerId)),
+      and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, offset.supplierId)),
+    ),
+  ));
+}
+
+describe('M6.4 — direct debt offset recording', () => {
+  test('records min(AR, AP), paired entries and actor together without approval', async () => {
+    const pair = await fundedPair(5_000_000, 3_000_000);
+    const row = await recordPair(pair);
+    assert.equal(Number(row.amount), 3_000_000);
+    assert.equal(row.approvalStatus, 'APPROVED', 'legacy code means recorded');
+    assert.equal(row.createdBy, adminUserId);
+    assert.equal(row.approvedBy, adminUserId, 'the acting user, no separate approver');
+    assert.ok(row.approvedAt);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 2_000_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 0);
+    assert.equal((await offsetEntries(row.id)).length, 2);
   });
 
-  test('rejects when min(AR, AP) = 0 (no balance to offset)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    // No ledger entries → both balances zero.
-    await assert.rejects(
-      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId)),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400,
-    );
+  test('rejects zero remaining balance without a pending row', async () => {
+    const pair = await mkLinkedPair();
+    await assert.rejects(() => recordPair(pair), { statusCode: 400 });
+    assert.equal((await listDebtOffsets({ customerId: pair.cust.id })).length, 0);
   });
 
-  test('rejects when customer and supplier no longer share the same canonical partner', async () => {
-    const { cust, sup } = await mkDriftedPair();
-    await postAr(cust.id, 1_500_000);
-    await postAp(sup.id, 1_500_000);
-
-    await assert.rejects(
-      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId)),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /không cùng pháp nhân/i.test(err.message),
-    );
+  test('rejects counterparties without the same canonical legal partner', async () => {
+    const pair = await mkDriftedPair();
+    await postAr(pair.cust.id, 1_500_000);
+    await postAp(pair.sup.id, 1_500_000);
+    await assert.rejects(() => recordPair(pair), /không cùng pháp nhân/i);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 1_500_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 1_500_000);
   });
 
-  test('rejects blank minutes reference and non-VND currency', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_500_000);
-    await postAp(sup.id, 1_500_000);
+  test('requires reason, supporting minutes and VND currency', async () => {
+    const pair = await fundedPair();
+    for (const overrides of [{ note: ' ' }, { minutesReference: ' ' }, { currency: 'USD' as 'VND' }]) {
+      await assert.rejects(() => createDebtOffset(offsetDraft(pair.cust.id, pair.sup.id, adminUserId, overrides)), { statusCode: 400 });
+    }
+    assert.equal((await listDebtOffsets({ customerId: pair.cust.id })).length, 0);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 1_000_000);
+  });
 
-    await assert.rejects(
-      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId, { minutesReference: '   ' })),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /biên bản đối trừ/i.test(err.message),
-    );
+  test('ACCOUNTANT records directly with no second actor', async () => {
+    const actor = await db.insert(s.users).values({ username: `m64-ACCOUNTANT-${suffix}`, passwordHash: 'x', role: 'ACCOUNTANT', status: 'ACTIVE' }).returning();
+    userIds.push(actor[0].id);
+    const pair = await fundedPair();
+    const row = await recordPair(pair, 'ACCOUNTANT', actor[0].id);
+    assert.equal(row.approvedBy, actor[0].id);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 0);
+  });
 
-    await assert.rejects(
-      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId, { currency: 'USD' as 'VND' })),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /cùng loại tiền/i.test(err.message),
-    );
+  test('DRIVER cannot record an offset and no money or row changes', async () => {
+    const pair = await fundedPair();
+    await assert.rejects(() => recordPair(pair, 'DRIVER', driverUserId), { statusCode: 403 });
+    assert.equal((await listDebtOffsets({ customerId: pair.cust.id })).length, 0);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 1_000_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 1_000_000);
+  });
+
+  test('transaction failure rolls back the offset and both entries together', async () => {
+    const pair = await fundedPair();
+    await assert.rejects(() => db.transaction(async tx => {
+      await createDebtOffset({ ...offsetDraft(pair.cust.id, pair.sup.id, adminUserId), transaction: tx });
+      throw new Error('force rollback');
+    }), /force rollback/);
+    assert.equal((await listDebtOffsets({ customerId: pair.cust.id })).length, 0);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 1_000_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 1_000_000);
+  });
+
+  test('concurrent submissions serialize against current balances and post once', async () => {
+    const pair = await fundedPair(4_000_000);
+    const results = await Promise.allSettled([recordPair(pair), recordPair(pair)]);
+    assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+    const rejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+    assert.equal(rejected.reason.statusCode, 400);
+    const rows = await listDebtOffsets({ customerId: pair.cust.id });
+    assert.equal(rows.length, 1);
+    assert.equal((await offsetEntries(rows[0].id)).length, 2);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 0);
+    assert.equal(await balance('VENDOR', pair.sup.id), 0);
+  });
+
+  test('a repeated submission after balances are consumed makes no extra entries', async () => {
+    const pair = await fundedPair();
+    const row = await recordPair(pair);
+    await assert.rejects(() => recordPair(pair), { statusCode: 400 });
+    assert.equal((await offsetEntries(row.id)).length, 2);
+    assert.equal((await listDebtOffsets({ customerId: pair.cust.id })).length, 1);
   });
 });
 
-describe('M6.4 — 2026-09-10 phê duyệt removed: create applies immediately', () => {
-  test('create+approve compose in one transaction lands APPROVED with paired entries (route contract)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 2_000_000);
-    await postAp(sup.id, 2_000_000);
-
-    // Mirrors POST /finance/debt-offsets: the creator applies the offset in
-    // the same transaction — status lands APPROVED, AR and AP are reduced,
-    // no PENDING row is ever visible.
-    const approved = await db.transaction(async (tx) => {
-      const created = await createDebtOffset({
-        ...offsetDraft(cust.id, sup.id, adminUserId),
-        transaction: tx,
-      });
-      return approveDebtOffset(created.id, adminUserId, 'ADMIN', tx);
-    });
-    createdOffsetIds.push(approved.id);
-
-    assert.equal(approved.approvalStatus, 'APPROVED');
-    assert.equal(Number(approved.amount), 2_000_000);
-    assert.equal(await balance('CUSTOMER', cust.id), 0, 'AR reduced to 0');
-    assert.equal(await balance('VENDOR', sup.id), 0, 'AP reduced to 0');
-  });
-});
-
-describe('M6.4 — M06-04-01 approve posts paired entries', () => {
-  test('approve reduces AR and AP by the offset amount', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 4_000_000);
-    await postAp(sup.id, 4_000_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    const arBefore = await balance('CUSTOMER', cust.id);
-    const apBefore = await balance('VENDOR', sup.id);
-    assert.equal(arBefore, 4_000_000);
-    assert.equal(apBefore, 4_000_000);
-
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-
-    const arAfter = await balance('CUSTOMER', cust.id);
-    const apAfter = await balance('VENDOR', sup.id);
-    assert.equal(arAfter, 0, 'AR reduced to 0');
-    assert.equal(apAfter, 0, 'AP reduced to 0');
-
-    // Status flipped to APPROVED.
-    const rows = await listDebtOffsets({ approvalStatus: 'APPROVED' });
-    const match = rows.find(r => r.id === offset.id);
-    assert.ok(match);
-    assert.equal(match!.approvalStatus, 'APPROVED');
+describe('M6.4 — direct reversal preserves history', () => {
+  test('reversal restores AR/AP with compensating entries', async () => {
+    const pair = await fundedPair(6_000_000);
+    const row = await recordPair(pair);
+    const originalEntries = await offsetEntries(row.id);
+    const reversed = await cancelDebtOffset(row.id, managerUserId, 'MANAGER');
+    assert.equal(reversed.approvalStatus, 'CANCELED');
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 6_000_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 6_000_000);
+    const entries = await offsetEntries(row.id);
+    assert.equal(entries.length, 4);
+    for (const entry of originalEntries) assert.deepEqual(entries.find(e => e.id === entry.id), entry);
   });
 
-  test('approve re-validates under lock — rejects when balance dropped', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
+  test('DRIVER cannot reverse a recorded offset', async () => {
+    const pair = await fundedPair();
+    const row = await recordPair(pair);
+    await assert.rejects(() => cancelDebtOffset(row.id, driverUserId, 'DRIVER'), { statusCode: 403 });
+    assert.equal((await offsetEntries(row.id)).length, 2);
+  });
 
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-    assert.equal(Number(offset.amount), 1_000_000);
-
-    // Drain the customer's AR manually after creation (1M credit on a 1M
-    // debit balance → 0). CUSTOMER convention: balance = debit − credit.
-    const [drainRow] = await db.insert(s.ledger).values({
-      entityType: 'CUSTOMER' as const, entityId: cust.id,
-      txnType: TxnType.PAYMENT_RECEIVED, txnId: 0,
-      debit: '0', credit: '1000000', balance: '0',
-      note: 'm64 test drain',
+  test('legacy unposted rows cannot be reversed into fake debt', async () => {
+    const pair = await fundedPair();
+    const [legacy] = await db.insert(s.debtOffsets).values({
+      customerId: pair.cust.id, supplierId: pair.sup.id, partnerId: pair.cust.partnerId,
+      amount: '1000000', offsetDate: '2026-07-15', currency: 'VND',
+      minutesReference: 'LEGACY', note: 'Historical unposted row', createdBy: adminUserId,
+      approvalStatus: 'PENDING',
     }).returning();
-    createdLedgerIds.push(drainRow.id);
-
-    // Approval should refuse — amount > current AR.
-    await assert.rejects(
-      () => approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /Số dư hiện tại không đủ/.test(err.message),
-    );
-  });
-});
-
-describe('M6.4 — M06-04-03 rejection writes nothing', () => {
-  test('REJECTED transition posts no ledger entries', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 2_000_000);
-    await postAp(sup.id, 1_500_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    const arBefore = await balance('CUSTOMER', cust.id);
-    const apBefore = await balance('VENDOR', sup.id);
-
-    await db.transaction(async (tx) => {
-      await transitionApproval(tx, {
-        table: 'debt_offsets', id: offset.id, toStatus: 'REJECTED',
-        actorId: adminUserId, actorRole: 'ADMIN',
-      });
-    });
-
-    const arAfter = await balance('CUSTOMER', cust.id);
-    const apAfter = await balance('VENDOR', sup.id);
-    assert.equal(arAfter, arBefore, 'rejection did not change AR');
-    assert.equal(apAfter, apBefore, 'rejection did not change AP');
-  });
-});
-
-describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
-  test('cancel posts reversing entries and restores balances', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 6_000_000);
-    await postAp(sup.id, 6_000_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-    const arMid = await balance('CUSTOMER', cust.id);
-    const apMid = await balance('VENDOR', sup.id);
-    assert.equal(arMid, 0);
-    assert.equal(apMid, 0);
-
-    await cancelDebtOffset(offset.id, adminUserId, 'ADMIN');
-
-    const arFinal = await balance('CUSTOMER', cust.id);
-    const apFinal = await balance('VENDOR', sup.id);
-    assert.equal(arFinal, 6_000_000, 'AR restored to pre-approval value');
-    assert.equal(apFinal, 6_000_000, 'AP restored to pre-approval value');
-
-    // Status flipped to CANCELED.
-    const rows = await listDebtOffsets({ approvalStatus: 'CANCELED' });
-    const match = rows.find(r => r.id === offset.id);
-    assert.ok(match);
-    assert.equal(match!.approvalStatus, 'CANCELED');
+    createdOffsetIds.push(legacy.id);
+    await assert.rejects(() => cancelDebtOffset(legacy.id, adminUserId, 'ADMIN'), { statusCode: 400 });
+    assert.equal((await offsetEntries(legacy.id)).length, 0);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 1_000_000);
   });
 
-  test('cancel on PENDING offset → 400 (must use rejection)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    await assert.rejects(
-      () => cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /PENDING/.test(err.message),
-    );
+  test('unknown offset returns 404', async () => {
+    await assert.rejects(() => cancelDebtOffset(2_147_483_647, adminUserId, 'ADMIN'), { statusCode: 404 });
   });
 
-  test('cancel on CANCELED offset → 409 (already canceled)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-    await cancelDebtOffset(offset.id, adminUserId, 'ADMIN');
-
-    await assert.rejects(
-      () => cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 409 && /đã hủy/.test(err.message),
-    );
-  });
-
-  test('cancel on missing offset → 404', async () => {
-    await assert.rejects(
-      () => cancelDebtOffset(99_999_999, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 404,
-    );
-  });
-
-  test('concurrent cancels: exactly one reversal wins and the loser does not double-post', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 6_000_000);
-    await postAp(sup.id, 6_000_000);
-
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-
-    let releaseEntityLocks!: () => void;
-    let markEntityLocksAcquired!: () => void;
-    const entityLocksAcquired = new Promise<void>((resolve) => {
-      markEntityLocksAcquired = resolve;
-    });
-    const releaseLocks = new Promise<void>((resolve) => {
-      releaseEntityLocks = resolve;
-    });
-    const blocker = db.transaction(async (tx) => {
-      await LedgerService.lockEntities(tx, [
-        { entityType: 'CUSTOMER', entityId: cust.id },
-        { entityType: 'VENDOR', entityId: sup.id },
-      ]);
-      markEntityLocksAcquired();
-      await releaseLocks;
-    });
-    await entityLocksAcquired;
-
-    let raceSettled = false;
-    const race = Promise.allSettled([
-      cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
-    ]).finally(() => {
-      raceSettled = true;
-    });
-    await new Promise(resolve => setTimeout(resolve, 30));
-    assert.equal(
-      raceSettled,
-      false,
-      'both cancels must be waiting behind the shared entity locks after reading APPROVED',
-    );
-
-    releaseEntityLocks();
-    await blocker;
-    const results = await race;
-    const fulfilled = results.filter(result => result.status === 'fulfilled');
-    const rejected = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
-
-    assert.equal(fulfilled.length, 1, `expected exactly 1 cancel winner, got ${fulfilled.length}`);
-    assert.equal(rejected.length, 1, `expected exactly 1 cancel loser, got ${rejected.length}`);
-    assert.equal((rejected[0].reason as Error & { statusCode?: number }).statusCode, 409);
-
-    const arFinal = await balance('CUSTOMER', cust.id);
-    const apFinal = await balance('VENDOR', sup.id);
-    assert.equal(arFinal, 6_000_000, 'AR restored exactly once');
-    assert.equal(apFinal, 6_000_000, 'AP restored exactly once');
-
-    const reversalRows = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} = 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'`);
-    createdLedgerIds.push(...reversalRows.map(row => row.id));
-    assert.equal(reversalRows.length, 2, 'exactly one reversing customer/vendor pair posts');
-  });
-});
-
-describe('M6.4 — M06-04-04 role guard', () => {
-  test('cancel by DRIVER → 403', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-
-    await assert.rejects(
-      () => cancelDebtOffset(offset.id, driverUserId, 'DRIVER'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 403,
-    );
-  });
-
-  test('approve by DRIVER → 403 (transitionApproval guard)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    await assert.rejects(
-      () => approveDebtOffset(offset.id, driverUserId, 'DRIVER'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 403,
-    );
-  });
-
-  test('creator may approve their own debt offset (phê duyệt removed 2026-09-10)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    // 2026-09-10: the segregation guard is gone — creation applies
-    // immediately with the creator as approver, so a self-approve succeeds
-    // and lands APPROVED with the paired entries posted.
-    const approved = await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
-    assert.equal(approved.approvalStatus, 'APPROVED');
-    assert.equal(await balance('CUSTOMER', cust.id), 0, 'AR reduced to 0');
-    assert.equal(await balance('VENDOR', sup.id), 0, 'AP reduced to 0');
-  });
-});
-
-describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
-  test('second approve on the same offset throws (status no longer PENDING)', async () => {
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 1_000_000);
-    await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
-
-    // Second approve — already APPROVED, no longer PENDING.
-    await assert.rejects(
-      () => approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 409 && /APPROVED/.test(err.message),
-    );
-  });
-
-  test('concurrent approves: exactly one wins, only one pair of ledger entries posts', async () => {
-    // Reproduces the D1 race from the 2026-07-27 regression audit: two parallel
-    // POST /approve calls on the same PENDING offset both returned 200 and
-    // posted 4 ADJUSTMENT entries (2 expected), halving AR/AP. Root cause:
-    // transitionApproval's status SELECT did not take a row lock, so both
-    // txns read PENDING before either committed.
-    const { cust, sup } = await mkLinkedPair();
-    await postAr(cust.id, 4_000_000);
-    await postAp(sup.id, 4_000_000);
-    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
-    createdOffsetIds.push(offset.id);
-
-    // Fire both approvals concurrently. Resolve into a settled-result array
-    // so neither reject propagates to abort the test before assertions run.
+  test('concurrent reversals restore the balance exactly once', async () => {
+    const pair = await fundedPair(6_000_000);
+    const row = await recordPair(pair);
     const results = await Promise.allSettled([
-      approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
-      approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
+      cancelDebtOffset(row.id, adminUserId, 'ADMIN'),
+      cancelDebtOffset(row.id, adminUserId, 'ADMIN'),
     ]);
-    const fulfilled = results.filter(r => r.status === 'fulfilled');
-    const rejected = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
-
-    // Invariant 1: exactly one approve wins; the other is rejected.
-    assert.equal(fulfilled.length, 1,
-      `expected exactly 1 approve to succeed, got ${fulfilled.length}. results=${JSON.stringify(results.map(r => r.status))}`);
-    assert.equal(rejected.length, 1,
-      `expected exactly 1 approve to be rejected, got ${rejected.length}`);
-    const rejectErr = rejected[0].reason as Error & { statusCode?: number };
-    assert.equal(rejectErr.statusCode, 409,
-      `expected 409 on losing approve, got ${rejectErr.statusCode} ${rejectErr.message}`);
-
-    // Invariant 2: status is APPROVED (not something weird from a torn write).
-    const rows = await listDebtOffsets({ approvalStatus: 'APPROVED' });
-    const match = rows.find(r => r.id === offset.id);
-    assert.ok(match, 'offset is APPROVED');
-    assert.equal(match!.approvalStatus, 'APPROVED');
-
-    // Invariant 3 (the actual money): exactly ONE debit+credit pair was
-    // posted to each ledger — i.e. AR and AP were each reduced by `amount`
-    // exactly once, not twice.
-    const arAfter = await balance('CUSTOMER', cust.id);
-    const apAfter = await balance('VENDOR', sup.id);
-    assert.equal(arAfter, 0,
-      `AR should be 0 after one approval (4M − 4M); got ${arAfter}. Double-post likely.`);
-    assert.equal(apAfter, 0,
-      `AP should be 0 after one approval (4M − 4M); got ${apAfter}. Double-post likely.`);
-
-    // Cross-check: count ADJUSTMENT rows linked to this offset. Must be 2
-    // (one CUSTOMER credit + one VENDOR debit), not 4.
-    const adjRows = await db.select({ id: s.ledger.id, entityType: s.ledger.entityType })
-      .from(s.ledger)
-      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} = 'Đối trừ công nợ khách hàng và nhà cung cấp'`);
-    createdLedgerIds.push(...adjRows.map(r => r.id));
-    assert.equal(adjRows.length, 2,
-      `expected exactly 2 ADJUSTMENT rows for offset ${offset.id}, got ${adjRows.length}. Race D1.`);
+    assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+    const rejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+    assert.equal(rejected.reason.statusCode, 409);
+    assert.equal((await offsetEntries(row.id)).length, 4);
+    assert.equal(await balance('CUSTOMER', pair.cust.id), 6_000_000);
+    assert.equal(await balance('VENDOR', pair.sup.id), 6_000_000);
+    await assert.rejects(() => cancelDebtOffset(row.id, adminUserId, 'ADMIN'), { statusCode: 409 });
   });
 });

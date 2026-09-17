@@ -127,6 +127,7 @@ export function AccountingTransportRegister({
         role="search"
       >
         <div className="accounting-register__search">
+          <label className="accounting-register__search-label" htmlFor="accounting-transport-search">Tìm chuyến</label>
           <input
             id="accounting-transport-search"
             name="transportSearch"
@@ -139,53 +140,44 @@ export function AccountingTransportRegister({
           />
           <button type="submit">Tìm</button>
         </div>
-        <span className="accounting-register__divider" aria-hidden="true" />
         <UuiSelectField
           label="Khách hàng"
           value={customerId}
           onChange={(event) => onFilterChange('customerId', event.target.value)}
-          controlClassName="accounting-register__select"
           options={[
             { value: '', label: 'Tất cả khách hàng' },
             ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
           ]}
-          inline
         />
         <UuiSelectField
           label="Nhà xe"
           value={carrierId}
           onChange={(event) => onFilterChange('carrierId', event.target.value)}
-          controlClassName="accounting-register__select"
           options={[
             { value: '', label: 'Tất cả nhà xe' },
             ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
           ]}
-          inline
         />
         <UuiSelectField
           label="Loại xe"
           value={ownership}
           onChange={(event) => onFilterChange('ownership', event.target.value)}
-          controlClassName="accounting-register__select"
           options={[
             { value: '', label: 'Tất cả' },
             { value: 'OWN', label: 'Xe nhà' },
             { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
           ]}
-          inline
         />
         <UuiSelectField
           label="Điều kiện"
           value={readiness}
           onChange={(event) => onFilterChange('readiness', event.target.value)}
-          controlClassName="accounting-register__select"
           options={[
             { value: '', label: 'Tất cả' },
             { value: 'READY', label: 'Sẵn sàng' },
             { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
             { value: 'MISSING_ACCEPTED_POD', label: 'Chờ POD' },
           ]}
-          inline
         />
         {hasActiveFilters && (
           <button type="button" className="accounting-register__reset" onClick={onReset}>

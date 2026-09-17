@@ -1,5 +1,7 @@
 # testplan/qa
 
+> **Requirements precedence (2026-09-17):** historical cycle specifications and artifacts below record what was tested then. Any retained-approval/maker-checker exception in a dated record is superseded by current PRDs and [NO-APP regression cases](../2026-09-17-no-approval-workflows.md). Do not execute old approve/reject steps as current requirements or treat their PASS as proof. Preserve dated screenshots, logs and raw evidence unchanged; deployment/code-review permission is process terminology, not a product workflow.
+
 Reusable browser/API QA harness for Silversea (TingTing). Owns:
 - every test script (one file per case)
 - every screenshot / log / DOM-text snapshot produced by a run
@@ -33,7 +35,7 @@ testplan/qa/
 │       └── TC-CUS-CREATE-028.mjs   # Overview ↔ detail sync
 └── evidence/
     ├── _legacy/               # all pre-consolidation artifacts (date-prefixed)
-    └── <YYYY-MM-DD>_<topic>/  # one folder per run: results.json + 01_*.png, 02_*.png, ...
+    └── <timestamp>_<pid>_<topic>/  # one unique folder per attempt
 ```
 
 ## Conventions
@@ -47,7 +49,7 @@ testplan/qa/
 - **No raw SQL.** All DB facts go through `/api/...` endpoints (the same ones
   the UI uses).
 - **Evidence is dated and append-only.** New runs go in a new
-  `evidence/<date>_<topic>/` folder. Never edit a previous run's artifacts —
+  `evidence/<timestamp>_<pid>_<topic>/` folder. Never edit a previous run's artifacts —
   re-run instead.
 - **Role is the only thing cases hardcode.** Username is picked by the harness
   from `testplan/testaccounts.txt` for the active env. A case declares its
@@ -95,6 +97,16 @@ Each run writes to `testplan/qa/evidence/<date>_<topic>/`:
 ## Evidence interpretation
 
 Each case's verdict follows AGENTS.md §5 cross-cutting rule PASS / FAIL / BLOCKED.
+The topic exits0 only when every planned case is PASS. FAIL, ERROR, BLOCKED,
+SKIP, INCONCLUSIVE, missing verdicts and empty topics all return nonzero; they
+must not be reported as a verified suite. `node --test testplan/qa/lib/*.test.mjs`
+checks this reporting contract.
+
+For a local installation with different account aliases or browser location,
+set `BASE_URL`, `API_URL`, `QA_USER_CUS` (or another role suffix), `PASSWORD` and
+optionally `BROWSER_EXECUTABLE_PATH` in the process environment. Do not commit
+credentials or use a staging URL for local fixture mutations.
+
 For failures, the structured payload in `results.json` includes the failing
 state (`factoryCellText`, `before`/`after`, `inlineWarnings`, etc.) so the
 report can be regenerated without re-running.

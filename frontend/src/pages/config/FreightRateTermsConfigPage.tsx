@@ -8,6 +8,9 @@ import { CrudTable } from '../../components/config/CrudTable';
 import { useAllCustomers, useRoutesDropdown } from '../../hooks/useCatalogQueries';
 import { CONFIG } from '@tingting/shared';
 import type { FreightRateTermRow } from '../../api/pricingClient';
+import { DateInput } from '../../design-system/forms/DateInput';
+import { businessDateISO, formatDate } from '../../lib/format';
+import './FreightRateTermsConfigPage.css';
 
 const fmtShare = (v: string) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 /** Base fuel price F — numeric(12,4); vi-VN grouping, up to 4 decimals. */
@@ -23,9 +26,10 @@ function renderThreshold(r: FreightRateTermRow) {
   return <span style={{ color: 'var(--ink-3)' }}>—</span>;
 }
 
-type ThresholdMode = 'pct' | 'abs' | 'none';
+type ThresholdMode = 'pct' | 'abs' | 'none' | '';
 
 function thresholdModeOf(item?: FreightRateTermRow): ThresholdMode {
+  if (!item) return '';
   if (item?.surchargeThresholdPct != null) return 'pct';
   if (item?.surchargeThresholdAbs != null) return 'abs';
   return 'none';
@@ -45,10 +49,11 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
 
   const [customerId, setCustomerId] = useState(String(item?.customerId ?? ''));
   const [routeId, setRouteId] = useState(String(item?.routeId ?? ''));
+  const [effectiveDate, setEffectiveDate] = useState(() => item?.effectiveDate ?? businessDateISO());
   const [sharePct, setSharePct] = useState(item?.sharePct ?? '');
   const [billingKm, setBillingKm] = useState(item?.billingKmOneWay != null ? String(item.billingKmOneWay) : '');
   const [baseFuelPrice, setBaseFuelPrice] = useState(item?.baseFuelPrice ?? '');
-  const [lagDays, setLagDays] = useState(item?.fuelLagDays != null ? String(item.fuelLagDays) : '0');
+  const [lagDays, setLagDays] = useState(item?.fuelLagDays != null ? String(item.fuelLagDays) : '');
   const initialMode = thresholdModeOf(item);
   const [thresholdMode, setThresholdMode] = useState<ThresholdMode>(initialMode);
   const [thresholdPct, setThresholdPct] = useState(item?.surchargeThresholdPct ?? '');
@@ -59,10 +64,15 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
 
   const canSave = Boolean(customerId)
     && Boolean(routeId)
+    && Boolean(effectiveDate)
     && Boolean(billingKm.trim())
     && Number(billingKm) > 0
     && Boolean(baseFuelPrice.trim())
     && Number(baseFuelPrice) > 0
+    && lagDays.trim() !== ''
+    && Number.isInteger(Number(lagDays))
+    && Number(lagDays) >= 0
+    && thresholdMode !== ''
     && (!modePct || Number(thresholdPct) > 0)
     && (!modeAbs || Number(thresholdAbs) > 0);
 
@@ -103,8 +113,19 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
           />
         </Field>
       </div>
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <Field label="Ngày hiệu lực">
+          <DateInput
+            className="input"
+            required
+            value={effectiveDate}
+            onChange={setEffectiveDate}
+            disabled={saving}
+          />
+        </Field>
+      </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Km một chiều (lượng giá)">
+        <Field label="Km một chiều">
           <input
             className="input"
             type="number"
@@ -116,7 +137,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 150 }}>
-        <Field label="Giá gốc dầu F (đ/lít, 4 số lẻ)">
+        <Field label="Giá dầu mốc (đ/lít)">
           <input
             className="input"
             type="number"
@@ -135,30 +156,30 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
             min="0"
             step="1"
             value={lagDays}
+            required
             onChange={e => setLagDays(e.target.value)}
           />
         </Field>
       </div>
-      <div style={{ flex: 1, minWidth: 260 }}>
-        <Field label="Ngưỡng kích hoạt điều chỉnh">
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }} role="radiogroup" aria-label="Chọn dạng ngưỡng">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
-              <input type="radio" name={radioName} aria-label="Ngưỡng theo tỷ lệ phần trăm" checked={modePct} onChange={() => setThresholdMode('pct')} />
-              Tỷ lệ %
-              <input type="number" aria-label="Giá trị ngưỡng phần trăm" min="0" step="0.5" value={thresholdPct} onChange={e => setThresholdPct(e.target.value)} disabled={!modePct} style={{ width: 90 }} />
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
-              <input type="radio" name={radioName} aria-label="Ngưỡng theo số tiền" checked={modeAbs} onChange={() => setThresholdMode('abs')} />
-              VNĐ/lít
-              <input type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" min="0" step="100" value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value)} disabled={!modeAbs} style={{ width: 120 }} />
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
-              <input type="radio" name={radioName} aria-label="Không áp dụng ngưỡng" checked={!modePct && !modeAbs} onChange={() => setThresholdMode('none')} />
-              Không áp dụng
-            </label>
-          </div>
-        </Field>
-      </div>
+      <fieldset className="freight-terms-threshold">
+        <legend>Ngưỡng kích hoạt điều chỉnh</legend>
+        <div className="freight-terms-threshold__choices" role="radiogroup" aria-label="Chọn dạng ngưỡng">
+          <label>
+            <input type="radio" name={radioName} aria-label="Ngưỡng theo tỷ lệ phần trăm" required checked={modePct} onChange={() => setThresholdMode('pct')} />
+            Tỷ lệ %
+          </label>
+          <input className="input" type="number" aria-label="Giá trị ngưỡng phần trăm" placeholder="%" min="0.01" step="any" required={modePct} value={thresholdPct} onChange={e => setThresholdPct(e.target.value)} disabled={!modePct} />
+          <label>
+            <input type="radio" name={radioName} aria-label="Ngưỡng theo số tiền" checked={modeAbs} onChange={() => setThresholdMode('abs')} />
+            VNĐ/lít
+          </label>
+          <input className="input" type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" placeholder="đ/lít" min="1" step="1" required={modeAbs} value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value)} disabled={!modeAbs} />
+          <label className="freight-terms-threshold__none">
+            <input type="radio" name={radioName} aria-label="Không áp dụng ngưỡng" checked={thresholdMode === 'none'} onChange={() => setThresholdMode('none')} />
+            Không áp dụng
+          </label>
+        </div>
+      </fieldset>
       <FormActions
         saving={saving}
         isedit={!!item}
@@ -170,10 +191,11 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
           onsave({
             customerId: Number(customerId),
             routeId: Number(routeId),
+            effectiveDate,
             sharePct: sharePct === '' ? 0 : Number(sharePct),
             billingKmOneWay: Number(billingKm),
             baseFuelPrice: baseFuelPrice,
-            fuelLagDays: lagDays === '' ? 0 : Number(lagDays),
+            fuelLagDays: Number(lagDays),
             // Always send BOTH threshold keys: the CRUD merge-on-update treats
             // undefined as "keep current", so a row switched to "Không áp
             // dụng" must carry explicit nulls to clear the stored mode.
@@ -211,7 +233,7 @@ export default function FreightRateTermsConfigPage() {
           { header: 'Giá gốc dầu F', render: r => fmtFuel(r.baseFuelPrice) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
           { header: 'Trễ (ngày)', render: r => String(r.fuelLagDays) },
-          { header: 'Ngày hiệu lực', render: r => r.effectiveDate },
+          { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveDate) },
         ]}
         renderForm={p => (
           <FreightRateTermsForm

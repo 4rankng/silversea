@@ -79,7 +79,7 @@
   gap: 12px;
 }
 
-.ops-form-grid label,
+.ops-form-grid label:not([data-label]):not(.ds-field__label),
 .ops-form-note {
   min-width: 0;
   display: flex;
@@ -90,7 +90,7 @@
   color: var(--fg-2, #444);
 }
 
-.ops-form-grid input,
+.ops-form-grid input:not(.ds-uui-select input):not(.ds-field__input),
 .ops-form-grid select,
 .ops-form-note textarea {
   min-width: 0;
@@ -261,7 +261,7 @@
   .ops-modal__head button,
   .ops-modal__actions button,
   .ops-form-photos__list button { min-width: 44px; min-height: 44px; }
-  .ops-form-grid input,
+  .ops-form-grid input:not(.ds-uui-select input),
   .ops-form-grid select,
   .ops-form-note textarea { min-height: 44px; font-size: var(--control-field-font-size); }
 }

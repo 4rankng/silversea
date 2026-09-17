@@ -10,6 +10,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadEnv } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
+import { runExitCode } from '../lib/run-result.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -30,8 +31,8 @@ async function main() {
   }
 
   const env = await loadEnv();
-  const today = new Date().toISOString().slice(0, 10);
-  const runId = `${today}_${topic}`;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const runId = `${timestamp}_${process.pid}_${topic}`;
   const evidenceDir = path.join(REPO_ROOT, 'testplan', 'qa', 'evidence', runId);
 
   console.log(`[run-all] topic=${topic}`);
@@ -86,7 +87,7 @@ async function main() {
   const fail = allResults.filter((r) => r.verdict === 'FAIL').length;
   const other = allResults.length - pass - fail;
   console.log(`[run-all] ${pass} pass · ${fail} fail · ${other} inconclusive/error`);
-  process.exit(fail > 0 ? 1 : 0);
+  process.exitCode = runExitCode(allResults);
 }
 
 main().catch((e) => { console.error('FATAL', e); process.exit(2); });

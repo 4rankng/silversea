@@ -159,7 +159,7 @@ export default function DriverPenaltyPage() {
         <div className={`kpi ${!summaryReady ? 'kpi--neutral' : totalMonthAmount > 0 ? 'kpi--warn' : 'kpi--success'}`}>
           <div className="kpi__top"><span className="kpi__label">Khấu trừ {monthLabel}</span></div>
           <div className="kpi__value">
-            {summaryReady && totalMonthAmount > 0 ? <Money value={totalMonthAmount} /> : '—'}
+            {summaryReady ? <Money value={totalMonthAmount} /> : '—'}
           </div>
           <div className="kpi__meta">Trừ vào lương tháng</div>
           <div className="kpi__watermark" aria-hidden="true">

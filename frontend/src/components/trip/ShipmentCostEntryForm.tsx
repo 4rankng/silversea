@@ -8,6 +8,7 @@ import { photoSrc } from '../../lib/api/photo';
 import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption } from '../../features/driver/driver-expense-options';
 import { useDriverExpenseEntry } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
+import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
 
 export interface ShipmentCostEntryFormProps {
   tripId: number;
@@ -45,12 +46,13 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         ? `Tiền tuyến tham chiếu: ${formatCurrency(totalRoadAllowance)}. Chỉ ghi khoản phát sinh thực tế, không cộng thêm nếu đã có trong danh sách.`
         : 'Chưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.'}
     </p>
-    {state.loading ? <p role="status">Đang tải chi phí…</p> : state.entries.length === 0 ? <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào.</p> :
+    {state.loading ? <p role="status">Đang tải chi phí…</p> : state.entries.length === 0 ? (!state.loadError && <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào.</p>) :
       <ul className="shipment-cost-entry__list">{state.entries.map(entry => <li key={entry.id} className="shipment-cost-entry__item">
         {entry.receiptStorageKey && <a href={photoSrc(entry.receiptStorageKey)} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><img src={photoSrc(entry.receiptStorageKey)} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
         <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
           <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}</div>
           {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
+          <DriverSavedExpenseProofs expenseId={entry.id} />
         </div>
       </li>)}</ul>}
 

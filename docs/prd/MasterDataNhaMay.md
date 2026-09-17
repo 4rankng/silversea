@@ -33,6 +33,8 @@ App cần Internet để xem danh mục hiện hành và lưu thay đổi. Ngư�
 
 Một lô hàng nguồn có thể gồm nhiều container. Nhà máy, tuyến và vị trí phải thuộc đúng công việc của từng container. Các container trong cùng lô có thể làm hàng tại các nhà máy hoặc tuyến khác nhau; không ép cả lô dùng chung một tuyến.
 
+Khi CUS sửa nhà máy của lô FCL, màn hình tổng quan dẫn đến chi tiết các container của đúng khách hàng/chứng từ, bao gồm cả container chưa có lịch. Mỗi dòng cho chọn nhà máy thuộc khách hàng đó, khởi tạo bằng nhà máy đang có và lưu đúng lựa chọn của container. Nhà máy hiển thị sau lưu, khi tải lại và tại Điều vận phải cùng một nguồn; không báo thành công sau khi chỉ đổi một tên tự do ở cấp lô trong khi công việc vẫn dùng nhà máy cũ. Sửa một container không thay nhà máy của container khác. Công việc đã khóa hoặc đã vào trạng thái không cho sửa phải giải thích rõ và tuân thủ quy tắc điều chỉnh hiện hành.
+
 Cảng nâng, cảng hạ và nơi trả vỏ cũng thuộc đúng công việc. Với hàng nhập, nơi giao hàng tại nhà máy khác với nơi trả vỏ: **Cảng hạ** trên thông tin lái xe là nơi trả vỏ của công việc, không được thay bằng địa chỉ nhà máy.
 
 Với LCL, lưu và hiển thị địa điểm, lịch cùng thông tin công việc hàng lẻ mà không cần container. Trường bắt buộc phải phù hợp với loại hàng; không yêu cầu container giả để nhập tuyến hoặc lịch.
@@ -72,6 +74,8 @@ Không âm thầm đổi tuyến, địa điểm làm hàng hoặc bên xuất h
 
 Chưa chọn khách hàng thì chưa thể chọn nhà máy. Khi đổi khách hàng, không giữ nhà máy cũ nếu không còn hợp lệ; chỉ rõ trường cần chọn lại. Danh sách đang tải hoặc tìm kiếm trước đó không được làm mất lựa chọn mới nhất của người dùng.
 
+Tìm nhà máy theo mã, tên viết tắt, tên đầy đủ hoặc địa chỉ trong phạm vi khách hàng đã chọn. Chấp nhận chữ hoa/thường, có hoặc không dấu và khoảng trắng thừa; các từ tìm kiếm có thể nằm ở tên và địa chỉ. Khi không có kết quả, giữ danh sách mở và báo **Không tìm thấy kết quả** để người dùng sửa nội dung ngay. Chỉ chọn một kết quả mới xác định nhà máy cho công việc; nhập từ khóa không tự tạo nhà máy.
+
 Tuyến/vị trí không cho sửa vẫn phải có nhãn và dễ đọc. Khi cần, dùng chỉ dẫn ngắn **Theo nhà máy** để giải thích; không chỉ dùng màu xám khiến người dùng không biết vì sao không sửa được.
 
 ### 3.2 Dữ Liệu Thiếu Và Không Còn Hoạt Động
@@ -90,7 +94,7 @@ Ngoại lệ chọn tuyến chỉ dành cho nhà máy cũ **chưa có tuyến c�
 
 Người có quyền được tạo nhanh khách hàng, nhà máy hoặc danh mục liên quan ngay khi lập công việc. Tạo nhanh là thêm mục dùng chung thật sự, khác với nhập tên riêng cho lệnh chạy ngoài.
 
-Sau khi lưu thành công, mục mới xuất hiện ngay trong danh sách lựa chọn và có thể dùng tiếp mà không tải lại cả trang. Nếu chưa lưu được, giữ nội dung để sửa hoặc thử lại; không hiển thị như đã tạo thành công.
+Sau khi lưu thành công, mục mới được chọn ngay với tên, thông tin và tuyến tương ứng, có thể dùng tiếp mà không tải lại cả trang. Việc tải lại danh mục chậm hoặc lỗi không làm mất mục vừa tạo thành công hay để trống tên đang chọn. Nếu chưa lưu được, giữ nội dung để sửa hoặc thử lại; không hiển thị như đã tạo thành công.
 
 Lỗi nằm trong form đang mở, sát trường cần sửa và đọc được khi hộp thoại mở. Người dùng bàn phím được đưa đến vị trí cần xử lý; không phải đóng form mới thấy lỗi.
 

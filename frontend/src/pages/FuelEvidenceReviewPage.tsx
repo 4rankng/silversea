@@ -107,6 +107,11 @@ export default function FuelEvidenceReviewPage() {
           }
           .fuel-evidence-review__select {
             width: 100%;
+            min-width: 0 !important;
+            max-width: 100% !important;
+          }
+          .fuel-evidence-review__toolbar > .ds-uui-select {
+            flex: 0 0 auto;
           }
         }
       `}</style>

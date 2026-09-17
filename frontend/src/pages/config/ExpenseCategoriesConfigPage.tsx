@@ -20,7 +20,7 @@ function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deletin
     <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 180 }}>
         <Field label="Tên hạng mục">
-          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Bảo hiểm, Đăng kiểm…" />
+          <input className="input" required pattern={'.*\\S.*'} value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Bảo hiểm, Đăng kiểm…" />
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 100, display: 'flex', alignItems: 'flex-end', paddingBottom: 18 }}>

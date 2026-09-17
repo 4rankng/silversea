@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState , useRef } from 'react';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
-import { ComboBox, filterComboboxItems } from '../../../components/untitled-ui/base/select/combobox';
+import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
@@ -141,6 +141,7 @@ export function UTextField({
 }
 
 interface USearchableFieldProps {
+  size?: 'sm' | 'md';
   id?: string;
   label: string;
   value: string;
@@ -185,6 +186,7 @@ interface USearchableFieldProps {
 }
 
 export function USearchableField({
+  size = 'sm',
   label,
   value,
   onChange,
@@ -221,18 +223,11 @@ export function USearchableField({
     setInputValue(selected?.label ?? (allowsCustomValue ? value ?? '' : ''));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
-  // React-aria closes the dropdown when the typed text matches no option —
-  // correct for the menu itself, but silent. Say WHY nothing matched, right
-  // under the field, so a catalog-constrained picker (customer) never reads
-  // as broken. Free-text fields (shipping line) get the same hint plus a
-  // pointer that their text is kept as-is.
-  const typedText = searchable ? inputValue.trim() : '';
-  const noMatch = Boolean(typedText) && filterComboboxItems(options, typedText).length === 0;
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
-        size="sm"
-        aria-label={label}
+        size={size}
+        aria-label={hideLabel ? label : undefined}
         label={hideLabel ? undefined : label}
         // `searchable` mode opens the popover on focus (so the user sees the
         // option list and can type to filter immediately) — the default
@@ -301,13 +296,7 @@ export function USearchableField({
           />
         )}
       </ComboBox>
-      {noMatch && (
-        <div className="csc-field-warning" role="status" aria-live="polite">
-          {allowsCustomValue
-            ? 'Không có kết quả phù hợp — giữ nguyên văn đã nhập nếu muốn tạo mới.'
-            : 'Không có kết quả phù hợp với từ khóa đã nhập.'}
-        </div>
-      )}
+
     </div>
   );
 }

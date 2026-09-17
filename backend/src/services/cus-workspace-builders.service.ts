@@ -518,6 +518,7 @@ function buildContainerLine(
   return {
     id: container.id,
     ordinal,
+    operationalSiteId: container.operationalSiteId ?? row.shipment.operationalSiteId ?? null,
     containerNumber: container.containerNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
@@ -719,6 +720,7 @@ function containerFieldAccess(
     return { mode, reason };
   };
   return {
+    operationalSiteId: access('operationalSiteId'),
     containerNumber: access('containerNumber'), containerTypeId: access('containerTypeId'),
     cargoWeightKg: access('cargoWeightKg'), cargoVolumeCbm: access('cargoVolumeCbm'),
     routeId: access('routeId'),

@@ -27,11 +27,27 @@ describe('accounting workspace list-screen contract', () => {
     );
   });
 
+  it('keeps phone date and party filters in equal columns with shared control styling', () => {
+    expect(pageCss).toMatch(/accounting-period__fields[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(pageCss).not.toMatch(/accounting-period__fields[^}]*grid-template-columns: 1fr/);
+    expect(pageCss).not.toMatch(/accounting-register__toolbar[^}]*grid-template-columns: 1fr/);
+    expect(registerTsx).not.toMatch(/\sinline\s*\n/);
+    expect(registerTsx).not.toContain('controlClassName="accounting-register__select"');
+    expect(registerTsx).toContain('htmlFor="accounting-transport-search"');
+  });
+
   it('never caps or inner-scrolls a master table — the app-body owns the scroll', () => {
     expect(pageCss).not.toMatch(/table-wrap[\s\S]{0,200}max-height/);
     expect(pageCss).not.toMatch(
       /accounting-register__wrap[\s\S]{0,160}(overflow\s*:\s*auto|overflow\s*:\s*scroll)/,
     );
+  });
+
+  it('keeps responsive record actions inset and touchable without nested card chrome', () => {
+    expect(pageCss).toMatch(/td\.record-table__action\s*\{\s*padding-inline: 14px/);
+    expect(pageCss).toMatch(/record-table__action a\s*\{\s*min-height: var\(--control-touch-h\)/);
+    expect(pageCss).not.toMatch(/accounting-register__wrap[^}]*border-radius/);
+    expect(pageCss).toMatch(/tbody td\.num\s*\{\s*text-align: left/);
   });
 
   it('emits data-labels on every register table cell so container-query cards stay labelled', () => {

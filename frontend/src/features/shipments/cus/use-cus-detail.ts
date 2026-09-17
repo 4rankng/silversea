@@ -211,18 +211,35 @@ export function useCusDetail(params: CusDetailListParams) {
 
   const saveIdentity = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const isFcl = activeEdit.detail.summary.cargoMode === 'FCL';
+    const line = activeEdit.line;
+    if (isFcl && line.fieldAccess.operationalSiteId?.mode !== 'DIRECT') {
+      throw new Error(line.fieldAccess.operationalSiteId?.reason || 'Không thể chỉnh nhà máy của container này.');
+    }
+    const signature = JSON.stringify(['identity', row.shipmentId, line.id, line.shipmentVersion, draft.operationalSiteId]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    if (isFcl) editIdempotencyKeys.current[signature] = key;
     try {
-      await updateShipment(row.shipmentId, {
-        expectedVersion: activeEdit.detail.summary.version,
-        factoryName: draft.factoryName,
-        ...(activeEdit.detail.summary.cargoMode !== 'FCL' ? { routeId: draft.routeId } : {}),
-        deliveryLocation: draft.deliveryLocation,
-      });
+      if (isFcl) {
+        await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+          expectedShipmentVersion: line.shipmentVersion,
+          operationalSiteId: draft.operationalSiteId ?? null,
+        }, key);
+      } else {
+        await updateShipment(row.shipmentId, {
+          expectedVersion: activeEdit.detail.summary.version,
+          factoryName: draft.factoryName,
+          routeId: draft.routeId,
+          deliveryLocation: draft.deliveryLocation,
+        });
+      }
     } catch (error) {
       if (!isOptimisticShipmentConflict(error)) throw error;
+      delete editIdempotencyKeys.current[signature];
       await recoverConflict(row, 'identity');
       return;
     }
+    delete editIdempotencyKeys.current[signature];
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 

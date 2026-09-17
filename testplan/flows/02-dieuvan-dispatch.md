@@ -148,44 +148,24 @@
 
 ---
 
-## 2.6 — Kẹp hàng (Paired Trip — 2 chiều)
+## 2.6 — Kẹp hàng: hai container20FT đồng thời
 
-### TC-DV-DISPATCH-007 — Kẹp hàng hợp lệ — chỉ ghi 1 lần phí cầu đường
+Nguồn hiện hành: `docs/prd/LoHangKepKetHop.md` §1/3/5 và `QuyTrinhO2C.md` §5.4. Không dùng mô tả hai chiều nối tiếp cũ để đánh giá Kẹp.
 
-- **Mã PRD:** TC-MO2C-09
-- **Vai trò:** `DISPATCHER`
-- **Mức độ:** P0
-- **Tiền điều kiện:** 2 lệnh Xe nhà cùng xe, cùng tài xế, cùng lộ trình 2 chiều, thời gian không chồng lấn
-- **Các bước:**
-  1. Tích chọn "Kẹp hàng" cho đúng cặp chuyến.
-  2. Phát cả 2 lệnh.
-  3. Mở chi phí dự kiến/thực tế.
-  4. Đối chiếu tổng phí đường của nhóm.
-- **Kết quả mong đợi (Pass):**
-  - Cặp hợp lệ chỉ ghi **1 lần** định mức phí đường khép kín.
-  - Lệnh thứ 2 mang khoản giảm/điều chỉnh rõ ràng.
-  - Doanh thu, trạng thái và chi phí khác vẫn độc lập.
-  - Nhật ký liên kết cặp được ghi nhận.
-- **Kỳ vọng sai (Fail nếu):**
-  - Tổng phí bị nhân đôi (2 lần phí đường).
-  - Người dùng phải sửa tay.
-  - Ghép sai xe/tài xế/thời gian mà vẫn cho phép.
-- **Bằng chứng:** ảnh tích kẹp + 2 trip ID + phí từng dòng và tổng nhóm
+### TC-DV-DISPATCH-007 — Kẹp hợp lệ giữ hai công việc và không nhân phí chung
 
----
+- **Vai trò:** DISPATCHER; **Mức độ:** P0.
+- **Tiền điều kiện:** Hai công việc20FT cùng ngày, tuyến/lịch tương thích, cùng đầu kéo/moóc/tài xế; moóc đủ hai vị trí20FT và tổ hợp đủ tổng tải.
+- **Các bước:** Ghép đúng hai công việc, lưu/phát lệnh theo dữ liệu hợp lệ; mở lại kế hoạch và các công việc; đối chiếu chi phí.
+- **Mong đợi:** Hai công việc nhận diện riêng cùng quan hệ cặp và phân công. Công việc thứ hai không bị chặn bởi công việc thứ nhất trong chính cặp. Phí của cùng hành trình chung tính đúng một lần; doanh thu, chứng từ, tiến độ và phí riêng không bị gộp. Không tự áp mức0 hoặc cách phân bổ chưa được cấu hình.
+- **Bằng chứng:** Hai công việc/cặp và lịch phân công, phí nguồn/lịch sử, UI sau tải lại.
 
-### TC-DV-DISPATCH-008 — Kẹp hàng không đủ điều kiện — không tự ghép
+### TC-DV-DISPATCH-008 — Kẹp không đủ điều kiện bị chặn có lý do
 
-- **Mã PRD:** TC-MO2C-09
-- **Vai trò:** `DISPATCHER`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Tạo cặp không đủ điều kiện (khác xe hoặc khác tài xế hoặc thời gian chồng).
-  2. Thử tích "Kẹp hàng".
-- **Kết quả mong đợi (Pass):**
-  - Không cho phép ghép: "Không đủ điều kiện kẹp hàng".
-  - Cặp không đủ điều kiện không được ưu đãi phí đường.
-- **Bằng chứng:** ảnh thông báo chặn
+- **Vai trò:** DISPATCHER; **Mức độ:** P1.
+- **Các bước:** Thử riêng: thành viên40FT, thành viên thứ ba, quá tổng tải, khác xe/tài xế/moóc, thuộc cặp khác, xung đột với công việc ngoài cặp.
+- **Mong đợi:** Không lưu nửa cặp/phân công mâu thuẫn; chỉ rõ dữ liệu không hợp lệ. Đồng thời trong chính cặp hợp lệ là điều kiện Kẹp, không phải lỗi.
+- **Bằng chứng:** Từng yêu cầu bị chặn và dữ liệu nguồn không thay đổi ngoài dự kiến.
 
 ---
 
@@ -680,91 +660,32 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 
 ## 2.10 — Phân loại chuyến: Đơn / Kẹp / Kết hợp
 
-PRD Bước 2b quy định 4 phân loại chuyến (Đơn, Kẹp, Kết hợp, Lẻ) — trong đó 3 mô hình cont được mô tả
-chi tiết tại `docs/prd/QuyTrinhO2C.md` §2b với sơ đồ và bảng so sánh. Phần này mã hóa các case nghiệm thu
-cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác lô, và kẹp không hợp lệ (đổi tài xế).
+Đánh giá theo `docs/prd/QuyTrinhO2C.md` §5.4 và `LoHangKepKetHop.md`. Mã case được giữ; mô tả cũ ghép nhiều container thành một chuyến đã được thay bằng yêu cầu hai công việc/cặp có nguồn riêng.
 
-### TC-DV-DISPATCH-029 — Ghép kết hợp CÙNG LÔ: 1 xe chở 2 container của cùng 1 lô FCL
+### TC-DV-DISPATCH-029 — Kẹp hai container20FT cùng lô
 
-- **Mã PRD:** O2C Bước 2b (kết hợp cùng lô)
-- **Vai trò:** `DISPATCHER`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:**
-  - Lô FCL READY_FOR_DISPATCH có **4 container 20'** (tổng khối lượng ≤ tải trọng xe 40').
-  - OWN fleet có 1 đầu kéo + 1 rơ-moóc 40' (2 slot 20') đang ACTIVE.
-- **Các bước:**
-  1. Mở `/dispatch-detail` cho lô 4×20'. Hệ thống đã auto-split thành 4 dòng container, pre-fill OWN.
-  2. Chọn 2 dòng container (cùng lô). Bấm "Ghép chuyến" / "Kết hợp".
-  3. Gán cùng biển số OWN + cùng tài xế cho cả 2 dòng.
-  4. Đặt giờ chạy và giờ kết thúc giống nhau (cùng tuyến, overlap thời gian).
-  5. Bấm "Phát hành lệnh điều xe".
-  6. Quan sát: số trip tạo ra; mỗi trip link tới bao nhiêu fulfillments.
-  7. Mở DB: kiểm tra `trips` ↔ `shipment_fulfillments` quan hệ.
-- **Kết quả mong đợi (Pass):**
-  - Tạo **đúng 1 trip** cho cả 2 dòng container (không phải 2 trip riêng).
-  - Trip đó link tới **2 fulfillments** thuộc cùng lô (quan hệ N:1 trip ↔ fulfillments).
-  - Biển số, tài xế, khung giờ hiển thị đồng nhất trên cả 2 dòng fulfillment.
-  - Phí đường / VETC: ghi 1 lần cho cả nhóm (chia đều hoặc theo cấu hình kế toán).
-- **Kỳ vọng sai (Fail nếu):**
-  - Tạo 2 trip riêng cho 2 dòng ghép (đang hiểu nhầm thành "đơn 2 chuyến").
-  - Trip chỉ link 1 fulfillment (bỏ sót container ghép).
-  - Phí đường bị nhân đôi (2 trip × 1 phí đường).
-- **Bằng chứng:** ảnh `/dispatch-detail` 2 dòng đã ghép + ảnh trip ID trong DB + ảnh quan hệ trip ↔ fulfillment + ảnh Network 200.
+- **Vai trò:** DISPATCHER; **Mức độ:** P0; **Thiết bị:** desktop và một màn touch.
+- **Tiền điều kiện:** Lô nhiều container có ít nhất hai20FT; tổ hợp đầu kéo/moóc40FT phù hợp hai vị trí20FT và đủ tổng tải; cùng tài xế, ngày/lộ trình khả thi.
+- **Các bước:** Chọn đúng hai công việc cùng lô, ghép Kẹp, lưu/phát theo dữ liệu hợp lệ; tải lại kế hoạch và xem hai công việc.
+- **Mong đợi:** Cả hai giữ nguồn container riêng và cùng quan hệ cặp/phân công. Không làm đổi các container anh em; không coi thành viên thứ hai là xung đột ngoài cặp. Phí hành trình chung ghi một lần, tiến độ/bằng chứng riêng.
+- **Biên:** Thêm thành viên thứ ba hoặc40FT, tổng tải vượt mức phải bị chặn, không ghi nửa cặp.
+- **Bằng chứng:** Hai công việc/cặp, nguồn lô/container, lịch và khoản phí sau tải lại.
 
-### TC-DV-DISPATCH-030 — Ghép kết hợp KHÁC LÔ: 1 xe chở container của 2 lô cùng tuyến, cùng KH
+### TC-DV-DISPATCH-030 — Kết hợp hai công việc khác lô, tái dùng cùng vỏ nối tiếp
 
-- **Mã PRD:** O2C Bước 2b (kết hợp khác lô)
-- **Vai trò:** `DISPATCHER`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:**
-  - 2 lô FCL READY_FOR_DISPATCH cùng KH (LONG MINH), cùng tuyến Cảng Hải Phòng → Nhà máy Bắc Ninh, cùng ngày giao.
-  - Lô A: 1×40HC; Lô B: 1×20'. Tổng khối lượng ≤ tải trọng xe OWN 40'.
-  - OWN fleet có 1 đầu kéo + 1 rơ-moóc 40' đang ACTIVE.
-- **Các bước:**
-  1. Mở `/dispatch-detail`. Lọc theo tuyến Hải Phòng → Bắc Ninh, ngày giao hôm nay.
-  2. Chọn 1 dòng container từ Lô A + 1 dòng container từ Lô B (2 lô khác nhau).
-  3. Bấm "Ghép chuyến" / "Kết hợp".
-  4. Gán cùng biển số OWN cho cả 2 dòng.
-  5. Đặt giờ chạy overlap (cùng ca, cùng tuyến).
-  6. Bấm "Phát hành lệnh điều xe".
-  7. Mở DB: kiểm tra 1 trip link tới fulfillments của cả 2 lô.
-- **Kết quả mong đợi (Pass):**
-  - Tạo **đúng 1 trip** chứa 2 fulfillments thuộc 2 lô khác nhau.
-  - Trên app Lái xe (`DRIVER`): 1 chuyến hiển thị gồm cả 2 bill (Lô A + Lô B).
-  - Phí đường: 1 lần cho cả nhóm.
-  - Doanh thu: mỗi fulfillment giữ doanh thu của lô mình (không trộn).
-- **Kỳ vọng sai (Fail nếu):**
-  - Hệ thống chặn không cho ghép khác lô (thiếu tính năng).
-  - Tạo 2 trip riêng, mỗi trip 1 fulfillment.
-  - Trộn doanh thu giữa 2 lô (sai nghiệp vụ kế toán).
-- **Bằng chứng:** ảnh `/dispatch-detail` 2 dòng khác lô đã ghép + ảnh app Lái xe thấy 1 chuyến 2 bill + ảnh DB `trips` ↔ `shipment_fulfillments` (1 trip, 2 fulfillments, 2 lô) + ảnh Network 200.
+- **Vai trò:** DISPATCHER; **Mức độ:** P0; **Thiết bị:** desktop và một màn touch.
+- **Tiền điều kiện:** Công việc trả hàng lệnh1 và đóng hàng lệnh2 có thể tái dùng cùng vỏ, cùng đầu kéo/moóc/tài xế và đủ thời gian chuyển tiếp. Giữ nguồn lô/khách/chứng từ riêng; không giả định40FT và20FT là cùng vỏ.
+- **Các bước:** Ghép Kết hợp, lưu/phát theo dữ liệu hợp lệ; thử bắt đầu phần đóng trước khi trả xong; hoàn tất phần trả rồi tiếp tục phần đóng.
+- **Mong đợi:** Hai công việc nhận diện riêng có trước/sau rõ; phần sau bị chặn có lý do cho đến khi phần trước đủ điều kiện. Số vỏ khác nhau bị chặn; chưa biết số vỏ chỉ được lưu kế hoạch để bổ sung theo quy tắc phát lệnh. Phí chung không nhân đôi, doanh thu/công nợ không trộn giữa lô.
+- **Bằng chứng:** Cặp và nguồn lô, trạng thái/thông báo trước/sau, ảnh hiển thị vai trò liên quan và khoản phí nguồn.
 
-### TC-DV-DISPATCH-031 — Kẹp hàng KHÔNG hợp lệ vì khác tài xế → bị chặn, không được hưởng ưu đãi phí đường
+### TC-DV-DISPATCH-031 — Đổi tài xế làm cặp Kẹp không còn hợp lệ
 
-- **Mã PRD:** O2C Bước 2b (kẹp — điều kiện bắt buộc)
-- **Vai trò:** `DISPATCHER`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:**
-  - 2 lô OWN cùng xe `15C-284.56` (gắn với `DRIVER`), cùng tuyến 2 chiều, thời gian không chồng lấn.
-  - Có 1 tài khoản OWN khác (ví dụ `DRIVER`) gắn với xe khác, đang rảnh cùng khung giờ.
-- **Các bước:**
-  1. Mở `/dispatch-detail`. Tạo 2 trip kẹp hợp lệ với xe `15C-284.56` + tài xế `DRIVER` (chiều đi + chiều về).
-  2. Bấm tích "Kẹp hàng" cho cặp trip đó. Phát lệnh. Quan sát: 2 trip tạo ra, liên kết cặp kẹp thành công.
-  3. Sau đó: **đổi tài xế** chiều về sang `DRIVER` (cùng xe, khác tài xế). Lưu lại.
-  4. Mở chi phí dự kiến/thực tế. Quan sát: tổng phí đường.
-  5. Bấm "Kẹp hàng" lại trên cặp này.
-- **Kết quả mong đợi (Pass):**
-  - Bước 3: khi đổi tài xế chiều về sang `DRIVER` (khác `DRIVER`), hệ thống **cảnh báo** "Không đủ điều kiện kẹp hàng" hoặc **tự gỡ liên kết kẹp** (cặp không còn hợp lệ).
-  - Bước 4: tổng phí đường được tính **2 lần** (mỗi trip 1 lần) — không còn ưu đãi lộ trình khép kín.
-  - Bước 5: tích "Kẹp hàng" không thành công hoặc không có hiệu lực.
-  - Audit log ghi nhận lý do gỡ liên kết ("đổi tài xế → mất điều kiện kẹp").
-- **Kỳ vọng sai (Fail nếu):**
-  - Vẫn cho kẹp dù khác tài xế → phí đường bị tính 1 lần (sai chi phí).
-  - Không có cảnh báo khi đổi tài xế.
-- **Bằng chứng:** ảnh cảnh báo "Không đủ điều kiện kẹp hàng" + ảnh phí đường × 2 + ảnh audit log + ảnh DB cặp kẹp đã gỡ.
+- **Vai trò:** DISPATCHER; **Mức độ:** P0.
+- **Tiền điều kiện:** Cặp hai20FT đồng thời hợp lệ và còn được sửa phân công.
+- **Các bước:** Thử đổi riêng một thành viên sang tài xế khác; thử bỏ ghép rồi phân lại; kiểm tra lịch, nhãn và chi phí.
+- **Mong đợi:** Không giữ cặp hoạt động với tài xế khác nhau. Chặn có lý do hoặc thực hiện nghiệp vụ bỏ ghép hợp lệ có lịch sử trước khi phân lại; công việc ngoài cặp không được dùng ngoại lệ chồng lịch. Chi phí tính theo hành trình còn lại và khoản thực tế, không tự nhân đôi phí hoặc sửa kỳ khóa.
+- **Bằng chứng:** Phân công/cặp và lịch sử, chi phí trước/sau; không suy ra hai lần phí chỉ từ việc đổi tài xế.
 
 ### TC-DV-DISPATCH-032 — Phân loại chuyến Đơn (1 chiều) — happy path
 

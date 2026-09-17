@@ -1034,7 +1034,7 @@ export async function settleExpensesForPayment(input: {
       throw new ApiError(409, `Khoản chi ${id} không thuộc nhà cung cấp của phiếu thanh toán.`);
     }
     if (!['RECORDED', 'APPROVED'].includes(row.approvalStatus)) {
-      throw new ApiError(409, `Khoản chi ${id} chưa được phê duyệt — không thể ghi trả.`);
+      throw new ApiError(409, `Khoản chi ${id} chưa được ghi nhận — không thể ghi trả.`);
     }
     const expenseAmount = Number(row.amount);
     const alreadyAllocated = priorAllocated.get(id) ?? 0;

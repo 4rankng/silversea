@@ -115,7 +115,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
             label="Mã số thuế"
             value={taxCode}
             onChange={(event) => { setTaxCode(event.target.value); setError(null); }}
-            maxLength={50}
+            maxLength={20}
             placeholder="Không bắt buộc"
             disabled={saving}
           />

@@ -112,6 +112,23 @@ async function assertDecompositionActor(actorId: number, executor: Tx | typeof d
   }
 }
 
+export const operationalSiteSnapshot = (site: typeof s.operationalSites.$inferSelect) => ({
+  id: site.id,
+  code: site.code,
+  name: site.shortName || site.name,
+  fullName: site.name,
+  siteType: site.siteType,
+  address: site.address,
+  googleMapsUrl: site.googleMapsUrl,
+  contactName: site.contactName,
+  contactPhone: site.contactPhone,
+  liftFeeInvoiceName: site.liftFeeInvoiceName,
+  liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
+  liftFeeTaxCode: site.liftFeeTaxCode,
+  strictRules: site.strictRules,
+  sourceVersion: site.version,
+});
+
 async function loadSiteSnapshot(
   tx: Tx,
   shipment: typeof s.shipments.$inferSelect,
@@ -133,23 +150,7 @@ async function loadSiteSnapshot(
     throw new ApiError(409, 'Điểm vận hành không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
 
-  const allowlist = (site: typeof sites[number]) => ({
-    id: site.id,
-    code: site.code,
-    name: site.shortName || site.name,
-    fullName: site.name,
-    siteType: site.siteType,
-    address: site.address,
-    googleMapsUrl: site.googleMapsUrl,
-    contactName: site.contactName,
-    contactPhone: site.contactPhone,
-    liftFeeInvoiceName: site.liftFeeInvoiceName,
-    liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-    liftFeeTaxCode: site.liftFeeTaxCode,
-    strictRules: site.strictRules,
-    sourceVersion: site.version,
-  });
-  const byId = new Map(sites.map((site) => [site.id, allowlist(site)]));
+  const byId = new Map(sites.map((site) => [site.id, operationalSiteSnapshot(site)]));
   return {
     deliverySite: shipment.operationalSiteId ? byId.get(shipment.operationalSiteId) : null,
     pickupWarehouse: shipment.pickupWarehouseSiteId ? byId.get(shipment.pickupWarehouseSiteId) : null,
@@ -306,22 +307,7 @@ async function loadContainerSiteSnapshots(
     const site = byId.get(container.operationalSiteId);
     if (!site) continue;
     overrides.set(container.id, {
-      deliverySite: {
-        id: site.id,
-        code: site.code,
-        name: site.shortName || site.name,
-        fullName: site.name,
-        siteType: site.siteType,
-        address: site.address,
-        googleMapsUrl: site.googleMapsUrl,
-        contactName: site.contactName,
-        contactPhone: site.contactPhone,
-        liftFeeInvoiceName: site.liftFeeInvoiceName,
-        liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-        liftFeeTaxCode: site.liftFeeTaxCode,
-        strictRules: site.strictRules,
-        sourceVersion: site.version,
-      },
+      deliverySite: operationalSiteSnapshot(site),
     });
   }
   return overrides;

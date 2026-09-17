@@ -1,5 +1,7 @@
 # Kanban finance and direct-operation regressions
 
+> **Current criteria note (2026-09-17):** dated execution notes below are historical. Current no-approval behavior is defined by [NO-APP regressions](2026-09-17-no-approval-workflows.md) and current PRDs. A recorded advance request is not cash funding; legacy approval codes may remain in history but never gate a new action. Re-run changed cases rather than carrying forward old PASS.
+
 User decision: there are no internal approval workflows. Legacy ticket expectations of checker/approver stages are superseded; retain validation, authorization, audit, correct balances and real settlement state.
 
 | Case | Requirement | Reproduction and expected result |

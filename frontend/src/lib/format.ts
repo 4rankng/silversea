@@ -166,6 +166,13 @@ export function businessDateISO(value: Date = new Date()): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+/** Calendar-day arithmetic anchored to Vietnam, independent of device timezone/DST. */
+export function businessDateOffsetISO(offsetDays: number, value: Date = new Date()): string {
+  const day = new Date(`${businessDateISO(value)}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + offsetDays);
+  return day.toISOString().slice(0, 10);
+}
+
 /**
  * Format a timestamp as Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host.
  * The locale argument alone ('vi-VN') only shapes numbers/dates — it does NOT

@@ -268,7 +268,7 @@ export default function ForwarderSettlementsPage() {
                       <div className="fset-card__chips">
                         {s.linkedRequests.map(r => (
                           <span key={r.id} className="fset-chip fset-chip--linked">
-                            {advanceRequestCode(r.id)} — {formatCurrency(Number(r.amount))}
+                            {advanceRequestCode(r.id)} — {formatCurrency(Number(r.allocatedAmount ?? r.amount))}
                           </span>
                         ))}
                       </div>

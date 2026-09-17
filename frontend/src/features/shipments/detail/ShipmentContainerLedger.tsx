@@ -18,6 +18,7 @@ import { USearchableField } from '../create/uui-fields';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
+import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
@@ -41,6 +42,7 @@ export interface ShipmentRouteDraft {
 }
 
 export interface ShipmentIdentityDraft {
+  operationalSiteId?: number | null;
   factoryName: string | null;
   routeId: number | null;
   deliveryLocation: string | null;
@@ -189,6 +191,7 @@ function InlineEditor({
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [factoryName, setFactoryName] = useState(detail.summary.raw.factoryName ?? '');
+  const [operationalSiteId, setOperationalSiteId] = useState(line.operationalSiteId ? String(line.operationalSiteId) : '');
   const [routeId, setRouteId] = useState(detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '');
   const [deliveryLocation, setDeliveryLocation] = useState(detail.summary.raw.deliveryLocation ?? '');
   const [blNumber, setBlNumber] = useState(detail.summary.raw.blNumber ?? '');
@@ -232,8 +235,10 @@ function InlineEditor({
   const appointmentScheduleDirty = appointmentDate !== (appointmentInput?.slice(0, 10) ?? '')
     || scheduleTime !== (formatScheduleTime(row) ?? '');
   const dirty = mode === 'identity'
-    ? factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
-      || (detail.summary.cargoMode !== 'FCL' && routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : ''))
+    ? detail.summary.cargoMode === 'FCL'
+      ? operationalSiteId !== (line.operationalSiteId ? String(line.operationalSiteId) : '')
+      : factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
+      || routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '')
       || deliveryLocation.trim() !== (detail.summary.raw.deliveryLocation ?? '')
     : mode === 'documents'
       ? blNumber.trim() !== (detail.summary.raw.blNumber ?? '')
@@ -281,6 +286,7 @@ function InlineEditor({
     try {
       if (mode === 'identity') {
         await onSaveIdentity(row, {
+          operationalSiteId: operationalSiteId ? Number(operationalSiteId) : null,
           factoryName: factoryName.trim() || null,
           routeId: routeId ? Number(routeId) : null,
           deliveryLocation: deliveryLocation.trim() || null,
@@ -371,6 +377,7 @@ function InlineEditor({
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
+        if (event.defaultPrevented) return;
         if ((event.target as HTMLElement).closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
         if (event.key === 'Escape' && !saving) {
           event.preventDefault();
@@ -411,12 +418,9 @@ function InlineEditor({
         </div>
       )}
       {mode === 'identity' && (
-        <div className="shipment-container-ledger__editor-grid">
-          <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
-          <label><span>Nhà máy</span><input autoFocus value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
-          {detail.summary.cargoMode !== 'FCL' && <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>}
-          <label><span>Điểm giao</span><input value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.deliveryLocation.mode === 'READ_ONLY'} /></label>
-        </div>
+        <ShipmentIdentityEditor detail={detail} line={line} customerName={row.customerName} currentFactoryName={row.factoryName} saving={saving}
+          factoryName={factoryName} setFactoryName={setFactoryName} operationalSiteId={operationalSiteId} setOperationalSiteId={setOperationalSiteId}
+          routeId={routeId} setRouteId={setRouteId} deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} routeOptions={routeOptions} />
       )}
       {mode === 'documents' && (
         <div className="shipment-container-ledger__editor-grid">
@@ -638,7 +642,7 @@ export function ShipmentContainerLedger({
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
               const scheduleTime = formatScheduleTime(row);
-              const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
+              const identityEditable = row.fieldAccess.operationalSiteId?.mode === 'DIRECT';
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
               const routeEditable = row.fieldAccess.routeId.mode !== 'READ_ONLY' || row.fieldAccess.liftSiteId.mode !== 'READ_ONLY' || row.fieldAccess.dropoffSiteId.mode !== 'READ_ONLY';

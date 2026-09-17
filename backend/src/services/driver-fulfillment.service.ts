@@ -90,9 +90,12 @@ async function recordMilestoneEventTx(
   eventType: DriverProgressEventType,
   occurredAtIso: string,
   actorUserId: number,
+  evidence: { note?: string; inferredFromCompletion?: boolean } = {},
 ): Promise<DriverProgressEvent> {
-  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, { eventType, occurredAt: occurredAtIso }, actorUserId);
-  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
+  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, {
+    eventType, occurredAt: occurredAtIso, note: evidence.note,
+  }, actorUserId);
+  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt, evidence.inferredFromCompletion);
   if (publication) {
     const customerEvent = await createCustomerVisibleEvent({
       shipmentId: ownedTrip.shipmentId,
@@ -181,7 +184,7 @@ export async function recordDriverFulfillmentProgress(args: {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
       await assertKetHopSequencingAllowedTx(tx, ownedTrip.tripId);
-      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy);
+      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy, { note: args.input.note });
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
         await transitionTripStatus(
           ownedTrip.tripId,
@@ -211,10 +214,19 @@ export async function recordDriverFulfillmentProgress(args: {
   return { event: result, replayed };
 }
 
-function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date): { title: string; message: string } | null {
+function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date, inferredFromCompletion = false): { title: string; message: string } | null {
   // This is a deliberately closed allowlist. It must never interpolate notes,
   // evidence references, expense details, incident text, or internal IDs.
   const occurred = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(occurredAt);
+  if (inferredFromCompletion) {
+    const titles: Partial<Record<DriverProgressEventType, string>> = {
+      [DriverProgressEventType.PICKED_UP]: 'Nhận hàng — suy ra từ hoàn thành chuyến',
+      [DriverProgressEventType.LOADING_OR_RETURNING]: 'Thực hiện chặng — suy ra từ hoàn thành chuyến',
+      [DriverProgressEventType.DELIVERED]: 'Giao hàng — suy ra từ hoàn thành chuyến',
+    };
+    const title = titles[eventType];
+    return title ? { title, message: `Mốc được suy ra từ việc tài xế hoàn thành chuyến lúc ${occurred}. Đây là thời điểm ghi nhận, không phải thời điểm quan sát thực tế.${eventType === DriverProgressEventType.DELIVERED ? ' Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.' : ''}` } : null;
+  }
   if (eventType === DriverProgressEventType.PICKED_UP) return { title: 'Đã nhận hàng để vận chuyển', message: `Tài xế đã báo nhận hàng lúc ${occurred}.` };
   if (eventType === DriverProgressEventType.LOADING_OR_RETURNING) return { title: 'Đang thực hiện chặng vận chuyển', message: `Tài xế đã báo đang thực hiện chặng vận chuyển lúc ${occurred}.` };
   if (eventType === DriverProgressEventType.DELIVERED) return { title: 'Tài xế báo đã giao hàng', message: `Tài xế đã báo giao hàng lúc ${occurred}. Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.` };
@@ -397,7 +409,7 @@ export async function listIncidentalCosts(tripId: number, driverId: number): Pro
     .orderBy(desc(s.driverIncidentalCosts.createdAt));
   const enriched = rows.length ? await db.select().from(s.expenseAccountingSources)
     .where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), inArray(s.expenseAccountingSources.sourceId, rows.map(row => row.id)))) : [];
-  return rows.map(row => {
+  return rows.filter(row => enriched.find(item => item.sourceId === row.id)?.status !== 'VOIDED').map(row => {
     const source = enriched.find(item => item.sourceId === row.id);
     return { ...row, version: source?.version ?? 1, costGroup: row.costGroup, feeName: row.feeName,
       invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate };
@@ -495,6 +507,7 @@ export async function completeOwnedFulfillmentTrip(args: {
           nextMilestone,
           new Date().toISOString(),
           args.actorUserId,
+          { inferredFromCompletion: true, note: 'Suy ra từ hoàn thành chuyến; thời điểm ghi nhận, không phải thời điểm quan sát thực tế.' },
         );
         autoRecorded = [...autoRecorded, nextMilestone];
         nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);

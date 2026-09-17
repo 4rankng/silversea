@@ -3,6 +3,7 @@
  * per lô, receipt photos, author-scoped edits, accounting decisions, and the
  * pure grouping used by settlements + exports.
  */
+import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
@@ -10,6 +11,7 @@ import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import type { ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable } from './expense-accounting-source.service';
+import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -81,8 +83,8 @@ async function assertContainerInShipment(shipmentId: number, containerId: number
 }
 
 /** Author-owned and still editable: not approved, not frozen in a settlement. */
-async function getEditableExpense(userId: number, expenseId: number) {
-  const [entry] = await db
+async function getEditableExpense(userId: number, expenseId: number, executor: Executor = db) {
+  const [entry] = await executor
     .select()
     .from(s.opsExpenseEntries)
     .where(eq(s.opsExpenseEntries.id, expenseId))
@@ -95,16 +97,6 @@ async function getEditableExpense(userId: number, expenseId: number) {
     throw new ApiError(400, 'Khoản chi đã nằm trong phiếu quyết toán, không thể chỉnh sửa.');
   }
   return entry;
-}
-
-/** Owner-only existence check for evidence operations on approved rows. */
-async function entryOwnerMatches(userId: number, expenseId: number): Promise<boolean> {
-  const [row] = await db
-    .select({ paidById: s.opsExpenseEntries.paidById })
-    .from(s.opsExpenseEntries)
-    .where(eq(s.opsExpenseEntries.id, expenseId))
-    .limit(1);
-  return row != null && row.paidById === userId;
 }
 
 async function attachPhotoRows(
@@ -144,6 +136,7 @@ export async function createOpsExpense(
 ): Promise<OpsExpenseWriteResult> {
   if (!transaction) return db.transaction(tx => createOpsExpense(userId, input, tx));
   const executor: Executor = transaction ?? db;
+  await assertOpsExpenseAssignment(transaction, userId, input.shipmentId);
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
@@ -200,12 +193,15 @@ export async function updateOpsExpense(
     'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
     shipmentContainerId?: number | null;
     expectedVersion?: number;
+    reason?: string;
   },
   transaction?: Tx,
 ): Promise<OpsExpenseWriteResult> {
   if (!transaction) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
   const executor: Executor = transaction ?? db;
-  const entry = await getEditableExpense(userId, expenseId);
+  const entry = await getEditableExpense(userId, expenseId, executor);
+  await assertOpsExpenseAssignment(transaction, userId, entry.shipmentId);
+  if (!patch.reason?.trim()) throw new ApiError(400, 'Nhập lý do điều chỉnh khoản chi.');
   await assertShipmentAccountingUnlocked(transaction, entry.shipmentId);
   const source = await lockExpenseSource(transaction, 'OPS', expenseId);
   if (source) {
@@ -261,7 +257,7 @@ export async function updateOpsExpense(
       invoiceDate: patch.invoiceDate === undefined ? source.invoiceDate : patch.invoiceDate,
       recoveryNote: patch.recoveryNote === undefined ? source.recoveryNote : patch.recoveryNote, note: updated.note });
     await transaction.insert(s.auditLogs).values({ userId, message: 'EXPENSE_ACCOUNTING_UPDATED', entityType: 'expense_accounting_source', entityId: source.id,
-      payload: { reason: 'Ops sửa khoản chi chưa đối chiếu', before: source, after } });
+      payload: { reason: patch.reason.trim(), before: source, after } });
     return { ...updated, version: after.version, costGroup: after.costGroup, invoiceNumber: after.invoiceNumber, invoiceDate: after.invoiceDate };
   }
   return updated;
@@ -274,7 +270,8 @@ export async function deleteOpsExpense(
 ): Promise<void> {
   if (!transaction) return db.transaction(tx => deleteOpsExpense(userId, expenseId, tx));
   const executor: Executor = transaction ?? db;
-  await getEditableExpense(userId, expenseId);
+  const entry = await getEditableExpense(userId, expenseId, executor);
+  await assertOpsExpenseAssignment(transaction, userId, entry.shipmentId);
   const source = await lockExpenseSource(transaction, 'OPS', expenseId);
   if (source) {
     await assertExpenseSourceMutable(transaction, source);
@@ -304,55 +301,31 @@ async function deleteStorageKeysIfUnreferenced(keys: string[]): Promise<void> {
   );
 }
 
-export async function attachOpsExpensePhoto(
-  userId: number,
-  expenseId: number,
-  storageKey: string,
-) {
-  // Adding evidence never changes the recorded expense or moves cash.
-  const [entry] = await db
-    .select({ id: s.opsExpenseEntries.id })
-    .from(s.opsExpenseEntries)
-    .where(eq(s.opsExpenseEntries.id, expenseId))
-    .limit(1);
-  if (!entry || (await entryOwnerMatches(userId, expenseId)) !== true) {
-    throw new ApiError(404, 'Không tìm thấy khoản chi.');
-  }
-  assertOwnStorageKey(userId, storageKey);
-  const [photo] = await db
-    .insert(s.opsExpensePhotos)
-    .values({ opsExpenseId: expenseId, storageKey, uploadedById: userId })
-    .onConflictDoNothing()
-    .returning();
-  return photo ?? null;
+export async function attachOpsExpensePhoto(userId: number, expenseId: number, storageKey: string) {
+  return db.transaction(async tx => {
+    const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expenseId)).for('update');
+    if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy khoản chi.');
+    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
+    if (['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Khoản chi đã hủy; giữ nguyên chứng từ lịch sử.');
+    assertOwnStorageKey(userId, storageKey);
+    const [photo] = await tx.insert(s.opsExpensePhotos).values({ opsExpenseId: expenseId, storageKey, uploadedById: userId }).onConflictDoNothing().returning();
+    return photo ?? null;
+  });
 }
 
 export async function deleteOpsExpensePhoto(userId: number, photoId: number): Promise<void> {
-  const [photo] = await db
-    .select({
-      id: s.opsExpensePhotos.id,
-      expenseId: s.opsExpensePhotos.opsExpenseId,
-      storageKey: s.opsExpensePhotos.storageKey,
-      paidById: s.opsExpenseEntries.paidById,
-      approvalStatus: s.opsExpenseEntries.approvalStatus,
-      opsSettlementId: s.opsExpenseEntries.opsSettlementId,
-    })
-    .from(s.opsExpensePhotos)
-    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.opsExpensePhotos.opsExpenseId))
-    .where(eq(s.opsExpensePhotos.id, photoId))
-    .limit(1);
-  if (!photo || photo.paidById !== userId) throw new ApiError(404, 'Không tìm thấy ảnh.');
-  if (photo.approvalStatus === 'VOIDED' || photo.approvalStatus === 'REJECTED') {
-    throw new ApiError(400, 'Chứng từ của khoản chi đã hủy được giữ trong lịch sử.');
-  }
-  if (photo.opsSettlementId != null) {
-    throw new ApiError(400, 'Khoản chi đã nằm trong phiếu quyết toán, không thể xóa ảnh.');
-  }
-  const [source] = await db.select({ confirmedAt: s.expenseAccountingSources.confirmedAt }).from(s.expenseAccountingSources)
-    .where(and(eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.sourceId, photo.expenseId)));
-  if (source?.confirmedAt) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');
-  await db.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId));
-  await deleteStorageKeysIfUnreferenced([photo.storageKey]);
+  const key = await db.transaction(async tx => {
+    const [photo] = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId)).for('update');
+    if (!photo) throw new ApiError(404, 'Không tìm thấy ảnh.');
+    const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, photo.opsExpenseId)).for('update');
+    if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy ảnh.');
+    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
+    const source = await lockExpenseSource(tx, 'OPS', entry.id);
+    if (source?.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');
+    await tx.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId));
+    return photo.storageKey;
+  });
+  await deleteStorageKeysIfUnreferenced([key]);
 }
 
 export interface OpsExpensePhotoRow {
@@ -365,7 +338,7 @@ export interface OpsExpensePhotoRow {
 /** Photo list for receipt review — the author or any approver may read it. */
 export async function listOpsExpensePhotos(
   userId: number,
-  isApprover: boolean,
+  canReviewFinancialEvidence: boolean,
   expenseId: number,
 ): Promise<OpsExpensePhotoRow[]> {
   const [entry] = await db
@@ -373,7 +346,7 @@ export async function listOpsExpensePhotos(
     .from(s.opsExpenseEntries)
     .where(eq(s.opsExpenseEntries.id, expenseId))
     .limit(1);
-  if (!entry || (!isApprover && entry.paidById !== userId)) {
+  if (!entry || (!canReviewFinancialEvidence && entry.paidById !== userId)) {
     throw new ApiError(404, 'Không tìm thấy khoản chi.');
   }
   const photos = await db
@@ -433,7 +406,10 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
 }
 
 export interface OpsExpenseListRow {
+  sourceKind?: 'OPS' | 'TRIP';
+  sourceId?: number;
   version: number;
+  confirmedAt: string | null;
   costGroup: ExpenseCostGroup | null;
   feeName: string | null;
   invoiceNumber: string | null;
@@ -479,6 +455,7 @@ export async function listOpsExpenses(filters: {
     .select({
       id: s.opsExpenseEntries.id,
       version: s.expenseAccountingSources.version,
+      confirmedAt: s.expenseAccountingSources.confirmedAt,
       costGroup: s.opsExpenseEntries.costGroup,
       feeName: s.opsExpenseEntries.feeName,
       invoiceNumber: s.opsExpenseEntries.invoiceNumber,
@@ -519,15 +496,19 @@ export async function listOpsExpenses(filters: {
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(s.opsExpenseEntries.paidAt), desc(s.opsExpenseEntries.id))
-    .limit(filters.limit ?? 100)
-    .offset(filters.offset ?? 0);
+    .limit((filters.limit ?? 100) + (filters.offset ?? 0));
 
-  return rows.map((row) => ({
+  const nativeRows = rows.map((row) => ({
     ...row,
     version: row.version ?? 1,
+    confirmedAt: row.confirmedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     hasPhoto: Boolean(row.hasPhoto),
   }));
+  const legacy = filters.paidById != null && filters.settlementId == null
+    ? await listLegacyOpsExpenseHistory(filters.paidById, filters.status) : [];
+  return [...nativeRows, ...legacy].sort((a, b) => b.paidAt.localeCompare(a.paidAt) || b.id - a.id)
+    .slice(filters.offset ?? 0, (filters.offset ?? 0) + (filters.limit ?? 100));
 }
 
 // ─── Settlement grouping (pure, shared with export) ──────────────────────────

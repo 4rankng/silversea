@@ -159,12 +159,13 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses compact desktop density while retaining mobile touch targets', () => {
-    // Counts: USearchableField, UTextField, UTextAreaField, UDateField in the
-    // page adapters, plus USelectField via the shared UuiSelectField adapter —
-    // all use the operational `sm` contract used by dispatch, rather than
-    // growing labels and values through `md`.
-    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(4);
-    expect(uuiSelectSource).toContain('size="sm"');
+    // Create-page adapters default to compact density. Search/select adapters
+    // expose semantic sizing so other forms can match their native controls.
+    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(3);
+    expect(fieldAdapters).toMatch(/export function USearchableField\(\{\s*size = 'sm'/);
+    expect(fieldAdapters).toMatch(/<ComboBox\s+size=\{size\}/);
+    expect(uuiSelectSource).toContain("size = 'sm'");
+    expect(uuiSelectSource.match(/size=\{size\}/g)).toHaveLength(2);
     expect(fieldAdapters).not.toContain('size="md"');
     expect(containerEditorSource).not.toContain('Số lượng cont');
     expect(containerEditorSource.match(/type="number"/g)).toHaveLength(1);

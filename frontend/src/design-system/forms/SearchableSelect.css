@@ -25,7 +25,7 @@
 }
 
 /* Compact operational fields retain the mobile touch target below 641px. */
-.searchable-select__trigger--sm {
+.searchable-select .searchable-select__trigger--sm {
   min-height: var(--control-compact-h);
   height: var(--control-compact-h);
   padding: 0 10px;
@@ -238,7 +238,7 @@
 }
 
 @media (max-width: 640px) {
-  .searchable-select__trigger--sm {
+  .searchable-select .searchable-select__trigger--sm {
     min-height: var(--control-mobile-h);
     height: var(--control-mobile-h);
     padding: 0 8px;
@@ -310,8 +310,9 @@
 }
 
 @media (pointer: coarse) {
-  .searchable-select__trigger,
-  .searchable-select__trigger--sm,
+  .searchable-select { --control-mobile-h: var(--control-touch-h); }
+  .searchable-select .searchable-select__trigger,
+  .searchable-select .searchable-select__trigger--sm,
   .searchable-select__clear-button,
   .searchable-select__load-more button,
   .searchable-select__multi-clear-all {

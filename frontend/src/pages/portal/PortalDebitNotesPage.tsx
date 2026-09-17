@@ -82,6 +82,19 @@ export default function PortalDebitNotesPage() {
     setPage(1);
   }, [selectedCustomerId]);
 
+  function openDecision(doc: BillingDocument, action: 'confirm' | 'dispute') {
+    setNotice(null);
+    setDisputeReason('');
+    setDecision({ doc, action });
+  }
+
+  function closeDecision() {
+    if (workingId != null) return;
+    setDecision(null);
+    setDisputeReason('');
+    setNotice(null);
+  }
+
   const updateStatus = async (doc: BillingDocument, action: 'confirm' | 'dispute') => {
     setWorkingId(doc.id);
     setNotice(null);
@@ -143,7 +156,7 @@ export default function PortalDebitNotesPage() {
         </div>
       </header>
 
-      {notice && (
+      {notice && !decision && (
         <div className={`portal-notice portal-notice--${notice.tone}`} role={notice.tone === 'error' ? 'alert' : 'status'}>
           {notice.text}
         </div>
@@ -207,10 +220,10 @@ export default function PortalDebitNotesPage() {
                     </button>
                     {pending && (
                       <>
-                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => setDecision({ doc, action: 'dispute' })}>
+                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => openDecision(doc, 'dispute')}>
                           <TriangleAlert size={16} /> Phản hồi
                         </button>
-                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => setDecision({ doc, action: 'confirm' })}>
+                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => openDecision(doc, 'confirm')}>
                           <CheckCircle2 size={16} /> Xác nhận
                         </button>
                       </>
@@ -225,7 +238,8 @@ export default function PortalDebitNotesPage() {
           </div>
         </div>
       )}
-      <Modal isOpen={decision != null} title={decision?.action === 'confirm' ? 'Xác nhận Giấy báo nợ' : 'Phản hồi Giấy báo nợ'} onClose={() => workingId == null && setDecision(null)} footer={<><button className="btn btn--ghost" onClick={() => setDecision(null)} disabled={workingId != null}>Hủy</button><button className={decision?.action === 'dispute' ? 'btn btn--danger' : 'btn btn--primary'} disabled={workingId != null || (decision?.action === 'dispute' && !disputeReason.trim())} onClick={() => decision && void updateStatus(decision.doc, decision.action)}>{workingId != null ? 'Đang gửi…' : decision?.action === 'confirm' ? 'Xác nhận' : 'Gửi phản hồi'}</button></>}>
+      <Modal isOpen={decision != null} title={decision?.action === 'confirm' ? 'Xác nhận Giấy báo nợ' : 'Phản hồi Giấy báo nợ'} onClose={closeDecision} footer={<><button className="btn btn--ghost" onClick={closeDecision} disabled={workingId != null}>Hủy</button><button className={decision?.action === 'dispute' ? 'btn btn--danger' : 'btn btn--primary'} disabled={workingId != null || (decision?.action === 'dispute' && !disputeReason.trim())} onClick={() => decision && void updateStatus(decision.doc, decision.action)}>{workingId != null ? 'Đang gửi…' : decision?.action === 'confirm' ? 'Xác nhận' : 'Gửi phản hồi'}</button></>}>
+        {notice?.tone === 'error' && <div className="portal-notice portal-notice--error" role="alert">{notice.text}</div>}
         {decision?.action === 'confirm' ? <p>Sau khi xác nhận, nội dung Giấy báo nợ sẽ được khóa để theo dõi công nợ.</p> : <div className="workflow-form"><label htmlFor="debit-note-dispute-reason">Lý do phản hồi<textarea id="debit-note-dispute-reason" className="input" rows={5} maxLength={1000} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} required /></label><small>{disputeReason.length}/1.000 ký tự</small></div>}
       </Modal>
     </div>

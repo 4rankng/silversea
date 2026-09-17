@@ -87,15 +87,22 @@
 
 /* Inputs */
 .expense-input {
+  box-sizing: border-box;
   width: 100%;
+  min-height: var(--control-default-h);
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 7px 10px;
   color: var(--ink);
   font-family: inherit;
   font-size: var(--control-field-font-size);
+  line-height: 18px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (pointer: coarse) {
+  .expense-input { min-height: var(--control-touch-h); }
 }
 .expense-input:focus {
   outline: none;
@@ -197,29 +204,17 @@
   gap: 10px;
 }
 
-.expense-btn-cancel {
-  padding: 12px 20px;
-  font-size: var(--fs-sm);
-  border-radius: 10px;
-  border: 1px solid var(--line-3);
-  background: transparent;
-  font-weight: 600;
-  color: var(--ink-2);
-  cursor: pointer;
-  text-align: center;
-  width: 100%;
-}
-.expense-btn-cancel:hover {
-  background: var(--bg-2);
-}
-
-/* Save button — uses Global .btn--primary (components/Button.css). Only the
-   full-width layout modifier (.expense-btn-submit) is defined here. */
-
+.expense-btn-cancel,
 .expense-btn-submit {
   width: 100%;
   justify-content: center;
-  padding: 13px 24px;
+}
+
+.expense-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 /* ── Panel header typography ── */
@@ -346,10 +341,6 @@
   }
   .expense-input {
     font-size: var(--control-field-font-size);
-    min-height: 44px;
-  }
-  .expense-btn-submit,
-  .expense-btn-cancel {
     min-height: 44px;
   }
   .expense-upload-zone {

@@ -694,17 +694,13 @@ export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
 ]);
 
 
-// M6.1 slice 2: fuel-reconciliation explanations. When the fuel-AP recon
-// report flags a supplier as 'VARIANCE' for a period, accountants must
-// record an explanation before any of that supplier's fuel expenses in the
-// same period can be approved (approval guard in fuel-recon-guard.service).
-// Unique on (supplierId, periodFrom, periodTo) so the same period can be
-// explained once and re-explained via upsert.
+// Legacy fuel-reconciliation explanations are retained as historical records.
+// No active workflow requires or edits these rows; variance reporting does not
+// block direct fuel expense recording. Keep existing data and uniqueness intact.
 export const fuelReconExplanations = pgTable('fuel_recon_explanations', {
   id: serial('id').primaryKey(),
   supplierId: integer('supplier_id').notNull(),
-  // ISO date range (YYYY-MM-DD). The guard uses calendar-month boundaries
-  // [first-of-month, last-of-month] derived from the expense's invoiceDate.
+  // Historical ISO date range (YYYY-MM-DD) captured with the explanation.
   periodFrom: date('period_from').notNull(),
   periodTo: date('period_to').notNull(),
   // Free-text accountant explanation (e.g. "price changed mid-month",

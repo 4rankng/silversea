@@ -210,7 +210,7 @@ function assertGovernedFinancialPolicyUnchanged(
   const currentSnapshot = buildGovernedConfigSnapshot(GOVERNED_APP_SETTINGS_RESOURCE, current);
   const currentVersion = current.updatedAt ? governedConfigVersionFromUpdatedAt(current.updatedAt) : 0;
   if (currentVersion !== originalVersion || currentSnapshot.fingerprint !== beforeFingerprint) {
-    throw new ApiError(409, 'Cài đặt tài chính đã được người khác cập nhật. Vui lòng tải lại trước khi phê duyệt.');
+    throw new ApiError(409, 'Cài đặt tài chính đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
   }
 }
 

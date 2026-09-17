@@ -267,7 +267,7 @@ export class LedgerService {
     fees: TripLedgerParams['ancillaryFees'],
   ): Array<NonNullable<TripLedgerParams['ancillaryFees']>[number] & { supplierId: number }> {
     return (fees ?? []).filter((fee): fee is NonNullable<TripLedgerParams['ancillaryFees']>[number] & { supplierId: number } => (
-      fee.approvalStatus === 'APPROVED'
+      ['RECORDED', 'APPROVED'].includes(fee.approvalStatus ?? '')
       && fee.settlementMethod === 'COMPANY_DIRECT'
       && fee.supplierId != null
       && Number(fee.buyAmount) > 0
@@ -430,7 +430,7 @@ export class LedgerService {
 
     // ── 6. Ancillary fees — sell side only (customer AR for phí chi hộ) ──
     for (const fee of postableFees) {
-      if (fee.approvalStatus !== 'APPROVED') continue;
+      if (!['RECORDED', 'APPROVED'].includes(fee.approvalStatus ?? '')) continue;
       const sellAmt = Number(fee.sellAmount);
       if (sellAmt <= 0) continue;
       await this.postEntry(tx, {
@@ -561,7 +561,7 @@ export class LedgerService {
     // Mirrors section 6 of postTripCompletion: swap debit↔credit so the net customer
     // contribution from this trip's sell-side fees returns to zero.
     for (const fee of postableFees) {
-      if (fee.approvalStatus !== 'APPROVED') continue;
+      if (!['RECORDED', 'APPROVED'].includes(fee.approvalStatus ?? '')) continue;
       const sellAmt = Number(fee.sellAmount);
       if (sellAmt <= 0) continue;
       await this.postEntry(tx, {

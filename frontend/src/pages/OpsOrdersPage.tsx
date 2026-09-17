@@ -8,6 +8,7 @@ import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStat
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { DateInput } from '../design-system/forms/DateInput';
+import { formatDate } from '../lib/format';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -78,7 +79,7 @@ export default function OpsOrdersPage() {
       </header>
 
       <p className="ops-orders__meta">
-        {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${date}`}
+        {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${formatDate(date)}`}
 
       </p>
 
@@ -131,7 +132,9 @@ export default function OpsOrdersPage() {
               );
             })}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={8} className="ops-orders__empty">Không có lô hàng trong ngày này.</td></tr>
+              <tr><td colSpan={8} className="ops-orders__empty">
+                {search ? <><p>Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.</p><button type="button" className="btn btn--secondary btn--sm" onClick={() => { setSearchInput(''); setSearch(''); }}>Xóa tìm kiếm</button></> : 'Không có lô hàng trong ngày này.'}
+              </td></tr>
             )}
           </tbody>
         </table>

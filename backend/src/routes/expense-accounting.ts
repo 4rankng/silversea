@@ -1,3 +1,4 @@
+import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -49,6 +50,16 @@ router.post('/entries/:kind/:id/update', asyncHandler(async (req, res) => {
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để thử lại an toàn.');
   const result = await runShipmentWrite(req, 'expense-accounting.update', { kind, id, ...input }, async tx => {
     const row = await updateAccountingExpense(tx, getUser(req), kind, id, input);
+    return { body: await getExpenseAccountingEntry(getUser(req), row.sourceKind, row.sourceId, tx), status: 200, auditEntityId: row.id };
+  });
+  sendShipmentWrite(res, result.result);
+}));
+router.post('/entries/:kind/:id/correct', asyncHandler(async (req, res) => {
+  const kind = parse(sourceSchema, req.params.kind); const id = parse(idSchema, req.params.id);
+  const input = parse(expenseAccountingUpdateSchema, req.body);
+  requireShipmentIdempotencyKey(req, 'Cần mã thao tác để không điều chỉnh trùng.');
+  const result = await runShipmentWrite(req, 'expense-accounting.correct', { kind, id, ...input }, async tx => {
+    const row = await correctAccountingExpense(tx, getUser(req), kind, id, input);
     return { body: await getExpenseAccountingEntry(getUser(req), row.sourceKind, row.sourceId, tx), status: 200, auditEntityId: row.id };
   });
   sendShipmentWrite(res, result.result);

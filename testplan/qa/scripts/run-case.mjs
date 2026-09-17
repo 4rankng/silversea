@@ -27,8 +27,8 @@ async function main() {
   const absCase = path.resolve(casePath);
 
   const env = await loadEnv();
-  const today = new Date().toISOString().slice(0, 10);
-  const runId = `${today}_${path.basename(absCase, '.mjs')}`;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const runId = `${timestamp}_${process.pid}_${path.basename(absCase, '.mjs')}`;
   const evidenceDir = path.join(REPO_ROOT, 'testplan', 'qa', 'evidence', runId);
 
   console.log(`[run-case] case=${absCase}`);

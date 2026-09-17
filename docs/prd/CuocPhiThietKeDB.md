@@ -140,5 +140,5 @@ ghi thêm khoản nợ khi bổ sung lịch sử.
 - Biểu cước của khách ngoài Long Minh; nguồn giá dầu dùng chung hay riêng; lịch
   áp giá và cách quy đổi VAT cho các kỳ tương lai.
 
-Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md). Các đầu vào này
+Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở). Các đầu vào này
 không được tự điền từ ví dụ và không làm phát sinh quy trình phê duyệt nội bộ.

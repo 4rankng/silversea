@@ -44,12 +44,15 @@ export default function PortalStatementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
+    setExportError(null);
     api.get<CustomerStatement>(
       `/portal/statement${queryFor(appliedRange.dateFrom, appliedRange.dateTo, undefined, selectedCustomerId)}`,
     )
@@ -57,11 +60,11 @@ export default function PortalStatementPage() {
       .catch(() => { if (active) setError('Không thể tải sao kê công nợ. Vui lòng thử lại.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [appliedRange, customerScopeReady, selectedCustomerId]);
+  }, [appliedRange, customerScopeReady, retryKey, selectedCustomerId]);
 
   const exportStatement = async (format: 'xlsx' | 'pdf') => {
     setExporting(true);
-    setError(null);
+    setExportError(null);
     try {
       const path = `/portal/statement/export${queryFor(
         appliedRange.dateFrom,
@@ -75,7 +78,7 @@ export default function PortalStatementPage() {
         triggerDownload(await api.getBlob(path), 'sao-ke-cong-no.pdf');
       }
     } catch {
-      setError('Không thể xuất sao kê. Vui lòng thử lại.');
+      setExportError('Không thể xuất sao kê. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -115,8 +118,8 @@ export default function PortalStatementPage() {
         </div>
         <div className="portal-page__headline-stat" aria-label="Số dư công nợ hiện tại">
           <span>Số dư hiện tại</span>
-          <strong>{loading ? '—' : `${Number(data?.totalOutstanding ?? 0).toLocaleString('vi-VN')} ₫`}</strong>
-          <small>{data?.customer.name ?? 'Tài khoản đang xem'}</small>
+          <strong>{loading || error || !data ? '—' : `${Number(data.totalOutstanding).toLocaleString('vi-VN')} ₫`}</strong>
+          <small>{loading || error ? 'Tài khoản đang xem' : data?.customer.name ?? 'Tài khoản đang xem'}</small>
         </div>
       </header>
 
@@ -136,15 +139,21 @@ export default function PortalStatementPage() {
           <label>Đến ngày<DateInput value={dateTo} min={dateFrom || undefined} onChange={setDateTo} /></label>
           <div className="portal-actions">
             <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
-            <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
-            <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
+            <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
+            <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
           </div>
         </form>
 
+        {exportError && <div className="portal-notice portal-notice--error" role="alert">{exportError}</div>}
         {loading ? (
           <div className="portal-state" role="status">Đang tải sao kê…</div>
         ) : error ? (
-          <div className="portal-state portal-state--error" role="alert">{error}</div>
+          <div className="portal-state portal-state--error" role="alert">
+            <div>
+              <p>{error}</p>
+              <button type="button" className="portal-button" aria-label="Thử lại sao kê" onClick={() => setRetryKey(value => value + 1)}>Thử lại</button>
+            </div>
+          </div>
         ) : !data ? (
           <EmptyState icon={Landmark} title="Chưa có dữ liệu sao kê" />
         ) : (

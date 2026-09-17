@@ -351,4 +351,35 @@ describe('DriverTripPodPage', () => {
   });
 
   // Offline queue conflict/recovery tests removed — completion now uses direct API calls.
+  it('UI-DC-22 warns on Back only while unsent evidence remains and preserves it on cancel', async () => {
+    renderPage();
+    const props = podSubmissionMock.mock.calls.at(-1)![0];
+    await act(async () => props.onPendingChange?.(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(await screen.findByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Hủy|Ở lại/ }));
+    expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+    expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull();
+    await act(async () => props.onPendingChange?.(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull();
+  });
+
+  it('UI-DC-25 does not silently discard a failed supplementary file when completing saved evidence', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ currentPod: makePod([
+        { fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' },
+      ]) }), isLoading: false, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    await act(async () => podSubmissionMock.mock.calls.at(-1)![0].onPendingChange?.(true));
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến/i }));
+    expect(await screen.findByText('Còn tệp bổ sung chưa gửi. Bỏ tệp này và hoàn thành với chứng từ đã lưu?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+  });
+
 });

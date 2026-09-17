@@ -19,6 +19,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib
 import { formatISODate } from '../../../lib/format';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { matchesCatalogSearch } from './catalog-search';
 import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
 
@@ -42,13 +43,10 @@ export function FleetDriversView() {
   const needle = search.trim().toLowerCase();
   const filtered = useMemo(() => {
     if (!needle) return drivers;
-    return drivers.filter(
-      (d) =>
-        d.name.toLowerCase().includes(needle) ||
-        (d.code ?? '').toLowerCase().includes(needle) ||
-        (d.phone ?? '').toLowerCase().includes(needle) ||
-        (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '' : '').toLowerCase().includes(needle),
-    );
+    return drivers.filter((driver) => {
+      const plate = driver.assignedTruckId ? plateByTruck.get(driver.assignedTruckId) : undefined;
+      return matchesCatalogSearch(needle, [driver.name, driver.code, driver.phone, plate], [driver.code, driver.phone, plate]);
+    });
   }, [drivers, needle, plateByTruck]);
 
   const rows = useMemo(

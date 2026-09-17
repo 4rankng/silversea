@@ -18,6 +18,7 @@ describe('shared control density', () => {
     expect(tokens).toMatch(/--control-compact-h:\s*30px;/);
     expect(tokens).toMatch(/--control-default-h:\s*34px;/);
     expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
+    expect(tokens).toMatch(/--control-mobile-h:\s*var\(--control-touch-h\);/);
     expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--text-control-compact-size\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);
     // Touch values resolve through the chosen product typography scale.

@@ -1,5 +1,7 @@
 # Role: DRIVER — Lái xe
 
+> Current acceptance baseline (2026-09-17): `docs/prd/ManHinhLaiXe.md` governs. Earlier trial restrictions and PASS records below are historical, not evidence for this checkout. Offline queues/replay and hiding all cost entry are retired. Existing AC IDs are retained with corrected expectations.
+
 > Typography update (2026-09-14): earlier numeric font-size expectations in this document are superseded by `testplan/qa/2026-09-14_typography-coherence.md`: 12px body/data/controls/actions, 11px labels/captions, 14px section titles, 16px overlay titles, 18px page titles and 20px principal metrics. Other behavior and layout requirements remain unchanged. Historical measurements below are retained as evidence.
 
 
@@ -10,7 +12,7 @@
 > **Primary pages**:
 > - `/my-trips` — `frontend/src/pages/DriverTripsPage.tsx` (Hành trình của tôi)
 > - `/my-trips/:id` — `frontend/src/pages/DriverTripDetailPage.tsx` (chi tiết chuyến)
-> - `/my-trips/:id/pod` — `frontend/src/pages/DriverTripPodPage.tsx` (e-POD)
+> - `/my-trips/:fulfillmentId/pod` — `frontend/src/pages/DriverTripPodPage.tsx` (e-POD)
 > - `/my-trips/two-orders` — `frontend/src/pages/driver/DriverTwoOrdersPage.tsx`
 > - `/my-earnings` — `frontend/src/pages/DriverEarningsPage.tsx` (Thu nhập)
 > - `/my-payslips` — `frontend/src/pages/driver/DriverPayslipsPage.tsx`
@@ -18,7 +20,7 @@
 >
 > The driver app is a **PWA** (add-to-home-screen on iOS is the primary
 > install path). iOS safe-area-inset, mobile tap targets ≥ 48 px, and
-> offline behavior are first-class concerns.
+> truthful API failures are first-class concerns. Internet is required; no offline queue, automatic mutation replay, heartbeat or health preflight.
 >
 > Cross-cutting rules live in [`README.md`](README.md) §5. The
 > mobile-specific rules in §5 (UI-02, UI-03) are critical for this role.
@@ -66,7 +68,7 @@ to the driver's plate.
    - **Then** the `Hành trình` screen shows exactly three sub-tabs, in this
      order: `Lệnh mới` | `Đã nhận` | `Lịch sử`.
      - `Lệnh mới` — dispatched to this driver, not yet accepted.
-     - `Đã nhận` — accepted and running (trip-start timestamp recorded).
+     - `Đã nhận` — accepted (ORDER_RECEIVED timestamp); acceptance does not assert physical departure.
      - `Lịch sử` — completed or cancelled.
    - The **bottom navigation keeps its existing 4 tabs** — none added or
      removed this phase.
@@ -74,27 +76,11 @@ to the driver's plate.
    - **Spec**: `ManHinhLaiXe.md` §1. **Case**: `TC-LX-NHANLENH-014`.
 
 3. **DRV-LIST-03 — Trip card anatomy**
-   - **Given** a trip card on the journey board (`/my-trips`)
-   - **Then** it shows, in this order (ticket 365943ea):
-     1. **Header**: classification tag (`ĐƠN`/`KẸP`/`KẾT HỢP`/`LẺ`) + scheduled time.
-     2. **Factory name** (headline, 16px bold, brand icon) — the primary
-        identifier a driver scans for.
-     3. **Route** (secondary, 13px, muted icon).
-     4. **Container block** (tinted background): container number + type pill
-        + seal pill, followed by lift port (`Nâng`) and drop port (`Hạ`)
-        side-by-side below.
-     5. **Operation tasks** (`tác vụ`) — chips rendered from the dispatch
-        plan's `operationalNotes` field (e.g. `ĐẶT ĐẦU`, `ĐẢO VỎ`).
-        Hidden when no notes are set.
-     6. **Contact** (name + phone tel-link).
-     7. **Remaining facts** (2-col grid): `Đầu kéo` (truck plate), `Mooc`
-        (trailer plate).
-     8. **Footer CTA**: `Xem chi tiết & Nhận lệnh` on every card
-        (ManHinhLaiXe §2.1 anatomy; the 365943ea conditional-footer variant
-        was superseded by the docx anatomy in the 2026-09-11 merge redo).
-   - **Evidence**: card screenshot at 390px; DOM inspection confirming
-     factory name renders before route; container + ports are visually
-     grouped.
+   - Factory short name (full-name fallback) is the primary identifier; route is secondary.
+   - Time and date share a line; operation and uppercase tasks are distinct from driver notes.
+   - FCL uses one fulfillment/container card with number and type; a missing number still shows the type. LCL does not invent container fields.
+   - Pickup/drop ports remain readable; import drop port is the empty-return port, not the factory address. CTA reflects the actual new/accepted/history state.
+   - Verify long data at 360/390/820/1440px without clipping or repeated decorative cards. Source: PRD §2.2.
 
 4. **DRV-LIST-04 — Container + ports side-by-side**
    - **Then** the container strip and the lift/drop port row are grouped
@@ -128,14 +114,14 @@ to the driver's plate.
      completes delivery; for `KẸP`, both run in parallel with no lock.
    - **Cases**: `TC-LX-NHANLENH-011`, `-012`, `TC-GHEP-009` … `-011`.
 
-> ### ✅ Migration landed — DRV-LIST-02 / -03 PASS (audited 2026-09-09)
+> ### Historical migration evidence — 2026-09-09, superseded by current PRD
 >
 > **Decision 2026-09-07: the docx is authoritative — one card per container.**
 > The list-screen migration landed 2026-09-07; the 2026-09-09 docx audit
 > (`2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md)
 > §1–§2.1) confirms the built screen matches the binding anatomy:
 >
-> | Item | Required (binding) | Evidence |
+> | Item | Historical expectation (not current acceptance) | Evidence |
 > |------|--------------------|----------|
 > | Sub-tabs | `Lệnh mới` / `Đã nhận` / `Lịch sử` with per-tab counts | `DriverTripsPage.tsx` `TABS` + bucket counts; `DriverTripsPage.test.tsx` "shows the New Orders tab by default with tab counts" |
 > | Card unit | 1 card per container | one card per driver-owned fulfillment = 1 container (`shipmentContainers` join); FE test "tags sibling linked cards with KẸP and groups them visually" (2 containers → 2 cards in one combo) |
@@ -186,19 +172,11 @@ matches the logged-in user).
 
 ### Acceptance criteria
 
-1. **DRV-DET-01 — Page identity & layout**
-   - **Then** the page shows:
-     - Header: `Mã chuyến`, `Trạng thái` (with color), customer, route.
-     - Section: `Thông tin xe` (plate, container numbers, seal numbers).
-     - Section: `Hành trình` (pickup → drop-off timeline with current
-       step highlighted).
-     - **No** cost form, **no** `Báo cáo đổ dầu` form, **no**
-       `Nhập chi phí lô hàng` form (per `f61a7c84` and the
-       trial-readiness scope; see regression-r6 finding 1 — 0
-       matches for any cost-form string in the deployed bundle).
-   - **Evidence**: dev-tools `getComputedStyle` / element search for
-     any of: `Nhập chi phí`, `Báo cáo đổ dầu`, `Chi phí lô hàng`,
-     `cost-form` — must return 0 matches in the DOM.
+1. **DRV-DET-01 — Page identity and current work**
+   - Show the assigned work's schedule, factory/address/contact, cargo, pickup/drop ports, tasks, driver notes and configured invoice details according to PRD §3.1.
+   - Do not repeat tractor/trailer or route rows in the detail body. Core tasks/notes remain visible when optional details collapse.
+   - Authorized drivers can enter shipment costs and road expenses for their own eligible trip; completion has no finance reconciliation gate. Fuel evidence remains distinct from a money transaction.
+   - Evidence: actual detail and both expense groups, including an existing trip without shipment linkage.
 
 2. **DRV-DET-02 — Container / seal capture button always works**
    - **Given** the driver is on the trip detail
@@ -217,8 +195,8 @@ matches the logged-in user).
    - **Given** the trip is in `Mới tạo`
    - **When** the user taps the sticky `Nhận lệnh vận chuyển` bar (spec
      §2.2 Khối 7; the old inline `Bắt đầu chuyến` CTA is superseded)
-   - **Then** the trip status flips to `Đang chạy` (trip-start timestamp
-     recorded via the ORDER_RECEIVED milestone → IN_TRANSIT transition),
+   - **Then** the trip status flips to `Đang chạy` (acceptance timestamp
+     recorded via ORDER_RECEIVED → IN_TRANSIT; later transport milestones remain separate),
      an audit-log row is written, the page re-renders the new status
      color, and the footer CTA (`Hoàn tất lệnh vận chuyển` → e-POD
      screen) becomes available.
@@ -227,7 +205,7 @@ matches the logged-in user).
    - **Given** the trip is in `Đang chạy` and is otherwise eligible
      for completion
    - **When** the user taps `Bước tiếp: e-POD`
-   - **Then** the route changes to `/my-trips/:id/pod`. The
+   - **Then** the route changes to `/my-trips/:fulfillmentId/pod`. The
      navigation is a hard client-side push (back button returns to
      `/my-trips/:id`).
    - **Reference**: per Phần 4 ticket 2026-08-28, e-POD lives on its
@@ -241,7 +219,7 @@ matches the logged-in user).
 
 6. **DRV-DET-06 — Completion CTA copy across the two-CTA flow**
    - **Then** the trip detail footer CTA reads `Hoàn tất lệnh vận chuyển`
-     and navigates to the e-POD screen (`/my-trips/:id/pod`); the uppercase
+     and navigates to the e-POD screen (`/my-trips/:fulfillmentId/pod`); the uppercase
      `HOÀN THÀNH CHUYẾN` literal lives only on the e-POD screen and gates
      on both mandatory photos. Supersedes the r4 mixed-case override
      (`Hoàn thành chuyến`) — the docx-authoritative flow puts accept on the
@@ -250,46 +228,20 @@ matches the logged-in user).
      `Hoàn tất lệnh vận chuyển`; the e-POD footer button reads
      `HOÀN THÀNH CHUYẾN` (locked by `DriverTripPodPage.test.tsx`).
 
-7. **DRV-DET-07 — Sync indicator (offline / pending / failed)**
-   - **Given** the device is offline or the request fails
-   - **When** the user triggers a mutation (start, complete, photo
-     upload, e-POD submit)
-   - **Then** the page shows one of:
-     - `Đang đồng bộ…` (in-flight)
-     - `Đang chờ đồng bộ` (queued in IndexedDB)
-     - `Gửi chưa thành công. Hệ thống sẽ thử lại khi có mạng.` (failed,
-       will retry on next online tick)
-   - Per `2a1fa86e` — the SW background sync is wired.
+7. **DRV-DET-07 — API failure and explicit retry**
+   - A business request may fail normally when the API is unavailable. Show the actual failure and retain unsent form values/files in the current screen.
+   - Busy state prevents duplicate clicks; only an explicit retry resends. No IndexedDB queue, background replay, heartbeat or health-check prerequisite.
+   - Restoring connectivity alone produces zero mutation requests. Warn before discarding unsent work.
 
-8. **DRV-DET-08 — Fuel-screenshot image renders (auth-tokened URL)**
-   - **Given** the trip has a fuel-evidence submission
-   - **Then** the `Ảnh nhiên liệu` panel shows the captured pump
-     screenshot — the `<img>` src must carry the JWT query token
-     (`?token=…`). A raw `/api/photos/…` URL 401s in the browser
-     because `<img>` cannot send Authorization headers; backend OCR
-     is unaffected (it reads the stored bytes server-side), so OCR
-     values can be correct while the image still renders broken
-     (regression fixed 2026-08-29).
-   - **Evidence**: dev-tools network — the `photo` request returns
-     `200` (not `401`), and the image is visible on the card.
+8. **DRV-DET-08 — Authenticated evidence remains viewable**
+   - Saved fuel/container/e-POD images must load and open through the existing authorized evidence client; do not prescribe JWT query-string URLs.
+   - Driver ownership applies to direct file URLs as well as the UI. A failed image read gives recoverable feedback, never a broken image presented as success.
+   - Evidence: normal authorized image GET200 and denied other-driver request, with secrets excluded from artifacts.
 
-9. **DRV-DET-09 — Layer-2 detail carries all seven spec blocks**
-   - **Given** a shipment card opened full-screen
-   - **Then** the detail screen contains all seven blocks from
-     `ManHinhLaiXe.md` §2.2, in order:
-     1. **Lộ trình** — `Tuyến đường`, `Nhà máy`, `Cảng nâng`, `Cảng hạ`
-     2. **Hàng hoá** — `Loại Cont`, `Số Cont`, `Số Chì` + `📷 Chụp ảnh Cont/Chì`
-     3. **Liên hệ** — warehouse contact name + a **tap-to-call** phone number
-     4. **Thông tin hoá đơn** — lift/drop invoice info + cleaning invoice info
-     5. **Quy định tại điểm làm hàng** — sourced from the factory's driver note
-     6. **Thông tin xe** — `Biển số Đầu kéo` + `Biển số Mooc`
-     7. **Thao tác** — the sticky CTA (see `DRV-DET-10`)
-   - Block 4 reads `liftFeeInvoice*` / `dropFeeInvoice*` / `cleaningInvoice*`
-     and block 5 reads `strictRules` from the factory master data
-     (`MasterDataNhaMay.md`); a field with no data renders `—`, never
-     `null` / `undefined` / an unlabelled blank.
-   - **Case**: `TC-LX-NHANLENH-016`.
-   - **Evidence**: stitched full-scroll screenshot with the 7 blocks numbered.
+9. **DRV-DET-09 — Detail information hierarchy**
+   - Follow the current PRD §3.1: schedule, full factory identity/address and grouped warehouse contact/phone; cargo and ports; uppercase task tags separated from driver notes; invoice groups and site rules.
+   - No duplicated tractor/trailer, route, warehouse-phone or empty-return-port rows. Missing source data is explicit, never `null`/`undefined`.
+   - Verify tap-to-call, long values, collapse behavior and the final action remaining reachable. Case: TC-LX-NHANLENH-016.
 
 10. **DRV-DET-10 — Primary CTA is sticky at the bottom**
     - **Given** a detail screen taller than the viewport (375 × 667)
@@ -305,24 +257,19 @@ matches the logged-in user).
     - **Then** the camera opens directly (not only a gallery picker) and the
       stored image carries the **actual capture timestamp** — not the upload
       or review time — in `Asia/Ho_Chi_Minh`, within 1 minute of the device
-      clock, and visible on playback.
+      clock, and visible on playback. Gallery/file input with unknown capture time stays unknown; never substitute upload time.
     - **Case**: `TC-LX-NHANLENH-018`.
 
-12. **DRV-DET-12 — Expense module stays hidden behind the feature flag**
-    - **Then** neither the `Nhập chi phí lô hàng` form nor the
-      `Báo cáo đổ dầu` form renders anywhere in the driver app this phase —
-      no button, no menu entry, and no route reachable by typing the URL.
-    - **But** the backend `trips` schema already carries the columns/relations
-      for `Tiền nâng`, `Tiền hạ`, `Chi phí phát sinh`, `Tiền đường`,
-      `Xăng dầu`, and `Hình ảnh biên lai`, ready for the next phase.
-    - **Case**: `TC-LX-NHANLENH-019`.
-    - **Evidence**: screenshots of all 4 tabs + `\d trips` schema dump.
+12. **DRV-DET-12 — Driver costs are available with correct scope**
+   - Both shipment cost and road expense groups are available on the driver's own eligible trip, including pre-existing trips without a shipment link.
+   - Apply AC-CP-LX-01..10: distinguish invoiced customer-recoverable costs from company costs; preserve person owed, real amounts, source linkage and idempotency.
+   - Driver cannot set customer actual charge or payment; do not create fake trips or automatically apply suggested rates. Case: TC-LX-NHANLENH-019.
 
 13. **DRV-DET-13 — Ops step is bypassed this phase**
     - **Given** Điều vận has just assigned a plate
     - **Then** a push notification fires, the card lands in `Lệnh mới`, and
       the driver can tap `Nhận lệnh vận chuyển` **immediately** — no Ops
-      confirmation gate in between. Tapping records the **trip-start
+      confirmation gate in between. Tapping records the **acceptance
       timestamp** and moves the card to `Đã nhận`.
     - **Case**: `TC-LX-NHANLENH-020`.
 
@@ -333,21 +280,19 @@ matches the logged-in user).
 3. Tap container / seal capture 3× to verify the no-dead-end rule.
 4. Tap `Bắt đầu chuyến` and capture the new state.
 5. Tap `Bước tiếp: e-POD` and confirm navigation.
-6. Toggle dev-tools "Offline" and trigger an action; capture the
-   `Đang chờ đồng bộ` indicator.
+6. Fail the business API request; capture the actual error and retained input. Restore connectivity and verify no automatic mutation, then retry explicitly.
 
 ### Regression hooks
 
 - `frontend/src/pages/DriverTripDetailPage.test.tsx` and
   `DriverTripDetailPage.shipmentCostEntry.test.tsx`.
-- The PWA `service-worker` is registered; verify with
-  `navigator.serviceWorker.controller` in dev-tools.
+- Verify no offline queue/replay or connectivity preflight is registered; installed shell behavior must not imply offline business capability.
 
 ---
 
 ## Flow 3 — e-POD (Electronic proof of delivery)
 
-**Route**: `/my-trips/:id/pod`
+**Route**: `/my-trips/:fulfillmentId/pod`
 **Component**: `frontend/src/pages/DriverTripPodPage.tsx`
 **Allow**: `DRIVER` only (`driverOnly` per `App.tsx:353`).
 **Pre-conditions**: the trip is in `Đang chạy`; the driver is the
@@ -364,7 +309,7 @@ owner.
         `Biên bản giao nhận` (must carry stamp / signature) — each slot
         with its own upload control, the `Tải tệp` button for extra
         attachments, and the shared progress bar showing
-        `uploadProgressPercent` (`X%`) that gates completion at 100%.
+        saved-category readiness (`X%`). Network byte progress alone never makes evidence ready.
      4. Footer: `HOÀN THÀNH CHUYẾN` — the single completion action; it
         submits the open e-POD draft then completes the trip, and the
         missing-photo gaps are listed above the button until both are in.
@@ -381,37 +326,26 @@ owner.
 3. **DRV-POD-03 — Completion submits the e-POD then closes the trip**
    - **When** `HOÀN THÀNH CHUYẾN` is tapped with both mandatory photos in
      place and a `DRAFT` submission open
-   - **Then** the toast `Đã gửi e-POD để duyệt` is shown; the trip
+   - **Then** the success message confirms the evidence was saved and the trip
      completes and navigates back to `/my-trips` (the card moves to
      `Lịch sử`); if the submission fails (offline, conflict, rejected)
      completion is aborted — the server's evidence gate rejects an
      incomplete e-POD anyway, so there is no bypass.
 
-4. **DRV-POD-04 — Conflict-recovery banner is live**
-   - **Given** the driver previously had a local edit that
-     conflicts with a server-side change
-   - **When** the page loads after the SW resolves the conflict
-   - **Then** the page shows the banner
-     `Đã tải lại chuyến và bỏ lệnh xung đột. Bấm "HOÀN THÀNH
-     CHUYẾN" để thử lại.` (per `b1161733`; lowercase `xung đột`,
-     uppercase `HOÀN THÀNH CHUYẾN` inside the quote).
-   - **Reference**: regression-r6 finding 3 — banner confirmed
-     live on staging.
-   - **Evidence**: trigger a conflict (mutate the trip from another
-     tab while offline, then come back online); capture the banner.
+4. **DRV-POD-04 — Stale state / reassignment recovery**
+   - If another authorized user changes version, locks or reassigns work, a stale mutation is rejected clearly.
+   - Keep unsent evidence visible; no background replay or silent discard. Refresh authoritative state explicitly; do not retry a command no longer allowed for this driver.
+   - Evidence: controlled conflict and real ownership/version service tests, separately identified.
 
-5. **DRV-POD-05 — Bypass / sync / retry banners**
-   - **Then** the page also shows:
-     - `Lệnh gửi e-POD đang chờ đồng bộ.` (pending).
-     - `Gửi e-POD chưa thành công. Hệ thống sẽ thử lại khi có
-       mạng.` (failed/retry).
+5. **DRV-POD-05 — File failure preserves input and saved evidence**
+   - Failed files remain in their category with filename, explicit retry and discard. Successfully stored files remain viewable and are not uploaded again.
+   - Retry uses the same prepared bytes/capture instant and idempotency identity; reconnect alone sends nothing.
+   - Upload/submit failure leaves completion blocked until both required categories are saved. UI-DC-22/23 cover regressions.
 
-6. **DRV-POD-06 — File picker for Phiếu bãi / Biên bản**
-   - **Given** a PDF or JPG in the test fixture
-   - **When** the user taps `Tải tệp`
-   - **Then** a file picker opens; the selected file is uploaded
-     and shown in the section's list with name, size, and a
-     remove button (until submit).
+6. **DRV-POD-06 — File and camera input**
+   - File picker accepts supported image/PDF files and renders each successfully saved file as readable thumbnail or download entry.
+   - Camera and gallery paths remain distinct: only known shutter time is labeled capture time. Gallery without capture metadata stays unknown; upload time may be shown as upload time.
+   - File rejection is specific and recoverable, with no invented saved state.
 
 7. **DRV-POD-07 — Completion routes through e-POD, never around it**
    - **When** the driver taps `Hoàn tất lệnh vận chuyển` after dropping the
@@ -426,7 +360,7 @@ owner.
    - **Then** the screen exposes exactly two upload areas —
      `Phiếu bãi / Phiếu hạ` and `Biên bản giao nhận` (the latter **must
      carry a stamp or signature**) — and `HOÀN THÀNH CHUYẾN` stays disabled
-     until **both** uploads report **100 %**.
+     until **both categories are saved and openable**, not merely 100% byte progress.
    - Calling the completion API directly with a missing photo is rejected
      server-side; there is no bypass.
    - **Case**: `TC-LX-TIENDO-019`.
@@ -444,7 +378,7 @@ owner.
 10. **DRV-POD-10 — e-POD photos carry the real capture timestamp**
     - **Then** both images carry the **capture** time (not upload, not
       review), in `Asia/Ho_Chi_Minh`, within 1 minute of the device clock,
-      readable both in the driver app and on the accountant's review screen.
+      readable in the driver and accounting evidence views. Gallery files with unknown capture time must not be stamped with selection/upload time.
     - **Case**: `TC-LX-TIENDO-021`.
 
 11. **DRV-POD-11 — Completion moves the card to Lịch sử and syncs dispatch**
@@ -460,9 +394,10 @@ owner.
    `Bước tiếp: e-POD` on the trip detail page.
 2. Capture the e-POD screen.
 3. Upload a 1 MB PDF for `Phiếu bãi`.
-4. Optionally upload a 200 KB JPG for `Biên bản`.
+4. Upload the required 200 KB JPG for `Biên bản giao nhận`.
 5. Type a short note.
-6. Tap `Gửi e-POD để duyệt`; capture the success toast.
+6. Tap `HOÀN THÀNH CHUYẾN`; capture the success message and completed trip.
+   Verify no approval label or intermediate approval state.
 7. (Conflict-recovery) Open the same trip from `ADMIN`'s trip
    detail, change a field, go offline on the driver app, mutate
    the same field, come back online; capture the banner.
@@ -471,7 +406,7 @@ owner.
 
 - `frontend/src/pages/DriverTripPodPage.test.tsx` stays green.
 - The deployed bundle for the e-POD page contains `Phiếu bãi`,
-  `Biên bản`, `Tải tệp`, `Đã gửi e-POD để duyệt`,
+  `Biên bản`, `Tải tệp`, a truthful saved/completed message (no approval wording),
   `Đã tải lại chuyến và bỏ lệnh xung đột. Bấm
   "HOÀN THÀNH CHUYẾN" để thử lại.` (regression-r6 baseline).
 
@@ -489,9 +424,9 @@ owner.
    - **Given** a driver has 2 active trips (rare, but supported)
    - **Then** the page shows both trips in a single screen, each
      card comparable to the trip detail anatomy (DRV-DET-01).
-2. **DRV-2X-02 — Cost form is still hidden**
-   - **Then** the two-orders screen has no `Nhập chi phí` /
-     `Báo cáo đổ dầu` form, same as DRV-DET-01.
+2. **DRV-2X-02 — Paired costs keep a single source**
+   - Each job links to its existing cost surface. Shared paired costs are counted once, not multiplied by cards or containers.
+   - No duplicate-entry form or extra finance gate is introduced on the two-orders view. Source: AC-CP-LX-07.
 
 ### Test steps
 
@@ -509,12 +444,10 @@ owner.
 
 ### Acceptance criteria
 
-1. **DRV-EARN-01 — Earnings breakdown**
-   - **Then** the page shows, for the current month:
-     - Hero KPI: `Tổng thu nhập` (VND).
-     - Breakdown by trip: `Mã chuyến`, `Ngày`, `Khách hàng`,
-       `Tuyến`, `Doanh thu`, `Hoa hồng`, `Phạt`, `Thực nhận`.
-   - **Evidence**: full-page screenshot at 390 × 844.
+1. **DRV-EARN-01 — Truthful earnings breakdown**
+   - Current period shows the authoritative agreed salary/allowance/production amounts, deductions, total, paid and remaining where supplied.
+   - Distinguish tentative, closed and paid; never infer payment from closing or invent commission formulas.
+   - Known zero displays 0 ₫; unavailable amounts remain unknown with error/retry. Currency does not animate through fictitious balances. UI-DC-11/12/20.
 
 2. **DRV-EARN-02 — Currency formatting**
    - **Then** every monetary value uses `Intl.NumberFormat('vi-VN',
@@ -528,8 +461,7 @@ owner.
 
 4. **DRV-EARN-04 — Read-only**
    - **Then** no edit / payout-claim action is exposed. The page
-     is purely informational; the actual payout happens via
-     `/my-payslips` (Flow 6).
+     is purely informational; `/my-payslips` (Flow 6) displays issued payroll and actual payment history; it does not pay money.
 
 ### Test steps
 
@@ -586,51 +518,24 @@ owner.
 
 ---
 
-## Flow 8 — Hành vi ngoại tuyến (Offline behavior)
+## Flow 8 — Online-only failures and safe-area handling
 
-The driver app is a PWA; **offline behavior is a first-class concern**,
-not an edge case.
+Existing DRV-OFF identifiers remain for traceability; they no longer require offline operation.
 
-### Acceptance criteria
-
-1. **DRV-OFF-01 — Service worker registered**
-   - **Given** a PWA installed on iOS
-   - **When** the driver opens the app
-   - **Then** `navigator.serviceWorker.controller` is non-null after
-     the first navigation; subsequent reloads work offline.
-
-2. **DRV-OFF-02 — Trip list caches**
-   - **Given** the driver opened `/my-trips` once while online
-   - **When** the device goes offline
-   - **Then** opening `/my-trips` again still renders the last
-     cached list with an `OfflineBanner` (`Bạn đang ngoại tuyến —
-     dữ liệu có thể cũ`).
-
-3. **DRV-OFF-03 — Mutations queue and replay**
-   - **Given** the device is offline
-   - **When** the driver starts a trip, captures a photo, or
-     submits an e-POD
-   - **Then** the mutation is stored in IndexedDB and a
-     `Đang chờ đồng bộ` indicator is shown. When the device
-     comes back online, the SW replays the queue. On success,
-     the indicator clears; on conflict, the conflict-recovery
-     banner from DRV-POD-04 is shown.
-
-4. **DRV-OFF-04 — Safe-area-inset**
-   - **Then** the bottom nav and any sticky CTA respect
-     `env(safe-area-inset-bottom)` — no overlap with the iOS
-     home indicator. Verify in the iOS simulator at
-     iPhone 14 (with a home indicator) and iPhone 8 (no home
-     indicator).
+1. **DRV-OFF-01 — No connectivity prerequisite**
+   - Invoke the normal business API directly. No heartbeat, health endpoint or offline service-worker command queue gates the action.
+2. **DRV-OFF-02 — Truthful read failure**
+   - Failed list/detail reads show an error and explicit retry, not fabricated empty work or zero money. Previously loaded data must not be advertised as freshly synchronized.
+3. **DRV-OFF-03 — Retained input, manual retry**
+   - Failed writes keep form values and selected evidence in the mounted screen. Reconnecting sends no mutation. Explicit retry uses the original command/file identity and cannot duplicate saved data. Warn before discarding unsent work.
+4. **DRV-OFF-04 — Safe-area and action clearance**
+   - Bottom navigation and final actions respect safe-area insets. At maximum scroll, every action is wholly above the nav and its center hits the real button; 360/390/820/1440px browser checks plus separate physical-device checks.
 
 ### Test steps
 
-1. Open the PWA in iOS Safari / Chrome on Android. Confirm
-   `serviceWorker.controller` is set.
-2. Toggle dev-tools "Offline". Re-open the app, walk the
-   flows. Confirm the indicators.
-3. Toggle back online; confirm the queue drains and the UI
-   reconciles.
+1. Hold/fail a real read, then retry explicitly. Record controlled failure separately from normal API evidence.
+2. Fail a write/upload, inspect retained data; restore connectivity without clicking and assert zero replay.
+3. Retry manually; verify one source record and readable saved evidence. Test cancel/back warning and physical safe-area separately.
 
 ---
 
@@ -655,21 +560,8 @@ not an edge case.
 - Editing customers.
 - Issuing penalties.
 
-## Known open items (carry-over from past rounds)
+## Historical evidence and current execution gaps
 
-- **List-screen migration LANDED (closed 2026-09-09)**: `DriverTripsPage.tsx`
-  now renders **one card per container** with sub-tabs `Lệnh mới` / `Đã nhận`
-  / `Lịch sử`; `DRV-LIST-02` / `-03` PASS (see the *Migration landed* block
-  under Flow 1). The 09-09 audit closed the last two anatomy gaps: the
-  `Giờ đóng / trả:` header label and the 48px footer touch floor
-  (`#root` opt-up, c9012bd0 idiom).
-- **Cost form regression-r6 finding 1**: confirmed 0 cost-form strings
-  in the deployed `DriverTripDetailPage` chunk and 0 matches in the
-  live DOM. ACs DRV-DET-01 and DRV-2X-02 lock this in.
-- **e-POD conflict-recovery banner (r6 finding 3)**: confirmed live on
-  staging via lowercase `xung đột`. AC DRV-POD-04 codifies the exact
-  banner string for future regression.
-- **Sidebar-overlay on the test rig**: the desktop sidebar can
-  occlude buttons when Playwright is run with mouse clicks. Use
-  `page.evaluate("el => el.click()")` or scroll the element into
-  view first. Real-device / real-mouse interactions are unaffected.
+The 2026-09-09 card migration and trial-era r6 observations remain historical evidence only. The old no-cost-form restriction and offline conflict queue have been retired by the current PRD. Do not treat those old PASS statements as proof of the current branch.
+
+Use actual clicks after scrolling the target into view; never bypass a covering overlay with a DOM `el.click()` and call the interaction PASS. Current executed coverage, failed cases and physical-device gaps are recorded in `plans/260917-ui-audit/reports/driver-customer.md` and `testplan/2026-09-17-ui-audit-driver-customer.md`.

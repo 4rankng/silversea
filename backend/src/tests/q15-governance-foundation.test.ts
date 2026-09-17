@@ -3,15 +3,14 @@ import { after, before, describe, it } from 'node:test';
 import { eq, inArray } from 'drizzle-orm';
 import {
   GOVERNANCE_ACTION_KINDS,
-  governanceActionDecisionSchema,
+  directFinancialActionSchema,
   Role,
 } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
-  assertCanApproveGovernanceAction,
-  assertCanCheckGovernanceAction,
+  assertCanApplyGovernanceAction,
   assertCanMakeGovernanceAction,
   getGovernancePolicy,
 } from '../services/governance-policy';
@@ -84,119 +83,86 @@ async function expectApiError(
 
 describe('Q15 shared governance foundation', () => {
   it('validates the shared decision contract', () => {
-    assert.equal(governanceActionDecisionSchema.safeParse({
+    assert.equal(directFinancialActionSchema.safeParse({
       expectedVersion: 1,
       reason: '   ',
     }).success, false);
   });
 
-  it('keeps the shared action-kind enum and common policy catalog in sync', () => {
+  it('has a policy for live action kinds and rejects retired approval commands', () => {
+    const retiredApprovalKinds = new Set(['TRIP_EXPENSE_APPROVAL', 'CREDIT_OVERRIDE_APPROVAL', 'DEBT_OFFSET_APPROVAL',
+      'SHIPMENT_REOPEN_REQUEST', 'SHIPMENT_DELETE_REQUEST', 'CONTAINER_EDIT_REQUEST',
+      'FUEL_INVOICE_APPROVAL', 'ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION']);
     for (const actionKind of GOVERNANCE_ACTION_KINDS) {
+      if (retiredApprovalKinds.has(actionKind)) {
+        assert.throws(() => getGovernancePolicy(actionKind), (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+        continue;
+      }
       const policy = getGovernancePolicy(actionKind);
       assert.equal(policy.actionKind, actionKind);
     }
   });
 
-  it('enforces the accepted Q11 salary-period role mapping', () => {
-    // 2026-09-10 (phê duyệt removed): SALARY_PERIOD_CLOSE stages gate on
-    // capability only — a single actor (MANAGER/ADMIN holding
-    // PERIOD_CLOSE_APPROVE) can run the whole chain. ACCOUNTANT can still make
-    // the request but cannot approve it.
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
-      'SALARY_PERIOD_CLOSE',
-      Role.ACCOUNTANT,
-    ));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
-      'SALARY_PERIOD_CLOSE',
-      Role.MANAGER,
-    ));
-
-    const closeAction = {
-      actionKind: 'SALARY_PERIOD_CLOSE',
-      status: 'PENDING_CHECK',
-      makerId: actors[0]!.id,
-      checkerId: actors[1]!.id,
-    };
-    assert.doesNotThrow(() => assertCanCheckGovernanceAction(closeAction, {
-      actorId: actors[1]!.id,
-      actorRole: Role.MANAGER,
-    }));
-    assert.doesNotThrow(() => assertCanApproveGovernanceAction(closeAction, {
-      actorId: actors[2]!.id,
-      actorRole: Role.ADMIN,
-    }));
-    assert.throws(
-      () => assertCanApproveGovernanceAction(closeAction, {
-        actorId: actors[3]!.id,
-        actorRole: Role.ACCOUNTANT,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
-    );
-
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
-      'SALARY_PERIOD_REOPEN',
-      Role.MANAGER,
-    ));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
-      'SALARY_PERIOD_REOPEN',
-      Role.ADMIN,
-    ));
-    assert.throws(
-      () => assertCanMakeGovernanceAction('SALARY_PERIOD_REOPEN', Role.ACCOUNTANT),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
-    );
+  it('authorizes payroll period close and reopen directly for management', () => {
+    for (const kind of ['SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN']) {
+      for (const role of [Role.MANAGER, Role.ADMIN]) {
+        assert.doesNotThrow(() => assertCanApplyGovernanceAction(kind, role));
+      }
+      assert.throws(
+        () => assertCanApplyGovernanceAction(kind, Role.ACCOUNTANT),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+      );
+    }
   });
 
-  it('assigns O2C close creation to Accounting/CUS and lets Manager/Admin run the whole chain', () => {
-    // 2026-09-11 (maker-checker removal): MANAGER/ADMIN may also create the
-    // close request so one role can run the full in-request lifecycle.
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.ACCOUNTANT));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.CUS));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.MANAGER));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.ADMIN));
+  it('preserves command creation and direct financial close permission boundaries', () => {
+    for (const role of [Role.ACCOUNTANT, Role.CUS, Role.MANAGER, Role.ADMIN]) {
+      assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', role));
+    }
     for (const role of [Role.DRIVER, Role.OPS, Role.DISPATCHER]) {
       assert.throws(
         () => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', role),
         (error: unknown) => error instanceof ApiError && error.statusCode === 403,
       );
     }
-    const action = {
-      actionKind: 'TRIP_FINANCIAL_CLOSE',
-      status: 'PENDING_CHECK',
-      makerId: actors[0]!.id,
-      checkerId: actors[1]!.id,
-    };
-    assert.doesNotThrow(() => assertCanCheckGovernanceAction(action, {
-      actorId: actors[1]!.id,
-      actorRole: Role.ACCOUNTANT,
-    }));
-    assert.doesNotThrow(() => assertCanApproveGovernanceAction(action, {
-      actorId: actors[2]!.id,
-      actorRole: Role.MANAGER,
-    }));
+    for (const role of [Role.MANAGER, Role.ADMIN]) {
+      assert.doesNotThrow(() => assertCanApplyGovernanceAction('TRIP_FINANCIAL_CLOSE', role));
+    }
+    for (const role of [Role.ACCOUNTANT, Role.CUS]) {
+      assert.throws(
+        () => assertCanApplyGovernanceAction('TRIP_FINANCIAL_CLOSE', role),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+      );
+    }
   });
 
-  it('direct apply runs the full check+approve lifecycle on the transient record in-request', async () => {
+  it('NO-APP-15: direct apply records the command without checker or pending approval stages', async () => {
     const action = buildTransientAction({
       deltaSnapshot: { amount: 25, signedAgreementRef: 'Q15-TEST-EVIDENCE' },
     });
+    assert.equal(action.status, 'READY');
     const applied = await applyGovernanceActionDirect({
       action,
       actorId: actors[1]!.id,
       actorRole: Role.MANAGER,
-      apply: async () => ({ applicationResult: { resultingVersion: 2 } }),
+      apply: async (_tx, command) => {
+        assert.equal(command.status, 'READY');
+        assert.equal(command.checkerId, null);
+        assert.equal(command.checkedAt, null);
+        return { applicationResult: { resultingVersion: 2 } };
+      },
     });
     assert.equal(applied.action.status, 'APPROVED');
     assert.equal(applied.action.makerRole, Role.ACCOUNTANT);
-    assert.equal(applied.action.checkerId, actors[1]!.id);
-    assert.equal(applied.action.checkerRole, Role.MANAGER);
+    assert.equal(applied.action.checkerId, null);
+    assert.equal(applied.action.checkerRole, null);
     assert.equal(applied.action.approverId, actors[1]!.id);
     assert.equal(applied.action.approverRole, Role.MANAGER);
     assert.ok(applied.action.appliedAt instanceof Date);
     assert.deepEqual(applied.result, { applicationResult: { resultingVersion: 2 } });
   });
 
-  it('rejects a direct apply from a role without the check/approve capability', async () => {
+  it('rejects a direct apply from a role without business permission', async () => {
     const action = buildTransientAction({
       deltaSnapshot: { amount: 25, signedAgreementRef: 'Q15-TEST-EVIDENCE' },
     });

@@ -4,7 +4,7 @@
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`). Khi cần 2 driver khác nhau cho cùng 1 test, dùng 2 user bất kỳ trong cùng role.
 > **Route chính:** `/my-trips`, `/my-trips/:id`, `/my-earnings`, `/my-payslips`, `/my-penalties`
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667) — ứng dụng lái xe trên điện thoại
-> **PRD nguồn:** Module 08 (`docs/prd/Module8.docx`), O2C Bước 3, TC-MO2C-05
+> **PRD nguồn:** `docs/prd/ManHinhLaiXe.md` hiện hành; Module 08 (`docs/prd/Module8.docx`), O2C Bước 3, TC-MO2C-05
 >
 > **Tổng quan luồng:** Lái xe nhận lệnh điều động từ Điều vận qua ứng dụng mobile, xem chi tiết
 > lệnh (thời gian, tuyến, container, chứng từ), xác nhận nhận lệnh gốc để kích hoạt chuyến từ
@@ -311,11 +311,11 @@
     | Dòng 1 | `Nhà máy` **căn lề trái** · `Cảng nâng` **căn lề phải** |
     | Dòng 2 | `Tuyến đường` **căn lề trái** · `Cảng hạ` **căn lề phải** |
     | Dòng 3 | `Cont: [Số Cont] - [Loại cont]` (ví dụ `40'HC`) |
-    | Footer | `Xem chi tiết & Nhận lệnh` |
+    | Footer | CTA phù hợp trạng thái: nhận lệnh / tiếp tục / xem lịch sử |
   - **Không có badge trạng thái trên thẻ** — Tag ở header + CTA ở footer đã mang trạng
     thái (đúng quy ước dự án: chữ màu, không badge).
   - Không hiển thị `Mã chuyến` monospace hay dòng `Tài xế + 🚚 Biển số` ở Lớp 1;
-    biển số thuộc **Khối 6** của thẻ chi tiết (`TC-LX-NHANLENH-016`).
+    biển số thuộc thông tin tài khoản/xe; không lặp đầu kéo/mooc trong thân chi tiết.
   - Không cuộn ngang; cỡ chữ đọc được ngoài nắng.
 - **Kỳ vọng sai (Fail nếu):** số thẻ ≠ số container (1 thẻ / chuyến, hoặc gộp cont);
   thiếu vùng bất kỳ; sai căn lề trái/phải; thiếu tag hoặc giờ đóng/trả; còn badge trạng thái.
@@ -337,12 +337,12 @@
 - **Kết quả mong đợi (Pass):** đủ 7 khối, đúng nội dung:
   | Khối | Phải có |
   |------|---------|
-  | 1 — Lộ trình | `Tuyến đường`, `Nhà máy`, `Cảng nâng`, `Cảng hạ` |
+  | 1 — Lịch và nơi làm hàng | Ngày giờ kế hoạch; nhà máy đầy đủ, địa chỉ; nâng/hạ đúng nguồn. Hàng nhập: cảng hạ là nơi trả rỗng. |
   | 2 — Hàng hoá | `Loại Cont`, `Số Cont`, `Số Chì` + nút `📷 Chụp ảnh Cont/Chì` |
   | 3 — Liên hệ | Tên người phụ trách kho bãi + **số điện thoại bấm gọi được** |
   | 4 — Hoá đơn | Thông tin xuất HĐ nâng / hạ + HĐ vệ sinh |
   | 5 — Quy định điểm làm hàng | Nội dung lấy từ `note dành cho lái xe` của nhà máy |
-  | 6 — Thông tin xe | `Biển số Đầu kéo` + `Biển số Mooc` |
+  | 6 — Tác vụ và ghi chú | Tác vụ in hoa; ghi chú lái xe tách riêng, luôn thấy. Không lặp đầu kéo/mooc hoặc tuyến trong thân chi tiết. |
   | 7 — Thao tác | Nút `Nhận lệnh vận chuyển` |
   - Khối 4 lấy từ master data nhà máy (`liftFeeInvoice*`, `dropFeeInvoice*`, `cleaningInvoice*`); Khối 5 lấy từ `strictRules`.
   - Trường không có dữ liệu hiển thị `—`, **không** hiện `null` / `undefined` / ô trống không nhãn.
@@ -381,26 +381,19 @@
 - **Kết quả mong đợi (Pass):**
   - Mở được camera trực tiếp (không chỉ chọn từ thư viện).
   - Ảnh lưu kèm **timestamp thực tế lúc chụp**, hiển thị được khi xem lại.
-  - Timestamp khớp giờ thiết bị theo `Asia/Ho_Chi_Minh` (lệch ≤ 1 phút).
+  - Timestamp chụp thật dùng `Asia/Ho_Chi_Minh` (lệch ≤ 1 phút). Ảnh thư viện thiếu giờ chụp giữ trạng thái chưa biết, không đóng giờ tải lên vào ảnh.
 - **Kỳ vọng sai (Fail nếu):** ảnh không có timestamp; timestamp là giờ upload thay vì giờ chụp; sai múi giờ.
 - **Bằng chứng:** ảnh đã tải kèm timestamp + ảnh đồng hồ thiết bị
 
 ---
 
-### TC-LX-NHANLENH-019 — Module chi phí ẩn sau feature flag (phase này)
+### TC-LX-NHANLENH-019 — Nhập chi phí lái xe theo PRD hiện hành
 
-- **Vai trò:** `laixe`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Rà toàn bộ app lái xe (4 tab + thẻ chi tiết + luồng hoàn thành chuyến).
-  2. Tìm form `Nhập chi phí lô hàng` và form `Báo cáo đổ dầu`.
-  3. Kiểm tra schema DB bảng `trips`.
-- **Kết quả mong đợi (Pass):**
-  - **Frontend không render** cả 2 form ở bất kỳ đâu trong phase này.
-  - Không có nút/menu dẫn tới chúng; không có route lộ ra khi gõ URL trực tiếp.
-  - **Backend/DB đã có sẵn** cột/bảng quan hệ để lưu: `Tiền nâng`, `Tiền hạ`, `Chi phí phát sinh`, `Tiền đường`, `Xăng dầu`, `Hình ảnh biên lai`.
-- **Kỳ vọng sai (Fail nếu):** form chi phí/đổ dầu hiện ra; hoặc DB thiếu cột đã cam kết cho phase sau.
-- **Bằng chứng:** ảnh 4 tab + kết quả `\d trips` (hoặc schema dump)
+- **Vai trò:** DRIVER; **Mức độ:** P0.
+- **Nguồn:** `ManHinhLaiXe.md` §8, AC-CP-LX-01..10. Yêu cầu ẩn module của giai đoạn trial đã được thay thế; giữ mã TC để truy vết.
+- **Các bước:** mở chuyến của mình; nhập một phí lô hàng có hóa đơn và một khoản tiền đường/chi công ty; thử thiếu số tiền, lỗi API rồi thử lại; mở lại khoản đã lưu và bổ sung ảnh.
+- **Pass:** phân nhóm đúng; không đặt thực thu/thanh toán thay CUS/kế toán; khoản không thu khách không tạo phải thu; chỉ một nguồn chi phí, ảnh bổ sung không ghi tiền lần nữa. Định mức chỉ gợi ý; thiếu không giả thành 0đ. Đối chiếu chi phí không chặn hoàn thành vận chuyển.
+- **Bằng chứng:** UI, request/response và nguồn chi phí trước/sau; các nghiệp vụ đối chiếu tài chính được kiểm tra tại kế hoạch chi phí riêng.
 
 ---
 
@@ -416,8 +409,8 @@
   - App bắn **Push Notification** ngay khi điều vận gán xe xong.
   - Thẻ xuất hiện ở tab `Lệnh mới`.
   - **Không** có bước xác nhận nào của Ops chắn giữa — lái xe nhận lệnh được ngay.
-  - Bấm nhận ⇒ ghi **Timestamp bắt đầu chạy** ⇒ thẻ chuyển sang tab `Đã nhận`.
-- **Kỳ vọng sai (Fail nếu):** thẻ kẹt chờ Ops xác nhận; không có push; không ghi timestamp bắt đầu.
+  - Bấm nhận ⇒ ghi **Timestamp nhận lệnh** (không suy ra thời điểm xe khởi hành) ⇒ thẻ chuyển sang tab `Đã nhận`.
+- **Kỳ vọng sai (Fail nếu):** thẻ kẹt chờ Ops xác nhận; không có push; không ghi timestamp nhận lệnh.
 - **Bằng chứng:** ảnh push + ảnh thẻ 2 tab trước/sau + giá trị timestamp trong DB
 
 ---
@@ -444,5 +437,5 @@
 | __/__/__ | TC-LX-NHANLENH-016 | | | Lớp 2: thẻ chi tiết 7 khối (P0) | |
 | __/__/__ | TC-LX-NHANLENH-017 | | | Nút sticky đáy màn | |
 | __/__/__ | TC-LX-NHANLENH-018 | | | Ảnh Cont/Chì có timestamp | |
-| __/__/__ | TC-LX-NHANLENH-019 | | | Module chi phí ẩn, DB sẵn cột | |
+| __/__/__ | TC-LX-NHANLENH-019 | | | Nhập phí lô hàng / tiền đường theo quyền | |
 | __/__/__ | TC-LX-NHANLENH-020 | | | Bypass Ops, nhận lệnh ngay (P0) | |

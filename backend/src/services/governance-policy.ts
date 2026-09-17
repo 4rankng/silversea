@@ -1,7 +1,5 @@
 import {
   type GovernanceActionKind,
-  type GovernanceAllowedAction,
-  type GovernanceCapability,
   type GovernanceSubjectType,
   Role,
 } from '@tingting/shared';
@@ -10,59 +8,15 @@ import { ApiError } from '../errors';
 export interface GovernancePolicy {
   actionKind: GovernanceActionKind;
   subjectType: GovernanceSubjectType;
-  makerCapability: GovernanceCapability;
-  checkerCapability: GovernanceCapability;
-  approverCapability: GovernanceCapability;
-  makerRoles?: readonly Role[];
-  checkerRoles?: readonly Role[];
-  approverRoles?: readonly Role[];
-  directorApproverCapability?: GovernanceCapability;
-  amountThreshold?: number;
+  /** Roles allowed to construct this direct command; retained for existing callers. */
+  createRoles: readonly Role[];
+  /** Roles allowed to apply the command to the authoritative domain records. */
+  applyRoles: readonly Role[];
   requiresReason: boolean;
   requiresEvidence: boolean;
   evidenceFields: readonly string[];
   requiresExpectedVersion: boolean;
 }
-
-const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<GovernanceCapability>>> = {
-  [Role.ADMIN]: new Set([
-    'GOVERNANCE_CREATE',
-    'FINANCE_CHECK',
-    'FINANCE_APPROVE_STANDARD',
-    'FINANCE_APPROVE_DIRECTOR',
-    'PRICE_APPROVE',
-    'PERIOD_CLOSE_APPROVE',
-    'RECOVERABLE_COST_REQUEST',
-    'TRIP_CLOSE_REQUEST',
-    'TREASURY_OPERATE',
-    'TREASURY_ADMIN',
-  ]),
-  [Role.MANAGER]: new Set([
-    'GOVERNANCE_CREATE',
-    'FINANCE_CHECK',
-    'FINANCE_APPROVE_STANDARD',
-    'FINANCE_APPROVE_DIRECTOR',
-    'PRICE_APPROVE',
-    'PERIOD_CLOSE_APPROVE',
-    'RECOVERABLE_COST_REQUEST',
-    'TRIP_CLOSE_REQUEST',
-    'TREASURY_OPERATE',
-    'TREASURY_ADMIN',
-  ]),
-  [Role.ACCOUNTANT]: new Set([
-    'GOVERNANCE_CREATE',
-    'FINANCE_CHECK',
-    'FINANCE_APPROVE_STANDARD',
-    'RECOVERABLE_COST_REQUEST',
-    'TRIP_CLOSE_REQUEST',
-    'TREASURY_OPERATE',
-  ]),
-  [Role.DRIVER]: new Set(),
-  [Role.OPS]: new Set(),
-  [Role.CUSTOMER]: new Set(),
-  [Role.DISPATCHER]: new Set(),
-  [Role.CUS]: new Set(['RECOVERABLE_COST_REQUEST', 'TRIP_CLOSE_REQUEST']),
-};
 
 export const GOVERNANCE_POLICY_CATALOG: Readonly<
   Partial<Record<GovernanceActionKind, GovernancePolicy>>
@@ -70,10 +24,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PAYMENT_RECEIPT: {
     actionKind: 'PAYMENT_RECEIPT',
     subjectType: 'PAYMENT_RECEIPT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -82,10 +34,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PAYMENT_REFUND: {
     actionKind: 'PAYMENT_REFUND',
     subjectType: 'PAYMENT_REFUND',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -94,10 +44,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   VENDOR_PAYMENT: {
     actionKind: 'VENDOR_PAYMENT',
     subjectType: 'VENDOR_PAYMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -106,10 +54,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   CARRIER_PAYMENT: {
     actionKind: 'CARRIER_PAYMENT',
     subjectType: 'CARRIER_PAYMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -118,10 +64,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   DRIVER_PAYOUT: {
     actionKind: 'DRIVER_PAYOUT',
     subjectType: 'DRIVER_PAYOUT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -130,10 +74,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   COMMISSION: {
     actionKind: 'COMMISSION',
     subjectType: 'COMMISSION',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -142,10 +84,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PENALTY_CREATE: {
     actionKind: 'PENALTY_CREATE',
     subjectType: 'PENALTY',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -154,10 +94,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PENALTY_CANCEL: {
     actionKind: 'PENALTY_CANCEL',
     subjectType: 'PENALTY',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -166,10 +104,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_AR_ADJUSTMENT: {
     actionKind: 'TRIP_AR_ADJUSTMENT',
     subjectType: 'TRIP',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: true,
     evidenceFields: ['signedAgreementRef'],
@@ -178,9 +114,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_REOPEN: {
     actionKind: 'TRIP_REOPEN',
     subjectType: 'TRIP',
-    makerCapability: 'FINANCE_APPROVE_DIRECTOR',
-    checkerCapability: 'FINANCE_APPROVE_DIRECTOR',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -189,150 +124,28 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SHIPMENT_COST_CONFIRMATION: {
     actionKind: 'SHIPMENT_COST_CONFIRMATION',
     subjectType: 'SHIPMENT',
-    makerCapability: 'FINANCE_CHECK',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_CHECK',
-    makerRoles: [Role.ACCOUNTANT],
-    checkerRoles: [Role.ACCOUNTANT],
-    approverRoles: [Role.ACCOUNTANT],
+    createRoles: [Role.ACCOUNTANT],
+    applyRoles: [Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  SHIPMENT_REOPEN_REQUEST: {
-    actionKind: 'SHIPMENT_REOPEN_REQUEST',
-    subjectType: 'SHIPMENT',
-    makerCapability: 'TRIP_CLOSE_REQUEST',
-    checkerCapability: 'FINANCE_APPROVE_DIRECTOR',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    makerRoles: [Role.CUS],
-    checkerRoles: [Role.ADMIN],
-    approverRoles: [Role.ADMIN],
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  SHIPMENT_DELETE_REQUEST: {
-    actionKind: 'SHIPMENT_DELETE_REQUEST',
-    subjectType: 'SHIPMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'GOVERNANCE_CREATE',
-    approverCapability: 'GOVERNANCE_CREATE',
-    makerRoles: [Role.CUS],
-    checkerRoles: [Role.ADMIN, Role.MANAGER],
-    approverRoles: [Role.ADMIN, Role.MANAGER],
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  CONTAINER_EDIT_REQUEST: {
-    actionKind: 'CONTAINER_EDIT_REQUEST',
-    subjectType: 'SHIPMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'GOVERNANCE_CREATE',
-    approverCapability: 'GOVERNANCE_CREATE',
-    makerRoles: [Role.CUS],
-    checkerRoles: [Role.ADMIN, Role.MANAGER],
-    approverRoles: [Role.ADMIN, Role.MANAGER],
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  TRIP_EXPENSE_APPROVAL: {
-    actionKind: 'TRIP_EXPENSE_APPROVAL',
-    subjectType: 'TRIP_EXPENSE',
-    makerCapability: 'RECOVERABLE_COST_REQUEST',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: true,
-    evidenceFields: ['evidence'],
     requiresExpectedVersion: true,
   },
   FUEL_INVOICE_CORRECTION: {
     actionKind: 'FUEL_INVOICE_CORRECTION',
     subjectType: 'FUEL_INVOICE',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  FUEL_INVOICE_APPROVAL: {
-    actionKind: 'FUEL_INVOICE_APPROVAL',
-    subjectType: 'FUEL_INVOICE',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  CREDIT_OVERRIDE_APPROVAL: {
-    actionKind: 'CREDIT_OVERRIDE_APPROVAL',
-    subjectType: 'CREDIT_OVERRIDE',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  DEBT_OFFSET_APPROVAL: {
-    actionKind: 'DEBT_OFFSET_APPROVAL',
-    subjectType: 'DEBT_OFFSET',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: true,
-    evidenceFields: ['minutesReference'],
     requiresExpectedVersion: true,
   },
   DEBT_OFFSET_CANCEL: {
     actionKind: 'DEBT_OFFSET_CANCEL',
     subjectType: 'DEBT_OFFSET',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  ADVANCE_REQUEST_APPROVAL: {
-    actionKind: 'ADVANCE_REQUEST_APPROVAL',
-    subjectType: 'ADVANCE_REQUEST',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    requiresReason: true,
-    requiresEvidence: false,
-    evidenceFields: [],
-    requiresExpectedVersion: true,
-  },
-  ADVANCE_REQUEST_REJECTION: {
-    actionKind: 'ADVANCE_REQUEST_REJECTION',
-    subjectType: 'ADVANCE_REQUEST',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -341,10 +154,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   ADVANCE_SETTLEMENT_CORRECTION: {
     actionKind: 'ADVANCE_SETTLEMENT_CORRECTION',
     subjectType: 'ADVANCE_SETTLEMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -353,10 +164,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   ADVANCE_SETTLEMENT_REVERSAL: {
     actionKind: 'ADVANCE_SETTLEMENT_REVERSAL',
     subjectType: 'ADVANCE_SETTLEMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -365,10 +174,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   DEBIT_NOTE_ADJUSTMENT: {
     actionKind: 'DEBIT_NOTE_ADJUSTMENT',
     subjectType: 'BILLING_DOCUMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: true,
     evidenceFields: ['originalDocumentId', 'sourceDiffs'],
@@ -377,10 +184,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   DEBIT_NOTE_ISSUE: {
     actionKind: 'DEBIT_NOTE_ISSUE',
     subjectType: 'BILLING_DOCUMENT',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -389,9 +194,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PRICE_CONFIG_CHANGE: {
     actionKind: 'PRICE_CONFIG_CHANGE',
     subjectType: 'PRICE_CONFIG',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'PRICE_APPROVE',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -400,9 +204,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_CONFIRMATION: {
     actionKind: 'SALARY_CONFIRMATION',
     subjectType: 'SALARY_CONFIRMATION',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -411,9 +214,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_REOPEN: {
     actionKind: 'SALARY_REOPEN',
     subjectType: 'SALARY_CONFIRMATION',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -422,14 +224,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_PERIOD_CLOSE: {
     actionKind: 'SALARY_PERIOD_CLOSE',
     subjectType: 'SALARY_PERIOD',
-    // 2026-09-10 (phê duyệt removed): the close applies at request with the
-    // requesting actor, so a single role must be able to run the whole
-    // chain — stage role lists are dropped and stages gate on capability
-    // only. MANAGER/ADMIN (PERIOD_CLOSE_APPROVE) close directly; an
-    // accountant who can make the request cannot self-apply it.
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'PERIOD_CLOSE_APPROVE',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -438,12 +234,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_PERIOD_REOPEN: {
     actionKind: 'SALARY_PERIOD_REOPEN',
     subjectType: 'SALARY_PERIOD',
-    makerCapability: 'PERIOD_CLOSE_APPROVE',
-    checkerCapability: 'PERIOD_CLOSE_APPROVE',
-    approverCapability: 'PERIOD_CLOSE_APPROVE',
-    makerRoles: [Role.MANAGER, Role.ADMIN],
-    checkerRoles: [Role.MANAGER, Role.ADMIN],
-    approverRoles: [Role.MANAGER, Role.ADMIN],
+    createRoles: [Role.ADMIN, Role.MANAGER],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -452,9 +244,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_PERIOD_ADJUSTMENT: {
     actionKind: 'SALARY_PERIOD_ADJUSTMENT',
     subjectType: 'SALARY_PERIOD',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -463,10 +254,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   COMPANY_EXPENSE: {
     actionKind: 'COMPANY_EXPENSE',
     subjectType: 'COMPANY_EXPENSE',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -475,9 +264,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   PROFIT_DISTRIBUTION: {
     actionKind: 'PROFIT_DISTRIBUTION',
     subjectType: 'PROFIT_DISTRIBUTION',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -486,10 +274,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_FINANCIAL_CHANGE: {
     actionKind: 'TRIP_FINANCIAL_CHANGE',
     subjectType: 'TRIP',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_STANDARD',
-    directorApproverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -498,16 +284,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_FINANCIAL_CLOSE: {
     actionKind: 'TRIP_FINANCIAL_CLOSE',
     subjectType: 'TRIP',
-    // 2026-09-11 (maker-checker removal): like SALARY_PERIOD_CLOSE, one role
-    // must be able to run the whole chain in-request. MANAGER/ADMIN close
-    // directly; ACCOUNTANT/CUS can still make the request but cannot
-    // self-apply the director approval.
-    makerCapability: 'TRIP_CLOSE_REQUEST',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    makerRoles: [Role.ACCOUNTANT, Role.CUS, Role.MANAGER, Role.ADMIN],
-    checkerRoles: [Role.ACCOUNTANT, Role.MANAGER, Role.ADMIN],
-    approverRoles: [Role.MANAGER, Role.ADMIN],
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -516,9 +294,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   ANCILLARY_REVENUE_CHANGE: {
     actionKind: 'ANCILLARY_REVENUE_CHANGE',
     subjectType: 'ANCILLARY_REVENUE',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'PRICE_APPROVE',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -527,9 +304,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   FINANCIAL_EXCEPTION: {
     actionKind: 'FINANCIAL_EXCEPTION',
     subjectType: 'SALARY_PERIOD',
-    makerCapability: 'GOVERNANCE_CREATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'FINANCE_APPROVE_DIRECTOR',
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -538,11 +314,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TREASURY_ACCOUNT_SETUP: {
     actionKind: 'TREASURY_ACCOUNT_SETUP',
     subjectType: 'TREASURY_ACCOUNT',
-    makerCapability: 'TREASURY_ADMIN',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'TREASURY_ADMIN',
-    makerRoles: [Role.ADMIN, Role.MANAGER],
-    approverRoles: [Role.ADMIN, Role.MANAGER],
+    createRoles: [Role.ADMIN, Role.MANAGER],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: true,
     evidenceFields: ['openingBalanceEvidence'],
@@ -551,11 +324,8 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TREASURY_CUTOVER: {
     actionKind: 'TREASURY_CUTOVER',
     subjectType: 'TREASURY_ACCOUNT',
-    makerCapability: 'TREASURY_ADMIN',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'TREASURY_ADMIN',
-    makerRoles: [Role.ADMIN, Role.MANAGER],
-    approverRoles: [Role.ADMIN, Role.MANAGER],
+    createRoles: [Role.ADMIN, Role.MANAGER],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: true,
     evidenceFields: ['cutoverEvidence'],
@@ -564,32 +334,14 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TREASURY_MOVEMENT_REVERSAL: {
     actionKind: 'TREASURY_MOVEMENT_REVERSAL',
     subjectType: 'TREASURY_MOVEMENT',
-    makerCapability: 'TREASURY_OPERATE',
-    checkerCapability: 'FINANCE_CHECK',
-    approverCapability: 'TREASURY_ADMIN',
-    approverRoles: [Role.ADMIN, Role.MANAGER],
+    createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+    applyRoles: [Role.ADMIN, Role.MANAGER],
     requiresReason: true,
     requiresEvidence: true,
     evidenceFields: ['reversalEvidence'],
     requiresExpectedVersion: true,
   },
 };
-
-export interface GovernanceActor {
-  actorId: number;
-  actorRole: string;
-}
-
-export interface GovernanceActionActors {
-  actionKind: string;
-  status: string;
-  makerId: number;
-  checkerId: number | null;
-}
-
-function capabilitiesForRole(role: string): ReadonlySet<GovernanceCapability> {
-  return ROLE_CAPABILITIES[role as Role] ?? new Set();
-}
 
 function policyForAction(actionKind: string): GovernancePolicy {
   const policy = GOVERNANCE_POLICY_CATALOG[actionKind as GovernanceActionKind];
@@ -615,103 +367,17 @@ export function getMissingGovernanceEvidence(
   });
 }
 
-function assertCapability(
-  actionKind: string,
-  role: string,
-  stage: 'maker' | 'checker' | 'approver',
-): void {
-  const policy = policyForAction(actionKind);
-  const required = stage === 'maker'
-    ? policy.makerCapability
-    : stage === 'checker'
-      ? policy.checkerCapability
-      : policy.approverCapability;
-  const allowedRoles = stage === 'maker'
-    ? policy.makerRoles
-    : stage === 'checker'
-      ? policy.checkerRoles
-      : policy.approverRoles;
-  if (
-    !capabilitiesForRole(role).has(required)
-    || (allowedRoles && !allowedRoles.includes(role as Role))
-  ) {
-    throw new ApiError(403, 'Bạn không có quyền thực hiện bước phê duyệt này');
+function assertRole(role: string, allowedRoles: readonly Role[]): void {
+  if (!allowedRoles.includes(role as Role)) {
+    throw new ApiError(403, 'Bạn không có quyền thực hiện thao tác này');
   }
 }
 
 export function assertCanMakeGovernanceAction(actionKind: string, role: string): void {
-  assertCapability(actionKind, role, 'maker');
+  assertRole(role, policyForAction(actionKind).createRoles);
 }
 
-export function assertCanCheckGovernanceAction(
-  action: GovernanceActionActors,
-  actor: GovernanceActor,
-): void {
-  assertCapability(action.actionKind, actor.actorRole, 'checker');
-  // 2026-09-10 user directive (remove all phê duyệt flows): maker-checker
-  // segregation is removed — a capable actor may check (and approve) their
-  // own request so governed actions can apply immediately.
-}
-
-export function assertCanApproveGovernanceAction(
-  action: GovernanceActionActors,
-  actor: GovernanceActor,
-): void {
-  assertCapability(action.actionKind, actor.actorRole, 'approver');
-  // 2026-09-10 user directive (remove all phê duyệt flows): maker/approver
-  // segregation is removed — any actor holding the approve capability may
-  // approve, including the maker.
-}
-
-export function canViewGovernanceAction(role: string): boolean {
-  return capabilitiesForRole(role).size > 0;
-}
-
-export function getGovernanceAllowedActions(
-  action: GovernanceActionActors,
-  actor: GovernanceActor,
-): GovernanceAllowedAction[] {
-  if (!canViewGovernanceAction(actor.actorRole)) return [];
-
-  const allowed: GovernanceAllowedAction[] = [];
-  const isAdminPriceConfigMaker = action.actionKind === 'PRICE_CONFIG_CHANGE'
-    && actor.actorRole === Role.ADMIN
-    && action.makerId === actor.actorId;
-  if (
-    actor.actorId === action.makerId
-    && ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(action.status)
-  ) {
-    allowed.push('CANCEL');
-  }
-
-  if (action.status === 'PENDING_CHECK' && actor.actorId !== action.makerId) {
-    try {
-      assertCanCheckGovernanceAction(action, actor);
-      allowed.push('CHECK', 'REJECT', 'RETURN_FOR_EVIDENCE');
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.statusCode !== 403) throw error;
-    }
-  }
-
-  if (
-    (
-      action.status === 'PENDING_APPROVAL'
-      || (action.status === 'PENDING_CHECK' && isAdminPriceConfigMaker)
-    )
-    && (isAdminPriceConfigMaker || actor.actorId !== action.makerId)
-    && (isAdminPriceConfigMaker || actor.actorId !== action.checkerId)
-  ) {
-    try {
-      assertCanApproveGovernanceAction(action, actor);
-      if (isAdminPriceConfigMaker) {
-        allowed.push('APPROVE');
-      } else {
-        allowed.push('APPROVE', 'REJECT', 'RETURN_FOR_EVIDENCE');
-      }
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.statusCode !== 403) throw error;
-    }
-  }
-
-  return allowed;
+/** Direct command authorization. There are no check/approve stages or actor handoffs. */
+export function assertCanApplyGovernanceAction(actionKind: string, role: string): void {
+  assertRole(role, policyForAction(actionKind).applyRoles);
 }

@@ -1,126 +1,53 @@
-/**
- * Wave 2 M3.7 — invoice-required validator tests.
- */
-import { after, describe, test } from 'node:test';
+/** Invoice-category rules remain validation rules after approval removal. */
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
-
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import {
-  checkTripExpenseInvoice,
-  checkExpenseInvoice,
-  assertInvoiceRequired,
-} from '../services/invoice-required.service';
-import { ApiError } from '../errors';
+import type { Tx } from '../services/trip-shared';
+import { buildNoInvoicePolicySnapshotForExpenseInput } from '../services/no-invoice-disbursement.service';
 
-const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const createdFetIds: number[] = [];
-const createdCatIds: number[] = [];
-
-after(async () => {
+async function isolated(run: (tx: Tx) => Promise<void>) {
+  const rollback = new Error('rollback invoice policy fixture');
   try {
-    if (createdFetIds.length > 0) await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, createdFetIds));
-    if (createdCatIds.length > 0) await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, createdCatIds));
-  } catch (err) {
-    console.warn('[m37-invoice-required.test] cleanup partial:', (err as Error).message);
-  }
-  await client.end();
-});
-
-async function mkFet(requiresInvoice: boolean) {
-  const [fet] = await db.insert(s.forwarderExpenseTypes).values({
-    code: `M37-${suffix}-${createdFetIds.length}`,
-    name: `M37 type ${suffix}`,
-    requiresInvoice,
+    await db.transaction(async tx => { await run(tx); throw rollback; });
+  } catch (error) { if (error !== rollback) throw error; }
+}
+async function category(tx: Tx, requiresInvoice: boolean, substituteEvidenceAllowed = true) {
+  const [row] = await tx.insert(s.forwarderExpenseTypes).values({
+    code: `M37-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: 'Invoice category regression', requiresInvoice, substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: ['RECEIPT'],
   }).returning();
-  createdFetIds.push(fet.id);
-  return fet;
+  return row;
 }
 
-async function mkCat(requiresInvoice: boolean) {
-  const [cat] = await db.insert(s.expenseCategories).values({
-    name: `M37 cat ${suffix}-${createdCatIds.length}`,
-    requiresInvoice,
-  }).returning();
-  createdCatIds.push(cat.id);
-  return cat;
+for (const invoiceNumber of [null, '', '   ']) {
+  test(`invoice-required category rejects missing number ${JSON.stringify(invoiceNumber)} at the live input boundary`, () => isolated(async tx => {
+    const type = await category(tx, true);
+    await assert.rejects(
+      buildNoInvoicePolicySnapshotForExpenseInput(tx, { expenseType: type.code, invoiceNumber }),
+      (error: Error & { statusCode?: number }) => error.statusCode === 400 && /bắt buộc phải có hóa đơn/.test(error.message),
+    );
+  }));
 }
 
-describe('M3.7 — checkTripExpenseInvoice', () => {
-  test('requiresInvoice=false → hasInvoice=true regardless of fields', async () => {
-    const fet = await mkFet(false);
-    const result = await checkTripExpenseInvoice(fet.id, null, null);
-    assert.equal(result.requiresInvoice, false);
-    assert.equal(result.hasInvoice, true);
-    assert.equal(result.missingFields.length, 0);
-  });
+test('invoice number uses the ordinary invoiced path without an approval policy', () => isolated(async tx => {
+  const type = await category(tx, true);
+  assert.equal(await buildNoInvoicePolicySnapshotForExpenseInput(tx, { expenseType: type.code, invoiceNumber: 'INV-123' }), null);
+}));
 
-  test('requiresInvoice=true with both fields → hasInvoice=true', async () => {
-    const fet = await mkFet(true);
-    const result = await checkTripExpenseInvoice(fet.id, 'INV-001', '2026-07-01');
-    assert.equal(result.requiresInvoice, true);
-    assert.equal(result.hasInvoice, true);
-  });
+test('optional invoice category retains configured substitute evidence', () => isolated(async tx => {
+  const type = await category(tx, false);
+  const result = await buildNoInvoicePolicySnapshotForExpenseInput(tx, { expenseType: type.code });
+  assert.equal(result?.expenseTypeCode, type.code);
+  assert.deepEqual(result?.allowedEvidenceTypes, ['RECEIPT']);
+  assert.equal(result?.requiredScope, 'TRIP_OR_SHIPMENT');
+}));
 
-  test('requiresInvoice=true without invoiceNumber → missing', async () => {
-    const fet = await mkFet(true);
-    const result = await checkTripExpenseInvoice(fet.id, null, '2026-07-01');
-    assert.equal(result.hasInvoice, false);
-    assert.ok(result.missingFields.includes('invoiceNumber'));
-  });
+test('removing approvals does not allow unconfigured or forbidden no-invoice categories', () => isolated(async tx => {
+  const type = await category(tx, false, false);
+  await assert.rejects(buildNoInvoicePolicySnapshotForExpenseInput(tx, { expenseType: type.code }), /không cho phép/);
+  await assert.rejects(buildNoInvoicePolicySnapshotForExpenseInput(tx, { expenseType: `unknown-${type.code}` }), /chưa được cấu hình/);
+}));
 
-  test('requiresInvoice=true without invoiceDate → missing', async () => {
-    const fet = await mkFet(true);
-    const result = await checkTripExpenseInvoice(fet.id, 'INV-002', null);
-    assert.equal(result.hasInvoice, false);
-    assert.ok(result.missingFields.includes('invoiceDate'));
-  });
-
-  test('requiresInvoice=true with empty string invoiceNumber → missing', async () => {
-    const fet = await mkFet(true);
-    const result = await checkTripExpenseInvoice(fet.id, '  ', '2026-07-01');
-    assert.equal(result.hasInvoice, false);
-    assert.ok(result.missingFields.includes('invoiceNumber'));
-  });
-});
-
-describe('M3.7 — checkExpenseInvoice', () => {
-  test('requiresInvoice=false → OK without invoice', async () => {
-    const cat = await mkCat(false);
-    const result = await checkExpenseInvoice(cat.id, null, null);
-    assert.equal(result.requiresInvoice, false);
-    assert.equal(result.hasInvoice, true);
-  });
-
-  test('requiresInvoice=true with invoice → OK', async () => {
-    const cat = await mkCat(true);
-    const result = await checkExpenseInvoice(cat.id, 'INV-003', '2026-07-01');
-    assert.equal(result.requiresInvoice, true);
-    assert.equal(result.hasInvoice, true);
-  });
-});
-
-describe('M3.7 — assertInvoiceRequired', () => {
-  test('does not throw when invoice present', () => {
-    assert.doesNotThrow(() =>
-      assertInvoiceRequired({ requiresInvoice: true, hasInvoice: true, missingFields: [] }, 'Phí nâng'),
-    );
-  });
-
-  test('does not throw when requiresInvoice is false', () => {
-    assert.doesNotThrow(() =>
-      assertInvoiceRequired({ requiresInvoice: false, hasInvoice: false, missingFields: ['invoiceNumber'] }, 'Phí hạ'),
-    );
-  });
-
-  test('throws 400 when required and missing', () => {
-    assert.throws(
-      () => assertInvoiceRequired(
-        { requiresInvoice: true, hasInvoice: false, missingFields: ['invoiceNumber', 'invoiceDate'] },
-        'Phí lưu kho',
-      ),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 400,
-    );
-  });
-});
+after(async () => { await client.end(); });

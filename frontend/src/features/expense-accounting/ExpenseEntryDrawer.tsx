@@ -15,7 +15,7 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
   onClose: () => void;
 }) {
   const id = useId();
-  const { update } = useExpenseMutations();
+  const { update, correct } = useExpenseMutations();
   const lock = useRef(false);
   const [amount, setAmount] = useState<number | ''>(entry.amount);
   const [charge, setCharge] = useState<number | ''>(entry.customerChargeAmount ?? '');
@@ -31,8 +31,10 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
   const [payerId, setPayerId] = useState(String(entry.payerUserId ?? ''));
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const blocked = entry.locked || entry.status !== 'RECORDED';
-  const disabled = blocked || update.isPending;
+  const [correcting, setCorrecting] = useState(false);
+  const canCorrect = !chargeOnly && Boolean(entry.confirmedAt) && ['OPS', 'DRIVER'].includes(entry.sourceKind) && entry.status === 'RECORDED';
+  const blocked = (!correcting && entry.locked) || entry.status !== 'RECORDED';
+  const disabled = blocked || update.isPending || correct.isPending;
   const close = () => { if (!lock.current) onClose(); };
 
   async function save(event: React.FormEvent) {
@@ -48,15 +50,17 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
     if (!payload.success) { setError('Kiểm tra số tiền, tên khoản chi, ngày hợp lệ và lý do điều chỉnh. Số thu khách có thể bằng 0.'); return; }
     if (!chargeOnly && payerKind === 'USER' && !payerId) { setError('Chọn người thực chi.'); return; }
     lock.current = true; setError(null);
-    try { await update.mutateAsync({ entry, body: payload.data }); onClose(); }
+    try { await (correcting ? correct : update).mutateAsync({ entry, body: payload.data }); onClose(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa lưu được điều chỉnh. Nội dung vẫn được giữ.'); }
     finally { lock.current = false; }
   }
 
   return <Drawer isOpen onClose={close} title={entry.feeName} subtitle={`${entry.shipmentCode} · ${entry.containerNumber ?? 'Phí chung lô'}`}
-    className="expense-accounting-drawer" footer={<><button type="button" className="btn btn--secondary" onClick={close} disabled={update.isPending}>Đóng</button>
-      {!blocked && <button type="submit" form={id} className="btn btn--primary" disabled={disabled}>{update.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}</button>}</>}>
+    className="expense-accounting-drawer" footer={<><button type="button" className="btn btn--secondary" onClick={close} disabled={update.isPending || correct.isPending}>Đóng</button>
+      {canCorrect && !correcting && <button type="button" className="btn btn--primary" onClick={() => setCorrecting(true)}>Điều chỉnh có liên kết</button>}
+      {!blocked && <button type="submit" form={id} className="btn btn--primary" disabled={disabled}>{update.isPending || correct.isPending ? 'Đang lưu…' : correcting ? 'Ghi nhận khoản thay thế' : 'Lưu điều chỉnh'}</button>}</>}>
     <form id={id} onSubmit={(event) => void save(event)} className="expense-accounting-form">
+      {correcting && <p role="status">Giữ nguyên khoản gốc trong lịch sử và ghi khoản thay thế. Phiếu thu/chi, hoàn ứng hoặc chứng từ đã liên kết cần hoàn tác trước.</p>}
       {blocked && <p role="status">Khoản đã khóa hoặc hủy. Xem lịch sử; không sửa đè nguồn tài chính.</p>}
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
       <dl className="expense-accounting-facts">

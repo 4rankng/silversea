@@ -17,7 +17,8 @@ import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOps
  * checks remain authoritative; the container scope stays fixed after create.
  */
 export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; onClose: () => void }) {
-  const { data: typesData } = useOpsExpenseTypes();
+  const typesQuery = useOpsExpenseTypes();
+  const typesData = typesQuery.data;
   const updateExpense = useUpdateOpsExpense();
   const { toast } = useToast();
 
@@ -28,6 +29,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const [typeCode, setTypeCode] = useState(entry.expenseTypeCode);
   const [amount, setAmount] = useState<number | ''>(Number(entry.amount));
   const [paidAt, setPaidAt] = useState(entry.paidAt);
+  const locked = Boolean(entry.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus));
+  const [reason, setReason] = useState('');
   const [note, setNote] = useState(entry.note ?? '');
   const [financial, setFinancial] = useOpsExpenseFinancialDraft({
     costGroup: (entry.costGroup as OpsCostGroup | null) ?? opsGroupForType(entry.expenseTypeCode, entry.requiresInvoice === true),
@@ -67,7 +70,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
     : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
-  const canSubmit = Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
+  const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
+  const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
 
   // Server-side photo count via readback (reactively updates through cache
   // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
@@ -108,6 +112,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           paidAt,
           note: note.trim() || null,
           expectedVersion: entry.version,
+          reason: reason.trim(),
           ...opsFinancialPayload(financial),
         },
       });
@@ -128,10 +133,21 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
+          {locked && <p role="status">Khoản đã đối chiếu. Kế toán điều chỉnh có liên kết tại bảng chi phí; bạn vẫn có thể bổ sung chứng từ.</p>}
+          {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
+          {typesQuery.isError && <div role="alert">
+            <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
+            <button type="button" className="btn-secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+              {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
+            </button>
+          </div>}
+          {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
+          <fieldset disabled={locked || updateExpense.isPending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="ops-form-grid">
             <UuiSelectField
               label="Loại phí"
               required
+              disabled={!typesReady}
               value={typeCode}
               onChange={(event) => setTypeCode(event.target.value)}
               options={expenseTypeOptions}
@@ -149,6 +165,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
           </label>
 
+          {!locked && <label className="ops-form-note">Lý do điều chỉnh *<textarea value={reason} onChange={event => setReason(event.target.value)} required maxLength={1000} rows={2} /></label>}
+          </fieldset>
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">
               <span>
@@ -180,7 +198,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
                 {(existingPhotosData?.items ?? []).map((photo) => (
                   <li key={photo.storageKey}>
                     <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt="Biên lai khoản chi" />
-                    <button type="button" aria-label={`Xóa ảnh biên lai ${photo.id}`} disabled={deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
+                    <button type="button" aria-label={`Xóa ảnh biên lai ${photo.id}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
                   </li>
                 ))}
               </ul>
@@ -191,9 +209,9 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            {!locked && <button type="submit" className="btn-primary" disabled={!canSubmit}>
               {updateExpense.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu
-            </button>
+            </button>}
           </div>
         </footer>
       </form>

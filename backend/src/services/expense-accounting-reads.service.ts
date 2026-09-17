@@ -1,6 +1,10 @@
+import { projectExpenseAdvancesAsOf } from './expense-advance-asof.service';
+import { alias } from 'drizzle-orm/pg-core';
+import { getAdvanceFundedAmounts } from './advance-funding.service';
+import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm';
-import { Role, TxnType, EXPENSE_COST_GROUP_LABELS, DRIVER_EXPENSE_SUGGESTIONS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp,
+import { Role, EXPENSE_COST_GROUP_LABELS, DRIVER_EXPENSE_SUGGESTIONS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp,
   type ExpenseAccountingEntry, type ExpenseAccountingList, type ExpenseListQuery, type ExpenseSourceKind,
   type ExpenseReconciliation, type ExpenseVoucher, type TruckAccountantAssignment } from '@tingting/shared';
 import { db } from '../db';
@@ -13,7 +17,7 @@ import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './
 type Actor = Pick<AuthUser, 'userId' | 'role'>;
 type Executor = Tx | typeof db;
 type Source = ExpenseAccountingSource & { legacy?: boolean };
-type Allocation = { sourceId: number; direction: string; amount: string; status: string; valueDate: string };
+type Allocation = { sourceId: number; direction: string; amount: string; status: string; valueDate: string; reversalValueDate?: string | null };
 const financeRoles: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 const isFinance = (actor: Actor) => financeRoles.includes(actor.role);
 const key = (row: { sourceKind: string; sourceId: number }) => `${row.sourceKind}:${row.sourceId}`;
@@ -36,7 +40,7 @@ export function uniqueExpenseSources(rows: readonly Source[]): Source[] {
 
 export function expensePaymentAmounts(row: Source, allocations: readonly Allocation[], asOfDate: string) {
   if (row.legacy || row.paymentHistoryUnattributed) return { receivedAmount: null, paidAmount: null, outstandingReceivable: null, outstandingPayable: null };
-  const current = allocations.filter(a => a.sourceId === row.id && a.status === 'RECORDED' && a.valueDate <= asOfDate);
+  const current = allocations.filter(a => a.sourceId === row.id && a.valueDate <= asOfDate && (a.status === 'RECORDED' || (a.status === 'REVERSED' && a.reversalValueDate != null && a.reversalValueDate > asOfDate)));
   const receivedAmount = sum(current.filter(a => a.direction === 'IN').map(a => Number(a.amount)));
   const paidAmount = sum(current.filter(a => a.direction === 'OUT').map(a => Number(a.amount)));
   const payableKnown = row.payerKind === 'COMPANY' || (row.payableEntityType != null && row.payableEntityId != null);
@@ -146,7 +150,9 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
     ...trip.flatMap(({ expense: e, trip: t }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'TRIP', sourceId: e.id, version: e.version,
       shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.expenseType, amount: e.buyAmount,
       customerChargeAmount: e.sellAmount, expenseDate: e.expenseDate ?? t.departureDate, invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
-      payerUserId: e.forwarderId, recordedById: e.createdBy, note: e.note, linkedTripExpenseId: e.id })]),
+      payerKind: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'USER' : null,
+      payerUserId: e.forwarderId, payableEntityType: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'FORWARDER' : null,
+      payableEntityId: e.settlementMethod === 'OPS_ADVANCE' ? e.forwarderId : null, recordedById: e.createdBy, note: e.note, linkedTripExpenseId: e.id })]),
   ];
   // A voided canonical source must suppress its still-readable historical source too.
   const hidden = includeVoided ? [] : await executor.select({ sourceKind: s.expenseAccountingSources.sourceKind, sourceId: s.expenseAccountingSources.sourceId, linkedTripExpenseId: s.expenseAccountingSources.linkedTripExpenseId })
@@ -165,6 +171,7 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
   const shipmentIds = ids(sources.map(row => row.shipmentId));
   const tripIds = ids(sources.map(row => row.tripId));
   const userIds = ids(sources.map(row => row.payerUserId));
+  const reversalMovement = alias(s.treasuryMovements, 'expense_reversal');
   const [shipments, trips, users, customers, containers, assignments, locks, allocations, photos, attachments] = await Promise.all([
     executor.select().from(s.shipments).where(inArray(s.shipments.id, shipmentIds)),
     tripIds.length ? executor.select({ trip: { id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, driverId: s.tripsComposite.driverId,
@@ -179,10 +186,11 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
       .leftJoin(s.truckAccountantAssignments, and(eq(s.truckAccountantAssignments.truckId, s.trucks.id), isNull(s.truckAccountantAssignments.endedAt))),
     executor.select({ shipmentId: s.shipmentAccountingLocks.shipmentId }).from(s.shipmentAccountingLocks).where(and(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds), isNull(s.shipmentAccountingLocks.releasedAt))),
     executor.select({ sourceId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount, direction: s.treasuryMovements.direction,
-      status: s.expenseCashVouchers.status, valueDate: s.treasuryMovements.valueDate }).from(s.expenseCashAllocations)
+      status: s.expenseCashVouchers.status, valueDate: s.treasuryMovements.valueDate, reversalValueDate: reversalMovement.valueDate }).from(s.expenseCashAllocations)
       .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
       .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
-      .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, sources.filter(row => !row.legacy).map(row => row.id)), eq(s.expenseCashVouchers.status, 'RECORDED'), lte(s.treasuryMovements.valueDate, asOfDate))),
+      .leftJoin(reversalMovement, and(eq(reversalMovement.reversalOfId, s.treasuryMovements.id), eq(reversalMovement.status, 'POSTED'), eq(reversalMovement.amount, s.treasuryMovements.amount)))
+      .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, sources.filter(row => !row.legacy).map(row => row.id)), lte(s.treasuryMovements.valueDate, asOfDate))),
     executor.select().from(s.opsExpensePhotos).where(inArray(s.opsExpensePhotos.opsExpenseId, sources.filter(row => row.sourceKind === 'OPS').map(row => row.sourceId))),
     executor.select().from(s.expenseAccountingEvidence).where(inArray(s.expenseAccountingEvidence.expenseAccountingSourceId, sources.filter(row => !row.legacy).map(row => row.id))),
   ]);
@@ -249,6 +257,10 @@ export async function getExpenseVoucher(actor: Actor, id: number, tx?: Tx): Prom
   const [stored] = await executor.select().from(s.expenseCashVouchers).where(eq(s.expenseCashVouchers.id, id));
   if (!stored) throw new ApiError(404, 'Không tìm thấy phiếu thu/chi.');
   const voucher = await hydrateExpenseCashVoucher(executor, stored);
+  const [reversalMovement] = await executor.select().from(s.treasuryMovements)
+    .where(eq(s.treasuryMovements.reversalOfId, stored.treasuryMovementId));
+  const reversal = reversalMovement ? { valueDate: reversalMovement.valueDate, physicalReference: reversalMovement.physicalReference,
+    amount: Number(reversalMovement.amount), reason: stored.reversalReason, reversedById: stored.reversedById } : null;
   const entries = await executor.select({ sourceKind: s.expenseAccountingSources.sourceKind, sourceId: s.expenseAccountingSources.sourceId,
     expectedVersion: s.expenseCashAllocations.sourceVersion, amount: s.expenseCashAllocations.amount }).from(s.expenseCashAllocations)
     .innerJoin(s.expenseAccountingSources, eq(s.expenseAccountingSources.id, s.expenseCashAllocations.expenseAccountingSourceId))
@@ -262,7 +274,7 @@ export async function getExpenseVoucher(actor: Actor, id: number, tx?: Tx): Prom
       : voucher.counterpartyType === 'FORWARDER'
         ? await executor.select({ name: s.users.fullName, username: s.users.username }).from(s.users).where(eq(s.users.id, voucher.counterpartyId))
         : await executor.select({ name: s.suppliers.name }).from(s.suppliers).where(eq(s.suppliers.id, voucher.counterpartyId));
-  return { ...voucher, counterpartyName: counterparty?.name ?? (counterparty && 'username' in counterparty ? counterparty.username : null), treasuryAccountName: account?.name ?? null, unappliedAmount: Number(receipt?.unappliedAmount ?? 0), amount: Number(voucher.amount), createdAt: voucher.createdAt.toISOString(), entries: entries.map(entry => ({ ...entry, amount: Number(entry.amount) })) };
+  return { ...voucher, reversal, counterpartyName: counterparty?.name ?? (counterparty && 'username' in counterparty ? counterparty.username : null), treasuryAccountName: account?.name ?? null, unappliedAmount: Number(receipt?.unappliedAmount ?? 0), amount: Number(voucher.amount), createdAt: voucher.createdAt.toISOString(), entries: entries.map(entry => ({ ...entry, amount: Number(entry.amount) })) };
 }
 export async function listExpenseVouchers(actor: Actor, tx?: Tx) {
   requireFinance(actor); const executor = tx ?? db;
@@ -275,19 +287,29 @@ export async function getExpenseReconciliation(actor: Actor, id: number, tx?: Tx
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
   const [row] = await executor.select().from(s.expenseReconciliations).where(and(eq(s.expenseReconciliations.id, id), actor.role === Role.OPS ? eq(s.expenseReconciliations.opsUserId, actor.userId) : undefined));
   if (!row) throw new ApiError(404, 'Không tìm thấy bảng hoàn ứng.');
-  const entries = await executor.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.reconciliationId, id));
+  let entries = await executor.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.reconciliationId, id));
+  if (row.voidedAt) {
+    const [release] = await executor.select({ payload: s.auditLogs.payload }).from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'expense_reconciliation'), eq(s.auditLogs.entityId, id), eq(s.auditLogs.message, 'EXPENSE_RECONCILIATION_RELEASED'))).limit(1);
+    const snapshot = release?.payload as { sources?: typeof entries } | undefined;
+    entries = snapshot?.sources ?? [];
+  }
   const sourceIds = entries.map(entry => entry.id);
-  const [payments, refunds] = await Promise.all([
+  const [payments, refunds] = row.voidedAt ? [[], []] : await Promise.all([
+    // A released batch had no active cash at release; later payments belong to its replacement.
     executor.select({ amount: s.expenseCashAllocations.amount }).from(s.expenseCashAllocations).innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
       .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
       .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, sourceIds), eq(s.expenseCashVouchers.status, 'RECORDED'), eq(s.treasuryMovements.direction, 'OUT'))),
     executor.select({ amount: s.treasuryMovements.amount }).from(s.expenseCashVouchers).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId)).where(and(eq(s.expenseCashVouchers.reconciliationId, id), eq(s.expenseCashVouchers.status, 'RECORDED'), eq(s.treasuryMovements.direction, 'IN'))),
   ]);
+  const advances = await executor.select({ advanceRequestId: s.expenseReconciliationAdvances.advanceRequestId, amount: s.expenseReconciliationAdvances.amount, reason: s.advanceRequests.reason })
+    .from(s.expenseReconciliationAdvances).leftJoin(s.advanceRequests, eq(s.advanceRequests.id, s.expenseReconciliationAdvances.advanceRequestId))
+    .where(eq(s.expenseReconciliationAdvances.reconciliationId, id)).orderBy(asc(s.expenseReconciliationAdvances.advanceRequestId));
   const initialDifference = round2dp(Number(row.amount) - Number(row.advanceAmount));
   const paidAmount = sum(payments.map(payment => Number(payment.amount))), refundedAmount = sum(refunds.map(refund => Number(refund.amount)));
-  return { ...row, amount: Number(row.amount), advanceAmount: Number(row.advanceAmount), initialDifference, paidAmount, refundedAmount,
-    remainingDifference: round2dp(initialDifference - paidAmount + refundedAmount), createdAt: row.createdAt.toISOString(),
-    entries: entries.map(entry => ({ sourceKind: entry.sourceKind, sourceId: entry.sourceId, expectedVersion: entry.version })) };
+  return { ...row, voidedAt: row.voidedAt?.toISOString() ?? null, amount: Number(row.amount), advanceAmount: Number(row.advanceAmount), initialDifference, paidAmount, refundedAmount,
+    remainingDifference: row.voidedAt ? 0 : round2dp(initialDifference - paidAmount + refundedAmount), createdAt: row.createdAt.toISOString(),
+    entries: entries.map(entry => ({ sourceKind: entry.sourceKind, sourceId: entry.sourceId, expectedVersion: entry.version })),
+    advances: advances.map(advance => ({ ...advance, amount: Number(advance.amount) })) };
 }
 export async function listExpenseReconciliations(actor: Actor, tx?: Tx) {
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
@@ -298,7 +320,7 @@ export async function listExpenseReconciliations(actor: Actor, tx?: Tx) {
 }
 
 export interface ExpenseAccountingReportRow { entityType: string; entityId: number; entityName: string; carrierCode: string | null;
-  lift: number; drop: number; other: number; total: number; settled: number | null; outstanding: number | null }
+  lift: number; drop: number; other: number; total: number; settled: number | null; outstanding: number | null; entries: ExpenseAccountingEntry[] }
 const compareExpenseReportRows = (a: ExpenseAccountingReportRow, b: ExpenseAccountingReportRow) =>
   a.entityName.localeCompare(b.entityName, 'vi') || a.entityType.localeCompare(b.entityType) || a.entityId - b.entityId;
 export function expenseAccountingReportRows(entries: readonly ExpenseAccountingEntry[], direction: 'IN' | 'OUT') {
@@ -309,10 +331,12 @@ export function expenseAccountingReportRows(entries: readonly ExpenseAccountingE
     const carrierReport = direction === 'OUT' && row.carrierCode != null && row.sourceKind !== 'INVOICE';
     const entityType = direction === 'IN' ? 'CUSTOMER' : carrierReport ? 'CARRIER' : row.payableEntityType!;
     const entityId = direction === 'IN' ? row.customerId : carrierReport ? Number(row.carrierCode!.split(':')[1] ?? 0) : row.payableEntityId!;
-    const groupKey = `${entityType}:${entityId}:${direction === 'OUT' ? row.carrierCode ?? '' : ''}`;
+    const carrierCode = carrierReport ? row.carrierCode : null;
+    const groupKey = `${entityType}:${entityId}:${carrierCode ?? ''}`;
     const group = groups.get(groupKey) ?? { entityType, entityId, entityName: direction === 'IN' ? row.customerName : carrierReport ? row.carrierName! : row.payerName ?? `${entityType} #${entityId}`,
-      carrierCode: direction === 'OUT' ? row.carrierCode : null, lift: 0, drop: 0, other: 0, total: 0, settled: 0, outstanding: 0 };
+      carrierCode, lift: 0, drop: 0, other: 0, total: 0, settled: 0, outstanding: 0, entries: [] };
     const category = row.costGroup === 'INVOICED_LIFT' ? 'lift' : row.costGroup === 'INVOICED_DROP' ? 'drop' : 'other';
+    group.entries.push(row);
     group[category] = sum([group[category], amount]); group.total = sum([group.total, amount]);
     const cash = direction === 'IN' ? row.receivedAmount : nullableSum([row.paidAmount, row.allocatedAdvanceAmount]);
     const remaining = direction === 'IN' ? row.outstandingReceivable : row.outstandingPayable;
@@ -327,7 +351,8 @@ export function expenseAccountingReportRows(entries: readonly ExpenseAccountingE
 export async function getExpenseAccountingReport(actor: Actor, query: ExpenseListQuery & { direction: 'IN' | 'OUT'; asOfDate?: string }, tx?: Tx) {
   requireFinance(actor); const asOfDate = query.asOfDate ?? vietnamToday();
   const executor = tx ?? db;
-  const rows = filterExpenseEntries(await loadExpenseAccountingEntries(actor, query, executor, asOfDate), actor, query);
+  const current = await loadExpenseAccountingEntries(actor, query, executor, asOfDate);
+  const rows = filterExpenseEntries(await projectExpenseAdvancesAsOf(executor, current, asOfDate), actor, query);
   const report = expenseAccountingReportRows(rows, query.direction);
   const supplierIds = [...new Set(report.items.filter(row => row.entityType === 'VENDOR').map(row => row.entityId))];
   if (supplierIds.length) {
@@ -345,27 +370,25 @@ export async function getExpenseAccountingReport(actor: Actor, query: ExpenseLis
 export async function getExpenseAccountingCatalog(actor: Actor, tx?: Tx) {
   requireRead(actor); const executor = tx ?? db;
   const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: DRIVER_EXPENSE_SUGGESTIONS, opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
-  if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [] };
-  const [treasuryAccounts, people, truckAssignments, advances, oldAllocations, newAllocations] = await Promise.all([
+  if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [] };
+  const [treasuryAccounts, people, truckAssignments, advances] = await Promise.all([
     executor.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE')).orderBy(asc(s.treasuryAccounts.name)),
     executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
       .where(and(inArray(s.users.role, [Role.ACCOUNTANT, Role.OPS, Role.DRIVER]), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)))
       .then(rows => rows.map(person => ({ ...person, name: person.name?.trim() || person.username }))),
     listTruckAccountantAssignments(actor, tx),
-    executor.select({ advance: s.advanceRequests, fundedAmount: s.treasuryMovements.amount }).from(s.advanceRequests)
-      .innerJoin(s.ledger, and(eq(s.ledger.txnId, s.advanceRequests.id), eq(s.ledger.txnType, TxnType.OPS_ADVANCE)))
-      .innerJoin(s.treasuryMovements, and(eq(s.treasuryMovements.ledgerEntryId, s.ledger.id), eq(s.treasuryMovements.status, 'POSTED'), eq(s.treasuryMovements.direction, 'OUT'), isNull(s.treasuryMovements.reversalOfId)))
-      .where(eq(s.advanceRequests.status, 'RECORDED')),
-    executor.select({ id: s.advanceSettlementRequests.advanceRequestId, amount: s.advanceSettlementRequests.allocatedAmount }).from(s.advanceSettlementRequests)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId)).where(eq(s.advanceSettlements.status, 'RECORDED')),
-    executor.select({ id: s.expenseReconciliationAdvances.advanceRequestId, amount: s.expenseReconciliationAdvances.amount }).from(s.expenseReconciliationAdvances),
+    executor.select().from(s.advanceRequests).where(eq(s.advanceRequests.status, 'RECORDED')),
   ]);
+  const ids = advances.map(row => row.id);
+  const [funded, consumed] = await Promise.all([getAdvanceFundedAmounts(executor, ids), getAdvanceConsumedAmounts(executor, ids)]);
+  const pendingAdvances = advances.filter(row => !funded.has(row.id)).map(row => ({ id: row.id, opsUserId: row.requesterId,
+    amount: Number(row.amount), reason: row.reason, date: row.createdAt.toISOString().slice(0, 10), name: row.requesterNameSnapshot }));
   const eligible = new Map<number, { id: number; opsUserId: number; amount: number; remainingAmount: number; date: string; name: string | null }>();
-  for (const { advance, fundedAmount } of advances) {
-    const allocated = sum([...oldAllocations, ...newAllocations].filter(row => row.id === advance.id).map(row => Number(row.amount)));
-    const amount = Math.min(Number(advance.amount), Number(fundedAmount));
+  for (const advance of advances) {
+    const allocated = consumed.get(advance.id) ?? 0;
+    const amount = Math.min(Number(advance.amount), (funded.get(advance.id) ?? 0));
     const remainingAmount = round2dp(amount - allocated);
     if (remainingAmount > 0) eligible.set(advance.id, { id: advance.id, opsUserId: advance.requesterId, amount, remainingAmount, date: advance.createdAt.toISOString().slice(0, 10), name: advance.requesterNameSnapshot });
   }
-  return { ...base, accounts: treasuryAccounts, staff: people, suppliers: await executor.select().from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')), expenseTypes: await executor.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.status, 'ACTIVE')), treasuryAccounts, accountants: people.filter(person => person.role === Role.ACCOUNTANT), opsUsers: people.filter(person => person.role === Role.OPS), truckAssignments, advances: [...eligible.values()] };
+  return { ...base, accounts: treasuryAccounts, staff: people, suppliers: await executor.select().from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')), expenseTypes: await executor.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.status, 'ACTIVE')), treasuryAccounts, accountants: people.filter(person => person.role === Role.ACCOUNTANT), opsUsers: people.filter(person => person.role === Role.OPS), truckAssignments, pendingAdvances, advances: [...eligible.values()] };
 }

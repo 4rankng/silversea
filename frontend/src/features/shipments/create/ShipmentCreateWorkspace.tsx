@@ -28,6 +28,7 @@ import {
   createContainerFromPrevious,
   createEmptyContainer,
   getShipmentCreateReadiness,
+  resetCustomerSite,
   type CargoMode,
   type SaveIntent,
   type ShipmentContainerDraft,
@@ -272,7 +273,16 @@ export function ShipmentCreateWorkspace() {
   }
 
   function selectCustomer(value: string) {
-    setForm((current) => ({ ...current, customerId: value, operationalSiteId: '', pickupWarehouseSiteId: '' }));
+    // React Aria can select the current key again. Clearing its catalog here
+    // would leave it empty because the customer-scoped fetch would not rerun.
+    if (value === form.customerId) return;
+    setContainers((current) => current.map((row) => ({ ...row, ...resetCustomerSite(row, sites) })));
+    setForm((current) => ({
+      ...current,
+      ...resetCustomerSite(current, sites),
+      customerId: value,
+      pickupWarehouseSiteId: '',
+    }));
     setSites([]);
     clearFeedback();
   }
@@ -455,6 +465,8 @@ export function ShipmentCreateWorkspace() {
    */
   function handleSiteCreated(site: OperationalSite) {
     setCreateSiteDialog({ open: false, siteType: site.siteType });
+    // Select from the saved response immediately, even if catalog refresh fails.
+    setSites((current) => [...current.filter((item) => item.id !== site.id), site]);
     setSitesVersion((version) => version + 1);
     if (site.siteType === 'FACTORY') {
       const derivedRouteId = site.routeId != null ? String(site.routeId) : '';
@@ -667,7 +679,7 @@ export function ShipmentCreateWorkspace() {
                 label="Nhà máy"
                 value={form.operationalSiteId}
                 onChange={selectOperationalSite}
-              options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))}
+                options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.code} ${site.name} ${site.address ?? ''}` }))}
                 placeholder={sitesLoading ? 'Đang tải…' : !form.customerId && !form.isAdHoc ? 'Chọn khách hàng trước' : form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Gõ chọn'}
                 disabled={(!form.customerId && !form.isAdHoc) || sitesLoading || Boolean(saving)}
                 error={issueByField.get('shipment-operational-site')}
@@ -816,7 +828,7 @@ export function ShipmentCreateWorkspace() {
                       options={operationalSites.map((site) => ({
                         value: String(site.id),
                         label: site.shortName || site.name,
-                        searchText: `${site.name} ${site.address ?? ''}`,
+                        searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
                       }))}
                       placeholder="Chọn nhà máy"
                       disabled={!form.customerId || sitesLoading || Boolean(saving)}
@@ -930,7 +942,7 @@ export function ShipmentCreateWorkspace() {
                   label="Kho lấy hàng"
                   value={form.pickupWarehouseSiteId}
                   onChange={(value) => update('pickupWarehouseSiteId', value)}
-                  options={warehouseSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))}
+                  options={warehouseSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.code} ${site.name} ${site.address ?? ''}` }))}
                   placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn kho lấy hàng'}
                   disabled={!form.customerId || sitesLoading || Boolean(saving)}
                   error={issueByField.get('shipment-pickup-warehouse')}

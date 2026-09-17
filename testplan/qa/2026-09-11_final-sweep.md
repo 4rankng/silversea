@@ -1,5 +1,7 @@
 # Final QA sweep plan — board-clear gate (2026-09-11)
 
+> **Historical cycle — superseded 2026-09-17:** keep this record for its dated decisions/evidence only. Retained approval exceptions, maker/checker chains (including automatic chains), pending queues and approve/reject instructions in this old cycle are not current product requirements. Run [NO-APP-01..23](../2026-09-17-no-approval-workflows.md) and current role/flow cases instead. Historical PASS does not verify the new criteria.
+
 **Run:** Team A cycle 1 · **Drafted by:** architect (reassigned from unresponsive QA per PM 12:30, authoritative per PM 12:31) · **Supersedes:** any competing sweep draft (merge, don't fork)
 **Trigger:** ALL kanban tickets done → `make demo` staging cut → this plan executes ON STAGING. **No authenticated prod access, ever.**
 **Deadline frame:** sweep must fit before the 17:50 SGT user report; internal target = board clear by 16:45.

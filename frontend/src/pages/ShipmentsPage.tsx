@@ -35,13 +35,13 @@ import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContain
 import { CusShipmentRow } from '../features/shipments/cus/CusShipmentRow';
 import { CUS_PAGE_SIZE, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
+import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
-
 const BUCKETS = Object.values(ShipmentCusBucket);
 export default function ShipmentsPage() {
   const navigate = useNavigate();
@@ -510,7 +510,7 @@ export default function ShipmentsPage() {
                       editing={quickEditDraft?.shipmentId === item.id}
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}
-                      onStartQuickEdit={startQuickEdit}
+                      onStartQuickEdit={(item, field) => item.cargoMode === 'FCL' && field === 'identity' ? navigate(factoryDetailPath(item)) : startQuickEdit(item, field)}
                       onOpenAction={actions.openAction}
                       onOpenDetail={openShipmentDetail}
                     />

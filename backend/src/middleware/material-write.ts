@@ -85,6 +85,8 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'shipments.invoice-records.save', pattern: /^\/api\/shipments\/[^/]+\/invoice-records$/ },
   { method: 'POST', endpoint: 'shipments.container-deposits.save', pattern: /^\/api\/shipments\/[^/]+\/container-deposits$/ },
   { method: 'POST', endpoint: 'expense-accounting.create', pattern: /^\/api\/expense-accounting\/entries$/ },
+  { method: 'POST', endpoint: 'expense-accounting.correct', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/correct$/ },
+  { method: 'POST', endpoint: 'expense-reconciliation.release', pattern: /^\/api\/expense-accounting\/reconciliations\/[^/]+\/release$/ },
   { method: 'POST', endpoint: 'expense-accounting.update', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/update$/ },
   { method: 'POST', endpoint: 'expense-accounting.confirm', pattern: /^\/api\/expense-accounting\/confirm$/ },
   { method: 'POST', endpoint: 'expense-accounting.assign', pattern: /^\/api\/expense-accounting\/assignments$/ },

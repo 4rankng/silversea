@@ -896,3 +896,21 @@
 @media (prefers-reduced-motion: reduce) {
   .dispatch-tag-manager { animation: none; }
 }
+
+/* Keep mouse-driven planning compact; touch users need reliable tag targets. */
+@media (pointer: coarse) {
+  .dispatch-assignment-dialog__notes-tag,
+  .dispatch-assignment-dialog__notes-manage-btn,
+  .dispatch-assignment-dialog__notes-add-row input,
+  .dispatch-assignment-dialog__notes-add-row button,
+  .dispatch-tag-manager button,
+  .dispatch-tag-manager input {
+    min-height: var(--control-touch-h, 44px);
+  }
+
+  .dispatch-assignment-dialog__notes-manage-btn,
+  .dispatch-assignment-dialog__notes-add-row button,
+  .dispatch-tag-manager button {
+    min-width: var(--control-touch-h, 44px);
+  }
+}

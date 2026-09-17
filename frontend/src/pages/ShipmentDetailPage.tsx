@@ -301,7 +301,7 @@ export default function ShipmentDetailPage() {
 
         {/* Documents */}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
-          <><ShipmentExpensePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} /></>
+          <><ShipmentExpensePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} /></>
         )}
 
         <section className="shipment-detail__card">

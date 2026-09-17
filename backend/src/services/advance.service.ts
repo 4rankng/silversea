@@ -14,7 +14,7 @@
 export {
   AdvanceError,
   generateSettlementCode,
-  autoOffsetExpenseApproval,
+  autoOffsetRecordedExpense,
   getOutstandingAdvanceBalance,
   getOutstandingAdvanceBalances,
 } from './advance-shared.service';

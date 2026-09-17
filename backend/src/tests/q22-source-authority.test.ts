@@ -29,7 +29,7 @@ import {
   updateShipment,
 } from '../services/shipment.service';
 import {
-  propagateExpenseApproval,
+  propagateRecordedExpense,
   propagateTripFinancialSourceChange,
 } from '../services/source-change.service';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
@@ -567,7 +567,7 @@ describe('Q22 source authority propagation', () => {
         serviceFeeAmount: '175000',
         updatedAt: new Date(Date.now() + 2_000),
       }).where(eq(s.tripExpenses.id, expense.id));
-      await propagateExpenseApproval(tx, { expenseId: expense.id });
+      await propagateRecordedExpense(tx, { expenseId: expense.id });
     });
 
     const julyAfter = await getDocument(julyDocument.id!);
@@ -674,7 +674,7 @@ describe('Q22 source authority propagation', () => {
         version: 2,
         updatedAt: new Date(Date.now() + 2_000),
       }).where(eq(s.tripExpenses.id, pendingExpense.id));
-      await propagateExpenseApproval(tx, { expenseId: pendingExpense.id });
+      await propagateRecordedExpense(tx, { expenseId: pendingExpense.id });
     });
 
     const afterAssembly = await assembleDisbursementsForPeriod(customer.id, '2026-07-01', '2026-07-31');

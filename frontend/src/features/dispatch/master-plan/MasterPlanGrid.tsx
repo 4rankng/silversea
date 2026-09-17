@@ -516,6 +516,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           )}
                         </div>
                       )}
+                      {item.opsRecoveryNotes?.map(note => <p key={note} className="master-plan-grid__line master-plan-grid__line--notes" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong>OPS: </strong>{note}</p>)}
                       {item.factoryNotes && (
                         <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
                           {isNoteLong(item.factoryNotes) ? (

@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Reusable browser/API QA harness for Silversea (TingTing). Runs against local dev or staging via STAGING_URL env override.",
   "scripts": {
+    "test": "node --test lib/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "case": "node scripts/run-case.mjs",
     "all": "node scripts/run-all.mjs"

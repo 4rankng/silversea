@@ -240,7 +240,7 @@ export function DetailedPlanGrid({
                 const actionLabel = canQuickIssue
                   ? 'Phát lệnh'
                   : canCompleteExternal ? 'Hoàn thành' : null;
-                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && actionLabel == null;
+                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && !row.notes.opsRecoveryNotes?.length && actionLabel == null;
                 const scheduleValue = row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
                   : [row.time.runHour != null ? `${row.time.runHour}H` : '—', row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ');
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
@@ -377,6 +377,7 @@ export function DetailedPlanGrid({
                         <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
                       </button>
                     )}
+                    {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-clamp" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
                     {row.notes.customerNote && (
                       <button
                         type="button"

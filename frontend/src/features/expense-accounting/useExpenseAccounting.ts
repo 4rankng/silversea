@@ -19,6 +19,7 @@ export function useExpenseMutations() {
     create: useMutation({ mutationFn: ({ body, key }: { body: ExpenseAccountingCreate; key: string }) => expenseAccountingClient.create(body, key), onSuccess: invalidate }),
     reverse: useMutation({ mutationFn: ({ id, body, key }: { id: number; body: Parameters<typeof expenseAccountingClient.reverseVoucher>[1]; key: string }) => expenseAccountingClient.reverseVoucher(id, body, key), onSuccess: invalidate }),
     update: useMutation({ mutationFn: ({ entry, body }: { entry: ExpenseAccountingEntry; body: ExpenseAccountingUpdate }) => expenseAccountingClient.update(sourceRef(entry), body), onSuccess: invalidate }),
+    correct: useMutation({ mutationFn: ({ entry, body }: { entry: ExpenseAccountingEntry; body: ExpenseAccountingUpdate }) => expenseAccountingClient.correct(sourceRef(entry), body), onSuccess: invalidate }),
     confirm: useMutation({ mutationFn: (entries: ExpenseAccountingEntry[]) => expenseAccountingClient.confirm(entries.map(sourceRef)), onSuccess: invalidate }),
     voucher: useMutation({ mutationFn: ({ body, key }: { body: ExpenseVoucherInput; key: string }) => expenseAccountingClient.createVoucher(body, key), onSuccess: invalidate }),
     reconcile: useMutation({ mutationFn: ({ body, key }: { body: ExpenseReconciliationInput; key: string }) => expenseAccountingClient.reconcile(body, key), onSuccess: invalidate }),

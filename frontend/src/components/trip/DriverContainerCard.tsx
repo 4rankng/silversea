@@ -111,7 +111,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     setError(null);
   };
 
-  const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL') => {
+  const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL', capturedAt?: Date) => {
     if (!rawFile) return;
     const key = _type === 'CONTAINER' ? 'cont' : 'seal';
     setUploading(prev => ({ ...prev, [key]: true }));
@@ -121,9 +121,8 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     // suppress the generic "recognized" toast in that case to avoid a double.
     let crossCheckToasted = false;
     try {
-      // Spec A6/Phần 2 Khối 2: every driver photo carries a burned-in upload
-      // timestamp — same contract as the e-POD and fuel paths.
-      const file = await compressImageFile(rawFile, { timestamp: new Date() });
+      // Only a live shutter supplies capture time; gallery selection does not.
+      const file = await compressImageFile(rawFile, { timestamp: capturedAt });
       const formData = new FormData();
       formData.append('file', file);
       // The backend now uses type-specific extraction: CONTAINER photos only
@@ -208,11 +207,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
 
   // Biên bản giao hàng photo — no OCR path (the /ocr route is CONTAINER/SEAL
   // specific), stored as trip_photos type DELIVERY_NOTE through POST /upload.
-  const onPickNote = async (rawFile: File | undefined) => {
+  const onPickNote = async (rawFile: File | undefined, capturedAt?: Date) => {
     if (!rawFile) return;
     setUploadingNote(true);
     try {
-      const file = await compressImageFile(rawFile, { timestamp: new Date() });
+      const file = await compressImageFile(rawFile, { timestamp: capturedAt });
       const formData = new FormData();
       formData.append('file', file);
       formData.append('trip_id', String(tripId));
@@ -676,11 +675,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             biên bản (form or saved bento) all funnel through it. */}
         {scannerType && (
           <ContainerScanner
-            onCapture={dataUrl => {
+            onCapture={(dataUrl, capturedAt) => {
               if (scannerType === 'DELIVERY_NOTE') {
-                void onPickNote(dataUrlToFile(dataUrl, 'delivery-note.jpg'));
+                void onPickNote(dataUrlToFile(dataUrl, 'delivery-note.jpg'), capturedAt);
               } else {
-                void onPick(dataUrlToFile(dataUrl), scannerType);
+                void onPick(dataUrlToFile(dataUrl), scannerType, capturedAt);
               }
               setScannerType(null);
             }}

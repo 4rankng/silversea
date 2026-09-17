@@ -27,7 +27,7 @@ function renderPage() {
 const expense = (overrides: Record<string, unknown> = {}) => ({
   id: 1, shipmentId: 10, shipmentCode: 'SS-1', containerNumber: 'TSTU0000001',
   expenseTypeCode: 'CANXE', expenseTypeName: 'Cân xe', requiresInvoice: false,
-  amount: '90000', paidAt: '2026-09-07', note: null, approvalStatus: 'PENDING',
+  amount: '90000', paidAt: '2026-09-07', note: null, approvalStatus: 'RECORDED',
   rejectionReason: null, opsSettlementId: null, hasPhoto: false, paidById: 7,
   paidByName: 'Ops A', createdAt: '2026-09-07T00:00:00.000Z',
   ...overrides,
@@ -37,6 +37,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    apiPatch.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/wallet/summary')) {
         return Promise.resolve({
@@ -46,6 +47,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
       }
       if (url.startsWith('/ops/wallet/expenses')) return Promise.resolve({ items: [expense()] });
       if (url.startsWith('/ops/settlements')) return Promise.resolve({ items: [] });
+      if (url === '/ops/expense-types') return Promise.resolve({ items: [{ code: 'CANXE', name: 'Cân xe', requiresInvoice: false, isActive: true }] });
       return Promise.resolve({ items: [] });
     });
   });
@@ -58,13 +60,25 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     expect(screen.getAllByText('Đã trả lại').length).toBeGreaterThan(0);
   });
 
+  it('distinguishes an unfunded request from actual cash received', async () => {
+    const original = apiGet.getMockImplementation()!;
+    apiGet.mockImplementation((url: string) => url.startsWith('/ops/wallet/advance-requests')
+      ? Promise.resolve({ items: [
+        { id: 10, amount: '1000000', fundedAmount: 0, reason: 'Chưa giao tiền', status: 'RECORDED', createdAt: '2026-09-17' },
+        { id: 11, amount: '500000', fundedAmount: 500000, reason: 'Đã giao tiền', status: 'RECORDED', createdAt: '2026-09-17' },
+      ] }) : original(url));
+    renderPage();
+    expect(await screen.findByText('Đã nhận 500.000 ₫')).toBeInTheDocument();
+    expect(screen.getAllByText('Chưa giao tiền')).toHaveLength(2);
+  });
+
   it('flags entries without photos as Nợ chứng từ', async () => {
     renderPage();
     expect(await screen.findByText('Nợ chứng từ')).toBeInTheDocument();
   });
 
   it('submits an advance request with amount + reason', async () => {
-    apiPost.mockResolvedValue({ id: 99, status: 'PENDING' });
+    apiPost.mockResolvedValue({ id: 99, status: 'RECORDED' });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
 
@@ -86,7 +100,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     });
   });
 
-  it('lets the author edit a pending expense (PRD §5.5 sửa)', async () => {
+  it('lets the author edit a recorded unsettled expense (PRD §5.5 sửa)', async () => {
     apiPatch.mockResolvedValue(expense({ amount: '120000' }));
     renderPage();
     await screen.findByText('SS-1');
@@ -103,6 +117,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     fireEvent.submit(dialog.querySelector('form')!);
     expect(apiPatch).not.toHaveBeenCalled();
     fireEvent.change(amountInput, { target: { value: '120000' } });
+    fireEvent.change(within(dialog).getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa đúng chứng từ gốc' } });
     // jsdom does not synthesize form submission from submit-button clicks
     // here; submit the form directly.
     fireEvent.submit(dialog.querySelector('form')!);
@@ -118,7 +133,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
   it('reports query failures instead of empty money/history and lets the user retry', async () => {
     apiGet.mockRejectedValue(new Error('Unavailable'));
     renderPage();
-    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(4));
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(5));
     expect(screen.queryByText('Chưa có khoản chi nào.')).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa có phiếu nào.')).not.toBeInTheDocument();
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('/summary')

@@ -167,3 +167,21 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });
+
+
+describe('UI-CD-09 catalog query whitespace', () => {
+  it('normalizes API queries while preserving the typed search', async () => {
+    renderPage();
+    await screen.findAllByText('Khách hàng An');
+    const input = screen.getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
+    fireEvent.change(input, { target: { value: '  que  vo  ' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('que vo'));
+    expect(input).toHaveValue('  que  vo  ');
+    getAllCustomers.mockClear();
+    fireEvent.change(input, { target: { value: 'que vo' } });
+    expect(getAllCustomers).not.toHaveBeenCalled();
+    expect(input).toHaveValue('que vo');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input).toHaveValue('');
+  });
+});

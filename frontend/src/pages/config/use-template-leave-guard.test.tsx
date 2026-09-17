@@ -46,8 +46,9 @@ describe('template draft navigation', () => {
     const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const go = vi.spyOn(window.history, 'go').mockImplementation(() => {});
     const router = vi.fn();
-    setup(vi.fn());
+    // BrowserRouter subscribes before the page mounts.
     window.addEventListener('popstate', router);
+    setup(vi.fn());
     window.dispatchEvent(new PopStateEvent('popstate', { state: { idx: 1 } }));
     expect(nativeConfirm).toHaveBeenCalledTimes(1);
     expect(go).toHaveBeenCalledWith(2);

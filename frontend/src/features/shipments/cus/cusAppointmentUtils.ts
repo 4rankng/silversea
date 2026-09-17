@@ -1,5 +1,5 @@
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
-import { businessDateISO } from '../../../lib/format';
+export { businessDateOffsetISO as getOffsetDateString } from '../../../lib/format';
 
 export function parseDateTimeParts(value: string | null | undefined): { date: string; time: string } {
   if (!value) return { date: '', time: '' };
@@ -12,10 +12,4 @@ export function parseDateTimeParts(value: string | null | undefined): { date: st
   }
   const [d = '', t = ''] = value.split('T');
   return { date: d, time: t.slice(0, 5) };
-}
-
-export function getOffsetDateString(offsetDays: number): string {
-  const day = new Date(`${businessDateISO()}T00:00:00Z`);
-  day.setUTCDate(day.getUTCDate() + offsetDays);
-  return day.toISOString().slice(0, 10);
 }

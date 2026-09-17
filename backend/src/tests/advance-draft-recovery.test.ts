@@ -62,12 +62,12 @@ async function state(id: number) {
   };
 }
 
-test('authorized legacy draft recording posts exactly once with actor-bound replay and immutable terminal state', async () => {
+test('authorized legacy draft recording saves a request without money with actor-bound replay and immutable terminal state', async () => {
   for (const actor of ['ops', 'admin', 'manager', 'accountant']) {
     const row = await draft(); const key = `${tag}-record-${actor}`;
     const first = await call(row.id, 'record', actor, record(), key);
     assert.equal(first.status, 200, JSON.stringify(first.body)); assert.equal(first.body.status, 'RECORDED'); assert.equal(first.body.version, 2);
-    const saved = await state(row.id); assert.equal(saved.entries.length, 1); assert.equal(saved.entries[0].credit, '150');
+    const saved = await state(row.id); assert.equal(saved.entries.length, 0, 'recording a request is not proof of actual cash');
     assert.equal(saved.audit.length, 1); assert.equal(saved.audit[0].payload?.before && (saved.audit[0].payload.before as {status:string}).status, 'DRAFT');
     assert.equal((saved.audit[0].payload?.after as {status:string}).status, 'RECORDED');
     const replay = await call(row.id, 'record', actor, record(), key); assert.equal(replay.status, 200); assert.equal(replay.body.replayed, true);
@@ -121,7 +121,7 @@ test('audit failure rolls back draft status ledger and domain audit then the sam
   finally { setAuditPersistHandlerForTest(null); }
   assert.deepEqual(await state(row.id), before);
   assert.equal((await call(row.id, 'record', 'ops', record(), key)).status, 200);
-  assert.equal((await state(row.id)).entries.length, 1);
+  assert.equal((await state(row.id)).entries.length, 0);
 });
 
 test('recorded advance generic update delete and retired review routes remain unavailable', async () => {
@@ -140,7 +140,7 @@ test('competing direct record and void serialize one terminal outcome without du
   assert.deepEqual(outcomes.map(result => result.status).sort(), [200, 409]);
   const saved = await state(row.id);
   assert.equal(saved.audit.length, 1);
-  assert.equal(saved.entries.length, saved.row?.status === 'RECORDED' ? 1 : 0);
+  assert.equal(saved.entries.length, 0);
   assert.equal(saved.row?.version, 2);
 });
 

@@ -6,7 +6,7 @@ import { ApiError } from '../errors';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { ensureTripExpenseAccountingSource, upsertExpenseAccountingSource } from './expense-accounting-source.service';
-import { requireExpenseFinance, type ExpenseActor } from './expense-accounting-write.service';
+import { requireExpenseFinance, syncExpenseBillingSource, type ExpenseActor } from './expense-accounting-write.service';
 
 export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input: ExpenseAccountingCreate) {
   requireExpenseFinance(actor);
@@ -46,6 +46,21 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   if (input.payerKind === 'SUPPLIER') {
     const [supplier] = input.supplierId ? await tx.select().from(s.suppliers).where(eq(s.suppliers.id, input.supplierId)) : [];
     if (!supplier || supplier.status !== 'ACTIVE') throw new ApiError(400, 'Chọn nhà cung cấp đang hoạt động.');
+  }
+  if (input.payerKind === 'USER' && payer?.role === Role.OPS) {
+    const [entry] = await tx.insert(s.opsExpenseEntries).values({ shipmentId: trip.shipmentId,
+      expenseTypeCode: input.expenseTypeCode, amount: String(input.amount), customerChargeAmount: String(input.customerChargeAmount),
+      paidAt: input.expenseDate, paidById: payer.id, payerKind: 'USER', costGroup: input.costGroup,
+      feeName: input.feeName, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+      recoveryNote: input.recoveryNote, approvalStatus: 'RECORDED', note: input.note }).returning();
+    const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'OPS', sourceId: entry.id,
+      shipmentId: trip.shipmentId, tripId: trip.id, customerId: trip.customerId,
+      expenseTypeCode: input.expenseTypeCode, costGroup: input.costGroup, feeName: input.feeName,
+      amount: input.amount, customerChargeAmount: input.customerChargeAmount, expenseDate: input.expenseDate,
+      invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, payerKind: 'USER', payerUserId: payer.id,
+      payableEntityType: 'FORWARDER', payableEntityId: payer.id, recordedById: actor.userId,
+      note: input.note, recoveryNote: input.recoveryNote });
+    return syncExpenseBillingSource(tx, source, actor.userId);
   }
   const [entry] = await tx.insert(s.tripExpenses).values({ tripId: input.tripId, expenseType: input.expenseTypeCode,
     buyAmount: String(input.amount), sellAmount: String(input.customerChargeAmount),

@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sys
 import uuid
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import *  # noqa: E402,F403
@@ -48,6 +49,24 @@ def check(results: TestResults, tc_id: str, title: str, condition: bool, detail:
         return True
     results.fail(tc_id, title, detail)
     return False
+
+
+def focus_returns_to(page: Page, opener) -> bool:
+    # useAnimatedOverlay restores focus in requestAnimationFrame. Dialog
+    # detachment and that frame are separate lifecycle events; wait for the
+    # actual keyboard contract, including the exact row rather than any opener.
+    opener_id = opener.get_attribute("id")
+    if not opener_id:
+        return False
+    try:
+        page.wait_for_function(
+            "(id) => document.activeElement?.id === id",
+            arg=opener_id,
+            timeout=1_000,
+        )
+        return True
+    except PlaywrightTimeoutError:
+        return False
 
 
 def main() -> bool:
@@ -518,7 +537,7 @@ def main() -> bool:
                     # and avoids racing Playwright's element-stability guard.
                     page.keyboard.press("Escape")
                     page.wait_for_function("document.querySelectorAll('[role=\"dialog\"]').length === 0", timeout=2_500)
-                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-dashboard-detail') === true")
+                    focus_restored = focus_returns_to(page, expand_button)
                     check(
                         results,
                         "TC-1812",
@@ -550,7 +569,7 @@ def main() -> bool:
                         "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                         timeout=2_000,
                     )
-                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-dashboard-detail') === true")
+                    focus_restored = focus_returns_to(page, drawer_opener)
                     check(
                         results,
                         "TC-1813",

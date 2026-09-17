@@ -11,46 +11,13 @@ import { PageHeader, useConfirm } from '../components/UI';
 import { useForwarderEligibleAdvanceRequests, useCreateAdvanceSettlement, useUnlinkedExpenses } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { ExpenseEntryStatus, type AdvanceRequestWithRefs } from '@tingting/shared';
+import { expenseLabel, isFullyFundedAdvance } from '../features/forwarder/forwarder-settlement-model';
+import { ForwarderSettlementSection } from '../features/forwarder/ForwarderSettlementSection';
 import './ForwarderSettlementsPage.css';
-
-/** Vietnamese fallback labels for expense type codes */
-const EXPENSE_TYPE_VI: Record<string, string> = {
-  LIFTING: 'Nâng container',
-  LOWERING: 'Hạ container',
-  CUSTOMS: 'Hải quan',
-  WEIGHING: 'Cân hàng',
-  INFRASTRUCTURE: 'Hạ tầng',
-  INSPECTION: 'Kiểm tra',
-  INSPECTION_SVC: 'Dịch vụ kiểm tra',
-  PORT_STORAGE: 'Lưu bãi',
-  CLEANING: 'Vệ sinh container',
-  OTHER: 'Khác',
-};
-
-function expenseLabel(code: string, options: Array<{ code: string; name: string }>): string {
-  return options.find(t => t.code === code)?.name || EXPENSE_TYPE_VI[code] || code;
-}
 
 interface CreatedSettlement {
   id: number;
   code: string;
-}
-
-/* ─── Step header component ──────────────────────────────────────────────── */
-function StepHeader({ step, title, icon: Icon }: { step: number; title: string; icon: React.ComponentType<{ size?: number; className?: string }> }) {
-  return (
-    <div className="fset-step-header">
-      <div className="fset-step-header__left">
-        <div className="fset-step-header__badge">
-          <Icon size={14} />
-        </div>
-        <div>
-          <span className="fset-step-header__step">Bước {step}</span>
-          <h3 className="fset-step-header__title">{title}</h3>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function ForwarderSettlementCreatePage() {
@@ -71,13 +38,18 @@ export default function ForwarderSettlementCreatePage() {
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
   });
 
-  const { data: requestsData } = useForwarderEligibleAdvanceRequests();
-  const { data: unlinkedData } = useUnlinkedExpenses();
+  const requestsQuery = useForwarderEligibleAdvanceRequests();
+  const expensesQuery = useUnlinkedExpenses();
+  const { data: requestsData } = requestsQuery;
+  const { data: unlinkedData } = expensesQuery;
+  const sourcesUnavailable = [requestsQuery, expensesQuery].some(query => query.isPending || query.isFetching || query.error || query.data === undefined);
   const { data: catalogs } = useCatalogs();
   const createSettlement = useCreateAdvanceSettlement();
 
   const allRequests = ((requestsData?.items ?? requestsData ?? []) as AdvanceRequestWithRefs[]);
-  const approvedRequests = allRequests.filter(r => r.status === 'RECORDED');
+  const fundedRequests = allRequests.filter(isFullyFundedAdvance);
+  const hasStaleAdvanceSelection = !sourcesUnavailable && [...selectedRequestIds]
+    .some(id => !fundedRequests.some(request => request.id === id));
   const unlinkedExpenses = useMemo(() => (unlinkedData?.items ?? []) as Array<{
     id: number; tripId: number; expenseType: string; buyAmount: string; approvalStatus?: string; completionStatus?: ExpenseEntryStatus; note: string | null; createdAt: string; tripCode: string | null; departureDate: string | null; truckPlate: string | null; containerNumbers: string | null;
   }>, [unlinkedData]);
@@ -87,10 +59,10 @@ export default function ForwarderSettlementCreatePage() {
   );
 
   const totalAdvance = useMemo(() => {
-    return approvedRequests
+    return fundedRequests
       .filter(r => selectedRequestIds.has(r.id))
       .reduce((sum, r) => sum + Number(r.amount), 0);
-  }, [approvedRequests, selectedRequestIds]);
+  }, [fundedRequests, selectedRequestIds]);
 
   const totalExpense = useMemo(() => {
     return unlinkedExpenses
@@ -179,18 +151,22 @@ export default function ForwarderSettlementCreatePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedRequestIds.size === 0) return;
-    const result = await createSettlement.mutateAsync({
-      totalExpenseAmount: totalExpense,
-      refundAmount: totalRefund,
-      note: note || undefined,
-      advanceRequestIds: Array.from(selectedRequestIds),
-      tripExpenseIds: selectedExpenseIds.size > 0 ? Array.from(selectedExpenseIds) : undefined,
-    });
-    setCreated(result as CreatedSettlement);
+    if (selectedRequestIds.size === 0 || hasStaleAdvanceSelection || sourcesUnavailable || createSettlement.isPending) return;
+    try {
+      const result = await createSettlement.mutateAsync({
+        totalExpenseAmount: totalExpense,
+        refundAmount: totalRefund,
+        note: note || undefined,
+        advanceRequestIds: Array.from(selectedRequestIds),
+        tripExpenseIds: selectedExpenseIds.size > 0 ? Array.from(selectedExpenseIds) : undefined,
+      });
+      setCreated(result as CreatedSettlement);
+    } catch {
+      // Mutation state renders the API error; keep the selections and draft.
+    }
   }
 
-  const isFormReady = selectedRequestIds.size > 0;
+  const isFormReady = selectedRequestIds.size > 0 && !hasStaleAdvanceSelection && !sourcesUnavailable;
 
   // ── Success state ──
   if (created) {
@@ -236,37 +212,35 @@ export default function ForwarderSettlementCreatePage() {
       <PageHeader
         title="Tạo phiếu thanh toán"
         iconName="settlement"
-        description="Chọn tạm ứng đã ghi nhận và chi phí phát sinh để tạo phiếu quyết toán"
+        description="Chọn tạm ứng đã nhận đủ tiền và chi phí phát sinh để ghi nhận phiếu quyết toán"
       />
 
       <form onSubmit={handleSubmit} className="fset-create-form fade-up">
         {/* ── Step 1: Select advance requests ── */}
-        <div className="fset-step-panel">
-          <StepHeader step={1} title="Chọn tạm ứng chưa quyết toán" icon={Wallet} />
-          <div className="fset-step-body">
-            {approvedRequests.length === 0 ? (
+        <ForwarderSettlementSection step={1} title="Chọn tạm ứng chưa quyết toán" icon={Wallet} query={requestsQuery}>
+            {fundedRequests.length === 0 ? (
               <div className="fset-empty-inline fset-empty-inline--advance">
                 <EmptyIllustration name="/assets/illustrations/forwarder-approved-advance-v1.png" className="fset-empty-inline__asset" />
-                <span>Không có tạm ứng đã ghi nhận nào chưa quyết toán</span>
+                <span>Chưa có tạm ứng đã nhận đủ tiền và chưa quyết toán.</span>
               </div>
             ) : (
               <div className="fset-check-list">
                 <label className="fset-check-all">
                   <input
                     type="checkbox"
-                    checked={approvedRequests.length > 0 && selectedRequestIds.size === approvedRequests.length}
+                    checked={fundedRequests.length > 0 && selectedRequestIds.size === fundedRequests.length}
                     onChange={() => {
-                      if (selectedRequestIds.size === approvedRequests.length) {
+                      if (selectedRequestIds.size === fundedRequests.length) {
                         setSelectedRequestIds(new Set());
                       } else {
-                        setSelectedRequestIds(new Set(approvedRequests.map(r => r.id)));
+                        setSelectedRequestIds(new Set(fundedRequests.map(r => r.id)));
                       }
                     }}
                   />
                   <span>Chọn tất cả</span>
-                  <span className="fset-check-all__count">{approvedRequests.length}</span>
+                  <span className="fset-check-all__count">{fundedRequests.length}</span>
                 </label>
-                {approvedRequests.map(r => (
+                {fundedRequests.map(r => (
                   <label key={r.id} className={`fset-check-item ${selectedRequestIds.has(r.id) ? 'fset-check-item--selected' : ''}`}>
                     <input type="checkbox" checked={selectedRequestIds.has(r.id)} onChange={() => toggleRequest(r.id)} />
                     <div className="fset-check-item__body">
@@ -280,13 +254,10 @@ export default function ForwarderSettlementCreatePage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+        </ForwarderSettlementSection>
 
         {/* ── Step 2: Select trip expenses ── */}
-        <div className="fset-step-panel">
-          <StepHeader step={2} title="Chọn chi phí phát sinh" icon={Receipt} />
-          <div className="fset-step-body">
+        <ForwarderSettlementSection step={2} title="Chọn chi phí phát sinh" icon={Receipt} query={expensesQuery}>
             {unlinkedExpenses.length === 0 ? (
               <div className="fset-empty-inline fset-empty-inline--expense">
                 <EmptyIllustration name="/assets/illustrations/forwarder-unmatched-expense-v1.png" className="fset-empty-inline__asset" />
@@ -398,8 +369,7 @@ export default function ForwarderSettlementCreatePage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
+        </ForwarderSettlementSection>
 
         {/* ── Summary receipt ── */}
         <div className="fset-summary">
@@ -474,6 +444,15 @@ export default function ForwarderSettlementCreatePage() {
           </div>
         </div>
 
+        {hasStaleAdvanceSelection && (
+          <div className="fset-error-banner" role="alert">
+            Tạm ứng đã chọn không còn đủ điều kiện. Chọn lại tạm ứng trước khi ghi nhận.
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelectedRequestIds(new Set())}>
+              Chọn lại tạm ứng
+            </button>
+          </div>
+        )}
+
         {/* ── Error ── */}
         {createSettlement.error && (
           <div className="fset-error-banner">
@@ -492,7 +471,7 @@ export default function ForwarderSettlementCreatePage() {
             disabled={!isFormReady || createSettlement.isPending}
           >
             {createSettlement.isPending ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
-            Gửi phiếu thanh toán
+            Ghi nhận phiếu thanh toán
           </button>
         </div>
       </form>

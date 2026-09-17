@@ -1,5 +1,7 @@
 # Ma trận phủ nghiệm thu — Bộ ba docx (2026-09-09)
 
+> **Historical coverage snapshot — superseded 2026-09-17:** this matrix preserves the 9 September code/test references and COVERED results. OPS approval lifecycle, approval-derived wallet totals and optimistic cash claims below are obsolete. Current requirements are in `docs/prd/OpsVanHanh.md`, current `roles/06-vanhanh.md` / `flows/05-ops-quy-chi-phi.md`, and [NO-APP regression cases](../2026-09-17-no-approval-workflows.md). Re-run current criteria; do not reuse old COVERED as proof.
+
 **Lane 4 / Phase 1 — cross-cutting QA, read-only pass.** Nguồn yêu cầu: 4 PRD
 (`docs/prd/ManHinhLaiXe.md`, `MasterDataNhaMay.md`, `LoHangKepKetHop.md`, `OpsVanHanh.md`)
 đối chiếu với testplan (`roles/03-laixe.md`, `roles/06-vanhanh.md`, `flows/09-kep-kethop-ghep-chuyen.md`,

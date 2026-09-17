@@ -14,7 +14,7 @@ import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect,
   upsertTripCarrierInfo, upsertTripFinancialState,
 } from './trip-composite.service';
-import { assertActiveApprovalApplication } from './governance-action-core.service';
+import { assertActiveDirectApplication } from './governance-action-core.service';
 import { deriveMilestoneFromTripStatus } from './milestone.service';
 import {
   createFinancialPosting,
@@ -126,7 +126,7 @@ export async function transitionTripStatus(
       // 2026-09-11 maker-checker removal: the cross-person persisted
       // authorization is gone with governance_actions; the in-memory
       // approval-application guard carries the apply-time authorization.
-      assertActiveApprovalApplication(tx, options?.governanceActionId);
+      assertActiveDirectApplication(tx, options?.governanceActionId);
       governanceAuthorized = true;
     }
 
@@ -225,7 +225,7 @@ export async function transitionTripStatus(
       if (currentStatus === TripStatus.COMPLETED) {
         throw new ApiError(
           409,
-          'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
+          'Chuyến đã chốt chỉ được mở lại bằng thao tác mở lại tài chính có quyền và lý do hợp lệ',
         );
       }
       // An external-carrier trip never enters IN_TRANSIT — no app driver
@@ -289,7 +289,7 @@ export async function transitionTripStatus(
           );
         }
         if (!routineShipmentClose && !governanceAuthorized) {
-          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+          throw new ApiError(409, 'Thao tác phải được thực hiện qua lệnh tài chính có kiểm tra quyền và dữ liệu');
         }
 
         // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
@@ -347,7 +347,7 @@ export async function transitionTripStatus(
       }
       if (currentStatus === TripStatus.COMPLETED) {
         if (!governanceAuthorized) {
-          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+          throw new ApiError(409, 'Thao tác phải được thực hiện qua lệnh tài chính có kiểm tra quyền và dữ liệu');
         }
       }
 

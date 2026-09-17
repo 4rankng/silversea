@@ -220,8 +220,9 @@ export async function recordDriverPayout(input: DriverPayoutInput) {
 /** OPS ledger credits are cash handed to OPS; expenses consume them as debits. */
 export async function recordOpsReimbursementTx(tx: Tx, input: { opsUserId: number; amount: number; receiptId: string; note?: string; date: string }) {
   await LedgerService.lockEntity(tx, 'FORWARDER', input.opsUserId);
-  const balance = await LedgerService.getBalanceTx(tx, 'FORWARDER', input.opsUserId);
-  if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > Math.max(0, -balance)) {
+  // Caller locks sources and checks the explicitly reconciled residual. Other
+  // batches/unallocated advances are not an implicit offset authorization.
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
     throw new ApiError(409, 'Số hoàn ứng vượt khoản còn phải trả cho OPS.');
   }
   return LedgerService.postEntry(tx, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,

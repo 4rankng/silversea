@@ -77,7 +77,7 @@ export async function assertCanAllocateDisbursement(tripExpenseId: number): Prom
   if (!result.approved) {
     throw new ApiError(
       409,
-      'Chi phí chưa được duyệt — không thể đưa vào giấy báo nợ.',
+      'Chi phí chưa được ghi nhận — không thể đưa vào giấy báo nợ.',
     );
   }
 

@@ -4,7 +4,6 @@ import { operationalName } from '../db/master-data-name';
 import type { Tx } from './trip-shared';
 export type { Tx };
 import * as s from '../db/schema';
-import type { GuardedResult } from './approval.service';
 import { eq, and, isNull, desc, notInArray, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import {
@@ -34,7 +33,9 @@ import { SnapshotServices } from './snapshot-services';
 import { recomputeShipmentCompletion } from './shipment.service';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
+import { assertExpenseSourceMutable, hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -42,7 +43,18 @@ import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock
  * expense helpers accept either and route through whichever the caller holds.
  */
 type DbOrTx = typeof db | Tx;
+/** Result of an authorized mutation whose business preconditions may block it. */
+type GuardedResult = { ok: true } | { error: string; status: number };
 type LiftPricingSnapshot = NonNullable<typeof s.tripExpenses.$inferInsert.liftPricingSnapshot>;
+
+/** Use the same authority lock as trip posting before taking an expense lock. */
+async function lockTripExpenseMutation(tx: Tx, expenseId: number): Promise<void> {
+  const [reference] = await tx.select({ tripId: s.tripExpenses.tripId })
+    .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+  if (reference) await lockTripFinancialAuthority(tx, [reference.tripId]);
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+}
+
 
 type TripExpenseRequiredFieldState = {
   expenseType: string;
@@ -363,6 +375,7 @@ export async function createTripExpense(
     return db.transaction((tx) => createTripExpense(tx, data));
   }
   const tx = txOrDb as Tx;
+  await lockTripFinancialAuthority(tx, [data.tripId]);
   await assertTripShipmentAccountingUnlocked(tx, data.tripId);
   // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
   // remain immutable. A cost edit on a completed trip re-evaluates both
@@ -427,10 +440,17 @@ export async function createTripExpense(
     await SnapshotServices.markBothDirty(data.tripId, tx);
   }
   if (approvalStatus === 'RECORDED') {
-    const { propagateExpenseApproval } = await import('./source-change.service.js');
-    await propagateExpenseApproval(tx, { expenseId: inserted.id });
+    const { propagateRecordedExpense } = await import('./source-change.service.js');
+    await propagateRecordedExpense(tx, { expenseId: inserted.id });
   }
   return inserted;
+}
+
+async function assertCanonicalExpenseWrite(tx: Tx, expenseId: number) {
+  const [link] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId)).for('update');
+  if (!link) return;
+  if (link.sourceKind !== 'TRIP') throw new ApiError(409, 'Khoản chi có nguồn Ops/lái xe/hóa đơn. Điều chỉnh từ bảng chi phí kế toán để giữ đúng nguồn và lịch sử.');
+  await assertExpenseSourceMutable(tx, await hydrateExpenseAccountingSource(tx, link));
 }
 
 export async function updateTripExpense(
@@ -460,7 +480,7 @@ export async function updateTripExpense(
   if (txOrDb === db) {
     return db.transaction((tx) => updateTripExpense(tx, id, patch, expectedTripId));
   }
-  await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
+  await lockTripExpenseMutation(txOrDb as Tx, id);
   // Preserve settlement and accounting locks while applying an authorized edit.
   const [existing] = await txOrDb
     .select({
@@ -482,6 +502,7 @@ export async function updateTripExpense(
     .limit(1);
 
   if (!existing) return null;
+  await assertCanonicalExpenseWrite(txOrDb as Tx, id);
   if (expectedTripId !== undefined && existing.tripId !== expectedTripId) throw new ApiError(404, 'Không tìm thấy chi phí của chuyến xe');
   if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy không thể sửa.');
   await assertTripShipmentAccountingUnlocked(txOrDb as Tx, existing.tripId);
@@ -585,8 +606,8 @@ export async function updateTripExpense(
   if (trip?.status === 'COMPLETED') {
     await SnapshotServices.markBothDirty(existing.tripId, txOrDb);
   }
-  const { propagateExpenseApproval } = await import('./source-change.service.js');
-  await propagateExpenseApproval(txOrDb as Tx, { expenseId: id });
+  const { propagateRecordedExpense } = await import('./source-change.service.js');
+  await propagateRecordedExpense(txOrDb as Tx, { expenseId: id });
   return updated;
 }
 
@@ -596,7 +617,7 @@ export async function updateForwarderTripExpense(
   patch: Parameters<typeof updateTripExpense>[2],
 ) {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    await lockTripExpenseMutation(tx, expenseId);
     const [expense] = await tx.select({
       id: s.tripExpenses.id,
       tripId: s.tripExpenses.tripId,
@@ -635,7 +656,7 @@ export async function updateForwarderTripExpenseInTx(
   patch: Parameters<typeof updateTripExpense>[2],
   expectedUpdatedAt: Date,
 ) {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  await lockTripExpenseMutation(tx, expenseId);
   const [expense] = await tx.select({
     id: s.tripExpenses.id,
     tripId: s.tripExpenses.tripId,
@@ -700,7 +721,7 @@ export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
 
 export async function deleteTripExpense(expenseId: number, forwarderId: number) {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    await lockTripExpenseMutation(tx, expenseId);
     const [existing] = await tx.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, expenseId)).limit(1);
     if (!existing) return null;
@@ -740,7 +761,7 @@ export async function deleteTripExpenseInTx(
   forwarderId: number,
   expectedUpdatedAt: Date,
 ) {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  await lockTripExpenseMutation(tx, expenseId);
   const [existing] = await tx.select({
     id: s.tripExpenses.id,
     tripId: s.tripExpenses.tripId,
@@ -812,7 +833,7 @@ export async function deleteTripExpenseGuarded(
   transaction?: Tx,
 ): Promise<GuardedResult> {
   const execute = async (tx: Tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    await lockTripExpenseMutation(tx, expenseId);
     const [expense] = await tx.select({
       tripId: s.tripExpenses.tripId,
       tripContainerId: s.tripExpenses.tripContainerId,
@@ -821,6 +842,7 @@ export async function deleteTripExpenseGuarded(
     if (!expense || expense.tripId !== tripId) {
       return { error: 'Không tìm thấy chi phí của chuyến xe', status: 404 };
     }
+    await assertCanonicalExpenseWrite(tx, expenseId);
     if (expense.approvalStatus === 'VOIDED' || expense.approvalStatus === 'REJECTED') return { error: 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.', status: 409 };
     const scopeKey = expense.tripContainerId ?? -expense.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);

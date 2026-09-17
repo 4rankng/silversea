@@ -4,6 +4,7 @@
  * to avoid duplication and ensure consistent error messages.
  */
 import { db } from '../db';
+import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import * as s from '../db/schema';
 import { eq, and, inArray, notInArray, isNull, ne, sql } from 'drizzle-orm';
@@ -115,6 +116,11 @@ export async function validateSettlementInputs(opts: {
     const consumed = await getAdvanceConsumedAmounts(dbOrTx, advanceRequestIds, excludeSettlementId);
     const used = advanceRequestIds.filter(id => (consumed.get(id) ?? 0) > 0);
     if (used.length) throw new AdvanceError(409, `Yêu cầu tạm ứng đã được phân bổ cho đợt khác: ${used.join(', ')}`);
+  }
+
+  const funded = await getAdvanceFundedAmounts(dbOrTx, advanceRequestIds);
+  if (requests.some(request => (funded.get(request.id) ?? 0) < Number(request.amount))) {
+    throw new AdvanceError(409, 'Tạm ứng chưa có đủ giao dịch quỹ xác nhận tiền thực giao.');
   }
 
   // 3. Validate trip expenses (if provided)

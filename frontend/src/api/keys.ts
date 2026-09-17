@@ -459,19 +459,6 @@ export const qk = {
       ['app-settings', 'truck-financial-profiles', truckId ?? 'auto'] as const,
   },
 
-  creditOverrides: {
-    all: ['credit-overrides'] as const,
-    list: (filters?: { status?: string; customerId?: number; shipmentId?: number; cursor?: string; limit?: number }) =>
-      [
-        'credit-overrides',
-        filters?.status ?? null,
-        filters?.customerId ?? null,
-        filters?.shipmentId ?? null,
-        filters?.cursor ?? null,
-        filters?.limit ?? 25,
-      ] as const,
-  },
-
   /* ── Trip-form catalogs (loaded on demand by the create/edit form) ── */
 
   tripForm: {

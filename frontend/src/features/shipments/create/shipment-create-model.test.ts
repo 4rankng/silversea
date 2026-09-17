@@ -6,6 +6,7 @@ import {
   buildShipmentRootPayload,
   createEmptyContainer,
   getShipmentCreateReadiness,
+  resetCustomerSite,
   validateShipmentCreate,
   type ShipmentContainerDraft,
 } from './shipment-create-model';
@@ -28,6 +29,16 @@ const container: ShipmentContainerDraft = {
 };
 
 describe('shipment create model', () => {
+  it.each([
+    ['inherited', '11', 11, ''],
+    ['manually overridden', '12', 11, '12'],
+    ['manual without factory route', '12', null, '12'],
+    ['unset', '', null, ''],
+  ] as const)('TC-CUS-FACTORY-SEARCH-08 clears the factory with a %s route', (_name, routeId, factoryRouteId, expectedRoute) => {
+    expect(resetCustomerSite({ operationalSiteId: '41', routeId }, [{ id: 41, routeId: factoryRouteId }]))
+      .toEqual({ operationalSiteId: '', routeId: expectedRoute });
+  });
+
   it('keeps a customer-only draft valid while listing every dispatch requirement', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7' };
     const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '' }]);

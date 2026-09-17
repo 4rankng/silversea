@@ -6,7 +6,7 @@ import {
   NotificationType,
   Role,
   accountantSettlementExpensePatchSchema,
-  governanceActionDecisionSchema,
+  directFinancialActionSchema,
   updateAdvanceSettlementSchema,
 } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
@@ -75,12 +75,12 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 
 // 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement
 // check/approve/reject endpoints are GONE — settlements apply at creation
-// (forwarder route chains create+approve in one transaction). Any client
+// (forwarder route records directly in one transaction). Any client
 // still calling these gets 404.
 
 router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const parsed = governanceActionDecisionSchema.safeParse(req.body);
+  const parsed = directFinancialActionSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);

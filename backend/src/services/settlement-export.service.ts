@@ -5,6 +5,7 @@ import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './li
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
+import type { Tx } from './trip-shared';
 
 const EXPENSE_TYPE_LABELS: Record<string, string> = {
   LIFTING: 'Phí nâng container',
@@ -104,10 +105,34 @@ export interface SettlementExportData {
 
 // ── Data loading ──
 
-export async function buildSettlementExportData(id: number): Promise<SettlementExportData | null> {
-  const settlement = await getAdvanceSettlement(id);
+export async function buildSettlementExportData(id: number, executor: Tx | typeof db = db): Promise<SettlementExportData | null> {
+  const settlement = await getAdvanceSettlement(id, executor);
   if (!settlement) return null;
-  return settlement as unknown as SettlementExportData;
+  return {
+    id: settlement.id,
+    code: settlement.code,
+    createdAt: settlement.createdAt.toISOString(),
+    forwarderName: settlement.forwarderName,
+    refundAmount: settlement.refundAmount,
+    note: settlement.note,
+    linkedRequests: settlement.linkedRequests.map(request => ({
+      amount: request.allocatedAmount,
+      reason: request.reason,
+      createdAt: request.createdAt,
+    })),
+    linkedExpenses: settlement.linkedExpenses.map(expense => ({
+      id: expense.id,
+      tripId: expense.tripId,
+      expenseType: expense.expenseType,
+      amount: expense.buyAmount,
+      containerNumber: expense.containerNumber,
+      invoiceNumber: expense.invoiceNumber,
+      note: expense.note,
+      createdAt: expense.createdAt,
+      departureDate: expense.departureDate,
+      customerName: expense.customerName,
+    })),
+  };
 }
 
 // ── HTML rendering ──
@@ -181,11 +206,11 @@ ${header}
 </div>
 
 ${requests.length > 0 ? `
-<div class="section-title">Tạm ứng đã nhận</div>
+<div class="section-title">Tạm ứng đã sử dụng</div>
 <div class="advance-list">
   ${advanceRows}
   <div class="advance-total">
-    <span>Tổng tạm ứng:</span>
+    <span>Tổng tạm ứng đã sử dụng:</span>
     <span>${formatVND(totalAdvance, true)}</span>
   </div>
 </div>` : ''}
@@ -204,7 +229,7 @@ ${requests.length > 0 ? `
 </table>
 
 <div class="summary">
-  <div class="summary-row"><span>Tổng tạm ứng:</span><strong>${formatVND(totalAdvance, true)}</strong></div>
+  <div class="summary-row"><span>Tổng tạm ứng đã sử dụng:</span><strong>${formatVND(totalAdvance, true)}</strong></div>
   <div class="summary-row"><span>Tổng chi phí:</span><strong>${formatVND(totalExpense, true)}</strong></div>
   ${refund > 0 ? `<div class="summary-row"><span>Tiền hoàn lại:</span><strong>${formatVND(refund, true)}</strong></div>` : ''}
   <div class="summary-row summary-row--balance">
@@ -218,7 +243,7 @@ ${data.note ? `<div class="note"><strong>Ghi chú:</strong> ${escapeHtml(data.no
 <div class="signatures">
   <div class="sig-block"><div class="sig-label">Người lập</div><div class="sig-line">(Ký, họ tên)</div></div>
   <div class="sig-block"><div class="sig-label">Kế toán</div><div class="sig-line">(Ký, họ tên)</div></div>
-  <div class="sig-block"><div class="sig-label">Quản lý</div><div class="sig-line">(Ký, họ tên)</div></div>
+  <div class="sig-block"><div class="sig-label">Người giao nhận</div><div class="sig-line">(Ký, họ tên)</div></div>
 </div>
 </body></html>`;
 }
@@ -329,7 +354,7 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
     // ── 4. Advances section ──
     if (requests.length > 0) {
       sheet.mergeCells(`A${row}:F${row}`);
-      sheet.getCell(`A${row}`).value = 'I. TẠM ỨNG ĐÃ NHẬN';
+      sheet.getCell(`A${row}`).value = 'I. TẠM ỨNG ĐÃ SỬ DỤNG';
       sheet.getCell(`A${row}`).font = { name: F, size: 11, bold: true, color: { argb: CLR.accent } };
       sheet.getRow(row).height = 22;
       row++;
@@ -466,7 +491,7 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
     row++;
 
     const summaryItems: Array<[string, number]> = [
-      ['Tổng tạm ứng đã nhận', totalAdvance],
+      ['Tổng tạm ứng đã sử dụng', totalAdvance],
       ['Tổng chi phí phát sinh', totalExpense],
     ];
     if (refund > 0) summaryItems.push(['Tiền hoàn lại', refund]);
@@ -526,7 +551,7 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
     row++;
     row += 2;
     const sigRow1 = row;
-    const sigTitles = ['Người lập phiếu', 'Kế toán kiểm tra', 'Quản lý duyệt'];
+    const sigTitles = ['Người lập phiếu', 'Kế toán đối chiếu', 'Người giao nhận'];
     const sigCols = [['A', 'B'], ['C', 'D'], ['E', 'F']];
 
     for (let i = 0; i < sigTitles.length; i++) {

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ChevronRight, KeyRound, LogOut, UserCog, X } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, LogOut, UserCog, X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import type { SidebarProps } from './types';
@@ -10,13 +10,14 @@ type MobileAccountSheetProps = {
   roleLabel: string;
   onClose: () => void;
   onOpenProfile: () => void;
+  onOpenNotifications: () => void;
   onOpenPassword: () => void;
   onLogout: () => void;
 };
 
 /** One compact account surface. The desktop menu is rendered by Sidebar. */
 export function MobileAccountSheet({
-  user, roleLabel, onClose, onOpenProfile, onOpenPassword, onLogout,
+  user, roleLabel, onClose, onOpenProfile, onOpenNotifications, onOpenPassword, onLogout,
 }: MobileAccountSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   useFocusTrap(sheetRef, true);
@@ -60,6 +61,11 @@ export function MobileAccountSheet({
             <button type="button" className="mobile-user-sheet-btn profile" onClick={onOpenProfile}>
               <UserCog size={18} aria-hidden="true" />
               <span className="btn-label">Thông tin cá nhân</span>
+              <ChevronRight size={16} className="btn-chevron" aria-hidden="true" />
+            </button>
+            <button type="button" className="mobile-user-sheet-btn notifications" onClick={onOpenNotifications}>
+              <Bell size={18} aria-hidden="true" />
+              <span className="btn-label">Thông báo</span>
               <ChevronRight size={16} className="btn-chevron" aria-hidden="true" />
             </button>
             <button type="button" className="mobile-user-sheet-btn password" onClick={onOpenPassword}>

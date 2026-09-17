@@ -26,7 +26,7 @@ import { assertCanMakeGovernanceAction } from './governance-policy';
 // close a services-graph import cycle.
 import {
   applyGovernanceActionDirect,
-  assertActiveApprovalApplication,
+  assertActiveDirectApplication,
   buildGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyAdapter,
@@ -39,8 +39,6 @@ import {
 } from './advance.service';
 import { applyCompanyExpenseGovernanceAction } from './expense.service';
 import { applyFuelInvoiceGovernanceAction } from './fuel-invoice.service';
-import { applyCreditOverrideGovernanceAction } from './credit-limit.service';
-import { applyTripExpenseGovernanceAction } from './approval.service';
 import { transitionTripStatus } from './trip-status-machine.service';
 import {
   updateTripFigures,
@@ -455,12 +453,6 @@ async function applyGovernanceAction(
   if (action.subjectType === 'FUEL_INVOICE') {
     return applyFuelInvoiceGovernanceAction(tx, action);
   }
-  if (action.subjectType === 'CREDIT_OVERRIDE') {
-    return applyCreditOverrideGovernanceAction(tx, action);
-  }
-  if (action.subjectType === 'TRIP_EXPENSE') {
-    return applyTripExpenseGovernanceAction(tx, action);
-  }
   return applyTripGovernanceAction(tx, action);
 }
 
@@ -468,7 +460,7 @@ async function applyTripGovernanceAction(
   tx: Tx,
   action: GovernanceActionRow,
 ) {
-  assertActiveApprovalApplication(tx, action.id);
+  assertActiveDirectApplication(tx, action.id);
   if (action.subjectType !== 'TRIP' || action.subjectId == null) {
     throw new ApiError(409, 'Yêu cầu điều chỉnh không có chuyến đi hợp lệ');
   }

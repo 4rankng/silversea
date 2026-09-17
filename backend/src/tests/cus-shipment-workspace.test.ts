@@ -40,6 +40,7 @@ const createdFulfillmentIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdPortIds: number[] = [];
+const createdFactoryIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
@@ -235,6 +236,9 @@ after(async () => {
   }
   if (createdShipmentIds.length) {
     await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+  }
+  if (createdFactoryIds.length) {
+    await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdFactoryIds));
   }
   if (createdContainerTypeIds.length) {
     await db.delete(s.containerTypes)
@@ -2939,6 +2943,148 @@ describe('container line vehicle plate clear (20260916_6)', () => {
   test.after(async () => {
     for (const id of createdVehicleIds) {
       await db.delete(s.carrierFleetVehicles).where(eq(s.carrierFleetVehicles.id, id)).catch(() => {});
+    }
+  });
+});
+
+// UI-CD-12: factory identity is container-owned. A successful edit must change
+// the same source displayed by CUS, dispatch, and later driver jobs.
+describe('FCL workspace factory source editing', () => {
+  async function factory(overrides: Partial<typeof s.operationalSites.$inferInsert> = {}) {
+    const [row] = await db.insert(s.operationalSites).values({
+      customerId, code: `WSF-${lettersTag()}`, name: `Factory ${lettersTag()}`,
+      shortName: `NM ${lettersTag()}`, address: 'KCN test', siteType: 'FACTORY',
+      ...overrides,
+    }).returning();
+    createdFactoryIds.push(row.id);
+    return row;
+  }
+
+  test('replaces the effective factory only on the selected container, including snapshot and readback', async () => {
+    const first = await factory();
+    const factoryRoute = await seedRoute();
+    const second = await factory({ routeId: factoryRoute.id });
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: first.id, blNumber: `WSFACT-${lettersTag()}` });
+    const selected = await seedContainer(shipment.id);
+    const sibling = await seedContainer(shipment.id, { operationalSiteId: first.id });
+    const fulfillment = await seedFulfillment(shipment.id, selected.id);
+    await seedFulfillment(shipment.id, sibling.id);
+    const before = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(before.containers[0].operationalSiteId, first.id);
+    assert.equal(before.containers[0].fieldAccess.operationalSiteId.mode, 'DIRECT');
+    const result = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: selected.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: second.id }, actor: cusActor });
+    assert.equal(result.line.operationalSiteId, second.id);
+    assert.equal(result.line.routeId, factoryRoute.id);
+    assert.equal(result.line.shipmentVersion, shipment.version + 1);
+    const after = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(after.containers.find(row => row.id === selected.id)?.operationalSiteId, second.id);
+    assert.equal(after.containers.find(row => row.id === sibling.id)?.operationalSiteId, first.id);
+    const flat = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: shipment.blNumber! }, cusActor);
+    assert.equal(flat.items.find(row => row.id === selected.id)?.factoryName, second.shortName);
+    assert.equal(flat.items.find(row => row.id === selected.id)?.fieldAccess.operationalSiteId.mode, 'DIRECT');
+    const [saved] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    const snapshot = saved.siteSnapshot as { deliverySite: { id: number; contactPhone: string | null }; pickupWarehouse: { name: string } };
+    assert.equal(snapshot.deliverySite.id, second.id);
+    assert.equal(snapshot.deliverySite.contactPhone, second.contactPhone);
+    assert.equal(snapshot.pickupWarehouse.name, 'Kho A');
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: selected.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: first.id }, actor: cusActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    const unchanged = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(unchanged.containers.find(row => row.id === selected.id)?.operationalSiteId, second.id);
+  });
+
+  test('rejects foreign, inactive, deleted and warehouse choices atomically; selector lists scoped active factories', async () => {
+    const valid = await factory();
+    const foreignCustomer = await seedCustomer({ name: `WS factory foreign ${lettersTag()}` });
+    const invalid = [await factory({ customerId: foreignCustomer.id }), await factory({ isActive: false }),
+      await factory({ deletedAt: new Date() }), await factory({ siteType: 'WAREHOUSE' })];
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: valid.id });
+    const container = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, container.id);
+    for (const choice of invalid) {
+      await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, operationalSiteId: choice.id }, actor: cusActor }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    }
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(detail.containers[0].operationalSiteId, valid.id);
+    assert.equal(detail.containers[0].shipmentVersion, shipment.version);
+    assert.ok(detail.selectors.operationalSites.some(site => site.id === valid.id));
+    for (const choice of invalid) assert.ok(!detail.selectors.operationalSites.some(site => site.id === choice.id));
+  });
+
+  test('combined factory and port edits retain the factory snapshot; null restores the inherited factory', async () => {
+    const inherited = await factory();
+    const selected = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: inherited.id });
+    const container = await seedContainer(shipment.id);
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const { dropPortId } = await seedLiftDropPorts();
+    const changed = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: selected.id, dropoffSiteId: dropPortId }, actor: cusActor });
+    assert.equal(changed.line.operationalSiteId, selected.id);
+    assert.equal(changed.line.dropoffSiteId, dropPortId);
+    const [after] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal((after.siteSnapshot as { deliverySite: { id: number } }).deliverySite.id, selected.id);
+    const reset = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: changed.line.shipmentVersion, operationalSiteId: null }, actor: cusActor });
+    assert.equal(reset.line.operationalSiteId, inherited.id);
+    assert.equal(reset.line.dropoffSiteId, dropPortId);
+    const [stored] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    assert.equal(stored.operationalSiteId, null);
+    const [afterReset] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal((afterReset.siteSnapshot as { deliverySite: { id: number } }).deliverySite.id, inherited.id);
+    await db.update(s.shipmentContainers).set({ operationalSiteId: inherited.id }).where(eq(s.shipmentContainers.id, container.id));
+    const cleared = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: reset.line.shipmentVersion, operationalSiteId: null }, actor: cusActor });
+    assert.equal(cleared.line.operationalSiteId, inherited.id);
+    const [clearedRow] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    assert.equal(clearedRow.operationalSiteId, null, 'an equal explicit override must still be cleared');
+  });
+
+  test('preserves an unchanged historical factory and blocks changes once a real trip exists', async () => {
+    const historical = await factory({ isActive: false });
+    const next = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: historical.id });
+    const container = await seedContainer(shipment.id);
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({ customerId, routeId: route.id, departureDate: '2026-09-17',
+      fulfillmentId: fulfillment.id, status: 'CREATED', tripCode: `WSF-${lettersTag()}` }).returning();
+    createdTripIds.push(trip.id);
+    const noChange = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: historical.id }, actor: cusActor });
+    assert.equal(noChange.line.operationalSiteId, historical.id);
+    assert.equal(noChange.line.shipmentVersion, shipment.version);
+    assert.equal(noChange.line.fieldAccess.operationalSiteId.mode, 'READ_ONLY');
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: cusActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 409 && error.message.includes('chuyến xe'));
+  });
+
+  test('preserves accounting locks and role boundaries for factory edits', async () => {
+    const first = await factory();
+    const next = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: first.id });
+    const container = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, container.id);
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: accountantActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 403);
+    await db.insert(s.shipmentAccountingLocks).values({ shipmentId: shipment.id,
+      billingDocumentId: 900_000_000 + shipment.id, billingDocumentVersion: 1,
+      billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: '2026-09-17T00:00:00.000Z' },
+      shipmentVersionAtLock: shipment.version, reason: 'UI-CD-12 regression', activatedBy: cusActor.userId });
+    try {
+      const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+      assert.equal(detail.containers[0].fieldAccess.operationalSiteId.mode, 'READ_ONLY');
+      await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: cusActor }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    } finally {
+      await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
     }
   });
 });

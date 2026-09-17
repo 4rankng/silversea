@@ -389,7 +389,7 @@ báo giá dầu hiện hành.
   một nguồn giá dầu; lịch công bố, nguồn và cách quy đổi VAT cho các kỳ tương lai.
 
 Đây là các điều khoản/dữ liệu khách hàng cần làm rõ, không phải phê duyệt nội bộ.
-Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md) và
+Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở) và
 [quy trình tính cước](PhuongAnTinhCuocTuDong.md). Bỏ bước duyệt không cho phép tự
 chọn giá hoặc thay đổi hợp đồng chưa được khách xác nhận.
 

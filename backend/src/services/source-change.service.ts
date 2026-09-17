@@ -529,7 +529,7 @@ async function collectIssuedDocumentIdsForSourceTx(
   return [...new Set(rows.map((row) => row.documentId))];
 }
 
-async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promise<void> {
+async function appendRecordedServiceFeeTx(tx: Tx, expenseId: number): Promise<void> {
   const [expense] = await tx.select({
     expenseId: s.tripExpenses.id,
     customerId: s.trips.customerId,
@@ -538,6 +538,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     tripStatus: s.trips.status,
     expenseDate: s.tripExpenses.expenseDate,
     sellAmount: s.tripExpenses.sellAmount,
+    approvalStatus: s.tripExpenses.approvalStatus,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
@@ -546,14 +547,9 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
   if (
     !expense
     || expense.tripStatus !== 'COMPLETED'
-    || Number(expense.sellAmount ?? 0) <= 0
   ) {
     return;
   }
-  if (!expense.expenseDate) {
-    throw new ApiError(400, 'Ngày chi thực tế là bắt buộc trước khi ghi nhận chi phí');
-  }
-
   const existingRows = await tx.select({
     id: s.ledger.id,
     debit: s.ledger.debit,
@@ -566,8 +562,14 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     .from(s.ledger)
     .where(tripExpenseServiceLedgerCondition(expenseId, expense.customerId));
   const posted = existingRows.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0);
-  const delta = round2dp(Number(expense.sellAmount ?? 0) - posted);
+  const desired = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus) ? Number(expense.sellAmount ?? 0) : 0;
+  const delta = round2dp(desired - posted);
   if (delta === 0) return;
+
+  if (!expense.expenseDate) {
+    throw new ApiError(400, 'Ngày chi thực tế là bắt buộc trước khi ghi nhận chi phí');
+  }
+
 
   const existingAuthority = [...existingRows]
     .sort((left, right) => right.id - left.id)
@@ -603,7 +605,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
   });
 }
 
-async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Promise<void> {
+async function appendRecordedVendorExpenseTx(tx: Tx, expenseId: number): Promise<void> {
   const [expense] = await tx.select({
     expenseId: s.tripExpenses.id,
     tripId: s.tripExpenses.tripId,
@@ -622,17 +624,11 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
   if (
     !expense
     || expense.tripStatus !== 'COMPLETED'
-    || !['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     || expense.supplierId == null
     || expense.settlementMethod !== 'COMPANY_DIRECT'
-    || Number(expense.buyAmount ?? 0) <= 0
   ) {
     return;
   }
-  if (!expense.departureDate) {
-    throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã ghi nhận');
-  }
-
   const sourceReceiptId = tripExpenseVendorReceiptId(expenseId);
   const existingRows = await tx.select({
     id: s.ledger.id,
@@ -650,8 +646,14 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
       eq(s.ledger.receiptId, sourceReceiptId),
     ));
   const posted = existingRows.reduce((sum, row) => sum + Number(row.credit) - Number(row.debit), 0);
-  const delta = round2dp(Number(expense.buyAmount ?? 0) - posted);
+  const desired = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus) ? Number(expense.buyAmount ?? 0) : 0;
+  const delta = round2dp(desired - posted);
   if (delta === 0) return;
+
+  if (!expense.departureDate) {
+    throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã ghi nhận');
+  }
+
 
   const basisDate = String(expense.departureDate).slice(0, 10);
   const existingAuthority = [...existingRows]
@@ -711,7 +713,7 @@ export async function propagateTripFinancialSourceChange(tx: Tx, input: {
   }
 }
 
-export async function propagateExpenseApproval(tx: Tx, input: {
+export async function propagateRecordedExpense(tx: Tx, input: {
   expenseId: number;
 }): Promise<void> {
   const [expense] = await tx.select({
@@ -722,8 +724,8 @@ export async function propagateExpenseApproval(tx: Tx, input: {
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
     .where(eq(s.tripExpenses.id, input.expenseId))
     .limit(1);
-  await appendLateApprovedServiceFeeTx(tx, input.expenseId);
-  await appendLateApprovedVendorExpenseTx(tx, input.expenseId);
+  await appendRecordedServiceFeeTx(tx, input.expenseId);
+  await appendRecordedVendorExpenseTx(tx, input.expenseId);
   if (expense?.tripStatus === 'COMPLETED') {
     await SnapshotServices.markBothDirty(expense.tripId, tx);
   }
@@ -733,8 +735,8 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   // advance.service ↔ source-change.service module cycle; the function is
   // internally guarded against double-posting (manual batch flow uses the same
   // hook) and skips non-OPS_ADVANCE / driver expenses.
-  const { autoOffsetExpenseApproval } = await import('./advance.service.js');
-  await autoOffsetExpenseApproval(tx, input.expenseId);
+  const { autoOffsetRecordedExpense } = await import('./advance.service.js');
+  await autoOffsetRecordedExpense(tx, input.expenseId);
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'EXPENSE', input.expenseId, desired);
   const issuedDocumentIds = await collectIssuedDocumentIdsForSourceTx(tx, 'EXPENSE', input.expenseId);
@@ -747,8 +749,8 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   }
 }
 
-export async function propagateExpenseApprovals(tx: Tx, expenseIds: readonly number[]): Promise<void> {
+export async function propagateRecordedExpenses(tx: Tx, expenseIds: readonly number[]): Promise<void> {
   for (const expenseId of [...new Set(expenseIds)]) {
-    await propagateExpenseApproval(tx, { expenseId });
+    await propagateRecordedExpense(tx, { expenseId });
   }
 }

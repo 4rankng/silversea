@@ -136,6 +136,28 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     expect(screen.getByRole('button', { name: /thêm tài xế/i })).toBeTruthy();
   });
 
+  it('UI-CD-08 searches Vietnamese names and formatted identifiers consistently', () => {
+    fleetState.data = {
+      trucks: [truck({ licensePlate: '15H-052.82' })],
+      drivers: [driver({ name: 'Đinh Thanh Thịnh', code: 'LX-101', phone: '090 123 4567' })],
+    };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Tìm mã, tên, SĐT hoặc biển số xe…' });
+    for (const query of ['dinh thanh thinh', '  DINH  Thanh  thinh  ', 'thinh 15H', '15h05282', '0901234567', 'lx101']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(screen.getAllByText('Đinh Thanh Thịnh').length).toBeGreaterThan(0);
+    }
+    fireEvent.change(input, { target: { value: 'khong-co-tai-xe' } });
+    expect(screen.queryAllByText('Đinh Thanh Thịnh')).toHaveLength(0);
+    expect(screen.getByText('Không có tài xế khớp tìm kiếm')).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getAllByText('Đinh Thanh Thịnh').length).toBeGreaterThan(0);
+  });
+
   it('creates a driver without salary fields and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});

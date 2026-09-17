@@ -22,7 +22,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
 ### 20260911_3 (5 bugs)
 8. **BUG 1** — Added nha xe doesn't show in dropdown selection
 9. **BUG 2** — Detailed plan should show ALL containers, not just assigned ones
-10. **BUG 3** — Container number supplement should not require approval — auto-approve
+10. **BUG 3** — Container number supplement saves directly without an approval step
 11. **BUG 4** — Task note tags format: actions on top, text below; remove Tác vụ column
 12. **BUG 5** — Driver app UI adjustments (factory abbreviation, route order, container info)
 
@@ -208,7 +208,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - `qa/2026-09-11_completed_comp-009.png`
 - **Existing coverage:** `testplan/qa/2026-09-10_dispatch-detailed-plan.md` TC-DDP-001 through 004
 
-### 20260911_3 — BUG 3: Container number supplement auto-approved
+### 20260911_3 — BUG 3: Container number supplement saved directly
 
 #### TC-COMP-010 — Container number supplement saves directly without approval
 
@@ -279,7 +279,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
 | 20260911_2 FEATURE 2 (handover photos) | None | TC-COMP-007 |
 | 20260911_3 BUG 1 (nha xe dropdown) | None | TC-COMP-008 |
 | 20260911_3 BUG 2 (all containers) | TC-DDP-001 through 004 | TC-COMP-009 |
-| 20260911_3 BUG 3 (auto-approve) | 18f4a2dd Cluster A | TC-COMP-010 |
+| 20260911_3 BUG 3 (direct save) | 18f4a2dd Cluster A | TC-COMP-010 |
 | 20260911_3 BUG 4 (task tags format) | driverTaskNote.test.ts | TC-COMP-011 |
 | 20260911_3 BUG 5 (driver app UI) | TC-DA-* | TC-COMP-012 |
 

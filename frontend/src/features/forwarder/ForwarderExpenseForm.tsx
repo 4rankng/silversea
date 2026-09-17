@@ -139,7 +139,7 @@ export function ForwarderExpenseForm({
               setSettlementMethod(v);
             }}
             options={[
-              { value: 'FORWARDER_ADVANCE', label: 'Chi hộ tạm ứng' },
+              { value: 'OPS_ADVANCE', label: 'Chi hộ tạm ứng' },
               { value: 'COMPANY_DIRECT', label: 'Công ty trả trực tiếp' },
             ]}
           />

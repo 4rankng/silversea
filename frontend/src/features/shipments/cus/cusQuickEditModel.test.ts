@@ -4,6 +4,7 @@ import {
   buildQuickEditDeclarationBody,
   buildQuickEditDraft,
   buildQuickEditPayload,
+  factoryDetailPath,
   isQuickEditUnchanged,
   quickEditAccessKeys,
   quickEditDeclarationChanged,
@@ -135,6 +136,20 @@ describe('quickEditSaveIdentity', () => {
 });
 
 describe('buildQuickEditPayload', () => {
+  it('UI-CD-12 never sends a parent factory label for an FCL container factory', () => {
+    const item = makeItem({ cargoMode: 'FCL' });
+    expect(buildQuickEditPayload(draftFrom(item, 'identity', { factoryName: 'Wrong parent' }), item)).toEqual({ expectedVersion: 3 });
+  });
+
+  it('UI-CD-12 links to container factories without hiding undated rows', () => {
+    const item = makeItem({ raw: { customerId: 7 }, billOrBookNumber: 'BL/12345', declarationNumber: null });
+    const url = new URL(factoryDetailPath(item), 'http://local');
+    expect(url.pathname).toBe('/shipments-detail');
+    expect(url.searchParams.get('dateScope')).toBe('all');
+    expect(url.searchParams.get('customerId')).toBe('7');
+    expect(url.searchParams.get('searchSuffix')).toBe('BL/12345');
+    expect(new URL(factoryDetailPath(makeItem({ raw: { customerId: 7 }, billOrBookNumber: null, declarationNumber: 'TK1234' })), 'http://local').searchParams.get('searchSuffix')).toBe('TK1234');
+  });
   it('notes field ships multiline text verbatim — no newline stripping on the save path', () => {
     const item = makeItem();
     const note = '- 123\n- ABC';

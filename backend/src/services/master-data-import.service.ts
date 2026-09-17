@@ -386,7 +386,7 @@ function parseTemplateSheet(
         rowNumber,
         entityType,
         'UNSUPPORTED_SOURCE_ROW',
-        'Dòng nguồn chưa có ánh xạ được phê duyệt; không tạo bản ghi.',
+        'Dòng nguồn chưa có ánh xạ hợp lệ; không tạo bản ghi.',
       ));
     } else {
       rows.push(templateRow(sheet.name, rowNumber, entityType));

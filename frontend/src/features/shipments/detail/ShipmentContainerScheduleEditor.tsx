@@ -9,6 +9,7 @@ import { useState } from 'react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { BufferedUuiDateInput } from '../../../design-system';
 import { TimeInput } from '../../../design-system/forms/TimeInput';
+import { businessDateOffsetISO } from '../../../lib/format';
 
 /** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
 const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
@@ -19,15 +20,6 @@ const SCHEDULE_QUICK_DAYS = [
   { label: 'Ngày mai', offsetDays: 1 },
   { label: 'Ngày kia', offsetDays: 2 },
 ] as const;
-
-function getOffsetDateString(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 export interface ScheduleEditorBodyProps {
   /** The container row being scheduled — drives the direction-aware labels. */
@@ -82,7 +74,7 @@ export function ScheduleEditorBody({
       <div className="shipment-container-ledger__schedule-section">Chọn nhanh ngày</div>
       <div className="shipment-container-ledger__schedule-pills" role="group" aria-label="Chọn nhanh ngày">
         {SCHEDULE_QUICK_DAYS.map(({ label, offsetDays }) => {
-          const quickDate = getOffsetDateString(offsetDays);
+          const quickDate = businessDateOffsetISO(offsetDays);
           const active = appointmentDate === quickDate;
           return (
             <button
@@ -136,7 +128,7 @@ export function ScheduleEditorBody({
             disabled={saving || !canEdit}
             onClick={() => {
               onScheduleTimeChange(presetTime);
-              if (!appointmentDate) onAppointmentDateChange(getOffsetDateString(0));
+              if (!appointmentDate) onAppointmentDateChange(businessDateOffsetISO(0));
             }}
           >
             {presetTime}

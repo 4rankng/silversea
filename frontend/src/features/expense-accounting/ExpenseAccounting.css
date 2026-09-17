@@ -62,8 +62,14 @@
 .expense-accounting-group-list > button small { color: var(--fg-2); display: block; margin-top: 4px; }
 .expense-accounting-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .expense-accounting-file > span { overflow-wrap: anywhere; }
+.expense-history-filters { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(2, minmax(120px, 1fr)) auto; gap: 8px; align-items: end; }
+.expense-work-road-breakdown { margin: 0; }
+.expense-work-road-breakdown > div { display: flex; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--line); }
+.expense-work-road-breakdown dd { margin: 0; }
 @media (max-width: 1100px) { .expense-accounting-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 767px) {
+  .expense-history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .expense-history-filters > :first-child { grid-column: 1 / -1; }
   .expense-accounting { gap: 10px; }
   .expense-accounting-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .expense-accounting-filters > :first-child { grid-column: 1 / -1; }
@@ -87,4 +93,18 @@
   .expense-register-open, .expense-register-money { min-height: var(--control-touch-h); }
   .expense-register-select { min-width: var(--control-touch-h); min-height: var(--control-touch-h); display: grid; place-items: center; }
   .expense-accounting-check { min-height: var(--control-touch-h); }
+}
+
+/* Tablet work rows keep all three financial totals in view. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .expense-work-table-wrap { overflow: visible; }
+  .expense-work-table, .expense-work-table tbody { display: block; }
+  .expense-work-table thead { display: none; }
+  .expense-work-table tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+  .expense-work-table td { display: block; min-width: 0; padding: 0; border: 0; }
+  .expense-work-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 4px; }
+  .expense-work-table .expense-work-identity, .expense-work-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
+  .expense-work-table .expense-work-notes { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .expense-work-table .num { text-align: start; white-space: normal; }
+  .expense-work-table tr[data-vehicle-start="true"] td { border-top: 0; }
 }

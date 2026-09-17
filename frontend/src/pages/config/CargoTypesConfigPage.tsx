@@ -14,7 +14,7 @@ function CargoTypeForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   return (
     <InlineForm colSpan={3}>
       <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Tên loại hàng"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cát, đá…" /></Field>
+        <Field label="Tên loại hàng"><input className="input" required pattern={'.*\\S.*'} value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cát, đá…" /></Field>
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!name.trim()) return; onsave({ name: name.trim() }); }} ondelete={onDelete} deleting={deleting} />
     </InlineForm>

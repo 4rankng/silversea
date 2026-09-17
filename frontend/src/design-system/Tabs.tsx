@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import './Tabs.css';
 
 /**
@@ -43,6 +43,26 @@ export interface TabsProps {
 
 export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, className }: TabsProps) {
   const groupId = useId();
+  const tablistRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = tablistRef.current;
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !selected) return;
+    const reveal = () => {
+      const frame = list.getBoundingClientRect();
+      const tab = selected.getBoundingClientRect();
+      if (tab.left < frame.left) list.scrollLeft -= frame.left - tab.left;
+      else if (tab.right > frame.right) list.scrollLeft += tab.right - frame.right;
+    };
+    reveal();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', reveal);
+      return () => window.removeEventListener('resize', reveal);
+    }
+    const observer = new ResizeObserver(reveal);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [value]);
   const tabbableId = tabs.find((tab) => tab.id === value && !tab.disabled)?.id
     ?? tabs.find((tab) => !tab.disabled)?.id;
   const variantClass = variant === 'boxed' ? 'd-tabs-boxed' : variant === 'bordered' ? 'd-tabs-border' : '';
@@ -69,7 +89,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
   };
 
   return (
-    <div className={cls} role="tablist" aria-label={ariaLabel}>
+    <div ref={tablistRef} className={cls} role="tablist" aria-label={ariaLabel}>
       {tabs.map((t) => {
         const isActive = t.id === value;
         return (

@@ -495,21 +495,21 @@
   }
   .confirm-actions .btn {
     flex: 1 1 auto;
-    min-height: 32px;
+    min-height: var(--control-touch-h);
     justify-content: center;
   }
 
   /* ── Compact controls: geometry does not shrink text ── */
   .btn--sm,
-  .btn-sm { min-height: 32px; padding: 4px 8px; font-size: var(--text-control-size); }
+  .btn-sm { min-height: var(--control-touch-h); padding: 4px 8px; font-size: var(--text-control-size); }
   .btn--icon,
-  .btn-icon { min-width: 32px; min-height: 32px; padding: 6px; }
+  .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 6px; }
   .btn--icon.btn--sm,
-  .btn-icon.btn-sm { min-width: 30px; min-height: 30px; padding: 5px; }
+  .btn-icon.btn-sm { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .row-actions .btn--icon,
   .row-actions .btn-icon,
   td .btn--icon,
-  td .btn-icon { min-width: 30px; min-height: 30px; padding: 5px; }
+  td .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .input,
   select.input,
   input.input,
@@ -680,7 +680,7 @@
   }
   #root .row-actions .btn--icon,
   #root td .btn--icon,
-  #root td .btn-icon { min-width: 30px; min-height: 30px; }
+  #root td .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select,
   #root textarea,
@@ -692,7 +692,7 @@
   }
   #root .sidebar-item,
   #root .nav-item {
-    min-height: 32px;
+    min-height: var(--control-touch-h);
     padding: 4px 8px 4px 10px;
     font-size: var(--text-body-size);
   }
@@ -708,16 +708,14 @@
   #root .wf-link,
   #root .wf-minibtn,
   #root .wf-btn,
-  #root .topbar-date__trigger { min-height: 30px; }
+  #root .topbar-date__trigger { min-height: var(--control-touch-h); }
   /* Keep compact padding around the readable field value. */
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select { padding-top: 4px; padding-bottom: 4px; }
 
 } /* end PHONE ≤ 640px */
 
-/* Tablet-band touch sizing: phones (≤640px) now run the compact scale, so the
-   old blanket ≤900px 44px block is ranged to 641-900px only — otherwise its
-   later cascade position would override every phone compaction above. */
+/* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
   .btn,
   .btn--sm,

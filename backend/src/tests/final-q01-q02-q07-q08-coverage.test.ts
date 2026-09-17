@@ -228,9 +228,6 @@ after(async () => {
   try {
     await saveAppSettings(originalSettings);
     server.closeAllConnections();
-    // Release the shared postgres client so this file's process can exit
-    // with its true result code instead of hanging the full-suite gate.
-    await client.end({ timeout: 5 });
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
@@ -271,7 +268,8 @@ after(async () => {
     }
   } finally {
     await disconnectRedis();
-    await client.end();
+    // Close the pool only after fixture cleanup has finished.
+    await client.end({ timeout: 5 });
   }
 });
 
@@ -518,6 +516,8 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
   test('Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code', async () => {
     const q08CustomerName = `Final Q08 customer ${suffix}`;
+    const taxSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const normalizedTaxCode = `mst${taxSuffix}`;
     // ADMIN applies immediately — no pending action to approve.
     const createdCustomerAction = await request<Record<string, unknown>>('/api/customers', {
       method: 'POST',
@@ -525,7 +525,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-customer-${suffix}`),
       body: {
         name: q08CustomerName,
-        taxCode: ' MST 123 ',
+        taxCode: ` MST ${taxSuffix} `,
       },
     });
     assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
@@ -543,7 +543,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-supplier-${suffix}`),
       body: {
         name: q08SupplierName,
-        taxCode: 'm s t123',
+        taxCode: `m s t${taxSuffix}`,
         types: ['SERVICE'],
         primaryType: 'SERVICE',
       },
@@ -575,7 +575,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const normalizedPartners = await db.select({
       id: s.partners.id,
     }).from(s.partners)
-      .where(eq(s.partners.normalizedTaxCode, 'mst123'));
+      .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode));
     assert.equal(normalizedPartners.length, 1);
 
     // The supplier's carrier-link hook just adopted this customer (set
@@ -591,7 +591,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-customer-update-${suffix}`),
       expectedUpdatedAt: currentCustomerState!.updatedAt.toISOString(),
       body: {
-        taxCode: ' M S T 123 ',
+        taxCode: ` M S T ${taxSuffix} `,
       },
     });
     // Direct apply: 200 with the row, no approval step.
@@ -607,7 +607,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const normalizedPartnersAfterUpdate = await db.select({
       id: s.partners.id,
     }).from(s.partners)
-      .where(eq(s.partners.normalizedTaxCode, 'mst123'));
+      .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode));
     assert.equal(normalizedPartnersAfterUpdate.length, 1);
   });
 });

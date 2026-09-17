@@ -18,6 +18,7 @@ import ShipmentContainersPage from './ShipmentContainersPage';
 const today = formatVietnamDateInput(new Date());
 const tomorrow = formatVietnamDateInput(new Date(Date.now() + 86_400_000));
 const directContainerAccess = {
+  operationalSiteId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   containerNumber: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   containerTypeId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   cargoWeightKg: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },

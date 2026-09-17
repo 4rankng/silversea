@@ -25,7 +25,19 @@ export function useOpsModalDismiss<T extends HTMLElement>(onClose: () => void) {
     // moment it opens, whatever the opener's focus behavior.
     backdrop.focus({ preventScroll: true });
 
+    const pickerEscapes = new WeakSet<KeyboardEvent>();
+    const capturePickerKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !(event.target instanceof Element)) return;
+      // ComboBox keeps DOM focus on its input while a portalled list is open.
+      // Its expanded state may already be false by the document bubble phase.
+      if (event.target.closest('[aria-expanded="true"][aria-haspopup], [role="combobox"][aria-expanded="true"]')) {
+        pickerEscapes.add(event);
+      }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
+      // A nested React Aria/date picker owns the first Escape. Listen after
+      // its handler rather than consuming the key during document capture.
+      if (event.defaultPrevented || pickerEscapes.has(event)) return undefined;
       const targetInside = event.target instanceof Node && backdrop.contains(event.target);
       if (!targetInside) return undefined;
       if (event.key === 'Escape') {
@@ -36,9 +48,11 @@ export function useOpsModalDismiss<T extends HTMLElement>(onClose: () => void) {
       return undefined;
     };
 
-    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('keydown', capturePickerKey, true);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('keydown', capturePickerKey, true);
+      document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
       unregisterOverlay();
       if (opener?.isConnected) opener.focus({ preventScroll: true });

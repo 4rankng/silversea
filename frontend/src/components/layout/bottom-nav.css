@@ -40,7 +40,10 @@
     display: none !important;
   }
 
-  .driver-mode .app-body {
+  /* Match the full-bleed rule above: its :has specificity otherwise
+     cancels this reserve and hides the final action behind the tabs. */
+  .driver-mode .app-body,
+  .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
     padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
   }
 

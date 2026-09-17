@@ -284,15 +284,15 @@
 .shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
 .shipment-container-ledger__editor-grid > label > span,
 .shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: var(--text-label-size); font-weight: var(--fw-bold); line-height: 1.3; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid textarea,
-.shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: var(--control-field-font-size); line-height: 1.35; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
+.shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: var(--control-default-h); min-height: var(--control-default-h); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: var(--control-field-font-size); line-height: 1.35; }
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid .searchable-select__trigger { padding: 5px 9px; }
 .shipment-container-ledger__editor-grid textarea { height: auto; min-height: 72px; padding: 7px 9px; resize: vertical; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input):focus-visible,
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input):focus-visible,
 .shipment-container-ledger__editor-grid select:focus-visible,
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
@@ -313,7 +313,8 @@
    the primary Save sits disabled at rest (dirty-gated); the secondary cancel
    disables mid-save only. Unlayered declarations override Tailwind's layered
    disabled/hover utilities, so reset opacity and flatten the shadow. */
-.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-4); box-shadow: none; opacity: 1; }
+.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-3); box-shadow: none; opacity: 1; }
+.shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text, #166534); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
@@ -422,9 +423,6 @@
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
-  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
-  .shipment-container-ledger__editor-grid select,
-  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
   .shipment-container-ledger__cell-trigger,
   .shipment-container-ledger__edit-action { min-height: 40px; }
   .shipment-container-ledger__edit-action { min-width: 40px; height: 40px; }
@@ -455,9 +453,6 @@
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
-  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
-  .shipment-container-ledger__editor-grid select,
-  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
   .shipment-container-ledger__edit-action { min-width: 44px; height: 44px; min-height: 44px; }
   .shipment-container-ledger__keyboard-hint { display: none; }
@@ -558,4 +553,11 @@
     flex-wrap: wrap;
     gap: 6px 12px;
   }
+}
+
+/* Native controls share the same boundary token as the md shared selector. */
+@media (pointer: coarse) {
+  .shipment-container-ledger__editor-grid input:not([data-uui-control] input),
+  .shipment-container-ledger__editor-grid select,
+  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: var(--control-touch-h); min-height: var(--control-touch-h); }
 }

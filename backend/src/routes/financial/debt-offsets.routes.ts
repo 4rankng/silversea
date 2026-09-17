@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, debtOffsetSchema, governanceActionDecisionSchema } from '@tingting/shared';
+import { Role, debtOffsetSchema, directFinancialActionSchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -8,7 +8,6 @@ import { getUser } from '../../middleware/auth';
 import {
   getDualEntities,
   createDebtOffset,
-  approveDebtOffset,
   listDebtOffsets,
   requestDebtOffsetCancelGovernance,
 } from '../../services/debtOffset.service';
@@ -47,18 +46,12 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
     payload: { actorId: user.userId, ...data },
     createdBy: user.userId,
     entityType: 'debt_offset',
-    create: async (tx) => {
-      // 2026-09-10 (phê duyệt removed): the creator applies the offset in the
-      // same transaction — paired ADJUSTMENT entries post immediately and the
-      // row lands APPROVED instead of PENDING. Audit: approvedBy/approvedAt +
-      // the ledger pair.
-      const created = await createDebtOffset({
-        ...data,
-        createdBy: user.userId,
-        transaction: tx,
-      });
-      return approveDebtOffset(created.id, user.userId, user.role, tx);
-    },
+    create: (tx) => createDebtOffset({
+      ...data,
+      createdBy: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -72,14 +65,13 @@ router.post('/finance/debt-offsets/:id/approve', requireRoles(Role.ADMIN, Role.M
   },
 );
 
-// M6.4 — cancel an APPROVED debt offset via reversing entries. Mirrors
-// approveDebtOffset's authz (ADMIN/MANAGER). Invalidates the same caches.
+// Reverse a recorded debt offset; retain the existing ADMIN/MANAGER access.
 router.post('/finance/debt-offsets/:id/cancel',
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
     const user = getUser(req);
-    const data = governanceActionDecisionSchema.parse(req.body);
+    const data = directFinancialActionSchema.parse(req.body);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.DEBT_OFFSET_CANCEL,

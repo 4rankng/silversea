@@ -148,9 +148,9 @@ function Probe({ row, onReady }: { row: ShipmentCusContainerFlatRow; onReady: (a
   );
 }
 
-async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<ShipmentCusWorkspaceContainerLine>) {
+async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<ShipmentCusWorkspaceContainerLine>, workspace = detail(lineOverride)) {
   listCusShipmentContainers.mockResolvedValue({ items: [row], total: 1, totalPages: 1 } as unknown as ShipmentCusContainerFlatResponse);
-  getCusShipmentWorkspaceDetail.mockResolvedValue(detail(lineOverride));
+  getCusShipmentWorkspaceDetail.mockResolvedValue(workspace);
   updateShipment.mockResolvedValue({ version: 3 });
   updateCusShipmentContainerLine.mockResolvedValue({});
   let api: ReturnType<typeof useCusDetail> | null = null;
@@ -165,6 +165,38 @@ async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<Sh
 
 describe('useCusDetail saveSchedule — non-FCL transport-date paths', () => {
   afterEach(() => vi.clearAllMocks());
+
+  it('UI-CD-12 saves FCL identity through the versioned container command only', async () => {
+    const row = flatRow();
+    const workspace = detail();
+    workspace.summary.cargoMode = 'FCL';
+    workspace.containers[0].fieldAccess.operationalSiteId = { mode: 'DIRECT', reason: '' };
+    const api = await setup(row, undefined, workspace);
+    await act(async () => {
+      await api.saveIdentity(row, { operationalSiteId: 18, factoryName: 'ignored parent', routeId: 8, deliveryLocation: 'ignored parent' });
+    });
+    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(5, 11, { expectedShipmentVersion: 2, operationalSiteId: 18 }, expect.any(String));
+  });
+
+  it('UI-CD-12 refuses an immutable FCL factory', async () => {
+    const row = flatRow();
+    const workspace = detail();
+    workspace.summary.cargoMode = 'FCL';
+    workspace.containers[0].fieldAccess.operationalSiteId = { mode: 'READ_ONLY', reason: 'Lô đã chốt' };
+    const api = await setup(row, undefined, workspace);
+    await expect(api.saveIdentity(row, { operationalSiteId: 18, factoryName: null, routeId: null, deliveryLocation: null })).rejects.toThrow('Lô đã chốt');
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(updateShipment).not.toHaveBeenCalled();
+  });
+
+  it('UI-CD-12 preserves the LCL parent identity command', async () => {
+    const row = flatRow();
+    const api = await setup(row);
+    await act(async () => { await api.saveIdentity(row, { factoryName: 'Kho mới', routeId: 9, deliveryLocation: 'Điểm giao mới' }); });
+    expect(updateShipment).toHaveBeenCalledWith(5, { expectedVersion: 2, factoryName: 'Kho mới', routeId: 9, deliveryLocation: 'Điểm giao mới' });
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
 
   it('transport-only save on an appointment-less LCL row writes the shipment date and nothing else', async () => {
     const row = flatRow();

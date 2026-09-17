@@ -38,6 +38,7 @@ function BusinessCalendarForm({
       <div style={{ minWidth: 170 }}>
         <Field label="Ngày">
           <DateInput
+            required
             className="input"
             value={calendarDate}
             onChange={setCalendarDate}
@@ -48,7 +49,7 @@ function BusinessCalendarForm({
         <Field label="Tên ngày nghỉ / ngày làm bù">
           <input
             className="input"
-            value={name}
+            required pattern={'.*\\S.*'} value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Ví dụ: Quốc khánh"
           />

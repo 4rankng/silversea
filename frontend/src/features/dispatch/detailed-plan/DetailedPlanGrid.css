@@ -164,7 +164,7 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 34px;
+  min-height: var(--control-compact-h);
   padding: 4px 10px;
   background: var(--background-color-primary, var(--bg-card, #fff));
   border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
@@ -881,6 +881,17 @@
 
   /* Row 1: time | route; row 2: customer & lot | container. All four are
      short field groups — pairing them halves the card height. */
+  /* Tablet records use explicit pairs. Auto-placement otherwise skips the
+     left column when later cells are assigned to column two. */
+  .detailed-plan-grid__cell--schedule,
+  .detailed-plan-grid__cell--documents { grid-row: 1; }
+  .detailed-plan-grid__cell--route,
+  .detailed-plan-grid__cell--container { grid-row: 2; }
+  .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
+  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
+  .detailed-plan-grid__cell--editable { grid-row: 4; }
+  .detailed-plan-grid__cell--notes { grid-row: 5; }
+
   .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
   .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--border-color, #eef2f7); }
   .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }

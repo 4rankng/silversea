@@ -826,3 +826,9 @@ describe('material-write registry coverage', () => {
     );
   });
 });
+
+
+test('confirmed correction and reconciliation release declare their material audit boundaries', () => {
+  assert.equal(matchDeclaredMaterialWrite('POST', '/api/expense-accounting/entries/OPS/1/correct')?.endpoint, 'expense-accounting.correct');
+  assert.equal(matchDeclaredMaterialWrite('POST', '/api/expense-accounting/reconciliations/1/release')?.endpoint, 'expense-reconciliation.release');
+});

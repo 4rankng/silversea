@@ -595,6 +595,7 @@ async function loadSelectors(customerId: number | null, executor: Executor = db)
     }).from(s.operationalSites)
       .where(and(
         ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
+        eq(s.operationalSites.siteType, 'FACTORY'),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
       ))
@@ -1062,6 +1063,7 @@ export async function listCusShipmentContainers(
       operationalNotes: trimOrNull(row.shipment.operationalNotes),
       raw: line.raw,
       fieldAccess: {
+        operationalSiteId: line.fieldAccess.operationalSiteId,
         containerNumber: line.fieldAccess.containerNumber,
         containerTypeId: line.fieldAccess.containerTypeId,
         cargoWeightKg: line.fieldAccess.cargoWeightKg,

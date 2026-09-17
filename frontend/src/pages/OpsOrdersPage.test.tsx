@@ -138,6 +138,21 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
   });
 
+  it('distinguishes an empty search from an empty day and clears only the query', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('q=missing') ? { date: dateStr, items: [] } : makeItems()));
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: 'missing' } });
+    expect(await screen.findByText('Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.')).toBeInTheDocument();
+    expect(screen.queryByText('Không có lô hàng trong ngày này.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
+    expect(await screen.findByText('SS-A')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Tìm kiếm' })).toHaveValue('');
+    expect(screen.getByLabelText('Ngày giao dự kiến')).toHaveValue('20/09/2026');
+    expect(apiGet).toHaveBeenLastCalledWith('/ops/orders?date=2026-09-20');
+  });
+
   it('optimistically pins a row to the top and puts the new state', async () => {
     // Keep the mutation pending so the optimistic cache patch is not yet
     // reconciled by the refetch (the mock server does not persist pins).
@@ -194,7 +209,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('SS-A');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
-    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     const amount = screen.getByLabelText(/Thực chi \(VND\)/);
     fireEvent.change(amount, { target: { value: '-123000' } });
@@ -220,7 +235,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('SS-A');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
-    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     fireEvent.change(screen.getByLabelText(/Thực chi \(VND\)/), { target: { value: '123000' } });
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });

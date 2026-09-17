@@ -29,9 +29,10 @@ export async function hydrateExpenseAccountingSource(executor: Tx | typeof db, l
   if (link.sourceKind === 'OPS') {
     const [e] = await executor.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, link.sourceId));
     if (!e) throw new ApiError(404, 'Khoản chi Ops không còn tồn tại.');
+    const photos = await executor.select({ key: s.opsExpensePhotos.storageKey }).from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, e.id));
     const [trip] = link.tripId ? await executor.select().from(s.trips).where(eq(s.trips.id, link.tripId)) : [];
     return { ...base, ...e, ...link, truckId: trip?.truckId ?? null, customerId: shipment.customerId,
-      feeName: e.feeName ?? e.expenseTypeCode, expenseDate: e.paidAt, payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : e.paidById,
+      photoStorageKeys: photos.map(photo => photo.key), feeName: e.feeName ?? e.expenseTypeCode, expenseDate: e.paidAt, payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : e.paidById,
       payableEntityType: e.payerKind === 'COMPANY' ? null : 'FORWARDER', payableEntityId: e.payerKind === 'COMPANY' ? null : e.paidById };
   }
   if (link.sourceKind === 'DRIVER') {

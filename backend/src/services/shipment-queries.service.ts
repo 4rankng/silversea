@@ -10,7 +10,8 @@
 import { db } from '../db';
 import type { AuthUser } from '../middleware/auth';
 import { count, gte } from 'drizzle-orm';
-import { canonicalShipmentStatus } from '@tingting/shared';
+import { canonicalShipmentStatus, Role } from '@tingting/shared';
+import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import type { ShipmentStatus } from './shipment-types';
 import { containerTransportDateSql } from './cus-shipment-workspace-reads.service';
 import * as s from '../db/schema';
@@ -1263,6 +1264,8 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       items.map((row) => row.shipment),
     );
   }
+  const opsRecoveryNotes = options.actor && [Role.ADMIN, Role.DISPATCHER].includes(options.actor.role)
+    ? await loadDispatchExpenseNotes(items.map(row => row.shipment.id)) : new Map<number, string[]>();
   const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),
     customerName: row.customerName,
@@ -1271,6 +1274,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     factoryName: row.operationalSiteName ?? row.shipment.factoryName,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,
+    opsRecoveryNotes: opsRecoveryNotes.get(row.shipment.id) ?? [],
     // Partial-missing-date warning (docx T2.2): how many containers of the
     // lot still lack a đóng/trả appointment. Zero when all are scheduled.
     containersMissingAppointment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containersMissingAppointment ?? 0,

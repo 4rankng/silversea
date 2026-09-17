@@ -142,6 +142,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             label="Mã số thuế"
             icon={Landmark}
             value={taxCode}
+            maxLength={20}
             onChange={setTaxCode}
             placeholder="Ví dụ: 0312…"
             inputClassName="tabular-nums"

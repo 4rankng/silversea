@@ -1,6 +1,7 @@
 
 import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
 import { isValidElement, useCallback, useContext, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { SearchLg, XClose } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
@@ -45,6 +46,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     shortcutClassName?: string;
     icon?: FC | ReactNode;
     openOnPress?: boolean;
+    allowsCustomValue?: boolean;
     triggerClassName?: string;
     onClear?: () => void;
     onFocus?: FocusEventHandler;
@@ -52,11 +54,12 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
     const state = useContext(ComboBoxStateContext);
 
     const value = state?.selectedItem?.value || (state?.selectedKey != null ? { id: state.selectedKey } : null);
     const inputValue = state?.inputValue || null;
+    const selectedLabel = state?.selectedItem?.value?.label ?? state?.selectedItem?.textValue ?? "";
     const hasClearableValue = Boolean(value || (state?.selectedKey != null && state.selectedKey !== '') || (inputValue && inputValue.trim().length > 0));
 
     const first = inputValue?.split(value?.supportingText)?.[0] || "";
@@ -98,6 +101,25 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
              */}
             <div
                 data-combobox-value
+                onKeyDownCapture={(event) => {
+                    // Dismiss this list, not an enclosing editor. Synchronize
+                    // controlled text before closing: an ignored null selection
+                    // otherwise reopens a focus-triggered list with the old query.
+                    if (event.key === "Escape" && state?.isOpen) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        // Free text is already committed by custom-value callers.
+                        // Catalog metadata is searchable, not its display label.
+                        if (!allowsCustomValue && state.inputValue !== selectedLabel) {
+                            // Let React Aria observe the restored text while open,
+                            // before its input-change effect can reopen a closed list.
+                            flushSync(() => state.setInputValue(selectedLabel));
+                        }
+                        // close() commits textValue (including search metadata).
+                        // Escape only dismisses; it must not select or save again.
+                        state.setOpen(false);
+                    }
+                }}
                 className={cx(
                     "flex w-full items-center gap-2",
                     // Icon styles
@@ -123,6 +145,13 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
 
                     <AriaInput
                         placeholder={placeholder}
+                        onFocus={(event) => {
+                            // Clicking a committed value starts a replacement
+                            // search; do not append the query to its old label.
+                            if (state?.selectedKey != null && event.currentTarget.value === selectedLabel) {
+                                event.currentTarget.select();
+                            }
+                        }}
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
@@ -146,9 +175,6 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            onClear();
-                            state?.setSelectedKey(null);
-                            state?.setInputValue('');
                         }}
                         onClick={(e) => {
                             e.preventDefault();
@@ -192,34 +218,17 @@ export function normalizeSearchText(value: string): string {
         .replace(/đ/g, "d")
         .replace(/Đ/g, "D")
         .toLocaleLowerCase("vi")
+        .replace(/\s+/g, " ")
         .trim();
 }
 
-/** Filter predicate for combobox option lists: a query that matches any
- *  part of an item's label or supporting text keeps the item. Extracted
- *  from FilteredListBox so the matching contract stays unit-testable
- *  (jsdom cannot mount the react-aria popover). */
-export function filterComboboxItems<T extends { label?: string }>(
-    items: T[],
-    query: string,
-): T[] {
-    const q = normalizeSearchText(query);
-    if (!q) return items;
-    return items.filter((item) =>
-        normalizeSearchText(`${item.label ?? ""} ${(item as { supportingText?: string }).supportingText ?? ""}`).includes(q),
-    );
-}
-
-/** ListBox that narrows `items` by the combobox's current input text
- *  (diacritic-insensitive). React-aria never filters for us; without this
- *  the option list shows the whole catalog no matter what the user types. */
-const FilteredListBox = ({ items, children, ...rest }: AriaListBoxProps<SelectItemType> & { items?: SelectItemType[] }) => {
-    const state = useContext(ComboBoxStateContext);
-    const query = normalizeSearchText(state?.inputValue ?? "");
-    const filtered = query && items
-        ? filterComboboxItems(items, query)
-        : items;
-    return <AriaListBox {...rest} items={filtered}>{children}</AriaListBox>;
+/** One filter for React Aria's results, keyboard navigation and open state.
+ * Keep the complete collection mounted so filtering cannot remove a selected
+ * item or make a second, unnormalized filter close otherwise valid results. */
+export const matchesComboboxSearch = (text: string, inputValue: string): boolean => {
+    const query = normalizeSearchText(inputValue);
+    const searchableText = normalizeSearchText(text);
+    return !query || query.split(" ").every((term) => searchableText.includes(term));
 };
 
 export const ComboBox = ({
@@ -260,6 +269,8 @@ export const ComboBox = ({
         <SelectContext.Provider value={{ size }}>
             <AriaComboBox
                 menuTrigger="focus"
+                defaultFilter={matchesComboboxSearch}
+                allowsEmptyCollection
                 {...otherProps}
                 selectedKey={otherProps.selectedKey}
             >
@@ -288,6 +299,7 @@ export const ComboBox = ({
                             shortcutClassName={shortcutClassName}
                             icon={icon}
                             openOnPress={openOnPress}
+                            allowsCustomValue={otherProps.allowsCustomValue}
                             triggerClassName={triggerClassName}
                             onClear={onClear}
                             size={size}
@@ -298,9 +310,17 @@ export const ComboBox = ({
                         />
 
                         <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={popoverPlacement}>
-                            <FilteredListBox items={items} className="size-full outline-hidden">
+                            <AriaListBox
+                                items={items}
+                                className="size-full outline-hidden"
+                                renderEmptyState={() => (
+                                    <div role="status" className="px-3 py-2 text-xs text-tertiary">
+                                        Không tìm thấy kết quả
+                                    </div>
+                                )}
+                            >
                                 {children}
-                            </FilteredListBox>
+                            </AriaListBox>
                         </Popover>
 
                         {otherProps.hint && (

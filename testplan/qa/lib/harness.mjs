@@ -36,10 +36,10 @@ async function shot(page, evidenceDir, name) {
  * pre-injected into localStorage (puppeteer-spa-auth pattern).
  */
 export async function createSession({ env, role, evidenceDir, runId }) {
-  if (!env.accounts[env.env]?.[role]?.[0]) {
+  const username = process.env[`QA_USER_${role}`] || env.accounts[env.env]?.[role]?.[0];
+  if (!username) {
     throw new Error(`no username for role ${role} in env ${env.env}; check testplan/testaccounts.txt`);
   }
-  const username = env.accounts[env.env][role][0];
 
   // Get token via API (fast, no DOM interaction)
   const r = await fetch(`${env.api}/auth/login`, {
@@ -52,6 +52,7 @@ export async function createSession({ env, role, evidenceDir, runId }) {
 
   const browser = await puppeteer.launch({
     headless: 'shell',
+    ...(process.env.BROWSER_EXECUTABLE_PATH ? { executablePath: process.env.BROWSER_EXECUTABLE_PATH } : {}),
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
   const browserContext = await browser.createBrowserContext();

@@ -45,7 +45,7 @@ export async function createFinancialPosting(tx: Tx, input: {
   const active = await getActiveFinancialPosting(tx, input.tripId);
   if (input.reason === 'COMPLETION' && active) {
     if (active.tripVersion !== input.tripVersion) {
-      throw new ApiError(409, 'Chuyến đã có phiên bản hạch toán khác; cần lập điều chỉnh được phê duyệt');
+      throw new ApiError(409, 'Chuyến đã có phiên bản hạch toán khác; cần ghi nhận điều chỉnh tài chính');
     }
     return active;
   }

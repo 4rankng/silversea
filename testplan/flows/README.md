@@ -1,5 +1,7 @@
 # Kế hoạch Kiểm thử theo Vai trò & Luồng — SilverSea TTransport
 
+> **Current policy (2026-09-17):** all application actions are direct within existing permissions. No approval queue, second actor or hidden auto-approval chain. Funding, driver acceptance, documentary completeness, reconciliation and close remain distinct business facts. Use [no-approval regression cases](../2026-09-17-no-approval-workflows.md); old execution PASS is not current evidence. Test changed logic with unit/integration coverage; visual/device cases require actual browser evidence.
+
 > **Mục đích:** Tài liệu tổng quan cho bộ acceptance criteria được phân chia theo từng vai trò và từng
 > luồng nghiệp vụ chính trong quy trình Order-to-Cash (O2C). Mỗi vai trò có một tệp riêng chứa
 > toàn bộ các flow mà vai trò đó sở hữu hoặc tham gia.
@@ -45,8 +47,8 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 2 | **Điều xe / Phân bổ chuyến** | Điều vận (DISPATCHER) | CUS (bàn giao) | `02-dieuvan-dispatch.md` |
 | 3 | **Nhận lệnh & Kích hoạt chuyến** | Lái xe (DRIVER) | Điều vận (phát lệnh) | `03-laixe-nhan-lenh.md` |
 | 4 | **Cập nhật tiến độ & e-POD** | Lái xe (DRIVER) | — | `04-laixe-tien-do-epod.md` |
-| 5 | **Kế hoạch làm hàng, Theo dõi xe & Quỹ tạm ứng (Ops)** | Ops / Hiện trường (OPS) | Kế toán (duyệt), Điều vận (gán chuyến) | `05-ops-quy-chi-phi.md` |
-| 6 | **Duyệt e-POD & Chốt O2C** | Kế toán (ACCOUNTANT) / CUS | — | `06-ketoan-chot-o2c.md` |
+| 5 | **Kế hoạch làm hàng, Theo dõi xe & Quỹ tạm ứng (Ops)** | Ops / Hiện trường (OPS) | Kế toán (ghi ứng/đối chiếu), Điều vận (gán chuyến) | `05-ops-quy-chi-phi.md` |
+| 6 | **Hồ sơ & Chốt O2C** | Kế toán (ACCOUNTANT) / CUS | — | `06-ketoan-chot-o2c.md` |
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |
 | 9 | **Ghép chuyến Kẹp & Kết hợp** | Điều vận (DISPATCHER) | Lái xe, Kế toán | `09-kep-kethop-ghep-chuyen.md` |

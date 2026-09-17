@@ -149,6 +149,23 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
     expect(screen.getByRole('button', { name: /thêm xe đầu kéo/i })).toBeTruthy();
   });
 
+  it('UI-CD-08 searches driver names and punctuation-free vehicle plates', () => {
+    fleetState.data = {
+      trucks: [truck({ licensePlate: '15H-052.82' })],
+      drivers: [driver({ name: 'Đinh Thanh Thịnh' })],
+    };
+    renderView();
+    const input = screen.getByRole('textbox', { name: 'Tìm biển số hoặc tài xế…' });
+    for (const query of ['dinh thanh thinh', '  DINH  Thanh  thinh  ', 'thinh 15H', '15h05282']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(screen.getByText('15H-052.82')).toBeInTheDocument();
+    }
+    fireEvent.change(input, { target: { value: 'khong-co-xe' } });
+    expect(screen.queryByText('15H-052.82')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByText('15H-052.82')).toBeInTheDocument();
+  });
+
   it('creates a tractor through the form modal and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});

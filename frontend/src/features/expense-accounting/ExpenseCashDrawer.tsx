@@ -11,6 +11,7 @@ import { expenseMoney } from './expense-accounting-model';
 export function ExpenseCashDrawer({ catalog, reconciliation, onClose }: { catalog: ExpenseAccountingCatalog; reconciliation?: ExpenseReconciliation; onClose: () => void }) {
   const id = useId();
   const cache = useQueryClient();
+  const [requestId, setRequestId] = useState('');
   const [person, setPerson] = useState(String(reconciliation?.opsUserId ?? ''));
   const [amount, setAmount] = useState<number | ''>(reconciliation ? Math.abs(reconciliation.remainingDifference) : '');
   const [fund, setFund] = useState('');
@@ -21,14 +22,15 @@ export function ExpenseCashDrawer({ catalog, reconciliation, onClose }: { catalo
   const [error, setError] = useState('');
   const lock = useRef(false);
   const command = useRef<{ payload: string; key: string } | null>(null);
+  const requests = (catalog.pendingAdvances ?? []).filter(item => String(item.opsUserId) === person);
   const accounts = catalog.accounts.filter(item => item.fundCode === fund);
   const mutation = useMutation({ mutationFn: async () => {
     const body = { amount: Number(amount), reason: reason.trim(), treasuryAccountId: Number(account), valueDate: date, physicalReference: reference.trim() };
-    const input = reconciliation ? body : { ...body, opsUserId: Number(person) };
+    const input = reconciliation ? body : { ...body, opsUserId: Number(person), ...(requestId ? { advanceRequestId: Number(requestId) } : {}) };
     const payload = JSON.stringify(input);
     if (command.current?.payload !== payload) command.current = { payload, key: crypto.randomUUID() };
     return reconciliation ? expenseAccountingClient.refundReconciliation(reconciliation.id, body, command.current.key)
-      : expenseAccountingClient.fundAdvance({ ...body, opsUserId: Number(person) }, command.current.key);
+      : expenseAccountingClient.fundAdvance({ ...body, opsUserId: Number(person), ...(requestId ? { advanceRequestId: Number(requestId) } : {}) }, command.current.key);
   }, onSuccess: async () => { await cache.invalidateQueries({ queryKey: qk.expenseAccounting.all }); onClose(); } });
   const close = () => { if (!lock.current) onClose(); };
   async function save(event: React.FormEvent) {
@@ -46,8 +48,13 @@ export function ExpenseCashDrawer({ catalog, reconciliation, onClose }: { catalo
       <p>Chỉ ghi khi đã giao nhận tiền thực tế. Thao tác không gửi tiền qua ngân hàng.</p>
       {reconciliation && <p>Còn phải hoàn: <strong>{expenseMoney(Math.abs(reconciliation.remainingDifference))}</strong></p>}
       <div className="expense-accounting-fields">
-        <UuiSelectField label="Nhân viên OPS" value={person} required disabled={busy || Boolean(reconciliation)} onChange={event => setPerson(event.target.value)} options={[{ value: '', label: 'Chọn nhân viên' }, ...catalog.opsUsers.map(item => ({ value: String(item.id), label: item.name }))]} />
-        <NumberField controlSize="sm" label={reconciliation ? 'Tiền hoàn ứng (VND)' : 'Tiền tạm ứng (VND)'} required value={amount} min={1} max={reconciliation ? Math.abs(reconciliation.remainingDifference) : 999_999_999_999_999} step={1} disabled={busy} onChange={setAmount} />
+        <UuiSelectField label="Nhân viên OPS" value={person} required disabled={busy || Boolean(reconciliation)} onChange={event => { setPerson(event.target.value); setRequestId(''); setAmount(''); setReason(''); }} options={[{ value: '', label: 'Chọn nhân viên' }, ...catalog.opsUsers.map(item => ({ value: String(item.id), label: item.name }))]} />
+        {!reconciliation && person && <UuiSelectField label="Yêu cầu ứng" value={requestId} disabled={busy} onChange={event => {
+          const value = event.target.value; setRequestId(value);
+          const request = requests.find(item => String(item.id) === value);
+          setAmount(request?.amount ?? ''); setReason(request?.reason ?? '');
+        }} options={[{ value: '', label: 'Ghi chi mới — không có yêu cầu trước' }, ...requests.map(item => ({ value: String(item.id), label: `#${item.id} · ${expenseMoney(item.amount)} · ${item.reason}` }))]} />}
+        <NumberField controlSize="sm" label={reconciliation ? 'Tiền hoàn ứng (VND)' : 'Tiền tạm ứng (VND)'} required value={amount} min={1} max={reconciliation ? Math.abs(reconciliation.remainingDifference) : 999_999_999_999_999} step={1} disabled={busy || Boolean(requestId)} onChange={setAmount} />
         <UuiSelectField label="Nguồn quỹ" value={fund} disabled={busy} onChange={event => { setFund(event.target.value); setAccount(''); }} options={[{ value: '', label: 'Chọn quỹ' }, { value: 'COMPANY', label: 'Quỹ công ty' }, { value: 'TM', label: 'Quỹ TM' }]} />
         <UuiSelectField label="Tài khoản" value={account} disabled={busy || !fund} onChange={event => setAccount(event.target.value)} options={[{ value: '', label: 'Chọn tài khoản' }, ...accounts.map(item => ({ value: String(item.id), label: item.name }))]} />
         <DateField controlSize="sm" label="Ngày giao nhận tiền" required value={date} disabled={busy} onChange={setDate} />

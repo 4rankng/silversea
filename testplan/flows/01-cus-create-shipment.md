@@ -6,7 +6,7 @@
 > **Vai trò sở hữu:** CUS (CLERK) — Nhân viên Chứng từ / CSKH
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `CUS` → username phù hợp (local: `CUS`; staging: prod-mirror như `thanhdc`).
 > **Route chính:** `/shipments/new`, `/shipments`, `/shipments/:id`
-> **Vai trò được phép tạo lô:** ADMIN, CUS, MANAGER
+> **Vai trò được phép tạo lô:** ADMIN, CUS, MANAGER, DISPATCHER
 > **PRD nguồn:** Module 10 (`docs/prd/Module10.docx`), O2C Flow Bước 1
 >
 > **Tổng quan luồng:** CUS tiếp nhận Booking từ khách hàng, khởi tạo Lô hàng trên hệ thống với
@@ -181,35 +181,21 @@
 
 ### TC-CUS-CREATE-008 — Vai trò được phép và bị chặn tạo lô
 
-- **Mã PRD:** Q17, TC-M10-01-04
-- **Vai trò được phép:** `ADMIN`, `CUS`, `MANAGER`
-- **Vai trò bị chặn:** `ACCOUNTANT`, `DISPATCHER`, `DRIVER`, `OPS`, `CUSTOMER`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop
-- **Các bước:**
-  1. Lần lượt đăng nhập `ADMIN`, `CUS`, `MANAGER`; mở `/shipments/new` → phải mở được.
-  2. Lần lượt đăng nhập `ACCOUNTANT`, `DISPATCHER`, `DRIVER`, `OPS`, `CUSTOMER`; mở `/shipments/new`.
-- **Kết quả mong đợi (Pass):**
-  - ADMIN, CUS, MANAGER thấy CTA "Tạo lô mới" và mở được form.
-  - Các vai trò còn lại: redirect về màn nhà hoặc "Không có quyền".
-  - API cũng trả 403 cho vai trò không có quyền.
-- **Bằng chứng:** ảnh redirect / "Không có quyền" + Network tab 403
+- **Mã PRD:** Q17, TC-M10-01-04; MasterDataNhaMay §1/3, QuyTrinhO2C §4/8.2.
+- **Được phép theo ma trận hiện hành:** ADMIN, CUS, MANAGER, DISPATCHER.
+- **Bị chặn:** ACCOUNTANT, DRIVER, OPS, CUSTOMER.
+- **Các bước:** Mở `/shipments/new` theo từng vai trò, kiểm tra CTA và thử API tạo lô trong phạm vi được cấp.
+- **Mong đợi:** Vai trò có quyền mở form và tạo dữ liệu hợp lệ. Vai trò không có quyền bị chặn cả UI/API; biết URL không cấp thêm quyền. Vai trò CUS/DISPATCHER không tự có quyền sửa trường tài chính qua tạo lô.
+- **Bằng chứng:** UI đã đăng nhập + API/đối tượng thực tế; không coi mở được trang là bằng chứng mọi mutation được phép.
 
 ---
 
-### TC-CUS-CREATE-009 — CUS thấy toàn bộ lô hàng (không giới hạn phạm vi)
+### TC-CUS-CREATE-009 — CUS xem lô theo phạm vi hiện hành
 
-- **Mã PRD:** Q17
-- **Vai trò:** `CUS`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Đăng nhập `CUS`. Mở `/shipments`.
-  2. Kiểm tra: thấy **tất cả** lô hàng trong hệ thống (mọi khách hàng, mọi đơn vị phụ trách), không giới hạn theo người dùng.
-  3. Mở trực tiếp URL `/shipments/:id` của bất kỳ lô nào (kể cả lô do người dùng khác tạo).
-- **Kết quả mong đợi (Pass):**
-  - Danh sách hiển thị toàn bộ lô hàng — hai tài khoản CUS khác nhau thấy cùng một danh sách.
-  - URL trực tiếp của lô bất kỳ mở bình thường (không 404/redirect).
-- **Bằng chứng:** ảnh danh sách + ảnh truy cập URL trực tiếp
+- **Mã PRD:** QuyTrinhO2C §8.2; MasterDataNhaMay §3.1/6.
+- **Các bước:** Dùng hai tài khoản CUS có phạm vi khách hàng khác nhau; kiểm tra danh sách và URL/API trực tiếp của lô thuộc/không thuộc phạm vi.
+- **Mong đợi:** Chỉ xem/sửa đối tượng được cấp theo quyền và phạm vi hiện hành. Không mặc định tất cả CUS nhìn cùng mọi khách hàng/lô, không mở rộng quyền do đã từng biết mã hoặc mở liên kết.
+- **Bằng chứng:** Phạm vi tài khoản dùng thử + kết quả list/detail/API. Cập nhật kỳ vọng này không tự đánh dấu case đã chạy.
 
 ---
 
@@ -1354,10 +1340,10 @@
 - **Bằng chứng:** `CusContainerLedger.test.tsx` — "sends only the changed field on save"
   (assert `Object.keys(payload)` đúng `['customerAppointmentAt','expectedShipmentVersion']`).
 
-### TC-CUS-CREATE-044 — Sửa container sau bàn giao áp dụng trực tiếp (approval workflow parked)
+### TC-CUS-CREATE-044 — Sửa container sau bàn giao áp dụng trực tiếp (không có phê duyệt)
 
 - **Quyết định:** KH chưa chốt quy trình phê duyệt (2026-09-08) → bỏ luồng yêu cầu thay đổi
-  trong app; mọi sửa hợp lệ lưu thẳng. Hạ tầng review (bảng + service) giữ nguyên để dùng lại.
+  trong app; mọi sửa hợp lệ lưu thẳng theo quyền, phiên bản và khóa nghiệp vụ hiện hành. Giữ lịch sử đã có để tra cứu; không giữ màn hình, API hoặc nhánh chờ duyệt hoạt động chỉ để dự phòng quy trình tương lai.
   Ràng buộc giữ nguyên: dòng đã gắn chuyến thực tế bị chặn sửa ("Container đã gắn chuyến xe…").
 - **Vai trò:** `CUS`, `DISPATCHER`
 - **Mức độ:** P1

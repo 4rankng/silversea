@@ -3,6 +3,7 @@ import { Btn } from '../components/UI';
 import { Plus, Wallet } from 'lucide-react';
 import { useOpsWalletSummary, useOpsAdvanceRequests } from '../hooks/useOpsQueries';
 import { OpsAdvanceRequestModal } from '../features/ops/OpsAdvanceRequestModal';
+import { ExpenseReconciliationHistory } from '../features/expense-accounting/ExpenseReconciliationHistory';
 import { OpsExpenseHistory } from '../features/ops/OpsExpenseHistory';
 import { OpsSettlementsPanel } from '../features/ops/OpsSettlementsPanel';
 import { formatVnd } from '../features/ops/opsStatus';
@@ -17,8 +18,7 @@ const ADVANCE_STATUS_COLORS: Record<string, string> = {
   REJECTED: 'var(--err, #dc2626)',
 };
 
-// Direct-effect vocabulary (QA-113): an advance save applies immediately —
-// no approval handoff. PENDING survives only as a transient/legacy state.
+// Requests are recorded directly; cash receipt is shown independently of status.
 const ADVANCE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Chưa ghi sổ', RECORDED: 'Đã ghi nhận', VOIDED: 'Đã hủy',
   PENDING: 'Đang ghi nhận',
@@ -92,7 +92,7 @@ export default function OpsWalletPage() {
                     <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
                     <td className="ops-wallet__advance-status" data-label="Trạng thái">
                       <span style={{ color: ADVANCE_STATUS_COLORS[row.status] ?? 'inherit', fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
-                        {ADVANCE_STATUS_LABELS[row.status] ?? row.status}
+                        {['RECORDED', 'APPROVED'].includes(row.status) ? Number(row.fundedAmount ?? 0) > 0 ? `Đã nhận ${formatVnd(row.fundedAmount!)} ₫` : 'Chưa giao tiền' : ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
                       <AdvanceDraftActions request={row} />
                     </td>
@@ -106,6 +106,7 @@ export default function OpsWalletPage() {
       )}
 
       <OpsExpenseHistory />
+      <ExpenseReconciliationHistory />
       <OpsSettlementsPanel />
 
       {advanceOpen && <OpsAdvanceRequestModal onClose={() => setAdvanceOpen(false)} />}

@@ -1,5 +1,7 @@
 # Test Plan — Silversea (TingTing Vietnam)
 
+> **Current policy (2026-09-17):** all application actions are direct within existing permissions. No approval queue, second actor or hidden auto-approval chain. Funding, driver acceptance, documentary completeness, reconciliation and close remain distinct business facts. Use [no-approval regression cases](../2026-09-17-no-approval-workflows.md); old execution PASS is not current evidence. Test changed logic with unit/integration coverage; visual/device cases require actual browser evidence.
+
 > Acceptance criteria & manual test scripts for each role and each flow in
 > the Silversea Vietnamese trucking-logistics platform.
 >

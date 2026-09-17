@@ -254,6 +254,25 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     ));
   });
 
+  it('keeps the visible advance method and submitted payload on the canonical OPS_ADVANCE value', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    const method = screen.getByDisplayValue('Chi hộ tạm ứng');
+    expect(method).toHaveValue('OPS_ADVANCE');
+    fireEvent.change(method, { target: { value: 'COMPANY_DIRECT' } });
+    expect(method).toHaveValue('COMPANY_DIRECT');
+    fireEvent.change(method, { target: { value: 'OPS_ADVANCE' } });
+    expect(method).toHaveValue('OPS_ADVANCE');
+    fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-DIRECT-OPS' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledWith(
+      expect.objectContaining({ settlementMethod: 'OPS_ADVANCE', buyAmount: 950000 }),
+      expect.any(Object),
+    ));
+  });
+
   it('reapplies the same matrix suggestion for a consecutive expense entry', async () => {
     renderPage();
 

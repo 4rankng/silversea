@@ -60,3 +60,13 @@ describe('shipment finance entry', () => {
     expect(api.saveDeposit).not.toHaveBeenCalled();
   });
 });
+
+it('FIX-WS-17: locked deposit preserves principal controls while allowing documentary refund follow-up', () => {
+  const cache = new QueryClient();
+  render(<QueryClientProvider client={cache}><ShipmentFinanceForm principalLocked shipmentId={12} editor={{ kind: 'deposit', record: { id: 6, shipmentId: 12, shipmentCode: 'BL-12', customerName: 'Customer', billNumber: 'BL-12', shippingLineName: 'MSC', amount: '2000000', recoveredAmount: '0', outstandingAmount: '2000000', depositDate: '2026-09-16', documentsSubmittedDate: null, refundReceivedDate: null, status: 'WAITING_DOCUMENTS', version: 1, note: null } }} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>);
+  expect(screen.getByLabelText(/Tiền cược \(đ\)/)).toBeDisabled();
+  expect(screen.getByLabelText(/Số Bill/)).toBeDisabled();
+  expect(screen.getByLabelText(/Hãng tàu/)).toBeDisabled();
+  expect(screen.getByLabelText(/Đã nhận hoàn \(đ\)/)).not.toBeDisabled();
+  expect(screen.getByLabelText('Ghi chú')).not.toBeDisabled();
+});

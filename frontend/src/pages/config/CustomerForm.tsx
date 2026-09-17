@@ -71,7 +71,7 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
           <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên…" required />
         </Field>
         <Field label="Mã số thuế">
-          <input className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Nhập MST…" />
+          <input className="input" maxLength={20} value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Nhập MST…" />
         </Field>
       </div>
 

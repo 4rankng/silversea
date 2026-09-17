@@ -10,6 +10,7 @@ import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
+import { filterWholeSettlementAdvances } from './advance-consumption.service';
 import { emitNotification } from './notification.service';
 import {
   AdvanceError,
@@ -17,7 +18,7 @@ import {
   validateSettlementInputs,
 } from './settlement-validation';
 import type { Tx } from './trip-shared';
-import { propagateExpenseApprovals } from './source-change.service';
+import { propagateRecordedExpenses } from './source-change.service';
 import {
   assertExpectedVersion,
   clampPageLimit,
@@ -192,15 +193,17 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
       for (const settlement of enriched) {
         const settlementLinks = linksBySettlement.get(settlement.id) || [];
         (settlement as typeof s.advanceSettlements.$inferSelect & {
-          linkedRequests?: typeof s.advanceRequests.$inferSelect[];
+          linkedRequests?: Array<typeof s.advanceRequests.$inferSelect & { allocatedAmount: string }>;
         }).linkedRequests = settlementLinks
-          .map(l => requestMap.get(l.advanceRequestId))
-          .filter((r): r is typeof s.advanceRequests.$inferSelect => Boolean(r));
+          .flatMap(link => {
+            const request = requestMap.get(link.advanceRequestId);
+            return request ? [{ ...request, allocatedAmount: link.allocatedAmount ?? request.amount }] : [];
+          });
       }
     }
 
-    // Attach linked trip expenses plus transport-plan context so the approval
-    // list can render one decision row per trip. Batched across all settlements.
+    // Attach recorded expense snapshots and transport context to the settlement
+    // list. Batched across all settlements.
     const expenseLinks = await db.select()
       .from(s.settlementExpenses)
       .where(inArray(s.settlementExpenses.settlementId, settlementIds));
@@ -328,11 +331,7 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
   if (!row) return null;
   const [enriched] = await enrichWithNames([row], executor);
   const detail = await enrichSettlementWithRequests(enriched, executor);
-  const [blockedRequests, blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
-    executor.select({ id: s.advanceSettlementRequests.advanceRequestId })
-      .from(s.advanceSettlementRequests)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
+  const [blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
     executor.select({ id: s.settlementExpenses.tripExpenseId })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
@@ -379,11 +378,11 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
         inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       )).orderBy(desc(s.tripExpenses.createdAt)),
   ]);
-  const blockedRequestIds = new Set(blockedRequests.map(item => item.id));
+  const eligibleAdvanceRequests = await filterWholeSettlementAdvances(executor, requestCandidates, id);
   const blockedExpenseIds = new Set(blockedExpenses.map(item => item.id));
   return {
     ...detail,
-    eligibleAdvanceRequests: requestCandidates.filter(item => !blockedRequestIds.has(item.id)),
+    eligibleAdvanceRequests,
     eligibleExpenses: expenseCandidates.filter(item =>
       !blockedExpenseIds.has(item.id) && item.completionStatus === 'COMPLETED',
     ),
@@ -634,7 +633,7 @@ async function applyNewSettlementEffects(
     // Expense readiness was validated above; settlement never promotes an incomplete cost.
 
     // The shared source hook posts only any remaining fee delta.
-    await propagateExpenseApprovals(tx, linkedExpenseIds);
+    await propagateRecordedExpenses(tx, linkedExpenseIds);
 
     const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);
     await LedgerService.postEntry(tx, {
@@ -652,4 +651,3 @@ async function applyNewSettlementEffects(
       adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
     };
   }
-

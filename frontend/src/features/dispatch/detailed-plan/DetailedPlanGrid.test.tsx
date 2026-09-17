@@ -860,3 +860,9 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
     }
   });
 });
+
+it('opens OPS recovery instructions without editing the driver note', () => {
+  renderGrid([row({ notes: { vehicleNote: null, customerNote: null, opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] } })]);
+  fireEvent.click(screen.getByRole('button', { name: /OPS:\s*Khách trả theo chứng từ/ }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('Giữ bản gốc');
+});

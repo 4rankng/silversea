@@ -20,7 +20,8 @@ export default async function (ctx) {
     if (!sBL) continue;
     const detail = await ctx.apiGet(`/shipments/${s.id}`);
     const containers = detail.body.containers || [];
-    const hasAppt = containers.some((c) => c.customerAppointmentAt || c.customer_appointment_at);
+    // A partially scheduled lot correctly retains its waiting-for-date state.
+    const hasAppt = containers.length > 0 && containers.every((c) => c.customerAppointmentAt || c.customer_appointment_at);
     if (hasAppt) {
       target = {
         id: s.id,
@@ -34,7 +35,9 @@ export default async function (ctx) {
   if (!target) return { verdict: 'BLOCKED', errors: ['no BL-bearing shipment with container appointment on staging'] };
 
   // Visit overview, find this shipment's row
-  await ctx.goto('/shipments');
+  // The overview is paginated. Search for the selected fixture instead of
+  // assuming an API page1 item is also on the default overview page.
+  await ctx.goto(`/shipments?searchSuffix=${encodeURIComponent(target.blNumber)}`);
   await ctx.screenshot('a_overview');
   const rowText = await ctx.rowContaining(target.blNumber);
   if (!rowText) return { verdict: 'INCONCLUSIVE', errors: [`row for ${target.blNumber} not found in overview`] };

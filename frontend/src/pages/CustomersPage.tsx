@@ -185,6 +185,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             label="Mã số thuế"
             icon={Landmark}
             value={taxCode}
+            maxLength={20}
             onChange={setTaxCode}
             placeholder="0312…"
             inputClassName="tabular-nums"

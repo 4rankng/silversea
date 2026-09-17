@@ -3,7 +3,6 @@ import { Role, TxnType, createAdvanceRequestSchema } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
-import { LedgerService } from './ledger.service';
 
 /** Explicit recovery of unposted legacy drafts; recorded financial history stays immutable. */
 export async function resolveAdvanceDraft(tx: Tx, input: {
@@ -39,14 +38,8 @@ export async function resolveAdvanceDraft(tx: Tx, input: {
     ...(values ? { amount: String(values.amount), reason: values.reason, approvedBy: input.actorId, approvedAt: new Date() } : {}),
     version: before.version + 1, updatedAt: new Date(),
   }).where(eq(s.advanceRequests.id, input.id)).returning();
-  let ledgerEntryId: number | null = null;
-  if (values) {
-    const entry = await LedgerService.postEntry(tx, {
-      txnType: TxnType.OPS_ADVANCE, txnId: input.id, entityType: 'FORWARDER', entityId: before.requesterId,
-      debit: 0, credit: values.amount, note: `Ghi sổ tạm ứng cũ: ${values.reason}`,
-    });
-    ledgerEntryId = entry.id;
-  }
+  // Recovering a request does not certify that money changed hands.
+  const ledgerEntryId = null;
   await tx.insert(s.auditLogs).values({
     userId: input.actorId, entityType: 'advance-request-draft', entityId: input.id,
     message: input.action === 'record' ? 'Đã ghi sổ tạm ứng cũ' : 'Đã hủy tạm ứng chưa ghi sổ',

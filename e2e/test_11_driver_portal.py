@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """E2E Test Suite 11: Driver Portal (Mobile)"""
 import datetime
+import re
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
@@ -129,20 +130,72 @@ def test_driver_portal(ctx: SilverseaTestContext, results: TestResults):
     ctx.screenshot(page, 'TC-1110_trip_list')
     page.close()
 
-    # TC-1111: Empty state
-    if not driver_trips:
-        page = ctx.new_page()
+    # TC-1111: Drive an empty history period without deleting the driver's trips.
+    # New/running work deliberately ignores the month filter; History is scoped.
+    page = ctx.new_page(viewport={'width': 390, 'height': 844})
+    original_period = None
+    empty_period = None
+
+    def select_driver_month(month, year):
+        page.get_by_role('button', name='Chọn tháng', exact=True).click()
+        picker = page.get_by_role('dialog', name='Chọn tháng', exact=True)
+        shown_year = int(re.search(r'\d{4}', picker.locator('.month-picker__year').inner_text()).group())
+        direction = 'Năm sau' if year > shown_year else 'Năm trước'
+        for _ in range(abs(year - shown_year)):
+            picker.get_by_role('button', name=direction, exact=True).click()
+        picker.locator('.month-picker__cell').nth(month - 1).click()
+        picker.wait_for(state='hidden')
+        assert page.locator('.topbar-date__label').inner_text() == f'Tháng {month}/{year}'
+
+    try:
         ctx.login_as('driver', page)
         page.wait_for_load_state('networkidle')
-        page.wait_for_timeout(1000)
-        if assert_text_visible(page, 'Không có', timeout=3000) or assert_text_visible(page, 'chưa có', timeout=3000):
-            results.pass_('TC-1111', 'Empty state message displayed')
-        else:
-            results.pass_('TC-1111', 'Empty state — page renders without crash')
+        label = page.locator('.topbar-date__label').inner_text()
+        match = re.fullmatch(r'Tháng (\d{1,2})/(\d{4})', label)
+        assert match, f'Unexpected month label: {label}'
+        original_period = (int(match.group(1)), int(match.group(2)))
+        board = api_driver.get('/api/driver/me/journey-board')
+        assert board.get('status') == 200, f'Journey board status: {board.get("status")}'
+        occupied = set()
+        for card in board.get('data', {}).get('items', []):
+            if card.get('bucket') != 'HISTORY':
+                continue
+            value = card.get('historyAt') or card.get('scheduledAt')
+            if not value:
+                continue
+            stamp = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if stamp.tzinfo:
+                stamp = stamp.astimezone(datetime.timezone(datetime.timedelta(hours=7)))
+            occupied.add((stamp.month, stamp.year))
+        start = original_period[1] * 12 + original_period[0] - 1
+        for offset in range(1, 25):
+            year, month_index = divmod(start + offset, 12)
+            if (month_index + 1, year) not in occupied:
+                empty_period = (month_index + 1, year)
+                break
+        assert empty_period, 'No empty history month found in the next 24 months'
+        page.get_by_role('tab', name=re.compile(r'^Lịch sử')).click()
+        select_driver_month(*empty_period)
+        message = f'Chưa có chuyến trong tháng {empty_period[0]}/{empty_period[1]}.'
+        page.get_by_text(message, exact=True).wait_for(state='visible', timeout=5000)
+        assert page.locator('.driver-journey-card').count() == 0, 'History still displays cards'
+        assert page.locator('.driver-journey__error, .driver-journey__loading').count() == 0
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Empty state overflows mobile viewport'
         ctx.screenshot(page, 'TC-1111_empty_state')
-        page.close()
-    else:
-        results.skip('TC-1111', 'Empty state', f'{len(driver_trips)} trips exist')
+        select_driver_month(*original_period)
+        page.get_by_role('tab', name=re.compile(r'^Lệnh mới')).click()
+        assert page.get_by_role('tab', name=re.compile(r'^Lệnh mới')).get_attribute('aria-selected') == 'true'
+        results.pass_('TC-1111', f'Empty history {empty_period[0]}/{empty_period[1]} displayed; original period and New tab restored')
+    except Exception as error:
+        results.fail('TC-1111', 'Empty history period', str(error))
+    finally:
+        try:
+            if original_period and page.locator('.topbar-date__label').inner_text() != f'Tháng {original_period[0]}/{original_period[1]}':
+                select_driver_month(*original_period)
+            if '/my-trips' in page.url:
+                page.get_by_role('tab', name=re.compile(r'^Lệnh mới')).click()
+        finally:
+            page.close()
 
     # TC-1112: Click card → detail
     if driver_trips:

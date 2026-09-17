@@ -239,6 +239,7 @@ function renderPage(path = '/shipments') {
           <Routes>
             <Route path="/shipments" element={<ShipmentsPage />} />
             <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+            <Route path="/shipments-detail" element={<div data-testid="container-detail-page">Chi tiết container</div>} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -916,6 +917,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
+  });
+
+  it('UI-CD-12 opens the per-container factory workspace for FCL instead of a parent text editor', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'FCL' }]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Sửa ô khách hàng và nhà máy BILL-12345' }));
+    expect(await screen.findByTestId('container-detail-page')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' })).toBeNull();
+    expect(apiPut).not.toHaveBeenCalled();
   });
 
   it('renders the lot-level schedule line when a lot has no container appointment groups (card 20260915_35)', async () => {

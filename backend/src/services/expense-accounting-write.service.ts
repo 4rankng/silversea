@@ -6,9 +6,10 @@ import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureLegacyExpenseSource, assertActiveExpensePayer, hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
-import { propagateExpenseApproval } from './source-change.service';
+import { propagateRecordedExpense } from './source-change.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { assertExpenseOwnerWriteScope } from './expense-owner-scope.service';
 import { assertExpenseEvidenceAttachments } from './expense-accounting-evidence.service';
 import { refreshExpenseTripCosts } from './expense-trip-cost.service';
 import { LedgerService } from './ledger.service';
@@ -37,6 +38,7 @@ export async function getExpenseForCommand(tx: Tx, actor: ExpenseActor, ref: Exp
   }
   const row = await ensureLegacyExpenseSource(tx, ref.sourceKind, ref.sourceId, actor.userId);
   assertExpenseActorScope(actor, row);
+  await assertExpenseOwnerWriteScope(tx, actor, row);
   if (actor.role === Role.CUS) await assertActorCanAccessShipment(tx, row.shipmentId, { ...actor, username: null, email: null, fullName: null });
   if (row.version !== ref.expectedVersion) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} đã thay đổi. Vui lòng tải lại.`);
   if (row.status !== 'RECORDED') throw new ApiError(409, 'Khoản chi đã hủy.');
@@ -51,6 +53,7 @@ export async function auditExpenseChange(tx: Tx, actor: ExpenseActor, before: Ex
 export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind: ExpenseSourceKind, id: number, input: ExpenseAccountingUpdate) {
   if (input.tripId) await lockTripFinancialAuthority(tx, [input.tripId]);
   const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: id, expectedVersion: input.expectedVersion });
+  if (before.sourceKind !== kind || before.sourceId !== id) throw new ApiError(409, 'Điều chỉnh từ nguồn chi phí gốc; không sửa bản liên kết chuyến.');
   if (input.tripId && Object.keys(input).every(key => ['tripId', 'expectedVersion', 'reason'].includes(key))) {
     requireExpenseFinance(actor);
     await assertShipmentAccountingUnlocked(tx, before.shipmentId);
@@ -106,6 +109,15 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   const note = input.note === undefined ? before.note : input.note;
   if (kind === 'OPS') await tx.update(s.opsExpenseEntries).set({ ...metadata, amount, paidAt: expenseDate, note,
     ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, id));
+  if (kind === 'OPS' && input.photoStorageKeys) {
+    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, id));
+    const removed = photos.filter(photo => !input.photoStorageKeys!.includes(photo.storageKey));
+    if (removed.length) await tx.delete(s.opsExpensePhotos).where(inArray(s.opsExpensePhotos.id, removed.map(photo => photo.id)));
+    const added = input.photoStorageKeys.filter(key => !photos.some(photo => photo.storageKey === key));
+    if (added.length) await tx.insert(s.opsExpensePhotos).values(added.map(storageKey => ({ opsExpenseId: id, storageKey, uploadedById: actor.userId }))).onConflictDoNothing();
+    if (input.photoStorageKeys.length) await tx.delete(s.expenseAccountingEvidence).where(and(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id), notInArray(s.expenseAccountingEvidence.storageKey, input.photoStorageKeys)));
+    else await tx.delete(s.expenseAccountingEvidence).where(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id));
+  }
   if (kind === 'DRIVER') await tx.update(s.driverIncidentalCosts).set({ ...metadata, ...(input.driverCostType ? { costType: input.driverCostType } : {}), amount, occurredAt: expenseDate, note,
     ...(payableEntityId ? { driverId: payableEntityId } : {}), receiptStorageKey: metadata.photoStorageKeys[0] ?? null }).where(eq(s.driverIncidentalCosts.id, id));
   if (kind === 'TRIP') {
@@ -133,7 +145,7 @@ export async function syncExpenseBillingSource(tx: Tx, source: ExpenseAccounting
   const principal = Math.min(Number(source.amount), charge);
   const fields = { buyAmount: source.amount, sellAmount: source.customerChargeAmount,
     recoverablePrincipalAmount: String(principal), serviceFeeAmount: String(charge - principal), expenseDate: source.expenseDate,
-    invoiceNumber: source.invoiceNumber, invoiceDate: source.invoiceDate, note: source.note,
+    invoiceNumber: source.invoiceNumber, invoiceDate: source.invoiceDate, note: source.note, costGroup: source.costGroup, feeName: source.feeName,
     updatedAt: new Date() };
   let expenseId = source.linkedTripExpenseId;
   if (expenseId) {
@@ -150,7 +162,7 @@ export async function syncExpenseBillingSource(tx: Tx, source: ExpenseAccounting
     const [linked] = await tx.update(s.expenseAccountingSources).set({ linkedTripExpenseId: expenseId }).where(eq(s.expenseAccountingSources.id, source.id)).returning();
     source = await hydrateExpenseAccountingSource(tx, linked);
   }
-  if (expenseId) await propagateExpenseApproval(tx, { expenseId });
+  if (expenseId) await propagateRecordedExpense(tx, { expenseId });
   return source;
 }
 
@@ -162,7 +174,7 @@ export async function syncShipmentExpenseSources(tx: Tx, shipmentId: number, act
     const before = await hydrateExpenseAccountingSource(tx, link);
     let after = await linkExpenseToRealTrip(tx, before);
     if (!after.tripId) continue;
-    if (after.confirmedAt) after = await syncExpenseBillingSource(tx, after, actorId);
+    if (after.confirmedAt || after.sourceKind === 'INVOICE') after = await syncExpenseBillingSource(tx, after, actorId);
     const [updated] = await tx.update(s.expenseAccountingSources).set({ version: after.version + 1 }).where(eq(s.expenseAccountingSources.id, after.id)).returning();
     await auditExpenseChange(tx, { userId: actorId, role: Role.ACCOUNTANT }, before, await hydrateExpenseAccountingSource(tx, updated), 'Liên kết công việc thực tế khi phát lệnh');
   }

@@ -4,8 +4,6 @@ import { fetchAllPaginated } from '../lib/http/paginate';
 import { FINANCIAL, REPORTS, WORKSPACES } from '@tingting/shared';
 import type {
   AccountantWorkInboxItem,
-  GovernanceActionStatus,
-  GovernanceAllowedAction,
   LedgerEntry,
   CustomerStatement,
   PayableSummary,
@@ -23,46 +21,6 @@ import type {
   WorkInboxResponseOf,
   GenerateBillingDocumentInput,
 } from '@tingting/shared';
-
-export interface GovernanceActionRecord {
-  id: number;
-  subjectType: string;
-  subjectId: number | null;
-  subjectKey: string | null;
-  /** Human-readable subject resolved server-side; falls back to subjectKey. */
-  subjectLabel?: string | null;
-  actionKind: string;
-  status: GovernanceActionStatus;
-  reason: string;
-  originalVersion: number;
-  beforeSnapshot?: Record<string, unknown>;
-  afterSnapshot?: Record<string, unknown>;
-  deltaSnapshot?: Record<string, unknown> | null;
-  makerId: number;
-  makerRole: string | null;
-  checkerId: number | null;
-  checkerRole: string | null;
-  checkedAt: string | null;
-  approverId: number | null;
-  approverRole: string | null;
-  approvedAt: string | null;
-  rejectedBy: number | null;
-  rejectedRole: string | null;
-  rejectedAt: string | null;
-  rejectionReason: string | null;
-  returnedBy: number | null;
-  returnedRole: string | null;
-  returnedAt: string | null;
-  returnReason: string | null;
-  canceledBy: number | null;
-  canceledRole: string | null;
-  canceledAt: string | null;
-  cancelReason: string | null;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-  allowedActions: GovernanceAllowedAction[];
-}
 
 export type FuelInvoiceStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'REVERSED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 

@@ -39,7 +39,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
         <Field label="Tên cảng/bãi">
           <input
             className="input"
-            value={name}
+            required pattern={'.*\\S.*'} value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Ví dụ: Cảng Lạch Huyện"
             autoFocus
@@ -196,7 +196,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         <Field label="Tên khu vực">
           <input
             className="input"
-            value={label}
+            required pattern={'.*\\S.*'} value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder="Lạch Huyện"
             autoFocus={!!item}

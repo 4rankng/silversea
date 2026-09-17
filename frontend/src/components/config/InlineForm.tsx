@@ -1,8 +1,9 @@
 import React from 'react';
+import './InlineForm.css';
 
 export function InlineForm({ children }: { colSpan?: number; children: React.ReactNode }) {
   return (
-    <div data-config-form style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', width: '100%', padding: '4px 0 0' }}>
+    <div data-config-form className="config-inline-form">
       {children}
     </div>
   );

@@ -2,6 +2,7 @@
 export const expenseQueryKeys = {
   expenseAccounting: {
     all: ['expense-accounting'] as const,
+    entry: (kind: string, id: number) => ['expense-accounting', 'entry', kind, id] as const,
     work: (filters: object) => ['expense-accounting', 'work', filters] as const,
     entries: (filters: object) => ['expense-accounting', 'entries', filters] as const,
     catalog: ['expense-accounting', 'catalog'] as const,

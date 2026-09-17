@@ -64,6 +64,21 @@ const VALID_TEST_JWT = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4
 const EXPIRED_TEST_JWT = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjF9.signature';
 
 describe('AuthProvider logout', () => {
+  it('retains a valid session and retries explicitly after a cold-load server failure', async () => {
+    api.setToken(VALID_TEST_JWT);
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 7, username: 'cus', role: 'CUS' }), { status: 200 }));
+    renderWithAuth(<AuthProbe />);
+    await screen.findByRole('heading', { name: 'Chưa tải được tài khoản' });
+    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
+    expect(screen.queryByTestId('auth-state')).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(screen.getByTestId('auth-state')).toHaveTextContent('signed-in'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.stubGlobal('localStorage', createStorageStub());

@@ -111,7 +111,7 @@ export class SnapshotServices {
       if (surcharge.amount !== Number(trip.fuelSurchargeAmount ?? 0)) {
         throw new ApiError(
           409,
-          'Phụ phí nhiên liệu đã thay đổi; cần lập và phê duyệt điều chỉnh tài chính trước khi chụp lại',
+          'Phụ phí nhiên liệu đã thay đổi; cần ghi nhận điều chỉnh tài chính trước khi chụp lại',
         );
       }
 

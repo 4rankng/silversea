@@ -5,8 +5,8 @@
 //
 // WRITE-ONLY UNTIL THE CUT: same guard as the master-ref case — when the
 // pre-fix serialization is observed (details is a string blob), the case
-// returns SKIP (non-failing in run-all) instead of FAIL so a pre-cut run
-// stays green with a visible reason. The operator still must not RUN it
+// returns SKIP instead of FAIL so an unavailable pre-cut requirement is
+// distinguished; the run still returns nonzero and is not verified. The operator still must not RUN it
 // pre-cut; the SKIP branch is a guard, not an invitation.
 //
 // Run: STAGING_URL=https://vantai.tingting.vip \

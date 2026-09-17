@@ -1,7 +1,7 @@
 // Lệnh chạy ngoài §4.2 combobox contract on the ad-hoc create form's
 // USearchableField: type-to-search, diacritic-insensitive filtering through
 // the base ComboBox, and free-text passthrough via onCustomValue.
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { USearchableField } from './uui-fields';
@@ -45,6 +45,15 @@ async function openMenu(input: HTMLElement) {
 }
 
 describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
+  it.each([undefined, 'sm', 'md'] as const)('UI-CD-14 delegates semantic control size %s', (size) => {
+    render(<USearchableField label="Nhà máy" size={size} value="" onChange={vi.fn()} options={CATALOG} searchable />);
+    expect(screen.getByRole('combobox', { name: 'Nhà máy' }).closest('[data-uui-control]')).toHaveAttribute('data-control-size', size ?? 'sm');
+  });
+
+  it.each([false, true])('UI-CD-13 gives one accessible name when hideLabel=%s', (hideLabel) => {
+    render(<USearchableField label="Nhà máy" hideLabel={hideLabel} value="" onChange={vi.fn()} options={CATALOG} searchable />);
+    expect(screen.getByRole('combobox', { name: 'Nhà máy' })).toBeTruthy();
+  });
   beforeEach(() => {
     // react-aria's overlay refuses to mount the listbox in jsdom without a
     // sane viewport + trigger rect (idiom from base/select/combobox.test.tsx).
@@ -69,6 +78,50 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
     expect(onCustomValue).toHaveBeenCalledWith('Khách vãng lai 99');
     // Free text survives the controlled re-render (no blur-required reset).
     expect((input as HTMLInputElement).value).toBe('Khách vãng lai 99');
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-02 matches code/address searchText without a contradictory no-match hint', async () => {
+    function FactoryHarness() {
+      const [value, setValue] = useState('');
+      return <USearchableField label="Nhà máy" value={value} onChange={setValue} searchable
+        options={[{ value: 'vid', label: 'VID', searchText: 'F_CODE Công ty Việt Đăng · KCN Đông Mai' }]} />;
+    }
+    render(<FactoryHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    await openMenu(input);
+    for (const query of ['F_CODE', 'dong mai', 'mai VID', '  viet   dang  ']) {
+      fireEvent.change(input, { target: { value: query } });
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /VID/ })).toBeVisible();
+        expect(screen.queryByText(/Không có kết quả phù hợp/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Không tìm thấy kết quả')).not.toBeInTheDocument();
+        expect(input).toHaveAttribute('aria-expanded', 'true');
+      });
+    }
+    fireEvent.change(input, { target: { value: 'missing factory xyz' } });
+    await waitFor(() => {
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+      expect(screen.getByRole('status')).toHaveTextContent('Không tìm thấy kết quả');
+    });
+    fireEvent.change(input, { target: { value: 'F_CODE' } });
+    expect(await screen.findByRole('option', { name: /VID/ })).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-03 preserves custom text without adding a contradictory field warning', async () => {
+    const onCustomValue = vi.fn();
+    render(<Harness onCustomValue={onCustomValue} />);
+    const input = screen.getByRole('combobox');
+    await openMenu(input);
+    fireEvent.change(input, { target: { value: 'Khách vãng lai không có trong danh mục' } });
+    // A free-text value commits through onChange immediately; reopening its
+    // manual menu must retain that value while offering catalog alternatives.
+    expect(input).toHaveValue('Khách vãng lai không có trong danh mục');
+    await openMenu(input);
+    expect(screen.getAllByRole('option')).toHaveLength(CATALOG.length);
+    expect(screen.queryByText(/Không có kết quả phù hợp/)).not.toBeInTheDocument();
+    expect(input).toHaveValue('Khách vãng lai không có trong danh mục');
+    expect(onCustomValue).toHaveBeenLastCalledWith('Khách vãng lai không có trong danh mục');
   });
 
   it('matches catalog options without requiring diacritics', () => {

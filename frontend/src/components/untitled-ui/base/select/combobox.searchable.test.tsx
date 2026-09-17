@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterComboboxItems, normalizeSearchText } from './combobox';
+import { matchesComboboxSearch, normalizeSearchText } from './combobox';
 
 describe('normalizeSearchText', () => {
   it('strips Vietnamese diacritics and lowercases', () => {
@@ -8,36 +8,30 @@ describe('normalizeSearchText', () => {
     expect(normalizeSearchText('Đặng Văn A')).toBe('dang van a');
   });
 
-  it('trims surrounding whitespace', () => {
-    expect(normalizeSearchText('  Maersk  ')).toBe('maersk');
+  it('trims surrounding whitespace and collapses repeated spaces', () => {
+    expect(normalizeSearchText('  Maersk   Việt Nam  ')).toBe('maersk viet nam');
   });
 });
 
-describe('filterComboboxItems', () => {
-  const items = [
-    { id: '1', label: 'Công ty TNHH Vận tải Hà Thanh' },
-    { id: '2', label: 'Chi nhánh Á Đông Thủy sản' },
-    { id: '3', label: 'Đặng Văn Bình' },
-  ];
-
-  it('matches partial label text case- and diacritic-insensitively', () => {
-    expect(filterComboboxItems(items, 'chi nhanh').map((h) => h.id)).toEqual(['2']);
-    expect(filterComboboxItems(items, 'CONG TY').map((h) => h.id)).toEqual(['1']);
+describe('matchesComboboxSearch — the React Aria production predicate', () => {
+  it('matches partial labels case- and diacritic-insensitively', () => {
+    expect(matchesComboboxSearch('Chi nhánh Á Đông Thủy sản', 'chi nhanh')).toBe(true);
+    expect(matchesComboboxSearch('Công ty TNHH Vận tải Hà Thanh', 'CONG TY')).toBe(true);
+    expect(matchesComboboxSearch('Đặng Văn Bình', 'DANG')).toBe(true);
   });
 
-  it('matches across label AND supporting text', () => {
-    const withText = [
-      { id: 'a', label: 'ONE', supportingText: 'Ocean Network Express' },
-      { id: 'b', label: 'MSSC' },
-    ];
-    expect(filterComboboxItems(withText, 'ocean network').map((h) => h.id)).toEqual(['a']);
+  it('matches terms from the combined label and supporting text in any order', () => {
+    const textValue = 'VID F_CODE Công ty Công nghệ Việt Đăng · KCN Đông Mai';
+    for (const query of ['F_CODE', 'dong mai', 'Đông Mai'.normalize('NFD'), 'mai VID', '  viet   dang  ']) {
+      expect(matchesComboboxSearch(textValue, query)).toBe(true);
+    }
+    expect(matchesComboboxSearch('ONE Ocean Network Express', 'ocean network')).toBe(true);
   });
 
-  it('returns every item when the query is empty', () => {
-    expect(filterComboboxItems(items, '').length).toBe(3);
-  });
-
-  it('returns empty — driving the no-results row — when nothing matches', () => {
-    expect(filterComboboxItems(items, 'zzz-khong-ton-tai')).toEqual([]);
+  it('accepts empty input and rejects a query with an unmatched term', () => {
+    expect(matchesComboboxSearch('VID Việt Đăng', '')).toBe(true);
+    expect(matchesComboboxSearch('VID Việt Đăng', '   ')).toBe(true);
+    expect(matchesComboboxSearch('VID Việt Đăng', 'VID missing')).toBe(false);
+    expect(matchesComboboxSearch('VID Việt Đăng', 'zzz-khong-ton-tai')).toBe(false);
   });
 });

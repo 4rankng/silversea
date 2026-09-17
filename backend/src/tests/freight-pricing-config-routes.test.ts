@@ -256,6 +256,36 @@ describe('fuel price periods config CRUD', () => {
 });
 
 describe('freight rate terms config CRUD', () => {
+  test('create requires agreed lag and threshold choice; an unrelated patch preserves existing terms', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const base = { customerId: customer.id, routeId: route.id, billingKmOneWay: 100, baseFuelPrice: 20000, surchargeThresholdPct: null };
+    for (const fuelLagDays of [undefined, null, '', '  ', false, true]) {
+      const rejected = await api('POST', '/freight-rate-terms', accountantId, { ...base, fuelLagDays });
+      assert.equal(rejected.status, 400, `Unknown lag ${String(fuelLagDays)}: ${JSON.stringify(rejected.body)}`);
+    }
+    const { surchargeThresholdPct: _threshold, ...noThreshold } = base;
+    const missingThreshold = await api('POST', '/freight-rate-terms', accountantId, { ...noThreshold, fuelLagDays: 0 });
+    assert.equal(missingThreshold.status, 400, JSON.stringify(missingThreshold.body));
+    assert.match(String(missingThreshold.body.error), /ngưỡng/i);
+    const recorded = await api('POST', '/freight-rate-terms', accountantId, { ...base, fuelLagDays: '0' });
+    assert.equal(recorded.status, 201, JSON.stringify(recorded.body));
+    const termsId = Number(recorded.body.id);
+    createdTermsIds.push(termsId);
+    const [before] = await db.select().from(s.freightRateTerms).where(eq(s.freightRateTerms.id, termsId));
+    assert.equal(before.fuelLagDays, 0);
+    assert.equal(before.surchargeThresholdPct, null);
+    assert.equal(before.surchargeThresholdAbs, null);
+    const updated = await api('PUT', `/freight-rate-terms/${termsId}`, accountantId, { note: 'Giữ điều khoản đã thỏa thuận' }, before.updatedAt.toISOString());
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    const [after] = await db.select().from(s.freightRateTerms).where(eq(s.freightRateTerms.id, termsId));
+    assert.equal(after.fuelLagDays, 0);
+    assert.equal(after.surchargeThresholdPct, null);
+    assert.equal(after.surchargeThresholdAbs, null);
+    const blankPatch = await api('PUT', `/freight-rate-terms/${termsId}`, accountantId, { fuelLagDays: '' }, after.updatedAt.toISOString());
+    assert.equal(blankPatch.status, 400, JSON.stringify(blankPatch.body));
+  });
+
   test('admin creates terms; duplicate customer×route×date conflicts 409', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();
@@ -266,6 +296,7 @@ describe('freight rate terms config CRUD', () => {
       billingKmOneWay: 130,
       baseFuelPrice: 17842.5926,
       fuelLagDays: 1,
+      surchargeThresholdPct: null,
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
     const termsId = (created.body as { id: number }).id;
@@ -277,6 +308,8 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 4,
       billingKmOneWay: 100,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
+      surchargeThresholdPct: null,
     });
     assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
 
@@ -294,6 +327,7 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 2.5,
       billingKmOneWay: 120,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
       surchargeThresholdPct: 5,
       surchargeThresholdAbs: 500,
     });
@@ -306,6 +340,7 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 2.5,
       billingKmOneWay: 120,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
       surchargeThresholdPct: 5,
     });
     assert.equal(pctOnly.status, 201, JSON.stringify(pctOnly.body));

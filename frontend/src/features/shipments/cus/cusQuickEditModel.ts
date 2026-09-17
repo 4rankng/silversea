@@ -5,6 +5,7 @@
 // assembly rules are unit-testable without rendering the workboard.
 
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
+import { CUS_SEARCH_PATTERN } from '@tingting/shared';
 import type { updateShipment, updateShipmentDeclaration } from '../../../api/shipmentClient';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { scheduleTime, type ShipmentQuickEditDraft } from './cusUtils';
@@ -15,6 +16,15 @@ export type QuickEditField = ShipmentQuickEditDraft['field'];
 export type QuickEditShipmentPayload = Parameters<typeof updateShipment>[1];
 /** Declaration upsert body accepted by updateShipmentDeclaration. */
 export type QuickEditDeclarationBody = Parameters<typeof updateShipmentDeclaration>[2];
+
+/** FCL factories belong to individual containers, including undated intake. */
+export function factoryDetailPath(item: ShipmentCusWorkspaceListItem): string {
+  const params = new URLSearchParams({ dateScope: 'all' });
+  const reference = (item.billOrBookNumber || item.declarationNumber || '').toUpperCase();
+  if (CUS_SEARCH_PATTERN.test(reference)) params.set('searchSuffix', reference);
+  if (item.raw.customerId) params.set('customerId', String(item.raw.customerId));
+  return `/shipments-detail?${params}`;
+}
 
 /**
  * Field-access keys each edit mode may write, mirroring the seven cell groups.
@@ -96,7 +106,7 @@ export function buildQuickEditPayload(draft: ShipmentQuickEditDraft, item: Shipm
     : null;
   return draft.field === 'identity' ? {
     expectedVersion: item.version,
-    factoryName: draft.factoryName.trim() || null,
+    ...(item.cargoMode !== 'FCL' ? { factoryName: draft.factoryName.trim() || null } : {}),
   } : draft.field === 'documents' ? {
     expectedVersion: item.version,
     ...(draft.tradeDirection === 'IMPORT' && item.fieldAccess.blNumber.mode !== 'READ_ONLY' ? {

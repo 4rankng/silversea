@@ -44,6 +44,7 @@ export default function CustomersConfigPage() {
   useBackShortcut(handleBack);
   const [customerFilter, setCustomerFilter] = useState<'all' | 'high-risk' | 'active' | 'locked'>('all');
   const [search, setSearch] = useState('');
+  const searchQuery = search.trim().replace(/\s+/g, ' ');
   // Client-side column sort — the catalog is a full in-memory array (and the
   // month trip/revenue columns are derived client-side), so there is no
   // server sort to call; null keeps the fetch order.
@@ -53,10 +54,10 @@ export default function CustomersConfigPage() {
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
   const { data, refetch, isPending, isFetching, isError } = useQuery({
-    queryKey: qk.tripForm.customersConfig(search),
+    queryKey: qk.tripForm.customersConfig(searchQuery),
     queryFn: async () => {
       const [custList, tripRes] = await Promise.all([
-        configClient.getAllCustomers(search || undefined),
+        configClient.getAllCustomers(searchQuery || undefined),
         tripClient.fetchAllTrips({}).catch(() => null),
       ]);
       const now = new Date();
