@@ -1,6 +1,6 @@
 
-import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
-import { isValidElement, useCallback, useContext, useRef, useState } from "react";
+import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes, RefObject } from "react";
+import { isValidElement, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { SearchLg, XClose } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
@@ -54,7 +54,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null> }) => {
     const state = useContext(ComboBoxStateContext);
 
     const value = state?.selectedItem?.value || (state?.selectedKey != null ? { id: state.selectedKey } : null);
@@ -100,6 +100,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
              * ~18px taller than the equivalent select trigger.)
              */}
             <div
+                ref={containerRef}
                 data-combobox-value
                 onKeyDownCapture={(event) => {
                     // Dismiss this list, not an enclosing editor. Synchronize
@@ -118,6 +119,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         // close() commits textValue (including search metadata).
                         // Escape only dismisses; it must not select or save again.
                         state.setOpen(false);
+                        onEscapeClose?.();
                     }
                 }}
                 className={cx(
@@ -231,6 +233,54 @@ export const matchesComboboxSearch = (text: string, inputValue: string): boolean
     return !query || query.split(" ").every((term) => searchableText.includes(term));
 };
 
+/**
+ * 20260917_14: with allowsCustomValue, react-aria auto-selects an option whose
+ * textValue exactly equals the typed input and closes the menu — killing the
+ * suggestion list mid-word for free-text-plus-catalog fields. The controlled
+ * selectedKey (still null while the user types) disagrees with that internal
+ * auto-selection, which is how this watch tells them apart: it reopens the
+ * menu once per changed input while focus and text remain. Escape and
+ * click-away closes stay closed (flag + focus check).
+ */
+function KeepSuggestionsOpen({ enabled, controlledSelectedKey, containerRef, escapeClosedAtRef }: {
+  enabled: boolean;
+  controlledSelectedKey: string | number | null;
+  containerRef: RefObject<HTMLDivElement | null>;
+  escapeClosedAtRef: RefObject<number>;
+}) {
+  const state = useContext(ComboBoxStateContext);
+  const wasOpen = useRef(false);
+  const reopenedForInput = useRef<string | null>(null);
+  useEffect(() => {
+    if (!state || !enabled) return;
+    if (state.isOpen) {
+      wasOpen.current = true;
+      return;
+    }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    const input = containerRef.current?.querySelector("input");
+    const text = input?.value.trim() ?? "";
+    const inputFocused = document.activeElement != null
+      && (document.activeElement as HTMLElement).tagName === "INPUT";
+    if (!inputFocused || !text) {
+        // Clearing the field invalidates the per-text loop guard: a retype of
+        // the same text must reopen suggestions again (FE review line).
+        reopenedForInput.current = null;
+        return;
+    }
+    // Escape can fire more than one close render; suppress reopens briefly
+    // after any Escape so a dismissed menu stays dismissed.
+    if (Date.now() - escapeClosedAtRef.current < 250) return;
+    // A real user pick sets BOTH the internal key and the controlled prop.
+    if (state.selectedKey != null && String(state.selectedKey) === String(controlledSelectedKey ?? "")) return;
+    if (reopenedForInput.current === text) return;
+    reopenedForInput.current = text;
+    state.setOpen(true);
+  });
+  return null;
+}
+
 export const ComboBox = ({
     placeholder = "Search",
     shortcut = false,
@@ -248,7 +298,9 @@ export const ComboBox = ({
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [popoverWidth, setPopoverWidth] = useState("");
+    const escapeClosedAtRef = useRef(0);
 
     // Resize observer for popover width
     const onResize = useCallback(() => {
@@ -292,7 +344,15 @@ export const ComboBox = ({
                             </Label>
                         )}
 
+                        <KeepSuggestionsOpen
+                            enabled={Boolean(otherProps.allowsCustomValue)}
+                            controlledSelectedKey={otherProps.selectedKey ?? null}
+                            containerRef={containerRef}
+                            escapeClosedAtRef={escapeClosedAtRef}
+                        />
                         <ComboBoxValue
+                            containerRef={containerRef}
+                            onEscapeClose={() => { escapeClosedAtRef.current = Date.now(); }}
                             ref={placeholderRef}
                             placeholder={placeholder}
                             shortcut={shortcut}
