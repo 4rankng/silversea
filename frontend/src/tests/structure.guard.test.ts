@@ -204,7 +204,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // adapter wiring, one line over the T4 bump).
   // Bumped 1104 → 1131: 2026-09-17 bulk appointment copy (hover overlay +
   // copy helper + per-row gate, mirrors the CUS ledger affordance).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1131,
+  // Bumped 1131 → 1132: 2026-09-17 compact pill redesign (Copy icon import).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1132,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
