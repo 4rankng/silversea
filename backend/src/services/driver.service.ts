@@ -716,6 +716,7 @@ export async function getDriverFulfillmentDetail(
     deliverySiteName,
     shipmentRow.deliveryLocation,
     shipmentRow.containerDropoffPortName,
+    shipmentRow.tradeDirection,
   );
   return {
     fulfillmentId,

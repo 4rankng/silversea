@@ -40,6 +40,41 @@ test('return depot: null when the port matches the delivery point or is absent',
   );
 });
 
+// An export run collects an empty box at a depot, stuffs it at the factory and
+// sets the LADEN container down at the port. The factory is a loading stop, so
+// it must never take the "Hạ" label, and an export has no empty-return leg at
+// all. Business confirmation 2026-09-17: "hạ ở cảng" + "thừa Trả rỗng".
+test('export: the drop is the port and there is no empty-return row', () => {
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, 'Cảng TIL', 'EXPORT'),
+    { deliveryName: 'Cảng TIL', returnDepotName: null },
+    'factory snapshot must not outrank the port on an export',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', 'NEWEB-1', 'Cảng TIL', 'EXPORT'),
+    { deliveryName: 'Cảng TIL', returnDepotName: null },
+    'a factory-shaped free text must not outrank the port either',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', 'Cảng Nam Hải', null, 'EXPORT'),
+    { deliveryName: 'Cảng Nam Hải', returnDepotName: null },
+    'no structured port → the dispatcher free text still carries the drop',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, null, 'EXPORT'),
+    { deliveryName: null, returnDepotName: null },
+    'no port at all → report missing rather than borrow the factory',
+  );
+});
+
+test('import keeps the established chain when the direction is known', () => {
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, 'Bãi JJ LOGISTICS', 'IMPORT'),
+    { deliveryName: 'NEWEB-1', returnDepotName: 'Bãi JJ LOGISTICS' },
+    'import delivers at the factory and returns the empty to the depot',
+  );
+});
+
 test('snapshot deliverySite name extraction trusts only an object with a non-blank string name', () => {
   assert.equal(readSnapshotDeliverySiteName({ deliverySite: { name: 'Kho NEWEB-1' } }), 'Kho NEWEB-1');
   assert.equal(readSnapshotDeliverySiteName({ deliverySite: { name: '  Trimmed  ' } }), 'Trimmed');

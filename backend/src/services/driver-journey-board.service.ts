@@ -251,6 +251,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
         readSnapshotDeliverySiteName(row.siteSnapshot),
         row.deliveryLocation,
         row.containerDropoffPortName,
+        row.tradeDirection,
       );
       return {
       fulfillmentId: row.fulfillmentId,
