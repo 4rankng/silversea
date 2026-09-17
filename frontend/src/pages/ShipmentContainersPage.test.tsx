@@ -935,3 +935,29 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   });
 
 });
+
+describe('Trạng thái dữ liệu filter (20260917_3)', () => {
+  it('reads informationStatus=MISSING from the URL, refetches with it, and raises the filter badge', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all&informationStatus=MISSING']}><ShipmentContainersPage /></MemoryRouter>);
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    const listUrl = String(apiGet.mock.lastCall?.[0] ?? '');
+    expect(listUrl).toContain('informationStatus=MISSING');
+    expect(screen.getByRole('button', { name: /Bộ lọc nâng cao · 1/ })).toBeTruthy();
+    // The control reflects the active state (react-aria Select — interaction
+    // itself is exercised by the browser rung; jsdom cannot press it).
+    expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThan(0);
+  });
+
+  it('Xóa lọc clears informationStatus, the badge, and refetches without the param', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all&informationStatus=MISSING']}><ShipmentContainersPage /></MemoryRouter>);
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    await waitFor(() => {
+      const url = String(apiGet.mock.lastCall?.[0] ?? '');
+      expect(url).not.toContain('informationStatus');
+    });
+    expect(screen.queryByRole('button', { name: /Bộ lọc nâng cao · 1/ })).toBeNull();
+  });
+});

@@ -34,7 +34,7 @@ const baseParams: CusDetailListParams = {
   transportDateTo: '',
   customerId: 0,
   direction: '',
-  dispatchStatus: '',
+  dispatchStatus: '', informationStatus: '',
   sortKey: null,
   sortDir: 'asc',
 };

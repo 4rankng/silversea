@@ -46,12 +46,14 @@ export interface CusDetailListParams {
   customerId: number;
   direction: '' | 'IMPORT' | 'EXPORT';
   dispatchStatus: '' | DispatchStatusFilter;
+  /** 'MISSING' = chỉ các dòng thiếu trường bắt buộc (Trạng thái dữ liệu). */
+  informationStatus: '' | 'MISSING';
   sortKey: ShipmentCusContainerSortKey | null;
   sortDir: 'asc' | 'desc' | undefined;
 }
 
 export function useCusDetail(params: CusDetailListParams) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, sortKey, sortDir } = params;
+  const { page, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function useCusDetail(params: CusDetailListParams) {
     setEditLoadingRowId(null);
     setEditError(null);
     setEditNotice(null);
-  }, [customerId, direction, dispatchStatus, page, sortDir, sortKey, searchSuffix, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, sortDir, sortKey, searchSuffix, transportDateFrom, transportDateTo]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -89,6 +91,7 @@ export function useCusDetail(params: CusDetailListParams) {
         customerId: customerId || undefined,
         direction: direction || undefined,
         dispatchStatus: dispatchStatus || undefined,
+        informationStatus: informationStatus || undefined,
         sortBy: sortKey ?? undefined,
         sortDir,
       });
@@ -98,7 +101,7 @@ export function useCusDetail(params: CusDetailListParams) {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, direction, dispatchStatus, page, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 

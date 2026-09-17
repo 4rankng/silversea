@@ -64,6 +64,8 @@ export default function ShipmentContainersPage() {
   // Column sort lives in the URL like every other workboard param, so a sorted
   // view is shareable and survives reload. Unknown keys fall back to the
   // backend's default order instead of erroring the page.
+  // Trạng thái dữ liệu (20260917_3): 'MISSING' lọc các dòng thiếu trường bắt buộc.
+  const informationStatus = searchParams.get('informationStatus') === 'MISSING' ? 'MISSING' : '';
   const rawSortBy = searchParams.get('sortBy');
   const sortKey = SHIPMENT_CUS_CONTAINER_SORT_KEYS.includes(rawSortBy as ShipmentCusContainerSortKey)
     ? rawSortBy as ShipmentCusContainerSortKey
@@ -77,7 +79,7 @@ export default function ShipmentContainersPage() {
 
   const detail = useCusDetail({
     page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
-    customerId, direction, dispatchStatus, sortKey, sortDir,
+    customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir,
   });
 
   const updateParam = useCallback((key: string, value: string | null) => {
@@ -134,8 +136,8 @@ export default function ShipmentContainersPage() {
   const totalPages = detail.data?.totalPages ?? 0;
   const totalContainers = detail.data?.total ?? 0;
   const customers = detail.data?.filterOptions.customers ?? [];
-  const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus);
-  const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus].filter(Boolean).length;
+  const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus || informationStatus);
+  const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus, informationStatus].filter(Boolean).length;
   // Phone/tablet: secondary criteria collapse so records start higher.
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -216,7 +218,7 @@ export default function ShipmentContainersPage() {
               size="sm"
               color="secondary"
               className="cus-advanced-toggle"
-              aria-label="Bộ lọc nâng cao"
+              aria-label={activeDetailFilterCount > 0 ? `Bộ lọc nâng cao · ${activeDetailFilterCount}` : 'Bộ lọc nâng cao'}
               aria-expanded={advancedOpen}
               aria-controls="cus-detail-advanced-filters"
               onPress={() => setAdvancedOpen((o) => !o)}
@@ -233,6 +235,7 @@ export default function ShipmentContainersPage() {
                 <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
                 <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
                 <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
+                <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter" />
               </div>
             </div>
             <div className="shipments-detail-filters__footer">
