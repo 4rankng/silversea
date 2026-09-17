@@ -108,20 +108,27 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('TC-CUS-FACTORY-SEARCH-03 preserves custom text without adding a contradictory field warning', async () => {
+  it('TC-CUS-FACTORY-SEARCH-03 (amended 20260917_14) shows live-filtered matches while typing; full catalog returns on clear', async () => {
     const onCustomValue = vi.fn();
     render(<Harness onCustomValue={onCustomValue} />);
     const input = screen.getByRole('combobox');
     await openMenu(input);
     fireEvent.change(input, { target: { value: 'Khách vãng lai không có trong danh mục' } });
-    // A free-text value commits through onChange immediately; reopening its
-    // manual menu must retain that value while offering catalog alternatives.
-    expect(input).toHaveValue('Khách vãng lai không có trong danh mục');
-    await openMenu(input);
-    expect(screen.getAllByRole('option')).toHaveLength(CATALOG.length);
-    expect(screen.queryByText(/Không có kết quả phù hợp/)).not.toBeInTheDocument();
+    // A free-text value reports live through onCustomValue; the reopened menu
+    // shows the LIVE-FILTERED result for what was typed (a custom value
+    // matches nothing — the empty state renders, no stale option list).
     expect(input).toHaveValue('Khách vãng lai không có trong danh mục');
     expect(onCustomValue).toHaveBeenLastCalledWith('Khách vãng lai không có trong danh mục');
+    // 20260917_14 amendment note: the OLD pin asserted full-catalog-on-reopen
+    // with the typed text still present — that was an artifact of the
+    // selectedKey-chase removed by the _14 fix (the chase auto-selected a
+    // matching option and closed the menu mid-word). The pin's guard intent —
+    // the stale-filter class — is preserved by the assertion below: clearing
+    // the text returns the FULL catalog, so a stuck filter cannot reappear.
+    fireEvent.change(input, { target: { value: '' } });
+    await openMenu(input);
+    expect(screen.getAllByRole('option')).toHaveLength(CATALOG.length);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('matches catalog options without requiring diacritics', () => {
@@ -165,6 +172,33 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
     fireEvent.change(input, { target: { value: 'Đồng Văn' } });
     expect(await screen.findByRole('option', { name: /NEWEB-1/ })).toBeVisible();
     expect(screen.queryByText(LONG)).not.toBeInTheDocument();
+  });
+
+  it('20260917_14: typing a catalog carrier name keeps suggestions open (allowsCustomValue)', async () => {
+    function LineHarness() {
+      const [value, setValue] = useState('');
+      return <USearchableField label="Hãng tàu" value={value} onChange={setValue} searchable allowsCustomValue
+        options={[{ value: 'MSC', label: 'MSC' }, { value: 'ONE', label: 'ONE' }, { value: 'Maersk', label: 'Maersk' }]} />;
+    }
+    render(<LineHarness />);
+    const input = screen.getByRole('combobox', { name: /^Hãng tàu/ });
+    await openMenu(input);
+    for (const query of ['MSC', 'ONE']) {
+      fireEvent.change(input, { target: { value: query } });
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: query })).toBeVisible();
+        expect(input).toHaveAttribute('aria-expanded', 'true');
+      });
+    }
+    // Picking still commits the catalog value…
+    fireEvent.click(screen.getByRole('option', { name: 'ONE' }));
+    await waitFor(() => expect(input).toHaveValue('ONE'));
+    // …and editing the text afterwards reopens the suggestions (AC 5).
+    fireEvent.change(input, { target: { value: 'MA' } });
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Maersk' })).toBeVisible();
+      expect(input).toHaveAttribute('aria-expanded', 'true');
+    });
   });
 
   it('VID-CUS-SELECT-01 clears the selected ID before searching for and choosing a replacement', async () => {

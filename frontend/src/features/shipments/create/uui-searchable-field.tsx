@@ -1,0 +1,200 @@
+// USearchableField — the searchable combobox adapter for the shipment
+// create form. Split from uui-fields.tsx (structure-guard ceiling): it is
+// the only adapter with allowsCustomValue + the (A) free-text commit
+// contract (typed text stays local; onChange commits on Enter/blur) and the
+// 20260917_14/13 suggestion-display fixes.
+import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
+import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
+
+interface USearchableFieldProps {
+  size?: 'sm' | 'md';
+  id?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; searchText?: string }>;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  hint?: ReactNode;
+  error?: string;
+  className?: string;
+  popoverClassName?: string;
+  optionClassName?: string;
+  shortcut?: boolean;
+  /** Allow free-typed values that don't match any option (e.g. Hãng tàu). */
+  allowsCustomValue?: boolean;
+  /**
+   * Type-to-search mode. The field keeps the user's typed text in the input
+   * and the ComboBox filters its dropdown as they type, but `value` is only
+   * committed when the user actually picks an option — the form stays
+   * constrained to existing IDs (e.g. customerId). Without this flag the
+   * controlled `inputValue` resets on every keystroke, so the user cannot
+   * type to filter.
+   */
+  searchable?: boolean;
+  /**
+   * Free-text passthrough for searchable mode (Lệnh chạy ngoài §4.2): every
+   * keystroke also reports the raw text so the caller can decide — exact
+   * option-label match selects the catalog id, anything else becomes the
+   * ad-hoc raw value. Selection still commits through `onChange`.
+   */
+  onCustomValue?: (text: string) => void;
+  hideLabel?: boolean;
+  /**
+   * Initial placement hint for the dropdown. Pass `"top"` for pickers whose
+   * sibling action (e.g. the "+ Thêm" inline-create button) sits directly
+   * below the trigger — the dropdown opens upward and never covers that
+   * sibling. `shouldFlip` stays on, so the dropdown still falls back below
+   * when the trigger is jammed against the viewport top.
+   */
+  popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
+}
+
+export function USearchableField({
+  size = 'sm',
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  required,
+  hint,
+  error,
+  className,
+  popoverClassName,
+  optionClassName,
+  shortcut,
+  allowsCustomValue,
+  searchable,
+  onCustomValue,
+  hideLabel,
+  popoverPlacement,
+}: USearchableFieldProps) {
+  const selected = options.find((option) => option.value === value);
+  // Local input text so type-to-search survives the controlled re-renders.
+  // Synced with the selected option's label whenever `value` changes externally
+  // (form reset, dialog-create success, etc.).
+  const [inputValue, setInputValue] = useState<string>(selected?.label ?? '');
+  // The user's LAST REAL PICK only. Typing is tracked by inputValue and must
+  // never touch selectedKey: with allowsCustomValue each keystroke calls
+  // onChange(text), and a selectedKey that follows the form value makes
+  // react-aria treat a typed string matching an option as 'picked' — closing
+  // the suggestion menu mid-word (20260917_14).
+  const [chosenKey, setChosenKey] = useState<string | null>(null);
+  // (A) free-text commit contract: typing stays LOCAL (inputValue +
+  // onCustomValue fire live); onChange commits on Enter/blur.
+  const commitCustomText = () => {
+    if (inputValue === (value ?? '')) return;
+    setChosenKey(inputValue || null);
+    onChange(inputValue);
+  };
+  // Re-sync the visible text only when the FORM value actually changes
+  // (external reset, dialog apply). Catalog refetches rotate the `options`
+  // identity and must NOT clobber in-flight typed text.
+  const lastSyncedValue = useRef(value);
+  useEffect(() => {
+    if (lastSyncedValue.current === value) return;
+    lastSyncedValue.current = value;
+    // Custom (allowsCustomValue) values are not in the catalog, so `selected`
+    // is undefined — keep the applied value in the input instead of blanking it.
+    setInputValue(selected?.label ?? (allowsCustomValue ? value ?? '' : ''));
+    setChosenKey(selected?.value ?? (allowsCustomValue ? value ?? null : null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}
+      onKeyDownCapture={(event) => {
+        if (event.key !== 'Enter') return;
+        // A highlighted listbox option belongs to react-aria's selection path
+        // (its onSelectionChange commits). Bare Enter commits the typed text;
+        // the form's own submit (if any) proceeds untouched.
+        const input = event.target as HTMLElement;
+        if (input.getAttribute('aria-activedescendant')) return;
+        commitCustomText();
+      }}
+      onBlurCapture={() => {
+        // Selecting an option blurs the input first; the selection event
+        // commits the picked value afterwards and overwrites this text
+        // commit, so ordering stays correct.
+        commitCustomText();
+      }}>
+      <ComboBox
+        size={size}
+        aria-label={hideLabel ? label : undefined}
+        label={hideLabel ? undefined : label}
+        // `searchable` mode opens the popover on focus (so the user sees the
+        // option list and can type to filter immediately) — the default
+        // `manual` + `openOnPress` combo only opens on keyboard, which made
+        // the field feel like a closed select.
+        menuTrigger={searchable ? 'focus' : 'manual'}
+        openOnPress
+        selectedKey={searchable && allowsCustomValue ? chosenKey : (value || null)}
+        popoverPlacement={popoverPlacement}
+        inputValue={
+          searchable
+            ? inputValue
+            : selected?.label ?? (allowsCustomValue ? value : undefined)
+        }
+        onClear={() => {
+          onChange('');
+          setInputValue('');
+        }}
+        onSelectionChange={(key) => {
+          if (key === null) return;
+          setChosenKey(String(key));
+          onChange(String(key));
+          if (searchable) {
+            const picked = options.find((option) => String(option.value) === String(key));
+            setInputValue(picked?.label ?? '');
+          }
+        }}
+        {...(searchable
+          ? {
+              allowsCustomValue: Boolean(allowsCustomValue),
+              onInputChange: (text: string) => {
+                setInputValue(text);
+                onCustomValue?.(text);
+                if (!allowsCustomValue && text === '') {
+                  onChange('');
+                }
+              },
+            }
+          : allowsCustomValue
+            ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
+            : {})}
+        items={options.map((option) => ({
+          id: option.value,
+          label: option.label,
+          searchText: option.searchText,
+        }))}
+        placeholder={placeholder}
+        isDisabled={disabled}
+        isRequired={required}
+        isInvalid={Boolean(error)}
+        hint={typeof (error ?? hint) === 'string' ? (error ?? hint) as string : undefined}
+        hideRequiredIndicator={!required}
+        shortcut={shortcut}
+        popoverClassName={popoverClassName}
+        className="csc-uui-field csc-control-boundary"
+      >
+        {(item: { id: string | number; label?: string; searchText?: string }) => (
+          <SelectItem
+            id={item.id}
+            value={item}
+            data-value={String(item.id)}
+            className={optionClassName}
+            label={item.label}
+            // The search chain rides textValue (filter-only) — rendering it
+            // as supportingText bloated every dropdown row (20260917_13).
+            textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
+          />
+        )}
+      </ComboBox>
+
+    </div>
+  );
+}
