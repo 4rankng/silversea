@@ -1024,6 +1024,16 @@ export async function listCusShipmentContainers(
       container,
       support.assignmentsByContainer.get(container.id) ?? null,
     );
+    // Container-level factory takes precedence over shipment-level (SILVER L1).
+    // Resolved as locals — the same shape cus-workspace-builders uses — because
+    // nesting both lookups inline made the compiler read the whole chain as
+    // always nullish.
+    const containerFactoryName = container.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
+      : null;
+    const shipmentFactoryName = row.shipment.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
+      : null;
     flatRows.push({
       id: line.id,
       shipmentId: row.shipment.id,
@@ -1032,12 +1042,7 @@ export async function listCusShipmentContainers(
       customerId: row.shipment.customerId,
       isAdHoc: row.shipment.isAdHoc,
       customerName: row.customerName,
-      // Container-level factory takes precedence over shipment-level (SILVER L1).
-      factoryName: (container.operationalSiteId != null
-        ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-        : null) ?? (row.shipment.operationalSiteId != null
-          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-          : null) ?? trimOrNull(row.shipment.factoryName),
+      factoryName: containerFactoryName ?? shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
