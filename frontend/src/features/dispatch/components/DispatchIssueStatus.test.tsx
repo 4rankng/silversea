@@ -10,7 +10,7 @@ import {
 describe('deriveDispatchIssueStatus', () => {
   it('plates alone never read as issued — issuance is the only issued signal', () => {
     expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: false })).toBe('PLATED_NOT_ISSUED');
-    expect(DISPATCH_ISSUE_STATUS_LABELS.PLATED_NOT_ISSUED).toBe('Đã xếp xe');
+    expect(DISPATCH_ISSUE_STATUS_LABELS.PLATED_NOT_ISSUED).toBe('Đã điều xe');
   });
 
   it('a live trip outranks the plate, and nothing renders before either', () => {
@@ -30,7 +30,7 @@ describe('deriveDispatchIssueStatus', () => {
 describe('DispatchIssueStatusChip', () => {
   it('renders the states with their labels', () => {
     const { rerender } = render(<DispatchIssueStatusChip status="PLATED_NOT_ISSUED" />);
-    expect(screen.getByText('Đã xếp xe')).toBeTruthy();
+    expect(screen.getByText('Đã điều xe')).toBeTruthy();
     rerender(<DispatchIssueStatusChip status="COMPLETED" />);
     expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
   });
@@ -44,7 +44,7 @@ describe('DispatchIssueStatusSummaryChip', () => {
     expect(container.textContent).toBe('');
 
     rerender(<DispatchIssueStatusSummaryChip plated={2} issued={0} total={2} />);
-    expect(container.textContent).toBe('Đã xếp xe');
+    expect(container.textContent).toBe('Đã điều xe');
 
     rerender(<DispatchIssueStatusSummaryChip plated={2} issued={1} total={2} />);
     expect(container.textContent).toBe('Đã phát lệnh 1/2 cont');

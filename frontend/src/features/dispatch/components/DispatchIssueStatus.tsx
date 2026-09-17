@@ -11,7 +11,7 @@ export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' 
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
   UNASSIGNED: 'Chưa xếp xe',
-  PLATED_NOT_ISSUED: 'Đã xếp xe',
+  PLATED_NOT_ISSUED: 'Đã điều xe',
   ISSUED: 'Đã phát lệnh cho tài xế',
   ACCEPTED: 'Đã nhận lệnh',
   COMPLETED: 'Đã hoàn thành',
