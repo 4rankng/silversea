@@ -165,11 +165,11 @@ export function useDispatchDetailPlan() {
     }
   }, [sortKey, sortDirection]);
 
-  // Client-side sort over the loaded page (spec: bundle trips by run time or
-  // dropoff point). Run-time order follows the full runAt timestamp — minutes
-  // decide within the hour. Time-less rows sort LAST in both directions (an
-  // unknown time is never "before" a known one); runHour only breaks ties
-  // between two time-less rows.
+  // Client-side sort over the loaded page (spec: bundle trips by run time,
+  // dropoff point or customer). Run-time order follows the full runAt
+  // timestamp — minutes decide within the hour. Time-less rows sort LAST in
+  // both directions (an unknown time is never "before" a known one); runHour
+  // only breaks ties between two time-less rows.
   const sortedItems = sortKey == null
     ? items
     : [...items].sort((a, b) => {
@@ -182,7 +182,10 @@ export function useDispatchDetailPlan() {
         const cmp = av.localeCompare(bv);
         return sortDirection === 'desc' ? -cmp : cmp;
       }
-      const cmp = (a.customerRoute.deliveryPoint ?? '').localeCompare(b.customerRoute.deliveryPoint ?? '', 'vi');
+      const [av, bv] = sortKey === 'customer'
+        ? [a.customerRoute.customerName ?? '', b.customerRoute.customerName ?? '']
+        : [a.customerRoute.deliveryPoint ?? '', b.customerRoute.deliveryPoint ?? ''];
+      const cmp = av.localeCompare(bv, 'vi');
       return sortDirection === 'desc' ? -cmp : cmp;
     });
 

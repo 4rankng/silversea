@@ -52,7 +52,7 @@ interface DetailedPlanGridProps {
   zones: Array<{ code: string; label: string }>;
   sortKey: DetailPlanSortKey;
   sortDirection: DetailPlanSortDirection;
-  onToggleSort: (key: 'runHour' | 'deliveryPoint') => void;
+  onToggleSort: (key: Exclude<DetailPlanSortKey, null>) => void;
   onAtomicSave: (
     row: DispatchDetailPlanRow,
     body: {
@@ -200,6 +200,19 @@ export function DetailedPlanGrid({
                     Thời gian &amp; lịch trình {sortKey === 'runHour' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
+                <th scope="col" aria-sort={sortKey === 'customer' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
+                  <button
+                    type="button"
+                    className={`detailed-plan-grid__sort${sortKey === 'customer' ? ' is-sorted' : ''}`}
+                    onClick={() => onToggleSort('customer')}
+                    aria-label="Sắp xếp theo khách hàng"
+                  >
+                    Khách hàng &amp; lộ trình {sortKey === 'customer' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
+                  </button>
+                </th>
+                <th scope="col">Nâng hàng</th>
+                {/* The delivery-point sort belongs to the column that shows the
+                    drop; the customer column owns the customer ordering. */}
                 <th scope="col" aria-sort={sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
                   <button
                     type="button"
@@ -207,11 +220,9 @@ export function DetailedPlanGrid({
                     onClick={() => onToggleSort('deliveryPoint')}
                     aria-label="Sắp xếp theo điểm trả"
                   >
-                    Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
+                    Trả hàng {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
-                <th scope="col">Nâng hàng</th>
-                <th scope="col">Trả hàng</th>
                 <th scope="col">Tuyến đường</th>
                 <th scope="col">Container</th>
                 <th scope="col">Điều phối</th>

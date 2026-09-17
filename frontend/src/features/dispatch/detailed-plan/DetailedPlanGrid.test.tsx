@@ -128,7 +128,7 @@ describe('DetailedPlanGrid', () => {
       'Thời gian & lịch trình ↕',
       'Khách hàng & lộ trình ↕',
       'Nâng hàng',
-      'Trả hàng',
+      'Trả hàng ↕',
       'Tuyến đường',
       'Container',
       'Điều phối',
@@ -681,6 +681,26 @@ describe('DetailedPlanGrid — header sort direction', () => {
     const sortedHeaders = container.querySelectorAll('th[aria-sort]');
     expect(sortedHeaders).toHaveLength(1);
     expect(sortedHeaders[0]).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  // Grouping runs by customer is one of the three orderings the dispatch spec
+  // calls out, and it needs its own control: the customer header used to fire
+  // the delivery-point sort, so there was no way to bundle a customer's runs.
+  it('sorts by customer from the customer header', () => {
+    const onToggleSort = vi.fn();
+    renderGrid([row()], { sortKey: 'customer', sortDirection: 'asc', onToggleSort });
+    const button = screen.getByRole('button', { name: 'Sắp xếp theo khách hàng' });
+    expect(button).toHaveTextContent('▲');
+    fireEvent.click(button);
+    expect(onToggleSort).toHaveBeenCalledWith('customer');
+  });
+
+  // The delivery-point control belongs on the column that shows the drop, not
+  // on the customer column.
+  it('puts the delivery-point sort on the Trả hàng header', () => {
+    const { container } = renderGrid([row()], { sortKey: 'deliveryPoint', sortDirection: 'asc' });
+    const sortedHeader = container.querySelector('th[aria-sort]')!;
+    expect(sortedHeader).toHaveTextContent('Trả hàng');
   });
 });
 

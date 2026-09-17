@@ -33,7 +33,7 @@ export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
   return { ...EMPTY_DETAILED_PLAN_FILTERS };
 }
 
-export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
+export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | 'customer' | null;
 export type DetailPlanSortDirection = 'asc' | 'desc';
 
 /** Query params shared by the list, load-more, and refresh requests. */
