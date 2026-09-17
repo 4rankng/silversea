@@ -958,6 +958,11 @@ export const freightRateTermSchema = z.object({
   // explicit value, accepting the numeric strings sent by existing forms.
   fuelLagDays: z.union([z.number(), z.string().trim().min(1, 'Nhập độ trễ giá dầu đã thỏa thuận')])
     .pipe(z.coerce.number().int().min(0)),
+  // Three-state threshold confirmation (20260917_11): 'UNSET' = customer has
+  // not confirmed yet (never invent "always adjust"), 'NONE' = customer
+  // confirmed no threshold, 'PCT'/'ABS' = confirmed threshold form.
+  surchargeThresholdMode: z.enum(['UNSET', 'NONE', 'PCT', 'ABS']).default('UNSET'),
+  fuelLagConfirmed: z.boolean().default(false),
   surchargeThresholdPct: positiveNumeric.optional().nullable(),
   surchargeThresholdAbs: positiveNumeric.optional().nullable(),
   effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),

@@ -266,9 +266,17 @@ describe('freight rate terms config CRUD', () => {
     }
     const { surchargeThresholdPct: _threshold, ...noThreshold } = base;
     const missingThreshold = await api('POST', '/freight-rate-terms', accountantId, { ...noThreshold, fuelLagDays: 0 });
-    assert.equal(missingThreshold.status, 400, JSON.stringify(missingThreshold.body));
-    assert.match(String(missingThreshold.body.error), /ngưỡng/i);
-    const recorded = await api('POST', '/freight-rate-terms', accountantId, { ...base, fuelLagDays: '0' });
+    // 20260917_11 three-state model: creating WITHOUT a threshold is legal —
+    // the row lands in UNSET (nothing customer-confirmed yet) and the ENGINE,
+    // not this route, refuses to auto-apply fuel prices to it.
+    assert.equal(missingThreshold.status, 201, JSON.stringify(missingThreshold.body));
+    assert.equal(missingThreshold.body.surchargeThresholdMode, 'UNSET');
+    assert.equal(missingThreshold.body.fuelLagConfirmed, false);
+    createdTermsIds.push(Number(missingThreshold.body.id));
+    // A second route so the UNSET row above and this confirmed row don't
+    // collide on the customer×route×date unique key.
+    const route2 = await mkRoute();
+    const recorded = await api('POST', '/freight-rate-terms', accountantId, { ...base, routeId: route2.id, fuelLagDays: '0' });
     assert.equal(recorded.status, 201, JSON.stringify(recorded.body));
     const termsId = Number(recorded.body.id);
     createdTermsIds.push(termsId);
@@ -341,6 +349,7 @@ describe('freight rate terms config CRUD', () => {
       billingKmOneWay: 120,
       baseFuelPrice: 17842.5926,
       fuelLagDays: 1,
+      surchargeThresholdMode: 'PCT',
       surchargeThresholdPct: 5,
     });
     assert.equal(pctOnly.status, 201, JSON.stringify(pctOnly.body));
@@ -357,10 +366,12 @@ describe('freight rate terms config CRUD', () => {
     assert.equal(mergeRejected.status, 400, JSON.stringify(mergeRejected.body));
     assert.match(String((mergeRejected.body as { error?: string }).error), /ngưỡng/i);
 
-    // Swapping modes in one patch is fine (pct cleared, abs set).
+    // Swapping modes in one patch is fine — under the 20260917_11 contract
+    // the patch must carry the new MODE together with the values.
     const [row2] = await db.select().from(s.freightRateTerms)
       .where(eq(s.freightRateTerms.id, termsId));
     const swap = await api('PUT', `/freight-rate-terms/${termsId}`, adminId, {
+      surchargeThresholdMode: 'ABS',
       surchargeThresholdPct: null,
       surchargeThresholdAbs: 500,
     }, row2.updatedAt.toISOString());

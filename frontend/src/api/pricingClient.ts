@@ -26,8 +26,12 @@ export interface FreightRateTermRow {
   /** Base fuel price F — numeric(12,4) as string (e.g. "17842.5926"). */
   baseFuelPrice: string;
   fuelLagDays: number;
+  /** Customer-confirmed lag flag (20260917_11); false = provisional. */
+  fuelLagConfirmed: boolean;
   surchargeThresholdPct: string | null;
   surchargeThresholdAbs: string | null;
+  /** 'UNSET' | 'NONE' | 'PCT' | 'ABS' — three-state confirmation (20260917_11). */
+  surchargeThresholdMode: string;
   effectiveDate: string;
   note: string | null;
 }

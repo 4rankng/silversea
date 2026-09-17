@@ -126,11 +126,21 @@ describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
         vehicleSizeClassCode: '15T',
         transportDate,
       });
-      assert.equal(result.source, 'AUTO', `${name}: ${result.formula}`);
-      assert.equal(Number(result.freight), EXPECTED_15T_FREIGHT[name], `${name} freight`);
-      // Fuel is well above the base price, so every threshold mode adjusts.
-      assert.ok(Number(result.surcharge) > 0, `${name} surcharge must be positive`);
-      assert.ok(result.formula.length > 0, `${name} formula trace`);
+      // 20260917_11: ASKEY (lag unconfirmed per PRD) and SUNRISE+SJ (lag AND
+      // threshold unconfirmed) no longer auto-apply a fuel period as if the
+      // grounds were complete — the engine flags them MANUAL with the exact
+      // missing grounds. NEWEB (confirmed lag + 5% threshold) stays AUTO.
+      const confirmedRoute = name === 'Hải Phòng-NEWEB';
+      if (confirmedRoute) {
+        assert.equal(result.source, 'AUTO', `${name}: ${result.formula}`);
+        assert.equal(Number(result.freight), EXPECTED_15T_FREIGHT[name], `${name} freight`);
+        // Fuel is well above the base price, so the threshold adjusts.
+        assert.ok(Number(result.surcharge) > 0, `${name} surcharge must be positive`);
+        assert.ok(result.formula.length > 0, `${name} formula trace`);
+      } else {
+        assert.equal(result.source, 'MANUAL', `${name}: ${result.formula}`);
+        assert.match(result.formula, /Thiếu căn cứ phụ phí dầu/);
+      }
     }
   });
 

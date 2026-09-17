@@ -126,6 +126,12 @@ async function mkTerms(customerId: number, routeId: number, overrides: Partial<t
     billingKmMultiplier: overrides.billingKmMultiplier ?? '2',
     baseFuelPrice: overrides.baseFuelPrice ?? '17842.5926',
     fuelLagDays: overrides.fuelLagDays ?? 1,
+    // AUTO-path fixtures represent customer-CONFIRMED terms (20260917_11):
+    // unconfirmed terms now yield MANUAL from the engine.
+    fuelLagConfirmed: true,
+    surchargeThresholdMode: 'NONE' as string,
+    surchargeThresholdPct: null,
+    surchargeThresholdAbs: null,
     effectiveDate: '2026-01-01',
     note: `FreightLock terms ${suffix}`,
   }).returning();

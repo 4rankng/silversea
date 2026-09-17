@@ -139,6 +139,36 @@ export async function resolveFreightRate(
     };
   }
 
+  // Unconfirmed surcharge terms ⇒ MANUAL mode. PRD CuocPhiThietKeDB.md §8
+  // (via 20260917_11): an empty threshold must NOT be read as "always
+  // adjust" — a contract whose threshold mode is UNSET (never customer-
+  // confirmed) or whose lag has no confirmation cannot auto-apply a new
+  // fuel-period price as if the grounds were complete. Mirrors the 15T
+  // missing-base-price path above: flag for an authorized human decision.
+  if (
+    terms.surchargeThresholdMode === 'UNSET'
+    || !terms.fuelLagConfirmed
+  ) {
+    const missing: string[] = [];
+    if (terms.surchargeThresholdMode === 'UNSET') missing.push('ngưỡng biến động giá dầu chưa được khách chốt');
+    if (!terms.fuelLagConfirmed) missing.push('độ trễ giá dầu chưa được xác nhận');
+    return {
+      freight: 0,
+      surcharge: 0,
+      total: 0,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: basePriceRow?.id ?? 0,
+      fuelNormId: 0,
+      billedKm: 0,
+      liters: 0,
+      sharePct: Number(terms.sharePct),
+      source: 'MANUAL',
+      formula: `Thiếu căn cứ phụ phí dầu: ${missing.join('; ')} — cần người có thẩm quyền chốt.`,
+    };
+  }
+
   // ── Step 3: fuel_consumption_norms ──
   const norm = await db
     .select()

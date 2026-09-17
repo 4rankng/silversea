@@ -33,6 +33,43 @@ import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, route
 
 const router = Router();
 
+/**
+ * Three-state surcharge threshold confirmation (20260917_11, PRD
+ * CuocPhiThietKeDB.md §8): the stored mode and the stored values must agree.
+ *   UNSET → both values null (nothing customer-confirmed yet);
+ *   NONE  → both values null (customer confirmed "no threshold");
+ *   PCT   → pct set, abs null;
+ *   ABS   → abs set, pct null.
+ * The ENGINE refuses UNSET rows; this route only guards mode/value shape.
+ */
+function requireThresholdModeConsistency(
+  mode: string,
+  pct: unknown,
+  abs: unknown,
+): void {
+  if (pct != null && abs != null) {
+    throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
+  }
+  switch (mode) {
+    case 'PCT':
+      if (pct == null) throw new ApiError(400, 'Chọn dạng ngưỡng phần trăm thì phải nhập giá trị ngưỡng (%).');
+      if (abs != null) throw new ApiError(400, 'Dạng ngưỡng phần trăm không được kèm giá trị ngưỡng tuyệt đối.');
+      break;
+    case 'ABS':
+      if (abs == null) throw new ApiError(400, 'Chọn dạng ngưỡng tuyệt đối thì phải nhập giá trị ngưỡng (VND/lít).');
+      if (pct != null) throw new ApiError(400, 'Dạng ngưỡng tuyệt đối không được kèm giá trị ngưỡng phần trăm.');
+      break;
+    case 'NONE':
+      if (pct != null || abs != null) throw new ApiError(400, 'Xác nhận không áp dụng ngưỡng thì không được nhập giá trị ngưỡng.');
+      break;
+    case 'UNSET':
+      if (pct != null || abs != null) throw new ApiError(400, 'Chưa chốt ngưỡng thì không được nhập giá trị ngưỡng — hãy chốt một dạng ngưỡng hoặc xác nhận không áp dụng.');
+      break;
+    default:
+      throw new ApiError(400, 'Dạng ngưỡng không hợp lệ.');
+  }
+}
+
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
 function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
@@ -654,12 +691,15 @@ router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPrice
 router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRateTermSchema, {
   orderByField: 'effectiveDate',
   beforeCreate: async (data, _req, tx) => {
-    if (data.surchargeThresholdPct === undefined && data.surchargeThresholdAbs === undefined) {
-      throw new ApiError(400, 'Chọn ngưỡng biến động giá dầu đã thỏa thuận hoặc xác nhận không áp dụng ngưỡng.');
-    }
-    if (data.surchargeThresholdPct != null && data.surchargeThresholdAbs != null) {
-      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
-    }
+    // Three-state threshold confirmation (20260917_11): mode and values must
+    // agree. 'UNSET' (nothing customer-confirmed yet) is a legal creation
+    // state — the ENGINE refuses to auto-apply fuel prices to it (PRD §8:
+    // never read an empty cell as "always adjust"), not this route.
+    requireThresholdModeConsistency(
+      data.surchargeThresholdMode ?? 'UNSET',
+      data.surchargeThresholdPct ?? null,
+      data.surchargeThresholdAbs ?? null,
+    );
     await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
     await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     return data;
@@ -668,11 +708,11 @@ router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRa
     const [current] = await tx.select().from(s.freightRateTerms)
       .where(eq(s.freightRateTerms.id, id)).limit(1);
     if (!current) throw new ApiError(404, 'Không tìm thấy điều khoản cước');
-    const mergedPct = data.surchargeThresholdPct !== undefined ? data.surchargeThresholdPct : current.surchargeThresholdPct;
-    const mergedAbs = data.surchargeThresholdAbs !== undefined ? data.surchargeThresholdAbs : current.surchargeThresholdAbs;
-    if (mergedPct != null && mergedAbs != null) {
-      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
-    }
+    requireThresholdModeConsistency(
+      data.surchargeThresholdMode ?? current.surchargeThresholdMode,
+      data.surchargeThresholdPct !== undefined ? data.surchargeThresholdPct : current.surchargeThresholdPct,
+      data.surchargeThresholdAbs !== undefined ? data.surchargeThresholdAbs : current.surchargeThresholdAbs,
+    );
     if (data.customerId !== undefined) await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
     if (data.routeId !== undefined) await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     return data;

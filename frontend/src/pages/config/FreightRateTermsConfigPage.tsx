@@ -23,15 +23,21 @@ function renderThreshold(r: FreightRateTermRow) {
   if (r.surchargeThresholdAbs != null) {
     return <span style={{ color: 'var(--info-text)' }}>{Number(r.surchargeThresholdAbs).toLocaleString('vi-VN')} đ/lít</span>;
   }
-  return <span style={{ color: 'var(--ink-3)' }}>—</span>;
+  if ((r as { surchargeThresholdMode?: string }).surchargeThresholdMode === 'UNSET') {
+    // Distinct from NONE (criterion 3): "chưa chốt" must never share the
+    // generic "—" glyph with "đã chốt không áp ngưỡng".
+    return <span style={{ color: 'var(--ink-3)' }}>Chưa chốt</span>;
+  }
+  return <span style={{ color: 'var(--ink-3)' }}>Không áp ngưỡng (đã chốt)</span>;
 }
 
-type ThresholdMode = 'pct' | 'abs' | 'none' | '';
+type ThresholdMode = 'pct' | 'abs' | 'none' | 'unset' | '';
 
 function thresholdModeOf(item?: FreightRateTermRow): ThresholdMode {
   if (!item) return '';
   if (item?.surchargeThresholdPct != null) return 'pct';
   if (item?.surchargeThresholdAbs != null) return 'abs';
+  if ((item as { surchargeThresholdMode?: string }).surchargeThresholdMode === 'UNSET') return 'unset';
   return 'none';
 }
 
@@ -54,6 +60,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
   const [billingKm, setBillingKm] = useState(item?.billingKmOneWay != null ? String(item.billingKmOneWay) : '');
   const [baseFuelPrice, setBaseFuelPrice] = useState(item?.baseFuelPrice ?? '');
   const [lagDays, setLagDays] = useState(item?.fuelLagDays != null ? String(item.fuelLagDays) : '');
+  const [lagConfirmed, setLagConfirmed] = useState(item?.fuelLagConfirmed ?? false);
   const initialMode = thresholdModeOf(item);
   const [thresholdMode, setThresholdMode] = useState<ThresholdMode>(initialMode);
   const [thresholdPct, setThresholdPct] = useState(item?.surchargeThresholdPct ?? '');
@@ -159,6 +166,18 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
             required
             onChange={e => setLagDays(e.target.value)}
           />
+          <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 12, marginTop: 2 }}>
+            <input
+              type="checkbox"
+              aria-label="Lag đã chốt với khách"
+              checked={lagConfirmed}
+              onChange={e => setLagConfirmed(e.target.checked)}
+            />
+            Đã chốt
+          </label>
+          {!lagConfirmed && (
+            <small style={{ color: 'var(--ink-3)' }}>Chưa chốt → engine không tự áp giá dầu kỳ mới.</small>
+          )}
         </Field>
       </div>
       <fieldset className="freight-terms-threshold">
@@ -176,7 +195,11 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
           <input className="input" type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" placeholder="đ/lít" min="1" step="1" required={modeAbs} value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value)} disabled={!modeAbs} />
           <label className="freight-terms-threshold__none">
             <input type="radio" name={radioName} aria-label="Không áp dụng ngưỡng" checked={thresholdMode === 'none'} onChange={() => setThresholdMode('none')} />
-            Không áp dụng
+            Không áp dụng (đã chốt)
+          </label>
+          <label className="freight-terms-threshold__none">
+            <input type="radio" name={radioName} aria-label="Chưa chốt ngưỡng" checked={thresholdMode === 'unset'} onChange={() => setThresholdMode('unset')} />
+            Chưa chốt
           </label>
         </div>
       </fieldset>
@@ -196,6 +219,8 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
             billingKmOneWay: Number(billingKm),
             baseFuelPrice: baseFuelPrice,
             fuelLagDays: Number(lagDays),
+            fuelLagConfirmed: lagConfirmed,
+            surchargeThresholdMode: modePct ? 'PCT' : modeAbs ? 'ABS' : thresholdMode === 'none' ? 'NONE' : 'UNSET',
             // Always send BOTH threshold keys: the CRUD merge-on-update treats
             // undefined as "keep current", so a row switched to "Không áp
             // dụng" must carry explicit nulls to clear the stored mode.
