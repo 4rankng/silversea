@@ -77,7 +77,7 @@ E (TỔNG LÍT DẦU/CHUYẾN) = C (2 chiều) × D (ĐỊNH MỨC DẦU/KM)
 F (GIÁ DẦU NGÀY 26/2) = 19.270 / 1,08 = 17.842,59 đ/lít
 ```
 
-- `19.270 đ/lít` = giá dầu niêm yết ngày **26/02**, **đã bao gồm VAT 8%**.
+- `19.270 đ/lít` = giá dầu niêm yết ngày **26/02/2026**, **đã bao gồm VAT 8%**.
 - Chia `1,08` để quy về **giá chưa VAT** — vì cước cũng báo chưa VAT.
 - **Đây là hằng số**, đại diện cho mặt bằng giá dầu đã được tính sẵn trong `GIÁ GỐC`.
   Chỉ khi ký lại giá gốc mới được đổi mốc này.
@@ -93,8 +93,8 @@ các tham số khác giữ nguyên.
 
 | Kỳ áp giá dầu | Giá dầu kỳ (`G`) | Chênh lệch với mốc (`G − F`) |
 |---------------|------------------|------------------------------|
-| `11/7` | 21.740 đ/lít | **3.897,41 đ/lít** |
-| `18/7` | 27.620 đ/lít | **9.777,41 đ/lít** |
+| `11/7/2026` | 21.740 đ/lít | **3.897,41 đ/lít** |
+| `18/7/2026` | 27.620 đ/lít | **9.777,41 đ/lít** |
 
 ### 2.5. Phụ phí dầu / chuyến
 
@@ -233,7 +233,7 @@ chính sách giá: sản phẩm phải báo thiếu giá gốc chứ không đư
 
 ## 6. Bảng cước thành phẩm
 
-### 6.1. Kỳ áp giá dầu **18/7** — giá dầu 27.620 đ/lít (chênh **9.777,41 đ/lít**)
+### 6.1. Kỳ áp giá dầu **18/7/2026** — giá dầu 27.620 đ/lít (chênh **9.777,41 đ/lít**)
 
 **NEWEB** — 260 km khứ hồi, chia sẻ 2 %
 
@@ -277,9 +277,9 @@ chính sách giá: sản phẩm phải báo thiếu giá gốc chứ không đư
 | CONT 20 | 76,8 | 750.905 | 3.900.000 | 3.997.500 | **4.748.405** |
 | CONT 40 | 84,0 | 821.302 | 4.100.000 | 4.202.500 | **5.023.802** |
 
-### 6.2. Kỳ áp giá dầu **11/7** — giá dầu 21.740 đ/lít (chênh **3.897,41 đ/lít**)
+### 6.2. Kỳ áp giá dầu **11/7/2026** — giá dầu 21.740 đ/lít (chênh **3.897,41 đ/lít**)
 
-Chỉ khác kỳ 18/7 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chia sẻ`, `km`, `định mức` giữ nguyên.
+Chỉ khác kỳ 18/7/2026 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chia sẻ`, `km`, `định mức` giữ nguyên.
 
 | Loại xe | NEWEB `H` → `K` | ASKEY `H` → `K` | SUNRISE+SJ `H` → `K` |
 |---------|------------------:|-----------------:|----------------------:|

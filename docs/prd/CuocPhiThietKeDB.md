@@ -53,8 +53,8 @@ Hai kỳ giá trong bảng tham chiếu của khách:
 
 | Kỳ | Giá dầu chưa VAT |
 |---|---:|
-| 11/7 | 21.740 đ/lít |
-| 18/7 | 27.620 đ/lít |
+| 11/7/2026 | 21.740 đ/lít |
+| 18/7/2026 | 27.620 đ/lít |
 
 Đây là giá tham chiếu trong tài liệu nguồn, không phải thông báo giá dầu hiện
 hành. Ba giá gốc 15T còn thiếu. Không tự lấy 0, giá của loại xe khác hoặc số
