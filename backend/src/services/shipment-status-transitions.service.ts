@@ -300,19 +300,15 @@ export async function recomputeShipmentCompletion(
         && trip.podRecoveredAt != null;
     });
 
-    // Driver "Hoàn thành chuyến" full-close path: every required fulfillment's
-    // trip is COMPLETED with a SUBMITTED/ACCEPTED e-POD, but the accountant
-    // review gates (expense scopes + podRecoveredAt) are not yet satisfied
-    // because the accountant flow was deliberately skipped ("skip kế toán
-    // for now, we build later"). The trip is operationally done — advance
-    // the shipment so CUS/Dispatcher see "Hoàn thành" instead of a stale
-    // "Chờ duyệt phí". When the accountant review is reintroduced, this
-    // condition narrows back to `allCompletedAndAccepted` and the strict
-    // gates resume.
-    // One shared "driver-closed" predicate: the trip is COMPLETED with a
-    // SUBMITTED/ACCEPTED e-POD but the accountant gates (expense scopes +
-    // podRecoveredAt) are not yet satisfied because the accountant flow was
-    // deliberately skipped ("skip kế toán for now, we build later").
+    // Driver "Hoàn thành chuyến" full-close path: a fulfillment's trip is
+    // COMPLETED with a SUBMITTED/ACCEPTED e-POD while the accountant review
+    // gates (expense scopes + podRecoveredAt) are not yet satisfied, because
+    // the accountant flow was deliberately skipped ("skip kế toán for now, we
+    // build later"). When every required fulfillment is driver-closed the
+    // shipment advances to COMPLETED, so CUS/Dispatcher see "Hoàn thành"
+    // instead of a stale wait state. When the accountant review is
+    // reintroduced, this condition narrows back to `allCompletedAndAccepted`
+    // and the strict gates resume.
     const completedViaDriver = (row: (typeof requiredFulfillments)[number]) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
@@ -321,25 +317,16 @@ export async function recomputeShipmentCompletion(
         && latestSubmissionStatus != null
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     };
-    // Driver "Hoàn thành chuyến" full-close path: every required fulfillment's
-    // trip is driver-closed — advance the shipment so CUS/Dispatcher see
-    // "Hoàn thành" instead of a stale "Chờ duyệt phí". When the accountant
-    // review is reintroduced, this condition narrows back to
-    // `allCompletedAndAccepted` and the strict gates resume.
     const allCompletedViaDriverClose = requiredFulfillments.every(completedViaDriver);
 
-    // Multi-fulfillment partial close: at least one required fulfillment's
-    // trip is driver-closed but other required fulfillments are still pending
-    // (planned carrier allocation with no dispatched trip yet). Advance the
-    // shipment to PENDING_EXPENSE_APPROVAL so CUS/Dispatcher see "Chờ duyệt
-    // phí" for the closed part (the trip-level container badge already shows
-    // "Hoàn thành" via dispatchStatus). The remaining planned carriers are
-    // still tracked at the container level and re-evaluated when their trip
-    // dispatches. When the last required fulfillment closes, the
-    // `allCompletedViaDriverClose` branch above fires and the shipment
-    // jumps to COMPLETED. A shipment with another leg actively IN_TRANSIT
-    // must stay operational (RUNNING) instead — the partial close would
-    // otherwise pin a physically moving load under "Chờ duyệt phí".
+    // Partial close: some required fulfillments' trips are driver-closed but
+    // others are still pending (planned carrier allocation with no dispatched
+    // trip yet). The shipment does NOT advance on a partial close — the
+    // driver-close branch above only fires when EVERY required fulfillment
+    // has closed, so a partially closed shipment stays on its dispatch-driven
+    // branch below (DISPATCHED/IN_TRANSIT per trip presence; a leg actively
+    // IN_TRANSIT keeps the shipment operational). The trip-level container
+    // badge already shows "Hoàn thành" for the closed leg via dispatchStatus.
     let targetStatus: ShipmentStatus = 'DISPATCHED';
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
     if (allCompletedAndAccepted) {
