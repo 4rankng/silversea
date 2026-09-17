@@ -2,10 +2,8 @@
 // (PRD M10-01-03; Q23 proposal: same request id → same result, no extra row).
 //
 // Generic over an `(endpoint, idempotencyKey)` pair with a SHA-256 payload
-// hash for conflict detection. Currently consumed by the M10.1 clerk
-// quick-create endpoint (`POST /api/shipments/quick`); designed so future
-// write paths (offline-queue sync, driver progress update) reuse the same
-// helper instead of re-rolling dedupe logic.
+// hash for conflict detection. Business write paths share this authority;
+// a manual retry reuses its key without replaying money or source allocation.
 //
 // Conflict policy (matches Q23 verbatim proposal):
 //   - Same key + same payload hash → return the stored result (replay).
@@ -20,7 +18,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { ApiError, isPgUniqueViolation } from '../errors';
-import { persistMaterialWriteSuccessAuditInTransaction } from './audit.service';
+import { persistMaterialWriteSuccessAuditInTransaction, resolveSharedAdapterAuditEndpoint } from './audit.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -101,6 +99,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PAYMENTS_VENDOR: 'payments.vendor',
   PAYMENTS_CARRIER: 'payments.carrier',
   TREASURY_ACCOUNT_SETUP: 'treasury.accounts.setup.request',
+  TREASURY_ACCOUNT_FUND: 'treasury.accounts.fund.update',
   TREASURY_ACCOUNT_CUTOVER: 'treasury.accounts.cutover.request',
   TREASURY_MOVEMENT_REVERSAL: 'treasury.movements.reversal.request',
   DRIVER_PAYOUT: 'drivers.payout',
@@ -328,8 +327,9 @@ async function replayFromRecord<T>(args: {
   load?: (entityId: number, tx: Tx) => Promise<T>;
   tx: Tx;
   deserializeResult?: (snapshot: unknown) => T;
+  replayResult?: (snapshot: unknown, tx: Tx) => Promise<T>;
 }): Promise<IdempotentRunResult<T>> {
-  const { record: existing, payloadHash, createdBy, idempotencyKey, load, tx, deserializeResult } = args;
+  const { record: existing, payloadHash, createdBy, idempotencyKey, load, tx, deserializeResult, replayResult } = args;
   const requestedActor = createdBy ?? null;
   const persistedActor = existing.createdBy ?? null;
   if (requestedActor !== persistedActor) {
@@ -348,7 +348,7 @@ async function replayFromRecord<T>(args: {
   }
   if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
     return {
-      result: deserializeResult
+      result: replayResult ? await replayResult(existing.responseSnapshot, tx) : deserializeResult
         ? deserializeResult(existing.responseSnapshot)
         : (existing.responseSnapshot as T),
       replayed: true,
@@ -379,6 +379,7 @@ export async function runIdempotent<T>(args: {
   getEntityId?: (result: T) => number | null | undefined;
   serializeResult?: (result: T) => unknown;
   deserializeResult?: (snapshot: unknown) => T;
+  replayResult?: (snapshot: unknown, tx: Tx) => Promise<T>;
   onTransactionRollback?: (error: unknown, created: T | undefined) => Promise<void>;
   getEntityKey?: (result: T) => string | null | undefined;
 }): Promise<IdempotentRunResult<T>> {
@@ -395,10 +396,12 @@ export async function runIdempotent<T>(args: {
     getEntityId,
     serializeResult,
     deserializeResult,
+    replayResult,
     onTransactionRollback,
     getEntityKey,
   } = args;
 
+  resolveSharedAdapterAuditEndpoint(endpoint);
   if (!idempotencyKey) {
     throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
   }
@@ -431,6 +434,7 @@ export async function runIdempotent<T>(args: {
           load,
           tx,
           deserializeResult,
+          replayResult,
         });
       }
 
@@ -478,17 +482,13 @@ export async function runIdempotent<T>(args: {
     if (createdResult !== undefined && isPgUniqueViolation(error, 'idempotency_keys_endpoint_key_uniq')) {
       const existing = await findIdempotencyRecord(endpoint, idempotencyKey);
       if (existing) {
-        // No transaction is active here; the drizzle instance shares the
-        // SELECT interface the loaders need.
-        return await replayFromRecord<T>({
-          record: existing,
-          payloadHash,
-          createdBy,
-          idempotencyKey,
-          load,
-          tx: db as unknown as Tx,
-          deserializeResult,
-        });
+        // Replay adapters may attach source allocations to canonical cash.
+        // Keep those writes atomic and serialized just like the normal replay.
+        return await db.transaction(async (tx) => {
+          await lockApplicationOwnedUniqueness(tx, 'idempotency-key', [endpoint, idempotencyKey]);
+          return replayFromRecord<T>({ record: existing, payloadHash, createdBy,
+            idempotencyKey, load, tx, deserializeResult, replayResult });
+        }, transactionOptions);
       }
     }
     throw error;

@@ -146,3 +146,9 @@
     margin-left: 0;
   }
 }
+
+.treasury-account-form { display: grid; gap: 12px; min-width: 0; }
+.treasury-account-form > p { margin: 0; color: var(--fg-2); }
+.treasury-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.treasury-table__account > button { justify-self: start; }
+@media (max-width: 480px) { .treasury-account-fields { grid-template-columns: minmax(0, 1fr); } }

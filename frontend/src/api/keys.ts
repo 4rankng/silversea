@@ -1,3 +1,5 @@
+import { expenseQueryKeys } from './expenseQueryKeys';
+
 /**
  * Centralized TanStack Query key factory.
  *
@@ -24,6 +26,7 @@
  */
 
 export const qk = {
+  ...expenseQueryKeys,
   support: {
     serverBuild: ['support', 'server-build'] as const,
   },

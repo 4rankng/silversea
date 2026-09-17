@@ -1,0 +1,3 @@
+.expense-name-suggestions { min-width: 0; }
+.expense-name-suggestions summary { color: var(--brand); cursor: pointer; padding-block: 6px; font-size: var(--text-label-size); }
+.expense-name-suggestions > div { display: flex; flex-wrap: wrap; gap: 4px; padding-block: 4px; }

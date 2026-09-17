@@ -110,6 +110,7 @@ const SalaryPeriodConfigPage = lazy(() => import('./pages/config/SalaryPeriodCon
 const PortsConfigPage = lazy(() => import('./pages/config/PortsConfigPage'));
 const TripExpenseConfigPage = lazy(() => import('./pages/config/TripExpenseConfigPage'));
 const SupplierListPage = lazy(() => import('./pages/SupplierListPage'));
+const ExpenseAccountingPage = lazy(() => import('./pages/ExpenseAccountingPage'));
 const ExpenseListPage = lazy(() => import('./pages/ExpenseListPage'));
 const ExpenseEntryPage = lazy(() => import('./pages/ExpenseEntryPage'));
 const PayableListPage = lazy(() => import('./pages/PayableListPage'));
@@ -275,6 +276,7 @@ export function AppRoutes() {
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={financeReaderOnly(page(<FinancePage />))} />
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
+          <Route path="/accounting/expenses" element={financeReaderOnly(page(<ExpenseAccountingPage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />

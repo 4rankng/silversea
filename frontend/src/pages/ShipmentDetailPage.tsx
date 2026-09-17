@@ -23,6 +23,8 @@ import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordi
 import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
 import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePricingQueries';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
+import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExpensePanel';
+import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
 import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
 import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import './WorkflowFinance.css';
@@ -298,6 +300,10 @@ export default function ShipmentDetailPage() {
         </section>
 
         {/* Documents */}
+        {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
+          <><ShipmentExpensePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} /></>
+        )}
+
         <section className="shipment-detail__card">
           <h3 className="shipment-detail__section-title">
             <FileText size={16} /> Tài liệu ({documents.length})

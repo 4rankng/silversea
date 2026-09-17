@@ -21,7 +21,6 @@
 import { and, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { client, db } from '../src/db';
 import * as s from '../src/db/schema';
-import { config } from '../src/config';
 
 const terminalStatuses = ['SUCCEEDED', 'FAILED', 'DEAD'] as const;
 

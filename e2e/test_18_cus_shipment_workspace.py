@@ -621,9 +621,15 @@ def main() -> bool:
             # server-derived "Chưa cập nhật" warning with the Lịch hẹn field —
             # asserted unfiltered, since the dispatch-status filter above only
             # proves the filter contract, not the row's completeness state.
-            warning = container_row.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn")
-            warning.first.wait_for(state="visible", timeout=10_000)
-            warning_visible = warning.first.is_visible()
+            warning = container_row.locator(".shipment-container-ledger__missing-fields").first
+            warning.wait_for(state="visible", timeout=10_000)
+            disclosure = warning.get_by_role("button", name="Thiếu dữ liệu", exact=False)
+            disclosure.click()
+            missing_schedule = warning.get_by_role("button", name="Lịch hẹn", exact=True)
+            missing_schedule.wait_for(state="visible", timeout=10_000)
+            warning_visible = disclosure.get_attribute("aria-expanded") == "true" and missing_schedule.is_visible()
+            ctx.screenshot(page, "TC-1821_missing_appointment_disclosure")
+            disclosure.click()
             check(
                 results,
                 "TC-1821",

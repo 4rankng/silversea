@@ -18,7 +18,6 @@ const {
   toastMock,
   submitPodMock,
   completeTripMock,
-  onlineMock,
   podSubmissionMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
@@ -26,7 +25,6 @@ const {
   toastMock: vi.fn(),
   submitPodMock: vi.fn(),
   completeTripMock: vi.fn(),
-  onlineMock: vi.fn(),
   podSubmissionMock: vi.fn((_props: TripPodSubmissionProps) => <div data-testid="trip-pod-submission">pod</div>),
 }));
 
@@ -46,9 +44,7 @@ vi.mock('../hooks/useBackShortcut', () => ({
   useBackShortcut: vi.fn(),
 }));
 
-vi.mock('../hooks/useOnline', () => ({
-  useOnline: onlineMock,
-}));
+
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
@@ -134,7 +130,6 @@ describe('DriverTripPodPage', () => {
     toastMock.mockReset();
     submitPodMock.mockReset().mockResolvedValue({});
     completeTripMock.mockReset().mockResolvedValue({});
-    onlineMock.mockReturnValue(true);
     podSubmissionMock.mockClear();
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
@@ -340,15 +335,19 @@ describe('DriverTripPodPage', () => {
     expect(document.querySelector('.driver-task-footer')).toBeNull();
   });
 
-  it('DRV-FOLLOWUP-001 explains offline document editing and prevents completion', () => {
-    onlineMock.mockReturnValue(false);
+  it('AC-CP-KT-22 lets the API determine availability without closing the POD form', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' }]) }),
       isLoading: false, error: null, isError: false, refetch: refetchMock,
     });
+    submitPodMock.mockRejectedValueOnce(new Error('Máy chủ không khả dụng'));
     renderPage();
-    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe('Cần kết nối mạng để tải lên chứng từ. Vui lòng kiểm tra kết nối.');
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/i })).toBeDisabled();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến/i }));
+    await waitFor(() => expect(submitPodMock).toHaveBeenCalledTimes(1));
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
   });
 
   // Offline queue conflict/recovery tests removed — completion now uses direct API calls.

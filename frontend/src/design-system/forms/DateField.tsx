@@ -20,6 +20,7 @@ export interface DateFieldProps
   disabled?: boolean;
   /** Optional class on the outer wrapper. */
   className?: string;
+  controlSize?: 'sm' | 'md';
   /** Optional helper text node rendered below the input. */
   hint?: ReactNode;
   /** Focus/validity access to the actual date text input. */
@@ -36,6 +37,7 @@ export function DateField({
   helpText,
   disabled,
   className,
+  controlSize = 'md',
   id: providedId,
   hint,
   ...input
@@ -44,7 +46,7 @@ export function DateField({
   const id = providedId ?? generatedId;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [input['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
-  const wrapperClassName = ['ds-field', error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
+  const wrapperClassName = ['ds-field', `ds-field--${controlSize}`, error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
     <div className={wrapperClassName}>

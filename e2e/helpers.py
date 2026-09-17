@@ -17,6 +17,7 @@ SCREENSHOT_DIR = Path(os.environ.get('SILVERSEA_SCREENSHOTS', '/tmp/silversea-e2
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEMO_ACCOUNTS = {
+    'dispatcher': {'identifier': 'dieuvan', 'password': 'Abc123', 'role': 'DISPATCHER', 'home': '/dispatch'},
     'admin':     {'identifier': 'admin',    'password': 'Abc123', 'role': 'ADMIN',     'home': '/config'},
     'manager':   {'identifier': 'giamdoc',  'password': 'Abc123', 'role': 'MANAGER',   'home': '/dashboard'},
     'accountant':{'identifier': 'ketoan',   'password': 'Abc123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
@@ -263,16 +264,15 @@ class SilverseaTestContext:
             identifier.fill(account['identifier'])
             page.fill('input[type="password"]', account['password'])
             page.click('button[type="submit"], button:has-text("Đăng nhập")')
-            page.wait_for_load_state('domcontentloaded')
-            page.wait_for_timeout(500)
-            if token:
-                page.evaluate(f'localStorage.setItem("token", "{token}")')
-                # The API login above is authoritative. Under a loaded E2E run,
-                # the UI redirect can still be pending after the fixed wait;
-                # re-enter the app so it observes the token we just installed.
-                if '/login' in page.url:
-                    page.goto(BASE_URL)
-                    wait_for_page_ready(page)
+            # Keep the session created by the UI. Replacing it with the earlier
+            # API token leaves the mounted AuthProvider bound to a different
+            # session and correctly triggers its stale-session logout guard.
+            page.wait_for_url(lambda url: '/login' not in url, timeout=15000)
+            wait_for_page_ready(page)
+            token = page.evaluate('localStorage.getItem("token")')
+            if not token:
+                raise AssertionError('UI login navigated without a session token')
+            self.api.token = token
         return page, token, user
 
     def screenshot(self, page: Page, name: str):

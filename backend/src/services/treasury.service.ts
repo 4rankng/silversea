@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
-import type { Role } from '@tingting/shared';
+import { treasuryFundCodeSchema, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
@@ -31,6 +31,8 @@ export interface TreasuryPosition {
   code: string;
   name: string;
   type: string;
+  fundCode: TreasuryFundCode | null;
+  version: number;
   currency: string;
   openingBalance: number;
   totalIn: number;
@@ -369,6 +371,8 @@ export async function getTreasuryPosition(accountId: number, transaction?: Tx): 
       code: account.code,
       name: account.name,
       type: account.type,
+      fundCode: account.fundCode,
+      version: account.version,
       currency: account.currency,
       openingBalance,
       totalIn,
@@ -413,6 +417,8 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
         code: account.code,
         name: account.name,
         type: account.type,
+      fundCode: account.fundCode,
+      version: account.version,
         currency: account.currency,
         openingBalance,
         totalIn,
@@ -441,6 +447,7 @@ export async function requestTreasuryAccountSetup(input: {
     code: string;
     name: string;
     type: 'CASH' | 'BANK';
+    fundCode?: TreasuryFundCode | null;
     bankName?: string | null;
     bankAccountNumber?: string | null;
     openingBalance: number;
@@ -477,6 +484,7 @@ export async function requestTreasuryAccountSetup(input: {
         code,
         name,
         type: input.account.type,
+        fundCode: input.account.fundCode == null ? null : treasuryFundCodeSchema.parse(input.account.fundCode),
         currency: 'VND',
         bankName: input.account.bankName?.trim() || null,
         bankAccountNumber: input.account.bankAccountNumber?.trim() || null,
@@ -491,6 +499,28 @@ export async function requestTreasuryAccountSetup(input: {
     });
   };
   return runInTx(input.transaction, execute);
+}
+
+/** Classify the existing account without changing opening balances or cash history. */
+export async function updateTreasuryAccountFund(tx: Tx, accountId: number, input: TreasuryAccountFundInput, actor: { userId: number; role: Role | string }) {
+  assertCanMakeGovernanceAction('TREASURY_ACCOUNT_SETUP', actor.role);
+  const fundCode = treasuryFundCodeSchema.parse(input.fundCode);
+  const reason = requiredText(input.reason, 'Lý do', 1000);
+  const [account] = await tx.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, accountId)).for('update');
+  if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
+  if (account.version !== input.expectedVersion) throw new ApiError(409, 'Tài khoản đã thay đổi. Vui lòng tải lại.');
+  const [updated] = await tx.update(s.treasuryAccounts).set({ fundCode, version: account.version + 1, updatedBy: actor.userId, updatedAt: new Date() })
+    .where(eq(s.treasuryAccounts.id, accountId)).returning();
+  await tx.insert(s.auditLogs).values({ userId: actor.userId, message: 'TREASURY_ACCOUNT_FUND_CHANGED', entityType: 'treasury_account', entityId: accountId,
+    payload: { before: { fundCode: account.fundCode, version: account.version }, after: { fundCode, version: updated.version }, reason } });
+  return { id: updated.id, fundCode: updated.fundCode, version: updated.version };
+}
+
+export async function assertTreasuryFundAssigned(tx: Tx, accountId: number) {
+  const [account] = await tx.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
+    .where(eq(s.treasuryAccounts.id, accountId)).for('update');
+  if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
+  if (!treasuryFundCodeSchema.safeParse(account.fundCode).success) throw new ApiError(409, 'Tài khoản chưa phân nguồn quỹ. Cấu hình Quỹ công ty hoặc Quỹ TM tại Sổ quỹ / ngân hàng trước khi ghi phiếu.');
 }
 
 export async function requestTreasuryCutover(input: {
@@ -544,6 +574,9 @@ export async function requestTreasuryMovementReversal(input: {
     if (!movement) throw new ApiError(404, 'Không tìm thấy giao dịch kho quỹ');
     if (movement.status !== 'POSTED') throw new ApiError(409, 'Giao dịch kho quỹ không còn hiệu lực');
     if (movement.reversalOfId != null) throw new ApiError(409, 'Không thể đảo một giao dịch đảo kho quỹ');
+    const [expenseVoucher] = await tx.select({ id: s.expenseCashVouchers.id }).from(s.expenseCashVouchers)
+      .where(and(eq(s.expenseCashVouchers.treasuryMovementId, movement.id), eq(s.expenseCashVouchers.status, 'RECORDED'))).limit(1);
+    if (expenseVoucher) throw new ApiError(409, 'Giao dịch thuộc phiếu chi phí; dùng Hoàn tác tại lịch sử phiếu chi phí để cập nhật đồng thời công nợ và phân bổ.');
     if (movement.sourceVersion !== input.expectedVersion) {
       throw new ApiError(409, 'Giao dịch kho quỹ đã thay đổi. Vui lòng tải lại.');
     }
@@ -585,6 +618,7 @@ export async function applyTreasuryGovernanceAction(tx: Tx, action: GovernanceAc
       code: String(after.code),
       name: String(after.name),
       type: String(after.type),
+      fundCode: after.fundCode == null ? null : treasuryFundCodeSchema.parse(after.fundCode),
       currency: 'VND',
       bankName: typeof after.bankName === 'string' ? after.bankName : null,
       bankAccountNumber: typeof after.bankAccountNumber === 'string' ? after.bankAccountNumber : null,

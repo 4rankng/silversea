@@ -1,3 +1,4 @@
+import { expenseMetadataColumns } from './expense-metadata';
 // ─── Ops field-operations module (docs/prd/OpsVanHanh.md) ───────────────────
 // Personal shipment pins, per-truck ops oversight, cash expenses with receipt
 // photos, and settlement batches. Money is numeric(15,0) VND, no decimals.
@@ -40,6 +41,7 @@ export const truckOpsAssignments = pgTable('truck_ops_assignments', {
 // RECORDED directly; the author may correct an unlinked entry. A recorded
 // settlement freezes its entries. Legacy review fields are historical only.
 export const opsExpenseEntries = pgTable('ops_expense_entries', {
+  ...expenseMetadataColumns(),
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id').notNull(),
   shipmentContainerId: integer('shipment_container_id'),

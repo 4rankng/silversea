@@ -7,10 +7,9 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { eq } from 'drizzle-orm';
 
-import { db } from '../db';
-import * as s from '../db/schema';
+import { client } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import { Role } from '@tingting/shared';
 import expenseRoutes from '../routes/expense';
 import { coreRoutes } from '../routes/shipments/core.routes';
@@ -41,8 +40,10 @@ before(async () => {
   });
 });
 
-after(() => {
-  setImmediate(() => process.exit(0));
+after(async () => {
+  await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  await disconnectRedis();
+  await client.end();
 });
 
 async function probe(path: string): Promise<{ status: number; body: object }> {

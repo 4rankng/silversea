@@ -1,0 +1,1 @@
+ALTER TABLE "treasury_accounts" ADD COLUMN "fund_code" varchar(20);

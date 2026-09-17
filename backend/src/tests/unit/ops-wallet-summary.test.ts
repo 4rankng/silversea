@@ -108,3 +108,12 @@ describe('ops wallet returns reconciliation', () => {
     assert.equal(out.balance, '10000');
   });
 });
+
+it('adds only actual OPS reimbursements and removes actual returned advances', () => {
+  const result = computeOpsWalletSummary({ approvedAdvanceAmounts: ['1000000'],
+    expenseAmounts: { APPROVED: ['1200000'], PENDING: [], REJECTED: [] }, reimbursementAmounts: ['100000'] });
+  assert.equal(result.balance, '-100000');
+  const refunded = computeOpsWalletSummary({ approvedAdvanceAmounts: ['1000000'],
+    expenseAmounts: { APPROVED: ['800000'], PENDING: [], REJECTED: [] }, approvedRefundAmounts: ['100000'] });
+  assert.equal(refunded.balance, '100000');
+});

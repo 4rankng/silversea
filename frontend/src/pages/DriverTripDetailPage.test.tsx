@@ -56,9 +56,7 @@ vi.mock('../hooks/useBackShortcut', () => ({
   useBackShortcut: vi.fn(),
 }));
 
-vi.mock('../hooks/useOnline', () => ({
-  useOnline: () => true,
-}));
+
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
@@ -271,11 +269,9 @@ describe('DriverTripDetailPage', () => {
   });
 
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
-  // BOTH cost forms are hidden (kế toán từ từ): "Nhập chi phí lô hàng" and
-  // the fuel-refill "Báo cáo đổ dầu". 27.8's "GIỮ NGUYÊN" covers the fuel
-  // SCREENSHOT upload, not the refill cost form. The e-POD widget is
-  // moved to its own /pod page; here we verify it is NOT in the tree.
-  it('hides both cost forms, removes milestone/income modules', async () => {
+  // Expense entry is now enabled by the customer expense requirements.
+  // Fuel screenshots and the separate e-POD route retain their own roles.
+  it('restores shipment cost entry while keeping the separate fuel form hidden', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -286,8 +282,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
-    // cost form hidden
-    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
     // e-POD widget hidden (moved to /pod)
     expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
     // fuel-refill cost form hidden (Phần 1; GIỮ NGUYÊN is the screenshot upload)

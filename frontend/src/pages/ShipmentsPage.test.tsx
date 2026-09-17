@@ -1619,7 +1619,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
     const firstKey = (apiPost.mock.calls[0]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
     expect(firstKey).toBe('00000000-0000-4000-8000-000000000001');
-    expect(screen.getByText('Mất kết nối')).toBeTruthy();
+    expect(await screen.findByText('Mất kết nối')).toBeTruthy();
 
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Khóa lô' }));
 

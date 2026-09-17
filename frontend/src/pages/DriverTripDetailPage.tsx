@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DriverProgressEventType, TripStatus } from '@tingting/shared';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
+import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
@@ -29,7 +30,6 @@ import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } fro
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
 import { formatCurrency } from '../lib/format';
-import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
@@ -51,7 +51,6 @@ function DriverTripDetailContent() {
   useDriverScreenEntry(id);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const online = useOnline();
   const geolocation = useGeolocation();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
@@ -113,7 +112,7 @@ function DriverTripDetailContent() {
   const operationTags = operationNote.selectedLabels;
 
   async function handleMilestone(eventType: MilestoneType) {
-    if (!trip || !validFulfillmentId || !online || closed) return;
+    if (!trip || !validFulfillmentId || closed) return;
     const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
     if (milestoneIndex !== nextMilestoneIndex) return;
     const idempotencyKey = buildIdempotencyKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
@@ -156,10 +155,6 @@ function DriverTripDetailContent() {
 
   async function handleUploadFuelEvidence(file: File) {
     if (!trip || cancelled) return;
-    if (!online) {
-      toast({ kind: 'warning', message: 'Cần có mạng để gửi ảnh nhiên liệu cho kế toán.' });
-      return;
-    }
     setUploadingFuelEvidence(true);
     try {
       const location = await geolocation.awaitAccurateSample();
@@ -334,17 +329,7 @@ function DriverTripDetailContent() {
     <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
 
-      {!online && (
-        <section className="driver-task-section driver-task-section--banner">
-          <div className="driver-task-sync" role="status">
-            <AlertTriangle size={16} />
-            <div>
-              <strong>Đang ngoại tuyến</strong>
-              <p>Cần kết nối mạng để gửi lệnh. Vui lòng kiểm tra mạng và thử lại.</p>
-            </div>
-          </div>
-        </section>
-      )}
+
 
       {/* Spec Phần 3 / AC-DISPATCH-002: acceptance is direct while the Ops
           field-confirmation module is unfinished — guide the driver to check
@@ -470,11 +455,7 @@ function DriverTripDetailContent() {
               </button>}
             </div>
 
-            {!online && (
-              <div className="driver-task-fuel-offline">
-                Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
-              </div>
-            )}
+
 
             {latestFuelEvidence && (
               <div className="driver-task-fuel-details">
@@ -522,10 +503,10 @@ function DriverTripDetailContent() {
         </section>
       )}
 
-      {/* Phần 1 ticket: BOTH cost forms ("Nhập chi phí lô hàng" and "Báo cáo
-          đổ dầu") are coded but temporarily hidden — kế toán tài chính is the
-          post-trial phase. Backend schema + endpoints retained. 27.8's
-          "GIỮ NGUYÊN" covers the fuel SCREENSHOT upload below, not this form. */}
+      <ShipmentCostEntryForm key={tripId} tripId={tripId}
+        totalRoadAllowance={trip.totalRoadAllowance}
+        costSubmissionNote={trip.costSubmissionNote}
+        readOnly={cancelled || Boolean(accountingLock)} />
 
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">

@@ -694,6 +694,7 @@ export function isCompanyLogoStorageKey(key: string): boolean {
 export function isProtectedPhotoStorageKey(key: string): boolean {
   return /^trips\/\d+\//.test(key)
     || /^expense-photos\/\d+\//.test(key)
+    || /^accounting-expense-photos\/\d+\//.test(key)
     || /^fuel-evidence\/\d+\/\d+\//.test(key)
     || /^debit-note-templates\/\d+\//.test(key)
     || /^ops-expense-photos\/\d+\//.test(key)
@@ -715,6 +716,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
   // template logos, and the own-company logo. Trip photos get a driver
   // ownership check; financial evidence delegates to exact-key authz below.
   const tripMatch = key.match(/^trips\/(\d+)\//);
+  const accountingExpenseMatch = key.match(/^accounting-expense-photos\/(\d+)\//);
   const expenseMatch = key.match(/^expense-photos\/(\d+)\//);
   const fuelEvidenceMatch = key.match(/^fuel-evidence\/(\d+)\/(\d+)\//);
   const templateLogoMatch = key.match(/^debit-note-templates\/(\d+)\//);
@@ -723,6 +725,10 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(400, 'Đường dẫn ảnh không hợp lệ');
   }
 
+  // A receipt attached to an expense remains financial evidence even when
+  // its legacy upload key is under trips/. Exact-key rules take precedence.
+  const expenseAccess = (tripMatch || opsExpenseMatch) ? await authorizeExpensePhoto(key, getUser(req)) : null;
+  if (expenseAccess && expenseAccess.reason !== 'not_found' && !expenseAccess.allow) throw new ApiError(403, 'Không có quyền truy cập ảnh chi phí');
   if (tripMatch) {
     const tripId = parseInt(tripMatch[1]);
 
@@ -753,7 +759,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
         throw new ApiError(403, 'Không có quyền truy cập ảnh của chuyến đi này');
       }
     }
-  } else if (expenseMatch || fuelEvidenceMatch) {
+  } else if (expenseMatch || fuelEvidenceMatch || accountingExpenseMatch) {
     // Expense receipt photos are financial evidence. The `expense-photos/<id>/`
     // prefix is SHARED by two pipelines (company receipts → expense_photos, and
     // forwarder receipts → trip_expense_photos), so <id> alone is ambiguous.

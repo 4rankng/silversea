@@ -15,13 +15,15 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { recordIncidentalCost, listIncidentalCosts } from '../services/driver.service';
 import { ApiError } from '../errors';
-import { DriverIncidentalCostType } from '@tingting/shared';
+import { DriverIncidentalCostType, Role } from '@tingting/shared';
+import { ensureLegacyExpenseSource } from '../services/expense-accounting-source.service';
+import { getExpenseAccountingEntry } from '../services/expense-accounting-reads.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -105,6 +107,56 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     assert.equal((await listIncidentalCosts(trip.id, driver.id)).length, 1);
   });
 
+  test('standalone trip retains native fee metadata; later real shipment linkage preserves it', async () => {
+    const { user, driver } = await mkUserAndDriver();
+    const cat = await mkCatalogs();
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
+    const body = { costType: DriverIncidentalCostType.TOLL, amount: 80000, occurredAt: TODAY,
+      costGroup: 'DRIVER_ROAD' as const, payerKind: 'COMPANY' as const, feeName: 'Vé cầu đường thực tế',
+      invoiceNumber: 'HD-standalone', invoiceDate: TODAY };
+    const key = `standalone-${suffix}-${trip.id}`;
+    const first = await recordIncidentalCost(trip.id, driver.id, body, user.id, key);
+    createdCostIds.push(first.cost.id);
+    const replay = await recordIncidentalCost(trip.id, driver.id, body, user.id, key);
+    assert.equal(replay.cost.id, first.cost.id);
+    assert.equal(replay.replayed, true);
+    const [native] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, first.cost.id));
+    assert.equal(native.payerKind, 'COMPANY');
+    assert.equal(native.costGroup, 'DRIVER_ROAD');
+    assert.equal(native.customerChargeAmount, '0');
+    assert.equal(native.feeName, body.feeName);
+    assert.equal(native.invoiceNumber, body.invoiceNumber);
+    assert.equal(native.invoiceDate, TODAY);
+    assert.equal((await db.select().from(s.expenseAccountingSources).where(and(
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.sourceId, native.id)))).length, 0);
+
+    const rollback = new Error('rollback real shipment linkage fixture');
+    await assert.rejects(db.transaction(async tx => {
+      const [shipment] = await tx.insert(s.shipments).values({ shipmentCode: `IC-${suffix}-${trip.id}`,
+        customerId: cat.customer.id, createdBy: user.id }).returning();
+      await tx.update(s.trips).set({ shipmentId: shipment.id }).where(eq(s.trips.id, trip.id));
+      const beforeLink = await getExpenseAccountingEntry({ userId: user.id, role: Role.DRIVER }, 'DRIVER', native.id, tx);
+      assert.equal(beforeLink.payerKind, 'COMPANY');
+      assert.equal(beforeLink.payableEntityId, null);
+      assert.equal(beforeLink.customerChargeAmount, 0);
+      assert.equal(beforeLink.costGroup, 'DRIVER_ROAD');
+      assert.equal(beforeLink.feeName, body.feeName);
+      const linked = await ensureLegacyExpenseSource(tx, 'DRIVER', native.id, user.id);
+      assert.equal(linked.shipmentId, shipment.id);
+      assert.equal(linked.tripId, trip.id);
+      assert.equal(linked.paymentHistoryUnattributed, false, 'known standalone native creation remains known after actual shipment linkage');
+      assert.equal(linked.sourceId, native.id);
+      assert.equal(linked.payerKind, 'COMPANY');
+      assert.equal(linked.payableEntityId, null);
+      assert.equal(linked.customerChargeAmount, '0');
+      assert.equal(linked.costGroup, 'DRIVER_ROAD');
+      assert.equal(linked.feeName, body.feeName);
+      assert.equal(linked.invoiceNumber, body.invoiceNumber);
+      assert.equal(linked.invoiceDate, TODAY);
+      throw rollback;
+    }), error => error === rollback);
+  });
+
   test('same key + different body → 409', async () => {
     const { user, driver } = await mkUserAndDriver();
     const cat = await mkCatalogs();
@@ -177,5 +229,4 @@ after(async () => {
     console.warn('[m84-incidental-cost.test] cleanup partial:', (err as Error).message);
   }
   try { await client.end(); } catch { /* ignore */ }
-  process.exit(0);
 });

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { Tabs } from '../../design-system/Tabs';
@@ -43,6 +44,7 @@ export function AccountingWorkspaceRoot() {
   return (
     <div className="accounting-page" data-testid="accounting-workspace">
       <PageHeader title={viewMeta.title} description={viewMeta.description} />
+      <nav className="accounting-work-inbox__shortcuts" aria-label="Chi phí và hoàn ứng"><Link to="/accounting/expenses?view=ops">Chi phí OPS / hoàn ứng</Link><Link to="/accounting/expenses?view=work">Phơi phiếu / tiền đường</Link><Link to="/accounting/expenses?view=records">Hóa đơn / cược container</Link></nav>
 
       {state.activeView !== 'work' && <section className="accounting-period" aria-labelledby="accounting-period-title">
         <div>

@@ -4,6 +4,7 @@
  * to avoid duplication and ensure consistent error messages.
  */
 import { db } from '../db';
+import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import * as s from '../db/schema';
 import { eq, and, inArray, notInArray, isNull, ne, sql } from 'drizzle-orm';
 
@@ -111,19 +112,9 @@ export async function validateSettlementInputs(opts: {
 
   // 2. Check already-linked advance requests (create only)
   if (checkAlreadyLinked) {
-    const activeLinkConditions = [
-      inArray(s.advanceSettlementRequests.advanceRequestId, advanceRequestIds),
-      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-    ];
-    if (excludeSettlementId !== undefined) activeLinkConditions.push(ne(s.advanceSettlements.id, excludeSettlementId));
-    const existingLinks = await dbOrTx.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
-      .from(s.advanceSettlementRequests)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(and(...activeLinkConditions));
-    if (existingLinks.length > 0) {
-      const dupIds = existingLinks.map(l => l.advanceRequestId).join(', ');
-      throw new AdvanceError(400, `Yêu cầu tạm ứng đã được liên kết với phiếu thanh toán khác: ${dupIds}`);
-    }
+    const consumed = await getAdvanceConsumedAmounts(dbOrTx, advanceRequestIds, excludeSettlementId);
+    const used = advanceRequestIds.filter(id => (consumed.get(id) ?? 0) > 0);
+    if (used.length) throw new AdvanceError(409, `Yêu cầu tạm ứng đã được phân bổ cho đợt khác: ${used.join(', ')}`);
   }
 
   // 3. Validate trip expenses (if provided)
@@ -165,6 +156,10 @@ export async function validateSettlementInputs(opts: {
 
     // 4. Check already-linked trip expenses (create only)
     if (checkAlreadyLinked) {
+      const [currentClaim] = await dbOrTx.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
+        .where(and(inArray(s.expenseAccountingSources.linkedTripExpenseId, tripExpenseIds),
+          sql`${s.expenseAccountingSources.reconciliationId} is not null`)).limit(1);
+      if (currentClaim) throw new AdvanceError(409, 'Chi phí đã được đối chiếu hoàn ứng trên bảng chi phí.');
       const activeExpenseConditions = [
         inArray(s.settlementExpenses.tripExpenseId, tripExpenseIds),
         notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),

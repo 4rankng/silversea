@@ -12,3 +12,5 @@ export * from './treasury';
 export * from './shipments';
 export * from './ops';
 export * from './salary-exclusions';
+export * from './expense-accounting';
+export * from './shipment-finance';

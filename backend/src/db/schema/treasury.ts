@@ -36,6 +36,8 @@ export const treasuryAccounts = pgTable('treasury_accounts', {
   code: varchar('code', { length: 50 }).notNull(),
   name: varchar('name', { length: 160 }).notNull(),
   type: varchar('type', { length: 20 }).notNull(),
+  // Explicit ownership of the fund; unknown legacy accounts remain unclassified.
+  fundCode: varchar('fund_code', { length: 20 }).$type<'COMPANY' | 'TM'>(),
   currency: varchar('currency', { length: 10 }).notNull().default('VND'),
   bankName: varchar('bank_name', { length: 160 }),
   bankAccountNumber: varchar('bank_account_number', { length: 80 }),

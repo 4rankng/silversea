@@ -42,6 +42,7 @@ import { coreRoutes } from './core.routes';
 import { documentsRoutes } from './documents.routes';
 import { podRoutes } from './pod.routes';
 import { coordinationRoutes } from './coordination.routes';
+import { financeRecordsRoutes } from './finance-records.routes';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -81,6 +82,7 @@ registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY
 
 const router = Router();
 
+router.use(financeRecordsRoutes);
 router.use(cusWorkspaceRoutes);
 router.use(dispatchPlanningRoutes);
 router.use(coreRoutes);

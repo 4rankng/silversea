@@ -242,7 +242,7 @@
    * 44px touch contract. Floor stays ≥28px so taps remain reliable. */
   :where(#root) button,
   :where(#root) [role="button"],
-  :where(#root) a[href],
+  :where(#root) :where(a[href]),
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select {
     min-height: 30px;
@@ -661,7 +661,7 @@
   }
   :where(#root) button,
   :where(#root) [role="button"],
-  :where(#root) a[href],
+  :where(#root) :where(a[href]),
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select,
   #root textarea {

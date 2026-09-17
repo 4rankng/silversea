@@ -24,6 +24,10 @@ export interface ComputeTripTotalsInput {
    * gross toll − tollDeduction (clamped ≥ 0). Set on the second trip of a pair so
    * the closed-loop VETC toll is counted once across the pair. Default 0. */
   tollDeduction?: number;
+  /** Net receipts already allocated once to this trip; null retains estimate. */
+  reconciledTollCost?: number | null;
+  /** Separately identified actual expenses, excluding toll and agreed allowances. */
+  reconciledExtraCost?: number;
   hasReturnCargo: boolean;
   returnCargoBonus: number;
   revenue: number;
@@ -170,7 +174,7 @@ export function computeTripTotals(input: ComputeTripTotalsInput): ComputeTripTot
   // Gross toll remains reconstructable as tollsStations × tollPerStation.
   const tollDeduction = input.tollDeduction ?? 0;
   const grossToll = input.tollsStations * input.tollPerStation;
-  const tollCost = Math.max(0, grossToll - tollDeduction);
+  const tollCost = input.reconciledTollCost ?? Math.max(0, grossToll - tollDeduction);
 
   // Recorded revenue = freight ex-VAT minus customer commission
   const customerCommission = input.customerCommission ?? 0;
@@ -187,14 +191,14 @@ export function computeTripTotals(input: ComputeTripTotalsInput): ComputeTripTot
     // Costs are recorded INCL VAT (no input-VAT deduction). Customer commission
     // reduces recorded revenue for external trips just as it does for own-truck
     // trips, so the management margin must use recordedRevenue.
-    externalMargin = recordedRevenue - extCost;
+    externalMargin = recordedRevenue - extCost - (input.reconciledExtraCost ?? 0);
     // For external trips: cost = external freight only (no fuel/allowance/salary)
-    totalCost = extCost;
-    grossProfit = externalMargin;
+    totalCost = extCost + (input.reconciledExtraCost ?? 0);
+    grossProfit = recordedRevenue - totalCost;
   } else {
     // OWN trip: total cost = fuel + road allowance (net) + tolls + ticket paid by company + salary + bonuses
     totalCost = totalFuelCost + totalRoadAllowance + tollCost + input.tollsDiscount + input.driverSalary
-      + input.twoPointDeliveryBonus + input.vehicleShiftAllowance;
+      + input.twoPointDeliveryBonus + input.vehicleShiftAllowance + (input.reconciledExtraCost ?? 0);
     grossProfit = recordedRevenue - totalCost;
   }
 

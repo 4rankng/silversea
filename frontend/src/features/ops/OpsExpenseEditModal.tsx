@@ -5,16 +5,16 @@ import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { NumberField } from '../../design-system/forms/NumberField';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOpsExpenseFinancialDraft, type OpsCostGroup } from './OpsExpenseFinancialFields';
 /**
- * Author edit of an own PENDING/REJECTED, unlinked expense (OpsVanHanh §5.5
- * "được sửa/xóa (chỉ người nhập)"). Container scope is fixed after create —
- * only type, amount, date and note are editable.
+ * Author correction of an editable own expense. Server-side source/version
+ * checks remain authoritative; the container scope stays fixed after create.
  */
 export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; onClose: () => void }) {
   const { data: typesData } = useOpsExpenseTypes();
@@ -26,9 +26,16 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const { data: existingPhotosData } = useOpsExpensePhotos(entry.id);
 
   const [typeCode, setTypeCode] = useState(entry.expenseTypeCode);
-  const [amount, setAmount] = useState(entry.amount);
+  const [amount, setAmount] = useState<number | ''>(Number(entry.amount));
   const [paidAt, setPaidAt] = useState(entry.paidAt);
   const [note, setNote] = useState(entry.note ?? '');
+  const [financial, setFinancial] = useOpsExpenseFinancialDraft({
+    costGroup: (entry.costGroup as OpsCostGroup | null) ?? opsGroupForType(entry.expenseTypeCode, entry.requiresInvoice === true),
+    feeName: entry.feeName ?? '', invoiceNumber: entry.invoiceNumber ?? '',
+    invoiceDate: entry.invoiceDate ?? '', recoveryNote: entry.recoveryNote ?? '',
+  });
+  const savingRef = useRef(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -57,28 +64,31 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
     return options;
   }, [groupedTypes]);
 
-  const amountClean = amount.replace(/[^\d-]/g, '');
-  const isNegative = amountClean.startsWith('-');
-  const amountDigits = amountClean.replace(/-/g, '');
-  const amountError = isNegative ? 'Số tiền phải là số dương' : null;
-  const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative && !updateExpense.isPending && !uploadingPhoto;
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  const amountError = amount === '' || amountValid ? undefined
+    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+  const canSubmit = Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
 
   // Server-side photo count via readback (reactively updates through cache
   // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
   const serverPhotoCount = existingPhotosData?.items.length ?? 0;
   const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
 
-  async function handlePhotoUpload(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
-    setUploadingPhoto(true);
+  async function handlePhotoUpload(files: FileList | File[] | null) {
+    if (!files?.length || uploadingPhoto || savingRef.current) return;
+    if (files.length + serverPhotoCount > 20) { toast({ kind: 'error', message: 'Mỗi khoản chi tối đa 20 ảnh. Chọn ít ảnh hơn.' }); return; }
+    const remaining = Array.from(files);
+    setPendingFiles(remaining); setUploadingPhoto(true);
     try {
-      for (const file of Array.from(fileList)) {
+      while (remaining.length) {
+        const file = remaining[0];
         const compressed = await compressImageFile(file, { maxDimension: 2048 });
         const uploaded = await opsClient.uploadExpensePhoto(compressed);
         await attachPhoto.mutateAsync({ expenseId: entry.id, storageKey: uploaded.storageKey });
+        remaining.shift(); setPendingFiles([...remaining]);
       }
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại.' });
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.' });
     } finally {
       setUploadingPhoto(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -87,30 +97,35 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || savingRef.current) return;
+    savingRef.current = true;
     try {
       await updateExpense.mutateAsync({
         id: entry.id,
         body: {
           expenseTypeCode: typeCode,
-          amount: amountDigits,
+          amount: String(amount),
           paidAt,
           note: note.trim() || null,
+          expectedVersion: entry.version,
+          ...opsFinancialPayload(financial),
         },
       });
       toast({ kind: 'success', message: 'Đã cập nhật khoản chi.' });
       onClose();
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Cập nhật thất bại.' });
+    } finally {
+      savingRef.current = false;
     }
   }
 
   return (
-    <OpsModalBackdrop onClose={onClose} ariaLabel={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
+    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Sửa khoản chi · {entry.shipmentCode ?? entry.shipmentId}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
-          <button type="button" aria-label="Đóng" onClick={onClose}><X size={18} /></button>
+          <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
           <div className="ops-form-grid">
@@ -121,22 +136,14 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               onChange={(event) => setTypeCode(event.target.value)}
               options={expenseTypeOptions}
             />
-            <label>
-              Số tiền (VND) *
-              <input
-                value={amountDigits ? `${isNegative ? '-' : ''}${formatVnd(amountDigits)}` : (isNegative ? '-' : '')}
-                aria-invalid={Boolean(amountError)} aria-describedby={amountError ? 'ops-edit-amount-error' : undefined}
-                onChange={(event) => setAmount(event.target.value)}
-                inputMode="numeric"
-                required
-              />
-              {amountError && <span id="ops-edit-amount-error" role="alert" className="ops-field-error">{amountError}</span>}
-            </label>
+            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
+              min={1} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
+          <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={updateExpense.isPending || uploadingPhoto} />
           <label className="ops-form-note">
             Ghi chú
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
@@ -167,6 +174,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
                 onChange={(event) => void handlePhotoUpload(event.target.files)}
               />
             </div>
+            {pendingFiles.length > 0 && !uploadingPhoto && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handlePhotoUpload(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {serverPhotoCount > 0 && (
               <ul className="ops-form-photos__list">
                 {(existingPhotosData?.items ?? []).map((photo) => (
@@ -182,7 +190,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         <footer className="ops-modal__foot">
           <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={updateExpense.isPending}>Đóng</button>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>
               {updateExpense.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>

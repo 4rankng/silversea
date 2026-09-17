@@ -1,3 +1,4 @@
+import { driverCommandIdentity, vendorCommandIdentity } from './cash-command-identity.service';
 /**
  * Financial operations service — owns all mutating financial transactions:
  * payment recording, trip adjustments, and penalty creation.
@@ -162,7 +163,7 @@ function penaltyVersionFromTimestamp(updatedAt: Date): number {
 
 // ─── Driver payout (B1 — feedback202606 GAP 4) ───────────────────────────────
 
-export interface DriverPayoutInput {
+export interface DriverPayoutInput extends TreasuryPaymentFields {
   driverId: number;
   amount: number;          // VND, integer-scale
   method: 'CASH' | 'BANK';
@@ -179,7 +180,7 @@ export interface DriverPayoutInput {
  * (debit may not exceed the current payable balance + 1 for rounding), then
  * post a single append-only ledger entry.
  */
-async function recordDriverPayoutTx(tx: Tx, input: DriverPayoutInput): Promise<LedgerEntryRow> {
+export async function recordDriverPayoutTx(tx: Tx, input: DriverPayoutInput): Promise<LedgerEntryRow> {
   // Resolve driver name for a human-readable overpay error message
   // (no raw IDs in UI text — per project convention).
   const [driver] = await tx.select({ name: s.drivers.name })
@@ -216,6 +217,18 @@ export async function recordDriverPayout(input: DriverPayoutInput) {
   return db.transaction((tx) => recordDriverPayoutTx(tx, input));
 }
 
+/** OPS ledger credits are cash handed to OPS; expenses consume them as debits. */
+export async function recordOpsReimbursementTx(tx: Tx, input: { opsUserId: number; amount: number; receiptId: string; note?: string; date: string }) {
+  await LedgerService.lockEntity(tx, 'FORWARDER', input.opsUserId);
+  const balance = await LedgerService.getBalanceTx(tx, 'FORWARDER', input.opsUserId);
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > Math.max(0, -balance)) {
+    throw new ApiError(409, 'Số hoàn ứng vượt khoản còn phải trả cho OPS.');
+  }
+  return LedgerService.postEntry(tx, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,
+    debit: 0, credit: input.amount, receiptId: input.receiptId, note: input.note ?? 'Hoàn chi phí cho OPS',
+    timestamp: new Date(`${input.date}T00:00:00+07:00`) });
+}
+
 export async function recordDriverPayoutIdempotent(args: {
   input: DriverPayoutInput;
   idempotencyKey: string | undefined;
@@ -224,17 +237,24 @@ export async function recordDriverPayoutIdempotent(args: {
   return runIdempotent<LedgerEntryRow>({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT,
     idempotencyKey: args.idempotencyKey,
-    payload: {
-      driverId: args.input.driverId,
-      amount: args.input.amount,
-      method: args.input.method,
-      payoutDate: args.input.payoutDate,
-      note: args.input.note ?? '',
-      receiptId: args.input.receiptId ?? '',
-    },
+    payload: driverCommandIdentity(args.input),
     createdBy: args.createdBy ?? null,
     entityType: 'ledger',
-    create: async (tx) => recordDriverPayoutTx(tx, args.input),
+    replayResult: async (snapshot, tx) => {
+      const saved = snapshot as { id: number; ledgerEntryId?: number | null; applicationResult?: { ledgerId?: number } };
+      return loadLedgerEntryTx(tx, saved.ledgerEntryId ?? saved.applicationResult?.ledgerId ?? saved.id);
+    },
+    create: async (tx) => {
+      const treasury = await resolveTreasuryPaymentContract(tx, args.input, new Date());
+      const row = await recordDriverPayoutTx(tx, args.input);
+      if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
+        if (!args.createdBy) throw new ApiError(400, 'Cần người ghi nhận giao dịch quỹ.');
+        await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: Number(args.input.amount),
+          valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: row.id,
+          sourceVersion: row.id, paymentContractVersion: treasury.paymentContractVersion, createdBy: args.createdBy });
+      }
+      return row;
+    },
     load: async (entityId, tx) => loadLedgerEntryTx(tx, entityId),
   });
 }
@@ -256,6 +276,7 @@ export async function requestDriverPayoutGovernance(input: {
       throw new ApiError(404, 'Không tìm thấy lái xe');
     }
 
+    const treasury = await resolveTreasuryPaymentContract(tx, input.payout, new Date());
     await LedgerService.lockEntity(tx, 'DRIVER', input.payout.driverId);
     const currentBalance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.payout.driverId);
     if (input.payout.amount > currentBalance + 1) {
@@ -285,6 +306,7 @@ export async function requestDriverPayoutGovernance(input: {
         payoutDate: input.payout.payoutDate,
         note: input.payout.note?.trim() || '',
         receiptId: input.payout.receiptId ?? '',
+        ...treasury,
       },
       deltaSnapshot: {
         driverBalanceDelta: -input.payout.amount,
@@ -325,12 +347,27 @@ export async function applyDriverPayoutGovernanceAction(tx: Tx, action: Governan
       : undefined,
   });
 
+  const treasury = await resolveTreasuryPaymentContract(tx, {
+    treasuryAccountId: afterSnapshot?.treasuryAccountId == null ? null : Number(afterSnapshot.treasuryAccountId),
+    valueDate: typeof afterSnapshot?.valueDate === 'string' ? afterSnapshot.valueDate : null,
+    physicalReference: typeof afterSnapshot?.physicalReference === 'string' ? afterSnapshot.physicalReference : null,
+  }, action.createdAt);
+  let treasuryMovementId: number | null = null;
+  if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
+    const movement = await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT',
+      amount: Number(afterSnapshot?.amount), valueDate: treasury.valueDate, physicalReference: treasury.physicalReference,
+      paymentContractVersion: treasury.paymentContractVersion, ledgerEntryId: posted.id, sourceVersion: posted.id,
+      createdBy: action.makerId, externalReference: posted.receiptId });
+    treasuryMovementId = movement.id;
+  }
+
   return {
     ledgerEntryId: posted.id,
     applicationResult: {
       ledgerId: posted.id,
       driverId,
       receiptId: posted.receiptId,
+      treasuryMovementId,
     },
   };
 }
@@ -746,7 +783,7 @@ export interface VendorPaymentInput extends TreasuryPaymentFields {
   allocations?: Array<{ expenseId: number; amount: number }>;
 }
 
-async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
+export async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
   await LedgerService.lockEntity(tx, 'VENDOR', input.supplierId);
 
   const [latestRow] = await tx.select({ balance: s.ledger.balance })
@@ -803,18 +840,24 @@ export async function recordVendorPaymentIdempotent(args: {
   return runIdempotent<VendorPaymentResult>({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
     idempotencyKey: args.idempotencyKey,
-    payload: {
-      supplierId: args.input.supplierId,
-      receiptId: args.input.receiptId ?? '',
-      amount: Number(args.input.amount),
-      date: args.input.date,
-      note: args.input.note ?? '',
-      confirmOverpay: args.input.confirmOverpay ?? false,
-      allocations: args.input.allocations ?? [],
-    },
+    payload: vendorCommandIdentity(args.input),
     createdBy: args.createdBy ?? null,
     entityType: 'ledger',
-    create: async (tx) => recordVendorPaymentTx(tx, args.input),
+    replayResult: async (snapshot, tx) => {
+      const saved = snapshot as { id: number; ledgerEntryId?: number | null; applicationResult?: { ledgerId?: number } };
+      return loadVendorPaymentResultTx(tx, saved.ledgerEntryId ?? saved.applicationResult?.ledgerId ?? saved.id);
+    },
+    create: async (tx) => {
+      const treasury = await resolveTreasuryPaymentContract(tx, args.input, new Date());
+      const row = await recordVendorPaymentTx(tx, args.input);
+      if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
+        if (!args.createdBy) throw new ApiError(400, 'Cần người ghi nhận giao dịch quỹ.');
+        await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: Number(args.input.amount),
+          valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: row.id,
+          sourceVersion: row.id, paymentContractVersion: treasury.paymentContractVersion, createdBy: args.createdBy });
+      }
+      return row;
+    },
     load: async (entityId, tx) => loadVendorPaymentResultTx(tx, entityId),
   });
 }
@@ -996,7 +1039,7 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
  * participate in the overpayment guard; customer receivables are deliberately
  * excluded.
  */
-async function recordCarrierPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
+export async function recordCarrierPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
   const [carrier] = await tx.select({ id: s.customers.id })
     .from(s.customers)
     .where(and(
@@ -1078,17 +1121,24 @@ export async function recordCarrierPaymentIdempotent(args: {
   return runIdempotent<VendorPaymentResult>({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER,
     idempotencyKey: args.idempotencyKey,
-    payload: {
-      supplierId: args.input.supplierId,
-      receiptId: args.input.receiptId ?? '',
-      amount: Number(args.input.amount),
-      date: args.input.date,
-      note: args.input.note ?? '',
-      confirmOverpay: args.input.confirmOverpay ?? false,
-    },
+    payload: vendorCommandIdentity(args.input),
     createdBy: args.createdBy ?? null,
     entityType: 'ledger',
-    create: async (tx) => recordCarrierPaymentTx(tx, args.input),
+    replayResult: async (snapshot, tx) => {
+      const saved = snapshot as { id: number; ledgerEntryId?: number | null; applicationResult?: { ledgerId?: number } };
+      return loadCarrierPaymentResultTx(tx, saved.ledgerEntryId ?? saved.applicationResult?.ledgerId ?? saved.id);
+    },
+    create: async (tx) => {
+      const treasury = await resolveTreasuryPaymentContract(tx, args.input, new Date());
+      const row = await recordCarrierPaymentTx(tx, args.input);
+      if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
+        if (!args.createdBy) throw new ApiError(400, 'Cần người ghi nhận giao dịch quỹ.');
+        await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: Number(args.input.amount),
+          valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: row.id,
+          sourceVersion: row.id, paymentContractVersion: treasury.paymentContractVersion, createdBy: args.createdBy });
+      }
+      return row;
+    },
     load: async (entityId, tx) => loadCarrierPaymentResultTx(tx, entityId),
   });
 }

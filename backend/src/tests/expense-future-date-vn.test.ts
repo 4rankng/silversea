@@ -37,7 +37,7 @@ test('todayIsoVn rolls over at 17:00Z to the next VN day', () => {
   assert.equal(todayIsoVn(new Date('2026-09-15T16:59:00Z')), '2026-09-15');
 });
 
-test('expenseDate = VN-today is accepted at 17:30Z (was rejected pre-fix)', async (t) => {
+test('expenseDate = VN-today is accepted at 17:30Z (was rejected pre-fix)', async () => {
   mock.timers.enable({ apis: ['Date'], now: FROZEN_NOW });
   try {
     await inRolledBackTx(async (tx) => {
@@ -48,7 +48,7 @@ test('expenseDate = VN-today is accepted at 17:30Z (was rejected pre-fix)', asyn
   }
 });
 
-test('true future date is still rejected at 17:30Z', async (t) => {
+test('true future date is still rejected at 17:30Z', async () => {
   mock.timers.enable({ apis: ['Date'], now: FROZEN_NOW });
   try {
     await assert.rejects(
@@ -62,7 +62,7 @@ test('true future date is still rejected at 17:30Z', async (t) => {
   }
 });
 
-test('UTC-yesterday (VN-past) still accepted at 17:30Z', async (t) => {
+test('UTC-yesterday (VN-past) still accepted at 17:30Z', async () => {
   mock.timers.enable({ apis: ['Date'], now: FROZEN_NOW });
   try {
     await inRolledBackTx(async (tx) => {

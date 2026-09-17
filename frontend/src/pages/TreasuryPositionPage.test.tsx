@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ACCOUNTANT' } }) }));
+
 const getTreasuryPositionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -17,6 +19,8 @@ function account(accountId: number, name: string, bookBalance: number) {
     code: `ACC-${accountId}`,
     name,
     type: accountId % 2 === 0 ? 'CASH' : 'BANK',
+    fundCode: null,
+    version: 1,
     currency: 'VND',
     openingBalance: 1000,
     totalIn: 2000,

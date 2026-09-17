@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { expenseInputFields, expenseDateSchema, expenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
@@ -1133,13 +1134,8 @@ export const expenseCategorySchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
 });
 
-// Date columns reject the empty string — normalise "" → null so the form can submit
-// blank optional dates without forcing the client to strip them.
-const optionalDate = z.string().optional().nullable().transform((v) => (v === '' ? null : v));
-
-// Same "" → null clearing semantics as optionalDate, but the value must be a
-// real calendar date (YYYY-MM-DD) — garbage must 400 at the schema instead of
-// reaching a Postgres date column and surfacing as a 500.
+// Clear optional dates with "" → null. Nonempty values must be real calendar
+// dates so invalid input is rejected before reaching a Postgres date column.
 const optionalIsoDate = z
   .union([z.literal('').transform(() => null), isoDateOnlySchema])
   .optional()
@@ -1989,9 +1985,11 @@ export type DriverProgressInput = z.infer<typeof driverProgressSchema>;
 // expense (per-diem, lift fee, parking, toll, fuel, other) against a trip.
 // Server-side idempotent (PRD M08-04-03 offline-safe replay).
 export const driverIncidentalCostSchema = z.object({
+  payerKind: z.enum(['USER', 'COMPANY']).optional(),
+  ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
-  amount: z.number().int().positive('Số tiền phải lớn hơn 0'),
-  occurredAt: z.string().min(1, 'Ngày phát sinh là bắt buộc'),
+  amount: expenseVndSchema.refine(v => v > 0, 'Số tiền phải lớn hơn 0'),
+  occurredAt: expenseDateSchema,
   note: z.string().max(1000).optional(),
   receiptStorageKey: z.string().max(255).optional(),
 });

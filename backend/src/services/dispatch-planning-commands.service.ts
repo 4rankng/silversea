@@ -24,6 +24,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
+import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -592,6 +593,7 @@ export async function issueOrderCreateOrUpdate(
     trip = linked ? toLiveTripRow(linked) : null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
+    await syncShipmentExpenseSources(tx, shipment.id, input.actor.userId);
     // Auto freight pricing: the dispatch order is the definitive rate lock —
     // the dispatcher's rate key (else the fulfillment container's class) at
     // the container's own appointment date, falling back to the shipment's

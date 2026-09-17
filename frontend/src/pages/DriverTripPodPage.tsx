@@ -33,7 +33,6 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { useOnline } from '../hooks/useOnline';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
@@ -52,7 +51,6 @@ export function DriverTripPodPage() {
   const { id: fulfillmentIdParam } = useParams<{ id: string }>();
   useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
-  const online = useOnline();
   const { toast } = useToast();
 
   const fulfillmentId = Number(fulfillmentIdParam);
@@ -84,9 +82,7 @@ export function DriverTripPodPage() {
       ? 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'
       : trip?.status === TripStatus.CANCELED
         ? 'Chuyến đã hủy. Không thể thay đổi chứng từ.'
-        : !online
-          ? 'Cần kết nối mạng để tải lên chứng từ. Vui lòng kiểm tra kết nối.'
-          : null;
+        : null;
   // The dispatch note is tag-composed (format v2): parse it like the detail
   // page does — tags become chips, manual text the note — so the raw
   // tag-line structure never leaks to the driver. The trip.memo fallback was
@@ -166,7 +162,7 @@ export function DriverTripPodPage() {
   }
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
-    if (!trip || !validFulfillmentId || !online) return false;
+    if (!trip || !validFulfillmentId) return false;
     setSubmitting(true);
     try {
       const idempotencyKey = buildIdempotencyKey(
@@ -189,7 +185,7 @@ export function DriverTripPodPage() {
   }
 
   async function handleCompleteTrip() {
-    if (!trip || !validFulfillmentId || !online || documentBusy || submitting || completing) return;
+    if (!trip || !validFulfillmentId || documentBusy || submitting || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
       toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
       return;
@@ -373,7 +369,7 @@ export function DriverTripPodPage() {
           <button
             type="button"
             className="driver-task-complete"
-            disabled={completionBlocked || submitting || completing || !online}
+            disabled={completionBlocked || submitting || completing}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />

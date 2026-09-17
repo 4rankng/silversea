@@ -8,9 +8,9 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
 
-import { db } from '../db';
+import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
@@ -22,7 +22,6 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const cleanupIds: Array<{ table: string; id: number }> = [];
 
 let server: http.Server;
 let baseUrl = '';
@@ -74,6 +73,7 @@ before(async () => {
   }).returning();
   const [otherDriver] = await db.insert(s.drivers).values({ name: `CF khác ${suffix}`, userId: otherUser.id, status: 'ACTIVE' }).returning();
   void otherDriver;
+  otherToken = signToken(otherUser);
 
   const [customer] = await db.insert(s.customers).values({ name: `CF khách ${suffix}`, status: 'ACTIVE' }).returning();
   const [route] = await db.insert(s.routes).values({ name: `CF tuyến ${suffix}` }).returning();
@@ -132,10 +132,9 @@ before(async () => {
 });
 
 after(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  // The shared postgres client keeps the process alive; the reference
-  // harness exits explicitly for the same reason.
-  setImmediate(() => process.exit(0));
+  if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+  await disconnectRedis();
+  await client.end();
 });
 
 describe('driver canceled fulfillment read scope (20260916_7)', () => {
@@ -155,7 +154,7 @@ describe('driver canceled fulfillment read scope (20260916_7)', () => {
   test('another driver still cannot read the canceled fulfillment', async () => {
     const fixture = (global as unknown as { __cfFixture: { canceled: { fulfillment: { id: number } }; otherToken: string } }).__cfFixture;
     const read = await api(`/fulfillments/${fixture.canceled.fulfillment.id}`, {}, fixture.otherToken);
-    assert.ok([401, 403, 404].includes(read.status),
+    assert.ok([403, 404].includes(read.status),
       `non-owner read must not leak (got ${read.status}: ${JSON.stringify(read.data).slice(0, 120)})`);
   });
 

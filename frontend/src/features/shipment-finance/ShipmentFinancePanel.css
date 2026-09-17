@@ -1,0 +1,32 @@
+.shipment-finance, .shipment-finance__form { --control-mobile-h: var(--control-touch-h); }
+.shipment-finance { min-width: 0; padding: 12px; background: var(--surface, #fff); }
+.shipment-finance__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shipment-finance__header h3 { margin: 0; font-size: var(--text-body-size, 14px); }
+.shipment-finance__tabs { display: flex; gap: 16px; border-bottom: 1px solid var(--border-2); margin: 8px 0; }
+.shipment-finance__tabs button { border: 0; background: none; padding: 10px 0; color: var(--fg-2); border-bottom: 2px solid transparent; }
+.shipment-finance__tabs button[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+.shipment-finance__filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.shipment-finance__filters > .ds-field { flex: 1 1 140px; min-width: 0; }
+.shipment-finance__filters .shipment-finance__search { flex: 1 1 200px; }
+.shipment-finance__count, .shipment-finance__hint { color: var(--fg-2); font-size: var(--text-caption-size, 12px); }
+.shipment-finance__rows { display: grid; }
+.shipment-finance__row { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 1fr); gap: 10px 20px; padding: 12px 0; border-top: 1px solid var(--border-2); }
+.shipment-finance__row > div { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.shipment-finance__row dl { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 0; }
+.shipment-finance__row dt { color: var(--fg-2); font-size: var(--text-caption-size, 12px); }
+.shipment-finance__row dd { margin: 3px 0 0; font-weight: 600; }
+.shipment-finance__row p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.shipment-finance__row .btn { justify-self: start; }
+.shipment-finance__settled { color: var(--brand); }
+.shipment-finance__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+.shipment-finance__form { display: grid; gap: 12px; }
+.shipment-finance__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.shipment-finance__error { color: var(--danger, #b42318); }
+@media (max-width: 600px) {
+  .shipment-finance { padding: 8px; }
+  .shipment-finance__row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .shipment-finance__filters { gap: 8px; }
+  .shipment-finance__filters .shipment-finance__search { flex-basis: 100%; }
+  .shipment-finance__filters > .ds-field { flex: 1 1 120px; }
+
+}

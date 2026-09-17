@@ -131,6 +131,9 @@ router.get('/expense-types', OPS_ONLY, asyncHandler(async (_req: Request, res: R
 }));
 
 const expenseCreateSchema = z.object({
+  costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
+  invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   shipmentId: z.number().int().positive(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50),
@@ -141,6 +144,10 @@ const expenseCreateSchema = z.object({
 });
 
 const expensePatchSchema = z.object({
+  expectedVersion: z.number().int().positive().optional(),
+  costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
+  invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),

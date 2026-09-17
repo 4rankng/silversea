@@ -449,6 +449,8 @@ export async function updateTripFigures(
       // Preserve system-managed backhaul dedup across recalc; pair flow is the writer.
       tollDeduction: data.tollDeduction ?? Number(trip.tollDeduction ?? 0),
       tollPerStation: tollPerStationApplied,
+      reconciledTollCost: trip.reconciledTollCost == null ? null : Number(trip.reconciledTollCost),
+      reconciledExtraCost: Number(trip.reconciledExtraCost ?? 0),
       hasReturnCargo: data.hasReturnCargo ?? false,
       returnCargoBonus: returnCargoBonusApplied,
       revenue,

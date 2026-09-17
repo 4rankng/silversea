@@ -115,3 +115,14 @@
     min-height: 44px;
   }
 }
+
+/* The same compact rhythm as shared select and button size sm. */
+.ds-field--sm .ds-field__input {
+  min-height: var(--control-compact-h);
+  padding-block: 5px;
+  padding-inline: 10px;
+  border-radius: 8px;
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .ds-field--sm .ds-field__input { min-height: var(--control-touch-h); }
+}

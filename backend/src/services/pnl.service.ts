@@ -313,7 +313,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
 
     const ownRevenue = trips.reduce((sum, trip) => sum + recordedTripRevenue(trip), 0);
     const externalMarginTotal = extTrips.reduce((sum, trip) => (
-      sum + recordedTripRevenue(trip) - Number(trip.externalFreightCost ?? 0)
+      sum + recordedTripRevenue(trip) - Number(trip.externalFreightCost ?? 0) - Number(trip.reconciledExtraCost ?? 0)
     ), 0);
     const totalRevenue = ownRevenue + externalMarginTotal;
     const totalVariableTripCosts = trips.reduce((sum, t) => sum + Number(t.totalCost || 0), 0);
@@ -353,8 +353,9 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
       const driverAndAllowances = isExternal
         ? 0
         : Number(trip.driverSalary ?? 0) + Number(trip.twoPointDeliveryBonus ?? 0) + Number(trip.vehicleShiftAllowance ?? 0);
-      const reconstructedCost = fuelOrHireCost + roadAllowance + tollAndCompanyTickets + driverAndAllowances;
-      const variableCost = isExternal ? Number(trip.externalFreightCost ?? 0) : Number(trip.totalCost ?? 0);
+      const reconciledExtraCost = Number(trip.reconciledExtraCost ?? 0);
+      const reconstructedCost = fuelOrHireCost + roadAllowance + tollAndCompanyTickets + driverAndAllowances + reconciledExtraCost;
+      const variableCost = isExternal ? Number(trip.externalFreightCost ?? 0) + reconciledExtraCost : Number(trip.totalCost ?? 0);
       const costDifference = variableCost - reconstructedCost;
 
       return {
@@ -370,6 +371,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
         roadAllowance,
         tollAndCompanyTickets,
         driverAndAllowances,
+        reconciledExtraCost,
         totalCost: variableCost,
         allocatedFleetFixedCost: 0,
         totalCostWithFleetFixedCost: variableCost,
@@ -759,7 +761,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
       const extMgmtMargin = externalMarginTotal;
 
       const extRevenue = extTrips.reduce((sum, trip) => sum + recordedTripRevenue(trip), 0);
-      const extCosts = extTrips.reduce((s, t) => s + Number(t.externalFreightCost ?? 0), 0);
+      const extCosts = extTrips.reduce((s, t) => s + Number(t.externalFreightCost ?? 0) + Number(t.reconciledExtraCost ?? 0), 0);
 
       truckBreakdown.push({
         id: 0,

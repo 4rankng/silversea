@@ -571,19 +571,23 @@ export const driverClient = {
 
   createIncidentalCost: async (
     tripId: number,
-    body: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+    body: { payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
     idempotencyKey: string,
   ) => {
     return api.post<{
       id: number;
       tripId: number;
-      driverId: number;
+      driverId: number; payerKind?: 'USER' | 'COMPANY';
       costType: DriverIncidentalCostType;
       amount: string;
       occurredAt: string;
       note: string | null;
       receiptStorageKey: string | null;
       createdAt: string;
+      costGroup?: string | null;
+      feeName?: string | null;
+      invoiceNumber?: string | null;
+      invoiceDate?: string | null;
     }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId), body, {
       headers: { 'Idempotency-Key': idempotencyKey },
     });
@@ -593,13 +597,17 @@ export const driverClient = {
     const wire = await api.get<{ items: Array<{
       id: number;
       tripId: number;
-      driverId: number;
+      driverId: number; payerKind?: 'USER' | 'COMPANY';
       costType: DriverIncidentalCostType;
       amount: string;
       occurredAt: string;
       note: string | null;
       receiptStorageKey: string | null;
       createdAt: string;
+      costGroup?: string | null;
+      feeName?: string | null;
+      invoiceNumber?: string | null;
+      invoiceDate?: string | null;
     }> }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
     return wire.items;
   },

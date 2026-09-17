@@ -69,6 +69,11 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
 
     const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
+    fireEvent.change(amountInput, { target: { value: '123.45' } });
+    expect(amountInput).toHaveValue(123.45);
+    expect(screen.getByRole('button', { name: /Lưu tạm ứng/ })).toBeDisabled();
+    fireEvent.submit(amountInput.closest('form')!);
+    expect(apiPost).not.toHaveBeenCalled();
     fireEvent.change(amountInput, { target: { value: '500000' } });
     fireEvent.change(screen.getByLabelText(/Lý do \/ Ghi chú/), { target: { value: 'ứng phí cảng' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu tạm ứng/ }));
@@ -90,8 +95,13 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     const dialog = await screen.findByRole('dialog', { name: /Sửa khoản chi SS-1/ });
     expect(dialog).toBeInTheDocument();
     // Prefilled with the current amount.
-    const amountInput = within(dialog).getByLabelText(/Số tiền \(VND\)/) as HTMLInputElement;
-    expect(amountInput.value).toContain('90.000');
+    const amountInput = within(dialog).getByLabelText(/Thực chi \(VND\)/) as HTMLInputElement;
+    expect(amountInput).toHaveValue(90000);
+    fireEvent.change(amountInput, { target: { value: '123.45' } });
+    expect(amountInput).toHaveValue(123.45);
+    expect(amountInput).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.submit(dialog.querySelector('form')!);
+    expect(apiPatch).not.toHaveBeenCalled();
     fireEvent.change(amountInput, { target: { value: '120000' } });
     // jsdom does not synthesize form submission from submit-button clicks
     // here; submit the form directly.

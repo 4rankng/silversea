@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 E2E Test Suite 20: Full CUS → Dispatcher → Driver flow
-Tests the complete shipment lifecycle against the 2026.8.27 driver app spec.
+Tests CUS submission, direct dispatch, and driver acceptance of one isolated fixture.
 """
 import datetime
 import sys
@@ -35,7 +35,7 @@ def request_json(api, method, path, body=None, headers=None):
 
 
 def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
-    """Full end-to-end: CUS creates shipment → Dispatcher assigns vehicle → Driver accepts & completes."""
+    """CUS creates a fixture → Dispatcher issues directly → Driver accepts that exact trip."""
 
     # ════════════════════════════════════════════════════════════════
     #  Phase 0: Gather master data
@@ -45,7 +45,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     print(f"{'═'*60}")
 
     admin_api = ApiClient()
-    admin_api.login("admin", "Abc123")
+    admin_api.login(DEMO_ACCOUNTS['admin']["identifier"], DEMO_ACCOUNTS['admin']["password"])
 
     # Get CUS user's customer scope
     users_resp = admin_api.get("/api/auth/users")
@@ -67,8 +67,9 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     container_types = rows(admin_api.get("/api/container-types?page=1&pageSize=25"))
     ports = rows(admin_api.get("/api/ports?page=1&pageSize=25"))
     # Also get trucks and drivers via admin API (dispatcher may not have fleet access)
-    trucks_list = rows(admin_api.get("/api/trucks?limit=20"))
-    drivers_list_api = rows(admin_api.get("/api/drivers?limit=20"))
+    trucks_list = rows(admin_api.get("/api/trucks?limit=50"))
+    drivers_list_api = rows(admin_api.get("/api/drivers?limit=50"))
+    trailers_list = rows(admin_api.get("/api/trailers?limit=50"))
 
     if not routes or not cargo_types or not sites:
         results.fail("TC-2000", "Master data loaded",
@@ -88,7 +89,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     print(f"{'═'*60}")
 
     cus_api = ApiClient()
-    cus_login = cus_api.login("cus", "Abc123")
+    cus_login = cus_api.login(DEMO_ACCOUNTS['clerk']["identifier"], DEMO_ACCOUNTS['clerk']["password"])
     if not cus_login.get("token"):
         results.fail("TC-2001", "CUS login", str(cus_login))
         return
@@ -139,7 +140,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             results.fail("TC-2003", "Container add", str(container_resp.get("error", container_resp))[:100])
             return
 
-    # Submit for dispatch (creates handoff)
+    # Submit intake; the detail-plan fulfillment can be issued directly.
     submit_resp = cus_api.post(f"/api/shipments/{shipment_id}/submit-for-dispatch",
         {"expectedVersion": shipment_version},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-submit"})
@@ -169,7 +170,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     print(f"{'═'*60}")
 
     dieuvan_api = ApiClient()
-    dieuvan_login = dieuvan_api.login("dieuvan", "Abc123")
+    dieuvan_login = dieuvan_api.login(DEMO_ACCOUNTS['dispatcher']["identifier"], DEMO_ACCOUNTS['dispatcher']["password"])
     if not dieuvan_login.get("token"):
         results.fail("TC-2020", "Dispatcher login", str(dieuvan_login))
         return
@@ -180,38 +181,51 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         results.fail("TC-2021", "Trucks and drivers available", f"trucks={len(trucks_list)} drivers={len(drivers_list_api)}")
         return
 
-    own_truck = trucks_list[0]
-    own_driver = drivers_list_api[0]
+    driver_user = next((u for u in rows(users_resp)
+                        if u.get("username") == DEMO_ACCOUNTS["driver"]["identifier"]), None)
+    own_driver = next((d for d in drivers_list_api
+                       if driver_user and d.get("userId") == driver_user["id"]
+                       and d.get("status") == "ACTIVE"), None)
+    trailer_by_id = {t["id"]: t for t in trailers_list if t.get("status") == "ACTIVE"}
+    required_trailer_type = "20FT" if cont_type.get("code", "").startswith("20") else "40FT"
+    own_truck = next((t for t in trucks_list
+                      if t.get("status") == "ACTIVE"
+                      and t.get("currentTrailerId") in trailer_by_id
+                      and (trailer_by_id[t["currentTrailerId"]].get("type") or t.get("trailerType"))
+                      in (None, required_trailer_type)), None)
+    if not own_driver or not own_truck:
+        results.fail("TC-2021", "Active driver account and compatible truck/trailer",
+                     f"driver={bool(own_driver)} truck={bool(own_truck)}")
+        return
     truck_id = own_truck["id"]
     driver_id = own_driver["id"]
-    results.pass_("TC-2021", f"Truck #{truck_id} ({own_truck.get('licensePlate', '?')}), Driver #{driver_id} ({own_driver.get('name', '?')})")
+    results.pass_("TC-2021", f"Truck #{truck_id}, linked driver #{driver_id}")
 
-    # Resolve dispatch handoff (admin required for handoff acceptance)
-    detail_resp = admin_api.get(f"/api/shipments/{shipment_id}")
-    detail = detail_resp.get("data", {}) if detail_resp.get("status") == 200 else {}
-    handoffs = detail.get("dispatchHandoffs", [])
-    if not handoffs:
-        results.fail("TC-2022", "Dispatch handoff exists", f"handoffs={len(handoffs)}")
+    # The product's detail-plan action issues directly; internal handoff
+    # approval is not part of the current workflow.
+    plan_resp = dieuvan_api.get(f"/api/shipments/dispatch-detail-plan-rows?q={BOOKING_PREFIX}")
+    fulfillments = [r for r in rows(plan_resp) if r.get("shipmentId") == shipment_id]
+    if plan_resp.get("status") != 200 or len(fulfillments) != 1:
+        results.fail("TC-2022", "Exact fixture in dispatcher detail plan",
+                     f"status={plan_resp.get('status')} rows={len(fulfillments)}")
         return
-    h = handoffs[0]
-    resolve_resp = admin_api.post(
-        f"/api/shipments/{shipment_id}/dispatch-handoffs/{h['id']}/resolve",
-        {"resolution": "ACCEPTED", "expectedVersion": h["version"]},
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-resolve"})
-    if resolve_resp.get("status") != 200:
-        results.fail("TC-2022", "Resolve handoff", str(resolve_resp.get("error", resolve_resp))[:100])
-        return
-    fulfillments = resolve_resp.get("data", {}).get("fulfillments", [])
-    if not fulfillments:
-        results.fail("TC-2022", "Fulfillment created on resolve", "no fulfillments")
-        return
-    fulfillment_id = fulfillments[0]["id"]
-    fulfillment_version = fulfillments[0].get("version", 1)
-    results.pass_("TC-2022", f"Handoff resolved, fulfillment #{fulfillment_id} v{fulfillment_version}")
+    fulfillment_id = fulfillments[0]["fulfillmentId"]
+    fulfillment_version = fulfillments[0]["version"]
+    results.pass_("TC-2022", f"Direct-dispatch fulfillment #{fulfillment_id} v{fulfillment_version}")
 
-    # Dispatch (assign truck + driver to fulfillment)
-    planned_start = (datetime.datetime.now() + datetime.timedelta(days=1, hours=8)).isoformat()
-    planned_end = (datetime.datetime.now() + datetime.timedelta(days=1, hours=20)).isoformat()
+    # Dispatch requires an explicit business timezone, as supplied by the UI.
+    start_at = datetime.datetime.fromisoformat(f"{tomorrow}T08:00:00+07:00")
+    existing_trips = []
+    for resource in (f"driverId={driver_id}", f"truckId={truck_id}"):
+        schedule = admin_api.get(f"/api/trips?{resource}&pageSize=50")
+        assert schedule.get("status") == 200, "Cannot read fixture resource schedule"
+        existing_trips.extend(rows(schedule))
+    for existing in existing_trips:
+        if existing.get("status") not in ("CANCELED", "COMPLETED") and existing.get("plannedEndAt"):
+            existing_end = datetime.datetime.fromisoformat(existing["plannedEndAt"].replace("Z", "+00:00"))
+            start_at = max(start_at, existing_end + datetime.timedelta(hours=1))
+    planned_start = start_at.isoformat()
+    planned_end = (start_at + datetime.timedelta(hours=12)).isoformat()
     dispatch_payload = {
         "fulfillmentId": fulfillment_id,
         "expectedVersion": fulfillment_version,
@@ -222,254 +236,282 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         "truckId": truck_id,
         "driverId": driver_id,
     }
-    dispatch_status, dispatch_body = request_json(admin_api, "POST",
+    dispatch_status, dispatch_body = request_json(dieuvan_api, "POST",
         f"/api/shipments/{shipment_id}/dispatch", dispatch_payload,
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-dispatch"})
     if dispatch_status not in (200, 201):
         results.fail("TC-2023", "Dispatcher assigns vehicle", f"status={dispatch_status} body={dispatch_body}")
         return
     trip = dispatch_body.get("trip", {})
+    assert trip.get("id") and trip.get("tripCode"), "Dispatch did not return trip identity"
+    assert trip.get("driverId") == driver_id, "Dispatch assigned a different driver"
     results.pass_("TC-2023", "Shipment dispatched", f"trip=#{trip.get('id', '?')} truck={truck_id} driver={driver_id}")
 
-    # Dispatcher views UI
-    page = ctx.new_page()
-    ctx.login_as("dieuvan", page)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1500)
-    ctx.screenshot(page, "TC-2024_dispatcher_page")
-    if "/dispatch" in page.url:
-        results.pass_("TC-2024", "Dispatcher lands on dispatch page")
-    else:
-        results.fail("TC-2024", "Dispatcher page", f"URL: {page.url}")
-    page.close()
-
-    # ════════════════════════════════════════════════════════════════
-    #  Phase 3: Driver receives order
-    # ════════════════════════════════════════════════════════════════
-    print(f"\n{'═'*60}")
-    print(f"  Phase 3: Driver receives & views order")
-    print(f"{'═'*60}")
-
-    page = ctx.new_page(viewport={"width": 390, "height": 844})
-    ctx.login_as("driver", page)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(2000)
-
-    if "/my-trips" in page.url:
-        results.pass_("TC-2030", "Driver lands on /my-trips")
-    else:
-        results.fail("TC-2030", "Driver landing", f"URL: {page.url}")
-    ctx.screenshot(page, "TC-2030_driver_my_trips")
-
-    # Check 3 tabs
-    tab_labels = ["Lệnh mới", "Đã nhận", "Lịch sử"]
-    tabs_found = all(page.locator(f"button:has-text('{t}')").count() > 0 for t in tab_labels)
-    if tabs_found:
-        results.pass_("TC-2031", "3 tabs present: Lệnh mới, Đã nhận, Lịch sử")
-    else:
-        counts = {t: page.locator(f"button:has-text('{t}')").count() for t in tab_labels}
-        results.fail("TC-2031", "Driver tabs", str(counts))
-    ctx.screenshot(page, "TC-2031_driver_tabs")
-
-    # Check bottom nav
-    bottom_nav = page.locator("nav.driver-bottom-nav, .driver-bottom-nav")
-    if bottom_nav.count() > 0:
-        nav_items = bottom_nav.locator("button, a").count()
-        results.pass_("TC-2032", f"Bottom nav: {nav_items} items")
-    else:
-        results.pass_("TC-2032", "Bottom nav", "Different selector pattern")
-    ctx.screenshot(page, "TC-2032_driver_bottom_nav")
-
-    # Check order cards
-    cards = page.locator(".driver-journey-card")
-    card_count = cards.count()
-    if card_count > 0:
-        results.pass_("TC-2033", f"{card_count} order card(s) in Lệnh mới")
-    else:
-        empty = page.locator("text=Chưa có lệnh mới")
-        if empty.count() > 0:
-            results.fail("TC-2033", "No orders", "Lệnh mới tab is empty — dispatch may not have reached driver yet")
+    try:
+        # Dispatcher views UI
+        page = ctx.new_page()
+        ctx.login_as("dispatcher", page)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1500)
+        ctx.screenshot(page, "TC-2024_dispatcher_page")
+        if "/dispatch" in page.url:
+            results.pass_("TC-2024", "Dispatcher lands on dispatch page")
         else:
-            results.fail("TC-2033", "Order cards", f"0 cards, no empty state")
-    ctx.screenshot(page, "TC-2033_driver_cards")
+            results.fail("TC-2024", "Dispatcher page", f"URL: {page.url}")
+        page.close()
 
-    # Layer 1 card checks
-    if card_count > 0:
-        card = cards.first
-        # Tag
-        tag = card.locator(".driver-journey-card__tag")
-        if tag.count() > 0:
-            tag_text = tag.first.inner_text().strip()
-            results.pass_("TC-2034", f"Card tag: {tag_text}" if tag_text in ("ĐƠN", "KẸP") else f"Card tag unexpected: {tag_text}")
-        else:
-            results.fail("TC-2034", "Card tag", "Not found")
+        # ════════════════════════════════════════════════════════════════
+        #  Phase 3: Driver receives order
+        # ════════════════════════════════════════════════════════════════
+        print(f"\n{'═'*60}")
+        print(f"  Phase 3: Driver receives & views order")
+        print(f"{'═'*60}")
 
-        # Container info — the 9f0deb30 card rewrite renders the container
-        # number bare in __cont-no (no "Cont:" label prefix).
-        cont = card.locator(".driver-journey-card__container")
-        cont_no = card.locator(".driver-journey-card__cont-no")
-        if cont.count() > 0 and cont_no.count() > 0 and cont_no.first.inner_text().strip() not in ("", "-"):
-            results.pass_("TC-2035", f"Container info: {cont.first.inner_text().strip()[:50]}")
-        else:
-            results.fail("TC-2035", "Container info", "Not found or no container number")
-
-        # Footer button
-        footer = card.locator(".driver-journey-card__footer")
-        if footer.count() > 0 and "Nhận lệnh" in footer.first.inner_text():
-            results.pass_("TC-2036", "Footer: 'Xem chi tiết & Nhận lệnh' present")
-        else:
-            results.fail("TC-2036", "Footer button", "Not found or wrong text")
-
-    # ════════════════════════════════════════════════════════════════
-    #  Phase 4: Driver opens detail (Layer 2)
-    # ════════════════════════════════════════════════════════════════
-    print(f"\n{'═'*60}")
-    print(f"  Phase 4: Driver detail (Layer 2)")
-    print(f"{'═'*60}")
-
-    if card_count > 0:
-        footer = cards.first.locator(".driver-journey-card__footer")
-        footer.click()
+        page = ctx.new_page(viewport={"width": 390, "height": 844})
+        ctx.login_as("driver", page)
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
 
-        if "/my-trips/" in page.url:
-            results.pass_("TC-2040", "Detail page loaded", f"URL: {page.url}")
+        if "/my-trips" in page.url:
+            results.pass_("TC-2030", "Driver lands on /my-trips")
         else:
-            results.fail("TC-2040", "Detail URL", f"URL: {page.url}")
-        ctx.screenshot(page, "TC-2040_driver_detail")
+            results.fail("TC-2030", "Driver landing", f"URL: {page.url}")
+        ctx.screenshot(page, "TC-2030_driver_my_trips")
 
-        # Block 1: Route info
-        route_text = page.locator("text=/tuyến|route|nhà máy|cảng/i")
-        if route_text.count() > 0:
-            results.pass_("TC-2041", "Block 1: Route/Lộ trình visible")
+        # Check 3 tabs
+        tab_labels = ["Lệnh mới", "Đã nhận", "Lịch sử"]
+        tabs_found = all(page.locator(f"button:has-text('{t}')").count() > 0 for t in tab_labels)
+        if tabs_found:
+            results.pass_("TC-2031", "3 tabs present: Lệnh mới, Đã nhận, Lịch sử")
         else:
-            results.pass_("TC-2041", "Block 1: Route section", "Different labeling")
+            counts = {t: page.locator(f"button:has-text('{t}')").count() for t in tab_labels}
+            results.fail("TC-2031", "Driver tabs", str(counts))
+        ctx.screenshot(page, "TC-2031_driver_tabs")
 
-        # Block 2: Container info
-        cont_info = page.locator("text=/cont|container|số cont|seal|chì/i")
-        if cont_info.count() > 0:
-            results.pass_("TC-2042", "Block 2: Container/Hàng hóa visible")
+        # Check bottom nav
+        bottom_nav = page.get_by_role("navigation", name="Điều hướng chính")
+        nav_items = bottom_nav.locator("button:visible, a:visible")
+        if bottom_nav.is_visible() and nav_items.count() == 5:
+            results.pass_("TC-2032", "Five visible bottom-navigation actions")
         else:
-            results.fail("TC-2042", "Block 2: Container info", "Not found")
+            results.fail("TC-2032", "Driver bottom navigation", f"visible actions={nav_items.count()}")
+        ctx.screenshot(page, "TC-2032_driver_bottom_nav")
 
-        # Block 3: Contact
-        contact = page.locator("text=/liên hệ|phụ trách|sđt|điện thoại/i")
-        if contact.count() > 0:
-            results.pass_("TC-2043", "Block 3: Liên hệ visible")
+        # Check order cards
+        cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+        card_count = cards.count()
+        if card_count == 1:
+            results.pass_("TC-2033", f"Created trip #{trip['id']} visible in Lệnh mới")
         else:
-            results.pass_("TC-2043", "Block 3: Contact", "Different label")
-
-        # Block 6: Vehicle
-        vehicle = page.locator("text=/biển số|đầu kéo|mooc|xe/i")
-        if vehicle.count() > 0:
-            results.pass_("TC-2044", "Block 6: Thông tin xe visible")
-        else:
-            results.pass_("TC-2044", "Block 6: Vehicle", "Different label")
-
-        # Block 7: Accept button
-        accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-        if accept_btn.count() > 0:
-            results.pass_("TC-2045", "Block 7: 'Nhận lệnh vận chuyển' sticky button present")
-            ctx.screenshot(page, "TC-2045_accept_button")
-        else:
-            all_btns = page.locator("button").all_text_contents()
-            accept_variants = [b.strip() for b in all_btns if "nhận" in b.lower() or "lệnh" in b.lower()]
-            if accept_variants:
-                results.pass_("TC-2045", f"Accept button (variant)", str(accept_variants[:3]))
+            empty = page.locator("text=Chưa có lệnh mới")
+            if empty.count() > 0:
+                results.fail("TC-2033", "No orders", "Lệnh mới tab is empty — dispatch may not have reached driver yet")
             else:
-                results.fail("TC-2045", "Accept button", f"No match. Buttons: {[b.strip()[:30] for b in all_btns[:8]]}")
+                results.fail("TC-2033", "Order cards", f"0 cards, no empty state")
+        ctx.screenshot(page, "TC-2033_driver_cards")
 
-        # Accept the order
-        accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-        if accept_btn.count() > 0:
-            accept_btn.first.click()
-            page.wait_for_timeout(2500)
-            ctx.screenshot(page, "TC-2046_after_accept")
+        # Layer 1 card checks
+        if card_count > 0:
+            card = cards.first
+            # Tag
+            tag = card.locator(".driver-journey-card__tag")
+            if tag.count() > 0:
+                tag_text = tag.first.inner_text().strip()
+                results.pass_("TC-2034", f"Card tag: {tag_text}" if tag_text in ("ĐƠN", "KẸP") else f"Card tag unexpected: {tag_text}")
+            else:
+                results.fail("TC-2034", "Card tag", "Not found")
 
-            # Go back and check Đã nhận tab
-            page.goto(f"{BASE_URL}/my-trips")
+            # Container info — the 9f0deb30 card rewrite renders the container
+            # number bare in __cont-no (no "Cont:" label prefix).
+            cont = card.locator(".driver-journey-card__container")
+            cont_no = card.locator(".driver-journey-card__cont-no")
+            if cont.count() > 0 and cont_no.count() > 0 and cont_no.first.inner_text().strip() not in ("", "-"):
+                results.pass_("TC-2035", f"Container info: {cont.first.inner_text().strip()[:50]}")
+            else:
+                results.fail("TC-2035", "Container info", "Not found or no container number")
+
+            # Footer button
+            footer = card.locator(".driver-journey-card__footer")
+            if footer.count() > 0 and "Nhận lệnh" in footer.first.inner_text():
+                results.pass_("TC-2036", "Footer: 'Xem chi tiết & Nhận lệnh' present")
+            else:
+                results.fail("TC-2036", "Footer button", "Not found or wrong text")
+
+        # ════════════════════════════════════════════════════════════════
+        #  Phase 4: Driver opens detail (Layer 2)
+        # ════════════════════════════════════════════════════════════════
+        print(f"\n{'═'*60}")
+        print(f"  Phase 4: Driver detail (Layer 2)")
+        print(f"{'═'*60}")
+
+        if card_count > 0:
+            footer = cards.first.locator(".driver-journey-card__footer")
+            footer.click()
             page.wait_for_load_state("networkidle")
-            page.wait_for_timeout(1500)
-            running_tab = page.locator("button:has-text('Đã nhận')")
-            if running_tab.count() > 0:
-                running_tab.first.click()
-                page.wait_for_timeout(1000)
-                running_cards = page.locator(".driver-journey-card")
-                if running_cards.count() > 0:
-                    results.pass_("TC-2046", f"Order moved to 'Đã nhận' ({running_cards.count()} card(s))")
-                else:
-                    results.fail("TC-2046", "Đã nhận tab", "No cards found")
-                ctx.screenshot(page, "TC-2046_running_tab")
+            page.wait_for_timeout(2000)
+
+            if page.url.rstrip("/").endswith(f"/my-trips/{trip['id']}"):
+                results.pass_("TC-2040", "Detail page loaded", f"URL: {page.url}")
             else:
-                results.fail("TC-2046", "Đã nhận tab", "Tab not found")
+                results.fail("TC-2040", "Detail URL", f"URL: {page.url}")
+            ctx.screenshot(page, "TC-2040_driver_detail")
+
+            # Block 1: Route info
+            route_text = page.locator("text=/tuyến|route|nhà máy|cảng/i")
+            if route_text.count() > 0:
+                results.pass_("TC-2041", "Block 1: Route/Lộ trình visible")
+            else:
+                results.pass_("TC-2041", "Block 1: Route section", "Different labeling")
+
+            # Block 2: Container info
+            cont_info = page.locator("text=/cont|container|số cont|seal|chì/i")
+            if cont_info.count() > 0:
+                results.pass_("TC-2042", "Block 2: Container/Hàng hóa visible")
+            else:
+                results.fail("TC-2042", "Block 2: Container info", "Not found")
+
+            # Block 3: Contact
+            contact = page.locator("text=/liên hệ|phụ trách|sđt|điện thoại/i")
+            if contact.count() > 0:
+                results.pass_("TC-2043", "Block 3: Liên hệ visible")
+            else:
+                results.pass_("TC-2043", "Block 3: Contact", "Different label")
+
+            # Block 6: Vehicle
+            vehicle = page.locator("text=/biển số|đầu kéo|mooc|xe/i")
+            if vehicle.count() > 0:
+                results.pass_("TC-2044", "Block 6: Thông tin xe visible")
+            else:
+                results.pass_("TC-2044", "Block 6: Vehicle", "Different label")
+
+            # Block 7: Accept button
+            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
+            if accept_btn.count() > 0:
+                results.pass_("TC-2045", "Block 7: 'Nhận lệnh vận chuyển' sticky button present")
+                ctx.screenshot(page, "TC-2045_accept_button")
+            else:
+                all_btns = page.locator("button").all_text_contents()
+                accept_variants = [b.strip() for b in all_btns if "nhận" in b.lower() or "lệnh" in b.lower()]
+                if accept_variants:
+                    results.pass_("TC-2045", f"Accept button (variant)", str(accept_variants[:3]))
+                else:
+                    results.fail("TC-2045", "Accept button", f"No match. Buttons: {[b.strip()[:30] for b in all_btns[:8]]}")
+
+            # Accept the order
+            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
+            if accept_btn.count() > 0:
+                accept_btn.first.click()
+                page.wait_for_timeout(2500)
+                ctx.screenshot(page, "TC-2046_after_accept")
+
+                # Go back and check Đã nhận tab
+                page.goto(f"{BASE_URL}/my-trips")
+                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(1500)
+                running_tab = page.locator("button:has-text('Đã nhận')")
+                if running_tab.count() > 0:
+                    running_tab.first.click()
+                    page.wait_for_timeout(1000)
+                    running_cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+                    if running_cards.count() == 1:
+                        results.pass_("TC-2046", f"Order moved to 'Đã nhận' ({running_cards.count()} card(s))")
+                    else:
+                        results.fail("TC-2046", "Đã nhận tab", "No cards found")
+                    ctx.screenshot(page, "TC-2046_running_tab")
+                else:
+                    results.fail("TC-2046", "Đã nhận tab", "Tab not found")
+            else:
+                results.fail("TC-2046", "Accept order", "Button not found")
         else:
-            results.fail("TC-2046", "Accept order", "Button not found")
-    else:
-        results.skip("TC-2040-TC-2046", "Detail + Accept flow", "No order cards")
+            results.skip("TC-2040-TC-2046", "Detail + Accept flow", "No order cards")
 
-    # ════════════════════════════════════════════════════════════════
-    #  Phase 5: Visual quality
-    # ════════════════════════════════════════════════════════════════
-    print(f"\n{'═'*60}")
-    print(f"  Phase 5: Visual quality")
-    print(f"{'═'*60}")
+        # ════════════════════════════════════════════════════════════════
+        #  Phase 5: Visual quality
+        # ════════════════════════════════════════════════════════════════
+        print(f"\n{'═'*60}")
+        print(f"  Phase 5: Visual quality")
+        print(f"{'═'*60}")
 
-    # Mobile: no overflow
-    page.goto(f"{BASE_URL}/my-trips")
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
-    overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
-    if overflow:
-        results.pass_("TC-2050", "No horizontal overflow (mobile 390px)")
-    else:
-        results.fail("TC-2050", "Horizontal overflow on mobile")
+        # Mobile: no overflow
+        page.goto(f"{BASE_URL}/my-trips")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1000)
+        overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+        if overflow:
+            results.pass_("TC-2050", "No horizontal overflow (mobile 390px)")
+        else:
+            results.fail("TC-2050", "Horizontal overflow on mobile")
 
-    # Font size
-    font_size = page.evaluate("parseFloat(window.getComputedStyle(document.body).fontSize)")
-    if font_size >= 14:
-        results.pass_("TC-2051", f"Body font size: {font_size}px (≥14)")
-    else:
-        results.fail("TC-2051", f"Body font size: {font_size}px", "Too small for mobile")
+        ctx.screenshot(page, "TC-2050_driver_mobile_layout")
+        # Approved compact scale: body/data/controls12px, captions11px.
+        typography = page.evaluate("""() => ({
+            body: parseFloat(getComputedStyle(document.body).fontSize),
+            useful: [...document.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
+                .filter(el => el.getBoundingClientRect().height > 0)
+                .map(el => parseFloat(getComputedStyle(el).fontSize))
+        })""")
+        if typography["body"] >= 12 and typography["useful"] and min(typography["useful"]) >= 12:
+            results.pass_("TC-2051", "Compact mobile body and useful card text ≥12px")
+        else:
+            results.fail("TC-2051", "Mobile typography below the approved scale", str(typography))
 
-    # Touch targets
-    touch = page.evaluate("""() => {
-        const btns = document.querySelectorAll('button, a, [role="button"]');
-        let small = 0;
-        for (const b of btns) {
-            const r = b.getBoundingClientRect();
-            if (r.width > 0 && r.height > 0 && (r.width < 40 || r.height < 40)) small++;
-        }
-        return { total: btns.length, small };
-    }""")
-    if touch["small"] <= 3:
-        results.pass_("TC-2052", f"Touch targets OK: {touch['total']} buttons, {touch['small']} small")
-    else:
-        results.fail("TC-2052", f"{touch['small']}/{touch['total']} buttons < 40px")
+        # Touch targets
+        touch = page.evaluate("""() => {
+            const btns = document.querySelectorAll('button, a, [role="button"]');
+            let small = 0;
+            for (const b of btns) {
+                const r = b.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0 && (r.width < 40 || r.height < 40)) small++;
+            }
+            return { total: btns.length, small };
+        }""")
+        if touch["small"] <= 3:
+            results.pass_("TC-2052", f"Touch targets OK: {touch['total']} buttons, {touch['small']} small")
+        else:
+            results.fail("TC-2052", f"{touch['small']}/{touch['total']} buttons < 40px")
 
-    # Sidebar hidden on mobile
-    sidebar = page.locator(".sidebar, [class*='sidebar']")
-    if sidebar.count() > 0 and sidebar.first.is_visible():
-        results.fail("TC-2053", "Sidebar visible on mobile", "Should be hidden")
-    else:
-        results.pass_("TC-2053", "Sidebar hidden on mobile (driver app)")
+        # Sidebar hidden on mobile
+        sidebar_in_view = page.locator("aside.sidebar").evaluate_all("""elements => elements.some(el => {
+            const r = el.getBoundingClientRect();
+            const style = getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0
+                && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
+        })""")
+        if sidebar_in_view:
+            results.fail("TC-2053", "Sidebar intersects driver mobile viewport")
+        else:
+            results.pass_("TC-2053", "Sidebar absent from driver mobile viewport")
 
-    # Desktop viewport
-    page.close()
-    page = ctx.new_page(viewport={"width": 1280, "height": 900})
-    ctx.login_as("driver", page)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1500)
-    ctx.screenshot(page, "TC-2054_driver_desktop")
-    overflow_d = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
-    if overflow_d:
-        results.pass_("TC-2054", "No horizontal overflow (desktop 1280px)")
-    else:
-        results.fail("TC-2054", "Horizontal overflow on desktop")
-    page.close()
+        # Desktop viewport
+        page.close()
+        page = ctx.new_page(viewport={"width": 1280, "height": 900})
+        ctx.login_as("driver", page)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1500)
+        ctx.screenshot(page, "TC-2054_driver_desktop")
+        overflow_d = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+        if overflow_d:
+            results.pass_("TC-2054", "No horizontal overflow (desktop 1280px)")
+        else:
+            results.fail("TC-2054", "Horizontal overflow on desktop")
+        page.close()
 
-    results.pass_("TC-2099", f"Full flow completed for shipment #{shipment_id}", f"run={RUN_ID}")
+        results.pass_("TC-2099", f"Submission, dispatch, and acceptance checks reached for shipment #{shipment_id}", f"run={RUN_ID}")
+
+    finally:
+        current = admin_api.get(f"/api/trips/{trip['id']}")
+        current_trip = current.get("data", {})
+        if current.get("status") != 200 or current_trip.get("shipmentId") != shipment_id:
+            results.fail("TC-2098", "Fixture cleanup identity", "Trip read or shipment identity mismatch")
+        elif current_trip.get("status") != "CANCELED":
+            cleanup = admin_api.post(f"/api/trips/{trip['id']}/cancel",
+                                     {"expectedVersion": current_trip["version"]},
+                                     headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cleanup"})
+            if cleanup.get("status") == 200:
+                results.pass_("TC-2098", "Own fixture trip released after assertions")
+            else:
+                results.fail("TC-2098", "Own fixture cleanup", f"status={cleanup.get('status')}")
 
 
 if __name__ == "__main__":
-    run_suite("test_20_driver_flow_e2e", test_driver_flow_e2e, headless=True)
+    sys.exit(run_suite("test_20_driver_flow_e2e", test_driver_flow_e2e, headless=True))

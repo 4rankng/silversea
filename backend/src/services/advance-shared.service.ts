@@ -1,3 +1,4 @@
+import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 /**
  * Advance domain shared helpers — version guard, expense snapshots, name
  * enrichment, and the O2C auto-offset. Used by BOTH the request and settlement
@@ -259,6 +260,11 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     ))
     .limit(1);
   if (existingLink) return;
+  // Sources managed by expense accounting allocate advances explicitly in the
+  // reconciliation command. Confirmation alone must never consume the balance.
+  const [accountingSource] = await tx.select({ id: s.expenseAccountingSources.id })
+    .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId)).limit(1);
+  if (accountingSource) return;
 
   // FIFO-select approved advances and lock them before calculating residuals.
   const candidates = await tx.select({
@@ -273,25 +279,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .orderBy(desc(s.advanceRequests.approvedAt), s.advanceRequests.id)
     .for('update');
 
-  const activeAllocations = candidates.length === 0
-    ? []
-    : await tx.select({
-        advanceRequestId: s.advanceSettlementRequests.advanceRequestId,
-        allocatedAmount: sql<string>`coalesce(sum(${s.advanceSettlementRequests.allocatedAmount}::numeric), 0)`,
-      })
-        .from(s.advanceSettlementRequests)
-        .innerJoin(
-          s.advanceSettlements,
-          eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id),
-        )
-        .where(and(
-          inArray(s.advanceSettlementRequests.advanceRequestId, candidates.map((candidate) => candidate.id)),
-          notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-        ))
-        .groupBy(s.advanceSettlementRequests.advanceRequestId);
-  const allocatedByRequest = new Map(
-    activeAllocations.map((allocation) => [allocation.advanceRequestId, Number(allocation.allocatedAmount)]),
-  );
+  const allocatedByRequest = await getAdvanceConsumedAmounts(tx, candidates.map(candidate => candidate.id));
 
   // FIFO by earliest approvedAt: sort ascending (DESC fetch then reverse, or
   // use asc). Use ascending order to consume oldest advances first.

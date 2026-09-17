@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import type { ProfitabilityDimension, ProfitabilityReport } from '@tingting/shared';
+import type { ProfitabilityDimension, ProfitabilityReport, TreasuryFundCode, TreasuryAccountSetupInput, TreasuryAccountFundInput } from '@tingting/shared';
 import type {
   AccountingTransportOwnership,
   AccountingTransportReadiness,
@@ -44,6 +44,8 @@ export interface TreasuryPosition {
     code: string;
     name: string;
     type: 'CASH' | 'BANK';
+    fundCode: TreasuryFundCode | null;
+    version: number;
     currency: string;
     openingBalance: number;
     totalIn: number;
@@ -106,6 +108,8 @@ export const customerServiceFinanceClient = {
     if (params.sortDir) query.set('sortDir', params.sortDir);
     return api.get<{ items: RecoverableCost[]; total: number; page: number; limit: number }>(`/recoverable-costs?${query}`);
   },
+  createTreasuryAccount: (body: TreasuryAccountSetupInput, key: string) => api.post('/finance/treasury/accounts/setup', body, { idempotencyKey: key }),
+  updateTreasuryAccountFund: (id: number, body: TreasuryAccountFundInput, key: string) => api.patch(`/finance/treasury/accounts/${id}/fund`, body, { idempotencyKey: key }),
   getTreasuryPosition: (params?: { sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
     const query = new URLSearchParams();
     if (params?.sortBy) query.set('sortBy', params.sortBy);

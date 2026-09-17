@@ -173,11 +173,19 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/page-khong-ton-tai')
     page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    if '/config' in page.url:
-        results.pass_('TC-0022', '404 catch-all ADMIN → /config')
+    heading = page.get_by_role('heading', name='Không tìm thấy trang', exact=True)
+    recovery = page.get_by_role('link', name='Về trang chính', exact=True)
+    if (
+        '/page-khong-ton-tai' in page.url
+        and heading.is_visible()
+        and recovery.get_attribute('href') == '/config'
+    ):
+        ctx.screenshot(page, 'TC-0022_admin_not_found')
+        recovery.click()
+        page.wait_for_url('**/config', timeout=10000)
+        results.pass_('TC-0022', 'Explicit 404 ADMIN → recovery link → /config')
     else:
-        results.fail('TC-0022', '404 catch-all', f'Expected /config, got {page.url}')
+        results.fail('TC-0022', '404 page and admin recovery', f'URL={page.url}, heading={heading.count()}, recovery={recovery.count()}')
     page.close()
 
     # TC-0034: OPS → /my-orders
@@ -271,11 +279,19 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/page-khong-ton-tai')
     page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    if '/my-orders' in page.url:
-        results.pass_('TC-0042', '404 catch-all OPS → /my-orders')
+    heading = page.get_by_role('heading', name='Không tìm thấy trang', exact=True)
+    recovery = page.get_by_role('link', name='Về trang chính', exact=True)
+    if (
+        '/page-khong-ton-tai' in page.url
+        and heading.is_visible()
+        and recovery.get_attribute('href') == '/my-orders'
+    ):
+        ctx.screenshot(page, 'TC-0042_ops_not_found')
+        recovery.click()
+        page.wait_for_url('**/my-orders', timeout=10000)
+        results.pass_('TC-0042', 'Explicit 404 OPS → recovery link → /my-orders')
     else:
-        results.fail('TC-0042', '404 catch-all FORWARDER', f'Got {page.url}')
+        results.fail('TC-0042', '404 page and OPS recovery', f'URL={page.url}, heading={heading.count()}, recovery={recovery.count()}')
     page.close()
 
     # ── Sidebar verification ──

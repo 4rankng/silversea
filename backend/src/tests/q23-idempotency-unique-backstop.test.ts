@@ -4,7 +4,6 @@ import { and, eq } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { findIdempotencyRecord, hashPayload, runIdempotent } from '../services/idempotency.service';
-import { withTestCleanup } from './helpers/db-isolation';
 import { disconnectRedis } from '../lib/redis';
 
 // Step 1.3 (plan: backend-atomic-falcon): the DB unique index
@@ -16,7 +15,6 @@ import { disconnectRedis } from '../lib/redis';
 // errors with the raw 23505 and leaves exactly one (bypass) row.
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const cleanup = withTestCleanup();
 const keyRows: Array<{ endpoint: string; key: string }> = [];
 
 after(async () => {
@@ -29,6 +27,32 @@ after(async () => {
 
 describe('q23 idempotency unique-backstop replay (step 1.3)', () => {
   const endpoint = 'test:unique-backstop';
+
+  test('snapshot replay adapters run atomically after a unique collision and on normal retry', async () => {
+    const key = `qa-bs-${suffix}-adapter`;
+    keyRows.push({ endpoint, key });
+    const payload = { amount: 100000 };
+    const customerName = `qa-bs-rollback-${suffix}`;
+    let replayCalls = 0;
+    const command = {
+      endpoint, idempotencyKey: key, payload,
+      create: async () => {
+        await db.insert(s.idempotencyKeys).values({ endpoint, idempotencyKey: key,
+          payloadHash: hashPayload(payload), responseSnapshot: { id: 123 }, responseStatusCode: 201 });
+        return { id: 999 };
+      },
+      replayResult: async (snapshot: unknown, tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => {
+        replayCalls += 1;
+        assert.deepEqual(snapshot, { id: 123 });
+        await tx.insert(s.customers).values({ name: customerName });
+        throw new Error('Adapter failure after source allocation');
+      },
+    };
+    await assert.rejects(runIdempotent(command), /Adapter failure/);
+    await assert.rejects(runIdempotent(command), /Adapter failure/);
+    assert.equal(replayCalls, 2);
+    assert.equal((await db.select().from(s.customers).where(eq(s.customers.name, customerName))).length, 0);
+  });
 
   test('matching-hash bypass insert → 23505 → replayed with exactly one row', async () => {
     const key = `qa-bs-${suffix}-ok`;

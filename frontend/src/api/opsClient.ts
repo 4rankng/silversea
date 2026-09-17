@@ -4,6 +4,7 @@
  * backed by backend/src/routes/ops.ts.
  */
 import { api, fileCommandFingerprint } from '../lib/api';
+import type { ExpenseCostGroup } from '@tingting/shared';
 
 export interface OpsOrderItem {
   id: number;
@@ -53,6 +54,13 @@ export interface OpsExpenseRow {
   paidById: number;
   paidByName: string | null;
   createdAt: string;
+  version?: number;
+  costGroup?: ExpenseCostGroup | null;
+  feeName?: string | null;
+  customerChargeAmount?: number | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
+  recoveryNote?: string | null;
 }
 
 export interface OpsExpensePhoto {
@@ -166,6 +174,11 @@ export const opsClient = {
     paidAt: string;
     note?: string | null;
     photoStorageKeys?: string[];
+    costGroup?: ExpenseCostGroup;
+    feeName?: string;
+    invoiceNumber?: string | null;
+    invoiceDate?: string | null;
+    recoveryNote?: string | null;
   }) => api.post<OpsExpenseRow & { id: number }>('/ops/expenses', body),
   updateExpense: (id: number, body: Record<string, unknown>) =>
     api.patch<OpsExpenseRow>(`/ops/expenses/${id}`, body),

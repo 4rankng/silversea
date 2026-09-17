@@ -10,11 +10,17 @@
 
 .ds-uui-select {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   align-content: start;
   min-width: 0;
   width: 100%;
 }
+
+/* The React Aria control can contain an unbroken selected account name. Keep
+   that intrinsic width inside the field's grid track so it truncates instead
+   of widening a two-column form and scrolling its drawer horizontally. */
+.ds-uui-select__control { min-width: 0; }
 
 /*
  * React Aria's Select renders its label as a `<span data-label="true">`

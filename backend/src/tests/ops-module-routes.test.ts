@@ -362,7 +362,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     });
     assert.equal(attached.status, 201);
 
-    // Receipt review: an approver can list the photos; another Ops cannot.
+    // Accounting can inspect evidence; another OPS user cannot.
     const photosForAccountant = await api(`/expenses/${created.body.id}/photos`, { token: accountantToken });
     assert.equal(photosForAccountant.status, 200);
     assert.equal(photosForAccountant.body.items.length, 1);
@@ -383,11 +383,19 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(served.status, 404);
 
     // Direct records stay editable until included in a settlement.
-    const edit = await api(`/expenses/${created.body.id}`, {
+    const missingVersion = await api(`/expenses/${created.body.id}`, {
       method: 'PATCH', token: opsToken, body: { amount: '350000' },
+    });
+    assert.equal(missingVersion.status, 409, 'a refreshed source version is required for monetary edits');
+    const edit = await api(`/expenses/${created.body.id}`, {
+      method: 'PATCH', token: opsToken, body: { amount: '350000', expectedVersion: created.body.version },
     });
     assert.equal(edit.status, 200);
     assert.equal(edit.body.amount, '350000');
+    const stale = await api(`/expenses/${created.body.id}`, {
+      method: 'PATCH', token: opsToken, body: { amount: '999999', expectedVersion: created.body.version },
+    });
+    assert.equal(stale.status, 409, 'stale edits cannot overwrite a newer source');
     const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1' } });
     assert.equal(forbiddenEdit.status, 404);
   });
@@ -409,7 +417,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Author correction does not require an approver.
     const edited = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '90000' },
+      method: 'PATCH', token: opsToken, body: { amount: '90000', expectedVersion: created.body.version },
     });
     assert.equal(edited.status, 200);
 
