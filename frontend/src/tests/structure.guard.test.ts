@@ -202,7 +202,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // in the workspace (first container row drives the engine input).
   // Bumped 1103 → 1104: 2026-09-16 unified-datetime patch batch (create-form
   // adapter wiring, one line over the T4 bump).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1104,
+  // Bumped 1104 → 1131: 2026-09-17 bulk appointment copy (hover overlay +
+  // copy helper + per-row gate, mirrors the CUS ledger affordance).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1131,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
