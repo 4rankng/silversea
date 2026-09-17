@@ -40,6 +40,13 @@ let scopedCustomerId = 0;
 let server: http.Server;
 let baseUrl = '';
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+// The test seeds its own ACTIVE business unit (criterion 5, 20260917_10): the
+// environment's stored salary.payroll_business_unit_id may be an orphan the
+// validator rejects, so every settings write here substitutes this id. The
+// after() restore also substitutes it — restoring the captured orphan verbatim
+// would fail validation and leave the run's values behind.
+let seededBusinessUnitId: number;
+let seededPayrollDriverRowId: number;
 
 let adminToken: string;
 let managerToken: string;
@@ -189,6 +196,26 @@ async function mkLedgerRow(customerId: number, debit: number) {
 before(async () => {
   await initEnforcer();
   originalSettings = await getAppSettings();
+  // Criterion 5 (20260917_10): never round-trip the environment's stored
+  // payroll-unit reference — it may be an orphan. Seed a valid ACTIVE unit
+  // and write that id in every settings mutation below.
+  const [seededUnit] = await db.insert(s.businessUnits)
+    .values({ name: `Final Q01 payroll unit ${suffix}`, status: 'ACTIVE' })
+    .returning({ id: s.businessUnits.id });
+  seededBusinessUnitId = seededUnit.id;
+  // The validator additionally requires the payroll unit to have at least one
+  // ACTIVE driver linked through user_business_unit_links (the same shape
+  // q09-payroll-unit-scope seeds) — seed the full satisfiable chain.
+  const [payrollDriverUser] = await db.insert(s.users)
+    .values({ username: `final-q01-payroll-driver-${suffix}`, passwordHash: 'x', role: 'DRIVER', status: 'ACTIVE' })
+    .returning({ id: s.users.id });
+  userIds.push(payrollDriverUser.id);
+  const [payrollDriver] = await db.insert(s.drivers)
+    .values({ userId: payrollDriverUser.id, name: `Final Q01 payroll driver ${suffix}`, status: 'ACTIVE' })
+    .returning({ id: s.drivers.id });
+  seededPayrollDriverRowId = payrollDriver.id;
+  await db.insert(s.userBusinessUnitLinks)
+    .values({ userId: payrollDriverUser.id, businessUnitId: seededBusinessUnitId });
   const scopedCustomer = await mkCustomerRow({
     name: `Final scoped customer ${suffix}`,
   });
@@ -231,7 +258,15 @@ after(async () => {
   // whole in-process tsx run, and a throw here used to skip server.close
   // entirely (20260917_17).
   try {
-    await saveAppSettings(originalSettings);
+    await saveAppSettings({
+      ...originalSettings,
+      // Restoring the captured orphan verbatim fails validation (20260917_10);
+      // the seeded ACTIVE unit is the closest writable approximation and
+      // leaves the environment with a VALID payroll-unit reference instead of
+      // the orphan id 354. Lead's criterion-3 policy decision still governs
+      // any broader orphan cleanup.
+      salaryPayrollBusinessUnitId: seededBusinessUnitId,
+    });
   } catch (error) {
     console.error('[final-q01-coverage] settings restore failed in after():', error);
   }
@@ -246,6 +281,11 @@ after(async () => {
 
   // Fixture cleanup; the redis close below must run even if a delete throws.
   try {
+    if (seededBusinessUnitId != null) {
+      await db.delete(s.userBusinessUnitLinks).where(eq(s.userBusinessUnitLinks.businessUnitId, seededBusinessUnitId));
+      await db.delete(s.drivers).where(eq(s.drivers.id, seededPayrollDriverRowId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, seededBusinessUnitId));
+    }
     if (idempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
     }
@@ -305,6 +345,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       expectedUpdatedAt: readSettings.body.updatedAt ?? undefined,
       body: {
         ...originalSettings,
+        salaryPayrollBusinessUnitId: seededBusinessUnitId,
         creditWarningThresholdDefault: 0.67,
         creditTierOneAmountCap: 5_000_000,
       },
