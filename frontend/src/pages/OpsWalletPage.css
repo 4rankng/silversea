@@ -94,7 +94,7 @@
 .ops-wallet__filters button {
   border: 1px solid var(--line, #d8d3cb);
   background: var(--bg-1, #fff);
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 6px 12px;
   font-size: var(--text-caption-size);
   cursor: pointer;

@@ -277,7 +277,7 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--ink);
   color: var(--surface);
   cursor: pointer;

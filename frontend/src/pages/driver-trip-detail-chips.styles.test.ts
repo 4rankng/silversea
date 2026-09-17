@@ -24,8 +24,11 @@ describe('driver trip-detail chips style contract (36d0183d)', () => {
   });
 
   it('close-status chip uses the shared compact header type', () => {
+    // 2026-09-17 pill-button sweep: the close control is a BUTTON — the
+    // app-wide ruling replaces its pill radius with 8px (the ops-chip above
+    // stays a pill: chips/badges keep their shape).
     const block = css.slice(css.indexOf('.driver-task-close-chip'));
-    expect(block).toMatch(/border-radius:\s*999px/);
+    expect(block).toMatch(/border-radius:\s*8px/);
     expect(block).toMatch(/font-size:\s*var\(--text-caption-size\)/);
   });
 

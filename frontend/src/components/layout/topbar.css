@@ -345,7 +345,7 @@
   font-weight: var(--fw-bold);
   cursor: pointer;
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-family: inherit;
   transition: background 120ms var(--ease), border-color 120ms var(--ease);
 }
@@ -559,7 +559,7 @@
   display: inline-flex; align-items: center; gap: 8px;
   min-height: var(--control-h); padding: 0 10px 0 4px;
   background: transparent; border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--ink);
   cursor: pointer;
   transition: background 120ms var(--ease), border-color 120ms var(--ease);
