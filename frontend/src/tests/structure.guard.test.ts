@@ -154,7 +154,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 515 → 518: 2026-09-16 card 20260916_9 — decompose re-keys the grid
   // row and unmounts the pressing editor cell; the hook now tracks the fresh
   // fulfillment id so the surviving cell auto-opens the editor.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 518,
+  // Bumped 518 → 521: 2026-09-16 landing 2a5dd222 — customer-sort state on
+  // the detailed-plan hook; refreeze owed by the growing lane (BE1).
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 521,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
