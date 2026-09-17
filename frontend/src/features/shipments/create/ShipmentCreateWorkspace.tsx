@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Plus, Trash2 } from 'lucide-react';
+import { Copy, Eye, Plus, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { formatDateTime24 } from '../../../lib/format';
 import {
@@ -952,6 +952,7 @@ export function ShipmentCreateWorkspace() {
                         title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
                         aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
                       >
+                        <Copy size={12} aria-hidden="true" />
                         Copy
                       </button>
                     )}
