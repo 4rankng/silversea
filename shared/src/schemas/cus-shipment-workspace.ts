@@ -33,6 +33,9 @@ const suffixSchema = z.string()
 // container workboard accepts the server-derived completeness filter.
 const shipmentCusWorkspaceQueryShape = {
   searchSuffix: suffixSchema.optional(),
+  // 20260917_12: tri-state ad-hoc list filter — 'true' returns only lệnh
+  // chạy ngoài rows, 'false' only catalog-flow rows, absent = no filter.
+  isAdHoc: z.enum(['true', 'false']).optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
   customerId: z.coerce.number().int().positive().optional(),

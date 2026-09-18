@@ -751,6 +751,11 @@ async function buildShipmentPageConditions(
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));
   }
+  // 20260917_12: the ad-hoc list filter — 'true'/'false' narrows to lệnh
+  // chạy ngoài / catalog-flow rows; absent means no filtering.
+  if (query.isAdHoc !== undefined) {
+    conditions.push(eq(s.shipments.isAdHoc, query.isAdHoc === 'true'));
+  }
   if (query.direction) {
     conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }

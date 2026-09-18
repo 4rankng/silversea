@@ -270,6 +270,30 @@ async function findItem(shipmentId: number) {
   return response.items.find((item) => item.id === shipmentId);
 }
 
+describe('CUS workspace ad-hoc list filter (20260917_12, §6.12)', () => {
+  test('isAdHoc=true returns only the lệnh chạy ngoài rows', async () => {
+    const adhoc = await seedShipment({ isAdHoc: true, blNumber: `WS-ADHOC-${Date.now()}` });
+    const normal = await seedShipment({ isAdHoc: false, blNumber: `WS-NORMAL-${Date.now()}` });
+
+    const response = await listCusShipmentWorkspace(
+      { page: 1, limit: 100, isAdHoc: 'true' } as never,
+      adminActor,
+    );
+    const ids = response.items.map((item) => item.id);
+    assert.ok(ids.includes(adhoc.id), 'ad-hoc lot must be returned');
+    assert.ok(!ids.includes(normal.id), 'normal lot must be excluded');
+  });
+
+  test('absent filter returns both lots (no implicit ad-hoc narrowing)', async () => {
+    const adhoc = await seedShipment({ isAdHoc: true, blNumber: `WS-ADHOC2-${Date.now()}` });
+    const normal = await seedShipment({ blNumber: `WS-NORMAL2-${Date.now()}` });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, adminActor);
+    const ids = response.items.map((item) => item.id);
+    assert.ok(ids.includes(adhoc.id) && ids.includes(normal.id));
+  });
+});
+
 describe('CUS shipment workspace projection — OQ1 split notes', () => {
   test('projects customerNotes and operationalNotes as separate fields', async () => {
     const shipment = await seedShipment({
