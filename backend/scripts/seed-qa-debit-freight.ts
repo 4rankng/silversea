@@ -89,6 +89,9 @@ async function main() {
       routeId,
       blNumber: `QA-DEBIT-${suffix}`,
       status: 'READY_FOR_DISPATCH',
+      // EDD is required for the lot to appear in L1's delivery-date filter
+      // and for the appointment write to pass its stage validation.
+      expectedDeliveryDate: isoDate,
     }).returning({ id: s.shipments.id });
     shipmentId = shipment.id;
     const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -107,14 +110,17 @@ async function main() {
     }).returning({ id: s.trips.id });
     tripId = trip.id;
     const containerTypeId = await ensureContainerType();
-    await db.insert(s.shipmentContainers).values({
+    const [container] = await db.insert(s.shipmentContainers).values({
       shipmentId,
       containerNumber: `QATU${String(shipmentId).padStart(7, '0')}`,
       containerTypeId,
-    });
+    }).returning({ id: s.shipmentContainers.id });
+    // FULL linkage: sourceShipmentContainerId is what the appointment write
+    // validates — without it the trip↔container↔shipment chain 409s.
     await db.insert(s.tripContainers).values({
       tripId,
       sourceShipmentId: shipmentId,
+      sourceShipmentContainerId: container.id,
       containerNumber: `QATU${String(shipmentId).padStart(7, '0')}`,
     });
   }
