@@ -28,7 +28,16 @@ import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
 const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail => ({
-  freightRows: [{ tripId: 501, rateKey: 'HPT-HCM', freight: 4500000, surcharge: 300000, total: 4800000 }],
+  freightRows: [{
+    containerNumber: 'CONT-001',
+    containerTypeLabel: '20DC',
+    freightCharge: 4500000,
+    fuelSurcharge: 300000,
+    lachHuyenFee: null,
+    customsFee: 250000,
+    psActual: null,
+    psNotes: null,
+  }],
   chiHoRows: [{
     tripId: 601,
     containerNumber: 'CONT-001',
@@ -67,14 +76,30 @@ beforeEach(() => {
 });
 
 describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
-  it('renders the three settlement tables from the landed payload shape', async () => {
+  it('renders Bảng 2.1 with the full seven-column spec keyed by container', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
     expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
-    expect(screen.getByText('Bảng 2.2 — Phí Chi Hộ & Tiền Treo')).toBeTruthy();
-    expect(screen.getByText('Bảng 2.3 — Phí Phải trả (chỉ xem)')).toBeTruthy();
+    const head = screen.getByText('Số Container').closest('tr')!;
+    for (const label of ['Số Container', 'Cước thu', 'Phụ phí xăng dầu', 'Lạch Huyện', 'Phí Hải Quan', 'PS thực tế', 'Tổng', 'Ghi chú']) {
+      expect(Array.from(head.querySelectorAll('th')).some((th) => th.textContent === label)).toBe(true);
+    }
+    // Rows label by container + type, never a synthetic trip ordinal.
+    expect(screen.getAllByText('CONT-001').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('20DC')).toBeTruthy();
+    expect(screen.queryByText(/^Chuyến #/)).toBeNull();
     expect(screen.getByText('4.500.000')).toBeTruthy();
-    expect(screen.getAllByText('Chưa xác định')).toHaveLength(1);
+  });
+
+  it('leaves an unlocked lot with trips fully editable', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    const ps = screen.getByLabelText('PS thực tế CONT-001') as HTMLInputElement;
+    expect(ps.disabled).toBe(false);
+    expect((screen.getByLabelText('Ghi chú PS CONT-001') as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Lưu điều chỉnh' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Khóa lô hàng' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('keeps Ops amounts read-only and the CUS cells editable', async () => {

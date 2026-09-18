@@ -20,6 +20,12 @@ export const shipmentDebitEditPayloadSchema = z.strictObject({
     amount: z.number(),
   })).optional(),
   removeExpenseIds: z.array(z.number().int()).optional(),
+  /** Freight-side actual-PS per container — keyed by container, not expense. */
+  freightPs: z.array(z.object({
+    containerNumber: z.string().min(1),
+    psActual: z.number().nullable(),
+    psNotes: z.string().optional(),
+  })).optional(),
 });
 
 export type ShipmentDebitEditPayload = z.infer<typeof shipmentDebitEditPayloadSchema>;

@@ -51,11 +51,14 @@ export async function listShipmentDebitSummary(params: {
 // `shipmentDebitEditPayloadSchema` from @tingting/shared — one contract.
 
 export interface DebitDetailFreightRow {
-  tripId: number | null;
-  rateKey: string | null;
-  freight: number | null;
-  surcharge: number | null;
-  total: number | null;
+  containerNumber: string;
+  containerTypeLabel: string | null;
+  freightCharge: number | null;
+  fuelSurcharge: number | null;
+  lachHuyenFee: number | null;
+  customsFee: number | null;
+  psActual: number | null;
+  psNotes: string | null;
 }
 
 export interface DebitDetailExpenseItem {
