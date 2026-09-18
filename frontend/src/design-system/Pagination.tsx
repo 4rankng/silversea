@@ -37,7 +37,11 @@ export function Pagination({
 }: PaginationProps) {
   const sizeOptions = pageSizeOptions && onPageSizeChange ? pageSizeOptions : null;
   const pages = useMemo(() => buildPageWindow(page, totalPages, siblingCount), [page, totalPages, siblingCount]);
-  if (totalPages <= 1 && !summary) return null;
+  // A one-page result set still renders when it carries a summary or the
+  // rows-per-page selector — otherwise choosing 200 rows would hide the very
+  // control that changes it back (staging, 2026-09-18).
+  const showControls = totalPages > 1;
+  if (!showControls && !summary && !sizeOptions) return null;
 
   const jumpToPage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,7 +75,7 @@ export function Pagination({
         )}
         {summary ?? defaultSummary}
       </div>
-      <div className="ds-pagination__controls">
+      {showControls && <div className="ds-pagination__controls">
         <button
           className="ds-pagination__btn"
           disabled={disabled || page <= 1}
@@ -124,7 +128,7 @@ export function Pagination({
         >
           <ChevronRight size={14} />
         </button>
-      </div>
+      </div>}
     </nav>
   );
 }

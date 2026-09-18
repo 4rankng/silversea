@@ -39,6 +39,18 @@ describe('Pagination', () => {
     expect(screen.queryByLabelText('Số dòng mỗi trang')).toBeNull();
   });
 
+  it('keeps the rows-per-page selector reachable on a single page', () => {
+    // Staging 2026-09-18: choosing 200 left one page, the bar vanished and the
+    // choice could not be changed back from the UI.
+    const onPageSizeChange = vi.fn();
+    const { getByLabelText, queryAllByRole, container } = render(
+      <Pagination page={1} totalPages={1} totalItems={145} pageSize={200} pageSizeOptions={[20, 200]} onPageSizeChange={onPageSizeChange} onChange={() => {}} />,
+    );
+    expect(getByLabelText('Số dòng mỗi trang')).toBeTruthy();
+    expect(container.textContent).toContain('Hiển thị');
+    expect(queryAllByRole('button')).toHaveLength(0);
+  });
+
   it('renders summary when totalItems + pageSize are provided', () => {
     const { container } = render(
       <Pagination page={1} totalPages={2} totalItems={50} pageSize={25} onChange={() => {}} />,
