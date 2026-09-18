@@ -49,6 +49,22 @@ async function mkUser(role: Role) {
   return user.id;
 }
 
+async function mkCustomer(name: string) {
+  const [row] = await db.insert(s.customers).values({ name }).returning();
+  customerIds.push(row.id);
+  return row;
+}
+
+async function mkLockedLotForCustomer(customerId: number) {
+  const [route] = await db.insert(s.routes).values({ name: `DN route ${suffix}-${routeIds.length}` }).returning();
+  routeIds.push(route.id);
+  const [shipment] = await db.insert(s.shipments).values({ customerId, routeId: route.id }).returning({ id: s.shipments.id, version: s.shipments.version });
+  shipmentIds.push(shipment.id);
+  const lock = await api('POST', `/api/shipments/${shipment.id}/lock`, cusId, {});
+  assert.equal(lock.status, 201, JSON.stringify(lock.body));
+  return shipment;
+}
+
 async function mkLockedLot() {
   const [customer] = await db.insert(s.customers).values({ name: `DN cust ${suffix}-${customerIds.length}` }).returning();
   customerIds.push(customer.id);
@@ -182,5 +198,46 @@ describe('the issuing CUS downloads the Debit Note file', () => {
     assert.match(response.headers.get('content-type') ?? '', /spreadsheetml/);
     const buffer = await response.arrayBuffer();
     assert.ok(buffer.byteLength > 100, 'a real file buffer comes back');
+  });
+});
+
+describe('GỘP THEO KỲ — consolidated debit note per customer per period', () => {
+  test('two locked lots, one POST, one document with both lots lines', async () => {
+    const customer = await mkCustomer(`Consol ${suffix}`);
+    customerIds.push(customer.id);
+    const lotA = await mkLockedLotForCustomer(customer.id);
+    const lotB = await mkLockedLotForCustomer(customer.id);
+    await db.update(s.shipmentCostLocks).set({ costSnapshot: { freightAuto: '1000000', chiHoTotal: '300000' } })
+      .where(eq(s.shipmentCostLocks.shipmentId, lotA.id));
+    await db.update(s.shipmentCostLocks).set({ costSnapshot: { freightAuto: '800000', chiHoTotal: '200000' } })
+      .where(eq(s.shipmentCostLocks.shipmentId, lotB.id));
+    const response = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotB.id, lotA.id] });
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+    const docId = Number(response.body.id);
+    docIds.push(docId);
+    const lines = await db.select().from(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, docId));
+    assert.equal(lines.length, 4, 'both lots freight + chi hộ lines land');
+    assert.ok(lines.every((line) => line.description.includes('lô SHP-') || line.description.includes(`lô ${''}`)), 'lines carry per-lot grouping');
+    assert.equal((await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, docId)))[0]?.entityId, customer.id);
+  });
+  test('replaying the same selection returns the same document', async () => {
+    const customer = await mkCustomer(`Consol replay ${suffix}`);
+    customerIds.push(customer.id);
+    const lotA = await mkLockedLotForCustomer(customer.id);
+    const first = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotA.id] });
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    const firstId = Number(first.body.id);
+    docIds.push(firstId);
+    const replay = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotA.id] });
+    assert.equal(replay.status, 201);
+    assert.equal(Number(replay.body.id), firstId, 'the same selection returns the same document');
+  });
+
+  test('mixed customers in one selection are rejected', async () => {
+    const lotA = await mkLockedLot();
+    const lotB = await mkLockedLot();
+    const response = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotA.id, lotB.id] });
+    assert.equal(response.status, 409);
+    assert.match(String(response.body.error), /cùng một khách hàng/);
   });
 });

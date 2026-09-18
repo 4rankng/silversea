@@ -45,7 +45,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, listOperational
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
-import { adjustShipmentCost, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -609,6 +609,20 @@ coreRoutes.post(
 );
 
 // ─── GET /:id — detail (shipment + containers + documents + declarations + history)
+// ─── POST /shipments/debit-notes — GỘP THEO KỲ consolidated export ─────────
+coreRoutes.post(
+  '/debit-notes',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = z.object({
+      shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô đã khóa.').max(200),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const doc = await createConsolidatedDebitNote({ shipmentIds: parsed.data.shipmentIds, actor: getUser(req) });
+    res.status(201).json({ id: doc.id });
+  }),
+);
+
 // ─── GET /debit-summary — Chi phí - Quyết toán L1 per-lot rollup ───────────
 coreRoutes.get(
   '/debit-summary',
