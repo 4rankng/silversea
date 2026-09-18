@@ -28,6 +28,7 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdContainerTypeIds: number[] = [];
 const userIds: number[] = [];
 let adminId = 0;
 let accountantId = 0;
@@ -158,6 +159,9 @@ after(async () => {
     for (const routeId of createdRouteIds) {
       await db.delete(s.routes).where(eq(s.routes.id, routeId));
     }
+    for (const typeId of createdContainerTypeIds) {
+      await db.delete(s.containerTypes).where(eq(s.containerTypes.id, typeId));
+    }
     for (const customerId of createdCustomerIds) {
       await db.delete(s.customers).where(eq(s.customers.id, customerId));
     }
@@ -202,6 +206,35 @@ describe('20260918 debit-detail GET (red-first)', () => {
     assert.equal(result.body.thuKhachTotal, null);
     assert.deepEqual(result.body.chiHoRows, []);
     assert.deepEqual(result.body.freightRows, []);
+  });
+
+  test('REWORK B: containers with no trips/expenses render N null-money rows (lot 157 case)', async () => {
+    const lot = await mkShipmentWithTrip();
+    const [containerType] = await db.insert(s.containerTypes)
+      .values({ code: `CTR${suffix}`.slice(0, 20).replace(/-/g, ''), name: `40'HC rework` }).returning();
+    createdContainerTypeIds.push(containerType.id);
+    const containerRows = await db.insert(s.shipmentContainers).values([
+      { shipmentId: lot.shipment.id, containerNumber: 'TSTU0000001', containerTypeId: containerType.id },
+      { shipmentId: lot.shipment.id, containerNumber: 'TSTU0000002', containerTypeId: containerType.id },
+      { shipmentId: lot.shipment.id, containerNumber: 'TSTU0000003', containerTypeId: containerType.id },
+    ]).returning({ id: s.shipmentContainers.id, number: s.shipmentContainers.containerNumber });
+    const result = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(result.status, 200);
+    assert.equal((result.body.freightRows as unknown[]).length, 3, 'one freight row per container');
+    assert.equal((result.body.chiHoRows as unknown[]).length, 3, 'one chi-ho row per container');
+    for (const row of result.body.chiHoRows as Array<Record<string, unknown>>) {
+      assert.ok(containerRows.some((c) => c.number === row.containerNumber), 'row keyed on the container');
+      assert.equal(row.tripId, null, 'no trip yet');
+      assert.equal(row.opsDocsStatus, 'PENDING');
+      assert.deepEqual(row.items, []);
+      assert.deepEqual(row.otherFees, []);
+    }
+    for (const row of result.body.freightRows as Array<Record<string, unknown>>) {
+      assert.equal(row.freight, null);
+      assert.equal(row.total, null);
+      assert.equal(row.containerTypeLabel, `40'HC rework`);
+    }
+    assert.equal(result.body.thuKhachTotal, null, 'no data — null, not 0');
   });
 });
 

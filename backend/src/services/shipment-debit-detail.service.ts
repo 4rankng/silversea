@@ -23,6 +23,8 @@ function opsDocsStatusOf(trip: { podRecoveredAt: Date | null }): 'READY' | 'PEND
 }
 
 export interface DebitDetailFreightRow {
+  containerNumber: string | null;
+  containerTypeLabel: string | null;
   tripId: number | null;
   rateKey: string | null;
   freight: number | null;
@@ -31,8 +33,9 @@ export interface DebitDetailFreightRow {
 }
 
 export interface DebitDetailChiHoRow {
-  tripId: number;
   containerNumber: string | null;
+  containerTypeLabel: string | null;
+  tripId: number | null;
   items: Array<{ id: number; expenseType: string; feeName: string | null; amount: number | null; thuKhach: number | null; note: string | null }>;
   otherFees: Array<{ id: number; name: string; amount: number | null }>;
   carrierDetention: number | null;
@@ -56,31 +59,70 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
   }
 
+  // Lớp 2 renders ONE ROW PER CONTAINER (REWORK B, 20260918_18): the container
+  // list is the row skeleton; trips/expenses/snapshots merge onto their
+  // container where the data exists. A container without a trip yet still
+  // renders — money null = Chưa xác định (O2C nulls rule), never an empty
+  // table.
+  const containers = await db.select({
+    id: s.shipmentContainers.id,
+    containerNumber: s.shipmentContainers.containerNumber,
+    containerTypeId: s.shipmentContainers.containerTypeId,
+    typeLabel: s.containerTypes.name,
+  })
+    .from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId))
+    .orderBy(s.shipmentContainers.id);
+
   const lotTrips = await db.select({
     id: s.trips.id,
     podRecoveredAt: s.trips.podRecoveredAt,
-    containerNumber: s.tripContainers.containerNumber,
   })
     .from(s.trips)
     .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
-    .leftJoin(s.tripContainers, eq(s.tripContainers.tripId, s.trips.id))
     .where(eq(s.shipmentFulfillments.shipmentId, shipmentId));
   const tripIds = lotTrips.map((trip) => trip.id);
+  const podByTrip = new Map(lotTrips.map((trip) => [trip.id, trip.podRecoveredAt]));
 
-  const freightRows = tripIds.length === 0 ? [] : (await db.select({
-    tripId: s.freightRateSnapshots.tripId,
-    rateKey: s.pricingTables.rateKey,
-    freight: s.freightRateSnapshots.freightAmount,
-    surcharge: s.freightRateSnapshots.surchargeAmount,
-    total: s.freightRateSnapshots.totalAmount,
+  // Container → trip linkage via trip_containers.sourceShipmentContainerId.
+  const tripLinks = tripIds.length === 0 ? [] : await db.select({
+    tripId: s.tripContainers.tripId,
+    shipmentContainerId: s.tripContainers.sourceShipmentContainerId,
+    containerNumber: s.tripContainers.containerNumber,
   })
-    .from(s.freightRateSnapshots)
-    .leftJoin(s.pricingTables, eq(s.pricingTables.id, s.freightRateSnapshots.pricingTableId))
+    .from(s.tripContainers)
     .where(and(
-      eq(s.freightRateSnapshots.shipmentId, shipmentId),
-      tripIds.length > 0 ? inArray(s.freightRateSnapshots.tripId, tripIds) : undefined,
-    ))
-    .orderBy(s.freightRateSnapshots.id));
+      inArray(s.tripContainers.tripId, tripIds),
+      eq(s.tripContainers.sourceShipmentId, shipmentId),
+    ));
+  const tripByContainerId = new Map<number, number>();
+  for (const link of tripLinks) {
+    if (link.shipmentContainerId != null && !tripByContainerId.has(link.shipmentContainerId)) {
+      tripByContainerId.set(link.shipmentContainerId, link.tripId);
+    }
+  }
+  // Trips with no container linkage (ad-hoc legs): keep them addressable by
+  // trip id so their data still reaches a row.
+  const linkedTripIds = new Set(tripByContainerId.values());
+  const orphanTrips = lotTrips.filter((trip) => !linkedTripIds.has(trip.id));
+
+  const freightByTrip = new Map<number, { freight: string | null; surcharge: string | null; total: string | null; rateKey: string | null }>();
+  if (tripIds.length > 0) {
+    const snapshots = await db.select({
+      tripId: s.freightRateSnapshots.tripId,
+      rateKey: s.pricingTables.rateKey,
+      freight: s.freightRateSnapshots.freightAmount,
+      surcharge: s.freightRateSnapshots.surchargeAmount,
+      total: s.freightRateSnapshots.totalAmount,
+    })
+      .from(s.freightRateSnapshots)
+      .leftJoin(s.pricingTables, eq(s.pricingTables.id, s.freightRateSnapshots.pricingTableId))
+      .where(eq(s.freightRateSnapshots.shipmentId, shipmentId));
+    for (const snapshot of snapshots) {
+      if (snapshot.tripId != null) freightByTrip.set(snapshot.tripId, snapshot);
+    }
+  }
 
   const expenses = tripIds.length === 0 ? [] : await db.select({
     id: s.tripExpenses.id,
@@ -93,20 +135,40 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   })
     .from(s.tripExpenses)
     .where(inArray(s.tripExpenses.tripId, tripIds));
+  const expensesByTrip = new Map<number, typeof expenses>();
+  for (const expense of expenses) {
+    const bucket = expensesByTrip.get(expense.tripId) ?? [];
+    bucket.push(expense);
+    expensesByTrip.set(expense.tripId, bucket);
+  }
 
-  const podByTrip = new Map(lotTrips.map((trip) => [trip.id, trip]));
-  const chiHoRows: DebitDetailChiHoRow[] = [];
-  for (const trip of lotTrips) {
-    const tripExpenses = expenses.filter((expense) => expense.tripId === trip.id);
-    if (tripExpenses.length === 0) continue;
+  function buildRow(container: {
+    id: number | null;
+    containerNumber: string | null;
+    typeLabel: string | null;
+    tripId: number | null;
+  }): { freightRow: DebitDetailFreightRow; chiHoRow: DebitDetailChiHoRow } {
+    const tripId = container.tripId;
+    const snapshot = tripId != null ? freightByTrip.get(tripId) : undefined;
+    const tripExpenses = tripId != null ? (expensesByTrip.get(tripId) ?? []) : [];
     const otherFees = tripExpenses
       .filter((expense) => expense.expenseType === 'OTHER')
       .map((expense) => ({ id: expense.id, name: expense.feeName ?? 'Phí khác', amount: Number(expense.buyAmount) }));
     const coreRows = tripExpenses.filter((expense) => expense.expenseType !== 'OTHER');
-    if (coreRows.length === 0 && otherFees.length === 0) continue;
-    chiHoRows.push({
-      tripId: trip.id,
-      containerNumber: trip.containerNumber ?? null,
+    const podRecoveredAt = tripId != null ? podByTrip.get(tripId) ?? null : null;
+    const freightRow: DebitDetailFreightRow = {
+      containerNumber: container.containerNumber,
+      containerTypeLabel: container.typeLabel,
+      tripId,
+      rateKey: snapshot?.rateKey ?? null,
+      freight: snapshot?.freight != null ? Number(snapshot.freight) : null,
+      surcharge: snapshot?.surcharge != null ? Number(snapshot.surcharge) : null,
+      total: snapshot?.total != null ? Number(snapshot.total) : null,
+    };
+    const chiHoRow: DebitDetailChiHoRow = {
+      containerNumber: container.containerNumber,
+      containerTypeLabel: container.typeLabel,
+      tripId,
       items: coreRows.map((expense) => ({
         id: expense.id,
         expenseType: expense.expenseType,
@@ -118,29 +180,43 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
       otherFees,
       // No dedicated detention/repair expense types exist yet — the OTHER
       // bucket carries user-added fees and these stay null until a type is
-      // agreed (documented for FE; null = chưa xác định).
+      // agreed (null = chưa xác định for FE).
       carrierDetention: null,
       repairAdvance: null,
-      opsDocsStatus: opsDocsStatusOf({
-        podRecoveredAt: podByTrip.get(trip.id)?.podRecoveredAt ?? null,
-      }),
-    });
+      opsDocsStatus: opsDocsStatusOf({ podRecoveredAt }),
+    };
+    return { freightRow, chiHoRow };
   }
 
+  const freightRows: DebitDetailFreightRow[] = [];
+  const chiHoRows: DebitDetailChiHoRow[] = [];
+  for (const container of containers) {
+    const tripId = tripByContainerId.get(container.id) ?? null;
+    const built = buildRow({ id: container.id, containerNumber: container.containerNumber, typeLabel: container.typeLabel, tripId });
+    freightRows.push(built.freightRow);
+    chiHoRows.push(built.chiHoRow);
+  }
+  // Orphan trips (no container linkage): emit their rows trip-addressed so
+  // existing data never disappears from the screen.
+  for (const trip of orphanTrips) {
+    // Orphan trips render only when they carry data — a bare trip with no
+    // container and no cost rows is nothing the Lớp-2 table needs to show.
+    const hasData = (expensesByTrip.get(trip.id)?.length ?? 0) > 0 || freightByTrip.has(trip.id);
+    if (!hasData) continue;
+    const built = buildRow({ id: null, containerNumber: null, typeLabel: null, tripId: trip.id });
+    freightRows.push(built.freightRow);
+    chiHoRows.push(built.chiHoRow);
+  }
+
+  const hasChiHoData = chiHoRows.some((row) => row.items.length > 0 || row.otherFees.length > 0);
   const chiHoTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.amount ?? 0), 0)), 0);
   const thuKhachTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.thuKhach ?? 0), 0)), 0);
 
   return {
-    freightRows: freightRows.map((row) => ({
-      tripId: row.tripId ?? null,
-      rateKey: row.rateKey ?? null,
-      freight: row.freight == null ? null : Number(row.freight),
-      surcharge: row.surcharge == null ? null : Number(row.surcharge),
-      total: row.total == null ? null : Number(row.total),
-    })),
+    freightRows,
     chiHoRows,
-    payables: { chiHoTotal: chiHoRows.length === 0 ? null : chiHoTotal },
-    thuKhachTotal: chiHoRows.length === 0 ? null : thuKhachTotal,
+    payables: { chiHoTotal: hasChiHoData ? chiHoTotal : null },
+    thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
   };
 }
 
