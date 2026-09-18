@@ -25,6 +25,8 @@ function opsDocsStatusOf(trip: { podRecoveredAt: Date | null }): 'READY' | 'PEND
 export interface DebitDetailFreightRow {
   containerNumber: string | null;
   containerTypeLabel: string | null;
+  psActual: number | null;
+  psActualNote: string | null;
   tripId: number | null;
   rateKey: string | null;
   freight: number | null;
@@ -69,6 +71,8 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeId: s.shipmentContainers.containerTypeId,
     typeLabel: s.containerTypes.name,
+    psActual: s.shipmentContainers.psActualAmount,
+    psActualNote: s.shipmentContainers.psActualNote,
   })
     .from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
@@ -147,6 +151,8 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     containerNumber: string | null;
     typeLabel: string | null;
     tripId: number | null;
+    psActual?: string | null;
+    psActualNote?: string | null;
   }): { freightRow: DebitDetailFreightRow; chiHoRow: DebitDetailChiHoRow } {
     const tripId = container.tripId;
     const snapshot = tripId != null ? freightByTrip.get(tripId) : undefined;
@@ -159,6 +165,8 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     const freightRow: DebitDetailFreightRow = {
       containerNumber: container.containerNumber,
       containerTypeLabel: container.typeLabel,
+      psActual: container.psActual == null ? null : Number(container.psActual),
+      psActualNote: container.psActualNote ?? null,
       tripId,
       rateKey: snapshot?.rateKey ?? null,
       freight: snapshot?.freight != null ? Number(snapshot.freight) : null,
@@ -192,7 +200,14 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   const chiHoRows: DebitDetailChiHoRow[] = [];
   for (const container of containers) {
     const tripId = tripByContainerId.get(container.id) ?? null;
-    const built = buildRow({ id: container.id, containerNumber: container.containerNumber, typeLabel: container.typeLabel, tripId });
+    const built = buildRow({
+      id: container.id,
+      containerNumber: container.containerNumber,
+      typeLabel: container.typeLabel,
+      tripId,
+      psActual: container.psActual,
+      psActualNote: container.psActualNote,
+    });
     freightRows.push(built.freightRow);
     chiHoRows.push(built.chiHoRow);
   }
@@ -224,11 +239,12 @@ export interface DebitEditPayload {
   edits?: Array<{ expenseId: number; buyAmount?: number; sellAmount?: number; note?: string }>;
   addOtherFees?: Array<{ tripId: number; name: string; amount: number }>;
   removeExpenseIds?: number[];
+  freightEdits?: Array<{ containerNumber: string; psActual?: number; note?: string }>;
 }
 
 /** Editable surface for PUT /debit-edits — strict on unknown keys. */
 export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEditPayload {
-  const allowed = ['edits', 'addOtherFees', 'removeExpenseIds'];
+  const allowed = ['edits', 'addOtherFees', 'removeExpenseIds', 'freightEdits'];
   for (const key of Object.keys(payload)) {
     if (!allowed.includes(key)) {
       throw new ApiError(400, `Trường "${key}" không được sửa — chỉ chấp nhận: ${allowed.join(', ')}.`);
@@ -260,7 +276,18 @@ export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEdi
   for (const id of removeExpenseIds) {
     if (typeof id !== 'number') throw new ApiError(400, 'removeExpenseIds phải là mảng số.');
   }
-  return { edits, addOtherFees, removeExpenseIds } as DebitEditPayload;
+  const freightEdits = Array.isArray(payload.freightEdits) ? payload.freightEdits : [];
+  for (const edit of freightEdits as Array<Record<string, unknown>>) {
+    for (const key of Object.keys(edit)) {
+      if (!['containerNumber', 'psActual', 'note'].includes(key)) {
+        throw new ApiError(400, `Trường "${key}" trong freightEdits không hợp lệ.`);
+      }
+    }
+    if (typeof edit.containerNumber !== 'string' || !edit.containerNumber.trim()) {
+      throw new ApiError(400, 'freightEdits cần containerNumber.');
+    }
+  }
+  return { edits, addOtherFees, removeExpenseIds, freightEdits } as DebitEditPayload;
 }
 
 export async function saveDebitEdits(input: {
@@ -308,6 +335,21 @@ export async function saveDebitEdits(input: {
           buyAmount: String(fee.amount),
           sellAmount: '0',
         });
+      }
+      for (const freightEdit of payload.freightEdits ?? []) {
+        const [container] = await tx.select({ id: s.shipmentContainers.id })
+          .from(s.shipmentContainers)
+          .where(and(
+            eq(s.shipmentContainers.shipmentId, input.shipmentId),
+            eq(s.shipmentContainers.containerNumber, freightEdit.containerNumber.trim()),
+          )).limit(1);
+        if (!container) {
+          throw new ApiError(404, 'Không tìm thấy container trên lô hàng này.');
+        }
+        await tx.update(s.shipmentContainers).set({
+          psActualAmount: freightEdit.psActual != null ? String(freightEdit.psActual) : null,
+          psActualNote: freightEdit.note ?? null,
+        }).where(eq(s.shipmentContainers.id, container.id));
       }
       for (const expenseId of payload.removeExpenseIds ?? []) {
         const [expense] = await tx.select().from(s.tripExpenses)

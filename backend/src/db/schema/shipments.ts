@@ -166,6 +166,12 @@ export const shipmentContainers = pgTable('shipment_containers', {
   containerTypeId: integer('container_type_id'),
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
+  // Freight-side "PS thực tế" (Bảng 2.1, debit wave REWORK): the actual
+  // surcharge/extra recorded per container, persisted at lock-time bookkeeping
+  // and rolled into the lot totals on the debit screen. Nullable — null =
+  // Chưa xác định.
+  psActualAmount: numeric('ps_actual_amount', { precision: 15, scale: 0 }),
+  psActualNote: text('ps_actual_note'),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
   // Per-container CBM. CUS dashboard Col4 cargo totals aggregate this across
   // containers (sum), falling back to the shipment-level figure when unset.

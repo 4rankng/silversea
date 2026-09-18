@@ -300,6 +300,29 @@ describe('20260918 debit-edits PUT (red-first)', () => {
     assert.equal(rows.length, countBefore, 'replay must not add rows');
   });
 
+  test('REWORK: freight-side PS thực tế saves per container and returns on the row', async () => {
+    const lot = await mkShipmentWithTrip();
+    const [containerType] = await db.insert(s.containerTypes)
+      .values({ code: `CTP${suffix}`.slice(0, 20).replace(/-/g, ''), name: `20'DC ps` }).returning();
+    createdContainerTypeIds.push(containerType.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: lot.shipment.id,
+      containerNumber: 'TSTU0000042',
+      containerTypeId: containerType.id,
+    });
+    const edit = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
+      freightEdits: [{ containerNumber: 'TSTU0000042', psActual: 1250000, note: 'PS thực tế theo cầu cảng' }],
+    });
+    assert.equal(edit.status, 200, JSON.stringify(edit.body));
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200);
+    const freightRow = (detail.body.freightRows as Array<Record<string, unknown>>)
+      .find((row) => row.containerNumber === 'TSTU0000042');
+    assert.ok(freightRow, 'the freight row for the container must exist');
+    assert.equal(freightRow.psActual, 1250000);
+    assert.equal(freightRow.psActualNote, 'PS thực tế theo cầu cảng');
+  });
+
   test('unknown payload keys are rejected (read-only stays read-only)', async () => {
     const lot = await mkShipmentWithTrip();
     await mkExpense(lot.trip.id, {});
