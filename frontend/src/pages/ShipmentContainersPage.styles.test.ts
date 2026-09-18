@@ -54,6 +54,13 @@ describe('shipment detail workboard styling', () => {
 
   it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
+    // One self-sizing rail shared with the overview workboard: every filter is a
+    // rail item, so adding one never needs a track edit. The old hand-tuned
+    // three-track template gave the four selects three columns, wrapping the
+    // last one and leaving a hole at the top-left.
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
+    expect(css).toMatch(/\.shipments-detail-filters__advanced,\s*\.shipments-detail-filters__group\s*\{\s*display:\s*contents;\s*\}/);
+    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{\s*grid-column:\s*span 2;\s*\}/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*box-shadow:\s*none;/);
@@ -65,6 +72,9 @@ describe('shipment detail workboard styling', () => {
     const narrow = css.slice(css.indexOf('@container shipments-detail (max-width: 1000px)'));
     expect(narrow).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
     expect(narrow).toMatch(/\.shipments-detail-filters \.cus-advanced-toggle\s*\{[^}]*display:\s*inline-flex;/);
+    // Here the rail is search + disclosure, so the search drops its two-track
+    // span; spanning two collapsed the auto track onto a row of its own.
+    expect(narrow).toMatch(/\.shipments-detail-filter--search\s*\{\s*grid-column:\s*auto;\s*\}/);
     expect(narrow).toMatch(/\.shipments-detail-filters__advanced\s*\{[^}]*display:\s*none;[^}]*grid-column:\s*1 \/ -1;/);
     expect(narrow).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(narrow).toMatch(/\.shipments-detail-filters__group--dates,\s*\.shipments-detail-filters__group--selects\s*\{[^}]*display:\s*contents;/);
@@ -72,7 +82,9 @@ describe('shipment detail workboard styling', () => {
     expect(source).toContain('aria-controls="cus-detail-advanced-filters"');
     expect(source).toContain('data-open={advancedOpen ? \'\' : undefined}');
     const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 700px)'));
-    expect(tablet).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(130px, 1fr\)\) minmax\(170px, 1\.3fr\) minmax\(100px, \.75fr\) minmax\(130px, 1fr\);/);
+    // The tablet disclosure shares the same self-sizing rail; its old five-track
+    // template already held six fields and wrapped the last one.
+    expect(tablet).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
     expect(tablet).toMatch(/\.shipments-detail-filters__group--selects > \.shipments-detail-filter:first-child\s*\{[^}]*grid-column:\s*auto;/);
   });
 
@@ -247,21 +259,5 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/__direction--export\s*\{[^}]*var\(--brand/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
-  });
-
-  // Bulk appointment copy (2026-09-18, customer request): the affordance lives
-  // in the identity cell's reserved gutter, never over the schedule cell, and
-  // follows the create page's reveal contract (hover/focus-within, always on
-  // touch).
-  it('keeps the bulk appointment copy icon clear of the schedule cell and the customer text', () => {
-    const buttonSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/AppointmentCopyButton.tsx'), 'utf8');
-    expect(buttonSource).toMatch(/className="shipment-container-ledger__copy"/);
-    expect(ledgerSource).toMatch(/<AppointmentCopyButton row=\{row\} copying=\{copying\}/);
-    // The identity cell's own padding is !important-zeroed by the editable-cell
-    // rule, so the gutter has to land on the inner lane that holds the text.
-    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > th:has\(> \.shipment-container-ledger__copy\) > \.shipment-container-ledger__cell-editor,[^}]*__cell-trigger--read-only\s*\{\s*padding-right:\s*30px;\s*\}/);
-    expect(css).toMatch(/\.shipment-container-ledger__copy\s*\{[^}]*visibility:\s*hidden;[^}]*right:\s*6px;[^}]*width:\s*26px;[^}]*height:\s*26px;[^}]*border-radius:\s*8px;/);
-    expect(css).toMatch(/\.shipment-container-ledger tbody > tr:hover \.shipment-container-ledger__copy,[^}]*tr:focus-within \.shipment-container-ledger__copy\s*\{\s*visibility:\s*visible;/);
-    expect(css).toMatch(/@media \(max-width: 640px\), \(pointer: coarse\) \{\s*\.shipment-container-ledger__copy\s*\{\s*visibility:\s*visible;/);
   });
 });

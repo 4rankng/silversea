@@ -36,7 +36,6 @@ import {
   type ShipmentDetailEditMode,
 } from '../detail/ShipmentContainerLedger';
 import { canEditMode, isOptimisticShipmentConflict, CUS_DETAIL_PAGE_SIZE, type DispatchStatusFilter } from './cusDetailModel';
-import { useAppointmentCopy } from './use-appointment-copy';
 import { safeError } from './cusUtils';
 
 export interface CusDetailListParams {
@@ -111,15 +110,6 @@ export function useCusDetail(params: CusDetailListParams) {
   useEffect(() => {
     loadRowsRef.current = loadRows;
   }, [loadRows]);
-
-  // Bulk appointment entry (2026-09-18) — see use-appointment-copy.ts.
-  const { copyingAppointment, copyAppointmentToEmpty } = useAppointmentCopy({
-    isEditing: activeEdit != null,
-    reload: useCallback(() => loadRowsRef.current(), []),
-    setError,
-    setNotice: setEditNotice,
-    keys: editIdempotencyKeys,
-  });
 
   useEffect(() => {
     if (activeEdit || !restoreFocusId.current) return;
@@ -390,6 +380,5 @@ export function useCusDetail(params: CusDetailListParams) {
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
-    copyingAppointment, copyAppointmentToEmpty,
   };
 }

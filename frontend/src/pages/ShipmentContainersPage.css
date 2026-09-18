@@ -132,44 +132,6 @@
 .shipment-container-ledger tbody > tr.shipment-container-ledger__row--missing-date > td[data-label='Lịch trình'] { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)); }
 .shipment-container-ledger tbody > tr.shipment-container-ledger__row--missing-date:hover > td[data-label='Lịch trình'] { background: color-mix(in srgb, var(--warning-soft) 88%, var(--surface)); }
 
-/* Bulk appointment copy (2026-09-18): a row that already has an appointment
-   offers to write that same datetime to every container of ITS lot still empty
-   — this workboard saves each container on its own, so this is the only way to
-   schedule a multi-container lot in one entry. Same slot and shape as the
-   create page and the CUS ledger (user ruling 2026-09-18): right edge of the
-   identity cell, 26×26 with an 8px radius, revealed on hover/focus-within and
-   always visible on touch. The identity cell reserves a gutter whenever the row
-   carries the affordance, so the icon never covers the customer text. */
-.shipment-container-ledger tbody > tr > th:has(> .shipment-container-ledger__copy) > .shipment-container-ledger__cell-editor,
-.shipment-container-ledger tbody > tr > th:has(> .shipment-container-ledger__copy) > .shipment-container-ledger__cell-trigger--read-only { padding-right: 30px; }
-.shipment-container-ledger__copy {
-  visibility: hidden;
-  position: absolute;
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-3);
-  cursor: pointer;
-}
-.shipment-container-ledger__copy:hover { border-color: color-mix(in srgb, var(--accent) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--accent); }
-.shipment-container-ledger__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent) 18%, transparent); outline-offset: 1px; }
-.shipment-container-ledger tbody > tr:hover .shipment-container-ledger__copy,
-.shipment-container-ledger tbody > tr:focus-within .shipment-container-ledger__copy { visibility: visible; }
-.shipment-container-ledger__copy[disabled] { cursor: progress; opacity: .6; }
-@media (max-width: 640px), (pointer: coarse) {
-  .shipment-container-ledger__copy { visibility: visible; }
-}
-
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
