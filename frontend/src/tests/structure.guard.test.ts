@@ -73,7 +73,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // future split should restore a smaller ceiling.
   // Bumped 1119 → 1159: 2026-09-10 pricing engine — Shipment gains isAdHoc
   // and ShipmentDetail gains the freightRate.latest snapshot view (T4/T7).
-  'src/api/shipmentClient.ts': 1159,
+  // Bumped 1159 → 1201: 2026-09-18 card 20260918_18 — the settlement L2
+  // workspace client contract (detail + idempotent edits).
+  'src/api/shipmentClient.ts': 1201,
   'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav

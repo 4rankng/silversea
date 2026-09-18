@@ -3,11 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listSummary: vi.fn() }));
+const { getBootstrap, listSummary, getDetail } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listSummary: vi.fn(), getDetail: vi.fn() }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
 vi.mock('../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../api/shipmentClient')>(),
   listShipmentDebitSummary: listSummary,
+  getShipmentDebitDetail: getDetail,
 }));
 
 import { ToastProvider } from '../components/shared/Toast';
@@ -49,6 +50,7 @@ beforeEach(() => {
   listSummary.mockReset();
   getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }] });
   listSummary.mockResolvedValue({ items: [], total: 0 });
+  getDetail.mockReset();
 });
 
 describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
@@ -117,5 +119,26 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Trạng thái khóa lô/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đang mở' }));
     await waitFor(() => expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true));
+  });
+});
+
+describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
+  it('mounts the workspace under the expanded lot row and collapses on the second click', async () => {
+    listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
+    getDetail.mockResolvedValue({
+      shipmentId: 101,
+      freightRows: [],
+      chiHoRows: [],
+      payables: { freightReturn: null, lachHuyenReturn: null, customsFee: null, psOps: null },
+      thuKhachTotal: null,
+    });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô SHP-26-0001' }));
+    expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' }));
+    await waitFor(() => expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull());
   });
 });

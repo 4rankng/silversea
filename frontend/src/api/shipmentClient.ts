@@ -779,6 +779,70 @@ export async function listShipmentDebitSummary(params: {
   return api.get<ShipmentDebitSummary>(`/shipments/debit-summary?${query.toString()}`);
 }
 
+// ── Chi phí - Quyết toán L2: per-lot detail workspace ──────────────────────
+// Money fields mirror the backend contract: nullable STRINGS (null = chưa
+// xác định, never a fabricated 0).
+
+export interface ShipmentDebitFreightRow {
+  containerNumber: string;
+  containerTypeLabel: string | null;
+  freightCharge: string | null;
+  fuelSurcharge: string | null;
+  lachHuyenFee: string | null;
+  customsFee: string | null;
+  psActual: string | null;
+  psNotes: string | null;
+}
+
+export interface ShipmentDebitOtherFee {
+  name: string;
+  amount: string | null;
+}
+
+export interface ShipmentDebitChiHoRow {
+  containerNumber: string;
+  liftFee: string | null;
+  lowerFee: string | null;
+  cshtFee: string | null;
+  cshtInvoiceNumber: string | null;
+  otherFees: ShipmentDebitOtherFee[];
+  carrierDetention: string | null;
+  repairAdvance: string | null;
+  opsDocsStatus: 'READY' | 'PENDING';
+  opsPaidTotal: string | null;
+}
+
+export interface ShipmentDebitPayables {
+  freightReturn: string | null;
+  lachHuyenReturn: string | null;
+  customsFee: string | null;
+  psOps: string | null;
+}
+
+export interface ShipmentDebitDetail {
+  shipmentId: number;
+  freightRows: ShipmentDebitFreightRow[];
+  chiHoRows: ShipmentDebitChiHoRow[];
+  payables: ShipmentDebitPayables;
+  thuKhachTotal: string | null;
+}
+
+export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
+  return api.get<ShipmentDebitDetail>(`/shipments/${encodeURIComponent(shipmentId)}/debit-detail`);
+}
+
+export interface ShipmentDebitEditsBody {
+  freightRows: Array<{ containerNumber: string; psActual: string | null; psNotes: string | null }>;
+  chiHoRows: Array<{ containerNumber: string; otherFees: ShipmentDebitOtherFee[] }>;
+  thuKhachTotal: string | null;
+}
+
+export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentDebitEditsBody, idempotencyKey: string): Promise<void> {
+  await api.put(`/shipments/${encodeURIComponent(shipmentId)}/debit-edits`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
 /** Body for `POST /api/shipments/operational-sites`. Optional fields may be null. */
 export interface CreateOperationalSiteBody {
   customerId: number;

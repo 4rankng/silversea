@@ -1,0 +1,114 @@
+/* L2 workspace tables for the settlement screen. Compact, no pills. */
+
+.csc-debit-workspace {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+.csc-debit-workspace[data-locked] {
+  background: color-mix(in srgb, var(--ink-1) 4%, var(--surface-1));
+}
+
+.csc-debit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-caption-size);
+}
+
+.csc-debit-table caption {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding-bottom: 6px;
+}
+
+.csc-debit-table th,
+.csc-debit-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-1);
+  text-align: left;
+  vertical-align: top;
+}
+
+.csc-debit-table thead th {
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.csc-debit-input {
+  width: 100%;
+  min-width: 72px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.csc-debit-input:disabled {
+  opacity: 0.6;
+}
+
+.csc-debit-otherfee {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.csc-debit-otherfee button {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  width: 24px;
+}
+
+.csc-debit-addfee {
+  border: 1px dashed var(--border-1);
+  border-radius: 8px;
+  background: transparent;
+  padding: 3px 8px;
+}
+
+.csc-debit-row--warn .csc-debit-warn-cell {
+  background: color-mix(in srgb, #f97316 14%, transparent);
+  color: #9a3412;
+}
+
+.csc-debit-docs {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.csc-debit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.csc-debit-actions > button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.csc-debit-actions > button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.csc-debit-thukhach {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: auto;
+}

@@ -12,6 +12,7 @@ import { EmptyState, BufferedUuiDateInput, UuiSelectField } from '../design-syst
 import { PageHeader } from '../components/UI';
 import { USearchableField } from '../features/shipments/create/uui-searchable-field';
 import { Lock, Unlock } from 'lucide-react';
+import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
 
 const LOCK_FILTERS = [
@@ -22,9 +23,17 @@ const LOCK_FILTERS = [
 
 /** Lot-level settlement row (L1) — identity, money rollup, lock state. */
 function DebitLotRow({
-  row, selected, onSelect,
-}: { row: ShipmentDebitLotRow; selected: boolean; onSelect: (id: number, next: boolean) => void }) {
+  row, expanded, onToggle, onSaved, selected, onSelect,
+}: {
+  row: ShipmentDebitLotRow;
+  expanded: boolean;
+  onToggle: () => void;
+  onSaved: () => void;
+  selected: boolean;
+  onSelect: (id: number, next: boolean) => void;
+}) {
   return (
+    <>
     <tr className="shipment-debit-row" data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}>
       <td>
         <input
@@ -36,8 +45,14 @@ function DebitLotRow({
         />
       </td>
       <td className="shipment-debit-row__expand">
-        <button type="button" className="shipment-debit-row__expand-button" aria-label={`Mở chi tiết lô ${row.code}`}>
-          +
+        <button
+          type="button"
+          className="shipment-debit-row__expand-button"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${row.code}`}
+          onClick={onToggle}
+        >
+          {expanded ? '−' : '+'}
         </button>
       </td>
       <td className="shipment-debit-row__identity">
@@ -58,6 +73,14 @@ function DebitLotRow({
           : <span className="shipment-debit-row__lock shipment-debit-row__lock--open"><Unlock size={13} aria-hidden="true" />Đang mở</span>}
       </td>
     </tr>
+      {expanded && (
+        <tr className="shipment-debit-expand">
+          <td colSpan={9}>
+            <ShipmentDebitWorkspace shipmentId={row.shipmentId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -77,6 +100,7 @@ export function ShipmentDebitPage() {
   const lockStatus = (params.get('lock') ?? 'ALL') as 'ALL' | 'OPEN' | 'LOCKED';
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const bootstrap = useQuery({ queryKey: ['shipment-debit-bootstrap'], queryFn: () => tripClient.getBootstrap() });
   const summary = useQuery({
@@ -159,6 +183,9 @@ export function ShipmentDebitPage() {
                   <DebitLotRow
                     key={row.shipmentId}
                     row={row}
+                    expanded={expandedId === row.shipmentId}
+                    onToggle={() => setExpandedId((current) => (current === row.shipmentId ? null : row.shipmentId))}
+                    onSaved={() => summary.refetch()}
                     selected={selectedIds.has(row.shipmentId)}
                     onSelect={(id, next) => setSelectedIds((current) => {
                       const set = new Set(current);
