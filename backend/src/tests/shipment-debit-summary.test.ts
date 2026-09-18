@@ -146,3 +146,45 @@ after(async () => {
   }
   await client.end();
 });
+
+// Router-level pin: the literal /debit-summary LIST path must reach the
+// rollup handler, not be captured by the core GET /:id leaf (Express resolves
+// in registration order — QA cut-G proved the 400 'ID lô hàng không hợp lệ'
+// when the literal lost that race).
+describe('GET /debit-summary resolves through the real router', () => {
+  test('the literal list path returns 200 with the rollup shape', async () => {
+    const http = await import('node:http');
+    const express = (await import('express')).default;
+    const { initEnforcer } = await import('../casbin/enforcer');
+    const { casbinAuthz } = await import('../middleware/casbin');
+    const { globalErrorHandler } = await import('../middleware/errorHandler');
+    const shipmentRoutes = (await import('../routes/shipments')).default;
+    await initEnforcer();
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      (req as unknown as { user?: unknown }).user = {
+        userId: 0,
+        username: 'router-pin', email: 'router-pin@x', fullName: 'router-pin',
+        role: 'ADMIN' as const,
+      };
+      next();
+    });
+    app.use('/api/shipments', casbinAuthz('shipments'), shipmentRoutes);
+    app.use(globalErrorHandler);
+    const server = http.createServer(app);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const port = (server.address() as import('node:net').AddressInfo).port;
+    try {
+      const customer = await mkCustomer(`Router pin ${suffix}`);
+      await mkLot(customer.id, '2026-09-25');
+      const response = await fetch(`http://127.0.0.1:${port}/api/shipments/debit-summary?customerId=${customer.id}`);
+      assert.equal(response.status, 200, `the literal path must win over /:id — got ${response.status}`);
+      const body = await response.json() as { items?: unknown[]; total?: number };
+      assert.equal(body.total, 1);
+      assert.ok(Array.isArray(body.items) && body.items.length === 1);
+    } finally {
+      server.close();
+    }
+  });
+});

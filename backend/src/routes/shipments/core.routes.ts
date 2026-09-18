@@ -607,6 +607,17 @@ coreRoutes.post(
 );
 
 // ─── GET /:id — detail (shipment + containers + documents + declarations + history)
+// ─── GET /debit-summary — Chi phí - Quyết toán L1 per-lot rollup ───────────
+coreRoutes.get(
+  '/debit-summary',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await getShipmentDebitSummary(parsed.data));
+  }),
+);
+
 coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
@@ -839,17 +850,6 @@ coreRoutes.delete(
 );
 
 export { coreRoutes };
-
-// ─── GET /debit-summary — Chi phí - Quyết toán L1 per-lot rollup ───────────
-coreRoutes.get(
-  '/debit-summary',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
-  asyncHandler(async (req: Request, res: Response) => {
-    const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
-    if (!parsed.success) throwValidation(parsed.error);
-    res.json(await getShipmentDebitSummary(parsed.data));
-  }),
-);
 
 // ─── POST /:id/lock — Khóa lô (lot cost lock, card 20260918_19) ────────────
 coreRoutes.post(
