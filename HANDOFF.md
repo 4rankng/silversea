@@ -1,17 +1,63 @@
 # Current Development Handoff
 
-## Active delivery — requirements implementation and UI polish,15 September 2026
+## Active delivery — bulk appointment copy on "Chi tiết lô hàng", 18 September 2026
 
-User requested uncommitted code and a portable zipped patch; no commit, push or deployment authorized. Base: d4d7366039877658f173e45c7767274fd1cfde80 on prod. Preserve the dirty tree and real index.
+Controller: agent session, 2026-09-18 ~12:59 (+08). Branch `prod`, HEAD `586ce46b`
+(app commit `1fcfbf2d`). Working tree clean; pushed to `origin/prod`. Staging
+(`https://vantai.tingting.vip`) deployed by `make demo` and reporting
+`buildHash=1fcfbf2d` — the follow-up `586ce46b` touches only `testplan/` and the
+tracked QA driver, so no app bits are missing there.
 
-The earlier 204-document Kanban implementation is included cumulatively with the current UI polish. Prior deliverable remains in ~/Downloads/silversea-kanban-20260915-d4d73660.zip. Final cumulative package: ~/Downloads/silversea-production-polish-20260915-d4d73660.zip. Do not apply both cumulative patches to one base.
+**Goal:** customer request relayed by Kiên 2026-09-18 — lots entered without a
+schedule must be able to take the delivery datetime once for every container,
+on the lot detail surface (the customer pointed at the "Chi tiết" drawer; user
+ruled option A: add the missing copy affordance to the `/shipments-detail`
+workboard, which was the only container-schedule surface without it).
 
-Product constraints: online-only; approval workflows removed pending customer-defined requirements;12px body/data/inputs/actions,11px labels,14px sections,16px dialogs,18px page headings,20px primary metrics. Compact mobile/tablet/desktop layout, little outerpadding and no gratuitous nestedcards.
+**Shipped:**
+- `frontend/src/features/shipments/detail/AppointmentCopyButton.tsx` — affordance
+  in the identity cell's reserved gutter (26×26 / radius 8, hover + focus-within,
+  always visible ≤640px/coarse pointer), source-gated (row has an appointment and
+  its appointment field is writable).
+- `frontend/src/features/shipments/detail/appointment-copy.ts` — label helper.
+- `frontend/src/features/shipments/cus/use-appointment-copy.ts` — batch write:
+  targets resolved from the LOT (`GET /cus-workspace/:id`), sequential
+  `POST /cus-workspace/:id/containers/:containerId` with `Idempotency-Key` and
+  the version each response returns; conflict → stop, reload, report partial
+  count; no empty targets → notice, no writes.
+- Ledger + page wiring, CSS, `ShipmentContainersPage.styles.test.ts` CSS lock,
+  two unit sheets, `testplan/2026-09-18-detail-copy-appointment.md`,
+  `testplan/qa/scripts/ui-detail-copy-20260918.mjs` (also usable against staging
+  with `PRESENCE_ONLY=1`).
 
-Current pass changes shared FormGroup/ARIA/labelspacing/mobilefieldheight, compact SummaryRail/EmptyState, brief new-record motion; financial/OPS/driver/portal/catalog/navigation views, error/retry, explicit404 pluslegacyredirects. See plans/260915-production-polish/reports/. No backend/database changes in this additional UI pass.
+**Deliberate divergence from the reference surfaces** (`/shipments/new`, CUS
+ledger): the target count is not gated on what the page shows — this workboard's
+container/date filters and pagination can hide a lot's other containers, so the
+gate would hide the feature exactly when the customer needs it. Documented in the
+testplan.
 
-Final automated gates: frontend 2,055/2,055 tests across 332 files; strict build passed; lint 0 errors / 116 warnings; UI+brand contracts passed; context check passed. Initial legacy redirect and font/style contract failures were corrected before the final full run. Portable patch clean-base apply and exact content comparison passed for 430 changed files. Final report: qa/2026-09-15_production-polish/package/VERIFICATION.md.
+**NOT verified:** any write on staging (local only, deliberately); dispatcher /
+accountant roles; 390px viewport (unit + CSS rules only); locked lots.
 
-Chrome extension worked for named before/after cases then disconnected during compiledbuild verification. Bounded extension/native recovery did not restore controllable final UI. Retain exact browser limits, no every-screen/all-state claim. Localservers7175dev and7176compiled;backend3001dev/3002stable. No remote changes.
+**QA:** lint 0 error · frontend `tsc -b` 0 · frontend 2502 tests / 385 files ·
+`make build` ok · UI DRIVEN locally with DB proof
+(`qa/2026-09-18-detail-copy/`, one click filled 2 containers never listed on the
+page) · staging presence-only UI run
+(`qa/2026-09-18-detail-copy-staging/`).
 
-Remaining release-only checks from prior requirements:24hcatalogwatch,deployedDBmigrationhistory/integrity,GitHubalertclosure,physicaldevices/push. PortableREADME includes migrations0085–0089 and read-only verification script; do not run demo seed on businessdata.
+**Not in scope / not done:** prod deploy (not authorized), E2E suite (frontend-only
+change: no API, schema, RBAC or `shared/src/calculations` touch).
+
+---
+
+## Preserved prior state — requirements implementation and UI polish, 15 September 2026
+
+Prior task, claims not re-verified here. Uncommitted code + portable zipped patch
+requested then; base was `d4d7366039877658f173e45c7767274fd1cfde80`. Cumulative
+package: `~/Downloads/silversea-production-polish-20260915-d4d73660.zip` (earlier
+Kanban package: `~/Downloads/silversea-kanban-20260915-d4d73660.zip`) — do not
+apply both to one base. Product constraints from that pass (online-only, approval
+workflows removed, compact 12px/11px/14px/16px/18px/20px type scale) remain the
+working style rules. Remaining release-only checks it listed: 24h catalog watch,
+deployed DB migration history/integrity, GitHub alert closure, physical
+devices/push.
