@@ -283,11 +283,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
       dropPortName: deliveryStage.deliveryName,
-      // IMPORT Hạ is the configured empty return port, including when it
-      // equals the delivery label. Never infer it from a delivery factory.
-      returnDepotName: row.tradeDirection === 'IMPORT'
-        ? (row.containerDropoffPortName?.trim() || null)
-        : deliveryStage.returnDepotName,
+      // Trả-rỗng row is dead (ruling 2026-09-18): HẠ is the port itself, so
+      // a second row naming the same place is the redundancy the user
+      // already rejected.
+      returnDepotName: deliveryStage.returnDepotName,
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,

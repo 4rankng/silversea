@@ -746,9 +746,9 @@ export async function getDriverFulfillmentDetail(
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
     pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
     deliveryLocation: deliveryStage.deliveryName,
-    returnDepotName: shipmentRow.tradeDirection === 'IMPORT'
-      ? (shipmentRow.containerDropoffPortName?.trim() || null)
-      : deliveryStage.returnDepotName,
+    // Trả-rỗng row is dead (ruling 2026-09-18): HẠ is the port itself, so a
+    // second row naming the same place is the redundancy the user rejected.
+    returnDepotName: deliveryStage.returnDepotName,
     contactName: (shipmentRow.contactName?.trim() || null)
       ?? deliverySiteContact.name
       ?? (shipmentRow.siteContactName?.trim() || null)

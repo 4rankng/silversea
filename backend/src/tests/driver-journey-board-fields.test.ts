@@ -356,7 +356,7 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
 // with the canonical IMPORT dropoff port retained even for same-place delivery.
 // EXPORT exposes a separate return stage only when different from delivery.
 describe('delivery-stage chain — card + detail share one resolution', () => {
-  test('IMPORT with distinct depot: snapshot site delivers, port becomes the return depot on both surfaces', async () => {
+  test('IMPORT: the drop is the port; the factory snapshot never takes HA', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy Nhập Hàng');
     const depot = await mkPort('Bãi JJ LOGISTICS');
@@ -370,15 +370,15 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
 
     const board = await getDriverJourneyBoard(driver.id);
     const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
-    assert.equal(card.dropPortName, 'Kho NEWEB-1', 'snapshot delivery site leads the card drop');
-    assert.equal(card.returnDepotName, 'Bãi JJ LOGISTICS', 'distinct depot port surfaces as the return depot');
+    assert.equal(card.dropPortName, 'Bãi JJ LOGISTICS', 'port leads; the factory snapshot never takes the drop label');
+    assert.equal(card.returnDepotName, null, 'Tra-rong row is dead - same place as the drop itself');
 
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
-    assert.equal(detail.deliveryLocation, 'Kho NEWEB-1', 'detail agrees with the card');
-    assert.equal(detail.returnDepotName, 'Bãi JJ LOGISTICS', 'detail return depot agrees with the card');
+    assert.equal(detail.deliveryLocation, 'Bãi JJ LOGISTICS', 'detail agrees with the card');
+    assert.equal(detail.returnDepotName, null, 'detail agrees: no second row for the same place');
   });
 
-  test('free-text deliveryLocation overrides the snapshot on both surfaces; depot still distinct', async () => {
+  test('free text carries the drop only when no port is recorded (port-first contract)', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy Giao Hàng');
     const depot = await mkPort('Bãi Trả Rỗng');
@@ -392,11 +392,11 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
 
     const board = await getDriverJourneyBoard(driver.id);
     const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
-    assert.equal(card.dropPortName, 'Điểm giao điều vận chỉ định', 'dispatcher free text wins over the snapshot');
-    assert.equal(card.returnDepotName, 'Bãi Trả Rỗng');
+    assert.equal(card.dropPortName, 'Bãi Trả Rỗng', 'the recorded port beats free text under the port-first rule');
+    assert.equal(card.returnDepotName, null);
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
-    assert.equal(detail.deliveryLocation, 'Điểm giao điều vận chỉ định');
-    assert.equal(detail.returnDepotName, 'Bãi Trả Rỗng');
+    assert.equal(detail.deliveryLocation, 'Bãi Trả Rỗng');
+    assert.equal(detail.returnDepotName, null);
   });
 
   test('EXPORT same place: port equals the delivery → one row, no return depot', async () => {
@@ -419,7 +419,7 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
     assert.equal(detail.returnDepotName, null);
   });
 
-  test('DRV-R02 IMPORT retains a same-place canonical return port and never substitutes the factory for a missing port', async () => {
+  test('DRV-R02 IMPORT keeps the drop coherent: a same-place port collapses to one row; free text carries when no port exists', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy nhập');
     const depot = await mkPort('Cảng giao và trả rỗng');
@@ -429,7 +429,7 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
     const missing = await mkContainerTrip({ ...common, deliveryLocation: 'Nhà máy nhận hàng' });
     const board = await getDriverJourneyBoard(driver.id);
     for (const [fixture, expectedDepot, expectedDelivery] of [
-      [same, depot.name, depot.name], [missing, null, 'Nhà máy nhận hàng'],
+      [same, null, depot.name], [missing, null, 'Nhà máy nhận hàng'],
     ] as const) {
       const card = board.items.find((c) => c.fulfillmentId === fixture.fulfillment.id)!;
       assert.equal(card.returnDepotName, expectedDepot);
