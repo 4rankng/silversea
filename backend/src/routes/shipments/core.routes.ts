@@ -20,6 +20,7 @@ import {
   operationalSiteSchema,
   operationalSiteUpdateSchema,
   shipmentRecoveryRecordSchema,
+  shipmentDebitSummaryQuerySchema,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import {
@@ -41,6 +42,7 @@ import {
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -835,3 +837,14 @@ coreRoutes.delete(
 );
 
 export { coreRoutes };
+
+// ─── GET /debit-summary — Chi phí - Quyết toán L1 per-lot rollup ───────────
+coreRoutes.get(
+  '/debit-summary',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await getShipmentDebitSummary(parsed.data));
+  }),
+);

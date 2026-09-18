@@ -385,3 +385,4 @@ export * from './expense-accounting';
 export type { DriverIncidentalCostInput } from './schemas';
 
 export * from './schemas/treasury';
+export * from './schemas/shipment-debit-summary';
