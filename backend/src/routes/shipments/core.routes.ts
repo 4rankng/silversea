@@ -54,6 +54,7 @@ import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
@@ -905,5 +906,40 @@ coreRoutes.get(
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
     res.json(await listShipmentCostAdjustments(shipmentId));
+  }),
+);
+
+// ─── Debit wave detail endpoints (BE1 lane, FE _18 contract) ───────────────
+// GET /:id/debit-detail — the Lớp-2 drill-down: freight snapshots, per-trip
+// chi-hộ bundles (otherFees bucket + O2C evidence status), payables and the
+// customer-receivable total. Money nullable — null = "chưa xác định".
+coreRoutes.get(
+  '/:id/debit-detail',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.json(await getShipmentDebitDetail(shipmentId));
+  }),
+);
+
+// PUT /:id/debit-edits — the ONLY editable debit cells (PS thực tế, thu khách,
+// note on chi-hộ rows; Phí khác add/remove). Strict payload guard keeps every
+// other cell read-only; the debit lock rejects edits while active.
+coreRoutes.put(
+  '/:id/debit-edits',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
+    const result = await saveDebitEdits({
+      shipmentId,
+      actorId: getUser(req).userId,
+      idempotencyKey,
+      payload: req.body ?? {},
+    });
+    res.status(200).json(result);
   }),
 );
