@@ -605,7 +605,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.change(input, { target: { value: 'AB-' } });
     await waitFor(() => expect(screen.queryByText(/tối thiểu 4 ký tự/i)).toBeNull());
     fireEvent.change(input, { target: { value: 'ABC!' } });
-    expect(await screen.findByText('Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).')).toBeTruthy();
+    expect(await screen.findByText('Nhập một phần số Bill/Book, container hoặc tờ khai, tối thiểu 4 ký tự (không dùng % hoặc _).')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledTimes(1);
   });
 

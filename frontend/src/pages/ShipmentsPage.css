@@ -23,8 +23,11 @@
 .cus-worksheet-toolbar__filters {
   display: grid;
   /* One self-sizing rail: every filter shares a left edge, a label baseline and
-     the row's leftover width. A new filter never needs a track edit. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+     the row's leftover width. A new filter never needs a track edit.
+     150px keeps all seven slots (the search spans two) on one row from a
+     ~1120px rail up; a 180px track orphaned the last select on its own row at
+     the ordinary 1440-1600px canvas. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 8px 12px;
   min-width: 0;
   align-items: end;
@@ -41,6 +44,10 @@
   gap: 4px;
   min-width: 0;
 }
+
+/* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
+   stack at 4px. Match them or the select labels ride 2px above the rest. */
+.cus-worksheet-toolbar .shipment-uui-field .ds-uui-select__control { gap: 4px; }
 
 .cus-worksheet-toolbar .shipment-uui-field [data-label] {
   color: var(--ink-2);
@@ -1501,8 +1508,18 @@
 
 .cus-container-cell--identity {
   font-family: var(--font-data);
-  font-weight: var(--fw-semibold) !important;
+  /* Container codes never render bold and never wrap (user ruling 2026-09-18,
+     mirroring the detail workboard): an 11-character ISO code stays on one line
+     at caption size, so the row reads as an identifier, not as a heading. */
+  font-weight: 400 !important;
   vertical-align: middle;
+}
+
+.cus-container-cell--identity strong {
+  font-weight: 400;
+  font-size: var(--text-caption-size);
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .cus-container-cell__identity-inner {
@@ -1781,6 +1798,15 @@
     top: 10px;
     right: 12px;
   }
+
+  /* Card mode stacks the identity cell full-width and pins the ordinal top-right;
+     the copy affordance follows it there so it can never sit on the code. */
+  .cus-container-table .cus-container-row__copy {
+    top: 10px;
+    right: 12px;
+    left: auto;
+    transform: none;
+  }
 }
 
 @media (max-width: 1039px) {
@@ -1921,12 +1947,13 @@
   visibility: hidden;
   position: absolute;
   top: 50%;
-  right: 6px;
+  left: 0;
+  right: auto;
   transform: translateY(-50%);
   z-index: 2;
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -1947,7 +1974,7 @@
   .cus-container-row:focus-within .cus-container-row__ordinal { visibility: hidden; }
 }
 @media (max-width: 640px), (pointer: coarse) {
-  .cus-container-row__copy { visibility: visible; left: auto; right: 0; }
+  .cus-container-row__copy { visibility: visible; }
 }
 .cus-appointment-trigger {
   display: flex;
@@ -2402,6 +2429,10 @@
 .cus-worksheet-advanced { display: contents; }
 @container cus-workboard (max-width: 880px) {
   .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
+  /* This rail is search + disclosure, not the wide six-filter rail, so the
+     search takes one track: spanning two collapsed the auto track and pushed
+     the toggle onto a full-width row of its own. */
+  .cus-search-field { grid-column: auto; }
   .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }
   .cus-active-filter-summary {
     display: block;

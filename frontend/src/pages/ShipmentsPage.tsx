@@ -177,7 +177,7 @@ export default function ShipmentsPage() {
     if (!validateFilterDates()) return;
     const value = (filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-search')?.value ?? searchInput).trim();
     if (value && !CUS_SEARCH_PATTERN.test(value)) {
-      setSearchError('Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
+      setSearchError('Nhập một phần số Bill/Book, container hoặc tờ khai, tối thiểu 4 ký tự (không dùng % hoặc _).');
       return;
     }
     setSearchError(null);
@@ -310,7 +310,7 @@ export default function ShipmentsPage() {
                     setSearchInput(value);
                     setSearchError(null);
                   }}
-                  placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
+                  placeholder="Nhập một phần Bill/Book, số container hoặc tờ khai (≥ 4 ký tự)"
                   inputProps={{
                     inputMode: 'text',
                     pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',

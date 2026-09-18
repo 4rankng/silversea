@@ -107,7 +107,7 @@ export default function ShipmentContainersPage() {
     const isEmptyOrPartial = /^[A-Z0-9 ./-]{0,3}$/.test(value);
     const isValid = CUS_SEARCH_PATTERN.test(value);
     setSearchInput(value);
-    setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
+    setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập một phần số Bill/Book, container hoặc tờ khai, tối thiểu 4 ký tự (không dùng % hoặc _).');
 
     const nextSuffix = isValid ? value : '';
     if (nextSuffix === (latestSearchParams.current.get('searchSuffix') ?? '')) return;
@@ -237,7 +237,7 @@ export default function ShipmentContainersPage() {
       <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={detail.loading}>
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
-            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
+            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập một phần Bill/Book, số container hoặc tờ khai (≥ 4 ký tự)" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
             <UUIButton
               type="button"
               size="sm"

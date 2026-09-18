@@ -314,12 +314,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.change(input, { target: { value: 'A12' } });
     fireEvent.submit(input.closest('form')!);
-    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
+    expect(screen.getByRole('alert').textContent).toContain('Nhập một phần số Bill/Book, container hoặc tờ khai');
     expect(apiGet).not.toHaveBeenCalledWith(expect.stringContaining('searchSuffix=A12'));
 
     fireEvent.change(input, { target: { value: 'AB$1' } });
     fireEvent.submit(input.closest('form')!);
-    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
+    expect(screen.getByRole('alert').textContent).toContain('Nhập một phần số Bill/Book, container hoặc tờ khai');
 
     fireEvent.change(input, { target: { value: 'aB12C' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
@@ -1724,16 +1724,23 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
     // 2026-09-18 flat filter rail: one self-sizing template for every filter,
     // the disclosure is not a layout box, and the page actions left the form.
-    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 180px\), 1fr\)\);/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
     expect(css).toMatch(/\.cus-worksheet-advanced\s*\{\s*display:\s*contents;\s*\}/);
     expect(css).not.toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(120px/);
     expect(css).not.toContain('.cus-worksheet-toolbar__actions');
     expect(source).toMatch(/action=\{canCreateShipment && <UUIButton/);
+    // Container codes: one line, never bold, copy icon in the ordinal slot
+    // (user ruling 2026-09-18).
+    expect(css).toMatch(/\.cus-container-cell--identity strong\s*\{[^}]*font-weight:\s*400;[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
     expect(source).toContain('cus-workspace-summary__export');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     // CUS-OVERVIEW-02: search and disclosure share a row, while the revealed
     // criteria and their summary span the complete toolbar grid.
     expect(filterCss).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    // The wide rail's two-track search must not survive here: it collapsed the
+    // auto track and pushed the disclosure onto a full-width row of its own.
+    expect(filterCss).toMatch(/\.cus-search-field\s*\{\s*grid-column:\s*auto;\s*\}/);
     expect(filterCss).toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(filterCss).toMatch(/\.cus-active-filter-summary\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
