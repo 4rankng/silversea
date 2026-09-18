@@ -143,6 +143,42 @@ describe('shipment intake submission', () => {
     assert.equal(persisted?.shortName, curatedShortName);
   });
 
+  test('20260916_5 ruling (a): an LCL lô takes one lô-unit carrier allocation', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'LCL',
+      shipmentCode: `INTAKE-LCL-R5-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+    }).returning();
+    shipmentIds.push(shipment.id);
+
+    // RED at HEAD: the LCL branch rejected every allocation outright
+    // ('Gán nhà xe theo số lượng 20/40 chỉ áp dụng cho lô FCL.').
+    const owned = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      actor: admin,
+      carrierAllocations: [{ carrierType: 'OWN', count20: 1, count40: 0 }],
+    });
+    assert.equal(owned.assignments[0]?.plannedCarrierType, 'OWN');
+
+    // Over-allocating a second unit stays blocked (20260916_5 ruling (a):
+    // demand = 1 lô, per-carrier groups still apply).
+    // Over-allocation: two units against the 1-lô quota → 409.
+    await assert.rejects(
+      () => assignShipmentCarriers({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version + 1,
+        actor: admin,
+        carrierAllocations: [{ carrierType: 'OWN', count20: 1, count40: 1 }],
+      }),
+      /chỉ nhận đúng 1/,
+    );
+  });
+
   test('reassigns exact per-container carriers while ready and before any order is issued', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
@@ -548,7 +584,9 @@ describe('shipment intake submission', () => {
       cargoWeightKg: '100',
       cargoVolumeCbm: '1.5',
       expectedDeliveryDate: '2026-08-03',
-      shipmentCode: `INTAKE-LCL-${suffix}`,
+      // Distinct from the LCL lô-unit test's code above — this suite shares
+      // one suffix, so any reuse collides on shipments_shipment_code_unique.
+      shipmentCode: `INTAKE-LCL-DENY-${suffix}`,
       status: 'READY_FOR_DISPATCH',
       closingAt: new Date('2026-08-05T08:00:00.000Z'),
     }).returning();
