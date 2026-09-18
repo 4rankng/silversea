@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -501,6 +503,38 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(editor?.parentElement?.className).toContain('shipment-container-ledger__cell-editor');
     const hint = screen.getByText('Enter để lưu · Esc để hủy');
     expect(hint.closest('.shipment-container-ledger__editor-footer')).toContain(save);
+  });
+
+  it('releases the full-height click target while its editor shares the cell', async () => {
+    // The trigger fills its cell so the whole cell is clickable. Once the editor
+    // opens in the same cell, a 100% trigger inflates to the cell's full height
+    // and pushes an in-flow editor past the bottom edge — off-screen in the
+    // stacked card layout. The release is keyed on the trigger's expanded state,
+    // not on a breakpoint, so a new media/container block cannot reintroduce it.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.css'), 'utf8');
+    const expandedRule = css.match(
+      /\.shipment-container-ledger__editable-cell > \.shipment-container-ledger__cell-editor > \.shipment-container-ledger__cell-trigger--expanded\s*\{([^}]*)\}/,
+    )?.[1];
+    expect(expandedRule).toBeDefined();
+    expect(expandedRule).toMatch(/height:\s*auto;/);
+    expect(expandedRule).toMatch(/min-height:\s*0;/);
+    // The release must outrank the full-height rule it corrects.
+    expect(css.indexOf('.shipment-container-ledger__cell-trigger--expanded')).toBeGreaterThan(
+      css.indexOf('.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {'),
+    );
+
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    const trigger = screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ });
+    expect(trigger.className).not.toContain('shipment-container-ledger__cell-trigger--expanded');
+
+    fireEvent.click(trigger);
+    await screen.findByRole('button', { name: 'Lưu hành trình CONT-002' });
+
+    // The CSS hook above only works while the markup keeps carrying it.
+    expect(trigger.className).toContain('shipment-container-ledger__cell-trigger--expanded');
   });
 
   it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
