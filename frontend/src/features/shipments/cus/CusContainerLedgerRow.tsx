@@ -83,18 +83,18 @@ export function ContainerLineRow({
         <div className="cus-container-cell__identity-inner">
           <span className="cus-container-row__ordinal">{line.ordinal}</span>
           <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
+          {showCopyAppointment && (
+            <button
+              type="button"
+              className="cus-container-row__copy"
+              onClick={onCopyAppointmentToEmpty}
+              title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
+              aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
+            >
+              <Copy size={13} aria-hidden="true" />
+            </button>
+          )}
         </div>
-        {showCopyAppointment && (
-          <button
-            type="button"
-            className="cus-container-row__copy"
-            onClick={onCopyAppointmentToEmpty}
-            title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
-            aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
-          >
-            <Copy size={15} aria-hidden="true" />
-          </button>
-        )}
       </th>
       {containerTypeEditable ? (
         <ShipmentContainerCell

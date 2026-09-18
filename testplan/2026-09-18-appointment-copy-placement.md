@@ -87,3 +87,26 @@ lưu) **không đổi**. Không đổi API, schema, quyền, hay luồng lưu.
 - Ngữ nghĩa copy đã có test riêng:
   `ShipmentCreateWorkspace.copy-appointment.test.tsx`,
   `CusContainerLedger.copy-appointment.test.tsx`.
+
+## Kết quả chạy (local dev, 2026-09-18)
+
+Driver scripts (tracked, chạy lại được):
+`testplan/qa/scripts/ui-copy-icon-create-20260918.mjs`,
+`testplan/qa/scripts/ui-copy-icon-ledger-20260918.mjs`.
+
+| Case | Rung | Bằng chứng |
+| --- | --- | --- |
+| TC-COPY-PLACE-01 | UI DRIVEN | `qa/2026-09-18T01-58-29-171Z_copy-icon-hover.png` + `_ui-driver.log`: icon 26×26 radius 8 viền 1px nằm trong `th.csc-container-row__index`, `elementFromPoint` tại tâm ô giờ **và** ô ngày trả về chính input đó (không bị che); sau khi bấm: 3/3 dòng nhận `20/09/2026 09:00` |
+| TC-COPY-PLACE-02 | UI DRIVEN | `qa/2026-09-18T02-12-46-329Z_ledger-copy-icon-clip.png` + `_ui-driver.log`: icon 20×20 nằm trong `th.cus-container-cell--identity`, `copyOverlapsGlyphs=false`, `copyOverlapsTrigger=false`, số container `QATU9732531` vẫn một dòng; bấm → 3/3 trigger đổi sang `04:02 19/09/2026` |
+| TC-COPY-PLACE-03 | UI DRIVEN | `qa/2026-09-18-copy-icon-ledger/03-keyboard-focus-within-1440.png`, `04-mobile-390-no-hover.png`: focus-within hiện icon và Tab tới được; 390px icon luôn hiện |
+| TC-COPY-PLACE-04 | Unit | 9/9 (`ShipmentCreateWorkspace.copy-appointment`, `CusContainerLedger.copy-appointment`) — thêm 2 assertion vị trí, **đỏ trước khi sửa** (2 failed | 7 passed), xanh sau khi sửa |
+
+### Defect phát hiện trong lúc kiểm (đã sửa)
+
+`COPY-PLACE-02-D1` — bản đầu đặt icon ở **mép phải** ô danh tính concontainer:
+hover làm icon che đuôi số container (`QATU9732531` → `QATU9732[icon]`), đúng
+lỗi "che dữ liệu" mà ruling muốn bỏ. Sửa: icon vào **đúng slot số thứ tự**
+(`left: 0`, 20×20, thu nhỏ để không tràn vào track số container) và ẩn số thứ
+tự khi hover — đúng luật "thay giá trị STT bằng icon". Không mở rộng track
+`auto` (track rộng hơn làm số container 11 ký tự xuống hai dòng).
+

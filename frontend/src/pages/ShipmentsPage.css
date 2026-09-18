@@ -1513,9 +1513,15 @@
 }
 
 .cus-container-cell__identity-inner {
+  position: relative;
   display: grid;
+  /* The ordinal track keeps its natural width: the identity column is sized so
+   * an 11-character ISO container number fits on ONE line, and widening the
+   * track wraps it. The copy button is narrower than the track + gap, so it
+   * replaces the ordinal on hover without touching a glyph. */
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
+  align-items: center;
+  min-height: 28px;
   gap: 8px;
 }
 
@@ -1915,24 +1921,24 @@
 
 /* Bulk appointment copy (20260917_1, relocated 2026-09-18): a row that already
    has an appointment offers to copy its datetime to every line whose
-   appointment is still empty. The affordance is an icon button parked in the
-   identity cell — shaped like the row's controls, never an overlay on the
-   appointment trigger. Hidden until the row is hovered or focused. */
+   appointment is still empty. The affordance replaces the ordinal on hover —
+   same slot, same shape as the row's inputs — and never covers the container
+   number or the appointment trigger. */
 .cus-container-row__copy {
   visibility: hidden;
   position: absolute;
   top: 50%;
-  right: 4px;
+  left: 0;
   transform: translateY(-50%);
   z-index: 2;
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--line-2);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--surface);
   color: var(--ink-3);
   cursor: pointer;
@@ -1941,8 +1947,14 @@
 .cus-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
 .cus-container-row:hover .cus-container-row__copy,
 .cus-container-row:focus-within .cus-container-row__copy { visibility: visible; }
+/* The icon takes the ordinal's slot while the pointer is on the row; hover-only
+   so the row number survives a touch tap. */
+@media (hover: hover) {
+  .cus-container-row:hover .cus-container-row__ordinal,
+  .cus-container-row:focus-within .cus-container-row__ordinal { visibility: hidden; }
+}
 @media (max-width: 640px), (pointer: coarse) {
-  .cus-container-row__copy { visibility: visible; }
+  .cus-container-row__copy { visibility: visible; left: auto; right: 0; }
 }
 .cus-appointment-trigger {
   display: flex;
