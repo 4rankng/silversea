@@ -77,7 +77,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // workspace client contract (detail + idempotent edits).
   // Bumped 1201 → 1232: 2026-09-18 card 20260918_19 — the lock and cost-adjustment
   // client functions (snapshot contract).
-  'src/api/shipmentClient.ts': 1232,
+  // Shrunk 1232 → 1102: 2026-09-18 wave-end debt pass — the settlement
+  // contracts extracted to src/api/shipmentDebit.ts (re-exported).
+  'src/api/shipmentClient.ts': 1102,
   'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
