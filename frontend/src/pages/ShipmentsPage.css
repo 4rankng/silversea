@@ -22,31 +22,19 @@
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1.3fr) minmax(0, 4fr);
+  /* One self-sizing rail: every filter shares a left edge, a label baseline and
+     the row's leftover width. A new filter never needs a track edit. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 8px 12px;
   min-width: 0;
   align-items: end;
 }
 
-.cus-worksheet-toolbar__actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  padding-top: 0;
-}
+/* The identity field is the only one that needs two tracks. */
+.cus-search-field { grid-column: span 2; }
 
-.cus-worksheet-toolbar__action-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-
-.cus-worksheet-toolbar__action-group--utility {
-  justify-content: flex-end;
-}
+/* Reset sits under the rail, flush with its left edge. */
+.cus-worksheet-toolbar__reset { grid-column: 1 / -1; justify-self: start; }
 
 /* Page rules arrange the toolbar; shared UUI size variants own control density. */
 .cus-worksheet-toolbar .shipment-uui-field {
@@ -134,36 +122,36 @@
   color: var(--ink);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button {
+.cus-workspace .shipment-uui-button {
   border: 1px solid transparent;
   border-radius: 6px;
   box-shadow: none;
   font-weight: var(--fw-semibold);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button--primary {
+.cus-workspace .shipment-uui-button--primary {
   border-color: var(--accent-2);
   background: var(--accent-2);
   color: var(--fg-on-brand);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button--primary:hover {
+.cus-workspace .shipment-uui-button--primary:hover {
   border-color: var(--accent-ink);
   background: var(--accent-ink);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button--secondary {
+.cus-workspace .shipment-uui-button--secondary {
   border-color: var(--line-2);
   background: var(--surface);
   color: var(--ink);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button--secondary:hover,
-.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary:hover {
+.cus-workspace .shipment-uui-button--secondary:hover,
+.cus-workspace .shipment-uui-button--tertiary:hover {
   background: var(--surface-3);
 }
 
-.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary {
+.cus-workspace .shipment-uui-button--tertiary {
   background: transparent;
   color: var(--ink-2);
 }
@@ -188,15 +176,22 @@
 /* The summary is a decision rail, not another card: it gives the dispatcher a
    quiet count of the work that needs attention before scanning every row. */
 .cus-workspace-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 8px 0 0;
   border-block: 1px solid var(--line);
 }
 
 .cus-workspace-summary dl {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+  min-width: 0;
   margin: 0;
 }
+
+.cus-workspace-summary__export { flex: 0 0 auto; margin-right: 14px; }
 
 .cus-workspace-summary__item {
   display: flex;
@@ -406,8 +401,6 @@
 }
 
 @media (max-width: 700px) {
-  .cus-worksheet-toolbar__actions { flex-wrap: wrap; gap: 6px; }
-  .cus-worksheet-toolbar__action-group--utility { margin-left: auto; }
   .cus-worksheet-meta { margin-inline: 0; }
 }
 
@@ -2406,15 +2399,7 @@
 /* Secondary filters use the shared button and a full-width disclosure. */
 .cus-advanced-toggle,
 .cus-active-filter-summary { display: none; }
-.cus-worksheet-advanced {
-  display: grid;
-  /* 20260917_12: 5 filters on one desktop row (dates ×2, hướng, kế hoạch,
-     loại lô) — the 4-column template wrapped the new select to row 2. */
-  grid-template-columns: repeat(2, minmax(120px, 1fr)) minmax(100px, .8fr) minmax(170px, 1.3fr) minmax(120px, 1fr);
-  gap: 8px 12px;
-  min-width: 0;
-  align-items: end;
-}
+.cus-worksheet-advanced { display: contents; }
 @container cus-workboard (max-width: 880px) {
   .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
   .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }

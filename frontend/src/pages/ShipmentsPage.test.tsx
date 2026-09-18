@@ -305,21 +305,23 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(summary.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('rejects invalid suffixes locally and sends the exact mixed-case alphanumeric suffix', async () => {
+  // 2026-09-18: the bar applies live (one apply model); an invalid draft is
+  // never sent, and Enter/submit is what surfaces the validation message.
+  it('applies a valid suffix as typed and rejects an invalid draft on submit', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
 
     fireEvent.change(input, { target: { value: 'A12' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    fireEvent.submit(input.closest('form')!);
     expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
+    expect(apiGet).not.toHaveBeenCalledWith(expect.stringContaining('searchSuffix=A12'));
 
     fireEvent.change(input, { target: { value: 'AB$1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    fireEvent.submit(input.closest('form')!);
     expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
 
     fireEvent.change(input, { target: { value: 'aB12C' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
   });
 
@@ -329,7 +331,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
 
     fireEvent.change(input, { target: { value: 'MSCU6639870' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
   });
 
@@ -1721,7 +1722,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*32px;/);
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
-    expect(source).toContain('cus-worksheet-toolbar__action-group');
+    // 2026-09-18 flat filter rail: one self-sizing template for every filter,
+    // the disclosure is not a layout box, and the page actions left the form.
+    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 180px\), 1fr\)\);/);
+    expect(css).toMatch(/\.cus-worksheet-advanced\s*\{\s*display:\s*contents;\s*\}/);
+    expect(css).not.toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(120px/);
+    expect(css).not.toContain('.cus-worksheet-toolbar__actions');
+    expect(source).toMatch(/action=\{canCreateShipment && <UUIButton/);
+    expect(source).toContain('cus-workspace-summary__export');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     // CUS-OVERVIEW-02: search and disclosure share a row, while the revealed
     // criteria and their summary span the complete toolbar grid.

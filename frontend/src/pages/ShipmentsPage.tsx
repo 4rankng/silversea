@@ -184,6 +184,19 @@ export default function ShipmentsPage() {
     updateParam('searchSuffix', value || null);
   };
 
+  // One apply model for the whole bar (2026-09-18): every control applies as it
+  // changes — the text search on a short debounce. Enter still applies at once.
+  useEffect(() => {
+    const value = searchInput.trim();
+    if (value === suffixParam) return;
+    if (value && !CUS_SEARCH_PATTERN.test(value)) return;
+    const timer = setTimeout(() => {
+      setSearchError(null);
+      updateParam('searchSuffix', value || null);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, suffixParam, updateParam]);
+
   const clearFilters = () => {
     setDateResetKey((key) => key + 1);
     setHasDateDraft(false);
@@ -267,7 +280,12 @@ export default function ShipmentsPage() {
   return (
     <div className="shipments-page shipments-page--worksheet">
       <Breadcrumbs items={[{ label: 'Tổng quan', to: '/dashboard' }, { label: 'Tổng quan lô hàng' }]} />
-      <PageHeader title="Tổng quan lô hàng" iconName="cargo" description="Bảng điều hành giao nhận theo từng lô hàng" />
+      <PageHeader
+        title="Tổng quan lô hàng"
+        iconName="cargo"
+        description="Bảng điều hành giao nhận theo từng lô hàng"
+        action={canCreateShipment && <UUIButton size="sm" color="primary" className="shipment-uui-button shipment-uui-button--primary cus-create-shipment" onPress={() => navigate(routes.shipmentNew)} iconLeading={<Plus size={17} aria-hidden="true" />}>Tạo lô mới</UUIButton>}
+      />
 
       <section
         className="cus-workspace cus-workspace--worksheet"
@@ -375,17 +393,6 @@ export default function ShipmentsPage() {
                 controlClassName="shipment-uui-select"
               />
               <UuiSelectField
-                label="Kế hoạch"
-                value={bucket}
-                onChange={(event) => updateParam('bucket', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả trạng thái' },
-                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
-                ]}
-                wrapperClassName="shipment-uui-field cus-plan-status-filter"
-                controlClassName="shipment-uui-select"
-              />
-              <UuiSelectField
                 label="Loại lô"
                 value={adHoc}
                 onChange={(event) => updateParam('adHoc', event.target.value || null)}
@@ -394,61 +401,34 @@ export default function ShipmentsPage() {
                   { value: 'true', label: 'Lệnh chạy ngoài' },
                   { value: 'false', label: 'Thường' },
                 ]}
-                wrapperClassName="shipment-uui-field cus-plan-status-filter"
+                wrapperClassName="shipment-uui-field"
+                controlClassName="shipment-uui-select"
+              />
+              <UuiSelectField
+                label="Kế hoạch"
+                value={bucket}
+                onChange={(event) => updateParam('bucket', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả trạng thái' },
+                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
+                ]}
+                wrapperClassName="shipment-uui-field"
                 controlClassName="shipment-uui-select"
               />
             </div>
           </div>
 
-          <div className="cus-worksheet-toolbar__actions" aria-label="Thao tác lô hàng">
-            <div className="cus-worksheet-toolbar__action-group">
-              {canCreateShipment && (
-                <UUIButton
-                  size="sm"
-                  color="primary"
-                  className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
-                  onPress={() => navigate(routes.shipmentNew)}
-                  iconLeading={<Plus size={17} aria-hidden="true" />}
-                >
-                  Tạo lô mới
-                </UUIButton>
-              )}
-              <UUIButton
-                size="sm"
-                color="secondary"
-                type="submit"
-                className="shipment-uui-button shipment-uui-button--secondary"
-                iconLeading={<Search size={16} aria-hidden="true" />}
-              >
-                Tìm kiếm
-              </UUIButton>
-            </div>
-            <div className="cus-worksheet-toolbar__action-group cus-worksheet-toolbar__action-group--utility">
-              {(hasFilters || hasDateDraft) && (
-                <UUIButton
-                  size="sm"
-                  color="tertiary"
-                  className="shipment-uui-button shipment-uui-button--tertiary"
-                  onPress={clearFilters}
-                  iconLeading={<RotateCcw size={16} aria-hidden="true" />}
-                >
-                  Xóa lọc
-                </UUIButton>
-              )}
-              <UUIButton
-                size="sm"
-                color="secondary"
-                isDisabled={exporting || ws.loading}
-                isLoading={exporting}
-                className="shipment-uui-button shipment-uui-button--secondary"
-                onPress={() => void exportWorksheet()}
-                iconLeading={<Download size={16} aria-hidden="true" />}
-                showTextWhileLoading
-              >
-                Tải XLSX
-              </UUIButton>
-            </div>
-          </div>
+          {(hasFilters || hasDateDraft) && (
+            <UUIButton
+              size="sm"
+              color="tertiary"
+              className="shipment-uui-button shipment-uui-button--tertiary cus-worksheet-toolbar__reset"
+              onPress={clearFilters}
+              iconLeading={<RotateCcw size={16} aria-hidden="true" />}
+            >
+              Xóa lọc
+            </UUIButton>
+          )}
         </form>
 
         {ws.data && (
@@ -471,6 +451,18 @@ export default function ShipmentsPage() {
                 <dd>{ws.data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
               </div>
             </dl>
+            <UUIButton
+              size="sm"
+              color="secondary"
+              isDisabled={exporting || ws.loading}
+              isLoading={exporting}
+              className="shipment-uui-button shipment-uui-button--secondary cus-workspace-summary__export"
+              onPress={() => void exportWorksheet()}
+              iconLeading={<Download size={16} aria-hidden="true" />}
+              showTextWhileLoading
+            >
+              Tải XLSX
+            </UUIButton>
           </section>
         )}
 
