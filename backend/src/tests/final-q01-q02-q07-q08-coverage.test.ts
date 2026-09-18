@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import { eq, inArray } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
-import { client, db } from '../db';
+import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
