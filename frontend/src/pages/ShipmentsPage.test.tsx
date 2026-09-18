@@ -557,6 +557,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=50')));
   });
 
+  it('keeps the rows-per-page selector when the list fits one page', async () => {
+    // Staging 2026-09-18: choosing 200 left a single page, the whole bar was
+    // gated on totalPages > 1 and the choice could not be changed back.
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
+    ));
+    renderPage('/shipments?limit=200');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=200')));
+    expect(await screen.findByLabelText('Số dòng mỗi trang')).toBeTruthy();
+  });
+
   it('falls back to 20 rows when the URL carries an unsupported size', async () => {
     renderPage('/shipments?limit=37');
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=20')));

@@ -534,7 +534,7 @@ export default function ShipmentsPage() {
                   ))}
                 </tbody>
               </table>
-              {totalPages > 1 && (
+              {total > 0 && (
                 <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} onChange={(nextPage) => updateParam('page', String(nextPage))} />
               )}
             </div>
