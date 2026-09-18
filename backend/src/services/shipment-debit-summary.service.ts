@@ -6,8 +6,8 @@
 // lines) and the derived profit. PRD money fields are nullable; null means
 // "chưa xác định" — never a false 0.
 //
-// Debit-lock placeholder: the spec's 🔓/🔒 is the DEBIT lock from card _19
-// (a lô lock, NOT the kỳ kế toán lock). Until _19 ships, every lot is OPEN.
+// Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
+// lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
 import { aliasedTable, and, eq, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
@@ -139,6 +139,18 @@ export async function getShipmentDebitSummary(query: {
     .groupBy(s.trips.shipmentId);
   const tripCountByLot = new Map(tripCountRows.map((row) => [row.shipmentId, row.total]));
 
+  // Debit-lock sync (card _19): the active cost lock drives 🔓/🔒 — a lot
+  // with an active lock reads LOCKED with its lock time.
+  const lockRows = await db.select({
+    shipmentId: s.shipmentCostLocks.shipmentId,
+    lockedAt: s.shipmentCostLocks.lockedAt,
+  }).from(s.shipmentCostLocks)
+    .where(and(
+      inArray(s.shipmentCostLocks.shipmentId, lotIds),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ));
+  const lockedByLot = new Map(lockRows.map((row) => [row.shipmentId, row.lockedAt]));
+
   // Receivable: issued debit-note lines attributed per lot.
   const sourceTrip = aliasedTable(s.trips, 'debit_source_trip');
   const expenseTrip = aliasedTable(s.trips, 'debit_expense_trip');
@@ -206,10 +218,12 @@ export async function getShipmentDebitSummary(query: {
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
       receivableTotal,
       profit: profit == null ? null : String(profit),
-      lockStatus: 'OPEN' as const,
-      lockedAt: null,
+      lockStatus: (lockedByLot.has(lot.id) ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
+      lockedAt: lockedByLot.get(lot.id)?.toISOString() ?? null,
     };
   });
-  const visible = query.lockStatus === 'LOCKED' ? items.filter(() => false) : items;
+  const visible = query.lockStatus === 'ALL'
+    ? items
+    : items.filter((item) => item.lockStatus === query.lockStatus);
   return { items: visible, total: visible.length };
 }

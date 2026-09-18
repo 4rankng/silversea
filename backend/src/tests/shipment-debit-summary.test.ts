@@ -5,6 +5,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
+import { lockShipmentCost } from '../services/shipment-cost-lock.service';
 import { shipmentDebitSummaryQuerySchema } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -131,12 +132,20 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     });
     assert.deepEqual(result.items.map((row) => row.shipmentId), [inside.id]);
   });
-  test('customer is mandatory and the placeholder lock filter applies', async () => {
+  test('customer is mandatory and the lock filter follows the real locks', async () => {
     const customer = await mkCustomer(`Debit E ${suffix}`);
-    await mkLot(customer.id, '2026-09-15');
+    const locked = await mkLot(customer.id, '2026-09-15');
+    await mkLot(customer.id, '2026-09-16');
+    await lockShipmentCost({ shipmentId: locked.id, expectedShipmentVersion: null, lockNote: null, actor: { userId: 0, role: 'ADMIN', username: 'p', email: 'p', fullName: 'p' } as never, idempotencyKey: `lock-filter-${suffix}` });
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const lockedItem = summary.items.find((row) => row.shipmentId === locked.id)!;
+    assert.equal(lockedItem.lockStatus, 'LOCKED', 'the active cost lock drives the status');
+    assert.ok(lockedItem.lockedAt, 'lock time rides along');
+    const openOnly = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'OPEN' });
+    assert.equal(openOnly.items.some((row) => row.shipmentId === locked.id), false);
+    const lockedOnly = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'LOCKED' });
+    assert.deepEqual(lockedOnly.items.map((row) => row.shipmentId), [locked.id]);
     assert.equal(shipmentDebitSummaryQuerySchema.safeParse({}).success, false, 'customerId is required by the query contract');
-    const locked = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'LOCKED' });
-    assert.equal(locked.total, 0, 'no lot is debit-locked until card _19 ships');
   });
 });
 

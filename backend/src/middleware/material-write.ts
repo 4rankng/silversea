@@ -140,6 +140,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK, pattern: /^\/api\/shipments\/[^/]+\/lock$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_ADJUST, pattern: /^\/api\/shipments\/[^/]+\/cost-adjustments$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK, pattern: /^\/api\/shipments\/[^/]+\/debit-note$/ },
+  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_EDITS, pattern: /^\/api\/shipments\/[^/]+\/debit-edits$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CARRIER_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/carrier$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/plate$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_DRIVER_REASSIGN, pattern: /^\/api\/shipments\/dispatch-fleet\/trucks\/[^/]+\/assigned-driver$/ },

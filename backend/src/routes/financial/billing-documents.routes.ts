@@ -83,7 +83,9 @@ router.get('/finance/billing-documents/transport-register', requireRoles(...ROLE
 }));
 
 // GET /api/finance/billing-documents/:id — one document with lines
-router.get('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+// ADV-6: the CUS who works the lot reads the debit note it issued — read
+// only; writes stay ACCOUNTANT/MANAGER/ADMIN.
+router.get('/finance/billing-documents/:id', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   res.json(await billingService.getDocument(parseId(req.params.id, 'ID hóa đơn')));
 }));
 
@@ -220,7 +222,7 @@ router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHan
 // renders from the resolved template snapshot. Issued documents always use
 // their frozen snapshot; ?templateId= is a draft-preview option only.
 // Falls back to the legacy renderer when no template applies.
-router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.get('/finance/billing-documents/:id/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
   const id = parseId(req.params.id, 'ID hóa đơn');
   const overrideRaw = req.query.templateId;
