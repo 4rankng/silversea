@@ -9,7 +9,6 @@ import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   Role,
-  SHIPMENT_CUS_PAGE_SIZES,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
@@ -34,7 +33,7 @@ import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailConten
 import { CusDrawerFooter } from '../features/shipments/cus/CusDrawerFooter';
 import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContainerLedger';
 import { CusShipmentRow } from '../features/shipments/cus/CusShipmentRow';
-import { CUS_PAGE_SIZE, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
+import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
@@ -50,10 +49,7 @@ export default function ShipmentsPage() {
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
-  // Rows per page lives in the URL like every other workboard param, so a
-  // 200-row view is shareable; an unknown value falls back to the default.
-  const limitParam = Number(searchParams.get('limit') || '');
-  const pageSize = (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(limitParam) ? limitParam : CUS_PAGE_SIZE;
+  const pageSize = readCusPageSize(searchParams.get('limit'));
   const suffixParam = searchParams.get('searchSuffix') ?? '';
   const dateFrom = searchParams.get('transportDateFrom') ?? '';
   const dateTo = searchParams.get('transportDateTo') ?? '';

@@ -283,7 +283,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // schedule wiring moves to the shared surfaces.
   // Bumped 680 → 696: 2026-09-18 card 20260917_12 — the Loại lô tri-state
   // filter select joins the workboard toolbar (ad-hoc list filter).
-  'src/pages/ShipmentsPage.tsx': 696,
+  // Bumped 696 → 697: 2026-09-18 office request — the rows-per-page selector
+  // joins the pagination bar. One line (the URL reader call); the selector
+  // options come from the workboard hook module the page already imports.
+  'src/pages/ShipmentsPage.tsx': 697,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)

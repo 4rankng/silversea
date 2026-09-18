@@ -20,7 +20,6 @@ import {
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import {
-  CUS_DETAIL_PAGE_SIZE,
   CUS_SEARCH_PATTERN,
   DISPATCH_STATUS_VALUES,
   readIsoDate,
@@ -28,6 +27,7 @@ import {
   type DispatchStatusFilter,
 } from '../features/shipments/cus/cusDetailModel';
 import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
+import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
 import './ShipmentContainersPage.css';
 
 function ShipmentContainerLedgerSkeleton() {
@@ -49,8 +49,7 @@ export default function ShipmentContainersPage() {
   const page = readPositiveInteger(searchParams.get('page'), 1);
   // Rows per page lives in the URL like every other workboard param, so a
   // 200-row view is shareable; an unknown value falls back to the default.
-  const limitParam = readPositiveInteger(searchParams.get('limit'), CUS_DETAIL_PAGE_SIZE);
-  const pageSize = (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(limitParam) ? limitParam : CUS_DETAIL_PAGE_SIZE;
+  const pageSize = readCusPageSize(searchParams.get('limit'));
   const rawSuffix = searchParams.get('searchSuffix') ?? '';
   const suffixParam = CUS_SEARCH_PATTERN.test(rawSuffix) ? rawSuffix.toUpperCase() : '';
   const parsedDateFrom = readIsoDate(searchParams.get('transportDateFrom'));

@@ -25,12 +25,24 @@ import type {
   ShipmentCusWorkspaceListResponse,
   ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
+import { SHIPMENT_CUS_PAGE_SIZES } from '@tingting/shared';
 import { qk } from '../../../api/keys';
 import {
   getCusShipmentWorkspaceDetail,
   listCusShipmentWorkspace,
 } from '../../../api/shipmentClient';
 import { safeError } from './cusUtils';
+
+/** Rows-per-page vocabulary for the CUS workboards: the offered sizes and the
+ *  URL reader. A hand-edited `limit=37` falls back to the default rather than
+ *  asking the API for an arbitrary page. Re-exported here so the pages import
+ *  the selector options and the reader from the one module they already use. */
+export { SHIPMENT_CUS_PAGE_SIZES } from '@tingting/shared';
+
+export function readCusPageSize(value: string | null): number {
+  const parsed = Number(value);
+  return (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(parsed) ? parsed : CUS_PAGE_SIZE;
+}
 
 export const CUS_PAGE_SIZE = 20;
 const CUS_LIST_POLL_MS = 30_000;
