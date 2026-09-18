@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import { db } from '../db';
@@ -124,10 +124,11 @@ before(async () => {
     const header = req.header('X-Test-User-Id');
     if (header) (req as express.Request & { user?: unknown }).user = {
       userId: Number(header),
+      username: 'test', email: 'test@x', fullName: 'test',
       role: ([
         [adminId, Role.ADMIN], [accountantId, Role.ACCOUNTANT], [cusId, Role.CUS],
         [dispatcherId, Role.DISPATCHER], [driverId, Role.DRIVER],
-      ] as Array<[number, Role]>).find(([id]) => id === Number(header))?.[1],
+      ] as Array<[number, Role]>).find(([id]) => id === Number(header))![1],
     };
     next();
   });
@@ -155,8 +156,8 @@ after(async () => {
       await db.delete(s.customers).where(eq(s.customers.id, customerId));
     }
     if (userIds.length > 0) {
-      await db.delete(s.notifications).where(eq(s.notifications.userId, userIds));
-      await db.delete(s.users).where(eq(s.users.id, userIds));
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, userIds));
+      await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } catch {
     // red-phase: adjustment/lock tables may not exist yet — nothing to clean

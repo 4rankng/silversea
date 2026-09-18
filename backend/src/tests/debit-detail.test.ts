@@ -163,7 +163,7 @@ after(async () => {
     }
     if (userIds.length > 0) {
       await db.delete(s.notifications).where(inArray(s.notifications.userId, userIds));
-      await db.delete(s.users).where(eq(s.users.id, userIds));
+      await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } catch {
     // red-phase tolerance
