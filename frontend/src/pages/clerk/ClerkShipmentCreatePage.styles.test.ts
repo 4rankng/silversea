@@ -259,13 +259,16 @@ describe('copy-icon STT placement rework (20260918_3)', () => {
     expect(block).toMatch(/border-radius:\s*8px/);
   });
 
-  it('ledger copy button anchors to the identity cell right edge with the shared shape', () => {
-    const block = ruleBlock(ledgerCss, '.cus-container-row__copy {');
-    expect(block).toMatch(/right:\s*\d+px/);
-    expect(block).not.toMatch(/left:\s*0/);
+  it('ledger copy button keeps the shared shape, hugging the right edge in card mode', () => {
+    const block = ruleBlock(ledgerCss, '\n.cus-container-row__copy {');
     expect(block).toMatch(/width:\s*26px/);
     expect(block).toMatch(/height:\s*26px/);
     expect(block).toMatch(/border-radius:\s*8px/);
+    // Card mode pins the ordinal top-right; the copy affordance follows it
+    // there so it can never sit on the container code.
+    const cardBlock = ruleBlock(ledgerCss, '.cus-container-table .cus-container-row__copy {');
+    expect(cardBlock).toMatch(/right:\s*12px/);
+    expect(cardBlock).toMatch(/left:\s*auto/);
   });
 
   it('create container rows carry the compact in-row control height (30px)', () => {
