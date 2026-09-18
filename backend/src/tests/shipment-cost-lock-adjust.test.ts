@@ -12,7 +12,6 @@ import { disconnectRedis } from '../lib/redis';
 import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import { activateShipmentAccountingLock } from '../services/shipment-accounting-lock.service';
 import shipmentRoutes from '../routes/shipments';
 
 // Card 20260918_19 RED-FIRST suite (spec: docs/card-19-lock-and-adjust-design.md).
@@ -250,7 +249,9 @@ describe('20260918_19 cost adjustments (red-first)', () => {
   test('adjust applies under the accounting lock only when it is absent — accounting lock wins', async () => {
     const shipment = await mkShipment();
     await api('POST', `/api/shipments/${shipment.id}/lock`, accountantId, {});
-    await activateShipmentAccountingLock({
+    // Direct fixture row: the accounting-lock service signature is richer
+    // than this pin needs, and the guard only reads committed rows.
+    await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: shipment.id,
       billingDocumentId: 0,
       billingDocumentVersion: 1,
