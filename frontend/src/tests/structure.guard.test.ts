@@ -277,7 +277,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
   // Bumped 634 → 680: 2026-09-16 unified-datetime patch batch — quick-edit
   // schedule wiring moves to the shared surfaces.
-  'src/pages/ShipmentsPage.tsx': 680,
+  // Bumped 680 → 696: 2026-09-18 card 20260917_12 — the Loại lô tri-state
+  // filter select joins the workboard toolbar (ad-hoc list filter).
+  'src/pages/ShipmentsPage.tsx': 696,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
