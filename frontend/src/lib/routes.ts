@@ -58,6 +58,7 @@ export const routes = {
   // Wave 0: shipment (lô hàng) — minimal read-only list + detail.
   shipments: PAGE_CATALOG.shipments.path,
   shipmentContainers: PAGE_CATALOG.shipmentContainers.path,
+  shipmentDebit: PAGE_CATALOG.shipmentDebit.path,
   shipmentNew: '/shipments/new',
   shipmentDetail: (id: number | string) => PAGE_CATALOG.shipmentDetail.path({ id }),
   expenses: PAGE_CATALOG.expenses.path,
@@ -233,6 +234,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.expenses), title: PAGE_CATALOG.expenses.title },
   { test: p => p.startsWith(routes.suppliers), title: PAGE_CATALOG.suppliers.title },
   { test: p => p === routes.shipmentContainers, title: PAGE_CATALOG.shipmentContainers.title },
+  { test: p => p === routes.shipmentDebit, title: PAGE_CATALOG.shipmentDebit.title },
   { test: p => p === routes.shipmentNew, title: 'Tạo lô hàng' },
   { test: p => /^\/shipments\/\d+/.test(p), title: PAGE_CATALOG.shipmentDetail.title },
   { test: p => p.startsWith(routes.shipments), title: PAGE_CATALOG.shipments.title },

@@ -738,6 +738,47 @@ export async function listOperationalSites(customerId: number): Promise<Operatio
   return response.items;
 }
 
+/** One collapsed lot row on the CUS settlement screen (Chi phí - Quyết toán). */
+export interface ShipmentDebitLotRow {
+  shipmentId: number;
+  code: string;
+  customerName: string;
+  factoryName: string | null;
+  factoryAddress: string | null;
+  billOrBookNumber: string;
+  customsNumber: string | null;
+  /** Lot-level proof summary, e.g. "5/6" — null when nothing is recorded yet. */
+  documentsSummary: string | null;
+  /** Auto freight for the whole lot. null = not computable yet, never 0-by-default. */
+  freightAuto: number | null;
+  /** chi hộ total: CVC + Ops-paid items. null = chưa xác định. */
+  chiHoTotal: number | null;
+  /** phải thu khách − phải trả. null = chưa xác định. */
+  receivableTotal: number | null;
+  profit: number | null;
+  lockStatus: 'OPEN' | 'LOCKED';
+  lockedAt: string | null;
+}
+
+export interface ShipmentDebitSummary {
+  items: ShipmentDebitLotRow[];
+  total: number;
+}
+
+/** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate. */
+export async function listShipmentDebitSummary(params: {
+  customerId: number;
+  deliveryDateFrom?: string | null;
+  deliveryDateTo?: string | null;
+  lockStatus?: 'ALL' | 'OPEN' | 'LOCKED';
+}): Promise<ShipmentDebitSummary> {
+  const query = new URLSearchParams({ customerId: String(params.customerId) });
+  if (params.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
+  if (params.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
+  if (params.lockStatus && params.lockStatus !== 'ALL') query.set('lockStatus', params.lockStatus);
+  return api.get<ShipmentDebitSummary>(`/shipments/debit-summary?${query.toString()}`);
+}
+
 /** Body for `POST /api/shipments/operational-sites`. Optional fields may be null. */
 export interface CreateOperationalSiteBody {
   customerId: number;

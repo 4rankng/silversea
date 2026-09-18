@@ -131,6 +131,6 @@ describe('role-aware search destinations', () => {
 
   it('gives CUS clerks the shipment workspaces', () => {
     const items = getSearchItems('CUS');
-    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail']);
+    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail', '/shipments-debit']);
   });
 });

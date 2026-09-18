@@ -110,6 +110,7 @@ const DISPATCHER_ITEMS: SearchItem[] = [
 const CUS_ITEMS: SearchItem[] = [
   { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',        iconName: 'cargo' },
   { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments-detail', iconName: 'cargo' },
+  { id: 'shipment-debit',     type: 'page', label: 'Chi phí - Quyết toán', path: '/shipments-debit',   iconName: 'cargo' },
 ];
 
 const FORWARDER_ITEMS: SearchItem[] = [

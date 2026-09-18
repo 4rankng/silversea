@@ -37,7 +37,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
+    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái điều xe"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
     expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*1\s*\/\s*-1;[^}]*align-items:\s*end;/);

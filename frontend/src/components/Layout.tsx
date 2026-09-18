@@ -260,6 +260,7 @@ export function getNavItems(
         // Nghiệp vụ Chứng từ (Document Operations)
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
         { key: 'shipment-containers', label: 'Chi tiết lô hàng', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
+        { key: 'shipment-debit', label: 'Chi phí - Quyết toán', path: routes.shipmentDebit, icon: Calculator, section: 'document-ops' as SectionName },
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [

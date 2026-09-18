@@ -188,6 +188,14 @@ export const PAGE_CATALOG = {
     path: '/shipments-detail',
     section: 'operations',
   },
+  shipmentDebit: {
+    // CUS settlement screen: revenue/cost rollup per lot (freight, chi hộ,
+    // receivable, profit) with the lock workflow and the Debit Note export.
+    // Read-only summary lives here; per-lot editing is the container ledger.
+    title: 'Chi phí - Quyết toán',
+    path: '/shipments-debit',
+    section: 'operations',
+  },
   suppliers: {
     title: 'Nhà cung cấp',
     path: '/suppliers',

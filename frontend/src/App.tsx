@@ -47,6 +47,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const ShipmentContainersPage = lazy(() => import('./pages/ShipmentContainersPage'));
+const ShipmentDebitPage = lazy(() => import('./pages/ShipmentDebitPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
@@ -300,6 +301,7 @@ export function AppRoutes() {
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
+          <Route path="/shipments-debit" element={shipmentReaderOnly(page(<ShipmentDebitPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
