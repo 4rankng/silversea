@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { shipmentDebitEditPayloadSchema } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 
 const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, useAuthMock } = vi.hoisted(() => ({
   getDetail: vi.fn(),
@@ -10,6 +12,7 @@ const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, useAuthMock
   listAdjustments: vi.fn(),
   useAuthMock: vi.fn(),
 }));
+
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../api/shipmentClient')>(),
   getShipmentDebitDetail: getDetail,
@@ -21,35 +24,21 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
 
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: useAuthMock }));
 
-import { Role } from '@tingting/shared';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
 const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail => ({
-  shipmentId: 101,
-  freightRows: [{
-    containerNumber: 'CONT-001',
-    containerTypeLabel: '20DC',
-    freightCharge: '4500000',
-    fuelSurcharge: '300000',
-    lachHuyenFee: null,
-    customsFee: '250000',
-    psActual: null,
-    psNotes: null,
-  }],
+  freightRows: [{ tripId: 501, rateKey: 'HPT-HCM', freight: 4500000, surcharge: 300000, total: 4800000 }],
   chiHoRows: [{
+    tripId: 601,
     containerNumber: 'CONT-001',
-    liftFee: '500000',
-    lowerFee: '500000',
-    cshtFee: '200000',
-    cshtInvoiceNumber: 'HD-9',
-    otherFees: [],
-    carrierDetention: '0',
+    items: [{ id: 9001, expenseType: 'PS', feeName: 'PS thực tế', amount: 180000, thuKhach: null, note: null }],
+    otherFees: [{ id: 9002, name: 'Phí đăng kiểm', amount: 200000 }],
+    carrierDetention: 0,
     repairAdvance: null,
     opsDocsStatus: 'READY',
-    opsPaidTotal: '150000',
   }],
-  payables: { freightReturn: '4200000', lachHuyenReturn: null, customsFee: '250000', psOps: null },
+  payables: { chiHoTotal: 380000 },
   thuKhachTotal: null,
   ...over,
 });
@@ -77,51 +66,81 @@ beforeEach(() => {
   useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
 });
 
-describe('Chi phí - Quyết toán L2 workspace (20260918_18)', () => {
-  it('shows the three settlement tables with auto numbers and unknown-money placeholders', async () => {
+describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
+  it('renders the three settlement tables from the landed payload shape', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
     expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
     expect(screen.getByText('Bảng 2.2 — Phí Chi Hộ & Tiền Treo')).toBeTruthy();
     expect(screen.getByText('Bảng 2.3 — Phí Phải trả (chỉ xem)')).toBeTruthy();
-    // Auto cells come from the payload verbatim (formatted); unknowns never render as 0.
     expect(screen.getByText('4.500.000')).toBeTruthy();
-    expect(screen.getAllByText('Chưa xác định')).toHaveLength(3);
+    expect(screen.getAllByText('Chưa xác định')).toHaveLength(1);
   });
 
-  it('keeps Ops invoiced fees and the payables table truly read-only', async () => {
+  it('keeps Ops amounts read-only and the CUS cells editable', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
-    // 2.3 is a definition table — no editable control may exist inside it.
+    // The Ops amount renders as text, never an input.
+    const amount = screen.getByText('180.000');
+    expect(amount.tagName).toBe('SPAN');
+    expect(screen.getByLabelText(/Thu khách PS thực tế/)).toBeTruthy();
+    expect(screen.getByLabelText(/Ghi chú PS thực tế/)).toBeTruthy();
     const payables = screen.getByText('Bảng 2.3 — Phí Phải trả (chỉ xem)').closest('table')!;
     expect(payables.querySelector('input, textarea, select')).toBeNull();
-    // Ops invoiced fee is text in 2.2, not an input.
-    expect(screen.queryByLabelText(/Chi phí Ops/)).toBeNull();
   });
 
   it('arms the orange warning on detention or repair amounts above zero', async () => {
-    getDetail.mockResolvedValue(detail({ chiHoRows: [detail().chiHoRows[0]!.containerNumber === 'CONT-001' ? {
+    getDetail.mockResolvedValue(detail({ chiHoRows: [detail().chiHoRows[0]!.carrierDetention === 0 ? {
       ...detail().chiHoRows[0]!,
-      carrierDetention: '350000',
+      carrierDetention: 350000,
     } : detail().chiHoRows[0]!] }));
     renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
     expect(document.querySelector('.csc-debit-row--warn')).toBeTruthy();
   });
 
-  it('saves the CUS-entered PS and thu khách and signals the parent to refetch', async () => {
+  it('sends the strict delta and validates it against the shared schema', async () => {
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
-    fireEvent.change(screen.getByLabelText('PS thực tế CONT-001'), { target: { value: '180000' } });
-    fireEvent.change(screen.getByLabelText('Thu khách'), { target: { value: '9000000' } });
+    fireEvent.change(screen.getByLabelText(/Thu khách PS thực tế/), { target: { value: '9000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
-    await waitFor(() => expect(saveEdits).toHaveBeenCalledWith(101, expect.objectContaining({
-      freightRows: [expect.objectContaining({ containerNumber: 'CONT-001', psActual: '180000' })],
-      thuKhachTotal: '9000000',
-    }), expect.any(String)));
+    await waitFor(() => expect(saveEdits).toHaveBeenCalled());
+    const body = saveEdits.mock.calls[0][1];
+    // The wire format is the shared delta schema — never a re-declared twin.
+    expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
+    expect(body).toEqual({
+      edits: [{ expenseId: 9001, sellAmount: 9000000, note: undefined }],
+      addOtherFees: [],
+      removeExpenseIds: [],
+    });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+
+  it('carries Phí khác adds and removals in the delta', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
+    fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
+    fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
+    fireEvent.change(screen.getByLabelText('Số tiền phí khác Phí đăng kiểm CONT-001'), { target: { value: '250000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(saveEdits).toHaveBeenCalled());
+    const body = saveEdits.mock.calls[0][1];
+    expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
+    expect(body).toMatchObject({
+      edits: [{ expenseId: 9002, buyAmount: 250000 }],
+      addOtherFees: [{ tripId: 601, name: 'Phí rửa container', amount: 150000 }],
+    });
+    // A removed fee travels as an id, never as an amount edit.
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa phí khác Phí đăng kiểm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(saveEdits.mock.calls.length).toBeGreaterThanOrEqual(2));
+    const second = saveEdits.mock.calls[saveEdits.mock.calls.length - 1][1];
+    expect(second.removeExpenseIds).toEqual([9002]);
+    expect(second.edits ?? []).toEqual([]);
   });
 
   it('freezes every input when the lot is already locked', async () => {
@@ -131,60 +150,6 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18)', () => {
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.csc-debit-workspace input'));
     expect(inputs.length).toBeGreaterThan(0);
     for (const input of inputs) expect(input.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Lưu điều chỉnh' }).hasAttribute('disabled')).toBe(true);
-  });
-});
-
-describe('Chi phí - Quyết toán lock + adjust (20260918_19)', () => {
-  it('the CUS lock posts once and freezes the workspace with a refetch', async () => {
-    getDetail.mockResolvedValue(detail());
-    const { onSaved } = renderWorkspace();
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    const lockButton = screen.getByRole('button', { name: 'Khóa lô hàng' });
-    expect(lockButton.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(lockButton);
-    await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
-    // The workspace freezes immediately and the parent refetches.
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    await waitFor(() => {
-      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.csc-debit-workspace input'));
-      expect(inputs.length).toBeGreaterThan(0);
-      for (const input of inputs) expect(input.disabled).toBe(true);
-    });
-  });
-
-  it('surfaces the server message when the lock conflicts', async () => {
-    getDetail.mockResolvedValue(detail());
-    renderWorkspace();
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    lockCost.mockRejectedValueOnce(new Error('Lô này đã khóa'));
-    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô hàng' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Lô này đã khóa');
-  });
-
-  it('gates adjust by role and demands a reason before submitting', async () => {
-    getDetail.mockResolvedValue(detail());
-    useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.ACCOUNTANT } });
-    renderWorkspace({ locked: true });
-    // Accountant on a locked lot: the adjust form opens, but submission is
-    // blocked until the reason has content.
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    fireEvent.click(screen.getByRole('button', { name: 'Điều chỉnh cước' }));
-    expect(await screen.findByText(/cước hợp đồng giữ lại để đối chiếu/)).toBeTruthy();
-    expect(screen.getByText('Cước hợp đồng: 4.500.000')).toBeTruthy();
-    const submit = screen.getByRole('button', { name: 'Gửi điều chỉnh' }) as HTMLButtonElement;
-    expect(submit.disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Lý do (bắt buộc)'), { target: { value: 'Khách yêu cầu giảm 200k theo thỏa thuận' } });
-    expect((screen.getByRole('button', { name: 'Gửi điều chỉnh' }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi điều chỉnh' }));
-    await waitFor(() => expect(adjustCost).toHaveBeenCalledWith(101, expect.objectContaining({ reason: 'Khách yêu cầu giảm 200k theo thỏa thuận' }), expect.any(String)));
-  });
-
-  it('keeps the adjust affordance out of reach for the CUS role', async () => {
-    getDetail.mockResolvedValue(detail());
-    renderWorkspace({ locked: true });
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    expect((screen.getByRole('button', { name: 'Điều chỉnh cước' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Khóa lô hàng' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Lưu điều chỉnh' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

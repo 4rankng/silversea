@@ -23,6 +23,7 @@ import {
   type ShipmentCusContainerSortKey,
   type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
+  type ShipmentDebitEditPayload,
 } from '@tingting/shared';
 import { api } from '../lib/api';
 
@@ -780,69 +781,57 @@ export async function listShipmentDebitSummary(params: {
 }
 
 // ── Chi phí - Quyết toán L2: per-lot detail workspace ──────────────────────
-// Money fields mirror the backend contract: nullable STRINGS (null = chưa
-// xác định, never a fabricated 0).
+// Mirrors backend shipment-debit-detail.service.ts. Rows are trip-keyed;
+// money is numeric with null = chưa xác định. The editable delta rides
+// `shipmentDebitEditPayloadSchema` from @tingting/shared — one contract.
 
-export interface ShipmentDebitFreightRow {
-  containerNumber: string;
-  containerTypeLabel: string | null;
-  freightCharge: string | null;
-  fuelSurcharge: string | null;
-  lachHuyenFee: string | null;
-  customsFee: string | null;
-  psActual: string | null;
-  psNotes: string | null;
+export interface DebitDetailFreightRow {
+  tripId: number | null;
+  rateKey: string | null;
+  freight: number | null;
+  surcharge: number | null;
+  total: number | null;
 }
 
-export interface ShipmentDebitOtherFee {
-  name: string;
-  amount: string | null;
+export interface DebitDetailExpenseItem {
+  id: number;
+  expenseType: string;
+  feeName: string | null;
+  amount: number | null;
+  thuKhach: number | null;
+  note: string | null;
 }
 
-export interface ShipmentDebitChiHoRow {
-  containerNumber: string;
-  liftFee: string | null;
-  lowerFee: string | null;
-  cshtFee: string | null;
-  cshtInvoiceNumber: string | null;
-  otherFees: ShipmentDebitOtherFee[];
-  carrierDetention: string | null;
-  repairAdvance: string | null;
+export interface DebitDetailChiHoRow {
+  tripId: number;
+  containerNumber: string | null;
+  items: DebitDetailExpenseItem[];
+  otherFees: Array<{ id: number; name: string; amount: number | null }>;
+  carrierDetention: number | null;
+  repairAdvance: number | null;
   opsDocsStatus: 'READY' | 'PENDING';
-  opsPaidTotal: string | null;
-}
-
-export interface ShipmentDebitPayables {
-  freightReturn: string | null;
-  lachHuyenReturn: string | null;
-  customsFee: string | null;
-  psOps: string | null;
 }
 
 export interface ShipmentDebitDetail {
-  shipmentId: number;
-  freightRows: ShipmentDebitFreightRow[];
-  chiHoRows: ShipmentDebitChiHoRow[];
-  payables: ShipmentDebitPayables;
-  thuKhachTotal: string | null;
+  freightRows: DebitDetailFreightRow[];
+  chiHoRows: DebitDetailChiHoRow[];
+  payables: { chiHoTotal: number | null };
+  thuKhachTotal: number | null;
 }
 
 export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
   return api.get<ShipmentDebitDetail>(`/shipments/${encodeURIComponent(shipmentId)}/debit-detail`);
 }
 
-export interface ShipmentDebitEditsBody {
-  freightRows: Array<{ containerNumber: string; psActual: string | null; psNotes: string | null }>;
-  chiHoRows: Array<{ containerNumber: string; otherFees: ShipmentDebitOtherFee[] }>;
-  thuKhachTotal: string | null;
-}
+/** The strict delta: edits on existing expense lines, Phí khác adds/removals. */
+export type ShipmentDebitEditsBody = ShipmentDebitEditPayload;
 
+/** Idempotent per PRD O2C §8 — repeated saves must never duplicate entries. */
 export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentDebitEditsBody, idempotencyKey: string): Promise<void> {
   await api.put(`/shipments/${encodeURIComponent(shipmentId)}/debit-edits`, body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
-
 
 // ── Card _19: lot lock + adjust-cước (snapshot contract) ───────────────────
 

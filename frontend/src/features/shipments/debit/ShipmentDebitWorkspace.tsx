@@ -1,126 +1,96 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Paperclip } from 'lucide-react';
-import { adjustShipmentCost, getShipmentDebitDetail, listShipmentCostAdjustments, lockShipmentCost, saveShipmentDebitEdits } from '../../../api/shipmentClient';
-import type { ShipmentDebitChiHoRow, ShipmentDebitDetail, ShipmentDebitFreightRow } from '../../../api/shipmentClient';
+import {
+  adjustShipmentCost,
+  getShipmentDebitDetail,
+  listShipmentCostAdjustments,
+  lockShipmentCost,
+  saveShipmentDebitEdits,
+  type DebitDetailChiHoRow,
+  type DebitDetailExpenseItem,
+  type ShipmentDebitDetail,
+  type ShipmentDebitEditsBody,
+} from '../../../api/shipmentClient';
 import { formatMoney } from '../../../lib/format';
 import { useAuth } from '../../../hooks/useAuth';
 import { Role } from '@tingting/shared';
 import './ShipmentDebitWorkspace.css';
 
-const money = (value: string | null | undefined) => (value == null || value === '' ? 'Chưa xác định' : formatMoney(value));
+const money = (value: number | null | undefined) => (value == null || Number.isNaN(value) ? 'Chưa xác định' : formatMoney(value));
 
-const num = (value: string | null | undefined): number => {
-  const parsed = Number(value);
+const num = (value: string): number => {
+  const parsed = Number(value.replace(/[^0-9.-]/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/** CUS draft: per-expense sell/note edits, other-fee amount edits, and the
+ * Phí khác add/remove lists. Pure delta — untouched cells never travel. */
 interface DraftState {
-  freight: Record<string, { psActual: string; psNotes: string }>;
-  chiHo: Record<string, { otherFees: Array<{ name: string; amount: string }> }>;
-  thuKhach: string;
+  items: Record<number, { thuKhach: string; note: string }>;
+  feeAmounts: Record<number, string>;
+  addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
+  removedFeeIds: number[];
 }
 
+const DRAFT_EMPTY: DraftState = { items: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
+
 const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
-  freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual ?? '', psNotes: row.psNotes ?? '' }])),
-  chiHo: Object.fromEntries(detail.chiHoRows.map((row) => [row.containerNumber, { otherFees: row.otherFees.map((fee) => ({ name: fee.name, amount: fee.amount ?? '' })) }])),
-  thuKhach: detail.thuKhachTotal ?? '',
+  items: {},
+  feeAmounts: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.amount == null ? '' : String(fee.amount)]))),
+  addedFees: [],
+  removedFeeIds: [],
 });
 
-const DRAFT_EMPTY: DraftState = { freight: {}, chiHo: {}, thuKhach: '' };
+const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): ShipmentDebitEditsBody => {
+  const edits: NonNullable<ShipmentDebitEditsBody['edits']> = [];
+  for (const row of detail.chiHoRows) {
+    for (const item of row.items) {
+      const cell = draft.items[item.id];
+      if (!cell) continue;
+      const sell = cell.thuKhach.trim() === '' ? null : num(cell.thuKhach);
+      const note = cell.note;
+      const changed = sell !== (item.thuKhach ?? null) || note !== (item.note ?? '');
+      if (changed) {
+        const edit: NonNullable<ShipmentDebitEditsBody['edits']>[number] = { expenseId: item.id, sellAmount: sell };
+        if (note !== (item.note ?? '')) edit.note = note;
+        edits.push(edit);
+      }
+    }
+  }
+  for (const row of detail.chiHoRows) {
+    for (const fee of row.otherFees) {
+      const raw = draft.feeAmounts[fee.id];
+      if (raw == null) continue;
+      const amount = num(raw);
+      if (amount !== (fee.amount ?? 0)) edits.push({ expenseId: fee.id, buyAmount: amount });
+    }
+  }
+  return {
+    edits,
+    addOtherFees: draft.addedFees.filter((fee) => fee.name.trim() !== '').map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount) })),
+    removeExpenseIds: draft.removedFeeIds,
+  };
+};
 
-/** Bảng 2.1 — auto freight per container + the CUS-entered actual PS. */
-function FreightTable({ detail, draft, frozen, setFreight }: {
-  detail: ShipmentDebitDetail;
-  draft: DraftState;
-  frozen: boolean;
-  setFreight: (containerNumber: string, patch: Partial<{ psActual: string; psNotes: string }>) => void;
-}) {
-  const columns = ['Số Container', 'Cước thu', 'Phụ phí xăng dầu', 'Lạch Huyện', 'Phí Hải Quan', 'PS thực tế', 'Tổng', 'Ghi chú'];
+/** Bảng 2.1 — auto freight per trip (read-only engine output). */
+function FreightTable({ detail }: { detail: ShipmentDebitDetail }) {
   return (
     <table className="csc-debit-table csc-debit-table--freight">
       <caption>Bảng 2.1 — Cước vận tải</caption>
-      <thead><tr>{columns.map((c) => <th scope="col" key={c}>{c}</th>)}</tr></thead>
-      <tbody>
-        {detail.freightRows.map((row) => {
-          const cells = draft.freight[row.containerNumber] ?? { psActual: '', psNotes: '' };
-          const total = num(row.freightCharge) + num(row.fuelSurcharge) + num(row.lachHuyenFee) + num(row.customsFee) + num(cells.psActual || null);
-          return (
-            <tr key={row.containerNumber}>
-              <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small></td>
-              <td>{money(row.freightCharge)}</td>
-              <td>{money(row.fuelSurcharge)}</td>
-              <td>{money(row.lachHuyenFee)}</td>
-              <td>{money(row.customsFee)}</td>
-              <td>
-                <input
-                  className="csc-debit-input"
-                  aria-label={`PS thực tế ${row.containerNumber}`}
-                  value={cells.psActual}
-                  disabled={frozen}
-                  onChange={(event) => setFreight(row.containerNumber, { psActual: event.target.value })}
-                />
-              </td>
-              <td>{money(total == 0 ? null : String(total))}</td>
-              <td>
-                <input
-                  className="csc-debit-input"
-                  aria-label={`Ghi chú PS ${row.containerNumber}`}
-                  value={cells.psNotes}
-                  disabled={frozen}
-                  onChange={(event) => setFreight(row.containerNumber, { psNotes: event.target.value })}
-                />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
-/** Bảng 2.2 — chi hộ & tiền treo per container. Ops rows read-only for CUS. */
-function ChiHoTable({ detail, draft, frozen, setOtherFees, addOtherFee }: {
-  detail: ShipmentDebitDetail;
-  draft: DraftState;
-  frozen: boolean;
-  setOtherFees: (containerNumber: string, fees: Array<{ name: string; amount: string }>) => void;
-  addOtherFee: (containerNumber: string) => void;
-}) {
-  const armed = (row: ShipmentDebitChiHoRow) => num(row.carrierDetention) > 0 || num(row.repairAdvance) > 0;
-  return (
-    <table className="csc-debit-table csc-debit-table--chiho">
-      <caption>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</caption>
       <thead><tr>
-        <th scope="col">Số Container</th><th scope="col">Phí Nâng</th><th scope="col">Phí Hạ</th>
-        <th scope="col">Phí CSHT</th><th scope="col">Chi phí Ops có hóa đơn</th>
-        <th scope="col">Phí khác (CUS nhập)</th><th scope="col">Cược hãng tàu</th>
-        <th scope="col">Tạm thu sửa chữa</th><th scope="col">Chứng từ Ops</th>
+        <th scope="col">Chuyến</th>
+        <th scope="col">Cước thu</th>
+        <th scope="col">Phụ phí xăng dầu</th>
+        <th scope="col">Tổng</th>
       </tr></thead>
       <tbody>
-        {detail.chiHoRows.map((row) => (
-          <tr key={row.containerNumber} className={armed(row) ? 'csc-debit-row--warn' : undefined}>
-            <td>{row.containerNumber}</td>
-            <td>{money(row.liftFee)}</td>
-            <td>{money(row.lowerFee)}</td>
-            <td>{row.cshtFee == null ? 'Chưa xác định' : `${formatMoney(row.cshtFee)}${row.cshtInvoiceNumber ? ` (HD ${row.cshtInvoiceNumber})` : ''}`}</td>
-            <td>{money(row.opsPaidTotal)}</td>
-            <td>
-              {(draft.chiHo[row.containerNumber]?.otherFees ?? []).map((fee, index) => (
-                <div className="csc-debit-otherfee" key={index}>
-                  <input className="csc-debit-input" placeholder="Tên phí" aria-label={`Tên phí khác ${row.containerNumber} ${index + 1}`} value={fee.name} disabled={frozen}
-                    onChange={(event) => { const fees = [...(draft.chiHo[row.containerNumber]?.otherFees ?? [])]; fees[index] = { ...fees[index], name: event.target.value }; setOtherFees(row.containerNumber, fees); }} />
-                  <input className="csc-debit-input" placeholder="Số tiền" aria-label={`Số tiền phí khác ${row.containerNumber} ${index + 1}`} value={fee.amount} disabled={frozen}
-                    onChange={(event) => { const fees = [...(draft.chiHo[row.containerNumber]?.otherFees ?? [])]; fees[index] = { ...fees[index], amount: event.target.value }; setOtherFees(row.containerNumber, fees); }} />
-                  <button type="button" aria-label={`Xóa phí khác ${row.containerNumber} ${index + 1}`} disabled={frozen}
-                    onClick={() => setOtherFees(row.containerNumber, (draft.chiHo[row.containerNumber]?.otherFees ?? []).filter((_, i) => i !== index))}>×</button>
-                </div>
-              ))}
-              {!frozen && <button type="button" className="csc-debit-addfee" onClick={() => addOtherFee(row.containerNumber)}>+ Thêm chi phí</button>}
-            </td>
-            <td className="csc-debit-warn-cell">{num(row.carrierDetention) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.carrierDetention)}</td>
-            <td className="csc-debit-warn-cell">{num(row.repairAdvance) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.repairAdvance)}</td>
-            <td><span className="csc-debit-docs"><Paperclip aria-hidden="true" size={13} />{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
+        {detail.freightRows.map((row, index) => (
+          <tr key={row.tripId ?? `rate-${index}`}>
+            <td>{row.rateKey ?? `Chuyến #${row.tripId ?? index + 1}`}</td>
+            <td>{money(row.freight)}</td>
+            <td>{money(row.surcharge)}</td>
+            <td>{money(row.total)}</td>
           </tr>
         ))}
       </tbody>
@@ -128,19 +98,93 @@ function ChiHoTable({ detail, draft, frozen, setOtherFees, addOtherFee }: {
   );
 }
 
-/** Bảng 2.3 — lot-level payables. CUS reads; only Ops/dispatch writes these. */
-function PayablesTable({ payables }: { payables: ShipmentDebitDetail['payables'] }) {
-  const rows: Array<[string, string | null]> = [
-    ['Cước trả + Lạch Huyện', payables.freightReturn],
-    ['Phí HQGS', payables.customsFee],
-    ['Phí phát sinh (Ops)', payables.psOps],
-  ];
+/** Bảng 2.2 — chi hộ & tiền treo. Core expense rows read Ops amounts
+ * read-only; thu khách and note are the CUS cells. OTHER lines are the
+ * hand-managed Phí khác. */
+function ChiHoTable({ detail, draft, frozen, setItem, setFeeAmount, addFee, removeFee, setAddedFee }: {
+  detail: ShipmentDebitDetail;
+  draft: DraftState;
+  frozen: boolean;
+  setItem: (expenseId: number, patch: Partial<{ thuKhach: string; note: string }>) => void;
+  setFeeAmount: (feeId: number, value: string) => void;
+  addFee: (tripId: number) => void;
+  removeFee: (feeId: number) => void;
+  setAddedFee: (key: string, patch: Partial<{ name: string; amount: string }>) => void;
+}) {
+  const armed = (row: DebitDetailChiHoRow) => (row.carrierDetention ?? 0) > 0 || (row.repairAdvance ?? 0) > 0;
   return (
-    <table className="csc-debit-table csc-debit-table--payables">
-      <caption>Bảng 2.3 — Phí Phải trả (chỉ xem)</caption>
+    <table className="csc-debit-table csc-debit-table--chiho">
+      <caption>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</caption>
+      <thead><tr>
+        <th scope="col">Container</th>
+        <th scope="col">Khoản chi (Ops)</th>
+        <th scope="col">Số tiền</th>
+        <th scope="col">Thu khách</th>
+        <th scope="col">Ghi chú</th>
+        <th scope="col">Phí khác (CUS)</th>
+        <th scope="col">Cược hãng tàu</th>
+        <th scope="col">Tạm thu sửa chữa</th>
+        <th scope="col">Chứng từ Ops</th>
+      </tr></thead>
       <tbody>
-        {rows.map(([label, value]) => (
-          <tr key={label}><th scope="row">{label}</th><td>{money(value)}</td></tr>
+        {detail.chiHoRows.map((row) => (
+          <tr key={row.tripId} className={armed(row) ? 'csc-debit-row--warn' : undefined}>
+            <td>{row.containerNumber ?? '—'}</td>
+            <td colSpan={4}>
+              <div className="csc-debit-itemlist">
+                {row.items.map((item) => (
+                  <div className="csc-debit-item" key={item.id}>
+                    <span className="csc-debit-item__name">{item.feeName ?? item.expenseType}</span>
+                    <span className="csc-debit-item__amount">{money(item.amount)}</span>
+                    <input
+                      className="csc-debit-input csc-debit-input--sell"
+                      aria-label={`Thu khách ${item.feeName ?? item.expenseType} ${row.containerNumber ?? row.tripId}`}
+                      placeholder="Thu khách"
+                      value={draft.items[item.id]?.thuKhach ?? (item.thuKhach == null ? '' : String(item.thuKhach))}
+                      disabled={frozen}
+                      onChange={(event) => setItem(item.id, { thuKhach: event.target.value })}
+                    />
+                    <input
+                      className="csc-debit-input csc-debit-input--note"
+                      aria-label={`Ghi chú ${item.feeName ?? item.expenseType} ${row.containerNumber ?? row.tripId}`}
+                      placeholder="Ghi chú"
+                      value={draft.items[item.id]?.note ?? item.note ?? ''}
+                      disabled={frozen}
+                      onChange={(event) => setItem(item.id, { note: event.target.value })}
+                    />
+                  </div>
+                ))}
+                {row.items.length === 0 && <span>Chưa xác định</span>}
+              </div>
+            </td>
+            <td>
+              {row.otherFees.map((fee) => (
+                <div className="csc-debit-otherfee" key={fee.id}>
+                  <span className="csc-debit-item__name">{fee.name}</span>
+                  <input
+                    className="csc-debit-input"
+                    aria-label={`Số tiền phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
+                    value={draft.feeAmounts[fee.id] ?? ''}
+                    disabled={frozen}
+                    onChange={(event) => setFeeAmount(fee.id, event.target.value)}
+                  />
+                  <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
+                </div>
+              ))}
+              {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (
+                <div className="csc-debit-otherfee" key={fee.key}>
+                  <input className="csc-debit-input" placeholder="Tên phí" aria-label={`Tên phí mới ${row.containerNumber ?? row.tripId}`} value={fee.name} disabled={frozen}
+                    onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
+                  <input className="csc-debit-input" placeholder="Số tiền" aria-label={`Số tiền phí mới ${row.containerNumber ?? row.tripId}`} value={fee.amount} disabled={frozen}
+                    onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
+                </div>
+              ))}
+              {!frozen && <button type="button" className="csc-debit-addfee" onClick={() => addFee(row.tripId)}>+ Thêm chi phí</button>}
+            </td>
+            <td className="csc-debit-warn-cell">{(row.carrierDetention ?? 0) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.carrierDetention)}</td>
+            <td className="csc-debit-warn-cell">{(row.repairAdvance ?? 0) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.repairAdvance)}</td>
+            <td><span className="csc-debit-docs"><Paperclip aria-hidden="true" size={13} />{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
+          </tr>
         ))}
       </tbody>
     </table>
@@ -163,10 +207,10 @@ function AdjustPanel({ detail, reason, setReason, pending, error, history, onSub
       <p className="csc-debit-adjust__title">Điều chỉnh cước sau khóa — cước hợp đồng giữ lại để đối chiếu</p>
       <table className="csc-debit-table">
         <tbody>
-          {detail.freightRows.map((row) => (
-            <tr key={row.containerNumber}>
-              <th scope="row">{row.containerNumber}</th>
-              <td>Cước hợp đồng: {row.freightCharge == null ? 'Chưa xác định' : formatMoney(row.freightCharge)}</td>
+          {detail.freightRows.map((row, index) => (
+            <tr key={row.tripId ?? index}>
+              <th scope="row">{row.rateKey ?? `Chuyến #${row.tripId ?? index + 1}`}</th>
+              <td>Cước hợp đồng: {row.freight == null ? 'Chưa xác định' : formatMoney(row.freight)}</td>
             </tr>
           ))}
         </tbody>
@@ -193,6 +237,18 @@ function AdjustPanel({ detail, reason, setReason, pending, error, history, onSub
   );
 }
 
+/** Bảng 2.3 — lot-level payable rollup. CUS reads; Ops writes upstream. */
+function PayablesTable({ payables }: { payables: ShipmentDebitDetail['payables'] }) {
+  return (
+    <table className="csc-debit-table csc-debit-table--payables">
+      <caption>Bảng 2.3 — Phí Phải trả (chỉ xem)</caption>
+      <tbody>
+        <tr><th scope="row">Tổng chi hộ phải trả</th><td>{money(payables.chiHoTotal)}</td></tr>
+      </tbody>
+    </table>
+  );
+}
+
 export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   shipmentId: number;
   locked: boolean;
@@ -204,33 +260,40 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     queryFn: () => getShipmentDebitDetail(shipmentId),
   });
   const [draft, setDraft] = useState<DraftState>(DRAFT_EMPTY);
-  const [justLocked, setJustLocked] = useState(false);
-  const [adjustOpen, setAdjustOpen] = useState(false);
-  const [adjustReason, setAdjustReason] = useState('');
   useEffect(() => {
     if (detail.data) setDraft(buildDraft(detail.data));
   }, [detail.data]);
+  const [justLocked, setJustLocked] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustReason, setAdjustReason] = useState('');
 
-  const setFreight = (containerNumber: string, patch: Partial<{ psActual: string; psNotes: string }>) => {
-    setDraft((current) => ({ ...current, freight: { ...current.freight, [containerNumber]: { ...(current.freight[containerNumber] ?? { psActual: '', psNotes: '' }), ...patch } } }));
+  const setItem = (expenseId: number, patch: Partial<{ thuKhach: string; note: string }>) => {
+    setDraft((current) => {
+      const prev = current.items[expenseId] ?? { thuKhach: '', note: '' };
+      return { ...current, items: { ...current.items, [expenseId]: { thuKhach: patch.thuKhach ?? prev.thuKhach, note: patch.note ?? prev.note } } };
+    });
   };
-  const setOtherFees = (containerNumber: string, fees: Array<{ name: string; amount: string }>) => {
-    setDraft((current) => ({ ...current, chiHo: { ...current.chiHo, [containerNumber]: { otherFees: fees } } }));
+  const setFeeAmount = (feeId: number, value: string) => {
+    setDraft((current) => ({ ...current, feeAmounts: { ...current.feeAmounts, [feeId]: value } }));
   };
-  const addOtherFee = (containerNumber: string) => {
-    setOtherFees(containerNumber, [...(draft.chiHo[containerNumber]?.otherFees ?? []), { name: '', amount: '' }]);
+  const addFee = (tripId: number) => {
+    setDraft((current) => ({ ...current, addedFees: [...current.addedFees, { key: `new-${crypto.randomUUID()}`, tripId, name: '', amount: '' }] }));
+  };
+  const removeFee = (feeId: number) => {
+    setDraft((current) => ({ ...current, removedFeeIds: [...current.removedFeeIds, feeId], feeAmounts: Object.fromEntries(Object.entries(current.feeAmounts).filter(([id]) => Number(id) !== feeId)) }));
+  };
+  const setAddedFee = (key: string, patch: Partial<{ name: string; amount: string }>) => {
+    setDraft((current) => ({ ...current, addedFees: current.addedFees.map((fee) => (fee.key === key ? { ...fee, ...patch } : fee)) }));
   };
 
   const save = useMutation({
     mutationFn: () => {
-      const body = {
-        freightRows: detail.data?.freightRows.map((row) => ({ containerNumber: row.containerNumber, ...(draft.freight[row.containerNumber] ?? { psActual: '', psNotes: '' }) })) ?? [],
-        chiHoRows: detail.data?.chiHoRows.map((row) => ({ containerNumber: row.containerNumber, otherFees: draft.chiHo[row.containerNumber]?.otherFees ?? [] })) ?? [],
-        thuKhachTotal: draft.thuKhach === '' ? null : draft.thuKhach,
-      };
+      const body = detail.data ? buildDelta(detail.data, draft) : {};
       return saveShipmentDebitEdits(shipmentId, body, crypto.randomUUID());
     },
     onSuccess: async () => {
+      setDraft(DRAFT_EMPTY);
+      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
       await queryClient.invalidateQueries({ queryKey: ['shipment-debit-summary'] });
       onSaved();
     },
@@ -253,13 +316,10 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   });
 
   const adjust = useMutation({
-    mutationFn: (reason: string) => adjustShipmentCost(shipmentId, { reason, changes: {
-      freightRows: detail.data?.freightRows.map((row) => ({ containerNumber: row.containerNumber, ...(draft.freight[row.containerNumber] ?? { psActual: '', psNotes: '' }) })) ?? [],
-      chiHoRows: detail.data?.chiHoRows.map((row) => ({ containerNumber: row.containerNumber, otherFees: draft.chiHo[row.containerNumber]?.otherFees ?? [] })) ?? [],
-      thuKhachTotal: draft.thuKhach === '' ? null : draft.thuKhach,
-    } }, crypto.randomUUID()),
+    mutationFn: (reason: string) => adjustShipmentCost(shipmentId, { reason, changes: detail.data ? buildDelta(detail.data, draft) : {} }, crypto.randomUUID()),
     onSuccess: async () => {
       setAdjustOpen(false);
+      setAdjustReason('');
       await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
     },
   });
@@ -278,8 +338,8 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   const frozen = settled || save.isPending;
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
-      <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
-      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setOtherFees={setOtherFees} addOtherFee={addOtherFee} />
+      <FreightTable detail={detail.data} />
+      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setItem={setItem} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
       <PayablesTable payables={detail.data.payables} />
       {adjustOpen && (
         <AdjustPanel
@@ -293,10 +353,6 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
         />
       )}
       <div className="csc-debit-actions">
-        <label className="csc-debit-thukhach">
-          <span>Thu khách</span>
-          <input className="csc-debit-input" aria-label="Thu khách" value={draft.thuKhach} disabled={frozen} onChange={(event) => setDraft((current) => ({ ...current, thuKhach: event.target.value }))} />
-        </label>
         <button type="button" disabled={frozen} onClick={() => save.mutate()}>{save.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}</button>
         <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" onClick={() => setAdjustOpen((open) => !open)}>✏️ Điều chỉnh cước</button>
         <button type="button" disabled={settled || !canLock} aria-label="Khóa lô hàng" onClick={() => lockCost.mutate()}>🔒 Khóa lô hàng</button>
