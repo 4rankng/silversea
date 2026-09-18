@@ -1669,9 +1669,50 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
 // by the offline-queue client lib can carry its dedupe token in the body
 // when headers are not convenient (e.g. multipart). The header wins when
 // both are present; see `routes/shipments.ts` POST /quick.
+export const shipmentContainerItemSchema = z.object({
+    id: z.coerce.number().int().positive().optional(),
+    // DEF-20260804-003: containerTypeId is required (not nullable) for any
+    // shipment container reconciliation. Carrier-allocation downstream needs
+    // the size bucket (20/40/45) — null causes "20' 0/0, 40' 0/0" mismatch
+    // even when containerNumber + ISO check digit are valid.
+    containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc'),
+    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
+    cargoWeightKg: shipmentWeightKg.optional().nullable(),
+    cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
+    shippingLineName: z.string().trim().max(255).optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    // FCL route authority belongs to this container, not the shipment.
+    routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
+    pickupPortId: z.coerce.number().int().positive().optional().nullable(),
+    dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
+    // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
+    // port was picked — XOR with the ids above, normalized server-side.
+    rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    // Ad-hoc row-tier factory/route (§4.2): free text when no catalog
+    // factory/route was picked on this container — XOR with operationalSiteId
+    // and routeId above, normalized server-side the same way.
+    rawFactoryName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawRouteName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    // Per-container factory authority (SILVER L1): nullable, application-
+    // validated at the persistence choke point — no DB FK by repo convention.
+    operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
+    // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
+    customerAppointmentAt: shipmentTimestamp.optional().nullable(),
+    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  });
+
+// Create-workspace combined contract: root + containers in ONE idempotent
+// call - a containers failure rolls back the whole create.
 export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
   declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
+  // Create-workspace combined save: containers ride the idempotent create
+  // call so a containers failure rolls back the root with it (no 0-cont
+  // orphan lots).
+  containers: z.array(shipmentContainerItemSchema).optional(),
 }).superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
@@ -1748,40 +1789,7 @@ export const attachShipmentDocumentSchema = z.object({
 export const shipmentContainerBatchSchema = z.object({
   expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
-  containers: z.array(z.object({
-    id: z.coerce.number().int().positive().optional(),
-    // DEF-20260804-003: containerTypeId is required (not nullable) for any
-    // shipment container reconciliation. Carrier-allocation downstream needs
-    // the size bucket (20/40/45) — null causes "20' 0/0, 40' 0/0" mismatch
-    // even when containerNumber + ISO check digit are valid.
-    containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc'),
-    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
-      .transform(v => (v === '' ? null : v)),
-    sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
-    cargoWeightKg: shipmentWeightKg.optional().nullable(),
-    cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
-    shippingLineName: z.string().trim().max(255).optional().nullable()
-      .transform(v => (v === '' ? null : v)),
-    // FCL route authority belongs to this container, not the shipment.
-    routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
-    pickupPortId: z.coerce.number().int().positive().optional().nullable(),
-    dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
-    // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
-    // port was picked — XOR with the ids above, normalized server-side.
-    rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    // Ad-hoc row-tier factory/route (§4.2): free text when no catalog
-    // factory/route was picked on this container — XOR with operationalSiteId
-    // and routeId above, normalized server-side the same way.
-    rawFactoryName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    rawRouteName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    // Per-container factory authority (SILVER L1): nullable, application-
-    // validated at the persistence choke point — no DB FK by repo convention.
-    operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
-    // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
-    customerAppointmentAt: shipmentTimestamp.optional().nullable(),
-    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-  })),
+  containers: z.array(shipmentContainerItemSchema),
 }).superRefine((data, ctx) => {
   if (data.expectedVersion == null && data.version == null) {
     ctx.addIssue({

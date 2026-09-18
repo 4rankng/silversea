@@ -113,10 +113,15 @@ export function useShipmentCreateWorkflow({
         customerNotes: customerNotesValue,
       };
       const rootSignature = signature(createPayload);
+      // Combined save: containers ride the create call so a containers
+      // failure rolls the root back — no 0-cont orphan lots (20260918_13).
+      const containerPayload = buildShipmentContainerPayload(form, containers);
+      const containerSignature = signature(containerPayload);
 
       if (attempt.shipmentId == null || attempt.version == null) {
         const recoveryPayload = attempt.pendingCreatePayload ?? {
           ...createPayload, declarationNumber: form.declarationNumber.trim() || null,
+          containers: containerPayload,
         };
         attempt.pendingCreatePayload = recoveryPayload;
         let shipment: Awaited<ReturnType<typeof quickCreateShipment>>;
@@ -135,6 +140,9 @@ export function useShipmentCreateWorkflow({
           attempt.declarationSignature = initialDeclarationNumber?.trim() ?? '';
         }
         attempt.pendingCreatePayload = undefined;
+        // Containers landed with the root: the reconcile step below must not
+        // replay them for this save.
+        attempt.containerSignature = containerSignature;
       }
       if (attempt.rootSignature !== rootSignature) {
         const updated = await updateShipment(attempt.shipmentId, { expectedVersion: attempt.version, ...createPayload });
@@ -154,8 +162,6 @@ export function useShipmentCreateWorkflow({
         attempt.declarationSignature = declarationSignature;
       }
 
-      const containerPayload = buildShipmentContainerPayload(form, containers);
-      const containerSignature = signature(containerPayload);
       const mustReconcileContainers = containerPayload.length > 0
         || attempt.containerSignature != null || attempt.containerRecoveryNeeded === true;
       if (mustReconcileContainers && attempt.containerSignature !== containerSignature) {

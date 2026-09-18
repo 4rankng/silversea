@@ -10,6 +10,9 @@ import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
+import { assertContainerSetValid, reconcileShipmentContainersInTx } from './shipment-containers.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
+import type { ShipmentContainerInput } from './shipment-types';
 import {
   toNullableFixedDecimal,
   toNullableTimestamp,
@@ -212,7 +215,7 @@ async function rethrowCreateConflict(error: unknown, input: CreateShipmentInput)
 // NOT NULL column on `shipments`); every other field is optional and
 // typically filled in later from the M10.2 doc-entry page.
 export async function createShipmentIdempotent(
-  input: CreateShipmentInput,
+  input: CreateShipmentInput & { containers?: ShipmentContainerInput[] },
   idempotencyKey: string | undefined,
   actor?: AuthUser,
 ): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>> & { initialDeclarationId: number | null }; replayed: boolean }> {
@@ -224,6 +227,18 @@ export async function createShipmentIdempotent(
     entityType: 'shipment',
     create: async (tx) => {
       const { shipment, initialDeclarationId } = await createShipmentTx(tx, input, actor);
+      // Combined save (card 20260918_13): containers ride the SAME
+      // transaction — a containers failure rolls the root back with it, so
+      // no 0-cont orphan lot can survive a failed intake save. The batch is
+      // validated with the same ISO 6346 + duplicate checks the reconcile
+      // endpoint enforces, BEFORE any write, inside the tx; the FCL rate
+      // lock fires exactly as the reconcile endpoint would (ad-hoc skips
+      // inside).
+      if (input.containers?.length) {
+        assertContainerSetValid(input.containers);
+        await reconcileShipmentContainersInTx(tx, shipment.id, input.createdBy ?? null, input.containers);
+        await lockShipmentFreightRate(tx, { shipmentId: shipment.id });
+      }
       return { ...shipment, initialDeclarationId };
     },
     load: async (id, tx) => {

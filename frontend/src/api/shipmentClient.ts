@@ -109,6 +109,8 @@ export interface QuickCreateShipmentRequest {
   /** Null for ad-hoc orders (Lệnh chạy ngoài) — rawCustomerName carries the text. */
   customerId?: number | null;
   isAdHoc?: boolean;
+  /** Combined save: containers ride the create transaction. */
+  containers?: ShipmentContainerBatch['containers'];
   rawCustomerName?: string | null;
   rawRouteName?: string | null;
   routeId?: number | null;
