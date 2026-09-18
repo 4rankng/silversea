@@ -17,7 +17,9 @@ const configSource = readFileSync(
 
 test('drizzle config contains no hardcoded fallback database port', () => {
   assert.ok(!configSource.includes('5442'), 'the sibling-checkout port 5442 must never reappear in drizzle.config.ts');
-  assert.ok(!/localhost:\d+\/silversea/.test(configSource.replace(/placeholder[^\n]*/, '')), 'no hardcoded default database URL outside the generate placeholder');
+  // The dbCredentials URL must be the guarded variable — never a literal.
+  assert.match(configSource, /url: databaseUrl/, 'dbCredentials.url must read the guarded databaseUrl variable');
+  assert.ok(!/url:\s*['"`]postgres:\/\//.test(configSource), 'dbCredentials.url must not be a string literal');
 });
 
 test('drizzle config fails loudly when DATABASE_URL is missing for DB-touching commands', () => {
