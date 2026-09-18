@@ -2,13 +2,26 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getDetail, saveEdits } = vi.hoisted(() => ({ getDetail: vi.fn(), saveEdits: vi.fn() }));
+const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, useAuthMock } = vi.hoisted(() => ({
+  getDetail: vi.fn(),
+  saveEdits: vi.fn(),
+  lockCost: vi.fn(),
+  adjustCost: vi.fn(),
+  listAdjustments: vi.fn(),
+  useAuthMock: vi.fn(),
+}));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../api/shipmentClient')>(),
   getShipmentDebitDetail: getDetail,
   saveShipmentDebitEdits: saveEdits,
+  lockShipmentCost: lockCost,
+  adjustShipmentCost: adjustCost,
+  listShipmentCostAdjustments: listAdjustments,
 }));
 
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: useAuthMock }));
+
+import { Role } from '@tingting/shared';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
@@ -54,7 +67,14 @@ function renderWorkspace(props: Partial<{ shipmentId: number; locked: boolean; o
 beforeEach(() => {
   getDetail.mockReset();
   saveEdits.mockReset();
+  lockCost.mockReset();
+  adjustCost.mockReset();
+  listAdjustments.mockReset();
   saveEdits.mockResolvedValue(undefined);
+  lockCost.mockResolvedValue(undefined);
+  adjustCost.mockResolvedValue(undefined);
+  listAdjustments.mockResolvedValue({ items: [] });
+  useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
 });
 
 describe('Chi phí - Quyết toán L2 workspace (20260918_18)', () => {
@@ -112,5 +132,59 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18)', () => {
     expect(inputs.length).toBeGreaterThan(0);
     for (const input of inputs) expect(input.disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Lưu điều chỉnh' }).hasAttribute('disabled')).toBe(true);
+  });
+});
+
+describe('Chi phí - Quyết toán lock + adjust (20260918_19)', () => {
+  it('the CUS lock posts once and freezes the workspace with a refetch', async () => {
+    getDetail.mockResolvedValue(detail());
+    const { onSaved } = renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    const lockButton = screen.getByRole('button', { name: 'Khóa lô hàng' });
+    expect(lockButton.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(lockButton);
+    await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
+    // The workspace freezes immediately and the parent refetches.
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => {
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.csc-debit-workspace input'));
+      expect(inputs.length).toBeGreaterThan(0);
+      for (const input of inputs) expect(input.disabled).toBe(true);
+    });
+  });
+
+  it('surfaces the server message when the lock conflicts', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    lockCost.mockRejectedValueOnce(new Error('Lô này đã khóa'));
+    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô hàng' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Lô này đã khóa');
+  });
+
+  it('gates adjust by role and demands a reason before submitting', async () => {
+    getDetail.mockResolvedValue(detail());
+    useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.ACCOUNTANT } });
+    renderWorkspace({ locked: true });
+    // Accountant on a locked lot: the adjust form opens, but submission is
+    // blocked until the reason has content.
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    fireEvent.click(screen.getByRole('button', { name: 'Điều chỉnh cước' }));
+    expect(await screen.findByText(/cước hợp đồng giữ lại để đối chiếu/)).toBeTruthy();
+    expect(screen.getByText('Cước hợp đồng: 4.500.000')).toBeTruthy();
+    const submit = screen.getByRole('button', { name: 'Gửi điều chỉnh' }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Lý do (bắt buộc)'), { target: { value: 'Khách yêu cầu giảm 200k theo thỏa thuận' } });
+    expect((screen.getByRole('button', { name: 'Gửi điều chỉnh' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi điều chỉnh' }));
+    await waitFor(() => expect(adjustCost).toHaveBeenCalledWith(101, expect.objectContaining({ reason: 'Khách yêu cầu giảm 200k theo thỏa thuận' }), expect.any(String)));
+  });
+
+  it('keeps the adjust affordance out of reach for the CUS role', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    expect((screen.getByRole('button', { name: 'Điều chỉnh cước' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Khóa lô hàng' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

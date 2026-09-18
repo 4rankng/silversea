@@ -43,6 +43,7 @@ import {
 } from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
+import { adjustShipmentCost, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -846,5 +847,63 @@ coreRoutes.get(
     const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
     res.json(await getShipmentDebitSummary(parsed.data));
+  }),
+);
+
+// ─── POST /:id/lock — Khóa lô (lot cost lock, card 20260918_19) ────────────
+coreRoutes.post(
+  '/:id/lock',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi khóa lô.');
+    const parsed = z.object({
+      expectedShipmentVersion: z.number().int().positive().optional(),
+      lockNote: z.string().trim().max(2000).optional().nullable(),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const lock = await lockShipmentCost({
+      shipmentId,
+      expectedShipmentVersion: parsed.data.expectedShipmentVersion ?? null,
+      lockNote: parsed.data.lockNote ?? null,
+      actor: getUser(req),
+      idempotencyKey,
+    });
+    res.status(201).json({ id: lock.id });
+  }),
+);
+
+// ─── POST/GET /:id/cost-adjustments — điều chỉnh sau khóa (card _19) ────────
+coreRoutes.post(
+  '/:id/cost-adjustments',
+  requireRoles(Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi điều chỉnh chi phí.');
+    const parsed = z.object({
+      reason: z.string().trim().min(1, 'Vui lòng nhập lý do điều chỉnh.').max(2000),
+      changes: z.record(z.unknown()).optional().nullable(),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const adjustment = await adjustShipmentCost({
+      shipmentId,
+      reason: parsed.data.reason,
+      changes: parsed.data.changes ?? null,
+      actor: getUser(req),
+      idempotencyKey,
+    });
+    res.status(201).json({ id: adjustment.id });
+  }),
+);
+
+coreRoutes.get(
+  '/:id/cost-adjustments',
+  requireRoles(Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.json(await listShipmentCostAdjustments(shipmentId));
   }),
 );

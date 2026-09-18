@@ -75,7 +75,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // and ShipmentDetail gains the freightRate.latest snapshot view (T4/T7).
   // Bumped 1159 → 1201: 2026-09-18 card 20260918_18 — the settlement L2
   // workspace client contract (detail + idempotent edits).
-  'src/api/shipmentClient.ts': 1201,
+  // Bumped 1201 → 1232: 2026-09-18 card 20260918_19 — the lock and cost-adjustment
+  // client functions (snapshot contract).
+  'src/api/shipmentClient.ts': 1232,
   'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav

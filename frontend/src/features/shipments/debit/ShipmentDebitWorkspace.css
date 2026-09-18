@@ -112,3 +112,47 @@
   align-items: center;
   margin-right: auto;
 }
+
+.csc-debit-adjust {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.csc-debit-adjust__title {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.csc-debit-adjust__reason {
+  display: grid;
+  gap: 4px;
+}
+
+.csc-debit-adjust__reason textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.csc-debit-adjust__history {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.csc-debit-adjust__history li {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--border-1);
+  padding-bottom: 4px;
+}

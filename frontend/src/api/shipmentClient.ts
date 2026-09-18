@@ -843,6 +843,37 @@ export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentD
   });
 }
 
+
+// ── Card _19: lot lock + adjust-cước (snapshot contract) ───────────────────
+
+/** POST /shipments/:id/lock — active-lock conflicts return 409 with the
+ * dedicated message; retries with the same key return the original lock. */
+export async function lockShipmentCost(shipmentId: number, idempotencyKey: string, expectedShipmentVersion?: number): Promise<void> {
+  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/lock`, expectedShipmentVersion != null ? { expectedShipmentVersion } : {}, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+export interface ShipmentCostAdjustment {
+  id: number;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  reason: string;
+  adjustedAt: string;
+}
+
+/** Adjustments apply beside the locked snapshot — the snapshot never mutates. */
+export async function adjustShipmentCost(shipmentId: number, body: { reason: string; changes: ShipmentDebitEditsBody }, idempotencyKey: string): Promise<void> {
+  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+export async function listShipmentCostAdjustments(shipmentId: number): Promise<ShipmentCostAdjustment[]> {
+  const response = await api.get<{ items: ShipmentCostAdjustment[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`);
+  return response.items;
+}
+
 /** Body for `POST /api/shipments/operational-sites`. Optional fields may be null. */
 export interface CreateOperationalSiteBody {
   customerId: number;

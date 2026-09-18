@@ -751,3 +751,38 @@ export const profitabilitySnapshotDimensions = pgTable('profitability_snapshot_d
   uniqueIndex('profitability_snapshot_dimensions_uniq').on(table.snapshotId, table.dimension),
   index('profitability_snapshot_dimensions_lookup_idx').on(table.dimension, table.dimensionKey),
 ]);
+
+// ─── Card 20260918_19 — lot cost lock (Khóa lô) + adjust history ───────────
+// A LOT lock, independent of the kỳ kế toán lock (shipment_accounting_locks):
+// the accounting lock is billing-document-tied with a period snapshot; the
+// cost lock has no period or document. They co-exist; guards chain.
+export const shipmentCostLocks = pgTable('shipment_cost_locks', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentVersionAtLock: integer('shipment_version_at_lock').notNull(),
+  // Frozen Lớp-1 totals + Lớp-2 lines assembled SERVER-side from engine
+  // values (never client amounts). Stored numbers are never recomputed —
+  // "mở kỳ mới không đổi số đã khóa".
+  costSnapshot: jsonb('cost_snapshot').$type<Record<string, unknown>>().notNull(),
+  lockedBy: integer('locked_by').notNull(),
+  lockedAt: timestamp('locked_at', { withTimezone: true }).notNull().defaultNow(),
+  lockNote: text('lock_note'),
+  unlockedBy: integer('unlocked_by'),
+  unlockedAt: timestamp('unlocked_at', { withTimezone: true }),
+  unlockReason: text('unlock_reason'),
+}, (table) => [
+  // One ACTIVE lock per shipment — the backstop behind the Idempotency-Key.
+  uniqueIndex('shipment_cost_locks_active_uniq').on(table.shipmentId).where(sql`unlocked_at is null`),
+]);
+
+export const shipmentCostAdjustments = pgTable('shipment_cost_adjustments', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  costLockId: integer('cost_lock_id').notNull(),
+  beforeJson: jsonb('before_json').$type<Record<string, unknown>>().notNull(),
+  afterJson: jsonb('after_json').$type<Record<string, unknown>>().notNull(),
+  reason: text('reason').notNull(),
+  adjustedBy: integer('adjusted_by').notNull(),
+  adjustedAt: timestamp('adjusted_at', { withTimezone: true }).notNull().defaultNow(),
+  idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull().unique(),
+});

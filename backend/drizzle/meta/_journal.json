@@ -650,6 +650,13 @@
       "when": 1789719600000,
       "tag": "20260918152000_shipment_container_raw_factory_route",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1789740000000,
+      "tag": "20260918210000_shipment_cost_locks",
+      "breakpoints": true
     }
   ]
 }

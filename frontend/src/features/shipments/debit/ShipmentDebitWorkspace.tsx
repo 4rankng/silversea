@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Paperclip } from 'lucide-react';
-import { getShipmentDebitDetail, saveShipmentDebitEdits } from '../../../api/shipmentClient';
+import { adjustShipmentCost, getShipmentDebitDetail, listShipmentCostAdjustments, lockShipmentCost, saveShipmentDebitEdits } from '../../../api/shipmentClient';
 import type { ShipmentDebitChiHoRow, ShipmentDebitDetail, ShipmentDebitFreightRow } from '../../../api/shipmentClient';
 import { formatMoney } from '../../../lib/format';
+import { useAuth } from '../../../hooks/useAuth';
+import { Role } from '@tingting/shared';
 import './ShipmentDebitWorkspace.css';
 
 const money = (value: string | null | undefined) => (value == null || value === '' ? 'Chưa xác định' : formatMoney(value));
@@ -145,6 +147,52 @@ function PayablesTable({ payables }: { payables: ShipmentDebitDetail['payables']
   );
 }
 
+/** Adjust-cước panel: reason mandatory, contract freight kept visible for
+ * comparison, and the before/after history beside the form. */
+function AdjustPanel({ detail, reason, setReason, pending, error, history, onSubmit }: {
+  detail: ShipmentDebitDetail;
+  reason: string;
+  setReason: (value: string) => void;
+  pending: boolean;
+  error: string | null;
+  history: Array<{ id: number; reason: string; adjustedAt: string }> | undefined;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="csc-debit-adjust">
+      <p className="csc-debit-adjust__title">Điều chỉnh cước sau khóa — cước hợp đồng giữ lại để đối chiếu</p>
+      <table className="csc-debit-table">
+        <tbody>
+          {detail.freightRows.map((row) => (
+            <tr key={row.containerNumber}>
+              <th scope="row">{row.containerNumber}</th>
+              <td>Cước hợp đồng: {row.freightCharge == null ? 'Chưa xác định' : formatMoney(row.freightCharge)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <label className="csc-debit-adjust__reason">
+        <span>Lý do (bắt buộc)</span>
+        <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={2} />
+      </label>
+      {history && history.length > 0 && (
+        <ul className="csc-debit-adjust__history">
+          {history.map((item) => (
+            <li key={item.id}>
+              <span>{new Date(item.adjustedAt).toLocaleString('vi-VN')}</span>
+              <span>{item.reason}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <span className="csc-debit-save-error" role="alert">{error}</span>}
+      <button type="button" disabled={pending || reason.trim() === ''} onClick={onSubmit}>
+        {pending ? 'Đang gửi…' : 'Gửi điều chỉnh'}
+      </button>
+    </div>
+  );
+}
+
 export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   shipmentId: number;
   locked: boolean;
@@ -156,6 +204,9 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     queryFn: () => getShipmentDebitDetail(shipmentId),
   });
   const [draft, setDraft] = useState<DraftState>(DRAFT_EMPTY);
+  const [justLocked, setJustLocked] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustReason, setAdjustReason] = useState('');
   useEffect(() => {
     if (detail.data) setDraft(buildDraft(detail.data));
   }, [detail.data]);
@@ -185,23 +236,72 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     },
   });
 
+  const auth = useAuth();
+  const role = auth?.user?.role;
+  const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
+  const canAdjust = role === Role.ADMIN || role === Role.ACCOUNTANT;
+  const settled = locked || justLocked;
+
+  const lockCost = useMutation({
+    mutationFn: () => lockShipmentCost(shipmentId, crypto.randomUUID()),
+    onSuccess: async () => {
+      setJustLocked(true);
+      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
+      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-summary'] });
+      onSaved();
+    },
+  });
+
+  const adjust = useMutation({
+    mutationFn: (reason: string) => adjustShipmentCost(shipmentId, { reason, changes: {
+      freightRows: detail.data?.freightRows.map((row) => ({ containerNumber: row.containerNumber, ...(draft.freight[row.containerNumber] ?? { psActual: '', psNotes: '' }) })) ?? [],
+      chiHoRows: detail.data?.chiHoRows.map((row) => ({ containerNumber: row.containerNumber, otherFees: draft.chiHo[row.containerNumber]?.otherFees ?? [] })) ?? [],
+      thuKhachTotal: draft.thuKhach === '' ? null : draft.thuKhach,
+    } }, crypto.randomUUID()),
+    onSuccess: async () => {
+      setAdjustOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
+    },
+  });
+
+  const history = useQuery({
+    queryKey: ['shipment-cost-adjustments', shipmentId],
+    queryFn: () => listShipmentCostAdjustments(shipmentId),
+    enabled: adjustOpen,
+  });
+  const adjustError = adjust.isError && adjust.error instanceof Error ? adjust.error.message : null;
+  const lockError = lockCost.isError && lockCost.error instanceof Error ? lockCost.error.message : null;
+
   if (detail.isPending) return <p className="csc-debit-loading">Đang tải chi tiết lô…</p>;
   if (detail.isError || !detail.data) return <p className="csc-debit-error" role="alert">Không thể tải chi tiết quyết toán của lô.</p>;
 
-  const frozen = locked || save.isPending;
+  const frozen = settled || save.isPending;
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
       <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setOtherFees={setOtherFees} addOtherFee={addOtherFee} />
       <PayablesTable payables={detail.data.payables} />
+      {adjustOpen && (
+        <AdjustPanel
+          detail={detail.data}
+          reason={adjustReason}
+          setReason={setAdjustReason}
+          pending={adjust.isPending}
+          error={adjustError}
+          history={history.data}
+          onSubmit={() => adjust.mutate(adjustReason)}
+        />
+      )}
       <div className="csc-debit-actions">
         <label className="csc-debit-thukhach">
           <span>Thu khách</span>
           <input className="csc-debit-input" aria-label="Thu khách" value={draft.thuKhach} disabled={frozen} onChange={(event) => setDraft((current) => ({ ...current, thuKhach: event.target.value }))} />
         </label>
         <button type="button" disabled={frozen} onClick={() => save.mutate()}>{save.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}</button>
-        <button type="button" disabled aria-label="Điều chỉnh cước">✏️ Điều chỉnh cước</button>
-        <button type="button" disabled aria-label="Khóa lô hàng">🔒 Khóa lô hàng</button>
+        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" onClick={() => setAdjustOpen((open) => !open)}>✏️ Điều chỉnh cước</button>
+        <button type="button" disabled={settled || !canLock} aria-label="Khóa lô hàng" onClick={() => lockCost.mutate()}>🔒 Khóa lô hàng</button>
+        {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
+        {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
         {save.isSuccess && <span className="csc-debit-saved" role="status">Đã lưu</span>}
         {save.isError && <span className="csc-debit-save-error" role="alert">Không lưu được — thử lại.</span>}
       </div>

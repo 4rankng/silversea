@@ -134,6 +134,7 @@ before(async () => {
   });
   app.use('/api/shipments', casbinAuthz('shipments'), shipmentRoutes);
   app.use(globalErrorHandler);
+  server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
