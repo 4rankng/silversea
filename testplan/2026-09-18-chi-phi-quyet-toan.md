@@ -87,3 +87,29 @@ chứng phụ (đọc payload/DB-shaped endpoint); ghi buildHash từng rung; fi
   18-05/19-04/19-05; KHÔNG dùng API để biến trạng thái khi case đòi bấm UI thật.
 - Ảnh: mỗi case ≥1 ảnh; 3-viewport (1440/820/390) bắt buộc cho 17-04/17-07.
 - Bug phát hiện ngoài case → card mới + ghi chéo vào report rung đó (chuẩn _16 đã làm).
+
+## Lớp adversarial — MAXIMUM-RIGOR re-rung (user directive 2026-09-18 "test very very carefully")
+
+Áp cho build cut I trở đi (sau fix _18/_19). Giữ nguyên 18-TC làm base; mỗi mục dưới đây là
+lớp bắt buộc thêm vào, chạy TRÊN DỮ LIỆU THẬT lẫn fixture:
+
+- ADV-1 REAL-DATA MATRIX: rung trên các lô thật của staging với dữ liệu lộn xộn — thiếu EDD,
+  container không có snapshot, dòng raw/catalog trộn lẫn — không chỉ fixture sạch. Lớp lock-500
+  và empty-rows thường nổ ở đây.
+- ADV-2 IDEMPOTENCY SEQUENCES: với MỌI thao tác ghi (L2 save, lock, adjust, Debit Note) —
+  double-click, retry-sau-thất-bại, replay cùng Idempotency-Key; khẳng định mỗi lần: 1 dòng /
+  1 tài liệu / tiền KHÔNG nhân đôi.
+- ADV-3 CONCURRENCY: 2 phiên (thanhdc + admin) sửa cùng L2 của một lô; lock trong khi phiên kia
+  đang sửa; version conflict phải nổi lên sạch (409 + thông báo), không ghi đè im lặng.
+- ADV-4 MONEY-STATE AUDIT: trên TỪNG lớp ô — phải thu ≠ đã thu ≠ đã khóa ≠ chưa xác định render
+  và persist phân biệt; kể cả sau lock (số đóng băng) và sau khi mở KỲ DẦU MỚI (số đã khóa không
+  dịch chuyển).
+- ADV-5 KEYBOARD-LEVEL FREEZE: ô L2 đã khóa phải cưỡng được keyboard entry, Enter submission, và
+  programmatic focus — không chỉ nhìn disabled.
+- ADV-6 EXPORT AUDIT: dòng Debit Note = màn hình = lock snapshot (đối chiếu 3 chiều); xuất lần 2
+  replay cùng tài liệu (không trùng); số không đổi sau bất kỳ thay đổi dữ liệu về sau.
+- ADV-7 VIEWPORT + KEYBOARD-ONLY: 3 viewport (1440/820/390) cho MỖI trạng thái quan trọng
+  (list, L2 mở, locked, debit export) + một lượt đi toàn bộ L2 bằng keyboard-only (Tab/Enter).
+
+Quy tắc báo cáo: mỗi tiêu chí ghi buildHash + ảnh riêng; ghi thẳng hàng "NOT COVERED" cho phần
+không chạy được — gap trung thực thay vì pass bịa.
