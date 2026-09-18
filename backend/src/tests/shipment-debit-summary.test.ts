@@ -210,3 +210,51 @@ describe('debit services compile-safe for the dist build (no extensionless dynam
     }
   });
 });
+
+// Audit-context pin (rework C round two, staging log): the lock write must
+// flow through the REAL audit middleware — an unregistered material-write
+// POST aborts the transaction with 'Material write audit context is
+// incomplete' (500) even though direct-handler pins were green. This pin
+// mounts auditLogMiddleware exactly like the production app.
+describe('POST /lock flows through the real audit middleware', () => {
+  test('lock succeeds with the audit chain mounted', async () => {
+    const http = await import('node:http');
+    const express = (await import('express')).default;
+    const { initEnforcer } = await import('../casbin/enforcer');
+    const { initAuditService } = await import('../services/audit.service');
+    const { auditLogMiddleware } = await import('../middleware/audit');
+    const { casbinAuthz } = await import('../middleware/casbin');
+    const { globalErrorHandler } = await import('../middleware/errorHandler');
+    const shipmentRoutes = (await import('../routes/shipments')).default;
+    await Promise.all([initEnforcer(), initAuditService()]);
+    const app = express();
+    app.use(express.json());
+    app.use(auditLogMiddleware);
+    app.use((req, _res, next) => {
+      (req as unknown as { user?: unknown }).user = {
+        userId: 0, username: 'audit-pin', email: 'a@x', fullName: 'audit-pin',
+        role: 'ADMIN' as const,
+      };
+      next();
+    });
+    app.use('/api/shipments', casbinAuthz('shipments'), shipmentRoutes);
+    app.use(globalErrorHandler);
+    const server = http.createServer(app);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const port = (server.address() as import('node:net').AddressInfo).port;
+    try {
+      const customer = await mkCustomer(`Audit pin ${suffix}`);
+      const lot = await mkLot(customer.id, '2026-09-25');
+      const response = await fetch(`http://127.0.0.1:${port}/api/shipments/${lot.id}/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `audit-pin-${suffix}-${lot.id}` },
+      });
+      const text = await response.text();
+      assert.equal(response.status, 201, `lock must succeed under the audit middleware — ${text.slice(0, 120)}`);
+      const [row] = await db.select().from(s.shipmentCostLocks).where(eq(s.shipmentCostLocks.shipmentId, lot.id));
+      assert.ok(row, 'the lock row must exist');
+    } finally {
+      server.close();
+    }
+  });
+});

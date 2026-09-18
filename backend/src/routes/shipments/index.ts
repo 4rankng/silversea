@@ -56,6 +56,9 @@ registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREA
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/carrier-allocations', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/lock', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/cost-adjustments', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/debit-note', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/finance-confirmations', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/proposal-billing-links', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/containers/', AuditEvent.SHIPMENT_UPDATED);
