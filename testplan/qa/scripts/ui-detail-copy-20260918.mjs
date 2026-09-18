@@ -11,8 +11,12 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, writeFileSync } from 'fs';
 
-const BASE = 'http://localhost:7174';
-const API = 'http://localhost:3001/api';
+const BASE = process.env.BASE_URL || 'http://localhost:7174';
+const API = process.env.API_URL || 'http://localhost:3001/api';
+// Presence-only mode (staging): assert the deployed affordance renders, without
+// writing appointments onto a prod mirror.
+const PRESENCE_ONLY = process.env.PRESENCE_ONLY === '1';
+const OUT_DIR = process.env.OUT_DIR || 'qa/2026-09-18-detail-copy';
 const SHIPMENT_ID = Number(process.env.SHIPMENT_ID || 41987);
 const SOURCE_CONTAINER = Number(process.env.SOURCE_CONTAINER || 27700);
 const EMPTY_CONTAINERS = (process.env.EMPTY_CONTAINERS || '27701,27702').split(',').map(Number);
@@ -21,7 +25,7 @@ const SOURCE_AT = process.env.SOURCE_AT || '2026-09-19T02:00:00.000Z'; // 09:00 
 // reaches the lot's other containers even when the board does not list them.
 const SEARCH_SUFFIX = process.env.SEARCH_SUFFIX || '9732531';
 const STAMP = new Date().toISOString().replace(/[:.]/g, '-');
-const DIR = 'qa/2026-09-18-detail-copy';
+const DIR = OUT_DIR;
 mkdirSync(DIR, { recursive: true });
 const LOGFILE = `${DIR}/ui-driver.log`;
 const lines = [];
@@ -52,14 +56,16 @@ const api = async (method, path, body) => {
 };
 
 // --- Preparation: source dated, siblings clear, through the real API --------
-const current = await api('GET', `/shipments/cus-workspace/${SHIPMENT_ID}`);
+const current = PRESENCE_ONLY
+  ? { status: 200, body: { summary: { version: 0 }, containers: [] } }
+  : await api('GET', `/shipments/cus-workspace/${SHIPMENT_ID}`);
 if (current.status !== 200) throw new Error(`cannot read lot: ${current.status} ${JSON.stringify(current.body)}`);
 let version = current.body.summary.version;
 const before = current.body.containers.map((c) => ({ id: c.id, at: c.customerAppointmentAt, number: c.containerNumber }));
 log('before-state', before);
 const sourceNumber = before.find((c) => c.id === SOURCE_CONTAINER)?.number ?? null;
 
-for (const target of [{ id: SOURCE_CONTAINER, at: SOURCE_AT }, ...EMPTY_CONTAINERS.map((id) => ({ id, at: null }))]) {
+for (const target of PRESENCE_ONLY ? [] : [{ id: SOURCE_CONTAINER, at: SOURCE_AT }, ...EMPTY_CONTAINERS.map((id) => ({ id, at: null }))]) {
   const known = before.find((c) => c.id === target.id);
   if (!known) throw new Error(`container ${target.id} is not in lot ${SHIPMENT_ID}`);
   if ((known.at ?? null) === target.at) continue;
@@ -71,9 +77,10 @@ for (const target of [{ id: SOURCE_CONTAINER, at: SOURCE_AT }, ...EMPTY_CONTAINE
   version = written.body.line.shipmentVersion;
   log(`prepared container ${target.id} -> ${target.at ?? 'null'} (shipmentVersion ${version})`);
 }
-const prepared = await api('GET', `/shipments/cus-workspace/${SHIPMENT_ID}`);
-const preparedState = prepared.body.containers.map((c) => ({ id: c.id, at: c.customerAppointmentAt }));
-log('prepared-state', preparedState);
+if (!PRESENCE_ONLY) {
+  const prepared = await api('GET', `/shipments/cus-workspace/${SHIPMENT_ID}`);
+  log('prepared-state', prepared.body.containers.map((c) => ({ id: c.id, at: c.customerAppointmentAt })));
+}
 
 // --- UI -------------------------------------------------------------------
 const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
@@ -85,16 +92,30 @@ const readTable = (page) => page.evaluate(() => Array.from(document.querySelecto
 })));
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 1000 });
+  await page.setViewport({ width: 1440, height: Number(process.env.VIEWPORT_HEIGHT || 1000) });
   await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), token);
 
-  const url = `${BASE}/shipments-detail?dateScope=all&searchSuffix=${SEARCH_SUFFIX}`;
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 40000 });
-  await page.waitForSelector('.shipment-container-ledger tbody tr', { timeout: 20000 });
-  await sleep(600);
-  const listed = await readTable(page);
-  log(`TC-COPY-DETAIL-01 ${url}`, listed);
-  if (!listed.some((row) => row.container === sourceNumber)) {
+  // Presence mode may run without a known container to search for (staging):
+  // page the board until a row carries the affordance.
+  const urls = PRESENCE_ONLY && !process.env.SEARCH_SUFFIX
+    ? [1, 2, 3, 4, 5, 6].map((n) => `${BASE}/shipments-detail?dateScope=all&page=${n}`)
+    : [`${BASE}/shipments-detail?dateScope=all&searchSuffix=${SEARCH_SUFFIX}`];
+  let listed = [];
+  let url = urls[0];
+  for (url of urls) {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 40000 });
+    await page.waitForSelector('.shipment-container-ledger tbody tr', { timeout: 20000 });
+    await sleep(500);
+    listed = await readTable(page);
+    log(`TC-COPY-DETAIL-01 ${url}`, { rows: listed.length, withCopy: listed.filter((r) => r.copyButtons > 0).length });
+    if (listed.some((row) => row.copyButtons > 0)) break;
+  }
+  log(`TC-COPY-DETAIL-01 first row with the affordance`, listed.find((row) => row.copyButtons > 0) ?? null);
+  if (PRESENCE_ONLY) {
+    if (!listed.some((row) => row.copyButtons > 0)) {
+      throw new Error(`no copy affordance on any listed row: ${JSON.stringify(listed)}`);
+    }
+  } else if (!listed.some((row) => row.container === sourceNumber)) {
     throw new Error(`source container ${sourceNumber} is not listed for search ${SEARCH_SUFFIX}: ${JSON.stringify(listed)}`);
   }
   const siblingListed = listed.filter((row) => row.container !== sourceNumber);
@@ -103,8 +124,15 @@ try {
   }
 
   const geometry = await page.evaluate(() => {
-    const button = document.querySelector('.shipment-container-ledger__copy');
+    // Pick the first affordance whose schedule cell is an editable trigger —
+    // the row that can actually be compared with the icon's column.
+    const iconRows = Array.from(document.querySelectorAll('.shipment-container-ledger__copy')).map((node) => node.closest('tr'));
+    const row = iconRows.find((candidate) => candidate?.querySelector('td[data-label="Lịch trình"] button')) ?? iconRows[0];
+    const button = row?.querySelector('.shipment-container-ledger__copy');
     if (!button) return null;
+    // The page's sticky pagination footer can sit over the lower rows; bring
+    // the measured row into the viewport before hit-testing it.
+    row.scrollIntoView({ block: 'center' });
     const identity = button.closest('th');
     const rect = button.getBoundingClientRect();
     // Glyph-level: the multiline blocks are full-width, so element boxes would
@@ -128,6 +156,7 @@ try {
     const hit = triggerBox ? document.elementFromPoint(triggerBox.left + triggerBox.width / 2, triggerBox.top + triggerBox.height / 2) : null;
     return {
       copies: document.querySelectorAll('.shipment-container-ledger__copy').length,
+      row: button.closest('tr')?.querySelector('td[data-label="Thông số container"] strong')?.textContent?.trim() ?? null,
       identityLabel: identity?.getAttribute('data-label'),
       overlapsText: overlaps,
       gutter: getComputedStyle(identity?.querySelector('.shipment-container-ledger__cell-editor, .shipment-container-ledger__cell-trigger') ?? identity).paddingRight,
@@ -141,6 +170,9 @@ try {
     failed = `affordance geometry invalid: ${JSON.stringify(geometry)}`;
   }
 
+  if (PRESENCE_ONLY) {
+    log('PRESENCE-ONLY — affordance rendered and geometry checked; no write performed');
+  } else {
   await page.hover('.shipment-container-ledger__copy');
   await sleep(300);
   const revealed = await page.evaluate(() => {
@@ -195,6 +227,7 @@ try {
   log('TC-COPY-DETAIL-06 notice', noTargetNotice);
   log('TC-COPY-DETAIL-06 db-after-second-click', afterSecond.body.containers.map((c) => ({ id: c.id, at: c.customerAppointmentAt })));
   await page.screenshot({ path: `${DIR}/${STAMP}_04-fully-dated.png` });
+  }
 } finally {
   await browser.close();
 }
@@ -202,6 +235,8 @@ try {
 if (failed) {
   log(`FAIL ${failed}`);
   process.exitCode = 1;
+} else if (PRESENCE_ONLY) {
+  log(`PASS (presence-only @ ${BASE}) — the affordance renders with its gutter and leaves the schedule cell clickable; no write performed`);
 } else {
   log('PASS — one click filled every empty container of the lot; a second click reported nothing left to fill');
 }

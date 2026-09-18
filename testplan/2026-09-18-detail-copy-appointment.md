@@ -145,9 +145,13 @@ Driver (tracked, chạy lại được): `testplan/qa/scripts/ui-detail-copy-202
 `QATU9732608` + `QATU9732660` để trống; trang được lọc về **đúng container
 nguồn** nên hai đích không hề hiện trên màn hình.
 
+Sau khi deploy staging (`make demo`, build `1fcfbf2d`): chạy lại driver ở chế độ
+chỉ-kiểm-tra-hiện-diện (`PRESENCE_ONLY=1`, không ghi dữ liệu lên prod mirror) →
+`qa/2026-09-18-detail-copy-staging/`.
+
 | Case | Rung | Bằng chứng |
 | --- | --- | --- |
-| TC-COPY-DETAIL-01 | UI DRIVEN | `qa/2026-09-18-detail-copy/2026-09-18T04-45-21-819Z_01-before-click.png`, `…_02-hover.png` + `ui-driver.log`: icon nằm trong `th[data-label="Khách hàng & lộ trình"]`, `gutter=30px`, `overlapsText=[]` (đo theo glyph, không theo hộp block), `scheduleTriggerHit=true`; hover → `visibility: visible` |
+| TC-COPY-DETAIL-01 | UI DRIVEN | `qa/2026-09-18-detail-copy/2026-09-18T04-57-59-192Z_01-before-click.png`, `…_02-hover.png` + `ui-driver.log`: icon nằm trong `th[data-label="Khách hàng & lộ trình"]`, `gutter=30px`, `overlapsText=[]` (đo theo glyph, không theo hộp block), `scheduleTriggerHit=true`; hover → `visibility: visible` |
 | TC-COPY-DETAIL-02 | UI DRIVEN | `…_03-after-click.png` + log: notice `Đã copy ngày giờ đóng trả sang 2 container chưa có lịch.`; `GET /shipments/cus-workspace/41987` sau click: cả 27700/27701/27702 = `2026-09-19T02:00:00.000Z` — hai cont đích **không hiện trên trang** vẫn được ghi, container lô khác không đổi |
 | TC-COPY-DETAIL-03 | Unit | `use-cus-detail.copy-appointment.test.tsx` (4 ca): chỉ ghi container trống + còn quyền của **cùng lô**; container đã có lịch và container read-only không phát sinh request; version nối tiếp từ response (nếu không sẽ 409 chính mình) |
 | TC-COPY-DETAIL-04 | UI DRIVEN + Unit | log `hover-visibility "visible"`; unit test: nút `disabled` khi đang copy, icon ẩn khi có phiên chỉnh sửa mở; `ShipmentContainersPage.styles.test.ts` khoá luật `:focus-visible`, `tr:hover/focus-within` và `≤640px`/`pointer: coarse` |
@@ -164,3 +168,15 @@ không đụng API, schema, RBAC hay `shared/src/calculations` nên không cần
   trống nhìn thấy — xem mục "Hai điểm cố ý khác" ở trên.
 - Đích ghi lấy từ **lô**, không từ trang: chứng minh bằng TC-COPY-DETAIL-02 (hai
   container đích không được liệt kê mà vẫn nhận lịch).
+
+### Deploy staging (2026-09-18)
+
+| Kiểm tra | Kết quả | Bằng chứng |
+| --- | --- | --- |
+| Build | `1fcfbf2d` (đúng commit vừa push) | `GET https://vantai.tingting.vip/api/health` → `"buildHash":"1fcfbf2d"` |
+| Asset frontend | chunk trang có nút copy + CSS có gutter và luật `pointer: coarse` | `assets/ShipmentContainersPage-DASKW5r0.js` (`shipment-container-ledger__copy` = 1), `assets/ShipmentContainersPage-DQeFg8AQ.css` (copy rules = 1, `padding-right:30px` = 1, `pointer:coarse` = 1) |
+| Giao diện thật | UI DRIVEN (chỉ hiện diện, không ghi): 10/20 dòng trang 1 hiện icon; gutter 30px; `overlapsText=[]`; trigger ô Lịch trình vẫn nhận click | `qa/2026-09-18-detail-copy-staging/2026-09-18T04-58-03-695Z_01-before-click.png` + `ui-driver.log` |
+
+**Chưa phủ (Not covered):** luồng ghi trên staging (chỉ chạy ở local dev — cố ý
+không ghi lịch lên prod mirror); vai trò `dispatcher`/`accountant`; màn hình
+390px (chỉ có unit/CSS test cho luật hiện icon); lô có container đã khóa.
