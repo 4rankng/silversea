@@ -57,7 +57,8 @@
   grid-column: span 9;
   display: grid;
   grid-template-columns: minmax(0, 320px) max-content;
-  gap: 5px 8px;
+  /* 6px row gap keeps this label on the same rhythm as the rail above. */
+  gap: 6px 8px;
   align-items: end;
 }
 
@@ -187,7 +188,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* The UUI fields beside this one stack their label at 6px. A 4px stack drops
+     this label 2px below theirs while the controls stay bottom-aligned. */
+  gap: 6px;
   position: relative;
 }
 
