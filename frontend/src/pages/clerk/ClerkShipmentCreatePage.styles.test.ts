@@ -244,3 +244,31 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toContain('.csc-summary__actions { display: grid');
   });
 });
+
+describe('copy-icon STT placement rework (20260918_3)', () => {
+  const ledgerCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+
+  const ruleBlock = (cssText: string, selector: string) => {
+    const i = cssText.indexOf(selector);
+    return cssText.slice(i, cssText.indexOf('}', i) + 1);
+  };
+
+  it('create copy button is truly centered in the STT cell (translate both axes)', () => {
+    const block = ruleBlock(css, '.csc-container-row__copy {');
+    expect(block).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    expect(block).toMatch(/border-radius:\s*8px/);
+  });
+
+  it('ledger copy button anchors to the identity cell right edge with the shared shape', () => {
+    const block = ruleBlock(ledgerCss, '.cus-container-row__copy {');
+    expect(block).toMatch(/right:\s*\d+px/);
+    expect(block).not.toMatch(/left:\s*0/);
+    expect(block).toMatch(/width:\s*26px/);
+    expect(block).toMatch(/height:\s*26px/);
+    expect(block).toMatch(/border-radius:\s*8px/);
+  });
+
+  it('create container rows carry the compact in-row control height (30px)', () => {
+    expect(css).toMatch(/@media \(min-width: 641px\)\s*\{\s*\.csc-container-row \.csc-icon-button \{\s*min-width: 30px;\s*min-height: 30px;/);
+  });
+});

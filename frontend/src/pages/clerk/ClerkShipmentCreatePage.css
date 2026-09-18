@@ -325,6 +325,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 2;
   display: inline-flex;
   width: 26px;
@@ -357,3 +358,10 @@
    the intake form — rectangle, no pill, per the 2026-09-17 button ruling. */
 .csc-adhoc-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; color: var(--ink); font-size: var(--control-compact-font-size); font-weight: 700; }
 .csc-adhoc-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* 20260918_3 requirement C: the in-row remove button (38px) is the tallest
+   element in the container row — one step down on desktop keeps the row
+   compact; the 44px coarse-pointer floor stays in the ≤640px block. */
+@media (min-width: 641px) {
+  .csc-container-row .csc-icon-button { min-width: 30px; min-height: 30px; }
+}
