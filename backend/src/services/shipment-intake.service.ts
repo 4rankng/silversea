@@ -544,12 +544,19 @@ async function assertReferenceIsActive(
   // LCL owns one route on the shipment. FCL routes are validated per
   // container below so a multi-container lot can legitimately use routes A/B.
   if (shipment.cargoMode === CARGO_MODE.LCL) {
-    if (shipment.routeId == null) {
+    // Lệnh chạy ngoài carries the entered free route instead of a catalog
+    // routeId (MasterDataNhaMay §4.2/§4.4): raw route info satisfies the
+    // route prerequisite exactly as a catalog route would — but a genuinely
+    // route-less lô (neither id nor raw name) still cannot dispatch.
+    const hasRawRoute = shipment.isAdHoc === true && !!shipment.rawRouteName?.trim();
+    if (shipment.routeId == null && !hasRawRoute) {
       throw new ApiError(409, 'Vui lòng chọn tuyến đường trước khi gửi điều phối.');
     }
-    const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
-      .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
-    if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    if (shipment.routeId != null) {
+      const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
+        .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
+      if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    }
   }
 
   // A factory is common optional intake detail for both cargo modes. Validate it

@@ -567,6 +567,84 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 1);
   });
 
+  test('an ad-hoc LCL lot with a raw route submits for dispatch without a catalog route', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    // Lệnh chạy ngoài stores the entered free route instead of a catalog
+    // routeId — MasterDataNhaMay §4.4: dispatch must not be blocked just
+    // because the customer/route is not in the catalog.
+    const [shipment] = await db.insert(s.shipments).values({
+      isAdHoc: true,
+      rawCustomerName: `Khách chạy ngoài ${suffix}`,
+      rawRouteName: `Tuyến riêng ${suffix}`,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-ADHOC-${suffix}`,
+      pickupWarehouseSiteId: ref.warehouse.id,
+      packageType: 'Pallet',
+      packageCount: 5,
+      cargoWeightKg: '300',
+      cargoVolumeCbm: '2.4',
+      expectedDeliveryDate: '2026-08-03',
+      shipmentCode: `INTAKE-LCL-ADHOC-ROUTE-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const key = `submit-lcl-adhoc-route-${suffix}`;
+    idempotencyKeys.push(key);
+    const result = await submitShipmentForDispatch({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: key,
+      actor: admin,
+    });
+    assert.equal(result.result.shipment.status, 'READY_FOR_DISPATCH');
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 1);
+  });
+
+  test('an ad-hoc LCL lot with no route information at all still cannot submit for dispatch', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      isAdHoc: true,
+      rawCustomerName: `Khách chạy ngoài ${suffix}`,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-ADHOC-NR-${suffix}`,
+      pickupWarehouseSiteId: ref.warehouse.id,
+      packageType: 'Pallet',
+      packageCount: 5,
+      expectedDeliveryDate: '2026-08-03',
+      shipmentCode: `INTAKE-LCL-ADHOC-NOROUTE-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const key = `submit-lcl-adhoc-noroute-${suffix}`;
+    idempotencyKeys.push(key);
+    // The raw-route allowance is narrow: without routeId AND without a raw
+    // route the lô has no destination information, so dispatch stays blocked.
+    await assert.rejects(
+      submitShipmentForDispatch({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        idempotencyKey: key,
+        actor: admin,
+      }),
+      (error: unknown) => error instanceof ApiError
+        && error.statusCode === 409
+        && error.message === 'Vui lòng chọn tuyến đường trước khi gửi điều phối.',
+    );
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 0);
+  });
+
   test('denies ACCOUNTANT but allows an unscoped CLERK to submit for dispatch', async () => {
     const accountant = await actor(Role.ACCOUNTANT);
     const clerk = await actor(Role.CUS);
