@@ -121,8 +121,16 @@ async function main() {
 
   const vehicleClass = await ensureClass();
 
-  // Pricing chain — idempotent by effectiveDate + route/customer.
-  const [terms] = await db.insert(s.freightRateTerms).values({
+  // Pricing chain — check-first idempotent: re-runs reuse existing rows
+  // instead of duplicating mốc tables on the shared dev DB.
+  const existingTerms = await db.select({ id: s.freightRateTerms.id })
+    .from(s.freightRateTerms)
+    .where(and(
+      eq(s.freightRateTerms.customerId, customerId),
+      eq(s.freightRateTerms.routeId, routeId),
+      eq(s.freightRateTerms.effectiveDate, isoDate),
+    )).limit(1);
+  const terms = existingTerms[0] ?? await db.insert(s.freightRateTerms).values({
     customerId,
     routeId,
     sharePct: '2.00',
@@ -131,21 +139,35 @@ async function main() {
     fuelLagDays: 1,
     fuelLagConfirmed: true,
     surchargeThresholdMode: 'NONE',
-  }).returning({ id: s.freightRateTerms.id });
-  const [norm] = await db.insert(s.fuelConsumptionNorms).values({
+  }).returning({ id: s.freightRateTerms.id }).then((rows) => rows[0]);
+  const existingNorm = await db.select({ id: s.fuelConsumptionNorms.id })
+    .from(s.fuelConsumptionNorms)
+    .where(eq(s.fuelConsumptionNorms.vehicleSizeClassId, vehicleClass.id)).limit(1);
+  const norm = existingNorm[0] ?? await db.insert(s.fuelConsumptionNorms).values({
     vehicleSizeClassId: vehicleClass.id,
     litersPerKm: '0.35',
-  }).returning({ id: s.fuelConsumptionNorms.id });
-  const [period] = await db.insert(s.fuelPricePeriods).values({
+  }).returning({ id: s.fuelConsumptionNorms.id }).then((rows) => rows[0]);
+  const existingPeriod = await db.select({ id: s.fuelPricePeriods.id })
+    .from(s.fuelPricePeriods)
+    .where(eq(s.fuelPricePeriods.effectiveFrom, isoDate)).limit(1);
+  const period = existingPeriod[0] ?? await db.insert(s.fuelPricePeriods).values({
     unitPrice: '20000',
     effectiveFrom: isoDate,
-  }).returning({ id: s.fuelPricePeriods.id });
-  const [pricing] = await db.insert(s.pricingTables).values({
+  }).returning({ id: s.fuelPricePeriods.id }).then((rows) => rows[0]);
+  const existingPricing = await db.select({ id: s.pricingTables.id })
+    .from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.customerId, customerId),
+      eq(s.pricingTables.routeId, routeId),
+      eq(s.pricingTables.rateKey, vehicleClass.code),
+      eq(s.pricingTables.effectiveDate, isoDate),
+    )).limit(1);
+  const pricing = existingPricing[0] ?? await db.insert(s.pricingTables).values({
     customerId,
     routeId,
     rateKey: vehicleClass.code,
     price: '6000000',
-  }).returning({ id: s.pricingTables.id });
+  }).returning({ id: s.pricingTables.id }).then((rows) => rows[0]);
 
   const resolved = await resolveFreightRate({
     customerId,
