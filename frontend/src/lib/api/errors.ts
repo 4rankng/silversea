@@ -68,6 +68,19 @@ const MSG_VI: Record<string, string> = {
   Required: 'Trường bắt buộc',
 };
 
+/** Row prefixes for issues inside an array field — a 1-based, user-facing label
+ *  instead of the raw index path. */
+const ARRAY_ROOT_LABELS: Record<string, string> = {
+  legs: 'Chặng',
+  containers: 'Container',
+};
+
+/** Zod's own English phrasing is internal vocabulary and must never reach a
+ *  user; custom messages (the Vietnamese ones our schemas declare) pass
+ *  through untouched. */
+const ZOD_INTERNAL_MESSAGE = /^(Expected |Invalid |Required$|String must |Number must |Array must |Unrecognized key|Too (small|big))/;
+const UNKNOWN_VALUE_MESSAGE = 'Giá trị không hợp lệ';
+
 /**
  * Translate any backend error body shape (Zod issue array, plain string, or
  * structured object) to a single Vietnamese user-facing string. Returns a
@@ -79,16 +92,17 @@ export function formatErrorMessage(body: unknown): string {
   const details = anyBody?.details ?? (Array.isArray(raw) ? raw : null);
 
   if (Array.isArray(details) && details.length > 0) {
-    return details
-      .map(translateZodIssue)
-      .filter(Boolean)
-      .join('; ');
+    const issues = details.filter(isRecord).map((entry) => ({
+      path: Array.isArray(entry.path) ? entry.path : [],
+      message: typeof entry.message === 'string' ? entry.message : '',
+    }));
+    if (issues.length > 0) return formatIssueList(issues);
   }
   if (typeof raw === 'string') return raw;
-  if (raw && typeof raw === 'object') {
-    return (raw as { message?: string }).message ?? JSON.stringify(raw);
+  if (typeof raw === 'object' && raw !== null && 'message' in raw && typeof raw.message === 'string') {
+    return raw.message;
   }
-  return 'Lỗi không xác định';
+  return raw === undefined || raw === null ? 'Lỗi không xác định' : UNKNOWN_VALUE_MESSAGE;
 }
 
 interface ZodIssue {
@@ -96,22 +110,69 @@ interface ZodIssue {
   message: string;
 }
 
-function translateZodIssue(issue: ZodIssue): string {
-  // Zod reports array indices numerically (legs.0.km). Strip them from the
-  // label lookup path, but preserve a 1-based "Chặng N" prefix in the output
-  // so users can see which leg failed.
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+interface TranslatedIssue {
+  /** The row the issue belongs to, when the path names an item of a labeled
+   *  array ("Container 3", "Chặng 2"); null for shipment-level fields. */
+  row: string | null;
+  /** The sentence to show — never an internal field path. */
+  text: string;
+}
+
+/** Translate one issue. Internal field paths are dropped entirely: a path with
+ *  no known label contributes no text of its own, only the (translated)
+ *  message. */
+function translateZodIssue(issue: ZodIssue): TranslatedIssue {
   const rawPath: Array<string | number> = Array.isArray(issue?.path)
     ? issue.path
     : issue?.path
       ? [issue.path]
       : [];
-  const idx = rawPath.find((s) => typeof s === 'number');
-  const namedPath = rawPath.filter((s) => typeof s === 'string').join('.');
-  const viField = namedPath ? FIELD_VI[namedPath] || namedPath : '';
-  const viMsg = MSG_VI[issue?.message] || issue?.message || '';
-  const prefix =
-    typeof idx === 'number' && namedPath.startsWith('legs')
-      ? `Chặng ${Number(idx) + 1} — `
-      : '';
-  return viField ? `${prefix}${viField}: ${viMsg}` : `${prefix}${viMsg}`;
+  const idx = rawPath.find((segment) => typeof segment === 'number');
+  const namedPath = rawPath.filter((segment) => typeof segment === 'string').join('.');
+  const rootLabel = typeof idx === 'number' && typeof rawPath[0] === 'string'
+    ? ARRAY_ROOT_LABELS[rawPath[0]]
+    : undefined;
+  const message = issue?.message ?? '';
+  const viMessage = MSG_VI[message] ?? (ZOD_INTERNAL_MESSAGE.test(message) ? UNKNOWN_VALUE_MESSAGE : message);
+  const viField = namedPath ? FIELD_VI[namedPath] : undefined;
+  // Our schemas already put the Vietnamese field name inside the message
+  // ("Khách hàng là bắt buộc"); prefixing the label again would read twice.
+  const labelAddsDetail = viField != null && !viMessage.toLowerCase().startsWith(viField.toLowerCase());
+  return {
+    row: rootLabel ? `${rootLabel} ${Number(idx) + 1}` : null,
+    text: labelAddsDetail ? `${viField}: ${viMessage}` : viMessage,
+  };
+}
+
+/** The same sentence on five rows is one problem, not five banner lines: group
+ *  by sentence in first-seen order and list the rows it covers. */
+function formatIssueList(issues: ZodIssue[]): string {
+  const groups = new Map<string, string[]>();
+  for (const issue of issues) {
+    const { row, text } = translateZodIssue(issue);
+    if (!text) continue;
+    const rows = groups.get(text) ?? [];
+    if (row && !rows.includes(row)) rows.push(row);
+    groups.set(text, rows);
+  }
+  return [...groups].map(([text, rows]) => {
+    if (rows.length === 0) return text;
+    if (rows.length === 1) return `${rows[0]} — ${text}`;
+    return `${joinRowLabels(rows)}: ${text}`;
+  }).join('; ');
+}
+
+/** "Container 1, Container 3" reads as noise — one shared root word carries the
+ *  list ("Container 1, 3"). Mixed roots keep their full labels. */
+function joinRowLabels(rows: string[]): string {
+  const parts = rows.map((row) => /^(.*) (\d+)$/.exec(row));
+  const root = parts[0]?.[1];
+  if (root && parts.every((part) => part?.[1] === root)) {
+    return `${root} ${parts.map((part) => part?.[2]).join(', ')}`;
+  }
+  return rows.join(', ');
 }

@@ -1,7 +1,7 @@
 // Validation-error contract: `details` must be a structured issue array, never a
-// stringified-objects blob. Pins the format the global ZodError handler already
-// produces ({ error, details: issues[] }) for throwValidation-based routes and
-// the driver portal routes, so client-side field errors stay parseable.
+// stringified-objects blob, and the top-level `error` string must be free of
+// internal field paths — it is what a user reads in a banner (see the
+// 2026-09-18 leak report). Field locations belong to `details` alone.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -33,8 +33,9 @@ test('throwValidation carries structured issue details, not a stringified blob',
   assert.ok(err instanceof ApiError);
   const apiErr = err as ApiError;
   assert.equal(apiErr.statusCode, 400);
-  // Top-level user-facing message unchanged: first issue message + field path.
-  assert.equal(apiErr.message, 'Trọng lượng phải là số không âm hợp lệ (cargoWeightKg)');
+  // Top-level user-facing message: the issue message alone — no field path.
+  assert.equal(apiErr.message, 'Trọng lượng phải là số không âm hợp lệ');
+  assert.equal(apiErr.message.includes('cargoWeightKg'), false);
   assert.ok(Array.isArray(apiErr.details), 'details must be a structured array');
   const details = apiErr.details as Array<{ message: string; path: Array<string | number> }>;
   assert.ok(details.length >= 1);
@@ -78,8 +79,8 @@ test('driver progress route returns structured details with field paths', async 
     error: string;
     details: Array<{ message: string; path: Array<string | number> }>;
   };
-  // Old contract: joined raw-English blob without paths and NO details field.
-  assert.ok(body.error.endsWith('(eventType)'), `top message must carry field path, got: ${body.error}`);
+  // The path lives in `details`, never in the sentence a user reads.
+  assert.ok(!body.error.includes('(eventType)'), `top message must not carry a field path, got: ${body.error}`);
   assert.ok(Array.isArray(body.details), 'details must be a structured array');
   assert.ok(
     body.details.some((d) => Array.isArray(d.path) && d.path[0] === 'expectedVersion'),
