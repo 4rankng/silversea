@@ -52,6 +52,10 @@ export default function ShipmentsPage() {
   const suffixParam = searchParams.get('searchSuffix') ?? '';
   const dateFrom = searchParams.get('transportDateFrom') ?? '';
   const dateTo = searchParams.get('transportDateTo') ?? '';
+  // 20260917_12: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng danh mục.
+  const adHoc = ['true', 'false'].includes(searchParams.get('adHoc') ?? '')
+    ? (searchParams.get('adHoc') as 'true' | 'false')
+    : '';
   const rawBucket = searchParams.get('bucket');
   const bucket = BUCKETS.includes(rawBucket as ShipmentCusBucket)
     ? rawBucket as ShipmentCusBucket
@@ -79,7 +83,7 @@ export default function ShipmentsPage() {
 
   const ws = useCusWorkspaceState({
     page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
-    direction, bucket, sortKey, sortDir,
+    direction, bucket, adHoc, sortKey, sortDir,
   }, drawerId);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
@@ -186,7 +190,7 @@ export default function ShipmentsPage() {
     setSearchError(null);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'page'].forEach((key) => next.delete(key));
+      ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'adHoc', 'page'].forEach((key) => next.delete(key));
       return next;
     }, { replace: true });
   };
@@ -212,8 +216,8 @@ export default function ShipmentsPage() {
     enabled: quickEditDraft != null && quickEditItem != null,
     ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
-  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
-  const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
+  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc);
+  const activeFilterCount = [dateFrom, dateTo, direction, bucket, adHoc].filter(Boolean).length;
   // Phone/tablet: secondary criteria collapse so records start higher.
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const exportWorksheet = async () => {
@@ -376,6 +380,18 @@ export default function ShipmentsPage() {
                 options={[
                   { value: '', label: 'Tất cả trạng thái' },
                   ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
+                ]}
+                wrapperClassName="shipment-uui-field cus-plan-status-filter"
+                controlClassName="shipment-uui-select"
+              />
+              <UuiSelectField
+                label="Loại lô"
+                value={adHoc}
+                onChange={(event) => updateParam('adHoc', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả' },
+                  { value: 'true', label: 'Lệnh chạy ngoài' },
+                  { value: 'false', label: 'Thường' },
                 ]}
                 wrapperClassName="shipment-uui-field cus-plan-status-filter"
                 controlClassName="shipment-uui-select"

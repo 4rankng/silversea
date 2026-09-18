@@ -28,6 +28,7 @@ const baseParams: CusWorkspaceListParams = {
   transportDateTo: '',
   direction: '',
   bucket: '',
+  adHoc: '',
   sortKey: null,
   sortDir: 'asc',
 };

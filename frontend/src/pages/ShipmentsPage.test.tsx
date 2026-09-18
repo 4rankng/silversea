@@ -1858,3 +1858,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(scheduleBlock).not.toContain('type="time"');
   });
 });
+
+
+describe('Loại lô filter — ad-hoc tri-state (20260917_12)', () => {
+  it('URL adHoc=true refetches the workboard list with isAdHoc=true', async () => {
+    apiGet.mockResolvedValue({ items: [], total: 0, totalPages: 0, filterOptions: { customers: [] } });
+    renderPage('/shipments?adHoc=true');
+    await waitFor(() => {
+      const url = String(apiGet.mock.lastCall?.[0] ?? '');
+      expect(url).toContain('isAdHoc=true');
+    });
+  });
+
+  it('URL adHoc=false refetches with isAdHoc=false (catalog flow only)', async () => {
+    apiGet.mockResolvedValue({ items: [], total: 0, totalPages: 0, filterOptions: { customers: [] } });
+    renderPage('/shipments?adHoc=false');
+    await waitFor(() => {
+      const url = String(apiGet.mock.lastCall?.[0] ?? '');
+      expect(url).toContain('isAdHoc=false');
+    });
+  });
+});

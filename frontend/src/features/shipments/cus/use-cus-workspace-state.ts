@@ -42,12 +42,14 @@ export interface CusWorkspaceListParams {
   transportDateTo: string;
   direction: '' | 'IMPORT' | 'EXPORT';
   bucket: '' | ShipmentCusBucket;
+  /** 20260917_12: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng danh mục. */
+  adHoc: '' | 'true' | 'false';
   sortKey: ShipmentCusWorkspaceSortKey | null;
   sortDir: 'asc' | 'desc';
 }
 
 export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetailId: number | null = null) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, sortKey, sortDir } = params;
+  const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', sortKey, sortDir } = params;
   const [notice, setNotice] = useState<string | null>(null);
   // Non-list errors (mutations, guards) still write imperatively; list-load
   // errors come from the query. Old code cleared the shared error state at
@@ -69,6 +71,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       transportDateTo,
       direction,
       bucket,
+      isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
     }),
@@ -80,6 +83,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       transportDateTo: transportDateTo || undefined,
       direction: direction || undefined,
       bucket: bucket || undefined,
+      isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
     }),

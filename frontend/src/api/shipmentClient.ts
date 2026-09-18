@@ -958,6 +958,8 @@ export interface ShipmentCusWorkspaceFilters {
   customerId?: number;
   direction?: 'IMPORT' | 'EXPORT';
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
+  /** 20260917_12 tri-state: true = chỉ lệnh chạy ngoài, false = chỉ luồng danh mục. */
+  isAdHoc?: boolean;
   sortBy?: ShipmentCusWorkspaceSortKey;
   sortDir?: 'asc' | 'desc';
 }
@@ -984,6 +986,9 @@ export async function listCusShipmentWorkspace(
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
+  // 20260917_12 tri-state: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng
+  // danh mục, absent = không lọc.
+  if (filters.isAdHoc !== undefined) query.set('isAdHoc', String(filters.isAdHoc));
   if (filters.sortBy) query.set('sortBy', filters.sortBy);
   if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';

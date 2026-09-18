@@ -150,6 +150,7 @@ export const qk = {
       transportDateTo?: string;
       direction?: string;
       bucket?: string;
+      isAdHoc?: boolean;
       sortBy?: string;
       sortDir?: string;
     }) => ['shipments-cus', 'list', filters] as const,
