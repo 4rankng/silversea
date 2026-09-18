@@ -210,7 +210,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 1132 → 1140: 2026-09-18 card 20260916_3 — the Lệnh chạy ngoài
   // intake toggle returns at the top of the create form (user ruling, label
   // without the retired suffix).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1140,
+  // Bumped 1140 → 1143: 2026-09-18 card 20260916_3 — allowsCustomValue gates
+  // on the four adhoc creatable fields (customer/route/factory/ports).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1143,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
