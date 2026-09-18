@@ -188,3 +188,25 @@ describe('GET /debit-summary resolves through the real router', () => {
     }
   });
 });
+
+// Dist-resolution guard (rework C, staging 157): the prod build compiles to
+// dist ESM where a dynamic `await import('./x')` stays extensionless and
+// Node cannot resolve it — the lock 500'd live while every tsx-level pin was
+// green. Local-module imports must be STATIC in anything the compiled tree
+// runs (or carry the explicit .js extension if ever dynamic).
+describe('debit services compile-safe for the dist build (no extensionless dynamic imports)', () => {
+  test('lock and rollup services use static local imports only', async () => {
+    const { readFileSync } = await import('node:fs');
+    const sources = [
+      '/Volumes/LexarSSD/projects/silversea-prod/backend/src/services/shipment-cost-lock.service.ts',
+      '/Volumes/LexarSSD/projects/silversea-prod/backend/src/services/shipment-debit-summary.service.ts',
+    ];
+    for (const path of sources) {
+      const text = readFileSync(path, 'utf8');
+      const offenders = [...text.matchAll(/await import\((['"])(\.[^'"]+)\1\)/g)]
+        .filter((match) => !match[2]!.endsWith('.js'))
+        .map((match) => match[2]);
+      assert.deepEqual(offenders, [], `extensionless dynamic imports break the dist build: ${offenders.join(', ')}`);
+    }
+  });
+});

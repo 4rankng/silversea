@@ -10,6 +10,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
+import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
@@ -35,7 +36,6 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   const [lot] = await db.select({ customerId: s.shipments.customerId })
     .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
   if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-  const { getShipmentDebitSummary } = await import('./shipment-debit-summary.service');
   const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
   return {
