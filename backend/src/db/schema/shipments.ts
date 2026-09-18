@@ -181,6 +181,11 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // port was picked. XOR with the port ids above by intake convention.
   rawPickupPortName: varchar('raw_pickup_port_name', { length: 255 }),
   rawDropoffPortName: varchar('raw_dropoff_port_name', { length: 255 }),
+  // Ad-hoc row-tier factory/route (§4.2): free text when this container has
+  // no catalog factory/route picked. XOR with operationalSiteId/routeId by
+  // the same intake convention; normalized in the reconcile service.
+  rawFactoryName: varchar('raw_factory_name', { length: 255 }),
+  rawRouteName: varchar('raw_route_name', { length: 255 }),
   // Per-container factory authority (SILVER L1): nullable, indexed, no DB FK
   // by repo convention — customer scope + FACTORY type are enforced at the
   // persistence choke point (reconcileShipmentContainersInTx).

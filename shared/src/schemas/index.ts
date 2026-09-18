@@ -1770,6 +1770,11 @@ export const shipmentContainerBatchSchema = z.object({
     // port was picked — XOR with the ids above, normalized server-side.
     rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
     rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    // Ad-hoc row-tier factory/route (§4.2): free text when no catalog
+    // factory/route was picked on this container — XOR with operationalSiteId
+    // and routeId above, normalized server-side the same way.
+    rawFactoryName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawRouteName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
     // Per-container factory authority (SILVER L1): nullable, application-
     // validated at the persistence choke point — no DB FK by repo convention.
     operationalSiteId: z.coerce.number().int().positive().optional().nullable(),

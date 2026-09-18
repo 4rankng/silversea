@@ -321,6 +321,26 @@ export function ShipmentCreateWorkspace() {
     updateContainer(rowKey, rawField, text);
   }
 
+  /** Per-container factory free text (§4.2): exact label → catalog id, else raw. */
+  function containerFactoryCustomText(rowKey: string, text: string) {
+    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
+    if (match) { selectContainerFactory(rowKey, String(match.id)); return; }
+    setContainers((current) => current.map((row) => row.key === rowKey
+      ? { ...row, operationalSiteId: '', rawFactoryName: text, routeId: '', rawRouteName: '' }
+      : row));
+    clearFeedback();
+  }
+
+  /** Per-container route free text (§4.2): exact label → catalog id, else raw. */
+  function containerRouteCustomText(rowKey: string, text: string) {
+    const match = routeOptions.find((option) => option.label === text);
+    if (match) { updateContainer(rowKey, 'routeId', match.value); return; }
+    setContainers((current) => current.map((row) => row.key === rowKey
+      ? { ...row, routeId: '', rawRouteName: text }
+      : row));
+    clearFeedback();
+  }
+
   /**
    * Factory-route authority (master-data spec 2026-09-06): a factory with a
    * configured route owns the shipment/container route — the route field
@@ -851,8 +871,9 @@ export function ShipmentCreateWorkspace() {
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Nhà máy *"
-                    value={factory?.shortName || factory?.name || ''}
-                    placeholder="Chọn nhà máy"
+                    value={factory?.shortName || factory?.name
+                      || (form.isAdHoc ? row.rawFactoryName : '')}
+                    placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
                     subValue={factory?.address || undefined}
                     fieldId={`container-${row.key}-factory`}
                     error={issueByField.get(`container-${row.key}-factory`)}
@@ -869,16 +890,19 @@ export function ShipmentCreateWorkspace() {
                         label: site.shortName || site.name,
                         searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
                       }))}
-                      placeholder="Chọn nhà máy"
-                      disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                      placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
+                      disabled={(!form.customerId && !form.isAdHoc) || sitesLoading || Boolean(saving)}
                       error={issueByField.get(`container-${row.key}-factory`)}
                       searchable
+                      allowsCustomValue={form.isAdHoc}
+                      {...(form.isAdHoc ? { onCustomValue: (text: string) => containerFactoryCustomText(row.key, text) } : {})}
                     />
                   </ShipmentContainerCell>
-                  <ShipmentContainerCell
+                                    <ShipmentContainerCell
                     label="Tuyến đường *"
-                    value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name ?? ''}
-                    placeholder="Chọn tuyến đường"
+                    value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name
+                      || (form.isAdHoc ? row.rawRouteName : '')}
+                    placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
                     fieldId={`container-${row.key}-route`}
                     error={issueByField.get(`container-${row.key}-route`)}
                   >
@@ -891,10 +915,12 @@ export function ShipmentCreateWorkspace() {
                         value={row.routeId}
                         onChange={(value) => updateContainer(row.key, 'routeId', value)}
                         options={routeOptions}
-                        placeholder="Chọn tuyến đường"
+                        placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
                         disabled={Boolean(saving) || factory?.routeId != null}
                         error={issueByField.get(`container-${row.key}-route`)}
                         searchable
+                        allowsCustomValue={form.isAdHoc}
+                        {...(form.isAdHoc ? { onCustomValue: (text: string) => containerRouteCustomText(row.key, text) } : {})}
                         popoverPlacement="top"
                       />
                       {factory?.routeId == null && (

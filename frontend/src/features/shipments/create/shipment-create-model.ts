@@ -49,6 +49,8 @@ export interface ShipmentContainerDraft {
   containerTypeId: string;
   /** Selected independently for this container. */
   routeId: string;
+  /** Ad-hoc free-text row route (Lệnh chạy ngoài §4.2) — XOR with routeId. */
+  rawRouteName: string;
   pickupPortId: string;
   dropoffPortId: string;
   /** Ad-hoc free-text cảng nâng/hạ (Lệnh chạy ngoài) — XOR with the ids. */
@@ -61,6 +63,8 @@ export interface ShipmentContainerDraft {
   /** Per-container factory authority (SILVER L1): empty inherits nothing —
    *  the shipment factory pre-fills new rows as a suggestion only. */
   operationalSiteId: string;
+  /** Ad-hoc free-text row factory (Lệnh chạy ngoài §4.2) — XOR with the id. */
+  rawFactoryName: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -122,6 +126,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     containerNumber: '',
     containerTypeId: '',
     routeId: '',
+    rawRouteName: '',
     pickupPortId: '',
     dropoffPortId: '',
     rawPickupPortName: '',
@@ -130,6 +135,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
     operationalSiteId: '',
+    rawFactoryName: '',
   };
 }
 
@@ -323,11 +329,13 @@ export function buildShipmentContainerPayload(
     containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
     shippingLineName: form.shippingLineName || null,
     routeId: row.routeId ? Number(row.routeId) : null,
+    rawRouteName: !row.routeId && form.isAdHoc ? row.rawRouteName.trim() || null : null,
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     rawPickupPortName: !row.pickupPortId && form.isAdHoc ? row.rawPickupPortName.trim() || null : null,
     rawDropoffPortName: !row.dropoffPortId && form.isAdHoc ? row.rawDropoffPortName.trim() || null : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
+    rawFactoryName: !row.operationalSiteId && form.isAdHoc ? row.rawFactoryName.trim() || null : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),

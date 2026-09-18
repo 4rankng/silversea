@@ -284,10 +284,36 @@ describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (Q
   it('Khách hàng: free text survives blur in adhoc mode', async () => {
     await blurKeepsText(/^Khách hàng/, 'Khách vãng lai 8888');
   });
-  it('Khách hàng: free text survives blur in adhoc mode', async () => {
-    await blurKeepsText(/^Khách hàng/, 'Khách vãng lai 8888');
-  });
   it('Cảng nâng: free text survives blur in adhoc mode', async () => {
     await blurKeepsText(/^Cảng nâng/, 'Cảng ngoài 5');
+  });
+
+  // ── Row-tier persistence (card 20260918_8, TC-ROW-PERSIST) ─────────────
+  // The container table's row cells are a distinct tier from the form-level
+  // fields above: today the row factory stays disabled without a catalog
+  // customer, and the row route has no creatable path. Row inputs are
+  // targeted by id — the form-level factory is shipment-operational-site
+  // and the form-level route is shipment-route, so only container-* cells
+  // carry the container- prefix.
+  const rowInput = (kind: 'factory' | 'route'): HTMLInputElement =>
+    document.querySelector<HTMLInputElement>(`tr.csc-container-row td[data-field-id$="-${kind}"] input`)!;
+
+  it('row factory: free text survives blur with adhoc ON (TC-ROW-PERSIST-01)', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const field = rowInput('factory');
+    await waitFor(() => expect(field).not.toBeDisabled(), { timeout: 4000 });
+    fireEvent.change(field, { target: { value: 'fadsf' } });
+    fireEvent.blur(field);
+    expect(field).toHaveValue('fadsf');
+  });
+  it('row route: free text survives blur with adhoc ON (TC-ROW-PERSIST-02)', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const field = rowInput('route');
+    await waitFor(() => expect(field).not.toBeDisabled(), { timeout: 4000 });
+    fireEvent.change(field, { target: { value: 'Tuyến riêng dòng 1' } });
+    fireEvent.blur(field);
+    expect(field).toHaveValue('Tuyến riêng dòng 1');
   });
 });

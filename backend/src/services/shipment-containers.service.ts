@@ -287,6 +287,14 @@ export async function reconcileShipmentContainersInTx(
     const rawDropoffPortName = resolvedDropoffPortId != null
       ? null
       : container.rawDropoffPortName?.trim() || null;
+    // Ad-hoc row-tier factory/route (§4.2): the same XOR — a catalog id wins
+    // and clears its raw mirror; with no id the typed text stands.
+    const rawFactoryName = resolvedSiteId != null
+      ? null
+      : container.rawFactoryName?.trim() || null;
+    const rawRouteName = resolvedRouteId != null
+      ? null
+      : container.rawRouteName?.trim() || null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -301,6 +309,8 @@ export async function reconcileShipmentContainersInTx(
       rawPickupPortName,
       rawDropoffPortName,
       operationalSiteId: resolvedSiteId,
+      rawFactoryName,
+      rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,
       updatedAt: new Date(),

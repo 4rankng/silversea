@@ -18,6 +18,7 @@ const container: ShipmentContainerDraft = {
   containerNumber: 'MSCU6639870',
   containerTypeId: '31',
   routeId: '11',
+  rawRouteName: '',
   pickupPortId: '21',
   dropoffPortId: '22',
   rawPickupPortName: '',
@@ -25,6 +26,7 @@ const container: ShipmentContainerDraft = {
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
   operationalSiteId: '41',
+  rawFactoryName: '',
   customerAppointmentAt: '',
 };
 
@@ -87,13 +89,39 @@ describe('shipment create model', () => {
       rawPickupPortName: null,
       rawDropoffPortName: null,
       operationalSiteId: 41,
+      rawFactoryName: null,
       cargoWeightKg: '12000.25',
       cargoVolumeCbm: '33.5',
       routeId: 11,
+      rawRouteName: null,
       customerAppointmentAt: null,
     }]);
   });
 
+  it('carries row-tier raw factory/route for adhoc rows and nulls the catalog ids', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, isAdHoc: true, tradeDirection: 'IMPORT' as const, blNumber: 'BL-ADHOC-ROW' };
+    const rawRow = { ...createEmptyContainer(), containerTypeId: '31', rawFactoryName: 'Xưởng vãng lai 1', rawRouteName: 'Tuyến riêng 1' };
+    const catalogRow = { ...createEmptyContainer(), containerTypeId: '31', operationalSiteId: '41', routeId: '11' };
+    const [first, second] = buildShipmentContainerPayload(form, [rawRow, catalogRow]);
+    expect(first).toEqual({
+      containerNumber: null,
+      containerTypeId: 31,
+      shippingLineName: null,
+      pickupPortId: null,
+      dropoffPortId: null,
+      rawPickupPortName: null,
+      rawDropoffPortName: null,
+      operationalSiteId: null,
+      rawFactoryName: 'Xưởng vãng lai 1',
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+      routeId: null,
+      rawRouteName: 'Tuyến riêng 1',
+      customerAppointmentAt: null,
+    });
+    expect(second).toEqual(expect.objectContaining({ operationalSiteId: 41, rawFactoryName: null, routeId: 11, rawRouteName: null }));
+
+  });
   it('keeps lift, drop, and appointment times on each FCL container instead of collapsing them into the lot', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
