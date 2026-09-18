@@ -71,6 +71,7 @@ before(async () => {
     const header = req.header('X-Test-User-Id');
     if (header) (req as express.Request & { user?: unknown }).user = {
       userId: Number(header),
+      username: 'test', email: 'test@x', fullName: 'test',
       role: ([
         [adminId, Role.ADMIN], [accountantId, Role.ACCOUNTANT], [cusId, Role.CUS],
         [dispatcherId, Role.DISPATCHER],
