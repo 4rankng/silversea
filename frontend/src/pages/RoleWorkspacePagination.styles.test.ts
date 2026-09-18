@@ -20,14 +20,15 @@ describe('role workspace pagination', () => {
     expect(css).toMatch(/@media \(max-width:\s*1100px\)[\s\S]*?\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/);
   });
 
-  it('keeps the CUS worksheet toolbar on one two-column grid that reflows without breakpoint overrides', () => {
+  it('keeps the CUS worksheet toolbar on one self-sizing filter rail that reflows through the grid', () => {
     const css = readPageCss('ShipmentsPage.css');
 
-    // The 2026-09-15 worksheet rework replaced the 5-column + 3-breakpoint
-    // toolbar with a single two-column grid; narrow screens reflow through
-    // the grid itself instead of media-query overrides, and the retired
-    // full-row plan-filter rule must stay retired.
-    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*minmax\(240px,\s*1\.3fr\)\s*minmax\(0,\s*4fr\);/);
+    // The 2026-09-18 rail rework replaced the fixed two-track template:
+    // every filter shares one auto-fit rail (a new filter never needs a
+    // track edit), the search field spans two tracks, and the reset sits
+    // under the rail flush with its left edge. The retired full-row
+    // plan-filter rule must stay retired.
+    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*180px\),\s*1fr\)\);/);
     expect(css).not.toMatch(/\.cus-worksheet-toolbar__filters \.cus-plan-status-filter\s*\{[^}]*grid-column:\s*1 \/ -1;/);
   });
 });
