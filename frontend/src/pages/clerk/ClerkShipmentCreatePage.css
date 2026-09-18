@@ -317,36 +317,38 @@
   .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
 }
 
-/* Copy is an OVERLAY parked ON TOP of the time input: inside the row so the
-   hover chain never breaks while moving to it, zero layout footprint.
-   Rectangle with rounded corners — not a pill (user ruling 2026-09-17). */
-.csc-container-cell--appointment .csc-container-cell__editor { position: relative; }
-.csc-container-cell--appointment .csc-appointment-copy {
+/* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the
+   STT cell as a hover-revealed icon button shaped like the row's inputs —
+   a rounded rectangle, never an overlay on top of the time/date fields. */
+.csc-container-row__index { position: relative; }
+.csc-container-row__copy {
   position: absolute;
-  top: 0;
-  left: 0;
-  min-width: 0;
-  min-height: 0;
+  top: 50%;
+  left: 50%;
   z-index: 2;
   display: inline-flex;
-  visibility: hidden;
+  width: 26px;
+  height: 26px;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  border: 1px solid #0e7a4f;
+  justify-content: center;
+  padding: 0;
+  visibility: hidden;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: #ecfdf5;
-  color: #0e7a4f;
+  background: var(--surface);
+  color: var(--fg-2);
   cursor: pointer;
 }
-.csc-container-cell--appointment .csc-appointment-copy:hover { background: #d1fae5; }
-.csc-container-cell--appointment .csc-appointment-copy:focus-visible { visibility: visible; outline: 2px solid var(--accent); outline-offset: 2px; }
-.csc-container-cell--appointment .csc-appointment-copy:disabled { cursor: not-allowed; opacity: 0.5; }
-.csc-container-row:hover .csc-appointment-copy,
-.csc-container-row:focus-within .csc-appointment-copy { visibility: visible; }
+.csc-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
+.csc-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-row:hover .csc-container-row__copy,
+.csc-container-row:focus-within .csc-container-row__copy { visibility: visible; }
+/* The icon takes the ordinal's slot while the pointer is on the row; the swap
+   is hover-only so the row number survives a touch tap (coarse pointers). */
+@media (hover: hover) {
+  .csc-container-row:hover .csc-container-row__desktop-index,
+  .csc-container-row:focus-within .csc-container-row__desktop-index { visibility: hidden; }
+}
 @media (max-width: 640px), (pointer: coarse) {
-  .csc-container-cell--appointment .csc-appointment-copy { visibility: visible; }
+  .csc-container-row__copy { visibility: visible; }
 }

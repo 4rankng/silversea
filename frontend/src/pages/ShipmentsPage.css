@@ -1913,29 +1913,37 @@
   position: relative;
 }
 
-/* Bulk appointment copy (20260917_1): a row that already has an
-   appointment offers a hover-revealed overlay button that copies its
-   datetime to every line whose appointment is still empty. Hidden by
-   default; appears on row hover so the table stays calm. */
-.cus-appointment-cell { position: relative; }
-.cus-appointment-copy {
+/* Bulk appointment copy (20260917_1, relocated 2026-09-18): a row that already
+   has an appointment offers to copy its datetime to every line whose
+   appointment is still empty. The affordance is an icon button parked in the
+   identity cell — shaped like the row's controls, never an overlay on the
+   appointment trigger. Hidden until the row is hovered or focused. */
+.cus-container-row__copy {
   visibility: hidden;
   position: absolute;
   top: 50%;
-  right: 6px;
+  right: 4px;
   transform: translateY(-50%);
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border: 1px solid #0e7a4f;
-  border-radius: 8px;
-  background: #ecfdf5;
-  color: #0e7a4f;
-  cursor: pointer;
   z-index: 2;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: pointer;
 }
-.cus-appointment-copy:hover { background: #d1fae5; }
-.cus-container-row:hover .cus-appointment-copy { visibility: visible; }
+.cus-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
+.cus-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.cus-container-row:hover .cus-container-row__copy,
+.cus-container-row:focus-within .cus-container-row__copy { visibility: visible; }
+@media (max-width: 640px), (pointer: coarse) {
+  .cus-container-row__copy { visibility: visible; }
+}
 .cus-appointment-trigger {
   display: flex;
   align-items: center;

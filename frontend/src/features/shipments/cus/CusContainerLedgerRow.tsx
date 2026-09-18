@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Copy } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -83,6 +84,17 @@ export function ContainerLineRow({
           <span className="cus-container-row__ordinal">{line.ordinal}</span>
           <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
         </div>
+        {showCopyAppointment && (
+          <button
+            type="button"
+            className="cus-container-row__copy"
+            onClick={onCopyAppointmentToEmpty}
+            title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
+            aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
+          >
+            <Copy size={15} aria-hidden="true" />
+          </button>
+        )}
       </th>
       {containerTypeEditable ? (
         <ShipmentContainerCell
@@ -187,17 +199,6 @@ export function ContainerLineRow({
               {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
             </span>
           </button>
-          {showCopyAppointment && (
-            <button
-              type="button"
-              className="cus-appointment-copy"
-              onClick={onCopyAppointmentToEmpty}
-              title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
-              aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
-            >
-              Copy
-            </button>
-          )}
           <CusAppointmentPopover
             isOpen={appointmentOpen}
             value={draft.customerAppointmentAt}

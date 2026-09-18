@@ -795,6 +795,17 @@ export function ShipmentCreateWorkspace() {
                   <th scope="row" className="csc-container-row__index">
                     <span className="csc-container-row__desktop-index">{index + 1}</span>
                     <span className="csc-container-row__mobile-index">Container {index + 1}</span>
+                    {canCopyAppointment && (
+                      <button
+                        type="button"
+                        className="csc-container-row__copy"
+                        onClick={() => copyAppointmentToEmpty(row.key)}
+                        title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
+                        aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
+                      >
+                        <Copy size={15} aria-hidden="true" />
+                      </button>
+                    )}
                   </th>
                   <ShipmentContainerCell
                     label="Số container"
@@ -941,19 +952,6 @@ export function ShipmentCreateWorkspace() {
                     onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
                   >
                     <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
-                    {canCopyAppointment && (
-                      <button
-                        type="button"
-                        className="csc-appointment-copy"
-                        disabled={Boolean(saving)}
-                        onClick={() => copyAppointmentToEmpty(row.key)}
-                        title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
-                        aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
-                      >
-                        <Copy size={12} aria-hidden="true" />
-                        Copy
-                      </button>
-                    )}
                   </ShipmentContainerCell>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>

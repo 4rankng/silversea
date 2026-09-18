@@ -95,4 +95,18 @@ describe('bulk appointment copy', () => {
     expect(typeof payload.customerAppointmentAt).toBe('string');
     expect(payload.customerAppointmentAt.length).toBeGreaterThan(0);
   });
+
+  // User ruling 2026-09-18: the identity cell carries the icon affordance; the
+  // appointment trigger cell must stay free of any overlay button.
+  it('renders the copy affordance in the container identity cell, not over the appointment trigger', () => {
+    renderLedger([
+      makeLine(10, 1, '2026-09-16T02:00:00.000Z'),
+      makeLine(11, 2, null),
+      makeLine(12, 3, null),
+    ]);
+    const button = copyButton()!;
+    expect(button.closest('th.cus-container-cell--identity')).not.toBeNull();
+    expect(button.textContent?.trim()).toBe('');
+    expect(button.closest('td.cus-appointment-cell')).toBeNull();
+  });
 });

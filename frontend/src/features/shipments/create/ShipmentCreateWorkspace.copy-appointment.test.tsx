@@ -127,4 +127,21 @@ describe('shipment create bulk appointment copy', () => {
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeInTheDocument();
     expect(copyButton()).toBeNull();
   });
+
+  // User ruling 2026-09-18: the affordance lives in the STT cell as an icon
+  // button; it must never sit ON the appointment controls it fills.
+  it('renders the copy affordance inside the row index cell, not over the appointment', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+
+    const button = copyButton()!;
+    const row = button.closest('tr')!;
+    expect(button.closest('th.csc-container-row__index')).not.toBeNull();
+    expect(button.textContent?.trim()).toBe('');
+    const dateInput = row.querySelector('input[id$="-customer-appointment-date"]')!;
+    expect(dateInput.closest('td')?.querySelector('button')).toBeNull();
+  });
 });
