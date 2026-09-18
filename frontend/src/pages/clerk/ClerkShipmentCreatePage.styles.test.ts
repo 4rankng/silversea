@@ -272,3 +272,13 @@ describe('copy-icon STT placement rework (20260918_3)', () => {
     expect(css).toMatch(/@media \(min-width: 641px\)\s*\{\s*\.csc-container-row \.csc-icon-button \{\s*min-width: 30px;\s*min-height: 30px;/);
   });
 });
+
+describe('global hover reset — copy-icon exclusions (20260918_3 cut D)', () => {
+  const baseCss = readFileSync(resolve(process.cwd(), 'src/styles/base.css'), 'utf8');
+
+  it('the global hover reset exempts both copy-icon affordances', () => {
+    const rule = baseCss.slice(baseCss.indexOf(":where(button, a, [role='button'])"));
+    expect(rule).toContain(':not(.csc-container-row__copy)');
+    expect(rule).toContain(':not(.shipment-container-ledger__copy)');
+  });
+});

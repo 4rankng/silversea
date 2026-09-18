@@ -72,6 +72,8 @@ img { display: block; }
   filter: none;
 }
 
-#root .app :where(button, a, [role='button']):hover {
+/* Copy-icon affordances live inside the STT/identity cells and carry their
+   own centering transform — the global hover reset must not cancel it. */
+#root .app :where(button, a, [role='button']):not(.csc-container-row__copy):not(.shipment-container-ledger__copy):hover {
   transform: none;
 }
