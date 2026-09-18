@@ -1,9 +1,18 @@
-# Card _19 design scout — lot lock persistence + adjust-cước (proposal, no code)
+# Card _19 implementation spec — lot lock persistence + adjust-cước
 
 Prepared by BE1, 2026-09-18. Sources: PRD `CuocPhiThietKeDB.md` §5 (Khóa cước
 và bảo toàn lịch sử), `QuyTrinhO2C.md` §7 (Hồ sơ/bảng kê/công nợ), the
 existing `shipment_accounting_locks` machinery, and the card's 5 acceptance
-criteria.
+criteria. **LEAD-APPROVED 2026-09-18** with rulings folded in below:
+
+- **Lock roles = CUS + ACCOUNTANT + ADMIN** — the actor in the user's spec is
+  the CUS on the Chi phí - Quyết toán screen (CUS performs 🔒 KHÓA LÔ HÀNG);
+  OPS not indicated (Ops data entry is upstream).
+- **Unlock ships LATER as its own card** — _19 locks only; the release
+  columns exist in the table but no unlock endpoint ships now (unlock
+  semantics need a user decision not yet available).
+- **Debit Note aggregates source from `shipment_cost_locks` snapshots**,
+  never live rows.
 
 ## 1. Lock persistence — new TABLE `shipment_cost_locks` (not a column)
 
@@ -43,10 +52,9 @@ shipment_cost_locks:
 
 ## 2. Who sets it
 
-`Role.ACCOUNTANT` + `Role.ADMIN` (the Chi phí - Quyết toán screen's actors;
-FINANCIAL_ROLES). CUS/Dispatcher never lock. **Flag for the lead**: if OPS
-also locks on this screen, widen to OPS — one-line change in the casbin
-`requireRoles` list.
+**Ruled: `Role.CUS` + `Role.ACCOUNTANT` + `Role.ADMIN`** (casbin
+`requireRoles` on the lock and adjust endpoints). The CUS is the primary
+actor per the user's spec; no OPS.
 
 ## 3. `POST /shipments/:id/lock`
 
@@ -111,9 +119,5 @@ threshold, lag reference period) — out of scope by the card's own note.
 
 ## Open items for the lead
 
-1. Confirm lock roles: ACCOUNTANT+ADMIN (proposed) vs + OPS.
-2. Confirm whether unlock (mở khóa) ships in _19 or a later card — the table
-   carries the release columns either way.
-3. Debit Note export (criterion 4) reads ONLY the locked snapshot — flag to
-   FullStack that the aggregates must source from `shipment_cost_locks`,
-   not live rows.
+All three resolved 2026-09-18 (see the rulings block at the top). Nothing
+open — this document is the _19 implementation spec.
