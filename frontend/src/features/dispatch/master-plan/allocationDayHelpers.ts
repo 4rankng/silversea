@@ -1,3 +1,5 @@
+import { formatContainerCounts, parseContainerSummaryDemand } from './allocation-demand-format';
+
 import { localDateInBusinessZone } from '@tingting/shared';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -5,6 +7,8 @@ import {
   carrierOptionKey,
   type CarrierAllocationOption,
 } from '../../../components/shipment/CarrierAllocationSummary';
+
+export { formatContainerCounts, parseContainerSummaryDemand } from './allocation-demand-format';
 
 export const OWN_CARRIER_KEY = 'OWN';
 
@@ -19,7 +23,7 @@ export interface AllocationDayGroup {
   dateKey: string; // "YYYY-MM-DD" or "__UNSCHEDULED__" or "__ALL__"
   dateLabel: string; // "DD/MM/YYYY" or "Chưa chốt ngày đóng/trả"
   factoryName?: string | null;
-  demand: { count20: number; count40: number };
+  demand: { count20: number; count40: number; lclCount?: number };
   rows: AllocationRow[];
 }
 
@@ -84,32 +88,14 @@ export function formatWeekdayVi(dateKey: string | null | undefined): string {
   return new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(new Date(y!, m! - 1, d!));
 }
 
-/** {count20, count40} → "1×20' + 2×40'" — zero parts dropped, "0" when empty. */
-export function formatContainerCounts(counts: { count20: number; count40: number }): string {
-  return [
-    counts.count20 !== 0 ? `${counts.count20}×20'` : null,
-    counts.count40 !== 0 ? `${counts.count40}×40'` : null,
-  ].filter(Boolean).join(' + ') || '0';
-}
-
-export function parseContainerSummaryDemand(summary: string | null | undefined): { count20: number; count40: number } {
-  if (!summary) return { count20: 0, count40: 0 };
-  let count20 = 0;
-  let count40 = 0;
-  for (const part of summary.split(/\s*\+\s*/)) {
-    const match = part.trim().match(/^(\d+)\s*(?:\*|×|x)\s*(.*)$/i);
-    if (!match) continue;
-    const count = Number(match[1]) || 0;
-    const type = match[2]?.trim() || '';
-    if (/^20(?:\D|$)/i.test(type)) count20 += count;
-    else if (/^40(?:\D|$)/i.test(type)) count40 += count;
-  }
-  return { count20, count40 };
-}
 
 export function buildInitialDayGroups(shipment: ShipmentListItem): AllocationDayGroup[] {
   const total20 = shipment.containerCount20;
   const total40 = shipment.containerCount40;
+  // Lô LCL (20260916_5, user direction a): không có container nên demand theo
+  // container sẽ = 0 và chặn phân xe ("gán 1/0"). Bản thân LÔ là một đơn vị
+  // nhu cầu — đếm như 1 lô thay vì theo số container.
+  const lclCount = shipment.cargoMode === 'LCL' && total20 + total40 === 0 ? 1 : 0;
 
   // If shipment has appointmentGroups, group by localDate
   if (shipment.appointmentGroups && shipment.appointmentGroups.length > 0) {
@@ -197,7 +183,7 @@ export function buildInitialDayGroups(shipment: ShipmentListItem): AllocationDay
     dateLabel: formatLocalDateVi(shipment.expectedDeliveryDate) !== 'Chưa chốt ngày đóng/trả'
       ? formatLocalDateVi(shipment.expectedDeliveryDate)
       : 'Toàn bộ lô hàng',
-    demand: { count20: total20, count40: total40 },
+    demand: { count20: total20, count40: total40, ...(lclCount ? { lclCount } : {}) },
     rows,
   }];
 }
@@ -280,7 +266,7 @@ export function syncDayGroupsWithContainers(
 
 export function validateDayGroups(
   days: AllocationDayGroup[],
-  totalDemand: { count20: number; count40: number },
+  totalDemand: { count20: number; count40: number; lclCount?: number },
   options: CarrierAllocationOption[],
 ): OverallValidationResult {
   const optionByKey = new Map(options.map((o) => [o.key, o]));
@@ -305,20 +291,35 @@ export function validateDayGroups(
     totalAssigned20 += dayAssigned20;
     totalAssigned40 += dayAssigned40;
 
-    const remaining20 = day.demand.count20 - dayAssigned20;
-    const remaining40 = day.demand.count40 - dayAssigned40;
-    const isOver = dayAssigned20 > day.demand.count20 || dayAssigned40 > day.demand.count40;
-    const isComplete = dayAssigned20 === day.demand.count20 && dayAssigned40 === day.demand.count40;
+    // Ngày LCL: một đơn vị nhu cầu là cả LÔ — mọi xe gán (20' + 40') cộng vào
+    // một hạn mức, thay vì so theo từng loại container.
+    const lclDemand = day.demand.lclCount ?? 0;
+    const isLclDay = lclDemand > 0;
+    const dayAssignedUnits = dayAssigned20 + dayAssigned40;
+    const remaining20 = isLclDay ? 0 : day.demand.count20 - dayAssigned20;
+    const remaining40 = isLclDay ? 0 : day.demand.count40 - dayAssigned40;
+    const isOver = isLclDay
+      ? dayAssignedUnits > lclDemand
+      : dayAssigned20 > day.demand.count20 || dayAssigned40 > day.demand.count40;
+    const isComplete = isLclDay
+      ? dayAssignedUnits === lclDemand
+      : dayAssigned20 === day.demand.count20 && dayAssigned40 === day.demand.count40;
 
     const isSingleDay = days.length <= 1;
     const prefix = isSingleDay ? '' : `${day.dateLabel}: `;
 
     const dayErrors: string[] = [];
-    if (dayAssigned20 > day.demand.count20) {
-      dayErrors.push(`${prefix}Container 20' vượt số lượng: gán ${dayAssigned20}/${day.demand.count20}.`);
-    }
-    if (dayAssigned40 > day.demand.count40) {
-      dayErrors.push(`${prefix}Container 40' vượt số lượng: gán ${dayAssigned40}/${day.demand.count40}.`);
+    if (isLclDay) {
+      if (dayAssignedUnits > lclDemand) {
+        dayErrors.push(`${prefix}Xe vượt số lượng: gán ${dayAssignedUnits}/${lclDemand} lô.`);
+      }
+    } else {
+      if (dayAssigned20 > day.demand.count20) {
+        dayErrors.push(`${prefix}Container 20' vượt số lượng: gán ${dayAssigned20}/${day.demand.count20}.`);
+      }
+      if (dayAssigned40 > day.demand.count40) {
+        dayErrors.push(`${prefix}Container 40' vượt số lượng: gán ${dayAssigned40}/${day.demand.count40}.`);
+      }
     }
 
     const seenDuplicateCarriers = new Set<string>();
@@ -341,10 +342,10 @@ export function validateDayGroups(
       if (!validCount(row.count20)) count20 = 'Nhập số nguyên từ 0 trở lên.';
       if (!validCount(row.count40)) count40 = 'Nhập số nguyên từ 0 trở lên.';
 
-      if (!count20 && dayAssigned20 > day.demand.count20 && num(row.count20) > 0) {
+      if (!isLclDay && !count20 && dayAssigned20 > day.demand.count20 && num(row.count20) > 0) {
         count20 = `Tổng đang vượt ${dayAssigned20 - day.demand.count20} container 20'.`;
       }
-      if (!count40 && dayAssigned40 > day.demand.count40 && num(row.count40) > 0) {
+      if (!isLclDay && !count40 && dayAssigned40 > day.demand.count40 && num(row.count40) > 0) {
         count40 = `Tổng đang vượt ${dayAssigned40 - day.demand.count40} container 40'.`;
       }
 

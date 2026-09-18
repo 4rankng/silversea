@@ -354,3 +354,48 @@ describe('allocationDayHelpers — validateDayGroups', () => {
     expect(result.dayResults[1]!.rowIssues[0]!.carrier).toBe('Nhà xe này đang ngưng hoạt động.');
   });
 });
+
+describe('LCL demand — một lô LCL tính nhu cầu = 1 (20260916_5)', () => {
+  const lclShipment = shipment({
+    cargoMode: 'LCL' as never,
+    containerCount20: 0,
+    containerCount40: 0,
+    containerTypeSummary: null,
+    expectedDeliveryDate: '2026-09-25',
+  });
+
+  it('an LCL lot produces one group with lô demand of 1', () => {
+    const groups = buildInitialDayGroups(lclShipment);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.dateKey).toBe('__ALL__');
+    expect(groups[0]!.demand).toEqual({ count20: 0, count40: 0, lclCount: 1 });
+  });
+
+  it('one assigned unit on an LCL day is complete, not over', () => {
+    const days = buildInitialDayGroups(lclShipment);
+    const options = [{ key: 'OWN', label: 'SilverSea', carrierType: 'OWN' as const, externalCarrierId: null }];
+    const result = validateDayGroups(days, { count20: 0, count40: 0, lclCount: 1 }, options);
+    days[0]!.rows[0]!.count20 = '1';
+    const final = validateDayGroups(days, { count20: 0, count40: 0, lclCount: 1 }, options);
+    expect(final.dayResults[0]!.isOver).toBe(false);
+    expect(final.dayResults[0]!.isComplete).toBe(true);
+    expect(final.allErrors.join(' ')).not.toContain('vượt');
+    void options; void result;
+  });
+
+  it('two assigned units on an LCL day are over-allocation', () => {
+    const days = buildInitialDayGroups(lclShipment);
+    days[0]!.rows[0]!.count20 = '1';
+    days[0]!.rows.push({ key: 'x2', carrierKey: 'EXTERNAL:9', count20: '1', count40: '' });
+    const result = validateDayGroups(days, { count20: 0, count40: 0, lclCount: 1 }, [
+      { key: 'OWN', label: 'SilverSea', carrierType: 'OWN' as const, externalCarrierId: null },
+      { key: 'EXTERNAL:9', label: 'Nhà xe ngoài', carrierType: 'EXTERNAL' as const, externalCarrierId: 9 },
+    ]);
+    expect(result.dayResults[0]!.isOver).toBe(true);
+    expect(result.allErrors.join(' ')).toContain('vượt');
+  });
+
+  it('formatContainerCounts renders LCL demand as một lô', () => {
+    expect(formatContainerCounts({ count20: 0, count40: 0, lclCount: 1 } as never)).toBe('1 lô');
+  });
+});
