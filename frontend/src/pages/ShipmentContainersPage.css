@@ -278,6 +278,16 @@
   margin: 0;
   padding: 10px;
 }
+/* An open editor shares the cell with its trigger. The full-height click target
+   above must yield or it inflates to the whole cell and pushes the editor past
+   the bottom edge — off-screen wherever the editor sits in flow instead of
+   floating, as it does in the stacked card layout. Keyed on the trigger's own
+   expanded state so the invariant holds at every breakpoint, including ones
+   added later. */
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger--expanded {
+  height: auto;
+  min-height: 0;
+}
 .shipment-container-ledger__cell-trigger {
   display: block;
   width: calc(100% + 8px);
