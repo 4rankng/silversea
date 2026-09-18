@@ -248,4 +248,20 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
+
+  // Bulk appointment copy (2026-09-18, customer request): the affordance lives
+  // in the identity cell's reserved gutter, never over the schedule cell, and
+  // follows the create page's reveal contract (hover/focus-within, always on
+  // touch).
+  it('keeps the bulk appointment copy icon clear of the schedule cell and the customer text', () => {
+    const buttonSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/AppointmentCopyButton.tsx'), 'utf8');
+    expect(buttonSource).toMatch(/className="shipment-container-ledger__copy"/);
+    expect(ledgerSource).toMatch(/<AppointmentCopyButton row=\{row\} copying=\{copying\}/);
+    // The identity cell's own padding is !important-zeroed by the editable-cell
+    // rule, so the gutter has to land on the inner lane that holds the text.
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > th:has\(> \.shipment-container-ledger__copy\) > \.shipment-container-ledger__cell-editor,[^}]*__cell-trigger--read-only\s*\{\s*padding-right:\s*30px;\s*\}/);
+    expect(css).toMatch(/\.shipment-container-ledger__copy\s*\{[^}]*visibility:\s*hidden;[^}]*right:\s*6px;[^}]*width:\s*26px;[^}]*height:\s*26px;[^}]*border-radius:\s*8px;/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr:hover \.shipment-container-ledger__copy,[^}]*tr:focus-within \.shipment-container-ledger__copy\s*\{\s*visibility:\s*visible;/);
+    expect(css).toMatch(/@media \(max-width: 640px\), \(pointer: coarse\) \{\s*\.shipment-container-ledger__copy\s*\{\s*visibility:\s*visible;/);
+  });
 });

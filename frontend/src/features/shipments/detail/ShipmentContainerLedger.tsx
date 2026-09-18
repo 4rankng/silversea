@@ -16,6 +16,7 @@ import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { USearchableField } from '../create/uui-fields';
 import { EditActions } from './ShipmentContainerEditActions';
+import { AppointmentCopyButton, type AppointmentCopyProps } from './AppointmentCopyButton';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
@@ -121,13 +122,6 @@ function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): st
   if (direction === 'IMPORT') return 'Nhập';
   if (direction === 'EXPORT') return 'Xuất';
   return 'Chưa xác định';
-}
-
-function formatDate(value: string | null): string {
-  // Delegates to the shared ISO-date formatter; only the empty-state text is
-  // this surface's own.
-  if (!value) return 'Chưa có ngày';
-  return formatISODate(value);
 }
 
 function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
@@ -510,7 +504,7 @@ function InlineEditor({
   );
 }
 
-interface ShipmentContainerLedgerProps {
+interface ShipmentContainerLedgerProps extends AppointmentCopyProps {
   rows: ShipmentCusContainerFlatRow[];
   totalContainers: number;
   today: string;
@@ -552,6 +546,8 @@ export function ShipmentContainerLedger({
   onSaveIdentity,
   onSaveDocuments,
   onSaveContainer,
+  onCopyAppointmentToEmpty,
+  copying = false,
   hiddenColumns = [],
 }: ShipmentContainerLedgerProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
@@ -665,6 +661,7 @@ export function ShipmentContainerLedger({
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
                     </div>)}
+                    <AppointmentCopyButton row={row} copying={copying} disabled={activeEdit != null || editLoadingRowId != null} onCopy={onCopyAppointmentToEmpty} />
                   </th>
                   <td data-label="Chứng từ & hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable, <div className="shipment-container-ledger__cell-stack">
@@ -693,7 +690,7 @@ export function ShipmentContainerLedger({
 <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
                   </td>
 )}
                   {isHidden('vehicle') ? null : (
