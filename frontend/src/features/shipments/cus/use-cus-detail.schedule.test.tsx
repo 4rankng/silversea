@@ -25,10 +25,12 @@ vi.mock('../../../api/shipmentClient', () => ({
   updateCusShipmentContainerLine,
 }));
 
+import { CUS_DETAIL_PAGE_SIZE } from './cusDetailModel';
 import { useCusDetail, type CusDetailListParams } from './use-cus-detail';
 
 const baseParams: CusDetailListParams = {
   page: 1,
+  pageSize: CUS_DETAIL_PAGE_SIZE,
   searchSuffix: '',
   transportDateFrom: '',
   transportDateTo: '',
@@ -165,6 +167,18 @@ async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<Sh
 
 describe('useCusDetail saveSchedule — non-FCL transport-date paths', () => {
   afterEach(() => vi.clearAllMocks());
+
+  // 2026-09-18: the office asked to see up to 200 rows without paging, so the
+  // page size is a caller parameter now — it must reach the API and the key.
+  it('passes the requested page size through to the container list query', async () => {
+    listCusShipmentContainers.mockResolvedValue({ items: [], total: 0, totalPages: 1 } as unknown as ShipmentCusContainerFlatResponse);
+    function SizeProbe() {
+      useCusDetail({ ...baseParams, pageSize: 200 });
+      return null;
+    }
+    render(<SizeProbe />);
+    await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 })));
+  });
 
   it('UI-CD-12 saves FCL identity through the versioned container command only', async () => {
     const row = flatRow();

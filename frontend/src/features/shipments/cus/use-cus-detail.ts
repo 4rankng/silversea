@@ -41,6 +41,8 @@ import { safeError } from './cusUtils';
 
 export interface CusDetailListParams {
   page: number;
+  /** Rows per page — one of SHIPMENT_CUS_PAGE_SIZES (20 by default). */
+  pageSize: number;
   searchSuffix: string;
   transportDateFrom: string;
   transportDateTo: string;
@@ -54,7 +56,7 @@ export interface CusDetailListParams {
 }
 
 export function useCusDetail(params: CusDetailListParams) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function useCusDetail(params: CusDetailListParams) {
     try {
       const response = await listCusShipmentContainers({
         page,
-        limit: CUS_DETAIL_PAGE_SIZE,
+        limit: pageSize,
         searchSuffix: searchSuffix || undefined,
         transportDateFrom: transportDateFrom || undefined,
         transportDateTo: transportDateTo || undefined,
@@ -102,7 +104,7 @@ export function useCusDetail(params: CusDetailListParams) {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, direction, dispatchStatus, informationStatus, page, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, pageSize, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 

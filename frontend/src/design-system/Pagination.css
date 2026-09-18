@@ -17,6 +17,31 @@
   color: var(--fg-3, var(--ink-3));
 }
 
+.ds-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  white-space: nowrap;
+}
+
+.ds-pagination__size select {
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-control-compact-size, var(--text-caption-size));
+}
+
+.ds-pagination__size select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (max-width: 640px), (pointer: coarse) {
+  .ds-pagination__size select { min-height: var(--control-touch-h, 44px); }
+}
+
 .ds-pagination__summary b {
   color: var(--ink, var(--fg));
   font-weight: 600;

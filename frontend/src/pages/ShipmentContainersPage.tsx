@@ -3,6 +3,7 @@ import { AlertCircle, RotateCcw, Search, SlidersHorizontal } from 'lucide-react'
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
+  SHIPMENT_CUS_PAGE_SIZES,
   type ShipmentCusContainerSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -19,6 +20,7 @@ import {
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import {
+  CUS_DETAIL_PAGE_SIZE,
   CUS_SEARCH_PATTERN,
   DISPATCH_STATUS_VALUES,
   readIsoDate,
@@ -45,6 +47,10 @@ export default function ShipmentContainersPage() {
   const today = useMemo(() => formatVietnamDateInput(new Date()), []);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = readPositiveInteger(searchParams.get('page'), 1);
+  // Rows per page lives in the URL like every other workboard param, so a
+  // 200-row view is shareable; an unknown value falls back to the default.
+  const limitParam = readPositiveInteger(searchParams.get('limit'), CUS_DETAIL_PAGE_SIZE);
+  const pageSize = (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(limitParam) ? limitParam : CUS_DETAIL_PAGE_SIZE;
   const rawSuffix = searchParams.get('searchSuffix') ?? '';
   const suffixParam = CUS_SEARCH_PATTERN.test(rawSuffix) ? rawSuffix.toUpperCase() : '';
   const parsedDateFrom = readIsoDate(searchParams.get('transportDateFrom'));
@@ -78,7 +84,7 @@ export default function ShipmentContainersPage() {
   const appliedSearchRef = useRef(suffixParam);
 
   const detail = useCusDetail({
-    page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
+    page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir,
   });
 
@@ -317,7 +323,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={hiddenColumns} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} copying={detail.copyingAppointment} onCopyAppointmentToEmpty={(row) => void detail.copyAppointmentToEmpty(row)} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={hiddenColumns} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} copying={detail.copyingAppointment} onCopyAppointmentToEmpty={(row) => void detail.copyAppointmentToEmpty(row)} />
         </>}
       </section>
     </div>

@@ -27,10 +27,12 @@ vi.mock('../../../api/shipmentClient', () => ({
   updateCusShipmentContainerLine,
 }));
 
+import { CUS_DETAIL_PAGE_SIZE } from './cusDetailModel';
 import { useCusDetail, type CusDetailListParams } from './use-cus-detail';
 
 const baseParams: CusDetailListParams = {
   page: 1,
+  pageSize: CUS_DETAIL_PAGE_SIZE,
   searchSuffix: '',
   transportDateFrom: '',
   transportDateTo: '',

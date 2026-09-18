@@ -23,6 +23,7 @@ function listResponse(total: number): ShipmentCusWorkspaceListResponse {
 
 const baseParams: CusWorkspaceListParams = {
   page: 1,
+  pageSize: CUS_PAGE_SIZE,
   searchSuffix: '',
   transportDateFrom: '',
   transportDateTo: '',
@@ -86,6 +87,14 @@ describe('useCusWorkspaceState — list query equivalence', () => {
     expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(1);
     expect(listCusShipmentWorkspace).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: CUS_PAGE_SIZE }));
     expect(workboardQuery()).toBeTruthy();
+  });
+
+  it('sends the chosen rows-per-page instead of the default (200-row view)', async () => {
+    nextParams = { ...baseParams, pageSize: 200 };
+    listCusShipmentWorkspace.mockResolvedValue(listResponse(200));
+    render(probeUi(client));
+    expect(await screen.findByText('200')).toBeTruthy();
+    expect(listCusShipmentWorkspace).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 }));
   });
 
   it('locks the refresh-cadence config that fixed the 27.8 staleness regression', async () => {

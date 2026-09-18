@@ -41,11 +41,14 @@ describe('qk.* factory — key identity', () => {
 
   it('shipmentsCus keys separate workboard pages (all-prefix invalidation)', () => {
     expect(qk.shipmentsCus.all[0]).toBe('shipments-cus');
-    expect(qk.shipmentsCus.list({ page: 1 })[0]).toBe('shipments-cus');
-    expect(qk.shipmentsCus.list({ page: 1, searchSuffix: 'AB12' }))
-      .not.toEqual(qk.shipmentsCus.list({ page: 2, searchSuffix: 'AB12' }));
-    expect(qk.shipmentsCus.list({ page: 1, bucket: 'RUNNING' as never }))
-      .not.toEqual(qk.shipmentsCus.list({ page: 1, bucket: 'LOCKED' as never }));
+    expect(qk.shipmentsCus.list({ page: 1, pageSize: 20 })[0]).toBe('shipments-cus');
+    expect(qk.shipmentsCus.list({ page: 1, pageSize: 20, searchSuffix: 'AB12' }))
+      .not.toEqual(qk.shipmentsCus.list({ page: 2, pageSize: 20, searchSuffix: 'AB12' }));
+    expect(qk.shipmentsCus.list({ page: 1, pageSize: 20, bucket: 'RUNNING' as never }))
+      .not.toEqual(qk.shipmentsCus.list({ page: 1, pageSize: 20, bucket: 'LOCKED' as never }));
+    // Rows per page is part of the identity: two sizes are two result sets.
+    expect(qk.shipmentsCus.list({ page: 1, pageSize: 20 }))
+      .not.toEqual(qk.shipmentsCus.list({ page: 1, pageSize: 200 }));
   });
 
   it('does not register a retired credit-approval queue', () => {

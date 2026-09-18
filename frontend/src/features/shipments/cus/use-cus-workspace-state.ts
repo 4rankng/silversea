@@ -37,6 +37,8 @@ const CUS_LIST_POLL_MS = 30_000;
 
 export interface CusWorkspaceListParams {
   page: number;
+  /** Rows per page — one of SHIPMENT_CUS_PAGE_SIZES (20 by default). */
+  pageSize: number;
   searchSuffix: string;
   transportDateFrom: string;
   transportDateTo: string;
@@ -49,7 +51,7 @@ export interface CusWorkspaceListParams {
 }
 
 export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetailId: number | null = null) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', sortKey, sortDir } = params;
   const [notice, setNotice] = useState<string | null>(null);
   // Non-list errors (mutations, guards) still write imperatively; list-load
   // errors come from the query. Old code cleared the shared error state at
@@ -66,6 +68,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
   const listQuery = useQuery({
     queryKey: qk.shipmentsCus.list({
       page,
+      pageSize,
       searchSuffix,
       transportDateFrom,
       transportDateTo,
@@ -77,7 +80,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
     }),
     queryFn: () => listCusShipmentWorkspace({
       page,
-      limit: CUS_PAGE_SIZE,
+      limit: pageSize,
       searchSuffix: searchSuffix || undefined,
       transportDateFrom: transportDateFrom || undefined,
       transportDateTo: transportDateTo || undefined,

@@ -28,6 +28,12 @@ const suffixSchema = z.string()
   .trim()
   .regex(CUS_SEARCH_PATTERN, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
 
+// Rows-per-page the CUS workboards offer, largest first-class option last: the
+// office asked to see up to 200 rows without paging (2026-09-18). Kept here so
+// the URL vocabulary, the selector, and the API cap cannot drift apart.
+export const SHIPMENT_CUS_PAGE_SIZES = [20, 50, 100, 200] as const;
+export type ShipmentCusPageSize = typeof SHIPMENT_CUS_PAGE_SIZES[number];
+
 // Shared filter shape for both CUS workspace GET surfaces. The overview and
 // container endpoints deliberately expose distinct strict contracts: only the
 // container workboard accepts the server-derived completeness filter.
@@ -42,7 +48,9 @@ const shipmentCusWorkspaceQueryShape = {
   direction: z.enum(['IMPORT', 'EXPORT']).optional(),
   bucket: z.nativeEnum(ShipmentCusBucket).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  // Cap matches SHIPMENT_CUS_PAGE_SIZES' largest option — the API accepts any
+  // size in 1..200, the UI offers the presets.
+  limit: z.coerce.number().int().min(1).max(200).default(20),
 };
 
 function refineTransportDateOrder(input: { transportDateFrom?: string; transportDateTo?: string }) {

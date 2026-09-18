@@ -9,6 +9,7 @@ import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   Role,
+  SHIPMENT_CUS_PAGE_SIZES,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
@@ -49,6 +50,10 @@ export default function ShipmentsPage() {
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
+  // Rows per page lives in the URL like every other workboard param, so a
+  // 200-row view is shareable; an unknown value falls back to the default.
+  const limitParam = Number(searchParams.get('limit') || '');
+  const pageSize = (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(limitParam) ? limitParam : CUS_PAGE_SIZE;
   const suffixParam = searchParams.get('searchSuffix') ?? '';
   const dateFrom = searchParams.get('transportDateFrom') ?? '';
   const dateTo = searchParams.get('transportDateTo') ?? '';
@@ -82,7 +87,7 @@ export default function ShipmentsPage() {
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
 
   const ws = useCusWorkspaceState({
-    page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
+    page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     direction, bucket, adHoc, sortKey, sortDir,
   }, drawerId);
   const qe = useCusQuickEdit({
@@ -197,7 +202,7 @@ export default function ShipmentsPage() {
 
   const items = ws.data?.items ?? [];
   const total = ws.data?.total ?? 0;
-  const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / CUS_PAGE_SIZE));
+  const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
@@ -534,7 +539,7 @@ export default function ShipmentsPage() {
                 </tbody>
               </table>
               {totalPages > 1 && (
-                <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={CUS_PAGE_SIZE} onChange={(nextPage) => updateParam('page', String(nextPage))} />
+                <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} onChange={(nextPage) => updateParam('page', String(nextPage))} />
               )}
             </div>
           </>

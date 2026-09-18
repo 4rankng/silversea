@@ -539,6 +539,29 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3')).toBeNull();
   });
 
+  // Office request 2026-09-18: the table must offer a rows-per-page choice up to
+  // 200. The choice is a URL param, so the fetch, the summary and a shared link
+  // all agree — and an unknown value falls back to the 20 default.
+  it('takes rows-per-page from the URL and refetches when the selector changes', async () => {
+    // Three pages of lots, so the pagination (and its selector) renders.
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve({ ...listResponse(), total: 144, totalPages: 3 })
+    ));
+    renderPage('/shipments?limit=200');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=200')));
+    const select = await screen.findByLabelText('Số dòng mỗi trang');
+    expect((select as HTMLSelectElement).value).toBe('200');
+    fireEvent.change(select, { target: { value: '50' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=50')));
+  });
+
+  it('falls back to 20 rows when the URL carries an unsupported size', async () => {
+    renderPage('/shipments?limit=37');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=20')));
+  });
+
   it('does not render a redundant active-filters chip strip', async () => {
     renderPage('/shipments?searchSuffix=AB12');
     await screen.findByRole('table');

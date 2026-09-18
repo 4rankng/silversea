@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Pagination } from './Pagination';
 
 describe('Pagination', () => {
@@ -18,6 +18,25 @@ describe('Pagination', () => {
     expect(getByText('5')).toBeTruthy();
     const buttons = getAllByRole('button');
     expect(buttons.length).toBeGreaterThanOrEqual(7); // ‹ 1 2 3 4 5 ›
+  });
+
+  // Rows-per-page selector (office request 2026-09-18: see up to 200 rows).
+  it('offers the rows-per-page choices only when a handler is supplied', () => {
+    const onPageSizeChange = vi.fn();
+    const { getByLabelText, unmount } = render(
+      <Pagination page={1} totalPages={7} totalItems={144} pageSize={20} pageSizeOptions={[20, 50, 100, 200]} onPageSizeChange={onPageSizeChange} onChange={() => {}} />,
+    );
+    const select = getByLabelText('Số dòng mỗi trang') as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(['20', '50', '100', '200']);
+    fireEvent.change(select, { target: { value: '200' } });
+    expect(onPageSizeChange).toHaveBeenCalledWith(200);
+    unmount();
+
+    // Without a handler the selector is not offered at all.
+    render(
+      <Pagination page={1} totalPages={7} totalItems={144} pageSize={20} pageSizeOptions={[20, 200]} onChange={() => {}} />,
+    );
+    expect(screen.queryByLabelText('Số dòng mỗi trang')).toBeNull();
   });
 
   it('renders summary when totalItems + pageSize are provided', () => {

@@ -199,6 +199,16 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
   });
 
+  // Office request 2026-09-18: rows per page is choosable up to 200, and the
+  // choice rides in the URL like every other workboard param.
+  it('reads rows-per-page from the URL for the container workboard too', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all&limit=200']}><ShipmentContainersPage /></MemoryRouter>);
+
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=200'));
+  });
+
   it('sorts columns server-side through URL params with aria-sort tracking', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all']}><ShipmentContainersPage /></MemoryRouter>);

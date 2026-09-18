@@ -11,6 +11,12 @@ export interface PaginationProps {
   summary?: ReactNode;
   siblingCount?: number;
   disabled?: boolean;
+  /** Rows-per-page choices. Rendered as a selector only when paired with
+   *  `onPageSizeChange` — tables that do not expose the choice stay unchanged. */
+  pageSizeOptions?: readonly number[];
+  onPageSizeChange?: (pageSize: number) => void;
+  /** Accessible name for the selector; defaults to a generic Vietnamese label. */
+  pageSizeLabel?: string;
 }
 
 function buildPageWindow(current: number, total: number, sibling: number): (number | '…')[] {
@@ -27,7 +33,9 @@ function buildPageWindow(current: number, total: number, sibling: number): (numb
 
 export function Pagination({
   page, totalPages, totalItems, pageSize, onChange, summary, siblingCount = 1, disabled = false,
+  pageSizeOptions, onPageSizeChange, pageSizeLabel = 'Số dòng mỗi trang',
 }: PaginationProps) {
+  const sizeOptions = pageSizeOptions && onPageSizeChange ? pageSizeOptions : null;
   const pages = useMemo(() => buildPageWindow(page, totalPages, siblingCount), [page, totalPages, siblingCount]);
   if (totalPages <= 1 && !summary) return null;
 
@@ -47,7 +55,22 @@ export function Pagination({
 
   return (
     <nav className="ds-pagination" aria-label="Phân trang">
-      <div className="ds-pagination__summary-slot">{summary ?? defaultSummary}</div>
+      <div className="ds-pagination__summary-slot">
+        {sizeOptions && (
+          <label className="ds-pagination__size">
+            <span>{pageSizeLabel}</span>
+            <select
+              value={String(pageSize)}
+              disabled={disabled}
+              aria-label={pageSizeLabel}
+              onChange={(event) => onPageSizeChange?.(Number(event.target.value))}
+            >
+              {sizeOptions.map((option) => <option key={option} value={String(option)}>{option}</option>)}
+            </select>
+          </label>
+        )}
+        {summary ?? defaultSummary}
+      </div>
       <div className="ds-pagination__controls">
         <button
           className="ds-pagination__btn"

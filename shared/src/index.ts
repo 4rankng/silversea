@@ -181,6 +181,7 @@ export {
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
   CUS_SEARCH_PATTERN,
+  SHIPMENT_CUS_PAGE_SIZES,
   shipmentCusLockSchema,
   shipmentCusReopenRequestSchema,
   shipmentCusContainerLineUpdateSchema,
@@ -189,6 +190,7 @@ export {
   shipmentRecoveryRecordResultSchema,
 } from './schemas/cus-shipment-workspace';
 export type {
+  ShipmentCusPageSize,
   ShipmentCusWorkspaceQuery,
   ShipmentCusContainerQuery,
   ShipmentCusDispatchStatus,

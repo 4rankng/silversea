@@ -145,6 +145,8 @@ export const qk = {
     /** One workboard page per filter/sort combination. */
     list: (filters: {
       page: number;
+      /** Rows per page — part of the identity: two sizes are two result sets. */
+      pageSize: number;
       searchSuffix?: string;
       transportDateFrom?: string;
       transportDateTo?: string;
