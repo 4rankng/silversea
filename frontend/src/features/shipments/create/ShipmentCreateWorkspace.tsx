@@ -48,6 +48,7 @@ import { PortCreateDialog } from './PortCreateDialog';
 import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
+import { createAdhocFieldLogic } from './createAdhocFieldLogic';
 import { Modal } from '../../../components/UI';
 import '../../../pages/clerk/ClerkShipmentCreatePage.css';
 
@@ -290,73 +291,18 @@ export function ShipmentCreateWorkspace() {
   }
 
   // ── Lệnh chạy ngoài (MasterDataNhaMay §4.2): free-text passthrough ──────
-  // An exact option-label match selects the catalog id; anything else becomes
-  // the raw text with a cleared id (Case 2 hybrid storage).
-  function customerCustomText(text: string) {
-    const match = customerOptions.find((option) => option.label === text);
-    if (match) { selectCustomer(match.value); return; }
-    setForm((current) => ({ ...current, customerId: '', rawCustomerName: text }));
-    clearFeedback();
-  }
-
-  function routeCustomText(text: string) {
-    const match = routeOptions.find((option) => option.label === text);
-    if (match) { update('routeId', match.value); return; }
-    setForm((current) => ({ ...current, routeId: '', rawRouteName: text }));
-    clearFeedback();
-  }
-
-  function factoryCustomText(text: string) {
-    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
-    if (match) { selectOperationalSite(String(match.id)); return; }
-    setForm((current) => ({ ...current, operationalSiteId: '', factoryName: text }));
-    clearFeedback();
-  }
-
-  /** Per-container port free text (§4.2): exact label → catalog id, else raw. */
-  function portCustomText(
-    rowKey: string,
-    idField: 'pickupPortId' | 'dropoffPortId',
-    rawField: 'rawPickupPortName' | 'rawDropoffPortName',
-    text: string,
-  ) {
-    const match = portOptions.find((option) => option.label === text);
-    if (match) { updateContainer(rowKey, idField, match.value); return; }
-    updateContainer(rowKey, idField, '');
-    updateContainer(rowKey, rawField, text);
-  }
-
-  /** Per-container factory free text (§4.2): exact label → catalog id, else raw. */
-  function containerFactoryCustomText(rowKey: string, text: string) {
-    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
-    if (match) { selectContainerFactory(rowKey, String(match.id)); return; }
-    setContainers((current) => current.map((row) => row.key === rowKey
-      ? { ...row, operationalSiteId: '', rawFactoryName: text, routeId: '', rawRouteName: '' }
-      : row));
-    clearFeedback();
-  }
-
-  /** Per-container route free text (§4.2): exact label → catalog id, else raw. */
-  function containerRouteCustomText(rowKey: string, text: string) {
-    const match = routeOptions.find((option) => option.label === text);
-    if (match) { updateContainer(rowKey, 'routeId', match.value); return; }
-    setContainers((current) => current.map((row) => row.key === rowKey
-      ? { ...row, routeId: '', rawRouteName: text }
-      : row));
-    clearFeedback();
-  }
-
-  /**
-   * Factory-route authority (master-data spec 2026-09-06): a factory with a
-   * configured route owns the shipment/container route — the route field
-   * auto-fills and locks. Returns '' when the factory has no route so manual
-   * selection stays allowed (no dead-end).
-   */
-  function routeIdForSite(siteId: string): string {
-    if (!siteId) return '';
-    const site = operationalSites.find((item) => String(item.id) === siteId);
-    return site?.routeId != null ? String(site.routeId) : '';
-  }
+  // Decision logic lives in ./createAdhocFieldLogic (guard-debt split); the
+  // state setters stay here.
+  const {
+    customerCustomText, routeCustomText, factoryCustomText, portCustomText,
+    containerFactoryCustomText, containerRouteCustomText, routeIdForSite,
+  } = createAdhocFieldLogic({
+    customerOptions, routeOptions, portOptions, operationalSites,
+    selectCustomer, selectOperationalSite, selectContainerFactory,
+    update: (key, value) => update(key as Parameters<typeof update>[0], value as never),
+    updateContainer: (rowKey, field, value) => updateContainer(rowKey, field as Parameters<typeof updateContainer>[1], value),
+    setForm, setContainers, clearFeedback,
+  });
 
   function selectOperationalSite(value: string) {
     const derivedRouteId = routeIdForSite(value);

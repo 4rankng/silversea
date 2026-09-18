@@ -220,7 +220,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // on the four adhoc creatable fields (customer/route/factory/ports).
   // Bumped 1169 → 1174: 2026-09-18 card 20260918_16 — the factory-dropdown
   // fetch guard documents why a non-numeric customer id clears the list.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1174,
+  // Shrunk 1174 → 1120: 2026-09-18 debt card D1 — the adhoc free-text
+  // decision logic extracted to createAdhocFieldLogic.ts (factory over
+  // injected callbacks; behavior pinned by the mode-toggle + clerk suites).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1120,
   // Bumped 1143 → 1169: 2026-09-18 card 20260918_8 — row-tier creatable
   // factory/route cells (allowsCustomValue + raw passthrough updaters).
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
