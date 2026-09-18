@@ -2174,7 +2174,7 @@ describe('review fixes: carrier switch + explicit plate clear', () => {
   });
 });
 
-describe('driver notification timing (xếp xe stays silent, issuance notifies)', () => {
+describe('driver notification timing (điều xe stays silent, issuance notifies)', () => {
   type IssueResponse = { trip: { id: number } };
 
   test('legacy plate assignment alone: no driver notification, tap-through 404', async () => {
@@ -2234,7 +2234,7 @@ test('issuing the dispatch order notifies the driver exactly once and the job op
     const { truck, driver } = await createOwnedTruckWithDriver();
     const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
 
-    // Step 1 — xếp xe via the legacy endpoint: silent.
+    // Step 1 — điều xe via the legacy endpoint: silent.
     const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,

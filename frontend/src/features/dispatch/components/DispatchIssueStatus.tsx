@@ -1,5 +1,5 @@
 /**
- * Dispatch-issue status — the ONE shared derivation distinguishing "xếp xe
+ * Dispatch-issue status — the ONE shared derivation distinguishing "điều xe
  * done but order not issued" from "order issued to the driver". Both the CUS
  * workspace and the Điều vận detail plan derive their status chip from this
  * module so the two screens (and the backend's driver-notification timing,
@@ -10,7 +10,7 @@ import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'ACCEPTED' | 'COMPLETED';
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
-  UNASSIGNED: 'Chưa xếp xe',
+  UNASSIGNED: 'Chưa điều xe',
   PLATED_NOT_ISSUED: 'Đã điều xe',
   ISSUED: 'Đã phát lệnh cho tài xế',
   ACCEPTED: 'Đã nhận lệnh',

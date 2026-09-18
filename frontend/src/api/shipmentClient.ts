@@ -648,7 +648,7 @@ export async function listZonePortFacets(zone: string, q?: string): Promise<{ it
 }
 
 /** Body for `POST /api/shipments/:id/dispatch` — "phát lệnh" for a fulfillment
- *  that already has a carrier/vehicle planned ("xếp xe"). Mirrors the backend
+ *  that already has a carrier/vehicle planned ("điều xe"). Mirrors the backend
  *  `fulfillmentDispatchSchema` (backend/src/routes/shipments/core.routes.ts). */
 export interface DispatchShipmentRequest {
   fulfillmentId: number;

@@ -16,6 +16,7 @@ describe('deriveDispatchIssueStatus', () => {
   it('a live trip outranks the plate, and nothing renders before either', () => {
     expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true })).toBe('ISSUED');
     expect(deriveDispatchIssueStatus({ vehicleAssigned: false, issued: false })).toBe('UNASSIGNED');
+    expect(DISPATCH_ISSUE_STATUS_LABELS.UNASSIGNED).toBe('Chưa điều xe');
     expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true, completed: true })).toBe('COMPLETED');
     expect(DISPATCH_ISSUE_STATUS_LABELS.COMPLETED).toBe('Đã hoàn thành');
   });

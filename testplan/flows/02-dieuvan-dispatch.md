@@ -1103,7 +1103,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 - **Vai trò:** `DISPATCHER`, `CUS`, `ADMIN`, `MANAGER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Dòng container FCL trên `/dispatch-detail` đã gán nhà xe ngoài và biển số xe ngoài (trạng thái "Đã xếp xe — chưa phát lệnh").
+- **Tiền điều kiện:** Dòng container FCL trên `/dispatch-detail` đã gán nhà xe ngoài và biển số xe ngoài (trạng thái "Đã điều xe — chưa phát lệnh").
 - **Các bước:**
   1. Đăng nhập `DISPATCHER` (hoặc `CUS`). Mở `/dispatch-detail`.
   2. Bấm ô điều phối của container đã gán xe ngoài để mở dialog "Chỉnh sửa điều phối".
@@ -1202,7 +1202,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 - **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900) & Mobile
-- **Tiền điều kiện:** Có dòng container trên `/dispatch-detail` đã gán biển số nhưng chưa phát lệnh (trạng thái "Đã xếp xe — chưa phát lệnh").
+- **Tiền điều kiện:** Có dòng container trên `/dispatch-detail` đã gán biển số nhưng chưa phát lệnh (trạng thái "Đã điều xe — chưa phát lệnh").
 - **Các bước:**
   1. Mở `/dispatch-detail`, bấm biểu tượng "Phát lệnh" (hoặc mở editor điều phối chuyển sang phát lệnh) để mở dialog "Phát lệnh · [Container]".
   2. Quan sát phần chọn thời gian: hiển thị nhóm "Chọn nhanh ngày" (Hôm nay / Ngày mai / Ngày kia), các trường Giờ chạy (24h), Giờ kết thúc (24h), Ngày chạy (dd/mm/yyyy), và nhóm "Khung giờ phổ biến" (08:00, 10:00, 13:30, 16:00).
