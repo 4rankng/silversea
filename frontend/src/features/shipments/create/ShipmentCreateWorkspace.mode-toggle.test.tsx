@@ -317,3 +317,35 @@ describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (Q
     expect(field).toHaveValue('Tuyến riêng dòng 1');
   });
 });
+
+describe('Loại container row commit (20260918_11)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+      containerTypes: [{ id: 20, code: '20DC', name: "20'DC" }],
+    });
+  });
+
+  it('picking a container type commits the id through the workspace wiring', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const combo = await screen.findByRole('combobox', { name: 'Loại container' });
+    fireEvent.click(combo);
+    const opt = await screen.findByRole('option', { name: '20DC' });
+    fireEvent.click(opt);
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
+    // The cell display is read from the row's catalog id — it proves the
+    // row state holds the id, not just the input's transient text.
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
+    fireEvent.blur(screen.getByRole('combobox', { name: 'Loại container' }));
+    // Blur must not feed the option label back as the id (which blanked the
+    // cell and failed the save with "containerTypeId là bắt buộc").
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).not.toContain('Chọn loại');
+  });
+});

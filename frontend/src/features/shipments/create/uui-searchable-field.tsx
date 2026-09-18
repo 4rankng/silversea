@@ -1,8 +1,10 @@
 // USearchableField — the searchable combobox adapter for the shipment
 // create form. Split from uui-fields.tsx (structure-guard ceiling): it is
-// the only adapter with allowsCustomValue + the (A) free-text commit
-// contract (typed text stays local; onChange commits on Enter/blur) and the
-// 20260917_14/13 suggestion-display fixes.
+// the only adapter with allowsCustomValue + the 20260917_14/13
+// suggestion-display fixes. Its commit contract: typed text in an
+// allowsCustomValue field is live-committed through onCustomValue; an id
+// select only ever commits through picked-option ids — blur and bare Enter
+// re-fire the existing selection (RAC semantics), never the option label.
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
@@ -85,16 +87,6 @@ export function USearchableField({
   // react-aria treat a typed string matching an option as 'picked' — closing
   // the suggestion menu mid-word (20260917_14).
   const [chosenKey, setChosenKey] = useState<string | null>(null);
-  // (A) free-text commit contract: typing stays LOCAL (inputValue +
-  // onCustomValue fire live); onChange commits on Enter/blur.
-  const commitCustomText = () => {
-    if (inputValue === (value ?? '')) return;
-    // With allowsCustomValue the live onCustomValue path already owns the
-    // committed value — handing raw text to onChange here would feed an
-    // id-selector handler garbage (2026-09-18 QA break: free text became a
-    // customerId). Only the closed-select contract commits through onChange.
-    if (!allowsCustomValue) onChange(inputValue);
-  };
   // Re-sync the visible text only when the FORM value actually changes
   // (external reset, dialog apply). Catalog refetches rotate the `options`
   // identity and must NOT clobber in-flight typed text.
@@ -109,30 +101,7 @@ export function USearchableField({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return (
-    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}
-      onKeyDownCapture={(event) => {
-        if (event.key !== 'Enter') return;
-        // A highlighted listbox option belongs to react-aria's selection path
-        // (its onSelectionChange commits). Bare Enter commits the typed text;
-        // the form's own submit (if any) proceeds untouched.
-        const input = event.target as HTMLElement;
-        if (input.getAttribute('aria-activedescendant')) return;
-        commitCustomText();
-      }}
-      onBlurCapture={(event) => {
-        // Selecting an option blurs the input first; the selection event
-        // commits the picked value afterwards and overwrites this text
-        // commit, so ordering stays correct.
-        commitCustomText();
-        // With allowsCustomValue, typed text IS the committed value — but
-        // RAC's blur handler reverts the input to the selected item's text
-        // (empty when nothing is picked) after this capture phase. Restore
-        // the committed text once RAC settles.
-        if (allowsCustomValue && inputValue) {
-          const input = (event.currentTarget as HTMLElement).querySelector('input');
-          if (input) setTimeout(() => { input.value = inputValue; }, 0);
-        }
-      }}>
+    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
         size={size}
         aria-label={hideLabel ? label : undefined}
@@ -155,7 +124,20 @@ export function USearchableField({
           setInputValue('');
         }}
         onSelectionChange={(key) => {
-          if (key === null) return;
+          if (key === null) {
+            // RAC re-fires the current selection (or null) when a blur or an
+            // Enter without a highlighted option settles the input. Nothing
+            // may commit here — the option label must never ride into an id
+            // handler (a blurred 20DC pick once wrote "20DC" into
+            // containerTypeId, blanking the cell and failing the save with
+            // "containerTypeId là bắt buộc"). Instead, make the visible text
+            // agree with the committed value: unmatched typed text falls
+            // back to the committed pick's label.
+            if (searchable && !allowsCustomValue) {
+              setInputValue(options.find((option) => option.value === (value ?? ''))?.label ?? '');
+            }
+            return;
+          }
           setChosenKey(String(key));
           onChange(String(key));
           if (searchable) {
@@ -167,7 +149,6 @@ export function USearchableField({
           ? {
               allowsCustomValue: Boolean(allowsCustomValue),
               onInputChange: (text: string) => {
-                console.log('[QA12-trace] onInputChange', JSON.stringify(text), 'chosenKey', chosenKey);
                 setInputValue(text);
                 onCustomValue?.(text);
                 if (!allowsCustomValue && text === '') {
