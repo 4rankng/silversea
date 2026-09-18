@@ -525,12 +525,10 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getByText('Cát Lái — Sóng Thần', { selector: '.csc-container-cell__display' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ routeId: null, operationalSiteId: null }),
+      expect.objectContaining({ routeId: null, operationalSiteId: null, containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })] }),
       expect.any(String),
     ));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })],
-    })));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('TC-CUS-FACTORY-SEARCH-02 searches the factory code and saves the selected factory ID', async () => {
@@ -548,9 +546,11 @@ describe('ClerkShipmentCreatePage', () => {
     expect(factory).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(option);
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })],
-    })));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('TC-CUS-FACTORY-SEARCH-05 clears each previous factory and its derived route when customer changes', async () => {
@@ -575,12 +575,14 @@ describe('ClerkShipmentCreatePage', () => {
       expect(route).not.toBeDisabled();
     }
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [
         expect.objectContaining({ operationalSiteId: null, routeId: null }),
         expect.objectContaining({ operationalSiteId: null, routeId: null }),
-      ],
-    })));
+      ] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('TC-CUS-FACTORY-SEARCH-07 preserves the factory catalog and selection when the same customer is selected again', async () => {
@@ -597,9 +599,11 @@ describe('ClerkShipmentCreatePage', () => {
     // than only asserting a stale selected label that survives an empty list.
     await choose('Nhà máy', '41');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })],
-    })));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('TC-CUS-FACTORY-SEARCH-08 clears the LCL factory-derived route when customer changes', async () => {
@@ -652,10 +656,11 @@ describe('ClerkShipmentCreatePage', () => {
         customerId: 8, operationalSiteId: null, routeId: 12,
       }), expect.any(String)));
     } else {
-      await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+      await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
         containers: [expect.objectContaining({ operationalSiteId: null, routeId: 12 })],
-      })));
+      }), expect.any(String)));
     }
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('shows a resting container value as table text and activates its editor from the full cell', async () => {
@@ -929,12 +934,13 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '15/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({
         containerNumber: null,
         customerAppointmentAt: '2026-08-15T09:30:00+07:00',
-      })],
-    })));
+      })] }),
+      expect.any(String),
+    ));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
     expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
     expect(await screen.findByTestId('shipment-list')).toBeTruthy();
@@ -970,7 +976,8 @@ describe('ClerkShipmentCreatePage', () => {
     const expected = replace
       ? { operationalSiteId: 43, routeId: 12, pickupPortId: 23, dropoffPortId: 24 }
       : { operationalSiteId: null, routeId: null, pickupPortId: null, dropoffPortId: null };
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({ containers: [expect.objectContaining(expected)] })));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ containers: [expect.objectContaining(expected)] }), expect.any(String)));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
     expect(await screen.findByTestId('shipment-list')).toBeTruthy();
   });
 
