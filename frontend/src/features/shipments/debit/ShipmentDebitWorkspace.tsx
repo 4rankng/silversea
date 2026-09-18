@@ -32,10 +32,10 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustReason, setAdjustReason] = useState('');
 
-  const setFreight = (containerNumber: string, patch: Partial<{ psActual: string; psNotes: string }>) => {
+  const setFreight = (containerNumber: string, patch: Partial<{ psActual: string; note: string }>) => {
     setDraft((current) => {
-      const prev = current.freight[containerNumber] ?? { psActual: '', psNotes: '' };
-      return { ...current, freight: { ...current.freight, [containerNumber]: { psActual: patch.psActual ?? prev.psActual, psNotes: patch.psNotes ?? prev.psNotes } } };
+      const prev = current.freight[containerNumber] ?? { psActual: '', note: '' };
+      return { ...current, freight: { ...current.freight, [containerNumber]: { psActual: patch.psActual ?? prev.psActual, note: patch.note ?? prev.note } } };
     });
   };
   const setItem = (expenseId: number, patch: Partial<{ thuKhach: string; note: string }>) => {

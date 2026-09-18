@@ -16,7 +16,7 @@ const num = (value: string): number => {
 /** CUS draft: per-expense sell/note edits, other-fee amount edits, and the
  * Phí khác add/remove lists. Pure delta — untouched cells never travel. */
 export interface DraftState {
-  freight: Record<string, { psActual: string; psNotes: string }>;
+  freight: Record<string, { psActual: string; note: string }>;
   items: Record<number, { thuKhach: string; note: string }>;
   feeAmounts: Record<number, string>;
   addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
@@ -26,7 +26,7 @@ export interface DraftState {
 export const DRAFT_EMPTY: DraftState = { freight: {}, items: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
 
 export const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
-  freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), psNotes: row.psNotes ?? '' }])),
+  freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
   items: {},
   feeAmounts: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.amount == null ? '' : String(fee.amount)]))),
   addedFees: [],
@@ -57,10 +57,25 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
       if (amount !== (fee.amount ?? 0)) edits.push({ expenseId: fee.id, buyAmount: amount });
     }
   }
+  const freightEdits: NonNullable<ShipmentDebitEditsBody['freightEdits']> = [];
+  for (const row of detail.freightRows) {
+    const cells = draft.freight[row.containerNumber];
+    if (!cells) continue;
+    const ps = cells.psActual.trim() === '' ? null : num(cells.psActual);
+    const note = cells.note;
+    const changed = ps !== (row.psActual ?? null) || note !== (row.psActualNote ?? '');
+    if (changed) {
+      const edit: NonNullable<ShipmentDebitEditsBody['freightEdits']>[number] = { containerNumber: row.containerNumber };
+      if (ps !== (row.psActual ?? null)) edit.psActual = ps ?? undefined;
+      if (note !== (row.psActualNote ?? '')) edit.note = note;
+      freightEdits.push(edit);
+    }
+  }
   return {
     edits,
     addOtherFees: draft.addedFees.filter((fee) => fee.name.trim() !== '').map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount) })),
     removeExpenseIds: draft.removedFeeIds,
+    freightEdits,
   };
 };
 
@@ -69,7 +84,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
   detail: ShipmentDebitDetail;
   draft: DraftState;
   frozen: boolean;
-  setFreight: (containerNumber: string, patch: Partial<{ psActual: string; psNotes: string }>) => void;
+  setFreight: (containerNumber: string, patch: Partial<{ psActual: string; note: string }>) => void;
 }) {
   return (
     <table className="csc-debit-table csc-debit-table--freight">
@@ -86,7 +101,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
       </tr></thead>
       <tbody>
         {detail.freightRows.map((row) => {
-          const cells = draft.freight[row.containerNumber] ?? { psActual: '', psNotes: '' };
+          const cells = draft.freight[row.containerNumber] ?? { psActual: '', note: '' };
           const total = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.lachHuyenFee ?? 0) + (row.customsFee ?? 0) + num(cells.psActual || '0');
           return (
             <tr key={row.containerNumber}>
@@ -109,9 +124,9 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
                 <input
                   className="csc-debit-input"
                   aria-label={`Ghi chú PS ${row.containerNumber}`}
-                  value={cells.psNotes}
+                  value={cells.note}
                   disabled={frozen}
-                  onChange={(event) => setFreight(row.containerNumber, { psNotes: event.target.value })}
+                  onChange={(event) => setFreight(row.containerNumber, { note: event.target.value })}
                 />
               </td>
             </tr>

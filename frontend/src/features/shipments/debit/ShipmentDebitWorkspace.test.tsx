@@ -36,7 +36,7 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
     lachHuyenFee: null,
     customsFee: 250000,
     psActual: null,
-    psNotes: null,
+    psActualNote: null,
   }],
   chiHoRows: [{
     tripId: 601,
@@ -139,6 +139,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
       edits: [{ expenseId: 9001, sellAmount: 9000000, note: undefined }],
       addOtherFees: [],
       removeExpenseIds: [],
+      freightEdits: [],
     });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
   });
@@ -176,5 +177,41 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     expect(inputs.length).toBeGreaterThan(0);
     for (const input of inputs) expect(input.disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Lưu điều chỉnh' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('PS thực tế round trip (20260918 final rework)', () => {
+  it('carries typed PS in the freightEdits delta and validates against the shared schema', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    fireEvent.change(screen.getByLabelText('PS thực tế CONT-001'), { target: { value: '180000' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú PS CONT-001'), { target: { value: 'thỏa thuận giảm phí' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(saveEdits).toHaveBeenCalled());
+    const body = saveEdits.mock.calls[0][1];
+    expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
+    expect(body).toMatchObject({
+      freightEdits: [{ containerNumber: 'CONT-001', psActual: 180000, note: 'thỏa thuận giảm phí' }],
+    });
+  });
+
+  it('persists PS through the round trip: save refetches and the refetched value stays', async () => {
+    const persisted = detail({ freightRows: [detail().freightRows[0]!.containerNumber === 'CONT-001' ? {
+      ...detail().freightRows[0]!,
+      psActual: 180000,
+      psActualNote: 'thỏa thuận giảm phí',
+    } : detail().freightRows[0]!] });
+    getDetail.mockResolvedValueOnce(detail()).mockResolvedValueOnce(persisted);
+    renderWorkspace();
+    const input = await screen.findByLabelText('PS thực tế CONT-001');
+    expect((input as HTMLInputElement).value).toBe('');
+    fireEvent.change(input, { target: { value: '180000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(saveEdits).toHaveBeenCalled());
+    // The save invalidates the detail query — the refetch must return the
+    // persisted PS and the input must read it back.
+    await waitFor(() => expect(getDetail.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect((screen.getByLabelText('PS thực tế CONT-001') as HTMLInputElement).value).toBe('180000'));
   });
 });

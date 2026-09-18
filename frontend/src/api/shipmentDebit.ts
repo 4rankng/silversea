@@ -58,7 +58,7 @@ export interface DebitDetailFreightRow {
   lachHuyenFee: number | null;
   customsFee: number | null;
   psActual: number | null;
-  psNotes: string | null;
+  psActualNote: string | null;
 }
 
 export interface DebitDetailExpenseItem {
