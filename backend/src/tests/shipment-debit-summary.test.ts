@@ -80,7 +80,7 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const trip = await mkTrip(lot.id, customer.id, route.id);
     await mkFreight(lot.id, trip.id, '1000000');
     await mkExpense(trip.id, '300000');
-    await mkDebitNote(trip, { sourceType: 'TRIP', sourceId: trip.id, base: '2000000' });
+    await mkDebitNote({ id: trip.id, shipmentId: trip.shipmentId! }, { sourceType: 'TRIP', sourceId: trip.id, base: '2000000' });
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     assert.equal(result.total, 1);
     const item = result.items.find((row) => row.shipmentId === lot.id)!;
@@ -97,7 +97,7 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const route = await mkRoute(`Debit route ${suffix}`);
     const trip = await mkTrip(lot.id, customer.id, route.id);
     await mkFreight(lot.id, trip.id, '500000');
-    await mkDebitNote(trip, { sourceType: 'ADHOC', sourceId: null, base: '900000' });
+    await mkDebitNote({ id: trip.id, shipmentId: trip.shipmentId! }, { sourceType: 'ADHOC', sourceId: null, base: '900000' });
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const item = result.items.find((row) => row.shipmentId === lot.id)!;
     assert.equal(item.freightAuto, '500000');

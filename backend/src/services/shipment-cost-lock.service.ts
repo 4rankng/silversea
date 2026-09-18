@@ -147,3 +147,80 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<A
     .where(eq(s.shipmentCostAdjustments.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentCostAdjustments.id));
 }
+
+export interface CreateDebitNoteFromCostLockInput {
+  shipmentId: number;
+  actor: AuthUser;
+  idempotencyKey: string;
+}
+
+/** Xuất Debit Note from the active cost lock (ruling a): the snapshot's
+ *  frozen values become the document's line set at creation — the document
+ *  row is the debt instrument and never re-reads live rows afterwards.
+ *  409 when the lot has no active lock: export only exists on locked lots. */
+export async function createDebitNoteFromCostLock(
+  input: CreateDebitNoteFromCostLockInput,
+): Promise<{ id: number }> {
+  const { result } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK,
+    idempotencyKey: input.idempotencyKey,
+    payload: { shipmentId: input.shipmentId },
+    createdBy: input.actor.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      const [lot] = await tx.select({
+        id: s.shipments.id,
+        customerId: s.shipments.customerId,
+        rawCustomerName: s.shipments.rawCustomerName,
+        shipmentCode: s.shipments.shipmentCode,
+      }).from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+      if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+      const [lock] = await tx.select({ snapshot: s.shipmentCostLocks.costSnapshot })
+        .from(s.shipmentCostLocks)
+        .where(and(
+          eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
+          isNull(s.shipmentCostLocks.unlockedAt),
+        ))
+        .limit(1);
+      if (!lock) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
+      const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
+      const lineRows: Array<{
+        lineType: string;
+        typeLabel: string;
+        baseAmount: string;
+      }> = [];
+      const freight = snapshot.freightAuto;
+      if (typeof freight === 'string' && freight !== '' && freight !== '0') {
+        lineRows.push({ lineType: 'FREIGHT', typeLabel: 'Cước vận tải (auto)', baseAmount: freight });
+      }
+      const chiHo = snapshot.chiHoTotal;
+      if (typeof chiHo === 'string' && chiHo !== '' && chiHo !== '0') {
+        lineRows.push({ lineType: 'SERVICE_FEE', typeLabel: 'Tổng chi hộ', baseAmount: chiHo });
+      }
+      const [doc] = await tx.insert(s.billingDocuments).values({
+        type: 'DEBIT_NOTE',
+        entityType: 'CUSTOMER',
+        entityId: lot.customerId ?? 0,
+        entityName: lot.rawCustomerName?.trim() || null,
+        rangeFrom: new Date().toISOString().slice(0, 10),
+        rangeTo: new Date().toISOString().slice(0, 10),
+        issuedAt: new Date(),
+        debitNoteStatus: 'SENT',
+      }).returning({ id: s.billingDocuments.id });
+      if (lineRows.length > 0) {
+        await tx.insert(s.billingDocumentLines).values(lineRows.map((line, index) => ({
+          documentId: doc.id,
+          sourceType: 'ADHOC' as const,
+          sourceId: null,
+          lineType: line.lineType,
+          typeLabel: line.typeLabel,
+          description: `${line.typeLabel} — lô ${lot.shipmentCode ?? input.shipmentId} (chốt từ snapshot khóa lô)`,
+          baseAmount: line.baseAmount,
+          grossAmount: line.baseAmount,
+        })));
+      }
+      return { id: doc.id };
+    },
+  });
+  return result;
+}

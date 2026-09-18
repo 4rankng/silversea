@@ -75,6 +75,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN: 'shipments.carrier-allocations.assign',
   SHIPMENT_COST_LOCK: 'shipments.cost-lock',
   SHIPMENT_COST_ADJUST: 'shipments.cost-adjust',
+  SHIPMENT_DEBIT_NOTE_FROM_LOCK: 'shipments.debit-note-from-lock',
   SHIPMENT_DEBIT_EDITS: 'shipments.debit-edits',
   SHIPMENT_FULFILLMENT_CARRIER_ASSIGN: 'shipments.fulfillments.carrier.assign',
   SHIPMENT_FULFILLMENT_PLATE_ASSIGN: 'shipments.fulfillments.plate.assign',

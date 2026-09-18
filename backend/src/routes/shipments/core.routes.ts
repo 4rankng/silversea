@@ -43,7 +43,7 @@ import {
 } from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
-import { adjustShipmentCost, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { adjustShipmentCost, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -941,5 +941,18 @@ coreRoutes.put(
       payload: req.body ?? {},
     });
     res.status(200).json(result);
+  }),
+);
+
+// ─── POST /:id/debit-note — Xuất Debit Note từ snapshot khóa lô ─────────────
+coreRoutes.post(
+  '/:id/debit-note',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xuất Debit Note.');
+    const doc = await createDebitNoteFromCostLock({ shipmentId, actor: getUser(req), idempotencyKey });
+    res.status(201).json({ id: doc.id });
   }),
 );
