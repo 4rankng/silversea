@@ -227,3 +227,34 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(time).toHaveValue('14:');
   });
 });
+
+describe('Lệnh chạy ngoài toggle (20260916_3)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('renders the toggle without the retired suffix and defaults OFF', async () => {
+    renderWorkspace();
+    const toggle = await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' });
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('toggling never wipes typed content and switches the customer field to creatable mode', async () => {
+    renderWorkspace();
+    const customer = await screen.findByRole('combobox', { name: /^Khách hàng/ });
+    fireEvent.change(customer, { target: { value: 'Khách vãng lai 8888' } });
+    const toggle = screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' });
+    fireEvent.click(toggle);
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveValue('Khách vãng lai 8888');
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveAttribute('placeholder', 'Chọn hoặc gõ tên mới');
+    // Toggling back off preserves the content too.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveValue('Khách vãng lai 8888');
+  });
+});
