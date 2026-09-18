@@ -89,8 +89,11 @@ export function USearchableField({
   // onCustomValue fire live); onChange commits on Enter/blur.
   const commitCustomText = () => {
     if (inputValue === (value ?? '')) return;
-    setChosenKey(inputValue || null);
-    onChange(inputValue);
+    // With allowsCustomValue the live onCustomValue path already owns the
+    // committed value — handing raw text to onChange here would feed an
+    // id-selector handler garbage (2026-09-18 QA break: free text became a
+    // customerId). Only the closed-select contract commits through onChange.
+    if (!allowsCustomValue) onChange(inputValue);
   };
   // Re-sync the visible text only when the FORM value actually changes
   // (external reset, dialog apply). Catalog refetches rotate the `options`
@@ -116,11 +119,19 @@ export function USearchableField({
         if (input.getAttribute('aria-activedescendant')) return;
         commitCustomText();
       }}
-      onBlurCapture={() => {
+      onBlurCapture={(event) => {
         // Selecting an option blurs the input first; the selection event
         // commits the picked value afterwards and overwrites this text
         // commit, so ordering stays correct.
         commitCustomText();
+        // With allowsCustomValue, typed text IS the committed value — but
+        // RAC's blur handler reverts the input to the selected item's text
+        // (empty when nothing is picked) after this capture phase. Restore
+        // the committed text once RAC settles.
+        if (allowsCustomValue && inputValue) {
+          const input = (event.currentTarget as HTMLElement).querySelector('input');
+          if (input) setTimeout(() => { input.value = inputValue; }, 0);
+        }
       }}>
       <ComboBox
         size={size}
@@ -156,6 +167,7 @@ export function USearchableField({
           ? {
               allowsCustomValue: Boolean(allowsCustomValue),
               onInputChange: (text: string) => {
+                console.log('[QA12-trace] onInputChange', JSON.stringify(text), 'chosenKey', chosenKey);
                 setInputValue(text);
                 onCustomValue?.(text);
                 if (!allowsCustomValue && text === '') {

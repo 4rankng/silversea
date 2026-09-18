@@ -621,6 +621,7 @@ export function ShipmentCreateWorkspace() {
                 required
                 value={form.customerId}
                 onChange={selectCustomer}
+                allowsCustomValue={form.isAdHoc}
                 options={customerOptions}
                 placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên mới' : 'Gõ để tìm kiếm'}
                 disabled={Boolean(saving)}
@@ -682,6 +683,7 @@ export function ShipmentCreateWorkspace() {
                 disabled={Boolean(saving) || (!form.isAdHoc && selectedOperationalSite?.routeId != null)}
                 error={issueByField.get('shipment-route')}
                 searchable
+                allowsCustomValue={form.isAdHoc}
                 {...(form.isAdHoc ? { onCustomValue: routeCustomText } : {})}
                 popoverPlacement="top"
               />
@@ -707,6 +709,7 @@ export function ShipmentCreateWorkspace() {
                 placeholder={sitesLoading ? 'Đang tải…' : !form.customerId && !form.isAdHoc ? 'Chọn khách hàng trước' : form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Gõ chọn'}
                 disabled={(!form.customerId && !form.isAdHoc) || sitesLoading || Boolean(saving)}
                 error={issueByField.get('shipment-operational-site')}
+                allowsCustomValue={form.isAdHoc}
                 {...(form.isAdHoc ? { onCustomValue: factoryCustomText } : {})}
                 hint={form.customerId && !sitesLoading && operationalSites.length === 0
                     ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-control-size)' }}>Thêm mới</button></>
@@ -914,7 +917,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} popoverPlacement="top" />
+                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} allowsCustomValue={form.isAdHoc} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} popoverPlacement="top" />
                       <button
                         type="button"
                         className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"

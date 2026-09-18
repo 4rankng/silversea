@@ -258,3 +258,36 @@ describe('Lệnh chạy ngoài toggle (20260916_3)', () => {
     expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveValue('Khách vãng lai 8888');
   });
 });
+
+describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (QA 2026-09-18)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  const blurKeepsText = async (label: RegExp, text: string): Promise<void> => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const candidates = screen.getAllByRole('combobox', { name: label });
+    const field = candidates.find((el) => !el.hasAttribute('disabled')) ?? candidates[0];
+    await waitFor(() => expect(field).not.toBeDisabled());
+    fireEvent.change(field, { target: { value: text } });
+    fireEvent.blur(field);
+    expect(screen.getAllByRole('combobox', { name: label }).find((el) => !el.hasAttribute('disabled'))).toHaveValue(text);
+  };
+
+  it('Khách hàng: free text survives blur in adhoc mode', async () => {
+    await blurKeepsText(/^Khách hàng/, 'Khách vãng lai 8888');
+  });
+  it('Khách hàng: free text survives blur in adhoc mode', async () => {
+    await blurKeepsText(/^Khách hàng/, 'Khách vãng lai 8888');
+  });
+  it('Cảng nâng: free text survives blur in adhoc mode', async () => {
+    await blurKeepsText(/^Cảng nâng/, 'Cảng ngoài 5');
+  });
+});
