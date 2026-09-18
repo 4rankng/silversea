@@ -1,8 +1,8 @@
 import { defineConfig } from 'drizzle-kit';
 
 // 20260918_12: drizzle-kit must NEVER fall back to a hardcoded database —
-// the old `|| 'postgres://…5442/silversea'` default pointed at the SIBLING
-// checkout's container and silently migrated the wrong database. Rules:
+// the old hardcoded default pointed at the SIBLING checkout's container and
+// silently migrated the wrong database. Rules:
 //   - `generate` never touches a database: a placeholder URL is fine.
 //   - everything else (migrate/push/studio) requires an explicit
 //     DATABASE_URL and exits loudly without one — a silent wrong-DB default
