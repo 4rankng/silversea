@@ -43,6 +43,8 @@ import {
 } from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
+import * as billingDocService from '../../services/billing-document.service';
+import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
 import { adjustShipmentCost, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
@@ -945,6 +947,32 @@ coreRoutes.put(
 );
 
 // ─── POST /:id/debit-note — Xuất Debit Note từ snapshot khóa lô ─────────────
+// GET /:id/debit-note/export — the issuing CUS downloads the issued file
+// (shipments mount: CUS has access here; the financial router's casbin
+// mount blocks CUS regardless of requireRoles).
+coreRoutes.get(
+  '/:id/debit-note/export',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const documentId = Number(req.query.documentId);
+    if (!Number.isInteger(documentId) || documentId < 1) {
+      throw new ApiError(400, 'documentId là bắt buộc để tải Debit Note.');
+    }
+    const doc = await billingDocService.getDocument(documentId);
+    if (doc.type !== 'DEBIT_NOTE') throw new ApiError(404, 'Không tìm thấy Debit Note.');
+    const snap = await billingDocService.resolveDebitNoteTemplateForDoc(doc, {});
+    const buffer = snap
+      ? await renderTemplatedXlsx(doc, snap)
+      : await buildLegacyXlsx(doc);
+    const name = doc.entityName ?? String(doc.entityId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="giay-bao-no-${name}.xlsx"`);
+    res.send(buffer);
+  }),
+);
+
 coreRoutes.post(
   '/:id/debit-note',
   requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),

@@ -167,3 +167,20 @@ describe('20260918_19 Xuất Debit Note từ snapshot khóa lô', () => {
     }
   });
 });
+
+describe('the issuing CUS downloads the Debit Note file', () => {
+  test('issue then export returns the xlsx for CUS on the shipments mount', async () => {
+    const shipment = await mkLockedLot();
+    await lockLot(shipment.id, cusId);
+    const issue = await api('POST', `/api/shipments/${shipment.id}/debit-note`, cusId, {});
+    assert.equal(issue.status, 201, JSON.stringify(issue.body));
+    docIds.push(Number(issue.body.id));
+    const response = await fetch(`${baseUrl}/api/shipments/${shipment.id}/debit-note/export?documentId=${issue.body.id}`, {
+      headers: { 'X-Test-User-Id': String(cusId) },
+    });
+    assert.equal(response.status, 200, `the issuing CUS must read the file — got ${response.status}`);
+    assert.match(response.headers.get('content-type') ?? '', /spreadsheetml/);
+    const buffer = await response.arrayBuffer();
+    assert.ok(buffer.byteLength > 100, 'a real file buffer comes back');
+  });
+});

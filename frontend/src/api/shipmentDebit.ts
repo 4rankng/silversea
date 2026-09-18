@@ -130,3 +130,19 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<S
   const response = await api.get<{ items: ShipmentCostAdjustment[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`);
   return response.items;
 }
+
+// ── Xuất Debit Note: issue from the cost-lock snapshot, then download ──────
+
+/** POST /shipments/:id/debit-note — creates the DEBIT_NOTE document from the
+ * active cost-lock snapshot; replays with the same key return the original. */
+export async function issueDebitNote(shipmentId: number, idempotencyKey: string): Promise<{ id: number }> {
+  return api.post<{ id: number }>(`/shipments/${encodeURIComponent(shipmentId)}/debit-note`, {}, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+/** GET /shipments/:id/debit-note/export?documentId= — the issuing CUS
+ * downloads the issued file (shipments mount; CUS has access here). */
+export async function fetchDebitNoteExportBlob(shipmentId: number, documentId: number): Promise<Blob> {
+  return api.getBlob(`/shipments/${encodeURIComponent(shipmentId)}/debit-note/export?documentId=${documentId}`);
+}

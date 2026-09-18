@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { tripClient } from '../api/tripClient';
 import { listShipmentDebitSummary, type ShipmentDebitLotRow } from '../api/shipmentClient';
+import { fetchDebitNoteExportBlob, issueDebitNote } from '../api/shipmentDebit';
+import { useToast } from '../components/shared/Toast';
 import { formatMoney } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
@@ -100,6 +102,36 @@ export function ShipmentDebitPage() {
   const lockStatus = (params.get('lock') ?? 'ALL') as 'ALL' | 'OPEN' | 'LOCKED';
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [issuing, setIssuing] = useState(false);
+  const { toast } = useToast();
+
+  // Xuất Debit Note: for each selected LOCKED lot, issue the document from
+  // the cost-lock snapshot, then download the issued file. Each lot issues
+  // under its own idempotency key, so a retry never duplicates a document.
+  async function exportSelectedLockedLots() {
+    const targets = items.filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
+    if (targets.length === 0 || issuing) return;
+    setIssuing(true);
+    let failures = 0;
+    for (const lot of targets) {
+      try {
+        const { id: documentId } = await issueDebitNote(lot.shipmentId, crypto.randomUUID());
+        const blob = await fetchDebitNoteExportBlob(lot.shipmentId, documentId);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `giay-bao-no-${lot.code ?? lot.shipmentId}.xlsx`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } catch {
+        failures += 1;
+      }
+    }
+    setIssuing(false);
+    if (failures > 0) {
+      toast({ kind: 'error', message: `${failures} lô chưa xuất được Debit Note. Vui lòng thử lại.` });
+    }
+  }
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const bootstrap = useQuery({ queryKey: ['shipment-debit-bootstrap'], queryFn: () => tripClient.getBootstrap() });
@@ -151,7 +183,7 @@ export function ShipmentDebitPage() {
               options={LOCK_FILTERS}
               onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
             />
-            <UUIButton size="sm" isDisabled={!anyLockedSelected} onPress={() => { /* export behavior lands with card _19 */ }}>
+            <UUIButton size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
               Xuất Debit Note
             </UUIButton>
           </div>
