@@ -349,3 +349,37 @@ describe('Loại container row commit (20260918_11)', () => {
     expect(document.querySelector('[data-field-id$="-type"]')?.textContent).not.toContain('Chọn loại');
   });
 });
+
+describe('Factory dropdown NaN race (20260918_16)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 41, siteType: 'FACTORY', name: 'Nhà máy Long Minh', shortName: 'NM Long Minh' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('a customer pick fires the sites fetch once with the numeric id and blur cannot corrupt it', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Khách hàng' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
+    await waitFor(() => expect(listOperationalSites).toHaveBeenCalledWith(1));
+    fireEvent.blur(screen.getByRole('combobox', { name: 'Khách hàng' }));
+    // Before the blur fix, the label "KH A" rode into customerId and the
+    // effect requested customerId=NaN — the late 400 emptied the factory
+    // dropdown after the good response had landed.
+    await waitFor(() => expect(listOperationalSites).toHaveBeenCalledTimes(1));
+    expect(listOperationalSites.mock.calls.every(([id]) => Number.isFinite(id as number))).toBe(true);
+    // The catalog factory pick stays reachable end-to-end.
+    const factory = document.querySelector<HTMLInputElement>('tr.csc-container-row td[data-field-id$="-factory"] input')!;
+    await waitFor(() => expect(factory).not.toBeDisabled());
+    fireEvent.click(factory);
+    fireEvent.click(await screen.findByRole('option', { name: 'NM Long Minh' }));
+    await waitFor(() => expect(factory).toHaveValue('NM Long Minh'));
+    fireEvent.blur(factory);
+    await waitFor(() => expect(factory).toHaveValue('NM Long Minh'));
+    expect(document.querySelector('[data-field-id$="-factory"]')?.textContent).toContain('NM Long Minh');
+  });
+});

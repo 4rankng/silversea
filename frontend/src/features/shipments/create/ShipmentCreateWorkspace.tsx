@@ -248,10 +248,15 @@ export function ShipmentCreateWorkspace() {
   });
 
   useEffect(() => {
-    if (!form.customerId) { setSites([]); return; }
+    // The fetch must carry a numeric customer id — a corrupted value (a blur
+    // once wrote the option label here) would fire customerId=NaN, and the
+    // late 400 replaced the good response, leaving the factory dropdown
+    // empty. Non-numeric ids clear the list instead of requesting.
+    const customerId = Number(form.customerId);
+    if (!form.customerId || !Number.isFinite(customerId)) { setSites([]); return; }
     let cancelled = false;
     setSitesLoading(true);
-    listOperationalSites(Number(form.customerId))
+    listOperationalSites(customerId)
       .then((value) => { if (!cancelled) setSites(value); })
       .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
       .finally(() => { if (!cancelled) setSitesLoading(false); });

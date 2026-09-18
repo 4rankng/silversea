@@ -212,7 +212,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // without the retired suffix).
   // Bumped 1140 → 1143: 2026-09-18 card 20260916_3 — allowsCustomValue gates
   // on the four adhoc creatable fields (customer/route/factory/ports).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1169,
+  // Bumped 1169 → 1174: 2026-09-18 card 20260918_16 — the factory-dropdown
+  // fetch guard documents why a non-numeric customer id clears the list.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1174,
   // Bumped 1143 → 1169: 2026-09-18 card 20260918_8 — row-tier creatable
   // factory/route cells (allowsCustomValue + raw passthrough updaters).
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
