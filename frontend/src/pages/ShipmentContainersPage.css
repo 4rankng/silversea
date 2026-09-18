@@ -28,17 +28,26 @@
 }
 .shipments-detail-filters {
   display: grid;
-  /* Keep one field row while its actual minimum fits the workspace. */
-  grid-template-columns: minmax(220px, 1.1fr) minmax(280px, 1.5fr) minmax(430px, 2.1fr);
+  /* One self-sizing rail, matching the overview workboard: every filter shares a
+     left edge, a label baseline and the row's leftover width. The old three
+     hand-tuned tracks gave the four selects only three columns, so the last one
+     wrapped, the outer row grew and align-items:end dropped the search and the
+     dates to the bottom — the empty top-left hole. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 8px 12px;
   align-items: end;
   min-width: 0;
 }
 .shipments-detail-filters .cus-advanced-toggle { display: none; }
-.shipments-detail-filters__advanced { display: contents; }
-.shipments-detail-filters__group { display: grid; min-width: 0; gap: 6px; align-items: end; }
-.shipments-detail-filters__group--dates { grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr); }
-.shipments-detail-filters__group--selects { grid-template-columns: minmax(170px, 1.25fr) minmax(110px, .65fr) minmax(140px, .85fr); }
+/* Neither the disclosure nor its groups are layout boxes: their fields are rail
+   items. Adding a filter never needs a track edit. */
+.shipments-detail-filters__advanced,
+.shipments-detail-filters__group { display: contents; }
+/* The identity field is the only one that needs two tracks. */
+.shipments-detail-filter--search { grid-column: span 2; }
+/* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
+   stack at 4px. Match them or the select labels ride 2px above the rest. */
+.shipments-detail-filter .ds-uui-select__control { gap: 4px; }
 .shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
 .shipments-detail-filter > *,
 .shipments-detail-filter input { width: 100%; min-width: 0; }
@@ -48,7 +57,9 @@
 
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; grid-column: 1 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
+/* The date shortcuts and the reset belong with the rail they act on, so they
+   start at its left edge instead of floating off at the far right. */
+.shipments-detail-filters__footer { display: flex; grid-column: 1 / -1; min-width: 0; align-items: end; justify-content: flex-start; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
@@ -401,6 +412,9 @@
 
 @container shipments-detail (max-width: 1000px) {
   .shipments-detail-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  /* This rail is search + disclosure, so the search takes one track: spanning
+     two collapses the auto track and pushes the toggle onto a row of its own. */
+  .shipments-detail-filter--search { grid-column: auto; }
   .shipments-detail-filters .cus-advanced-toggle { display: inline-flex; }
   .shipments-detail-filters__advanced { display: none; grid-column: 1 / -1; min-width: 0; gap: 8px; align-items: end; }
   .shipments-detail-filters__advanced[data-open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -550,11 +564,12 @@
   .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 }
 
-/* Tablet has enough room for all five secondary fields without borrowing the
-   phone's three-row disclosure. Keep dates adjacent in keyboard order. */
+/* Tablet has enough room for the secondary fields without borrowing the phone's
+   three-row disclosure. The same self-sizing rail keeps dates adjacent in
+   keyboard order and survives a filter being added. */
 @container shipments-detail (min-width: 700px) and (max-width: 1000px) {
   .shipments-detail-filters__advanced[data-open] {
-    grid-template-columns: repeat(2, minmax(130px, 1fr)) minmax(170px, 1.3fr) minmax(100px, .75fr) minmax(130px, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   }
   .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: auto; }
 }
