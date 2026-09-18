@@ -3,12 +3,19 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary, getDetail } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listSummary: vi.fn(), getDetail: vi.fn() }));
+const { getBootstrap, listSummary, getDetail, createBatch, exportFile } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listSummary: vi.fn(), getDetail: vi.fn(), createBatch: vi.fn(), exportFile: vi.fn() }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
 vi.mock('../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../api/shipmentClient')>(),
   listShipmentDebitSummary: listSummary,
   getShipmentDebitDetail: getDetail,
+  createDebitNoteBatch: createBatch,
+  exportDebitNoteFile: exportFile,
+}));
+
+vi.mock('../api/shipmentDebit', () => ({
+  createDebitNoteBatch: createBatch,
+  exportDebitNoteFile: exportFile,
 }));
 
 import { ToastProvider } from '../components/shared/Toast';
@@ -51,6 +58,10 @@ beforeEach(() => {
   getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }] });
   listSummary.mockResolvedValue({ items: [], total: 0 });
   getDetail.mockReset();
+  createBatch.mockReset();
+  exportFile.mockReset();
+  createBatch.mockResolvedValue({ id: 777 });
+  exportFile.mockResolvedValue(new Blob(['x']));
 });
 
 describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
@@ -140,5 +151,38 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
     expect(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' }));
     await waitFor(() => expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull());
+  });
+});
+
+describe('Xuất Debit Note — batched issue (ruling: one POST per selection)', () => {
+  it('issues one batched call with all selected locked ids and downloads the union document', async () => {
+    listSummary.mockResolvedValue({
+      items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' }), row({ shipmentId: 102, code: 'SHP-26-0002', lockStatus: 'LOCKED' }), row({ shipmentId: 103, code: 'SHP-26-0003', lockStatus: 'OPEN' })],
+      total: 3,
+    });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0002' }));
+    const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
+    // One POST, both locked ids, the stable per-selection key — the open lot never travels.
+    expect(createBatch).toHaveBeenCalledWith([101, 102], 'debit-note-101-102');
+    await waitFor(() => expect(exportFile).toHaveBeenCalledWith(101, 777));
+  });
+
+  it('replays the same key when the same selection exports again', async () => {
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
+    expect(createBatch.mock.calls[0][1]).toBe(createBatch.mock.calls[1][1]);
+    expect(createBatch.mock.calls[1][1]).toBe('debit-note-101');
   });
 });

@@ -131,18 +131,20 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<S
   return response.items;
 }
 
-// ── Xuất Debit Note: issue from the cost-lock snapshot, then download ──────
+// ── Xuất Debit Note: batched issue + download ──────────────────────────────
 
-/** POST /shipments/:id/debit-note — creates the DEBIT_NOTE document from the
- * active cost-lock snapshot; replays with the same key return the original. */
-export async function issueDebitNote(shipmentId: number, idempotencyKey: string): Promise<{ id: number }> {
-  return api.post<{ id: number }>(`/shipments/${encodeURIComponent(shipmentId)}/debit-note`, {}, {
+/** One POST carries every selected locked lot id; per-lot line grouping is
+ *  preserved inside the union document. The caller derives a stable key from
+ *  the selection, so re-clicking the same selection replays the same
+ *  document instead of issuing a duplicate. */
+export async function createDebitNoteBatch(shipmentIds: number[], idempotencyKey: string): Promise<{ id: number }> {
+  return api.post<{ id: number }>('/shipments/debit-notes', { shipmentIds }, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
 
-/** GET /shipments/:id/debit-note/export?documentId= — the issuing CUS
- * downloads the issued file (shipments mount; CUS has access here). */
-export async function fetchDebitNoteExportBlob(shipmentId: number, documentId: number): Promise<Blob> {
-  return api.getBlob(`/shipments/${encodeURIComponent(shipmentId)}/debit-note/export?documentId=${documentId}`);
+/** Downloads the issued union document (xlsx) through the per-lot export
+ *  mount — the lookup is by documentId, the mount id only anchors casbin. */
+export function exportDebitNoteFile(anchorShipmentId: number, documentId: number): Promise<Blob> {
+  return api.getBlob(`/shipments/${encodeURIComponent(anchorShipmentId)}/debit-note/export?documentId=${documentId}`);
 }

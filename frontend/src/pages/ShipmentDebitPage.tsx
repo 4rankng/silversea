@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { tripClient } from '../api/tripClient';
 import { listShipmentDebitSummary, type ShipmentDebitLotRow } from '../api/shipmentClient';
-import { fetchDebitNoteExportBlob, issueDebitNote } from '../api/shipmentDebit';
+import { createDebitNoteBatch, exportDebitNoteFile } from '../api/shipmentDebit';
 import { useToast } from '../components/shared/Toast';
 import { formatMoney } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -105,31 +105,31 @@ export function ShipmentDebitPage() {
   const [issuing, setIssuing] = useState(false);
   const { toast } = useToast();
 
-  // Xuất Debit Note: for each selected LOCKED lot, issue the document from
-  // the cost-lock snapshot, then download the issued file. Each lot issues
-  // under its own idempotency key, so a retry never duplicates a document.
+  // Xuất Debit Note: ONE issue call carries every selected locked lot id and
+  // the backend builds the union document (per-lot line grouping preserved
+  // inside). The idempotency key derives from the sorted selection, so
+  // re-clicking the same selection replays the same document instead of
+  // issuing a duplicate.
   async function exportSelectedLockedLots() {
-    const targets = items.filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
-    if (targets.length === 0 || issuing) return;
+    const ids = items
+      .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
+      .map((row) => row.shipmentId);
+    if (ids.length === 0 || issuing) return;
     setIssuing(true);
-    let failures = 0;
-    for (const lot of targets) {
-      try {
-        const { id: documentId } = await issueDebitNote(lot.shipmentId, crypto.randomUUID());
-        const blob = await fetchDebitNoteExportBlob(lot.shipmentId, documentId);
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `giay-bao-no-${lot.code ?? lot.shipmentId}.xlsx`;
-        anchor.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-      } catch {
-        failures += 1;
-      }
-    }
-    setIssuing(false);
-    if (failures > 0) {
-      toast({ kind: 'error', message: `${failures} lô chưa xuất được Debit Note. Vui lòng thử lại.` });
+    try {
+      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
+      const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
+      const blob = await exportDebitNoteFile(ids[0], documentId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `giay-bao-no-${items.find((row) => row.shipmentId === ids[0])?.code ?? ids[0]}.xlsx`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch {
+      toast({ kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
+    } finally {
+      setIssuing(false);
     }
   }
   const [expandedId, setExpandedId] = useState<number | null>(null);
