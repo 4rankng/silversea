@@ -13,7 +13,7 @@ it('funds the selected existing request and retries with the same command key af
   const onClose = vi.fn();
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseCashDrawer catalog={catalog} onClose={onClose} /></QueryClientProvider>);
   fireEvent.click(screen.getByRole('button', { name: /Nhân viên OPS/ })); fireEvent.click(await screen.findByRole('option', { name: 'OPS Test' }));
-  fireEvent.click(screen.getByRole('button', { name: /Yêu cầu ứng/ })); fireEvent.click(await screen.findByRole('option', { name: /#12/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Yêu cầu ứng/ })); fireEvent.click(await screen.findByRole('option', { name: /Ứng phí cảng/ }));
   expect(screen.getByLabelText(/Tiền tạm ứng/)).toBeDisabled(); expect(screen.getByLabelText(/Tiền tạm ứng/)).toHaveValue(1000000);
   fireEvent.click(screen.getByRole('button', { name: /Nguồn quỹ/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ công ty' }));
   fireEvent.click(screen.getByRole('button', { name: /Tài khoản/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ test' }));
@@ -24,4 +24,11 @@ it('funds the selected existing request and retries with the same command key af
   await waitFor(() => expect(fundAdvance).toHaveBeenCalledTimes(2));
   expect(fundAdvance.mock.calls[0][0]).toMatchObject({ advanceRequestId: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', treasuryAccountId: 3, physicalReference: 'BANK-12' });
   expect(fundAdvance.mock.calls[1][1]).toBe(fundAdvance.mock.calls[0][1]);
+});
+it('labels pending advance requests with business keys, never the request id', async () => {
+  render(<QueryClientProvider client={new QueryClient()}><ExpenseCashDrawer catalog={catalog} onClose={vi.fn()} /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: /Nhân viên OPS/ })); fireEvent.click(await screen.findByRole('option', { name: 'OPS Test' }));
+  fireEvent.click(screen.getByRole('button', { name: /Yêu cầu ứng/ }));
+  const option = await screen.findByRole('option', { name: /Ứng phí cảng · 2026-09-17 · 1\.000\.000 ₫/ });
+  expect(option.textContent).not.toMatch(/#\d/);
 });

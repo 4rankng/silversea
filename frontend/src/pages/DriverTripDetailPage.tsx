@@ -29,7 +29,7 @@ import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDate } from '../lib/format';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
@@ -239,7 +239,8 @@ function DriverTripDetailContent() {
       <div className="driver-task-screen">
         <section className="driver-task-section">
           <div className="driver-task-section__head">
-            <span>{basic.tripCode ?? `Chuyến #${basic.id}`}</span>
+            {/* business key render; id never user-facing — fall back to plate/date when tripCode is absent */}
+            <span>{basic.tripCode ?? ['Chuyến', basic.truckPlate ?? '', basic.departureDate ? formatDate(basic.departureDate) : ''].filter(Boolean).join(' · ')}</span>
           </div>
           <p className="driver-task-empty">
             Lô hàng này chưa có đầu việc vận chuyển (ad-hoc) — không có cột mốc,

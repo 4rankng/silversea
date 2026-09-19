@@ -158,7 +158,7 @@ export default function FuelEvidenceReviewPage() {
               <div>
                 <img
                   src={getAuthenticatedPhotoUrl(row.photoUrl)}
-                  alt={`Ảnh nhiên liệu ${row.tripCode ?? row.tripId}`}
+                  alt={`Ảnh nhiên liệu ${row.tripCode ?? '—'}`}
                   style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
                 />
               </div>
@@ -166,8 +166,8 @@ export default function FuelEvidenceReviewPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-3)', fontWeight: 600 }}>Chuyến / chủ ảnh</div>
-                    <div style={{ fontSize: 'var(--text-section-size)', fontWeight: 700 }}>{row.tripCode || `Chuyến #${row.tripId}`}</div>
-                    <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>{row.ownerName || `User #${row.ownerUserId}`}</div>
+                    <div style={{ fontSize: 'var(--text-section-size)', fontWeight: 700 }}>{row.tripCode || '—'}</div>
+                    <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>{row.ownerName || '—'}</div>
                   </div>
                   <StatusPill variant={STATUS_VARIANT[row.reviewStatus]}>
                     {reviewDecisionLabel(row)}

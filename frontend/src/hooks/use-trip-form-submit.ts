@@ -599,7 +599,8 @@ const handleSubmit = useCallback(
         msg = err.message;
       }
       if (!isEditMode && createdTripRef.current) {
-        msg = `Đã tạo chuyến #${createdTripRef.current.id}, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
+        // business key render; id never user-facing — the create response type carries only { id } (no tripCode)
+        msg = `Đã tạo chuyến, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
       }
       s.setError(msg);
       showToast({ kind: 'error', message: msg });

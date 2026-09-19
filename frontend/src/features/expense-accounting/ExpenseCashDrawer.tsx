@@ -53,7 +53,7 @@ export function ExpenseCashDrawer({ catalog, reconciliation, onClose }: { catalo
           const value = event.target.value; setRequestId(value);
           const request = requests.find(item => String(item.id) === value);
           setAmount(request?.amount ?? ''); setReason(request?.reason ?? '');
-        }} options={[{ value: '', label: 'Ghi chi mới — không có yêu cầu trước' }, ...requests.map(item => ({ value: String(item.id), label: `#${item.id} · ${expenseMoney(item.amount)} · ${item.reason}` }))]} />}
+        }} options={[{ value: '', label: 'Ghi chi mới — không có yêu cầu trước' }, ...requests.map(item => ({ value: String(item.id), label: `${item.reason} · ${item.date} · ${expenseMoney(item.amount)}` }))]} />}
         <NumberField controlSize="sm" label={reconciliation ? 'Tiền hoàn ứng (VND)' : 'Tiền tạm ứng (VND)'} required value={amount} min={1} max={reconciliation ? Math.abs(reconciliation.remainingDifference) : 999_999_999_999_999} step={1} disabled={busy || Boolean(requestId)} onChange={setAmount} />
         <UuiSelectField label="Nguồn quỹ" value={fund} disabled={busy} onChange={event => { setFund(event.target.value); setAccount(''); }} options={[{ value: '', label: 'Chọn quỹ' }, { value: 'COMPANY', label: 'Quỹ công ty' }, { value: 'TM', label: 'Quỹ TM' }]} />
         <UuiSelectField label="Tài khoản" value={account} disabled={busy || !fund} onChange={event => setAccount(event.target.value)} options={[{ value: '', label: 'Chọn tài khoản' }, ...accounts.map(item => ({ value: String(item.id), label: item.name }))]} />

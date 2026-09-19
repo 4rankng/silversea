@@ -21,7 +21,7 @@ it('lets an OPS reader inspect source details but exposes no release or cash act
   show(<ExpenseReconciliationHistory />);
   fireEvent.click(await screen.findByRole('button', { name: 'HU-1' }));
   await screen.findByText('Thực chi hiện tại: 500.000 ₫');
-  expect(screen.getByRole('dialog')).toHaveTextContent('Nguồn OPS #2 · phiên bản 3');
+  expect(screen.getByRole('dialog')).toHaveTextContent('Nguồn OPS · phiên bản 3');
   expect(screen.queryByRole('button', { name: 'Hoàn tác đối chiếu' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Trả phần chênh lệch' })).not.toBeInTheDocument();
 });

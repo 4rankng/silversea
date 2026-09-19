@@ -455,9 +455,9 @@ export default function ProfitPage() {
                             .map((t, idx, arr) => (
                               <span key={t.truckId}>
                                 {isAdmin ? (
-                                  <a href={`/config/trucks/${t.truckId}/owners`}>{t.licensePlate ?? `xe #${t.truckId}`}</a>
+                                  <a href={`/config/trucks/${t.truckId}/owners`}>{t.licensePlate ?? '—'}</a>
                                 ) : (
-                                  <span>{t.licensePlate ?? `xe #${t.truckId}`}</span>
+                                  <span>{t.licensePlate ?? '—'}</span>
                                 )}
                                 {idx < arr.length - 1 ? ', ' : ''}
                               </span>

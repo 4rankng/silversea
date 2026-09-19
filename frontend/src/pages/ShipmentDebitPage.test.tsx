@@ -94,12 +94,12 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     listSummary.mockResolvedValue({
       items: [
         row({ lockStatus: 'LOCKED' }),
-        row({ shipmentId: 102, code: 'SHP-26-0002', freightAuto: null, receivableTotal: null, profit: null, documentsSummary: null }),
+        row({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', freightAuto: null, receivableTotal: null, profit: null, documentsSummary: null }),
       ],
       total: 2,
     });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     expect(screen.getByText('TỔNG PHẢI TRẢ')).toBeTruthy();
     // Numbers format exactly as the payload says — never a fabricated 0.
     expect(screen.getByText('4.500.000')).toBeTruthy();
@@ -107,7 +107,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // row 1) stays "Chưa xác định" — null never renders as 0.
     expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(5);
     // The locked row selects on click; the open row ignores clicks.
-    const lockedRow = screen.getByText('SHP-26-0001').closest('tr')!;
+    const lockedRow = screen.getAllByText('BL-1')[0].closest('tr')!;
     expect(lockedRow.getAttribute('data-locked')).toBe('');
     expect(lockedRow.getAttribute('data-selected')).toBeNull();
     fireEvent.click(lockedRow);
@@ -117,7 +117,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
   it('renders TỔNG PHẢI TRẢ from the payableTotal wire field', async () => {
     listSummary.mockResolvedValue({ items: [row({ payableTotal: 7_500_000 })], total: 1 });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     expect(screen.getByText('TỔNG PHẢI TRẢ')).toBeTruthy();
     expect(screen.getByText('7.500.000')).toBeTruthy();
   });
@@ -125,20 +125,20 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
   it('enables Xuất Debit Note only while a locked lot is selected', async () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     expect(button.disabled).toBe(false);
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     expect(button.disabled).toBe(true);
   });
 
   it('clears the selection when filters change so stale locked picks cannot arm the export', async () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: /Trạng thái khóa lô/ }));
@@ -158,12 +158,12 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
       thuKhachTotal: null,
     });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô SHP-26-0001' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
     expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô SHP-26-0001' }));
+    expect(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
     await waitFor(() => expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull());
   });
 });
@@ -182,7 +182,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     sessionStorage.removeItem('shipment-debit.expanded-lot');
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit;customer=1'.replace(';', '?'));
-    await screen.findByText('SHP-26-0001');
+    (await screen.findAllByText('BL-1'))[0];
     expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
   });
 });
@@ -190,13 +190,13 @@ describe('L2 open-state reload persistence (card _11)', () => {
 describe('Xuất Debit Note — batched issue (ruling: one POST per selection)', () => {
   it('issues one batched call with all selected locked ids and downloads the union document', async () => {
     listSummary.mockResolvedValue({
-      items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' }), row({ shipmentId: 102, code: 'SHP-26-0002', lockStatus: 'LOCKED' }), row({ shipmentId: 103, code: 'SHP-26-0003', lockStatus: 'OPEN' })],
+      items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' }), row({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'BL-2', lockStatus: 'LOCKED' }), row({ shipmentId: 103, billOrBookNumber: 'BL-3', code: 'BL-3', lockStatus: 'OPEN' })],
       total: 3,
     });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
-    fireEvent.click(screen.getByText('SHP-26-0002').closest('tr')!);
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     fireEvent.click(button);
@@ -207,10 +207,10 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
   });
 
   it('replays the same key when the same selection exports again', async () => {
-    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
@@ -220,23 +220,23 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
   });
 
   it('names the overlapping lots when the issue call rejects with a uniqueness 409', async () => {
-    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
     createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['157', '160'] }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
-    expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: 157, 160')).toBeTruthy();
+    expect(await screen.findByText('Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.')).toBeTruthy();
     // The selection survives the conflict so the user can adjust and retry.
-    expect(screen.getByText('SHP-26-0001').closest('tr')!.getAttribute('data-selected')).not.toBeNull();
+    expect(screen.getAllByText('BL-1')[0].closest('tr')!.getAttribute('data-selected')).not.toBeNull();
   });
 
   it('keeps the generic failure toast when the error carries no lot codes', async () => {
-    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
     createBatch.mockRejectedValue(new ApiError(409, { error: 'Trùng lô đã xuất' }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Không xuất được Debit Note. Vui lòng thử lại.')).toBeTruthy();
   });

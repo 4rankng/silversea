@@ -366,7 +366,7 @@ describe('useTripFormSubmit create atomicity', () => {
     const state = makeState();
     const result = renderSubmitHook({ state, flushPendingPhotos: flush });
     expect(await act(async () => result.current())).toBeUndefined();
-    expect(state.setError).toHaveBeenLastCalledWith(expect.stringContaining('Đã tạo chuyến #91'));
+    expect(state.setError).toHaveBeenLastCalledWith(expect.stringContaining('Đã tạo chuyến, nhưng chưa lưu xong dữ liệu kèm theo'));
     expect(await act(async () => result.current())).toBe(91);
     expect(postMock).toHaveBeenCalledTimes(1);
   });

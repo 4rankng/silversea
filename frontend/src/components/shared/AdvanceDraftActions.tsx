@@ -62,7 +62,8 @@ function DraftActions({ request }: { request: AdvanceDraft }) {
       footer={<><button type="button" className="btn btn-secondary" disabled={pending} onClick={close}>Đóng</button>
         <button type="button" className="btn btn-primary" disabled={pending || !valid} onClick={() => void save()}>{pending ? 'Đang lưu…' : action === 'void' ? 'Xác nhận hủy' : 'Ghi sổ tạm ứng'}</button></>}>
       <div style={{ display: 'grid', gap: 12 }}>
-        <p className="text-muted">Tạm ứng #{request.id} · Chưa ghi sổ. Thao tác lưu có hiệu lực ngay và giữ lịch sử đối chiếu.</p>
+        {/* business key render; id never user-facing — the draft payload carries no date/requester name */}
+        <p className="text-muted">Tạm ứng{request.reason ? ` · ${request.reason}` : ''} · Chưa ghi sổ. Thao tác lưu có hiệu lực ngay và giữ lịch sử đối chiếu.</p>
         {action === 'record' && <>
           <FormGroup label="Số tiền (₫) *" error={Number.isSafeInteger(Number(amount)) && Number(amount) > 0 && Number(amount) <= 999_999_999_999_999 ? '' : 'Nhập số tiền nguyên dương hợp lệ.'}><input className="input" type="number" inputMode="numeric" min="1" max="999999999999999" step="1" required value={amount} disabled={pending} onChange={event => setAmount(event.target.value)} /></FormGroup>
           <FormGroup label="Nội dung tạm ứng *"><textarea className="input" rows={2} required maxLength={1000} value={reason} disabled={pending} onChange={event => setReason(event.target.value)} /></FormGroup>

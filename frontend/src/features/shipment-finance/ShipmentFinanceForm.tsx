@@ -77,7 +77,7 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
       {!shipmentId && !editor.record && <>
         <TextField controlSize="sm" label="Tìm lô hàng" value={lotSearch} onChange={(event) => setLotSearch(event.target.value)} placeholder="Mã lô, Bill hoặc khách hàng" disabled={busy} />
         <UuiSelectField label="Lô hàng" disabled={busy} required value={lot} onChange={(event) => { setLot(event.target.value); setSourceExpenseId(''); setTripId(''); }}
-          options={[{ value: '', label: 'Chọn lô hàng' }, ...(lots.data?.items ?? []).map((item) => ({ value: String(item.id), label: `${item.shipmentCode ?? `Lô ${item.id}`} · ${item.blNumber ?? item.customerName ?? ''}` }))]} />
+          options={[{ value: '', label: 'Chọn lô hàng' }, ...(lots.data?.items ?? []).map((item) => ({ value: String(item.id), label: [item.blNumber, item.customerName].filter(Boolean).join(' · ') || '—' }))]} />
         {lots.isError && <p role="alert">Không tải được lô hàng. <button type="button" className="btn btn--ghost" onClick={() => void lots.refetch()}>Thử lại</button></p>}
       </>}
       {editor.kind === 'invoice' ? <>
@@ -87,10 +87,11 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
             const source = suppliers.data?.expenses.find((item) => String(item.id) === event.target.value);
             if (source) { setSupplierId(String(source.supplierId ?? '')); setSupplierFee(Number(source.buyAmount)); if (source.invoiceNumber) setInvoiceNumber(source.invoiceNumber); }
           }} options={[{ value: '', label: 'Ghi chi phí hóa đơn mới' }, ...(suppliers.data?.expenses ?? []).filter((item) => item.supplierId != null).map((item) => ({
-            value: String(item.id), label: `#${item.id} · ${item.invoiceNumber ?? item.expenseType} · ${Number(item.buyAmount).toLocaleString('vi-VN')} đ`,
+            value: String(item.id), label: `${item.invoiceNumber ? `${item.invoiceNumber} · ` : ''}${item.expenseType} · ${Number(item.buyAmount).toLocaleString('vi-VN')} đ`,
           }))]} hint="Chọn phí đã có để liên kết, tránh ghi trùng." />}
         {!sourceExpenseId && (suppliers.data?.trips?.length ?? 0) > 1 && <UuiSelectField label="Công việc chịu chi phí" required disabled={busy || Boolean(invoice?.tripId)} value={tripId}
-          onChange={event => setTripId(event.target.value)} options={[{ value: '', label: 'Chọn chuyến' }, ...(suppliers.data?.trips ?? []).map(trip => ({ value: String(trip.id), label: trip.tripCode ?? `Chuyến #${trip.id}` }))]}
+          // business key render; id never user-facing — the trips option payload carries only tripCode
+          onChange={event => setTripId(event.target.value)} options={[{ value: '', label: 'Chọn chuyến' }, ...(suppliers.data?.trips ?? []).map(trip => ({ value: String(trip.id), label: trip.tripCode ?? 'Chuyến' }))]}
           hint="Phí này được ghi một lần vào công việc đã chọn." />}
         <UuiSelectField label="Nhà cung cấp" disabled={busy} required value={supplierId} onChange={(event) => setSupplierId(event.target.value)}
           options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...(suppliers.data?.suppliers ?? []).map((item) => ({ value: String(item.id), label: item.name }))]} />
@@ -102,7 +103,8 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
           <NumberField controlSize="sm" label="Phí nhà cung cấp (đ)" value={supplierFee} onChange={setSupplierFee} min={0} step={1} max={999_999_999_999_999} required disabled={busy} />
         </div>
         <p className="shipment-finance__hint">Chỉ phí nhà cung cấp được ghi vào chi phí hóa đơn. Lưu hồ sơ không tạo phiếu chi.</p>
-        {invoice?.sourceExpenseId && <p className="shipment-finance__hint">Đã liên kết chi phí nguồn #{invoice.sourceExpenseId}; không ghi thêm phí.</p>}
+        {/* business key render; id never user-facing — the record carries no descriptor of the linked source expense */}
+        {invoice?.sourceExpenseId && <p className="shipment-finance__hint">Đã liên kết chi phí nguồn; không ghi thêm phí.</p>}
       </> : <>
         {principalLocked && <p className="shipment-finance__hint">Lô đã chốt chi phí. Bạn vẫn có thể bổ sung hồ sơ và cập nhật tiền hoàn; thông tin cược ban đầu được giữ nguyên.</p>}
         <div className="shipment-finance__pair">

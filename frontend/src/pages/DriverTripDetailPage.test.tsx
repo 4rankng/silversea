@@ -591,7 +591,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
+    expect(await screen.findByText(/Đã khóa kế toán · Debit Note —/)).toBeTruthy();
     const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
     // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất lệnh vận chuyển" CTA is

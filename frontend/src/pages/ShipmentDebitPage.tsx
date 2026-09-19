@@ -56,9 +56,9 @@ function DebitLotRow({
   selected: boolean;
   onSelect: (id: number, next: boolean) => void;
 }) {
-  // Seeded/imported lots can carry a null shipment code — the id keeps the
-  // row addressable and labeled instead of rendering 'lô null'.
-  const lotLabel = row.code ?? `#${row.shipmentId}`;
+  // Identity renders from business keys only — DB ids and id-derived codes
+  // never surface as user-visible text; absent keys collapse to '—'.
+  const lotLabel = row.billOrBookNumber || row.customsNumber || '—';
   return (
     <>
     <tr
@@ -147,13 +147,15 @@ export function ShipmentDebitPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `giay-bao-no-${items.find((row) => row.shipmentId === ids[0])?.code ?? ids[0]}.xlsx`;
+      anchor.download = `giay-bao-no-${items.find((row) => row.shipmentId === ids[0])?.billOrBookNumber || 'chua-xac-dinh'}.xlsx`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (cause) {
+      // The 409 body carries internal lot codes; echoing them would surface
+      // id-derived identifiers, so the message stays actionable without them.
       const overlapping = overlappingLotCodesFrom(cause);
       toast(overlapping
-        ? { kind: 'error', message: `Các lô đã nằm trong Debit Note đã xuất: ${overlapping.join(', ')}` }
+        ? { kind: 'error', message: 'Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.' }
         : { kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
     } finally {
       setIssuing(false);

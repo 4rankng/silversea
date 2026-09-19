@@ -9,11 +9,12 @@ const batch: ExpenseReconciliation = { id: 1, code: 'HU-1', opsUserId: 8, from: 
 function show(item: ExpenseReconciliation) {
   render(<QueryClientProvider client={new QueryClient()}><ExpenseHistoryDetail item={item} onClose={vi.fn()} /></QueryClientProvider>);
 }
-it('shows exact advance IDs, assigned amounts and reasons in released history', () => {
+it('shows advance allocations, amounts and reasons in released history without leaking ids', () => {
   show({ ...batch, voidedAt: '2026-09-17T00:00:00Z', advances: [{ advanceRequestId: 4, amount: 100000, reason: 'Đợt một' }, { advanceRequestId: 8, amount: 200000, reason: 'Đợt hai' }] });
   const detail = screen.getByRole('region', { name: 'Các khoản ứng đã phân bổ' });
-  expect(detail).toHaveTextContent('Ứng #4'); expect(detail).toHaveTextContent('100.000 ₫'); expect(detail).toHaveTextContent('Đợt một');
-  expect(detail).toHaveTextContent('Ứng #8'); expect(detail).toHaveTextContent('200.000 ₫');
+  expect(detail).toHaveTextContent('100.000 ₫'); expect(detail).toHaveTextContent('Đợt một');
+  expect(detail).toHaveTextContent('200.000 ₫'); expect(detail).toHaveTextContent('Đợt hai');
+  expect(detail.textContent).not.toMatch(/#\d/);
   expect(screen.getByRole('dialog')).toHaveTextContent('Đã hoàn tác ngày');
 });
 it('does not invent per-advance allocations when historical detail is missing', () => {

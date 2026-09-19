@@ -13,9 +13,9 @@ function SourceRows({ sources }: { sources: Array<ExpenseSourceRef & { amount?: 
   return <div className="expense-accounting-history">{sources.map((source, index) => {
     const query = queries[index];
     return <article key={`${source.sourceKind}:${source.sourceId}`}>
-      <strong>{query.data?.feeName ?? `${source.sourceKind} #${source.sourceId}`}</strong>
+      <strong>{query.data?.feeName ?? '—'}</strong>
       <span>{query.data?.shipmentCode ?? ''} {query.data?.containerNumber ?? ''}</span>
-      <small>Nguồn {source.sourceKind} #{source.sourceId} · phiên bản {source.expectedVersion}</small>
+      <small>Nguồn {source.sourceKind} · phiên bản {source.expectedVersion}</small>
       {source.amount !== undefined && <strong>Phân bổ: {expenseMoney(source.amount)}</strong>}
       {query.data && <span>Thực chi hiện tại: {expenseMoney(query.data.amount)}</span>}
       {query.isPending && <span role="status">Đang tải khoản chi…</span>}
@@ -38,7 +38,8 @@ export function ExpenseHistoryDetail({ item, onClose }: { item: ExpenseVoucher |
     {!voucher && 'advanceAmount' in item && <section aria-label="Các khoản ứng đã phân bổ" className="expense-accounting-history">
       <h3 className="expense-accounting-subtitle">Các khoản ứng đã phân bổ</h3>
       {item.advances?.map(advance => <article key={advance.advanceRequestId}>
-        <header><strong>Ứng #{advance.advanceRequestId}</strong><strong>{expenseMoney(advance.amount)}</strong></header>
+        {/* business key render; id never user-facing — the history advance payload carries no date/requester name */}
+        <header><strong>Ứng</strong><strong>{expenseMoney(advance.amount)}</strong></header>
         {advance.reason && <p>{advance.reason}</p>}
       </article>)}
       {!item.advances?.length && <p>{item.advanceAmount > 0 ? 'Chưa có phân bổ ứng chi tiết trong lịch sử. Không tự suy đoán từ tổng tiền.' : 'Không sử dụng tiền ứng cho đợt này.'}</p>}

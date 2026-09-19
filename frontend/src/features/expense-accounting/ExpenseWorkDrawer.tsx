@@ -24,7 +24,7 @@ export function ExpenseWorkDrawer({ work, group, onClose, onEdit, onCreate, onVo
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa đối chiếu được chi phí.'); }
     finally { lock.current = false; }
   }
-  return <Drawer isOpen onClose={close} title={WORK_FEE_LABELS[group]} subtitle={`${work.shipmentCode} · ${work.containerNumber ?? 'Chung lô'} · ${work.vehiclePlate ?? 'Chưa phân xe'}`} className="expense-accounting-drawer"
+  return <Drawer isOpen onClose={close} title={WORK_FEE_LABELS[group]} subtitle={`${work.shipmentCode ?? '—'} · ${work.containerNumber ?? 'Chung lô'} · ${work.vehiclePlate ?? 'Chưa phân xe'}`} className="expense-accounting-drawer"
     footer={<><button type="button" className="btn btn--secondary" onClick={close} disabled={confirm.isPending}>Đóng</button><button type="button" className="btn btn--secondary" disabled={!work.tripId || confirm.isPending} onClick={() => onCreate(work, group)}>Thêm khoản chi</button><button type="button" className="btn btn--primary" disabled={!selection.length || confirm.isPending} onClick={() => onVoucher(selection, group === 'receivable' ? 'IN' : 'OUT')}>{group === 'receivable' ? 'Lập phiếu thu' : 'Lập phiếu chi'}</button></>}>
     <div className="expense-accounting">
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
@@ -39,7 +39,8 @@ export function ExpenseWorkDrawer({ work, group, onClose, onEdit, onCreate, onVo
           <div><dt>Tổng tiền đường</dt><dd>{expenseMoney(work.road)}</dd></div>
         </dl>
         <p className="expense-accounting-hint">Tổng theo công việc, gồm phụ cấp đã thỏa thuận và chi phí đã đối chiếu. Chứng từ bên dưới tuân theo bộ lọc; vé đã đối chiếu thay phần ước tính, không cộng lại vào tổng.</p>
-        {work.roadBreakdown.sharedWithTripId && <p className="expense-accounting-hint">Công việc ghép với chuyến #{work.roadBreakdown.sharedWithTripId}; phần chi phí dùng chung chỉ tính tại chuyến sở hữu.</p>}
+        {/* business key render; id never user-facing — the breakdown payload carries no tripCode for the paired trip */}
+        {work.roadBreakdown.sharedWithTripId && <p className="expense-accounting-hint">Công việc ghép với chuyến khác; phần chi phí dùng chung chỉ tính tại chuyến sở hữu.</p>}
       </>}
       {rows.length ? <ExpenseRegisterRows rows={rows} selected={selected} selectable canViewPayments onOpen={onEdit} onSelect={(entry, checked) => setSelected(current => { const next = new Set(current); if (checked) next.add(expenseKey(entry)); else next.delete(expenseKey(entry)); return next; })} /> : <p className="expense-accounting-empty">Chưa có khoản chi trong nhóm này.</p>}
     </div>

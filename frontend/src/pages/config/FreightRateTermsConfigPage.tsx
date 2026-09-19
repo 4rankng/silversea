@@ -251,8 +251,8 @@ export default function FreightRateTermsConfigPage() {
         emptyHint="Thêm điều khoản đầu tiên theo hợp đồng vận chuyển của từng khách hàng."
         sortFn={(a, b) => b.effectiveDate.localeCompare(a.effectiveDate)}
         columns={[
-          { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? `KH #${r.customerId}` },
-          { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? `Tuyến #${r.routeId}` },
+          { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? '—' },
+          { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? '—' },
           { header: '% chia sẻ', render: r => `${fmtShare(r.sharePct)}%` },
           { header: 'Km 1 chiều', render: r => r.billingKmOneWay.toLocaleString('vi-VN') },
           { header: 'Giá gốc dầu F', render: r => fmtFuel(r.baseFuelPrice) },

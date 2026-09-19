@@ -88,7 +88,7 @@ export function AssignOpsDialog({
               { value: '', label: '— Bỏ gán —' },
               ...options.map((user) => ({
                 value: String(user.id),
-                label: [user.fullName?.trim(), user.username].filter(Boolean).join(' · ') || `#${user.id}`,
+                label: [user.fullName?.trim(), user.username].filter(Boolean).join(' · ') || '—',
               })),
             ]}
           />
