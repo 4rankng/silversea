@@ -327,7 +327,12 @@ describe('ruling 2026-09-19 — the note range derives from the selection delive
     assert.equal(response.status, 201, JSON.stringify(response.body));
     docIds.push(Number(response.body.id));
     const [doc] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, Number(response.body.id)));
-    const today = new Date().toISOString().slice(0, 10);
+    // The processing day is the VN calendar day (card _18 convention):
+    // a UTC-date slice diverges from the VN day every VN-evening/
+    // UTC-morning window, which is exactly when this pin used to flip red.
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
     assert.equal(doc?.rangeFrom, today);
     assert.equal(doc?.rangeTo, today);
   });
