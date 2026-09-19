@@ -3,7 +3,7 @@
 // validators and input types live in shipment-lifecycle-shared.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
@@ -43,10 +43,42 @@ import {
  * `shipments.shipmentCode` column is unique but not the source of truth for
  * business identity).
  */
-export function formatShipmentCode(id: number, createdAt: Date = new Date()): string {
+export function formatShipmentCode(counter: number, createdAt: Date = new Date()): string {
   const yy = String(createdAt.getFullYear()).slice(-2);
   const mm = String(createdAt.getMonth() + 1).padStart(2, '0');
-  return `SHP-${yy}${mm}-${String(id).padStart(5, '0')}`;
+  return `SHP-${yy}${mm}-${String(counter).padStart(5, '0')}`;
+}
+
+/**
+ * Allocate the next shipment code for the code's year-month from the
+ * independent counter (ruling 4b: codes never derive from the row id).
+ * Advisory-locked per month, so concurrent creates serialize; the unique
+ * shipmentCode index stays as the backstop.
+ */
+export async function allocateShipmentCode(tx: Tx, createdAt: Date): Promise<string> {
+  const yy = String(createdAt.getFullYear()).slice(-2);
+  const mm = String(createdAt.getMonth() + 1).padStart(2, '0');
+  const yearMonth = `${yy}${mm}`;
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('shipment_code_counter:' || ${yearMonth}, 0))`);
+  const [row] = await tx.select().from(s.shipmentCodeCounters)
+    .where(eq(s.shipmentCodeCounters.yearMonth, yearMonth));
+  // Guard against legacy id-era codes (SHP-<YYMM>-<NNNNN> was once
+  // row-id-backed): the stream always stays above the highest existing
+  // code tail for this month, so untouched old codes can never collide.
+  const [legacy] = await tx.select({
+    maxTail: sql<string | null>`max(nullif(substring(${s.shipments.shipmentCode} from '[0-9]{5}$'), '')::int)`
+  }).from(s.shipments)
+    .where(sql`${s.shipments.shipmentCode} like ${'SHP-' + yearMonth + '-%'}`);
+  const legacyMax = legacy?.maxTail != null && Number.isFinite(Number(legacy.maxTail)) ? Number(legacy.maxTail) : 0;
+  const next = Math.max(row == null ? 0 : row.counter, legacyMax) + 1;
+  if (row == null) {
+    await tx.insert(s.shipmentCodeCounters).values({ yearMonth, counter: next });
+  } else {
+    await tx.update(s.shipmentCodeCounters)
+      .set({ counter: next })
+      .where(eq(s.shipmentCodeCounters.yearMonth, yearMonth));
+  }
+  return formatShipmentCode(next, createdAt);
 }
 // ─── Create ─────────────────────────────────────────────────────────────────
 
@@ -144,8 +176,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     initialDeclarationId = declaration.id;
   }
 
-  // 2. Backfill the unique shipmentCode from the row id. Same tx ⇒ atomic.
-  const shipmentCode = formatShipmentCode(shipment.id, shipment.createdAt);
+  // 2. Allocate the unique shipmentCode from the independent per-month
+  // counter (ruling 4b: the code never derives from the row id). Same tx,
+  // advisory-locked counter row ⇒ concurrent creates serialize safely.
+  const shipmentCode = await allocateShipmentCode(tx, shipment.createdAt);
   const [finalized] = await tx.update(s.shipments)
     .set({ shipmentCode })
     .where(eq(s.shipments.id, shipment.id))

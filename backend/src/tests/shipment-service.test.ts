@@ -230,15 +230,18 @@ after(async () => {
 // ─── Pure unit ──────────────────────────────────────────────────────────────
 
 describe('formatShipmentCode', () => {
-  test('formats as SHP-YYMM-NNNNN with 5-digit padding', () => {
+  test('formats as SHP-YYMM-NNNNN from the monthly counter with 5-digit padding', () => {
     const code = formatShipmentCode(42, new Date('2026-07-25T00:00:00Z'));
     assert.equal(code, 'SHP-2607-00042');
   });
 
-  test('is unique per id (PK-backed)', () => {
-    const a = formatShipmentCode(1);
-    const b = formatShipmentCode(2);
-    assert.notEqual(a, b);
+  test('has no id input at all — codes cannot derive from the row id (ruling 4b)', () => {
+    // The signature takes the monthly counter only: there is no id parameter
+    // to derive from, and the code is stable for a given counter + month.
+    const a = formatShipmentCode(7, new Date('2026-09-20T10:00:00Z'));
+    const b = formatShipmentCode(7, new Date('2026-09-20T10:05:00Z'));
+    assert.equal(a, b);
+    assert.notEqual(formatShipmentCode(8, new Date('2026-09-20T10:00:00Z')), a);
   });
 });
 

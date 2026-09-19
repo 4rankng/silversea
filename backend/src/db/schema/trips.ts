@@ -459,6 +459,13 @@ export const tripCodeCounters = pgTable('trip_code_counters', {
   counter: integer('counter').notNull(),
 });
 
+// Independent per-month shipment code counter — shipment codes never
+// derive from the row id (user ruling 2026-09-19 4b).
+export const shipmentCodeCounters = pgTable('shipment_code_counters', {
+  yearMonth: varchar('year_month', { length: 10 }).primaryKey(),
+  counter: integer('counter').notNull(),
+});
+
 export const tripPhotos = pgTable('trip_photos', {
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').notNull(),
