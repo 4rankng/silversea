@@ -9,6 +9,10 @@
  * Part of plans/260817-2148-seed-full-coverage.
  */
 import { and, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
+import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
+import { getAdvanceFundedAmounts } from '../services/advance-funding.service';
+import { type ExpenseActor } from '../services/expense-accounting-write.service';
+import { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import {
@@ -71,7 +75,61 @@ export async function seedForwarderMoney(actors: {
   approver: number;
 }, opsExpenseIds: number[]): Promise<void> {
   await seedAdvances(actors);
+  await seedAdvanceFunding(actors);
   await seedSettlement(actors, opsExpenseIds);
+}
+
+/** Advances must be FUNDED by confirmed treasury disbursements before the
+ *  settlement can apply — on a fresh database nothing funded them, so the
+ *  settlement silently skipped and the demo lost its O2C money chain. The
+ *  funding goes through the app's own reconciliation writer (ledger entry +
+ *  POSTED treasury movement), once per seeded advance. */
+async function seedAdvanceFunding(actors: { ops: number; approver: number }): Promise<void> {
+  const approver: ExpenseActor = { userId: actors.approver, role: Role.ADMIN };
+  const [existing] = await db.select({ id: s.treasuryAccounts.id }).from(s.treasuryAccounts)
+    .where(eq(s.treasuryAccounts.code, 'SEED-FUND')).limit(1);
+  let treasuryAccountId = existing?.id;
+  if (!treasuryAccountId) {
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: 'SEED-FUND',
+      name: 'Quỹ demo (seed)',
+      type: 'CASH',
+      fundCode: 'COMPANY',
+      status: 'ACTIVE',
+      createdBy: actors.approver,
+      updatedBy: actors.approver,
+    }).returning();
+    treasuryAccountId = account.id;
+  }
+  const requests = await db.select({ id: s.advanceRequests.id, amount: s.advanceRequests.amount, reason: s.advanceRequests.reason })
+    .from(s.advanceRequests)
+    .where(and(
+      eq(s.advanceRequests.requesterId, actors.ops),
+      eq(s.advanceRequests.status, 'RECORDED'),
+      or(...SEED_ADVANCES.map(plan => and(
+        eq(s.advanceRequests.reason, plan.reason), eq(s.advanceRequests.amount, String(plan.amount)),
+      ))),
+    ));
+  let fundedCount = 0;
+  for (const plan of SEED_ADVANCES) {
+    const request = requests.find(r => r.reason === plan.reason && Number(r.amount) === plan.amount);
+    if (!request) continue;
+    const funded = await getAdvanceFundedAmounts(db, [request.id]);
+    if ((funded.get(request.id) ?? 0) >= Number(request.amount)) continue;
+    await db.transaction(async (tx) => {
+      await recordFundedOpsAdvance(tx, approver, {
+        opsUserId: actors.ops,
+        amount: plan.amount,
+        reason: plan.reason,
+        advanceRequestId: request.id,
+        treasuryAccountId,
+        valueDate: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
+        physicalReference: `SEED-FUND-${request.id}`,
+      });
+    });
+    fundedCount++;
+  }
+  console.log(`✅ Advance funding seeded! (${fundedCount} advances funded)`);
 }
 
 const SEED_ADVANCES = [
