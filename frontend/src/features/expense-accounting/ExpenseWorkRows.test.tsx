@@ -24,4 +24,14 @@ describe('work-based expense register', () => {
     expect(open).toHaveBeenLastCalledWith(work, 'road');
     expect(screen.getByRole('button', { name: 'Tiền đường · BL-3 · ABCD1234567' })).toHaveTextContent('Chưa xác định');
   });
+
+  it('never renders a legacy system code as the row identity', () => {
+    const open = vi.fn();
+    const legacy = { ...work, shipmentCode: 'SHP-2609-00035' };
+    render(<MemoryRouter><ExpenseWorkRows rows={[legacy]} onOpen={open} /></MemoryRouter>);
+    // The id-derived code collapses to the placeholder; the row's schedule
+    // line carries the context instead.
+    expect(screen.queryByText('SHP-2609-00035')).toBeNull();
+    expect(screen.getByRole('link', { name: '—' })).toHaveAttribute('href', '/shipments/3');
+  });
 });
