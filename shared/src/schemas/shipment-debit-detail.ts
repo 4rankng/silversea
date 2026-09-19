@@ -60,6 +60,10 @@ export const shipmentDebitDetailSchema = z.object({
     chiHoTotal: nullableMoney,
   }),
   thuKhachTotal: nullableMoney,
+  /** Card 20260919_5 — the customs channel belongs to the LOT (declaration
+   *  level): every container row renders this same value; null/absent = '—'
+   *  (optional-nullable so the producer upgrade can land independently). */
+  customsChannel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable().optional(),
 });
 
 export type DebitDetailFreightRow = z.infer<typeof debitDetailFreightRowSchema>;

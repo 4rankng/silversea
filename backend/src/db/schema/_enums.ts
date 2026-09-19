@@ -159,6 +159,13 @@ export const shipmentDeclarationScopeEnum = applicationEnum([
   'SINGLE', 'SHARED',
 ]);
 
+// Card 20260919_5 — customs clearance channel (luồng đỏ/vàng/xanh). The
+// customs authority assigns it to the TỜ KHAI, never to a container: one lot
+// holds exactly one channel. Values are structural customs categories.
+export const customsChannelEnum = applicationEnum([
+  'RED', 'YELLOW', 'GREEN',
+]);
+
 export const shipmentTradeDirectionEnum = applicationEnum([
   'IMPORT', 'EXPORT',
 ]);

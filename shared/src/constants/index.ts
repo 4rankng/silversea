@@ -238,6 +238,24 @@ export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
  *  place identity lives in data rows, labels render from config). Rows whose
  *  type carries no category (null) fall into the on-screen 'Chưa phân loại'
  *  bucket so no money can silently leave the totals. */
+/** Card 20260919_5 — customs clearance channel (luồng hải quan). The customs
+ *  authority assigns a channel to the TỜ KHAI (declaration), never to a
+ *  container — one lot holds exactly one channel. Structural customs
+ *  categories; labels render from this map, values never carry place names.
+ *  null = chưa có kết quả → the settlement screen shows '—', never a guess. */
+export enum CustomsChannel {
+  RED = 'RED',
+  YELLOW = 'YELLOW',
+  GREEN = 'GREEN',
+}
+
+/** Vietnamese labels for the customs channels (luồng đỏ/vàng/xanh). */
+export const CUSTOMS_CHANNEL_LABELS: Record<CustomsChannel, string> = {
+  [CustomsChannel.RED]: 'Luồng đỏ',
+  [CustomsChannel.YELLOW]: 'Luồng vàng',
+  [CustomsChannel.GREEN]: 'Luồng xanh',
+} as const;
+
 export enum ExpenseTypeCategory {
   HQGS = 'HQGS',
   PHAT_SINH = 'PHAT_SINH',

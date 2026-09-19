@@ -382,6 +382,7 @@ function buildListItem(
       declarationIssuedAt: declaration?.issuedAt?.toISOString() ?? null,
       declarationScope: declaration?.scope ?? null,
       declarationNote: trimOrNull(declaration?.note),
+      declarationChannel: declaration?.channel ?? null,
     },
     fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
     operational,

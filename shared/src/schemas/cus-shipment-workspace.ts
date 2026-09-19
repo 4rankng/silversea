@@ -338,6 +338,7 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
     declarationIssuedAt: z.string().datetime().nullable(),
     declarationScope: z.enum(['SINGLE', 'SHARED']).nullable(),
     declarationNote: z.string().nullable(),
+    declarationChannel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable().optional(),
   }).strict(),
   fieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
   operational: shipmentCusWorkspaceOperationalSummarySchema,

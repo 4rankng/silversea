@@ -67,6 +67,7 @@ export type DeclarationRow = {
   issuedAt: Date | null;
   scope: 'SINGLE' | 'SHARED' | null;
   note: string | null;
+  channel: 'RED' | 'YELLOW' | 'GREEN' | null;
 };
 
 export type LockRow = {
@@ -269,6 +270,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       issuedAt: s.shipmentDeclarations.issuedAt,
       scope: s.shipmentDeclarations.scope,
       note: s.shipmentDeclarations.note,
+      channel: s.shipmentDeclarations.channel,
       createdAt: s.shipmentDeclarations.createdAt,
     }).from(s.shipmentDeclarations)
       .where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds))

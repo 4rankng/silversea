@@ -5,7 +5,7 @@ import {
   boolean, check, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { customerDeliveryDecisionEnum, deliveryAttemptResultEnum, dispatchClassificationEnum, emailStatusEnum, fulfillmentCancellationDispositionEnum, handoffStatusEnum, milestoneTypeEnum, shipmentCargoModeEnum, shipmentChangeRequestKindEnum, shipmentDeclarationScopeEnum, shipmentDocumentTypeEnum, shipmentFulfillmentTypeEnum, shipmentStatusEnum, shipmentTradeDirectionEnum, tripPodFileTypeEnum, tripPodStatusEnum } from './_enums';
+import { customerDeliveryDecisionEnum, deliveryAttemptResultEnum, dispatchClassificationEnum, emailStatusEnum, fulfillmentCancellationDispositionEnum, handoffStatusEnum, milestoneTypeEnum, shipmentCargoModeEnum, shipmentChangeRequestKindEnum, shipmentDeclarationScopeEnum, shipmentDocumentTypeEnum, shipmentFulfillmentTypeEnum, shipmentStatusEnum, shipmentTradeDirectionEnum, tripPodFileTypeEnum, tripPodStatusEnum, customsChannelEnum } from './_enums';
 export const shipments = pgTable('shipments', {
   id: serial('id').primaryKey(),
   // Auto-generated unique code. Format pending PRD M3.1 §5 (proposed
@@ -122,6 +122,9 @@ export const shipmentDeclarations = pgTable('shipment_declarations', {
   issuedAt: timestamp('issued_at', { withTimezone: true }),
   scope: shipmentDeclarationScopeEnum('scope').default('SINGLE'),
   note: text('note'),
+  // Card 20260919_5: the customs authority assigns the channel to the whole
+  // declaration — declaration-level by ruling, never per-container.
+  channel: customsChannelEnum('channel'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

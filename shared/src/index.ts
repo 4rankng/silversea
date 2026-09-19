@@ -31,6 +31,8 @@ export {
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   DEFAULT_SHIPPING_LINES,
   ExpenseTypeCategory,
+  CustomsChannel,
+  CUSTOMS_CHANNEL_LABELS,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';

@@ -96,6 +96,8 @@ export async function upsertShipmentDeclaration(
         issuedAt,
         scope,
         note: input.note ?? null,
+        // Card 20260919_5: undefined = keep current value, null = clear.
+        ...(input.channel === undefined ? {} : { channel: input.channel }),
         updatedAt: new Date(),
       })
         .where(and(
@@ -113,6 +115,7 @@ export async function upsertShipmentDeclaration(
       issuedAt,
       scope,
       note: input.note ?? null,
+      channel: input.channel ?? null,
       createdBy: input.updatedBy ?? null,
     }).returning();
     return created;
