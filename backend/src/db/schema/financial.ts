@@ -177,9 +177,6 @@ export const billingDocuments = pgTable('billing_documents', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('billing_documents_entity_idx').on(table.entityType, table.entityId),
-  uniqueIndex('billing_documents_active_period_unique')
-    .on(table.type, table.entityType, table.entityId, table.rangeFrom, table.rangeTo)
-    .where(sql`${table.deletedAt} IS NULL AND ${table.type} = 'DEBIT_NOTE'`),
 ]);
 
 
@@ -308,6 +305,27 @@ export const billingDocumentTripClaims = pgTable('billing_document_trip_claims',
     .where(sql`${table.releasedAt} is null`),
   index('billing_document_trip_claims_document_idx').on(table.documentId),
   index('billing_document_trip_claims_trip_idx').on(table.tripId),
+]);
+
+// Active lot claims enforce the 2026-09-19 lot-level uniqueness ruling: a
+// locked lot may appear in at most ONE issued Debit Note (uniqueness lives at
+// the lot, not at customer+period — the old billing_documents key blocked
+// disjoint multi-period exports). Release happens through the billing-document
+// lifecycle: the CANCELED transition releases the claim instead of erasing
+// history.
+export const debitNoteLots = pgTable('debit_note_lots', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id').notNull(),
+  shipmentId: integer('shipment_id').notNull(),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releasedBy: integer('released_by'),
+  releaseReason: varchar('release_reason', { length: 32 }),
+}, (table) => [
+  uniqueIndex('debit_note_lots_shipment_active_uniq').on(table.shipmentId)
+    .where(sql`${table.releasedAt} is null`),
+  index('debit_note_lots_document_idx').on(table.documentId),
 ]);
 
 export const billingDocumentLines = pgTable('billing_document_lines', {

@@ -106,6 +106,7 @@ after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   try {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, docIds));
+    await db.delete(s.debitNoteLots).where(inArray(s.debitNoteLots.shipmentId, shipmentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, docIds));
     await db.delete(s.shipmentCostLocks).where(inArray(s.shipmentCostLocks.shipmentId, shipmentIds));
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
@@ -172,15 +173,35 @@ describe('20260918_19 Xuất Debit Note từ snapshot khóa lô', () => {
   });
 
   test('role gates: CUS/ACCOUNTANT/ADMIN allowed — DISPATCHER 403', async () => {
-    const shipment = await mkLockedLot();
-    await lockLot(shipment.id, cusId);
-    const blocked = await api('POST', `/api/shipments/${shipment.id}/debit-note`, dispatcherId, {});
-    assert.equal(blocked.status, 403);
+    // Each allowed actor issues for its own lot: a lot may appear in at most
+    // ONE issued debit note, so re-issuing the same lot is no longer the way
+    // to exercise the allowed roles.
     for (const actor of [cusId, accountantId, adminId]) {
+      const shipment = await mkLockedLot();
+      await lockLot(shipment.id, cusId);
       const result = await api('POST', `/api/shipments/${shipment.id}/debit-note`, actor, {});
       assert.notEqual(result.status, 403);
-      if (result.status === 201) docIds.push(Number(result.body.id));
+      assert.equal(result.status, 201, JSON.stringify(result.body));
+      docIds.push(Number(result.body.id));
     }
+    const blockedLot = await mkLockedLot();
+    await lockLot(blockedLot.id, cusId);
+    const blocked = await api('POST', `/api/shipments/${blockedLot.id}/debit-note`, dispatcherId, {});
+    assert.equal(blocked.status, 403);
+  });
+
+  test('the same lot cannot be issued twice — the retry names the lot', async () => {
+    const shipment = await mkLockedLot();
+    await lockLot(shipment.id, cusId);
+    const lotCode = `DN-RETRY-${suffix}-${shipment.id}`;
+    await db.update(s.shipments).set({ shipmentCode: lotCode }).where(eq(s.shipments.id, shipment.id));
+    const first = await api('POST', `/api/shipments/${shipment.id}/debit-note`, cusId, {});
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    docIds.push(Number(first.body.id));
+    const second = await api('POST', `/api/shipments/${shipment.id}/debit-note`, accountantId, {});
+    assert.equal(second.status, 409, JSON.stringify(second.body));
+    assert.ok(Array.isArray(second.body.overlappingLotCodes), '409 body carries machine-readable overlappingLotCodes');
+    assert.deepEqual(second.body.overlappingLotCodes, [lotCode], 'exactly the issued lot is named');
   });
 });
 
@@ -239,5 +260,36 @@ describe('GỘP THEO KỲ — consolidated debit note per customer per period', 
     const response = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotA.id, lotB.id] });
     assert.equal(response.status, 409);
     assert.match(String(response.body.error), /cùng một khách hàng/);
+  });
+
+  test('a second disjoint selection for the same customer issues its own document', async () => {
+    // The old customer+processing-day unique key 409'd this exact flow.
+    const customer = await mkCustomer(`Consol disjoint ${suffix}`);
+    const lots = [] as Array<{ id: number }>;
+    for (let i = 0; i < 4; i++) lots.push(await mkLockedLotForCustomer(customer.id));
+    const first = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lots[0]!.id, lots[1]!.id] });
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    docIds.push(Number(first.body.id));
+    const second = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lots[2]!.id, lots[3]!.id] });
+    assert.equal(second.status, 201, `a disjoint selection must issue its own note — ${JSON.stringify(second.body)}`);
+    assert.notEqual(Number(second.body.id), Number(first.body.id), 'the two selections are distinct documents');
+  });
+
+  test('an overlapping selection is rejected naming the overlapping lots', async () => {
+    const customer = await mkCustomer(`Consol overlap ${suffix}`);
+    const lotA = await mkLockedLotForCustomer(customer.id);
+    const lotB = await mkLockedLotForCustomer(customer.id);
+    const codeA = `DN-OV-A-${suffix}-${lotA.id}`;
+    const codeB = `DN-OV-B-${suffix}-${lotB.id}`;
+    await db.update(s.shipments).set({ shipmentCode: codeA }).where(eq(s.shipments.id, lotA.id));
+    await db.update(s.shipments).set({ shipmentCode: codeB }).where(eq(s.shipments.id, lotB.id));
+    const first = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotA.id] });
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    docIds.push(Number(first.body.id));
+    const second = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lotB.id, lotA.id] });
+    assert.equal(second.status, 409, JSON.stringify(second.body));
+    assert.deepEqual(second.body.overlappingLotCodes, [codeA], 'exactly the already-issued lot is named');
+    const customerDocs = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.entityId, customer.id));
+    assert.equal(customerDocs.length, 1, 'the rejected batch half-issued nothing');
   });
 });

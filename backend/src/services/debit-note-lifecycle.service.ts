@@ -182,6 +182,14 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
       : eq(s.billingDocuments.debitNoteStatus, currentStatus);
     if (input.targetStatus === 'CANCELED') {
       const releasedAt = new Date();
+      await tx.update(s.debitNoteLots).set({
+        releasedAt,
+        releasedBy: input.actorUserId,
+        releaseReason: 'DOCUMENT_CANCELED',
+      }).where(and(
+        eq(s.debitNoteLots.documentId, doc.id),
+        isNull(s.debitNoteLots.releasedAt),
+      ));
       await tx.update(s.billingDocumentTripClaims).set({
         releasedAt,
         releasedBy: input.actorUserId,

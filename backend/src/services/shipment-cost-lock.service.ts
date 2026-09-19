@@ -4,6 +4,7 @@
 // edits). Snapshots are assembled server-side from engine values and are
 // never recomputed after lock — "mở kỳ mới không đổi số đã khóa".
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -12,9 +13,46 @@ import type { Tx } from './trip-shared';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
+import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
+
+/** Advisory-locked lot-claim namespace: serializes concurrent exports that
+ * touch the same locked lot before the active-claim check/insert runs. */
+const LOT_CLAIM_LOCK_SCOPE = 'billing-document-lot-claim';
+
+/** Lot-level uniqueness guard (ruling 2026-09-19): a locked lot may appear in
+ * at most ONE issued debit note. Overlapping selections are rejected 409 with
+ * the colliding lot codes so the UI can name them. */
+async function assertLotsNotInIssuedDebitNote(
+  tx: Tx,
+  shipmentIds: readonly number[],
+): Promise<void> {
+  await lockApplicationOwnedUniquenessSet(
+    tx,
+    shipmentIds.map((shipmentId) => ({ scope: LOT_CLAIM_LOCK_SCOPE, parts: [shipmentId] })),
+  );
+  const overlapping = await tx.select({
+    shipmentId: s.debitNoteLots.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
+  })
+    .from(s.debitNoteLots)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.debitNoteLots.shipmentId))
+    .where(and(
+      inArray(s.debitNoteLots.shipmentId, [...shipmentIds]),
+      isNull(s.debitNoteLots.releasedAt),
+    ));
+  if (overlapping.length > 0) {
+    const overlappingLotCodes = [...new Set(overlapping.map((row) => row.shipmentCode ?? String(row.shipmentId)))];
+    throw new ApiError(
+      409,
+      `Các lô ${overlappingLotCodes.join(', ')} đã được xuất Debit Note. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.`,
+      undefined,
+      { overlappingLotCodes },
+    );
+  }
+}
 
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
  *  assertShipmentAccountingUnlocked). Violations → 409 with the dedicated
@@ -183,6 +221,7 @@ export async function createDebitNoteFromCostLock(
         ))
         .limit(1);
       if (!lock) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
+      await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
       const lineRows: Array<{
         lineType: string;
@@ -219,6 +258,11 @@ export async function createDebitNoteFromCostLock(
           grossAmount: line.baseAmount,
         })));
       }
+      await tx.insert(s.debitNoteLots).values([{
+        documentId: doc.id,
+        shipmentId: input.shipmentId,
+        createdBy: input.actor.userId,
+      }]);
       return { id: doc.id };
     },
   });
@@ -265,7 +309,7 @@ export async function createConsolidatedDebitNote(
     throw new ApiError(409, 'Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.');
   }
   const customerId = lots[0]!.customerId ?? 0;
-  const idempotencyKey = `consolidated:${customerId}:${shipmentIds.join('-')}`;
+  const idempotencyKey = `consolidated:${customerId}:${createHash('sha256').update(shipmentIds.join(',')).digest('hex').slice(0, 40)}`;
   const { result } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED,
     idempotencyKey,
@@ -273,6 +317,7 @@ export async function createConsolidatedDebitNote(
     createdBy: input.actor.userId,
     entityType: 'billing_document',
     create: async (tx) => {
+      await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
         entityType: 'CUSTOMER',
@@ -311,6 +356,11 @@ export async function createConsolidatedDebitNote(
           grossAmount: line.baseAmount,
         })));
       }
+      await tx.insert(s.debitNoteLots).values(shipmentIds.map((lotId) => ({
+        documentId: doc.id,
+        shipmentId: lotId,
+        createdBy: input.actor.userId,
+      })));
       return { id: doc.id };
     },
   });
