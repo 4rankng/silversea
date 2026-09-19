@@ -37,7 +37,17 @@
 
 .csc-debit-table thead th {
   color: var(--ink-2);
-  white-space: nowrap;
+  /* Headers may wrap to a second line so the auto-layout table compresses
+     into narrow panels (1280 sidebar-open) instead of clipping its last
+     columns at first paint. */
+  white-space: normal;
+}
+
+/* Container codes and their header are business keys: the first column
+   keeps a floor so codes never wrap mid-word when the panel narrows. */
+.csc-debit-table th:first-child,
+.csc-debit-table td:first-child {
+  min-width: 100px;
 }
 
 /* Two-line container cells: number on top, type label beneath. */
@@ -66,6 +76,7 @@
 /* Read-only Ops item lines: plain, muted — data, not a control. */
 .csc-debit-item {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: baseline;
   margin-bottom: 2px;

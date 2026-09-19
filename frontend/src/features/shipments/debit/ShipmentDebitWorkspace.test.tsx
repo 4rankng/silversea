@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -334,5 +336,23 @@ describe('PS thực tế round trip (20260918 final rework)', () => {
     // persisted PS and the input must read it back.
     await waitFor(() => expect(getDetail.mock.calls.length).toBeGreaterThanOrEqual(2));
     await waitFor(() => expect((screen.getByLabelText('PS thực tế CONT-001') as HTMLInputElement).value).toBe('180000'));
+  });
+});
+
+describe('Bảng 2.2 shipped layout contract (card _7)', () => {
+  const css = readFileSync(
+    resolve(process.cwd(), 'src/features/shipments/debit/ShipmentDebitWorkspace.css'),
+    'utf8',
+  );
+
+  it('fee item lines wrap so the HD annotation floors at word width, never a char-stack (F1)', () => {
+    const itemRule = css.match(/\.csc-debit-item\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(itemRule).toContain('flex-wrap: wrap');
+  });
+
+  it('workspace headers compress into the panel instead of clipping it (F2)', () => {
+    const thRule = css.match(/\.csc-debit-table thead th\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(thRule).not.toContain('white-space: nowrap');
+    expect(thRule).toContain('white-space: normal');
   });
 });
