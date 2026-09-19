@@ -17,11 +17,12 @@ import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
-import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { CusFilterSummary } from '../features/shipments/cus/CusFilterSummary';
+import { WorkboardFilters, WORKBOARD_BUCKETS } from '../components/WorkboardFilters';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { parseDateTime24 } from '../lib/format';
@@ -42,7 +43,7 @@ import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTi
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
-const BUCKETS = Object.values(ShipmentCusBucket);
+
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -58,7 +59,7 @@ export default function ShipmentsPage() {
     ? (searchParams.get('adHoc') as 'true' | 'false')
     : '';
   const rawBucket = searchParams.get('bucket');
-  const bucket = BUCKETS.includes(rawBucket as ShipmentCusBucket)
+  const bucket = WORKBOARD_BUCKETS.includes(rawBucket as ShipmentCusBucket)
     ? rawBucket as ShipmentCusBucket
     : '';
   const rawDirection = searchParams.get('direction');
@@ -245,7 +246,7 @@ export default function ShipmentsPage() {
         transportDateFrom: current.get('transportDateFrom') ?? '',
         transportDateTo: current.get('transportDateTo') ?? '',
         direction: current.get('direction') === 'IMPORT' ? 'IMPORT' : current.get('direction') === 'EXPORT' ? 'EXPORT' : undefined,
-        bucket: BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
+        bucket: WORKBOARD_BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
       });
     } catch (exportError) {
       ws.setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
@@ -356,64 +357,14 @@ export default function ShipmentsPage() {
               <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
             )}
             <div id="cus-advanced-filters" className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
-              <BufferedUuiDateInput
-                id="cus-filter-date-from"
-                key={`from-${dateResetKey}`}
-                label="Từ ngày giao"
-                size="sm"
-                value={dateFrom}
-                onChange={(value) => updateParam('transportDateFrom', value || null)}
-                max={dateTo || undefined}
-                className="shipment-uui-field"
-                wrapperClassName="shipment-uui-control"
-                inputClassName="shipment-uui-control__input"
-              />
-              <BufferedUuiDateInput
-                id="cus-filter-date-to"
-                key={`to-${dateResetKey}`}
-                label="Đến ngày giao"
-                size="sm"
-                value={dateTo}
-                onChange={(value) => updateParam('transportDateTo', value || null)}
-                min={dateFrom || undefined}
-                className="shipment-uui-field"
-                wrapperClassName="shipment-uui-control"
-                inputClassName="shipment-uui-control__input"
-              />
-              <UuiSelectField
-                label="Xuất / Nhập"
-                value={direction}
-                onChange={(event) => updateParam('direction', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả' },
-                  { value: 'EXPORT', label: 'Xuất' },
-                  { value: 'IMPORT', label: 'Nhập' },
-                ]}
-                wrapperClassName="shipment-uui-field"
-                controlClassName="shipment-uui-select"
-              />
-              <UuiSelectField
-                label="Loại lô"
-                value={adHoc}
-                onChange={(event) => updateParam('adHoc', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả' },
-                  { value: 'true', label: 'Lệnh chạy ngoài' },
-                  { value: 'false', label: 'Thường' },
-                ]}
-                wrapperClassName="shipment-uui-field"
-                controlClassName="shipment-uui-select"
-              />
-              <UuiSelectField
-                label="Kế hoạch"
-                value={bucket}
-                onChange={(event) => updateParam('bucket', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả trạng thái' },
-                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
-                ]}
-                wrapperClassName="shipment-uui-field"
-                controlClassName="shipment-uui-select"
+              <WorkboardFilters
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                direction={direction}
+                adHoc={adHoc}
+                bucket={bucket}
+                dateResetKey={dateResetKey}
+                updateParam={updateParam}
               />
             </div>
           </div>
