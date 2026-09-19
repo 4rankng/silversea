@@ -8,6 +8,7 @@ import {
   Role,
 } from '@tingting/shared';
 import { eq, and, desc, isNotNull, isNull, sql } from 'drizzle-orm';
+import { expenseTypeSeedPolicy } from './expense-type-seed-policy';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
 import {
@@ -691,15 +692,6 @@ export async function seed() {
   // and every admin-editable field (name, invoice policy, markup, label,
   // VAT) — are never written by seed; soft-deleted rows stay deleted (an
   // admin's deletion is admin data).
-  const defaultNoInvoiceCodes = new Set([
-    'LIFTING',
-    'LOWERING',
-    'WEIGHING',
-    'INFRASTRUCTURE',
-    'INSPECTION',
-    'INSPECTION_SVC',
-    'OTHER',
-  ]);
   let fetInserted = 0;
   let fetBackfilled = 0;
   const existingForwarderExpenseTypes = await db.select({
@@ -714,13 +706,13 @@ export async function seed() {
       .map((row) => [normalizeSeedText(row.code), row] as const),
   );
   for (const [code, meta] of Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)) {
-    const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
+    const policy = expenseTypeSeedPolicy(code);
     const values = {
       code,
       name: meta.name,
-      requiresInvoice: false,
-      substituteEvidenceAllowed,
-      noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
+      requiresInvoice: policy.requiresInvoice,
+      substituteEvidenceAllowed: policy.substituteEvidenceAllowed,
+      noInvoiceEvidenceTypes: policy.substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
       noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
       noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
       defaultMarkup: meta.defaultMarkup,
