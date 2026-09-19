@@ -24,7 +24,6 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: end;
-  max-width: 1880px;
 }
 
 .shipment-debit-filters {
@@ -81,7 +80,6 @@
   overflow-x: auto;
   border: 1px solid var(--border-1);
   border-radius: 8px;
-  max-width: 1880px;
 }
 
 /* Fixed layout hands every unmeasured column to the identity column: the
