@@ -3,7 +3,7 @@
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
-# PostgreSQL: 5442  |  Redis: 6392  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8084
+# PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3002  |  Frontend: 7175  |  Adminer: 8083
 # Deliberately off the common defaults so this stack can run alongside other
 # projects on this machine without port or container-name collisions.
 
@@ -12,9 +12,9 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@echo "Starting silversea dev environment..."
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml up -d
-	@echo "Waiting for database (port 5442)..."
-	@until pg_isready -h localhost -p 5442 -U postgres >/dev/null 2>&1 || \
-		nc -z localhost 5442 >/dev/null 2>&1; do sleep 1; done
+	@echo "Waiting for database (port 5441)..."
+	@until pg_isready -h localhost -p 5441 -U postgres >/dev/null 2>&1 || \
+		nc -z localhost 5441 >/dev/null 2>&1; do sleep 1; done
 	@sleep 1
 	@echo "Running migrations (backup first)..."
 	@$(MAKE) --no-print-directory db-backup || echo "⚠️  db-backup failed — continuing dev startup WITHOUT a pre-migrate backup" >&2
@@ -24,14 +24,14 @@ dev: ## Start everything (db, redis, backend, frontend)
 			echo "⚠️  drizzle-kit migrate FAILED (exit $$migrate_status) — dev stack continues, but the DB may be behind. Run 'make migrate' for the full error." >&2; \
 		fi
 	@echo ""
-	@echo "Starting backend (port 3001) and frontend (port 7174)..."
-	@echo "  Frontend: http://localhost:7174"
-	@echo "  Backend:  http://localhost:3001/api/health"
-	@echo "  Adminer:  http://localhost:8084  (DB: silversea · user/pass: postgres/postgres)"
+	@echo "Starting backend (port 3002) and frontend (port 7175)..."
+	@echo "  Frontend: http://localhost:7175"
+	@echo "  Backend:  http://localhost:3002/api/health"
+	@echo "  Adminer:  http://localhost:8083  (DB: silversea · user/pass: postgres/postgres)"
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
-	@pid=$$(lsof -ti tcp:7174 -sTCP:LISTEN 2>/dev/null); \
+	@pid=$$(lsof -ti tcp:7175 -sTCP:LISTEN 2>/dev/null); \
 	if [ -n "$$pid" ]; then \
-		echo "Port 7174 in use (stale PID $$pid) — freeing..."; \
+		echo "Port 7175 in use (stale PID $$pid) — freeing..."; \
 		kill $$pid 2>/dev/null || true; \
 		sleep 1; \
 		kill -9 $$pid 2>/dev/null || true; \
@@ -39,11 +39,11 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@bash -c '\
 		trap "kill 0" EXIT; \
 		(cd backend && pnpm dev) & \
-		(cd frontend && npx vite --port 7174) & \
+		(cd frontend && VITE_API_PROXY_TARGET=http://localhost:3002 npx vite --port 7175) & \
 		wait'
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-DB_CONTAINER := ss-main-db
+DB_CONTAINER := ss-prod-db
 DB_NAME      := silversea
 DB_USER      := postgres
 
@@ -116,7 +116,7 @@ devdb-prod: ## Sync prod DB (silversea.tingting.vip) → local dev DB — REPLAC
 
 # Internal worker for devdb / devdb-prod (params via DEVDB_* variable overrides).
 devdb-sync:
-	@test -n "$$(docker ps -q -f name=^ss-main-db$$)" || { echo "❌ Local DB container 'ss-main-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
+	@test -n "$$(docker ps -q -f name=^ss-prod-db$$)" || { echo "❌ Local DB container 'ss-prod-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
 	@mkdir -p backups
 	@dump="backups/$(DEVDB_LABEL)-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
 	echo "1/3  Dumping $(DEVDB_LABEL) DB on $(DEVDB_SERVER)..."; \
@@ -175,8 +175,8 @@ setup: ## First-time setup: start infra, recreate DB, migrate, seed
 	@cd backend && pnpm seed
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start the app."
-	@echo "  Frontend: http://localhost:7174"
-	@echo "  Backend:  http://localhost:3001/api/health"
+	@echo "  Frontend: http://localhost:7175"
+	@echo "  Backend:  http://localhost:3002/api/health"
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 build: ## Build shared + backend + frontend
@@ -188,7 +188,7 @@ build: ## Build shared + backend + frontend
 stop: ## Stop backend/frontend (keep db/redis)
 	@echo "Stopping app processes..."
 	@pkill -f "tsx watch src/index.ts" 2>/dev/null || true
-	@pkill -f "vite.*7174" 2>/dev/null || true
+	@pkill -f "vite.*7175" 2>/dev/null || true
 
 down: ## Stop everything including db and redis
 	@docker compose -f docker-compose.dev.yml down 2>/dev/null || \
@@ -331,7 +331,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "silversea dev ports:"
-	@echo "  Frontend 7174  ·  Backend 3001  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
+	@echo "  Frontend 7175  ·  Backend 3002  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
 	@echo ""
 	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
 	@echo "prod:  make deploy  →  https://silversea.tingting.vip  (ships the prod branch AS-IS, DB preserved)"

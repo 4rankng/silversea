@@ -4,17 +4,22 @@ services:
     # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
     # Switched from postgres:16-alpine — the stock alpine image lacks the extension.
     image: pgvector/pgvector:pg16
-    # Namespaced ss-main-* so this stack runs alongside the silversea-prod
-    # checkout (ss-prod-*) and other projects without name collisions.
-    container_name: ss-main-db
+    # Namespaced ss-prod-* so this stack runs alongside the silversea-main
+    # checkout (ss-main-*) and other projects without name collisions.
+    container_name: ss-prod-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: silversea
     ports:
-      - "5442:5432"
+      - "5441:5432"
     volumes:
-      - ss-main-pgdata:/var/lib/postgresql/data
+      # Volume key is ss-prod-pgdata, NOT e481d070's silversea-pgdata: the
+      # latter name is compose-project-prefixed to silversea-prod_silversea-pgdata,
+      # which still carried a pre-2026-09-14 dev DB (314 stale trips) that got
+      # silently resurrected on 2026-09-20 when this namespace was restored.
+      # A never-used key guarantees a genuinely fresh, collision-proof volume.
+      - ss-prod-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -23,9 +28,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ss-main-redis
+    container_name: ss-prod-redis
     ports:
-      - "6392:6379"
+      - "6391:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -34,12 +39,12 @@ services:
 
   adminer:
     image: adminer
-    container_name: ss-main-adminer
+    container_name: ss-prod-adminer
     ports:
-      - "8084:8080"
+      - "8083:8080"
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
-  ss-main-pgdata:
+  ss-prod-pgdata:
