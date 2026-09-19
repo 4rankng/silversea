@@ -102,6 +102,7 @@ async function mkExpense(tripId: number, fields: {
   buyAmount?: string;
   sellAmount?: string;
   note?: string;
+  invoiceNumber?: string;
 }) {
   const [row] = await db.insert(s.tripExpenses).values({
     tripId,
@@ -110,6 +111,7 @@ async function mkExpense(tripId: number, fields: {
     buyAmount: fields.buyAmount ?? '500000',
     sellAmount: fields.sellAmount ?? '0',
     recoveryNote: fields.note ?? null,
+    invoiceNumber: fields.invoiceNumber ?? null,
   }).returning({ id: s.tripExpenses.id });
   createdExpenseIds.push(row.id);
   return row.id;
@@ -173,6 +175,26 @@ after(async () => {
     // red-phase tolerance
   }
   await disconnectRedis();
+});
+
+describe('20260919 Bảng 2.2 — invoice numbers on chi hộ items', () => {
+  test('HD numbers ride the chi hộ items wire; invoice-less rows stay null', async () => {
+    const lot = await mkShipmentWithTrip();
+    await mkExpense(lot.trip.id, { expenseType: 'CUSTOMS', feeName: 'Phí nâng', buyAmount: '1250000', invoiceNumber: '00123' });
+    await mkExpense(lot.trip.id, { expenseType: 'CUSTOMS', feeName: 'Phí hạ', buyAmount: '1250000', invoiceNumber: '00124' });
+    await mkExpense(lot.trip.id, { expenseType: 'OTHER', feeName: 'Phí khác (không hđ)' });
+    const result = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    const rows = result.body.chiHoRows as Array<Record<string, unknown>>;
+    const items = rows.flatMap((row) => row.items as Array<Record<string, unknown>>);
+    const lift = items.find((item) => item.feeName === 'Phí nâng');
+    const lower = items.find((item) => item.feeName === 'Phí hạ');
+    assert.equal(lift!.invoiceNumber, '00123', 'the invoice number reaches the wire');
+    assert.equal(lower!.invoiceNumber, '00124', 'each fee carries its own invoice number');
+    assert.ok(!items.some((item) => item.expenseType === 'OTHER'), 'Phí khác rows ride otherFees, not items');
+    const others = rows.flatMap((row) => row.otherFees as Array<Record<string, unknown>>);
+    assert.ok(others.some((fee) => fee.name === 'Phí khác (không hđ)'), 'the invoice-less fee stays in the no-invoice bucket');
+  });
 });
 
 describe('20260918 debit-detail GET (red-first)', () => {

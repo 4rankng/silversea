@@ -38,7 +38,7 @@ export interface DebitDetailChiHoRow {
   containerNumber: string | null;
   containerTypeLabel: string | null;
   tripId: number | null;
-  items: Array<{ id: number; expenseType: string; feeName: string | null; amount: number | null; thuKhach: number | null; note: string | null }>;
+  items: Array<{ id: number; expenseType: string; feeName: string | null; amount: number | null; thuKhach: number | null; note: string | null; invoiceNumber: string | null }>;
   otherFees: Array<{ id: number; name: string; amount: number | null }>;
   carrierDetention: number | null;
   repairAdvance: number | null;
@@ -136,6 +136,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     buyAmount: s.tripExpenses.buyAmount,
     sellAmount: s.tripExpenses.sellAmount,
     note: s.tripExpenses.recoveryNote,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
   })
     .from(s.tripExpenses)
     .where(inArray(s.tripExpenses.tripId, tripIds));
@@ -184,6 +185,9 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         amount: Number(expense.buyAmount),
         thuKhach: expense.sellAmount == null ? null : Number(expense.sellAmount),
         note: expense.note,
+        // Bảng 2.2 (fidelity card): the invoice number renders italic under
+        // the fee amount — "HD: 00123". Null = no invoice on the source row.
+        invoiceNumber: expense.invoiceNumber,
       })),
       otherFees,
       // No dedicated detention/repair expense types exist yet — the OTHER
