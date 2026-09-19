@@ -19,6 +19,7 @@ import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-masterrefs`;
 const shipmentIds: number[] = [];
+const routeIds: number[] = [];
 const idempotencyKeys: string[] = [];
 let customerId: number;
 let userId: number;
@@ -94,6 +95,9 @@ after(async () => {
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys)
       .where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
+  }
+  for (const routeId of routeIds) {
+    await db.delete(s.routes).where(eq(s.routes.id, routeId));
   }
   await db.delete(s.users).where(eq(s.users.id, userId));
   await db.delete(s.customers).where(eq(s.customers.id, customerId));
@@ -195,10 +199,15 @@ describe('shipment master reference integrity', () => {
     assert.equal(res.body.operationalNotes, 'orphan vẫn sửa được');
   });
 
-  test('update that resends the stored phantom routeId unchanged still succeeds', async () => {
+  test('update that resends the stored routeId unchanged still succeeds', async () => {
+    // Live FKs make stored phantom refs impossible, so the stored route is a
+    // REAL row here — the pin still holds: an update validates only the refs
+    // its input actually CHANGES, resending the stored value is not a change.
+    const [storedRoute] = await db.insert(s.routes).values({ name: `Master refs stored route ${suffix}` }).returning();
+    routeIds.push(storedRoute.id);
     const [orphan] = await db.insert(s.shipments).values({
-      customerId: 999_999_998,
-      routeId: 999_999_997,
+      customerId,
+      routeId: storedRoute.id,
       cargoMode: 'LCL',
       shipmentCode: `MAST2-${suffix}`,
       status: 'PENDING_DATE',
@@ -208,13 +217,12 @@ describe('shipment master reference integrity', () => {
     shipmentIds.push(orphan.id);
 
     // The clerk identity editor resends routeId with every save for non-FCL
-    // rows. A stored phantom routeId must not block unrelated edits — only
-    // refs the input actually CHANGES are validated.
+    // rows. A stored routeId resent unchanged must not block unrelated edits.
     const key = `masterrefs-update-orphan-route-${suffix}`;
     idempotencyKeys.push(key);
     const res = await request(`/${orphan.id}`, {
       method: 'PUT',
-      body: { routeId: 999_999_997, operationalNotes: 'route giữ nguyên', expectedVersion: 1 },
+      body: { routeId: storedRoute.id, operationalNotes: 'route giữ nguyên', expectedVersion: 1 },
       key,
     });
     assert.equal(res.status, 200);

@@ -52,14 +52,19 @@ after(async () => {
 });
 
 describe('trip children foreign keys', () => {
-  test('completeness pin: all 22 constraints live with the approved policies', async () => {
+  test('completeness pin: all 22 trip_id constraints live with the approved policies', async () => {
+    // Column-precise: these tables also carry OTHER FKs (shipment_id etc.
+    // from the shipment-children wave) with their own sanctioned rules —
+    // the pin is about the trip_id constraint specifically.
     const rows = await sql`
-      select tc.table_name, rc.delete_rule
+      select tc.table_name, kcu.column_name, rc.delete_rule
       from information_schema.table_constraints tc
+      join information_schema.key_column_usage kcu
+        on kcu.constraint_name = tc.constraint_name and kcu.table_name = tc.table_name
       join information_schema.referential_constraints rc on rc.constraint_name = tc.constraint_name
       where tc.constraint_type = 'FOREIGN KEY' and rc.delete_rule in ('CASCADE','RESTRICT','SET NULL')
-        and tc.table_name in ${sql(CASCADE.concat(RESTRICT, SET_NULL))}
-      group by tc.table_name, rc.delete_rule`;
+        and kcu.column_name = 'trip_id'
+        and tc.table_name in ${sql(CASCADE.concat(RESTRICT, SET_NULL))}`;
     const got = new Map(rows.map((r) => [r.table_name, r.delete_rule]));
     for (const t of CASCADE) assert.equal(got.get(t), 'CASCADE', `${t} must CASCADE`);
     for (const t of RESTRICT) assert.equal(got.get(t), 'RESTRICT', `${t} must RESTRICT`);

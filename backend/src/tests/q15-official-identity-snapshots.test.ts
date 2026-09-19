@@ -255,6 +255,9 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
   }
   if (tripIds.length > 0) {
+    // RESTRICT child rows block trip deletes — clear debit-note trip claims
+    // created through the flows under test first (card _40).
+    await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {

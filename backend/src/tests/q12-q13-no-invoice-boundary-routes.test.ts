@@ -187,11 +187,17 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
         .map((item) => [item.code, item.noInvoicePolicySnapshot]),
     );
 
-    for (const code of ['LIFTING', 'INFRASTRUCTURE', 'INSPECTION', 'OTHER'] as const) {
+    // Ruled policy (20260919_42): only the no-invoice class carries a
+    // noInvoicePolicySnapshot — invoice-required types (LIFTING et al) must
+    // NOT expose one, since substitute evidence is closed to them.
+    for (const code of ['INSPECTION_SVC', 'OTHER'] as const) {
       const snapshot = types.get(code);
       assert.ok(snapshot, `seeded category ${code} should expose a no-invoice policy snapshot`);
       assert.deepEqual(snapshot.defaultCategoryAliases, [...NO_INVOICE_DEFAULT_CATEGORY_ALIASES[code]]);
       assert.equal(snapshot.requiredScope, NO_INVOICE_REQUIRED_SCOPE);
+    }
+    for (const code of ['LIFTING', 'INFRASTRUCTURE', 'INSPECTION'] as const) {
+      assert.equal(types.get(code) ?? null, null, `invoice-required ${code} must not expose a no-invoice policy snapshot`);
     }
   });
 

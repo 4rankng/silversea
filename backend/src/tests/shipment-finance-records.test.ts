@@ -8,6 +8,7 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from '../services/trip-shared';
 import { depositStatus, listShipmentFinanceRecords, saveContainerDepositRecord, saveShipmentInvoiceRecord } from '../services/shipment-finance-records.service';
 import { hydrateExpenseAccountingSource } from '../services/expense-accounting-source.service';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 
 after(async () => { await client.end(); });
 
@@ -92,7 +93,12 @@ test('KT-17: deposited/refunded states describe facts without an overdue thresho
 test('KT-17/18: documentary refund updates remain available after shipment costs close', async () => {
   await isolated(async (tx, actor, shipmentId) => {
     const first = await saveContainerDepositRecord(tx, shipmentId, deposit, actor);
-    await tx.insert(s.shipmentAccountingLocks).values({ shipmentId, billingDocumentId: 0, billingDocumentVersion: 1,
+    // Real debit note — the lock FK is live; sentinel 0 only ever worked on
+    // the accumulated shared dev database (card _40).
+    const [lockShipment] = await tx.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    assert.ok(lockShipment?.customerId != null, 'fixture shipment carries a customer');
+    const lockDoc = await insertLockableBillingDocument(tx, { entityId: lockShipment.customerId });
+    await tx.insert(s.shipmentAccountingLocks).values({ shipmentId, billingDocumentId: lockDoc.id, billingDocumentVersion: 1,
       billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: '2026-09-16T00:00:00Z' },
       shipmentVersionAtLock: 1, reason: 'Local regression fixture', activatedBy: actor.userId });
     const updated = await saveContainerDepositRecord(tx, shipmentId, { ...deposit, id: first.id, expectedVersion: first.version,

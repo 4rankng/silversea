@@ -7,6 +7,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import { recordShipmentRecovery } from '../services/shipment-recovery.service';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let setupSequence = 0;
@@ -14,6 +15,7 @@ const userIds: number[] = [];
 const customerIds: number[] = [];
 const routeIds: number[] = [];
 const shipmentIds: number[] = [];
+const lockDocIds: number[] = [];
 const shipmentContainerIds: number[] = [];
 const tripIds: number[] = [];
 const tripContainerIds: number[] = [];
@@ -135,6 +137,9 @@ after(async () => {
   }
   if (shipmentIds.length) {
     await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds));
+    if (lockDocIds.length > 0) {
+      await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, lockDocIds));
+    }
   }
   if (tripContainerIds.length) await db.delete(s.tripContainers).where(inArray(s.tripContainers.id, tripContainerIds));
   if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
@@ -321,9 +326,14 @@ describe('shipment recovery writer', () => {
 
   test('blocks recovery mutations while the shipment accounting lock is active', async () => {
     const source = await setup();
+    // Real debit note — the lock FK is live; sentinel ids only ever worked
+    // on the accumulated shared dev database (card _40).
+    assert.ok(source.shipment.customerId != null, 'fixture shipment carries a customer');
+    const lockDoc = await insertLockableBillingDocument(db, { entityId: source.shipment.customerId });
+    lockDocIds.push(lockDoc.id);
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: source.shipment.id,
-      billingDocumentId: 999_000 + setupSequence,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       billingPeriodSnapshot: {
         rangeFrom: '2026-08-01',

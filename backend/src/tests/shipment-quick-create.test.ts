@@ -46,11 +46,13 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import { auditLogMiddleware } from '../middleware/audit';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { disconnectRedis } from '../lib/redis';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 // ── Scaffolding id buckets (cleaned up in reverse-FK order in `after`) ──────
 const createdShipmentIds: number[] = [];
+const lockDocIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
@@ -311,6 +313,9 @@ after(async () => {
       if (createdShipmentIds.length > 0) {
         await tx.delete(s.shipmentAccountingLocks)
           .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
+        if (lockDocIds.length > 0) {
+          await tx.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, lockDocIds));
+        }
         await tx.delete(s.idempotencyKeys)
           .where(inArray(s.idempotencyKeys.entityId, createdShipmentIds));
         await tx.delete(s.shipmentStatusHistory)
@@ -766,9 +771,16 @@ describe('POST /api/shipments/quick — RBAC', () => {
       assert.match(String(attempt.data.error ?? ''), /giai đoạn tiếp nhận/);
     }
 
+    // Real debit note — the lock FK is live; sentinel 900_000+id only ever
+    // worked on the accumulated shared dev database (card _40).
+    const [lockShipment] = await db.select({ customerId: s.shipments.customerId })
+      .from(s.shipments).where(eq(s.shipments.id, created.data.id));
+    assert.ok(lockShipment?.customerId != null, 'fixture shipment carries a customer');
+    const lockDoc = await insertLockableBillingDocument(db, { entityId: lockShipment.customerId });
+    lockDocIds.push(lockDoc.id);
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: created.data.id,
-      billingDocumentId: 900_000 + created.data.id,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       billingPeriodSnapshot: {
         rangeFrom: '2026-08-01',

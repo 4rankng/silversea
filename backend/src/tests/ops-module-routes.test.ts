@@ -165,7 +165,12 @@ after(async () => {
       }
       if (createdDriverIds.length) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
       if (createdContainerIds.length) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, createdContainerIds));
-      if (createdShipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      if (createdShipmentIds.length) {
+        // RESTRICT child rows block shipment deletes — clear the expense
+        // accounting sources created through the ops routes first (card _40).
+        await db.delete(s.expenseAccountingSources).where(inArray(s.expenseAccountingSources.shipmentId, createdShipmentIds));
+        await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      }
       if (createdTruckIds.length) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
       if (createdRouteIds.length) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
       if (createdExpenseTypeCodes.length) await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.code, createdExpenseTypeCodes));

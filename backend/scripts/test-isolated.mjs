@@ -126,7 +126,8 @@ async function runSuite(file, index) {
   await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName}`);
   createdDatabases.splice(createdDatabases.indexOf(dbName), 1);
   const relative = path.relative(backendRoot, file);
-  const tail = readFileSync(outPath, 'utf8').split('\n').filter(Boolean).slice(-3).join(' | ');
+  const tailLines = code === 0 ? 3 : 30;
+  const tail = readFileSync(outPath, 'utf8').split('\n').filter(Boolean).slice(-tailLines).join(' | ');
   const verdict = code === 0 ? 'PASS' : `FAIL(exit ${code})`;
   console.log(`${verdict} ${relative} :: ${tail}`);
   return { file: relative, ok: code === 0, log: outPath };

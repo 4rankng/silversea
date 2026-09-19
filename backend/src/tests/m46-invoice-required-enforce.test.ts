@@ -7,6 +7,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import type { Tx } from '../services/trip-shared';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 import { createTripExpense, updateTripExpense, updateForwarderTripExpenseInTx } from '../services/forwarder.service';
 
 async function isolated(run: (tx: Tx) => Promise<void>) {
@@ -80,8 +81,12 @@ test('direct invoice updates retain ownership and stale-version checks', () => i
 test('accounting-locked shipment blocks both create and update without an approval detour', () => isolated(async tx => {
   const f = await fixture(tx);
   const expense = await createTripExpense(tx, f.input);
+  // Real debit note — the accounting-lock FK to billing_documents is live;
+  // the old sentinel id (0) only worked on the shared dev database.
+  assert.ok(f.shipment.customerId != null, 'fixture shipment carries a customer');
+  const lockDoc = await insertLockableBillingDocument(tx, { entityId: f.shipment.customerId });
   await tx.insert(s.shipmentAccountingLocks).values({
-    shipmentId: f.shipment.id, billingDocumentId: 0, billingDocumentVersion: 1,
+    shipmentId: f.shipment.id, billingDocumentId: lockDoc.id, billingDocumentVersion: 1,
     billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: '2026-09-16T00:00:00.000Z' },
     shipmentVersionAtLock: f.shipment.version, reason: 'Recorded accounting lock fixture', activatedBy: f.owner.id,
   });

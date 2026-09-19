@@ -309,6 +309,9 @@ after(async () => {
         db.select({ id: s.tripContainers.id }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds)),
       ));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
+      // RESTRICT child rows block trip deletes — clear the financial postings
+      // created through dispatch first (card _40).
+      await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdShipmentIds.length > 0) {

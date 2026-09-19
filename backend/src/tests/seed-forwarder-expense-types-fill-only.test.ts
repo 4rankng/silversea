@@ -13,6 +13,7 @@ import { inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { expenseTypeSeedPolicy } from '../expense-type-seed-policy';
 import { seed } from '../seed';
 import { disconnectRedis } from '../lib/redis';
 
@@ -36,7 +37,7 @@ after(async () => {
 });
 
 describe('seed fills the expense-type catalog without overwriting admin data', () => {
-  test('empty catalog for the default codes: seed inserts all 8 with the ruled categories (WEIGHING=PHAT_SINH)', async () => {
+  test('empty catalog for the default codes: seed inserts all 8 with the ruled categories and ruled invoice policy', async () => {
     await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.code, CODES));
     const before = await db.select({ id: s.forwarderExpenseTypes.id }).from(s.forwarderExpenseTypes)
       .where(inArray(s.forwarderExpenseTypes.code, CODES));
@@ -52,9 +53,14 @@ describe('seed fills the expense-type catalog without overwriting admin data', (
       const row = byCode.get(code);
       assert.ok(row, `missing default code ${code}`);
       assert.equal(row.category, meta.category ?? null, `${code} carries its ruled category`);
-      assert.equal(row.requiresInvoice, false, `${code} inserts with the default invoice flag`);
+      // Invoice policy follows the ruled seed policy (20260919_42) — the
+      // invoice-required class stamps requiresInvoice, everything else does not.
+      const ruled = expenseTypeSeedPolicy(code);
+      assert.equal(row.requiresInvoice, ruled.requiresInvoice, `${code} carries the ruled invoice flag`);
+      assert.equal(row.substituteEvidenceAllowed, ruled.substituteEvidenceAllowed, `${code} carries the ruled substitute-evidence flag`);
     }
     assert.equal(byCode.get('WEIGHING')?.category, 'PHAT_SINH', 'WEIGHING carries the ruled default');
+    assert.equal(byCode.get('WEIGHING')?.requiresInvoice, true, 'WEIGHING is in the ruled invoice-required class');
   });
 
   test('admin-edited row survives a re-seed untouched — deep-equal down to updatedAt', async () => {

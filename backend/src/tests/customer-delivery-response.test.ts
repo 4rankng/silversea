@@ -6,6 +6,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { submitCustomerDeliveryResponse } from '../services/customer-delivery-response.service';
+import { insertTripComposite } from '../services/trip-composite.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
@@ -20,6 +21,15 @@ let ownCustomerId = 0;
 let foreignCustomerId = 0;
 let ownUserId = 0;
 let ownShipmentId = 0;
+let ownTripId = 0;
+let ownFulfillmentId = 0;
+let ownProgressEventId = 0;
+const routeIds: number[] = [];
+const cargoTypeIds: number[] = [];
+const driverIds: number[] = [];
+const tripIds: number[] = [];
+const fulfillmentIds: number[] = [];
+const progressEventIds: number[] = [];
 
 function actor(userId: number, customerId: number) {
   return {
@@ -61,12 +71,13 @@ async function createDeliveryEvent(version = 1) {
     occurredAt: new Date('2026-08-22T08:00:00.000Z'),
   }).returning();
   eventIds.push(event.id);
+  const attemptProgressEventId = await mkProgressEvent();
   const [attempt] = await db.insert(s.deliveryAttempts).values({
     shipmentId: ownShipmentId,
-    fulfillmentId: 900_000 + event.id,
-    tripId: 800_000 + event.id,
+    fulfillmentId: ownFulfillmentId,
+    tripId: ownTripId,
     shipmentContainerId: null,
-    driverProgressEventId: 700_000 + event.id,
+    driverProgressEventId: attemptProgressEventId,
     customerVisibleEventId: event.id,
     result: 'DELIVERED',
     occurredAt: event.occurredAt,
@@ -102,7 +113,57 @@ before(async () => {
   }).returning();
   ownShipmentId = shipment.id;
   shipmentIds.push(shipment.id);
+
+  // Real FK chain for delivery_attempts — fulfillment/trip/driver-progress
+  // columns are NOT NULL and FK-backed; sentinel ids only ever resolved on
+  // the accumulated shared dev database (card _40).
+  const [route] = await db.insert(s.routes).values({ name: `DEL route ${suffix}` }).returning();
+  routeIds.push(route.id);
+  const [cargo] = await db.insert(s.cargoTypes).values({ name: `DEL cargo ${suffix}` }).returning();
+  cargoTypeIds.push(cargo.id);
+  const [driver] = await db.insert(s.drivers).values({ name: `DEL driver ${suffix}` }).returning();
+  driverIds.push(driver.id);
+  const composed = await insertTripComposite(db, {
+    tripCode: `DEL-${suffix}`.slice(0, 50),
+    customerId: ownCustomerId,
+    routeId: route.id,
+    cargoTypeId: cargo.id,
+    status: 'COMPLETED',
+    departureDate: '2026-08-22',
+    carrierType: 'OWN',
+  });
+  ownTripId = composed.id;
+  tripIds.push(composed.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: ownShipmentId,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    sourceShipmentVersion: shipment.version,
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+  ownFulfillmentId = fulfillment.id;
+  const [progress] = await db.insert(s.driverProgressEvents).values({
+    tripId: ownTripId,
+    driverId: driver.id,
+    eventType: 'DELIVERED',
+    occurredAt: new Date('2026-08-22T08:00:00.000Z'),
+  }).returning();
+  progressEventIds.push(progress.id);
+  ownProgressEventId = progress.id;
 });
+
+/** Fresh driver-progress event per attempt — delivery_attempts enforces
+ *  uniqueness on driver_progress_event_id. */
+async function mkProgressEvent(): Promise<number> {
+  const [progress] = await db.insert(s.driverProgressEvents).values({
+    tripId: ownTripId,
+    driverId: driverIds[0]!,
+    eventType: 'DELIVERED',
+    occurredAt: new Date('2026-08-22T08:00:00.000Z'),
+  }).returning();
+  progressEventIds.push(progress.id);
+  return progress.id;
+}
 
 describe('customer delivery response authority', () => {
   test('confirmation is immutable and replays only the same idempotency key and payload', async () => {
@@ -225,6 +286,12 @@ after(async () => {
   if (idempotencyKeys.length) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   if (attemptIds.length) await db.delete(s.deliveryAttempts).where(inArray(s.deliveryAttempts.id, attemptIds));
   if (eventIds.length) await db.delete(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.id, eventIds));
+  if (progressEventIds.length) await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.id, progressEventIds));
+  if (fulfillmentIds.length) await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  await db.delete(s.trips).where(inArray(s.trips.id, tripIds.length ? tripIds : [0]));
+  if (cargoTypeIds.length) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
+  if (routeIds.length) await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
+  if (driverIds.length) await db.delete(s.drivers).where(inArray(s.drivers.id, driverIds));
   if (shipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   if (userIds.length) await db.delete(s.users).where(inArray(s.users.id, userIds));
   if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));

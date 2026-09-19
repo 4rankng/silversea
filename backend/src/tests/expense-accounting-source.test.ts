@@ -167,7 +167,11 @@ test('linking a historical expense never invents zero paid or received balances'
 
 test('an unrelated missing or deleted shipment source cannot poison valid expense list or detail reads', async () => fixture(async (tx, ctx) => {
   const valid = await ops(tx, ctx);
-  await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'OPS', sourceId: 2_145_999_999, shipmentId: 2_147_483_647 });
+  // Live FKs make a source pointing at a COMPLETELY absent shipment
+  // unbuildable (the old INT_MAX sentinel) — that scenario is now guaranteed
+  // by referential integrity itself. The soft-deleted shipment row preserves
+  // the 'unresolvable shipment source must not poison reads' semantics; the
+  // missing-source detail case below now targets a source with no row at all.
   const [deletedShipment] = await tx.insert(s.shipments).values({ shipmentCode: crypto.randomUUID(), customerId: ctx.customer.id,
     createdBy: ctx.user.id, deletedAt: new Date() }).returning();
   await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'OPS', sourceId: 2_145_999_998, shipmentId: deletedShipment.id });

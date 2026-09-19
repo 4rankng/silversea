@@ -179,7 +179,10 @@ describe('Q23 immutable trip replay', () => {
     const key = `q23-expense-create-${trip.id}`;
     keys.push(key);
     const payload = {
-      expenseType: 'LIFTING',
+      // OTHER (no-invoice class, substitute evidence allowed) keeps this pin
+      // about idempotent-create serialization — LIFTING now demands a trip
+      // container and an invoice, which is a different pin's job.
+      expenseType: 'OTHER',
       buyAmount: 125000,
       sellAmount: 150000,
       settlementMethod: 'COMPANY_DIRECT',

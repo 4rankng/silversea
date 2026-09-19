@@ -13,6 +13,7 @@ import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import shipmentRoutes from '../routes/shipments';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 
 // Card 20260918_19 RED-FIRST suite (spec: docs/card-19-lock-and-adjust-design.md).
 // The lock/adjust/cost-adjustments endpoints DO NOT EXIST yet — every test
@@ -23,6 +24,7 @@ import shipmentRoutes from '../routes/shipments';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdShipmentIds: number[] = [];
+const createdLockDocIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdTripIds: number[] = [];
@@ -144,6 +146,10 @@ before(async () => {
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   try {
+    if (createdLockDocIds.length > 0) {
+      await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
+      await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdLockDocIds));
+    }
     for (const shipmentId of createdShipmentIds) {
       await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
       await db.delete(s.shipmentCostAdjustments).where(eq(s.shipmentCostAdjustments.shipmentId, shipmentId));
@@ -258,10 +264,17 @@ describe('20260918_19 cost adjustments (red-first)', () => {
     const shipment = await mkShipment();
     await api('POST', `/api/shipments/${shipment.id}/lock`, accountantId, {});
     // Direct fixture row: the accounting-lock service signature is richer
-    // than this pin needs, and the guard only reads committed rows.
+    // than this pin needs, and the guard only reads committed rows. Real
+    // debit note — the lock FK is live; sentinel id 0 only ever worked on
+    // the accumulated shared dev database.
+    const [lockShipmentRow] = await db.select({ customerId: s.shipments.customerId })
+      .from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    assert.ok(lockShipmentRow?.customerId != null, 'fixture shipment carries a customer');
+    const lockDoc = await insertLockableBillingDocument(db, { entityId: lockShipmentRow.customerId });
+    createdLockDocIds.push(lockDoc.id);
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: shipment.id,
-      billingDocumentId: 0,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       shipmentVersionAtLock: shipment.version,
       billingPeriodSnapshot: { rangeFrom: '2026-01-01', rangeTo: '2026-01-31', issuedAt: '2026-02-01' },
