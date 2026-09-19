@@ -185,3 +185,13 @@ Mất kết nối phải báo rõ chưa thể lưu, giữ nội dung đang làm 
 ## 7. Câu hỏi nghiệp vụ còn mở
 
 Khi một công việc hoặc loại phí có nhiều người liên hệ hay bên xuất hóa đơn cùng hợp lệ, cần thống nhất bên nào được sử dụng và người dùng cần thấy những lựa chọn nào. Trong khi chưa rõ, phải thể hiện các bên theo đúng vai trò đã biết và chỉ rõ phần cần bổ sung; không lấy thông tin của bên khác để che phần thiếu.
+
+## 8. Cảng và vùng phụ phí
+
+Cảng/bãi là **dữ liệu**: người có quyền thêm cảng mới, đổi tên, ngưng dùng hoặc xóa ngay trong danh mục — thêm cảng hay đổi tên cảng **không cần thay đổi phần mềm**. Tên cảng chỉ là nhãn hiển thị; phần mềm không nhúng tên một cảng cụ thể vào cấu trúc của mình.
+
+"Cảng nào thuộc vùng phụ phí nào" là **cấu hình trên danh mục cảng**: chọn vùng cho từng cảng, hiển thị nhãn vùng theo dữ liệu. Mỗi vùng phụ phí có cờ **vùng mặc định**; các màn kế hoạch dùng vùng mặc định khi người dùng chưa chọn. Chỉ nên có một vùng mặc định đang hoạt động.
+
+Xóa hoặc ngưng dùng cảng khi còn dữ liệu tham chiếu: xóa bị chặn, hỗ trợ ngưng dùng (không chọn cho lô mới, công việc cũ vẫn xem được). Lô đã khóa chi phí giữ nguyên số liệu **và nhãn cảng/vùng tại thời điểm khóa** — đổi tên cảng sau đó không viết lại hồ sơ đã phát hành.
+
+Thêm một cảng mới và gán vào vùng phụ phí phải thực hiện được thuần dữ liệu: chỉ thao tác danh mục, không sửa phần mềm, không cần triển khai lại.

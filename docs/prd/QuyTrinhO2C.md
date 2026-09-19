@@ -278,6 +278,14 @@ Hai nguồn theo dõi là **Quỹ công ty** và **Quỹ TM**. Mỗi tài khoả
 
 Quỹ phản ánh tiền đã giao/nhận thực tế. Nhập chi phí, đối chiếu, xuất Excel, phát hành debit hoặc ghi ngày nộp hồ sơ hoàn cược không tự tạo thêm tiền thu/chi.
 
+### 7.9 Khóa lô và bảng quyết toán theo lô (Chi phí — Quyết toán)
+
+**Khóa lô** (khóa chi phí) là mốc đóng băng hồ sơ tài chính của lô: tổng phải thu, tổng phải trả, các nhóm chi phí, **luồng hải quan** (đỏ/vàng/xanh) và **nhãn cảng nâng/hạ** được giữ đúng **tại thời điểm khóa**. Sửa chi phí bị chặn khi lô đã khóa; các trường theo dõi thực tế (ngày nộp hồ sơ hoàn cược, ngày tiền về, số đã hoàn) vẫn bổ sung được theo thực tế. Khi lô chưa khóa, các số này theo dõi hiện hành; đã khóa rồi thì hồ sơ đã phát hành không tự viết lại khi danh mục (tên cảng, nhóm chi phí) thay đổi sau đó.
+
+**Bảng quyết toán theo lô** có hai lớp. Lớp tổng (Tổng phải thu khách, Tổng phải trả, chênh lệch) tính từ cả hai bảng của lô; dòng chi hộ có hóa đơn tự tính lại số thu khách theo quy tắc của loại chi phí (hiện nay: tính lại đúng thực chi — chi phí qua lại); chỉ dòng **Phí khác (không hóa đơn)** do CUS tự nhập số thu khách, và chỉ các dòng này nhận số gõ tay. Lớp chi tiết hiện mỗi container một dòng trên cả hai bảng, kể cả container chưa có phần việc.
+
+Các con số chưa xác định hiển thị **Chưa xác định**, không tự thành 0. Loại chi phí chưa được phân nhóm quyết toán hiển thị trong nhóm **Chưa phân loại** và tổng các nhóm luôn khớp tổng chi phí lô — không mất đồng nào khỏi bảng. Luồng hải quan là thuộc tính tờ khai của **lô**, hiển thị thống nhất trên bảng quyết toán; chưa khai báo hiển thị "—". Khoảng ngày trên bảng kê theo **ngày giao của các lô được chọn** vào đợt phát hành, không phải ngày xử lý; một lô chỉ nằm trong một bảng kê đang hiệu lực — chọn lại lô đã thuộc bảng kê khác bị chặn và nêu rõ số lô.
+
 Chi tiết mỗi đợt đối chiếu hoàn ứng phải cho biết từng khoản ứng đã sử dụng (mã yêu cầu, số tiền phân bổ và lý do), kể cả đợt đã hoàn tác. Khi dữ liệu cũ chỉ có tổng tiền mà không có phân bổ chi tiết, hiển thị rõ thiếu thông tin; không suy đoán hoặc tạo phân bổ mới.
 
 ### 7.6 Báo cáo chi hộ phải thu và phải trả
