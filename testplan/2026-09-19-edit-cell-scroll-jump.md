@@ -15,3 +15,18 @@ Browser-measured before the fix (local dev, CUS `thanhdc`, 390×844, tap target 
 | EDIT-JUMP-05 | Open any editor, edit a field, press Esc / click outside, then re-open the same cell. | Close still restores focus to the originating trigger (existing behavior) with no jump; re-open behaves like EDIT-JUMP-01..03. |
 
 Automated scope: vitest asserts the editor container is focused with `{ preventScroll: true }` on mount (regression guard for the root cause). Controller owns real-browser click measurement (driver log + before/after screenshots under `qa/`).
+
+## Staging verification — 2026-09-19, cut b03df1b3 (first staging check of the fix)
+
+QA lane, real pointer taps, CUS `thanhdc`, staging `vantai.tingting.vip`. All deltas
+measured on `main.app-body` scrollTop against a settled baseline (no programmatic
+framing scroll between baseline and tap). Evidence:
+`testplan/qa/evidence/2026-09-19_qa-close-rung-b03df1b3/ej-0*.png`.
+
+| Case | Result | Measured |
+| --- | --- | --- |
+| EDIT-JUMP-01 | PASS | delta 0; editor leading edge at cell bottom (editor top 815 vs cell bottom 793); focus = editor container |
+| EDIT-JUMP-02 | PASS | delta 0; editor top 747 vs cell bottom 741; focus = editor container |
+| EDIT-JUMP-03 | PASS | delta 0 from settled baseline (an earlier −220 was the driver's own deferred scrollBy flushing at mount — driver artifact, not app behavior; clean re-run delta 0) |
+| EDIT-JUMP-04 | PASS | desktop 1440×800; delta 0; absolute editor at 670 (cell bottom 664), 130px visible, rest below fold without jump |
+| EDIT-JUMP-05 | PASS | Esc → focus restores to originating cell trigger (delayed restore lands after unmount settles); Enter re-opens, delta 0, focus → editor container. Esc cancels the typed value (no write). |
