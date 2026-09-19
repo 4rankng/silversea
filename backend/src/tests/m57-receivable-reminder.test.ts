@@ -48,6 +48,13 @@ const createdSupplierIds: number[] = [];
 const createdCalendarDates = new Set<string>();
 let originalResendKeyValue: string | undefined;
 
+// Pinned once at module load: every date the suite compares against must come
+// from THIS value, never a fresh real-clock read — a VN-midnight straddle
+// mid-suite would otherwise empty the "today" filters. The DB clock is not
+// freezable (created_at is PG defaultNow()), so the suite decouples from the
+// DB clock instead of trying to freeze it.
+const suiteBusinessDate = businessDateNow();
+
 function businessDateNow(now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -304,7 +311,7 @@ async function mkDebtOffsetCustomerAdjustment(
     supplierId: supplier.id,
     partnerId,
     amount: String(Math.abs(amount)),
-    offsetDate: businessDateNow(),
+    offsetDate: suiteBusinessDate,
     currency: 'VND',
     minutesReference: `BB-M57-${offsetId}`,
     note: `M57 offset ${offsetId}`,
@@ -335,19 +342,30 @@ async function mkReminderEmailLog(customerId: number) {
     recipientEmail: `m57-${suffix}@example.com`,
     status: 'SENT',
     retryCount: 0,
+    // Explicit VN-day pinned createdAt: alreadyRemindedToday matches this
+    // row's calendar date against the pinned suite date — the row must not
+    // inherit the DB clock's date (wrong across a VN-midnight straddle).
+    createdAt: atVnTime(suiteBusinessDate, 9),
   }).returning();
   createdEmailLogIds.push(e.id);
   return e;
 }
 
+// Assertion filter keys on customer + subject prefix — NOT on created_at's
+// VN calendar date. That column is PG defaultNow(), a clock the test cannot
+// freeze; a VN-midnight straddle mid-suite would empty a date-based filter
+// and fail every assertion. Every customer here is created fresh by its test,
+// so customer + prefix is exact. Production keeps its date-based dedupe
+// (claimReminderEmailLog) — only the test's assertion path decouples.
 async function fetchTodayEmailLogForCustomer(customerId: number) {
   return db.select().from(s.customerEmailLogs)
     .where(and(
       eq(s.customerEmailLogs.customerId, customerId),
       sql`${s.customerEmailLogs.subject} LIKE ${REMINDER_SUBJECT_PREFIX + '%'}`,
-      sql`(${s.customerEmailLogs.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${businessDateNow()}::date`,
     ));
 }
+
+// Notification service needs its event listener initialized once per process.
 
 async function fetchTodayReminderNotifications(
   customerId: number,
@@ -376,7 +394,7 @@ before(async () => {
   // the wall-clock weekday. Mark the current test date as working so the suite
   // stays deterministic when CI runs on a weekend; the dedicated weekend case
   // below uses a different Saturday with no override.
-  await mkCalendarDay(businessDateNow(), true, 'M57 current test working day');
+  await mkCalendarDay(suiteBusinessDate, true, 'M57 current test working day');
   const [row] = await db
     .select({ value: s.appSettings.value })
     .from(s.appSettings)
@@ -479,17 +497,17 @@ describe('M5.7 — isCustomerDisputed', () => {
 describe('M5.7 — alreadyRemindedToday', () => {
   test('returns false without prior reminder', async () => {
     const c = await mkCustomer();
-    assert.equal(await alreadyRemindedToday(c.id), false);
+    assert.equal(await alreadyRemindedToday(c.id, suiteBusinessDate), false);
   });
   test('returns true after a reminder email log is created today', async () => {
     const c = await mkCustomer();
     await mkReminderEmailLog(c.id);
-    assert.equal(await alreadyRemindedToday(c.id), true);
+    assert.equal(await alreadyRemindedToday(c.id, suiteBusinessDate), true);
   });
 });
 
 describe('M5.7 — runReceivableReminders', () => {
-  const todayBusinessDate = businessDateNow();
+  const todayBusinessDate = suiteBusinessDate;
   const runAtBusinessMorning = atVnTime(todayBusinessDate, 9);
 
   test('does not send at 07:59 and sends at the inclusive 08:00 boundary', async () => {
@@ -826,7 +844,7 @@ describe('M5.7 — runReceivableReminders', () => {
 });
 
 describe('M5.7 — retry delivery', () => {
-  const todayBusinessDate = businessDateNow();
+  const todayBusinessDate = suiteBusinessDate;
   const runAtBusinessMorning = atVnTime(todayBusinessDate, 9);
 
   test('retries at 15m / 2h / 24h and alerts CUS plus finance after terminal failure', async () => {
