@@ -55,22 +55,22 @@ async function mkCustomer(name: string) {
   return row;
 }
 
-async function mkLockedLotForCustomer(customerId: number) {
+async function mkLockedLotForCustomer(customerId: number, edd?: string) {
   const [route] = await db.insert(s.routes).values({ name: `DN route ${suffix}-${routeIds.length}` }).returning();
   routeIds.push(route.id);
-  const [shipment] = await db.insert(s.shipments).values({ customerId, routeId: route.id }).returning({ id: s.shipments.id, version: s.shipments.version });
+  const [shipment] = await db.insert(s.shipments).values({ customerId, routeId: route.id, ...(edd ? { expectedDeliveryDate: edd } : {}) }).returning({ id: s.shipments.id, version: s.shipments.version });
   shipmentIds.push(shipment.id);
   const lock = await api('POST', `/api/shipments/${shipment.id}/lock`, cusId, {});
   assert.equal(lock.status, 201, JSON.stringify(lock.body));
   return shipment;
 }
 
-async function mkLockedLot() {
+async function mkLockedLot(edd?: string) {
   const [customer] = await db.insert(s.customers).values({ name: `DN cust ${suffix}-${customerIds.length}` }).returning();
   customerIds.push(customer.id);
   const [route] = await db.insert(s.routes).values({ name: `DN route ${suffix}-${routeIds.length}` }).returning();
   routeIds.push(route.id);
-  const [shipment] = await db.insert(s.shipments).values({ customerId: customer.id, routeId: route.id }).returning({ id: s.shipments.id, version: s.shipments.version });
+  const [shipment] = await db.insert(s.shipments).values({ customerId: customer.id, routeId: route.id, ...(edd ? { expectedDeliveryDate: edd } : {}) }).returning({ id: s.shipments.id, version: s.shipments.version });
   shipmentIds.push(shipment.id);
   return shipment;
 }
@@ -291,5 +291,61 @@ describe('GỘP THEO KỲ — consolidated debit note per customer per period', 
     assert.deepEqual(second.body.overlappingLotCodes, [codeA], 'exactly the already-issued lot is named');
     const customerDocs = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.entityId, customer.id));
     assert.equal(customerDocs.length, 1, 'the rejected batch half-issued nothing');
+  });
+});
+
+describe('ruling 2026-09-19 — the note range derives from the selection delivery dates (red-first)', () => {
+  test('consolidated range = [min,max] ngày giao hàng of the selection, not the processing day', async () => {
+    const customer = await mkCustomer(`Range ${suffix}`);
+    const early = await mkLockedLotForCustomer(customer.id, '2026-10-01');
+    const late = await mkLockedLotForCustomer(customer.id, '2026-10-10');
+    const response = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [early.id, late.id] });
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+    const docId = Number(response.body.id);
+    docIds.push(docId);
+    const [doc] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, docId));
+    assert.equal(doc?.rangeFrom, '2026-10-01');
+    assert.equal(doc?.rangeTo, '2026-10-10');
+  });
+
+  test('per-lot export stamps the lot delivery date on both ends', async () => {
+    const shipment = await mkLockedLot('2026-10-05');
+    await lockLot(shipment.id, cusId);
+    const result = await api('POST', `/api/shipments/${shipment.id}/debit-note`, cusId, {});
+    assert.equal(result.status, 201, JSON.stringify(result.body));
+    docIds.push(Number(result.body.id));
+    const [doc] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, Number(result.body.id)));
+    assert.equal(doc?.rangeFrom, '2026-10-05');
+    assert.equal(doc?.rangeTo, '2026-10-05');
+  });
+
+  test('a selection with no delivery dates falls back to the processing day', async () => {
+    const customer = await mkCustomer(`Range null ${suffix}`);
+    const a = await mkLockedLotForCustomer(customer.id);
+    const b = await mkLockedLotForCustomer(customer.id);
+    const response = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [a.id, b.id] });
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+    docIds.push(Number(response.body.id));
+    const [doc] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, Number(response.body.id)));
+    const today = new Date().toISOString().slice(0, 10);
+    assert.equal(doc?.rangeFrom, today);
+    assert.equal(doc?.rangeTo, today);
+  });
+
+  test('two-range overlap: the issued early range blocks a wider later selection naming the shared lot', async () => {
+    const customer = await mkCustomer(`Range overlap ${suffix}`);
+    const early = await mkLockedLotForCustomer(customer.id, '2026-10-01');
+    const mid = await mkLockedLotForCustomer(customer.id, '2026-10-10');
+    const late = await mkLockedLotForCustomer(customer.id, '2026-10-15');
+    const codeEarly = `DN-RNG-E-${suffix}-${early.id}`;
+    const codeMid = `DN-RNG-M-${suffix}-${mid.id}`;
+    await db.update(s.shipments).set({ shipmentCode: codeEarly }).where(eq(s.shipments.id, early.id));
+    await db.update(s.shipments).set({ shipmentCode: codeMid }).where(eq(s.shipments.id, mid.id));
+    const issued = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [early.id, mid.id] });
+    assert.equal(issued.status, 201, JSON.stringify(issued.body));
+    docIds.push(Number(issued.body.id));
+    const wider = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [mid.id, late.id] });
+    assert.equal(wider.status, 409, JSON.stringify(wider.body));
+    assert.deepEqual(wider.body.overlappingLotCodes, [codeMid], 'the shared lot inside the wider range is named');
   });
 });

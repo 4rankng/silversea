@@ -16,6 +16,7 @@ import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
+import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 
 /** Chi hộ rows group O2C §7.1 evidence: READY = POD recovered on the trip. */
 function opsDocsStatusOf(trip: { podRecoveredAt: Date | null }): 'READY' | 'PENDING' {
@@ -45,10 +46,20 @@ export interface DebitDetailChiHoRow {
   opsDocsStatus: 'READY' | 'PENDING';
 }
 
+export interface DebitDetailPayables {
+  chiHoTotal: number | null;
+  externalFreightCost: number | null;
+  hqgsFee: number | null;
+  phatSinhFee: number | null;
+  unclassifiedFee: number | null;
+  opsExpenseTotal: number | null;
+  payableTotal: number | null;
+}
+
 export interface ShipmentDebitDetail {
   freightRows: DebitDetailFreightRow[];
   chiHoRows: DebitDetailChiHoRow[];
-  payables: { chiHoTotal: number | null };
+  payables: DebitDetailPayables;
   thuKhachTotal: number | null;
 }
 
@@ -231,11 +242,47 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   const chiHoTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.amount ?? 0), 0)), 0);
   const thuKhachTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.thuKhach ?? 0), 0)), 0);
 
+  // 2.3 payables (ruling 2026-09-19): locked lots read the FROZEN snapshot
+  // composition (ruling hardening c) — a catalog rename must not rewrite a
+  // locked lot's table. chiHoTotal stays live (existing QA-pinned
+  // semantics). Old snapshots lack the new keys — null = Chưa xác định,
+  // never a fabricated 0.
+  const [activeLock] = await db.select({ snapshot: s.shipmentCostLocks.costSnapshot })
+    .from(s.shipmentCostLocks)
+    .where(and(
+      eq(s.shipmentCostLocks.shipmentId, shipmentId),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ))
+    .limit(1);
+  const breakdown = await computeLotPayablesBreakdown(shipmentId);
+  const payables: DebitDetailPayables = activeLock
+    ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot) }
+    : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown };
+
   return {
     freightRows,
     chiHoRows,
-    payables: { chiHoTotal: hasChiHoData ? chiHoTotal : null },
+    payables,
     thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
+  };
+}
+
+/** Frozen 2.3 reads for locked lots: missing snapshot keys read null —
+ *  Chưa xác định, never a fabricated 0. */
+function payablesFromSnapshot(snapshot: unknown): LotPayablesBreakdown {
+  const data = (snapshot ?? {}) as Record<string, unknown>;
+  const num = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value !== '' && Number.isFinite(Number(value))) return Number(value);
+    return null;
+  };
+  return {
+    externalFreightCost: num(data['externalFreightCost']),
+    hqgsFee: num(data['hqgsFee']),
+    phatSinhFee: num(data['phatSinhFee']),
+    unclassifiedFee: num(data['unclassifiedFee']),
+    opsExpenseTotal: num(data['opsExpenseTotal']),
+    payableTotal: num(data['payableTotal']),
   };
 }
 

@@ -31,6 +31,9 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // What SS pays on the customer's behalf (CVC + Ops fees, trip expenses).
   chiHoTotal: moneyString.nullable(),
   receivableTotal: moneyString.nullable(),
+  // TỔNG PHẢI TRẢ (ruling 2026-09-19): Cước trả (CVC) + ops-entered
+  // expenses. Null whenever either component is unknown — never a 0.
+  payableTotal: moneyString.nullable(),
   // receivable − freight − chi hộ; null whenever any component is unknown.
   profit: moneyString.nullable(),
   // Debit-lock placeholder: the real debit lock ships with card _19's

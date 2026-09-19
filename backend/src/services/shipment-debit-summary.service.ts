@@ -31,50 +31,6 @@ function lineEffectiveAmount(line: {
   return toNumber(line.amountOverride ?? line.baseAmount);
 }
 
-/** Attribute debit-note lines to lots like the CUS workspace builders: TRIP
- *  lines follow the source trip's shipment, EXPENSE lines the expense's
- *  trip's shipment. A lot carrying unattributable NON-ZERO lines reads as
- *  unknown money — chưa xác định beats a wrong number. */
-export function attributeDebitLinesToLots(lines: AttributeLine[], lotIds: ReadonlySet<number>): Map<number, { total: number | null; unknown: boolean }> {
-  const byLot = new Map<number, { total: number | null; unknown: boolean }>();
-  for (const id of lotIds) byLot.set(id, { total: null, unknown: false });
-  for (const line of lines) {
-    const owner = lineOwnerOf(line);
-    const lot = owner != null ? byLot.get(owner) : undefined;
-    if (!lot || lot.unknown) continue;
-    lot.total = (lot.total ?? 0) + lineEffectiveAmount(line);
-  }
-  for (const line of lines) {
-    if (lineOwnerOf(line) != null) continue;
-    if (lineEffectiveAmount(line) === 0) continue;
-    const lot = byLot.get(line.shipmentId);
-    if (lot) lot.unknown = true;
-  }
-  return byLot;
-}
-
-interface AttributeLine {
-  documentId: number;
-  lineId: number;
-  shipmentId: number;
-  sourceType: string;
-  sourceTripShipmentId: number | null;
-  sourceExpenseShipmentId: number | null;
-  excluded: boolean;
-  grossAmount: string | null;
-  baseAmount: string | null;
-  amountOverride: string | null;
-  vatTreatment: string | null;
-}
-
-function lineOwnerOf(line: AttributeLine): number | null {
-  if (line.sourceType === 'TRIP') return line.sourceTripShipmentId;
-  if (line.sourceType === 'EXPENSE') return line.sourceExpenseShipmentId;
-  return null;
-}
-
-const ISSUED_DEBIT_NOTE_CONDITION = sql`coalesce(${s.billingDocuments.debitNoteStatus}, 'DRAFT') in ('SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID', 'PAID')`;
-
 export async function getShipmentDebitSummary(query: {
   customerId: number;
   deliveryDateFrom?: string;
@@ -144,67 +100,98 @@ export async function getShipmentDebitSummary(query: {
   const lockRows = await db.select({
     shipmentId: s.shipmentCostLocks.shipmentId,
     lockedAt: s.shipmentCostLocks.lockedAt,
+    snapshot: s.shipmentCostLocks.costSnapshot,
   }).from(s.shipmentCostLocks)
     .where(and(
       inArray(s.shipmentCostLocks.shipmentId, lotIds),
       isNull(s.shipmentCostLocks.unlockedAt),
     ));
-  const lockedByLot = new Map(lockRows.map((row) => [row.shipmentId, row.lockedAt]));
+  const lockedByLot = new Map(lockRows.map((row) => [row.shipmentId, row]));
 
-  // Receivable: issued debit-note lines attributed per lot.
-  const sourceTrip = aliasedTable(s.trips, 'debit_source_trip');
-  const expenseTrip = aliasedTable(s.trips, 'debit_expense_trip');
-  const lineRows = await db.select({
-    documentId: s.billingDocumentLines.documentId,
-    lineId: s.billingDocumentLines.id,
+  // TỔNG PHẢI THU KHÁCH (spec L138): the roll-up of ENTERED thu khách on the
+  // lot's Bảng-2.2 expense rows (tripExpenses.sellAmount) — NOT issued
+  // debit-note lines; Lớp 1 moves the moment CUS saves. For locked lots the
+  // frozen snapshot value wins (card _19: an edit behind an issued note must
+  // not move Lớp 1).
+  const sellRows = await db.select({
     shipmentId: s.trips.shipmentId,
-    sourceType: s.billingDocumentLines.sourceType,
-    sourceTripShipmentId: sql<number | null>`case when ${s.billingDocumentLines.sourceType} = 'TRIP' then ${sourceTrip.shipmentId} else null end`,
-    sourceExpenseShipmentId: sql<number | null>`case when ${s.billingDocumentLines.sourceType} = 'EXPENSE' then ${expenseTrip.shipmentId} else null end`,
-    excluded: s.billingDocumentLines.excluded,
-    grossAmount: s.billingDocumentLines.grossAmount,
-    baseAmount: s.billingDocumentLines.baseAmount,
-    amountOverride: s.billingDocumentLines.amountOverride,
-    vatTreatment: s.billingDocumentLines.vatTreatment,
-  }).from(s.billingDocumentTripClaims)
+    total: sql<string>`coalesce(sum(${s.tripExpenses.sellAmount}), 0)::text`,
+  }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
-      eq(s.trips.id, s.billingDocumentTripClaims.tripId),
+      eq(s.trips.id, s.tripExpenses.tripId),
       inArray(s.trips.shipmentId, lotIds),
-      ne(s.trips.status, 'CANCELED'),
       isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
     ))
-    .innerJoin(s.billingDocuments, and(
-      eq(s.billingDocuments.id, s.billingDocumentTripClaims.documentId),
-      eq(s.billingDocuments.type, 'DEBIT_NOTE'),
-      isNull(s.billingDocuments.deletedAt),
-      sql`${s.billingDocuments.issuedAt} is not null`,
-      ISSUED_DEBIT_NOTE_CONDITION,
-      eq(s.billingDocuments.authorityState, 'CURRENT'),
-      sql`${s.billingDocuments.authorityWarningAt} is null`,
+    .groupBy(s.trips.shipmentId);
+  const sellByLot = new Map(sellRows.map((row) => [row.shipmentId, toNumber(row.total)]));
+
+  // TỔNG PHẢI TRẢ components, live: Cước trả = Σ trip_carrier_info
+  // .external_freight_cost over the lot's active trips (unknown while any
+  // trip lacks its carrier cost); ops total = the lot's ops_expense_entries
+  // (unknown at zero rows). The classification buckets land with card
+  // 20260919_3's category column.
+  const carrierRows = await db.select({
+    shipmentId: s.trips.shipmentId,
+    total: sql<string>`coalesce(sum(${s.tripCarrierInfo.externalFreightCost}), 0)::text`,
+    known: sql<number>`count(${s.tripCarrierInfo.externalFreightCost})::int`,
+    trips: sql<number>`count(*)::int`,
+  }).from(s.trips)
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(and(
+      inArray(s.trips.shipmentId, lotIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
     ))
-    .innerJoin(s.billingDocumentLines, eq(s.billingDocumentLines.documentId, s.billingDocuments.id))
-    .leftJoin(sourceTrip, and(
-      eq(s.billingDocumentLines.sourceType, 'TRIP'),
-      eq(sourceTrip.id, s.billingDocumentLines.sourceId),
-    ))
-    .leftJoin(s.tripExpenses, and(
-      eq(s.billingDocumentLines.sourceType, 'EXPENSE'),
-      eq(s.tripExpenses.id, s.billingDocumentLines.sourceId),
-    ))
-    .leftJoin(expenseTrip, eq(expenseTrip.id, s.tripExpenses.tripId))
-    .where(isNull(s.billingDocumentTripClaims.releasedAt));
-  const receivableByLot = attributeDebitLinesToLots(lineRows, new Set(lotIds));
+    .groupBy(s.trips.shipmentId);
+  const carrierByLot = new Map(carrierRows.map((row) => [row.shipmentId, {
+    known: row.trips > 0 && row.known === row.trips,
+    total: toNumber(row.total),
+  }]));
+
+  const opsRows = await db.select({
+    shipmentId: s.opsExpenseEntries.shipmentId,
+    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::text`,
+    cnt: sql<number>`count(*)::int`,
+  }).from(s.opsExpenseEntries)
+    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds))
+    .groupBy(s.opsExpenseEntries.shipmentId);
+  const opsByLot = new Map(opsRows.map((row) => [row.shipmentId, {
+    known: row.cnt > 0,
+    total: toNumber(row.total),
+  }]));
+
+  /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
+   *  before this landing) read null — Chưa xác định, never a fabricated 0. */
+  const frozenNumber = (snapshot: unknown, key: string): number | null => {
+    if (snapshot == null || typeof snapshot !== 'object') return null;
+    const value = (snapshot as Record<string, unknown>)[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value !== '' && Number.isFinite(Number(value))) return Number(value);
+    return null;
+  };
+
   const items: ShipmentDebitSummaryItem[] = lots.map((lot) => {
     const freightAuto = freightByLot.get(lot.id);
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
-    const receivableState = receivableByLot.get(lot.id);
-    const receivableKnown = receivableState != null && !receivableState.unknown;
-    const receivableValue = receivableKnown ? (receivableState.total ?? 0) : null;
+    const lock = lockedByLot.get(lot.id);
+    const enteredSell = sellByLot.get(lot.id);
+    const receivableValue = lock != null
+      ? frozenNumber(lock.snapshot, 'receivableTotal')
+      : sellByLot.has(lot.id) ? (enteredSell ?? 0) : null;
+    const carrier = carrierByLot.get(lot.id);
+    const ops = opsByLot.get(lot.id);
+    const externalFreight = carrier?.known ? carrier.total : null;
+    const opsTotal = ops?.known ? ops.total : null;
+    const payableTotal = lock != null
+      ? (() => { const frozen = frozenNumber(lock.snapshot, 'payableTotal'); return frozen == null ? null : String(frozen); })()
+      : externalFreight != null && opsTotal != null
+        ? String(externalFreight + opsTotal)
+        : null;
     const profit = receivableValue != null && freightAuto != null && chiHo != null
       ? receivableValue - freightAuto - chiHo
       : null;
-    const receivableTotal = receivableValue == null ? null : String(receivableValue);
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -216,10 +203,11 @@ export async function getShipmentDebitSummary(query: {
       documentsSummary: null,
       freightAuto: freightAuto == null ? null : String(freightAuto),
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
-      receivableTotal,
+      receivableTotal: receivableValue == null ? null : String(receivableValue),
+      payableTotal,
       profit: profit == null ? null : String(profit),
-      lockStatus: (lockedByLot.has(lot.id) ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
-      lockedAt: lockedByLot.get(lot.id)?.toISOString() ?? null,
+      lockStatus: (lock != null ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
+      lockedAt: lock?.lockedAt.toISOString() ?? null,
     };
   });
   const visible = query.lockStatus === 'ALL'

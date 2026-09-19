@@ -5,7 +5,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
-import { lockShipmentCost } from '../services/shipment-cost-lock.service';
+import { lockShipmentCost, createDebitNoteFromCostLock } from '../services/shipment-cost-lock.service';
 import { shipmentDebitSummaryQuerySchema } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -35,9 +35,9 @@ async function mkTrip(shipmentId: number, customerId: number, routeId: number) {
   }).returning();
   return track(s.trips, row);
 }
-async function mkExpense(tripId: number, buy: string) {
+async function mkExpense(tripId: number, buy: string, sell = '0') {
   const [row] = await db.insert(s.tripExpenses).values({
-    tripId, expenseType: 'PHI_CHI_HO', buyAmount: buy, sellAmount: '0',
+    tripId, expenseType: 'PHI_CHI_HO', buyAmount: buy, sellAmount: sell,
   }).returning();
   return track(s.tripExpenses, row);
 }
@@ -50,28 +50,6 @@ async function mkFreight(shipmentId: number, tripId: number, total: string) {
   }).returning();
   return track(s.freightRateSnapshots, row);
 }
-async function mkDebitNote(trip: { id: number; shipmentId: number }, line: { sourceType?: string; sourceId?: number | null; base: string }) {
-  const [doc] = await db.insert(s.billingDocuments).values({
-    type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: trip.shipmentId,
-    rangeFrom: '2026-09-01', rangeTo: '2026-09-30',
-    issuedAt: new Date(), debitNoteStatus: 'SENT',
-    authorityState: 'CURRENT', authorityWarningAt: null,
-  }).returning();
-  track(s.billingDocuments, doc);
-  const [claim] = await db.insert(s.billingDocumentTripClaims).values({
-    documentId: doc.id, tripId: trip.id,
-    financialPostingId: 0, financialPostingVersion: 0,
-    postingChecksum: `test-${doc.id}`, rangeFrom: '2026-09-01', rangeTo: '2026-09-30',
-  }).returning();
-  track(s.billingDocumentTripClaims, claim);
-  const [lineRow] = await db.insert(s.billingDocumentLines).values({
-    documentId: doc.id, sourceType: line.sourceType ?? 'TRIP', sourceId: line.sourceId ?? trip.id,
-    lineType: 'FREIGHT', description: 'Test line', baseAmount: line.base,
-    grossAmount: line.base,
-  }).returning();
-  track(s.billingDocumentLines, lineRow);
-  return { doc, claim, line: lineRow };
-}
 
 describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
   test('rolls up freight, chi hộ, receivable and profit for one lot', async () => {
@@ -80,8 +58,7 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const route = await mkRoute(`Debit route ${suffix}`);
     const trip = await mkTrip(lot.id, customer.id, route.id);
     await mkFreight(lot.id, trip.id, '1000000');
-    await mkExpense(trip.id, '300000');
-    await mkDebitNote({ id: trip.id, shipmentId: trip.shipmentId! }, { sourceType: 'TRIP', sourceId: trip.id, base: '2000000' });
+    await mkExpense(trip.id, '300000', '2000000');
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     assert.equal(result.total, 1);
     const item = result.items.find((row) => row.shipmentId === lot.id)!;
@@ -92,18 +69,18 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     assert.equal(item.lockStatus, 'OPEN');
     assert.equal(item.lockedAt, null);
   });
-  test('unattributable debit lines make the receivable unknown, not zero', async () => {
+  test('entered thu khách rolls up to Lớp 1 without any issued debit note (spec L138)', async () => {
     const customer = await mkCustomer(`Debit B ${suffix}`);
     const lot = await mkLot(customer.id, '2026-09-26');
     const route = await mkRoute(`Debit route ${suffix}`);
     const trip = await mkTrip(lot.id, customer.id, route.id);
     await mkFreight(lot.id, trip.id, '500000');
-    await mkDebitNote({ id: trip.id, shipmentId: trip.shipmentId! }, { sourceType: 'ADHOC', sourceId: null, base: '900000' });
+    await mkExpense(trip.id, '100000', '3900000');
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const item = result.items.find((row) => row.shipmentId === lot.id)!;
     assert.equal(item.freightAuto, '500000');
-    assert.equal(item.receivableTotal, null);
-    assert.equal(item.profit, null, 'unknown components must not fabricate a profit');
+    assert.equal(item.receivableTotal, '3900000', 'entered thu khách rolls up — not issued-note lines');
+    assert.equal(item.profit, '3300000');
   });
   test('a shared pair expense counts once — the other lot stays clean', async () => {
     const customer = await mkCustomer(`Debit C ${suffix}`);
@@ -146,6 +123,67 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const lockedOnly = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'LOCKED' });
     assert.deepEqual(lockedOnly.items.map((row) => row.shipmentId), [locked.id]);
     assert.equal(shipmentDebitSummaryQuerySchema.safeParse({}).success, false, 'customerId is required by the query contract');
+  });
+  test('TỔNG PHẢI TRẢ: live for open lots, frozen for locked lots, null stays null', async () => {
+    const customer = await mkCustomer(`Debit payables ${suffix}`);
+    const route = await mkRoute(`Debit payables route ${suffix}`);
+    const lotFull = await mkLot(customer.id, '2026-09-28');
+    const tripFull = await mkTrip(lotFull.id, customer.id, route.id);
+    const [carrier] = await db.insert(s.tripCarrierInfo).values({ tripId: tripFull.id, externalFreightCost: '500000' }).returning();
+    track(s.tripCarrierInfo, carrier);
+    const [ops1] = await db.insert(s.opsExpenseEntries).values({ shipmentId: lotFull.id, expenseTypeCode: 'PHI_CHI_HO', amount: '250000', paidById: 0, paidAt: '2026-09-19' }).returning();
+    track(s.opsExpenseEntries, ops1);
+    const [ops2] = await db.insert(s.opsExpenseEntries).values({ shipmentId: lotFull.id, expenseTypeCode: 'PHI_CHI_HO', amount: '140000', paidById: 0, paidAt: '2026-09-19' }).returning();
+    track(s.opsExpenseEntries, ops2);
+    const lotNoCost = await mkLot(customer.id, '2026-09-28');
+    const tripNoCost = await mkTrip(lotNoCost.id, customer.id, route.id);
+    const [carrierNo] = await db.insert(s.tripCarrierInfo).values({ tripId: tripNoCost.id }).returning();
+    track(s.tripCarrierInfo, carrierNo);
+    const lotEmpty = await mkLot(customer.id, '2026-09-28');
+    const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const full = result.items.find((row) => row.shipmentId === lotFull.id)!;
+    assert.equal(full.payableTotal, '890000', '500000 cước trả + 390000 ops = 640000');
+    assert.equal(full.receivableTotal, null, 'no entered thu khách rows → unknown, not 0');
+    const noCost = result.items.find((row) => row.shipmentId === lotNoCost.id)!;
+    assert.equal(noCost.payableTotal, null, 'unknown cước trả keeps the total unknown');
+    const empty = result.items.find((row) => row.shipmentId === lotEmpty.id)!;
+    assert.equal(empty.payableTotal, null, 'no trips and no ops rows → unknown');
+    await lockShipmentCost({ shipmentId: lotFull.id, expectedShipmentVersion: null, lockNote: null, actor: { userId: 0, role: 'ADMIN', username: 'p', email: 'p', fullName: 'p' } as never, idempotencyKey: `c19-payables-lock-${suffix}` });
+    const [ops3] = await db.insert(s.opsExpenseEntries).values({ shipmentId: lotFull.id, expenseTypeCode: 'PHI_CHI_HO', amount: '990000', paidById: 0, paidAt: '2026-09-19' }).returning();
+    track(s.opsExpenseEntries, ops3);
+    const frozen = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const frozenItem = frozen.items.find((row) => row.shipmentId === lotFull.id)!;
+    assert.equal(frozenItem.payableTotal, '890000', 'locked lots read the frozen snapshot — later ops rows never move L1');
+  });
+
+  test('TỔNG PHẢI THU KHÁCH freeze: entered moves L1, lock freezes it, forced edits stay frozen (L1 + issued note)', async () => {
+    const customer = await mkCustomer(`Debit freeze ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-29');
+    const route = await mkRoute(`Debit freeze route ${suffix}`);
+    const trip = await mkTrip(lot.id, customer.id, route.id);
+    await mkFreight(lot.id, trip.id, '1000000');
+    await mkExpense(trip.id, '300000', '3900000');
+    const open = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(open.items.find((row) => row.shipmentId === lot.id)!.receivableTotal, '3900000', 'leg 1: entered thu khách moves L1');
+    await lockShipmentCost({ shipmentId: lot.id, expectedShipmentVersion: null, lockNote: null, actor: { userId: 0, role: 'ADMIN', username: 'p', email: 'p', fullName: 'p' } as never, idempotencyKey: `c19-leg2-${suffix}` });
+    const lockedOnce = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(lockedOnce.items.find((row) => row.shipmentId === lot.id)!.receivableTotal, '3900000', 'leg 2: L1 holds at the locked figure');
+    const note = await createDebitNoteFromCostLock({ shipmentId: lot.id, actor: { userId: 0, role: 'ADMIN', username: 'p', email: 'p', fullName: 'p' } as never, idempotencyKey: `c19-leg3-note-${suffix}` });
+    const docRows = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, note.id));
+    assert.ok(docRows[0], 'the issued note exists');
+    track(s.billingDocuments, docRows[0]);
+    const readLines = async () => db.select().from(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, note.id));
+    const lines1 = await readLines();
+    for (const line of lines1) track(s.billingDocumentLines, line);
+    const sumBefore = lines1.reduce((sum, line) => sum + Number(line.baseAmount), 0);
+    await db.update(s.tripExpenses).set({ sellAmount: '9999999' }).where(eq(s.tripExpenses.tripId, trip.id));
+    const lockedTwice = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const lockedTwiceItem = lockedTwice.items.find((row) => row.shipmentId === lot.id)!;
+    assert.equal(lockedTwiceItem.receivableTotal, '3900000', 'leg 3: forced edits behind the lock cannot move L1');
+    const lines2 = await readLines();
+    assert.equal(lines2.reduce((sum, line) => sum + Number(line.baseAmount), 0), sumBefore, 'the issued note stays frozen');
+    const claimRows = await db.select().from(s.debitNoteLots).where(eq(s.debitNoteLots.documentId, note.id));
+    for (const claim of claimRows) track(s.debitNoteLots, claim);
   });
 });
 

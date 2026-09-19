@@ -25,6 +25,8 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdShipmentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
+const createdTripIds: number[] = [];
+const createdCarrierInfoIds: number[] = [];
 const userIds: number[] = [];
 let adminId = 0;
 let accountantId = 0;
@@ -143,9 +145,14 @@ after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   try {
     for (const shipmentId of createdShipmentIds) {
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
       await db.delete(s.shipmentCostAdjustments).where(eq(s.shipmentCostAdjustments.shipmentId, shipmentId));
       await db.delete(s.shipmentCostLocks).where(eq(s.shipmentCostLocks.shipmentId, shipmentId));
     }
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
+    await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    createdTripIds.length = 0;
+    createdCarrierInfoIds.length = 0;
     for (const shipmentId of createdShipmentIds) {
       await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
     }
@@ -317,5 +324,71 @@ describe('20260918_19 cost adjustments (red-first)', () => {
     const items = Array.isArray(list.body) ? list.body : list.body.items as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(items) && items.length >= 1);
     assert.ok(items.every((item) => 'reason' in item));
+  });
+});
+
+describe('2026-09-19 ruling — the lock freezes the 2.3 composition', () => {
+  test('the lock snapshot carries the frozen payables composition (State A)', async () => {
+    const shipment = await mkShipment();
+    const [lot] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const [trip] = await db.insert(s.trips).values({
+      shipmentId: shipment.id, customerId: lot.customerId!, routeId: lot.routeId!,
+      status: 'CREATED', departureDate: '2026-09-20',
+    }).returning();
+    createdTripIds.push(trip.id);
+    const [carrier] = await db.insert(s.tripCarrierInfo).values({ tripId: trip.id, externalFreightCost: '500000' }).returning();
+    createdCarrierInfoIds.push(carrier.id);
+    await db.insert(s.opsExpenseEntries).values({ shipmentId: shipment.id, expenseTypeCode: 'PHI_CHI_HO', amount: '250000', paidById: cusId, paidAt: '2026-09-19' });
+    await db.insert(s.opsExpenseEntries).values({ shipmentId: shipment.id, expenseTypeCode: 'PHI_CHI_HO', amount: '140000', paidById: cusId, paidAt: '2026-09-19' });
+    const lockResult = await api('POST', `/api/shipments/${shipment.id}/lock`, cusId, {});
+    assert.equal(lockResult.status, 201, JSON.stringify(lockResult.body));
+    const row = await costLockRow(shipment.id);
+    assert.ok(row, 'an active cost lock row must exist');
+    const snapshot = row!.costSnapshot as Record<string, unknown>;
+    assert.equal(snapshot['externalFreightCost'], 500000, 'Cước trả freezes as a number');
+    assert.equal(snapshot['opsExpenseTotal'], 390000);
+    assert.equal(snapshot['unclassifiedFee'], 390000, 'State A: the whole ops total sits in the visible catch-all');
+    assert.equal(snapshot['hqgsFee'], null, 'no category producer yet — customs reads null, never a guess');
+    assert.equal(snapshot['phatSinhFee'], null);
+    assert.equal(snapshot['payableTotal'], 890000);
+    assert.equal(
+      (snapshot['hqgsFee'] as number | null ?? 0) + (snapshot['phatSinhFee'] as number | null ?? 0) + (snapshot['unclassifiedFee'] as number | null ?? 0),
+      snapshot['opsExpenseTotal'],
+      'buckets conserve the ops total (ruling hardening b)',
+    );
+  });
+
+  test('the locked lot reads 2.3 from the frozen snapshot; the payables wire carries structural keys only', async () => {
+    const shipment = await mkShipment();
+    const [lot] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const [trip] = await db.insert(s.trips).values({
+      shipmentId: shipment.id, customerId: lot.customerId!, routeId: lot.routeId!,
+      status: 'CREATED', departureDate: '2026-09-20',
+    }).returning();
+    createdTripIds.push(trip.id);
+    const [carrier] = await db.insert(s.tripCarrierInfo).values({ tripId: trip.id, externalFreightCost: '600000' }).returning();
+    createdCarrierInfoIds.push(carrier.id);
+    await db.insert(s.opsExpenseEntries).values({ shipmentId: shipment.id, expenseTypeCode: 'PHI_CHI_HO', amount: '100000', paidById: cusId, paidAt: '2026-09-19' });
+    const lockResult = await api('POST', `/api/shipments/${shipment.id}/lock`, cusId, {});
+    assert.equal(lockResult.status, 201, JSON.stringify(lockResult.body));
+    const before = await api('GET', `/api/shipments/${shipment.id}/debit-detail`, cusId);
+    assert.equal(before.status, 200, JSON.stringify(before.body).slice(0, 160));
+    const payablesBefore = (before.body as { payables: Record<string, unknown> }).payables;
+    assert.deepEqual(
+      Object.keys(payablesBefore).sort(),
+      ['chiHoTotal', 'externalFreightCost', 'hqgsFee', 'opsExpenseTotal', 'payableTotal', 'phatSinhFee', 'unclassifiedFee'],
+      'structural keys only — no place-named field exists on the wire (freeze ruling)',
+    );
+    assert.equal(payablesBefore['externalFreightCost'], 600000);
+    assert.equal(payablesBefore['opsExpenseTotal'], 100000);
+    assert.equal(payablesBefore['unclassifiedFee'], 100000);
+    assert.equal(payablesBefore['payableTotal'], 700000);
+    await db.insert(s.opsExpenseEntries).values({ shipmentId: shipment.id, expenseTypeCode: 'PHI_CHI_HO', amount: '500000', paidById: cusId, paidAt: '2026-09-19' });
+    await db.update(s.tripCarrierInfo).set({ externalFreightCost: '1' }).where(eq(s.tripCarrierInfo.tripId, trip.id));
+    const afterMutations = await api('GET', `/api/shipments/${shipment.id}/debit-detail`, cusId);
+    const payablesAfter = (afterMutations.body as { payables: Record<string, unknown> }).payables;
+    assert.equal(payablesAfter['externalFreightCost'], 600000, 'the locked table does not follow live carrier-cost edits');
+    assert.equal(payablesAfter['opsExpenseTotal'], 100000, 'the locked table does not follow live ops rows');
+    assert.equal(payablesAfter['payableTotal'], 700000, 'the frozen total is immutable behind the lock');
   });
 });

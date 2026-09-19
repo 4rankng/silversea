@@ -14,6 +14,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-rea
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
+import { computeLotPayablesBreakdown } from './lot-payables.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -76,11 +77,21 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
   const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
+  const payables = await computeLotPayablesBreakdown(shipmentId);
   return {
     freightAuto: item?.freightAuto ?? null,
     chiHoTotal: item?.chiHoTotal ?? null,
     receivableTotal: item?.receivableTotal ?? null,
     profit: item?.profit ?? null,
+    // Frozen 2.3 composition (ruling 2026-09-19): a catalog rename must not
+    // rewrite the shape of an issued note. Old snapshots lack these keys —
+    // readers treat missing keys as null (Chưa xác định).
+    externalFreightCost: payables.externalFreightCost,
+    hqgsFee: payables.hqgsFee,
+    phatSinhFee: payables.phatSinhFee,
+    unclassifiedFee: payables.unclassifiedFee,
+    opsExpenseTotal: payables.opsExpenseTotal,
+    payableTotal: payables.payableTotal,
   };
 }
 
@@ -186,6 +197,21 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<A
     .orderBy(desc(s.shipmentCostAdjustments.id));
 }
 
+/** Ruling 2026-09-19: the note's range is [min,max] of the selection's
+ *  expected delivery dates — the picker is a filter, the selection is the
+ *  document's content, so a same-selection replay always derives the same
+ *  range. A selection with no delivery dates falls back to the processing
+ *  day (the columns are notNull); the residual is logged, not hidden. */
+function deriveRangeFromSelection(lots: ReadonlyArray<{ expectedDeliveryDate: string | null }>): { rangeFrom: string; rangeTo: string; fallback: boolean } {
+  const dates = lots.map((lot) => lot.expectedDeliveryDate).filter((date): date is string => date != null).sort();
+  if (dates.length === 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    console.warn(`[debit-note] range falls back to the processing day — the selection carries no expected delivery dates`);
+    return { rangeFrom: today, rangeTo: today, fallback: true };
+  }
+  return { rangeFrom: dates[0]!, rangeTo: dates[dates.length - 1]!, fallback: false };
+}
+
 export interface CreateDebitNoteFromCostLockInput {
   shipmentId: number;
   actor: AuthUser;
@@ -211,6 +237,7 @@ export async function createDebitNoteFromCostLock(
         customerId: s.shipments.customerId,
         rawCustomerName: s.shipments.rawCustomerName,
         shipmentCode: s.shipments.shipmentCode,
+        expectedDeliveryDate: s.shipments.expectedDeliveryDate,
       }).from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
       if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
       const [lock] = await tx.select({ snapshot: s.shipmentCostLocks.costSnapshot })
@@ -222,6 +249,7 @@ export async function createDebitNoteFromCostLock(
         .limit(1);
       if (!lock) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
       await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
+      const { rangeFrom, rangeTo } = deriveRangeFromSelection([lot]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
       const lineRows: Array<{
         lineType: string;
@@ -241,8 +269,8 @@ export async function createDebitNoteFromCostLock(
         entityType: 'CUSTOMER',
         entityId: lot.customerId ?? 0,
         entityName: lot.rawCustomerName?.trim() || null,
-        rangeFrom: new Date().toISOString().slice(0, 10),
-        rangeTo: new Date().toISOString().slice(0, 10),
+        rangeFrom,
+        rangeTo,
         issuedAt: new Date(),
         debitNoteStatus: 'SENT',
       }).returning({ id: s.billingDocuments.id });
@@ -292,6 +320,7 @@ export async function createConsolidatedDebitNote(
     customerId: s.shipments.customerId,
     rawCustomerName: s.shipments.rawCustomerName,
     shipmentCode: s.shipments.shipmentCode,
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
   }).from(s.shipments)
     .where(inArray(s.shipments.id, shipmentIds));
   if (lots.length !== shipmentIds.length) throw new ApiError(404, 'Có lô hàng không tồn tại hoặc đã bị xóa.');
@@ -318,13 +347,14 @@ export async function createConsolidatedDebitNote(
     entityType: 'billing_document',
     create: async (tx) => {
       await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
+      const { rangeFrom, rangeTo } = deriveRangeFromSelection(lots);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
         entityType: 'CUSTOMER',
         entityId: customerId,
         entityName: lots[0]!.rawCustomerName?.trim() || null,
-        rangeFrom: new Date().toISOString().slice(0, 10),
-        rangeTo: new Date().toISOString().slice(0, 10),
+        rangeFrom,
+        rangeTo,
         issuedAt: new Date(),
         debitNoteStatus: 'SENT',
       }).returning({ id: s.billingDocuments.id });
