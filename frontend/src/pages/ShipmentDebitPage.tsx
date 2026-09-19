@@ -53,29 +53,30 @@ function DebitLotRow({
   selected: boolean;
   onSelect: (id: number, next: boolean) => void;
 }) {
+  // Seeded/imported lots can carry a null shipment code — the id keeps the
+  // row addressable and labeled instead of rendering 'lô null'.
+  const lotLabel = row.code ?? `#${row.shipmentId}`;
   return (
     <>
-    <tr className="shipment-debit-row" data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}>
+    <tr
+      className="shipment-debit-row"
+      data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
+      data-selected={selected || undefined}
+      onClick={() => { if (row.lockStatus === 'LOCKED') onSelect(row.shipmentId, !selected); }}
+    >
       <td className="shipment-debit-row__lead">
-        <input
-          type="checkbox"
-          aria-label={`Chọn lô ${row.code}`}
-          checked={selected}
-          disabled={row.lockStatus !== 'LOCKED'}
-          onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
-        />
         <button
           type="button"
           className="shipment-debit-row__expand-button"
           aria-expanded={expanded}
-          aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${row.code}`}
-          onClick={onToggle}
+          aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
+          onClick={(event) => { event.stopPropagation(); onToggle(); }}
         >
           {expanded ? '−' : '+'}
         </button>
       </td>
       <td className="shipment-debit-row__identity">
-        <span className="shipment-debit-row__code">{row.code}</span>
+        <span className="shipment-debit-row__code">{lotLabel}</span>
         <strong className="shipment-debit-row__customer">{row.customerName?.toUpperCase()}</strong>
         {row.factoryName && <span className="shipment-debit-row__factory">({row.factoryName})</span>}
         {row.factoryAddress && <span className="shipment-debit-row__address"><em>{row.factoryAddress}</em></span>}

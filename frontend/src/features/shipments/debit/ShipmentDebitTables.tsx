@@ -197,7 +197,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
         <th scope="col">Chứng từ Ops</th>
       </tr></thead>
       <tbody>
-        {detail.chiHoRows.map((row) => {
+        {detail.chiHoRows.map((row, chiIdx) => {
           const liftItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lift');
           const lowerItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lower');
           const cshtItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'csht');
@@ -205,7 +205,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
           const detention = bracketMoney(row.carrierDetention);
           const repair = bracketMoney(row.repairAdvance);
           return (
-            <tr key={row.tripId ?? `row-${row.tripId}`}>
+            <tr key={row.containerNumber ?? `row-${chiIdx}`}>
               <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
               <td>{liftItems.length === 0 ? <span>—</span> : liftItems.map(roItem)}</td>
               <td>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</td>

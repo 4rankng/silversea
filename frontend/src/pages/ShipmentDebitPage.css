@@ -179,3 +179,8 @@
     flex-wrap: wrap;
   }
 }
+
+/* Row-click selection (user ruling 2026-09-19): the checkbox never existed
+   in the drawing — a locked row highlights instead of a tick. */
+.shipment-debit-row[data-locked] { cursor: pointer; }
+.shipment-debit-row[data-selected] { background: rgba(37, 99, 235, 0.08); box-shadow: inset 2px 0 0 #2563eb; }

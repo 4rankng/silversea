@@ -106,11 +106,12 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // Unknown money (freight/receivable/payable/profit on row 2, payable on
     // row 1) stays "Chưa xác định" — null never renders as 0.
     expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(5);
-    // The locked row carries the badge and an enabled select box.
-    const lockedBox = screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }) as HTMLInputElement;
-    expect(lockedBox.disabled).toBe(false);
-    const openBox = screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0002' }) as HTMLInputElement;
-    expect(openBox.disabled).toBe(true);
+    // The locked row selects on click; the open row ignores clicks.
+    const lockedRow = screen.getByText('SHP-26-0001').closest('tr')!;
+    expect(lockedRow.getAttribute('data-locked')).toBe('');
+    expect(lockedRow.getAttribute('data-selected')).toBeNull();
+    fireEvent.click(lockedRow);
+    expect(lockedRow.getAttribute('data-selected')).not.toBeNull();
   });
 
   it('renders TỔNG PHẢI TRẢ from the payableTotal wire field', async () => {
@@ -127,9 +128,9 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     expect(button.disabled).toBe(false);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     expect(button.disabled).toBe(true);
   });
 
@@ -137,7 +138,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: /Trạng thái khóa lô/ }));
@@ -175,8 +176,8 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     });
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0002' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
+    fireEvent.click(screen.getByText('SHP-26-0002').closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     fireEvent.click(button);
@@ -190,7 +191,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
@@ -204,11 +205,11 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['157', '160'] }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: 157, 160')).toBeTruthy();
     // The selection survives the conflict so the user can adjust and retry.
-    expect((screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('SHP-26-0001').closest('tr')!.getAttribute('data-selected')).not.toBeNull();
   });
 
   it('keeps the generic failure toast when the error carries no lot codes', async () => {
@@ -216,7 +217,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     createBatch.mockRejectedValue(new ApiError(409, { error: 'Trùng lô đã xuất' }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByText('SHP-26-0001').closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Không xuất được Debit Note. Vui lòng thử lại.')).toBeTruthy();
   });
