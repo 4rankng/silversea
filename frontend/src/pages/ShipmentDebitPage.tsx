@@ -6,6 +6,7 @@ import { listShipmentDebitSummary, type ShipmentDebitLotRow } from '../api/shipm
 import { createDebitNoteBatch, exportDebitNoteFile } from '../api/shipmentDebit';
 import { useToast } from '../components/shared/Toast';
 import { ApiError } from '../lib/api';
+import { qk } from '../api/keys';
 import { formatMoney } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
@@ -152,9 +153,9 @@ export function ShipmentDebitPage() {
   }
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const bootstrap = useQuery({ queryKey: ['shipment-debit-bootstrap'], queryFn: () => tripClient.getBootstrap() });
+  const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
   const summary = useQuery({
-    queryKey: ['shipment-debit-summary', customerId, deliveryFrom, deliveryTo, lockStatus],
+    queryKey: qk.shipmentDebit.summary(customerId, deliveryFrom, deliveryTo, lockStatus),
     queryFn: () => listShipmentDebitSummary({
       customerId: Number(customerId),
       deliveryDateFrom: deliveryFrom || null,
