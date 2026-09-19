@@ -91,7 +91,9 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
           if (!name.trim()) return;
           onsave({
             name: name.trim(),
-            shortName: shortName.trim() || null,
+            // short_name is NOT NULL DEFAULT '' on the wire — an explicit
+            // null overrides the column default and 500s the insert.
+            shortName: shortName.trim(),
             code: code.trim() || null,
             address: address.trim() || null,
             dispatchZone: zone === 'NONE' ? null : zone,
