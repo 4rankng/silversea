@@ -410,6 +410,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const bottomNavRef = useBottomNavAnimations({ ready: !!user && user.role === 'DRIVER' });
   const [sidebarOpen, setSidebarOpen] = useState(() => resolveInitialSidebarOpen(window.innerWidth));
+  // An explicit user choice survives breakpoint crossings; without one the
+  // crossing re-derives the width default (first-run behavior unchanged).
+  const sidebarPreferenceRef = useRef<boolean | null>(null);
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(v => {
+      sidebarPreferenceRef.current = !v;
+      return !v;
+    });
+  }, []);
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -460,7 +469,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setUserMenuOpen(false);
       // Entering desktop from mobile may land in the compact-desktop range,
       // where the sidebar must stay collapsed for full-width tables.
-      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
+      setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleViewportChange);
     return () => media.removeEventListener('change', handleViewportChange);
@@ -474,7 +483,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const media = window.matchMedia(COMPACT_DESKTOP_MEDIA_QUERY);
     const handleCompactDesktopChange = () => {
-      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
+      setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleCompactDesktopChange);
     return () => media.removeEventListener('change', handleCompactDesktopChange);
@@ -576,7 +585,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault();
-        setSidebarOpen(v => !v);
+        toggleSidebar();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -728,7 +737,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     pageTitle,
     sidebarOpen,
     menuButtonRef,
-    onToggleSidebar: () => setSidebarOpen(v => !v),
+    onToggleSidebar: toggleSidebar,
   };
 
   return (
