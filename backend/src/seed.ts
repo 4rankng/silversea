@@ -36,6 +36,22 @@ import { seedForwarderMoney } from './seed/seed-forwarder-money';
 import { seedCustomerAr } from './seed/seed-customer-ar';
 import { seedBulkData } from './seed/seed-bulk-data';
 
+/** Demo-data sections run independently of one another: a section the
+ *  environment cannot support (e.g. a fund-less staging aborts the
+ *  forwarder-money settlement with AdvanceError 409) is skipped with a loud
+ *  named warning instead of aborting the whole run — the seed still exits 0
+ *  and every other section lands. Catalog/reference sections deliberately
+ *  stay OUTSIDE this wrapper: a half-filled catalog is a real defect, a
+ *  half-filled demo dataset is only a degraded demo. */
+async function runDemoSection<T>(name: string, section: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await section();
+  } catch (error) {
+    console.warn(`\n⚠️  [seed] SKIP section "${name}": ${error instanceof Error ? error.message : String(error)}\n`);
+    return undefined;
+  }
+}
+
 export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
@@ -775,7 +791,9 @@ export async function seed() {
   await seedVehiclesFromExcel();
   await seedFactories();
 
-  await seedShipments(passwordHash);
+  // Demo section — idempotent: re-runs reuse the marker rows the seeder
+  // probes for, so a second run reuses rather than duplicates.
+  await runDemoSection('shipments', () => seedShipments(passwordHash));
   await seedClerkScope();
 
   // Trips flow through the real dispatch chain (carrier allocation → handoff
@@ -784,19 +802,29 @@ export async function seed() {
   const seedActors = await resolveSeedActors();
   const opsUser = await db.select().from(schema.users)
     .where(eq(schema.users.username, 'giaonhan')).limit(1);
-  const { opsExpenseIds } = await seedTrips({ ...seedActors, ops: opsUser[0] });
+  // Demo section — idempotent: trip fixtures are ref-keyed (bill/booking),
+  // re-runs reuse them; passes the (possibly empty) expense ids downstream.
+  const { opsExpenseIds } = await runDemoSection('trips', () => seedTrips({ ...seedActors, ops: opsUser[0] }))
+    .then((result) => result ?? { opsExpenseIds: [] as number[] });
   const adminUser = await db.select({ id: schema.users.id }).from(schema.users)
     .where(eq(schema.users.username, 'admin')).limit(1);
-  await seedVendorFinancials(seedActors.manager.userId, adminUser[0]!.id);
+  // Demo section — idempotent: vendor balances are upsert-keyed.
+  await runDemoSection('vendor-financials', () => seedVendorFinancials(seedActors.manager.userId, adminUser[0]!.id));
 
-  await seedForwarderMoney({ ops: opsUser[0]!.id, approver: adminUser[0]!.id }, opsExpenseIds);
+  // Demo section — idempotent: scoped to the fixture owner, exact advance
+  // plans and settlement note. Tolerated-skip: on an environment without the
+  // confirmed fund transactions the real settlement validation rejects with
+  // AdvanceError 409 ('Tạm ứng chưa có đủ giao dịch quỹ xác nhận tiền thực
+  // giao') — the business rule wins, the section skips loudly.
+  await runDemoSection('forwarder-money', () => seedForwarderMoney({ ops: opsUser[0]!.id, approver: adminUser[0]!.id }, opsExpenseIds));
 
   // e-POD acceptance + debit note + payment receipt close the O2C loop.
-  await seedCustomerAr({
+  // Demo section — idempotent: O2C fixtures are marker-keyed.
+  await runDemoSection('customer-ar', () => seedCustomerAr({
     cus: seedActors.cus as never,
     accountant: seedActors.accountant as never,
     manager: seedActors.manager as never,
-  });
+  }));
 
   // Bulk synthetic dataset (≈250 shipments, ≈200 trips, ≈30 customers,
   // ≈60 expenses). Idempotent: a single `BULK-MARKER-DO-NOT-DELETE` row
@@ -805,7 +833,9 @@ export async function seed() {
   // shape assertions; the bulk rows are additive and use the `BULK-`
   // prefix on every ref so existing tests continue to assert on the
   // small canonical set.
-  await seedBulkData();
+  // Demo section — idempotent: the BULK-MARKER-DO-NOT-DELETE row marks the
+  // dataset and is probed on every run.
+  await runDemoSection('bulk-data', () => seedBulkData());
 }
 
 export async function seedClerkScope(): Promise<void> {
