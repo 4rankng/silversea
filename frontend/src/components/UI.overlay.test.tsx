@@ -2,8 +2,18 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { describe, expect, it } from 'vitest';
 import { Drawer, Modal } from './UI';
+
+/** A child that renders its button through a body-level portal — the same
+ *  DOM shape as SearchableSelect's selector overlay and react-aria popovers. */
+function PortaledPing({ onPing }: { onPing: () => void }) {
+  return createPortal(
+    <button type="button" onClick={onPing}>ping-portaled</button>,
+    document.body,
+  );
+}
 
 const animatedOverlaySource = readFileSync(
   resolve(process.cwd(), 'src/hooks/useAnimatedOverlay.ts'),
@@ -133,5 +143,65 @@ describe('Drawer keyboard focus', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+});
+describe('Overlay vs portaled children (card _19 regression lock)', () => {
+  it('keeps the Modal open when a click bubbles from a portaled child', async () => {
+    const pings: string[] = [];
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>Mở modal portal</button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} title="Modal portal">
+            <PortaledPing onPing={() => pings.push('modal')} />
+          </Modal>
+        </>
+      );
+    }
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mở modal portal' }));
+    expect(await screen.findByRole('dialog', { name: 'Modal portal' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ping-portaled' }));
+    expect(pings).toEqual(['modal']);
+    // The portaled click bubbles through the fiber tree into the modal
+    // content, whose stopPropagation shields the dismiss overlay.
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Modal portal' })).toBeTruthy());
+    expect(pings).toEqual(['modal']);
+  });
+
+  it('keeps the Drawer open when a click bubbles from a portaled child', async () => {
+    const pings: string[] = [];
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <Drawer isOpen={open} onClose={() => setOpen(false)} title="Drawer portal">
+          <PortaledPing onPing={() => pings.push('drawer')} />
+        </Drawer>
+      );
+    }
+    render(<Harness />);
+    expect(await screen.findByRole('dialog', { name: 'Drawer portal' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ping-portaled' }));
+    expect(pings).toEqual(['drawer']);
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Drawer portal' })).toBeTruthy());
+  });
+
+  it('still dismisses on a direct overlay click (no over-fix)', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <Drawer isOpen={open} onClose={() => setOpen(false)} title="Drawer overlay-close">
+          <PortaledPing onPing={() => {}} />
+        </Drawer>
+      );
+    }
+    render(<Harness />);
+    const drawer = await screen.findByRole('dialog', { name: 'Drawer overlay-close' });
+    const overlay = document.querySelector('.drawer-overlay');
+    expect(overlay).toBeTruthy();
+    fireEvent.click(overlay!);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Drawer overlay-close' })).toBeNull());
+    void drawer;
   });
 });
