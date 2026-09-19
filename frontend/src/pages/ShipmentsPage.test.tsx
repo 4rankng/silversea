@@ -787,6 +787,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // its scope resent verbatim so the whole-row PUT keeps the metadata.
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', {
       declarationNumber: 'TK-99999',
+      // Card _5: the body states the channel explicitly (null = cleared).
+      channel: null,
       issuedAt: null,
       scope: 'SINGLE',
       note: null,
@@ -815,6 +817,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/1/declarations', {
       declarationNumber: 'TK-NEW-1',
+      // Card _5: explicit channel (null when unset) rides the create body too.
+      channel: null,
       issuedAt: null,
       note: null,
     }));

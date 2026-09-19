@@ -72,12 +72,17 @@ function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyCha
   return { ...utils, rerenderWithSavedLine, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
-// The unified datetime batch replaced the combined appointment input with the
-// shared SplitDateTimeField pair inside the popover; drive both parts.
+// The segmented datetime rework split each part into per-digit inputs
+// ([data-seg]); the first segment of each part still accepts full strings
+// (paste distribution fills the following segments).
 function appointmentInputs(): { time: HTMLInputElement; date: HTMLInputElement } {
-  const inputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
-  expect(inputs.length).toBe(2);
-  return { time: inputs[0], date: inputs[1] };
+  const root = document.querySelector('[data-split-datetime]');
+  expect(root).toBeTruthy();
+  const time = root!.querySelector<HTMLInputElement>('input[data-seg="hh"]');
+  const date = root!.querySelector<HTMLInputElement>('input[data-seg="dd"]');
+  expect(time).toBeTruthy();
+  expect(date).toBeTruthy();
+  return { time: time!, date: date! };
 }
 function setAppointment(time: string, date: string) {
   const { time: timeInput, date: dateInput } = appointmentInputs();
@@ -214,8 +219,8 @@ describe('ContainerLedger confirm affordances', () => {
     // Reopen shows the base value, not the abandoned draft.
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
     const reopened = appointmentInputs();
-    expect(reopened.time.value).not.toBe('11:00');
-    expect(reopened.date.value).not.toBe('19/09/2026');
+    expect(reopened.time.value).not.toBe('11');
+    expect(reopened.date.value).not.toBe('19');
   });
 
   it('_34 invalid-entry: out-of-range typing blocks commit with a visible error', async () => {

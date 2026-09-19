@@ -58,11 +58,15 @@ describe('ScheduleEditorBody', () => {
     const dateInput = grid.querySelector('input[data-date-input]')!;
     // DOM order: time input precedes the date input.
     expect(timeInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Explicit 24h text entry avoids AM/PM; the buffered date field shows DD/MM/YYYY.
+    // Explicit 24h text entry avoids AM/PM; the buffered date field shows
+    // DD/MM/YYYY as three digit segments.
     expect(timeInput.getAttribute('placeholder')).toBe('HH:mm');
     expect((timeInput as HTMLInputElement).value).toBe('08:00');
-    expect(dateInput.getAttribute('placeholder')).toBe('DD/MM/YYYY');
-    expect((dateInput as HTMLInputElement).value).toBe('10/09/2026');
+    expect(dateInput.getAttribute('placeholder')).toBe('DD');
+    expect((dateInput as HTMLInputElement).value).toBe('10');
+    const dateGroup = dateInput.closest('[data-seg-part="date"]')!;
+    expect((dateGroup.querySelector('input[data-seg="mm2"]') as HTMLInputElement).value).toBe('09');
+    expect((dateGroup.querySelector('input[data-seg="yyyy"]') as HTMLInputElement).value).toBe('2026');
   });
 
   it('uses đóng-hàng labels for EXPORT rows', () => {
@@ -107,9 +111,14 @@ describe('ScheduleEditorBody', () => {
     const dateInputs = Array.from(container.querySelectorAll('input[data-date-input]'));
     expect(dateInputs).toHaveLength(2);
     const transport = dateInputs[1];
-    expect((transport as HTMLInputElement).value).toBe('14/09/2026');
+    const transportGroup = transport.closest('[data-seg-part="date"]')!;
+    const segValue = (key: string) => (transportGroup.querySelector(`input[data-seg="${key}"]`) as HTMLInputElement).value;
+    expect((transport as HTMLInputElement).value).toBe('14');
+    expect(segValue('mm2')).toBe('09');
+    expect(segValue('yyyy')).toBe('2026');
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    // The buffered field emits ISO only for complete DD/MM/YYYY entries.
+    // The buffered field emits ISO only for complete DD/MM/YYYY entries (the
+    // DD slot distributes a pasted full date across the segments).
     fireEvent.change(transport, { target: { value: '20/09/2026' } });
     expect(onTransportDateChange).toHaveBeenCalledWith('2026-09-20');
   });

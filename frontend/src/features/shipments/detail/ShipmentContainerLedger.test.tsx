@@ -341,7 +341,10 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     // The invalid field's validationMessage (or the editor fallback) surfaces
     // as the save error and the partial text stays in the open editor.
     expect(screen.getByRole('alert')).toHaveTextContent(/.+/);
-    expect((date as HTMLInputElement).value).toBe('15/09/');
+    // Partial text stays visible in the segments of the open editor.
+    expect((date as HTMLInputElement).value).toBe('15');
+    expect(screen.getByLabelText('Tháng — Ngày trả hàng')).toHaveValue('09');
+    expect(screen.getByLabelText('Năm — Ngày trả hàng')).toHaveValue('');
   });
 
   it('identity editor closes on outside pointerdown', () => {
@@ -490,7 +493,9 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     const { view, onSaveSchedule } = renderScheduleEditor('LCL');
 
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    const dateInputs = document.querySelectorAll('input[placeholder="DD/MM/YYYY"]');
+    // Segmented date fields: each renders DD/MM/YYYY digit slots; the DD slot
+    // accepts the full pasted string and distributes it.
+    const dateInputs = document.querySelectorAll('input[placeholder="DD"]');
     expect(dateInputs).toHaveLength(2);
     fireEvent.change(dateInputs[1], { target: { value: '20/09/2026' } });
     fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
@@ -516,7 +521,7 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     const { view } = renderScheduleEditor('FCL');
 
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
-    expect(document.querySelectorAll('input[placeholder="DD/MM/YYYY"]')).toHaveLength(1);
+    expect(document.querySelectorAll('input[placeholder="DD"]')).toHaveLength(1);
     view.unmount();
   });
 });

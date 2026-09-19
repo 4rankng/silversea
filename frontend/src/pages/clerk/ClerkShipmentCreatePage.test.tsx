@@ -502,8 +502,11 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
-    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30']);
-    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20/08/2026', '20/08/2026']);
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09', '09']);
+    expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['30', '30']);
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20', '20']);
+    expect(screen.getAllByLabelText('Tháng — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['08', '08']);
+    expect(screen.getAllByLabelText('Năm — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026', '2026']);
   });
 
   it('removes the FCL shipment-level factory/route section and keeps each container route independent', async () => {
@@ -743,8 +746,11 @@ describe('ClerkShipmentCreatePage', () => {
     expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
     expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
     expect(displayedValue('12.000,5')).toBeTruthy();
-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09:30');
-    expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20/08/2026');
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09');
+    expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('30');
+    expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
+    expect(screen.getByLabelText('Tháng — Ngày giờ đóng trả')).toHaveValue('08');
+    expect(screen.getByLabelText('Năm — Ngày giờ đóng trả')).toHaveValue('2026');
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả').closest('td')).toHaveClass('csc-container-cell--persistent');
   });
 
@@ -783,8 +789,11 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000', '12000', '12000']);
-    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30', '09:30', '09:30']);
-    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20/08/2026'));
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));
+    expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('30'));
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20'));
+    expect(screen.getAllByLabelText('Tháng — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('08'));
+    expect(screen.getAllByLabelText('Năm — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('2026'));
 
     fireEvent.change(addCount, { target: { value: '0' } });
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
@@ -917,7 +926,9 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '13:3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     expect(mocks.quickCreate).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('13:3');
+    // The partial draft stays visible across the hour/minute segments.
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('13');
+    expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('3');
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toBeInvalid();
   });
 

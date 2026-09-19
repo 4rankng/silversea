@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatResponse, ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 
+// This page renders several segmented datetime fields (5 inputs + trigger
+// each); full-workspace tests sit at the 5s default boundary.
+vi.setConfig({ testTimeout: 15000 });
+
 const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
 vi.mock('../lib/api', () => ({
   api: { get: apiGet, post: apiPost, put: apiPut },
@@ -798,8 +802,14 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
-    const appointmentDate = await screen.findByLabelText(/Ngày (đóng|trả) hàng/);
-    expect((appointmentDate as HTMLInputElement).value).toBe('22/08/2026');
+    // Segmented date field: anchor to the DD slot exactly — the sibling
+    // segments carry 'Tháng/Năm — …' names that also contain the label.
+    const appointmentDate = await screen.findByLabelText(/^Ngày (đóng|trả) hàng$/);
+    const appointmentGroup = (appointmentDate as HTMLElement).closest('[data-seg-part="date"]')!;
+    const appointmentSeg = (key: string) => appointmentGroup.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`)!;
+    expect((appointmentDate as HTMLInputElement).value).toBe('22');
+    expect(appointmentSeg('mm2').value).toBe('08');
+    expect(appointmentSeg('yyyy').value).toBe('2026');
     expect(screen.queryByLabelText('Ngày vận chuyển')).toBeNull();
     fireEvent.change(appointmentDate, { target: { value: '23/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));

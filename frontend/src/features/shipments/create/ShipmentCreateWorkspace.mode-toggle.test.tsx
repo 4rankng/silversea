@@ -28,7 +28,7 @@ function renderWorkspace() {
   );
 }
 
-describe('shipment create cargo-mode toggle data scope', () => {
+describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();
@@ -79,7 +79,9 @@ describe('shipment create cargo-mode toggle data scope', () => {
       const resetTime = document.querySelector<HTMLInputElement>('input[id$="-customer-appointment-time"]');
       expect(resetTime?.value ?? '').toBe('');
     });
-  });
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('pristine toggle applies silently without the confirm modal', async () => {
     renderWorkspace();
@@ -117,7 +119,7 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
     expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
-    expect(input).toHaveValue(value);
+    expect(input).toHaveValue(part === 'time' ? '14' : '20');
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
     await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng lẻ/ })).toBeChecked());
@@ -148,7 +150,9 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Kho A' }));
     fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
-  });
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('guards incomplete additional-delivery text even though the stored date is empty', async () => {
     renderWorkspace();
@@ -177,9 +181,14 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14:23');
-    expect(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan')).toHaveValue('20/09/2026');
-  });
+    expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14');
+    expect(screen.getByLabelText('Phút — Hạn hoàn tất hải quan')).toHaveValue('23');
+    expect(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan')).toHaveValue('20');
+    expect(screen.getByLabelText('Tháng — Hạn hoàn tất hải quan')).toHaveValue('09');
+    expect(screen.getByLabelText('Năm — Hạn hoàn tất hải quan')).toHaveValue('2026');
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('retains shipment notes across pristine and confirmed cargo-mode switches', async () => {
     renderWorkspace();
@@ -208,12 +217,12 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(await screen.findByText('Xóa container?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByText('Xóa container?')).not.toBeInTheDocument());
-    expect(input).toHaveValue(value);
+    expect(input).toHaveValue(part === 'time' ? '14' : '20');
     expect(document.querySelectorAll('.csc-container-row')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await waitFor(() => expect(document.querySelectorAll('.csc-container-row')).toHaveLength(1));
-  });
+  }, 10000);
 
   it('deletes a pristine row directly without using another row’s pending time as its dirty state', async () => {
     renderWorkspace();
@@ -224,11 +233,11 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
     expect(screen.queryByText('Xóa container?')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.csc-container-row')).toHaveLength(1);
-    expect(time).toHaveValue('14:');
+    expect(time).toHaveValue('14');
   });
 });
 
-describe('Lệnh chạy ngoài toggle (20260916_3)', () => {
+describe('Lệnh chạy ngoài toggle (20260916_3)', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();

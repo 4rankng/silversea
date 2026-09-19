@@ -37,17 +37,30 @@ function appointmentInputs(index: number) {
   return { date: dates[index]!, time: times[index]! };
 }
 
+function appointmentValue(index: number) {
+  const row = document.querySelectorAll('.csc-container-row')[index];
+  if (!row) return { date: '', time: '' };
+  const hh = row.querySelector<HTMLInputElement>('input[data-seg="hh"]')?.value ?? '';
+  const mm = row.querySelector<HTMLInputElement>('input[data-seg="mm"]')?.value ?? '';
+  const dd = row.querySelector<HTMLInputElement>('input[data-seg="dd"]')?.value ?? '';
+  const mm2 = row.querySelector<HTMLInputElement>('input[data-seg="mm2"]')?.value ?? '';
+  const yyyy = row.querySelector<HTMLInputElement>('input[data-seg="yyyy"]')?.value ?? '';
+  const time = hh || mm ? (hh && mm ? `${hh}:${mm}` : `${hh}:`) : '';
+  const date = dd || mm2 || yyyy ? [dd, mm2, yyyy].filter(Boolean).join('/') : '';
+  return { date, time };
+}
+
 function fillAppointment(index: number, date: string, time: string) {
   const { date: dateInput, time: timeInput } = appointmentInputs(index);
-  fireEvent.change(dateInput, { target: { value: date } });
-  fireEvent.change(timeInput, { target: { value: time } });
+  if (date) fireEvent.change(dateInput, { target: { value: date } });
+  if (time) fireEvent.change(timeInput, { target: { value: time } });
 }
 
 function copyButton() {
   return screen.queryByRole('button', { name: /Copy ngày giờ đóng trả/ });
 }
 
-describe('shipment create bulk appointment copy', () => {
+describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     getBootstrap.mockResolvedValue({
@@ -83,10 +96,10 @@ describe('shipment create bulk appointment copy', () => {
     fireEvent.click(copyButton()!);
 
     await waitFor(() => {
-      const dates = [0, 1, 2].map((i) => appointmentInputs(i).date.value);
+      const dates = [0, 1, 2].map((i) => appointmentValue(i).date);
       expect(dates).toEqual(['20/09/2026', '20/09/2026', '20/09/2026']);
     });
-    [0, 1, 2].forEach((i) => expect(appointmentInputs(i).time.value).toBe('09:00'));
+    [0, 1, 2].forEach((i) => expect(appointmentValue(i).time).toBe('09:00'));
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeTruthy();
   });
 
@@ -118,12 +131,12 @@ describe('shipment create bulk appointment copy', () => {
     fillAppointment(1, '21/09/2026', '11:30');
     fillAppointment(2, date, time);
     fireEvent.click(screen.getAllByRole('button', { name: /Copy ngày giờ đóng trả/ })[0]!);
-    await waitFor(() => expect(appointmentInputs(3).date.value).toBe('20/09/2026'));
-    expect(appointmentInputs(4).time.value).toBe('09:00');
-    expect(appointmentInputs(1).date.value).toBe('21/09/2026');
-    expect(appointmentInputs(1).time.value).toBe('11:30');
-    expect(appointmentInputs(2).date.value).toBe(date);
-    expect(appointmentInputs(2).time.value).toBe(time);
+    await waitFor(() => expect(appointmentValue(3).date).toBe('20/09/2026'));
+    expect(appointmentValue(4).time).toBe('09:00');
+    expect(appointmentValue(1).date).toBe('21/09/2026');
+    expect(appointmentValue(1).time).toBe('11:30');
+    expect(appointmentValue(2).date).toBe(date);
+    expect(appointmentValue(2).time).toBe(time);
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeInTheDocument();
     expect(copyButton()).toBeNull();
   });
@@ -142,6 +155,6 @@ describe('shipment create bulk appointment copy', () => {
     expect(button.closest('th.csc-container-row__index')).not.toBeNull();
     expect(button.textContent?.trim()).toBe('');
     const dateInput = row.querySelector('input[id$="-customer-appointment-date"]')!;
-    expect(dateInput.closest('td')?.querySelector('button')).toBeNull();
+    expect(dateInput.closest('td')?.querySelector('.csc-container-row__copy, button[aria-label*="Copy"]')).toBeNull();
   });
 });

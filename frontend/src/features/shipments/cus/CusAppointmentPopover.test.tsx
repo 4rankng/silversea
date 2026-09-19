@@ -2,13 +2,23 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
-// The unified datetime batch replaced the single combined input with the
-// shared SplitDateTimeField (separate HH:mm + DD/MM/YYYY inputs) inside the
-// popover; these helpers target the new pair.
-function splitInputs(container: HTMLElement | Document): { time: HTMLInputElement; date: HTMLInputElement } {
-  const inputs = container.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
-  expect(inputs.length).toBe(2);
-  return { time: inputs[0], date: inputs[1] };
+// The segmented datetime rework split each part into per-digit inputs
+// ([data-seg]) inside the shared SplitDateTimeField; these helpers target the
+// segments. Full-string changes still work on the first segment of a part
+// (paste distribution fills the rest).
+function splitInputs(container: HTMLElement | Document): {
+  time: HTMLInputElement; date: HTMLInputElement;
+  hour: HTMLInputElement; minute: HTMLInputElement; day: HTMLInputElement; month: HTMLInputElement; year: HTMLInputElement;
+} {
+  const root = container.querySelector('[data-split-datetime]');
+  expect(root).toBeTruthy();
+  const seg = (key: string) => {
+    const input = root!.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`);
+    expect(input).toBeTruthy();
+    return input!;
+  };
+  const hour = seg('hh'); const minute = seg('mm'); const day = seg('dd'); const month = seg('mm2'); const year = seg('yyyy');
+  return { time: hour, date: day, hour, minute, day, month, year };
 }
 
 describe('CusAppointmentPopover', () => {
@@ -39,9 +49,12 @@ describe('CusAppointmentPopover', () => {
     expect(screen.getByRole('dialog', { name: /MSKU1234567/ })).toBeDefined();
     expect(screen.getByText('MSKU1234567')).toBeDefined();
 
-    const { time, date } = splitInputs(container);
-    expect(time.value).toBe('10:30');
-    expect(date.value).toBe('08/09/2026');
+    const { hour, minute, day, month, year } = splitInputs(container);
+    expect(hour.value).toBe('10');
+    expect(minute.value).toBe('30');
+    expect(day.value).toBe('08');
+    expect(month.value).toBe('09');
+    expect(year.value).toBe('2026');
   });
 
   it('labels the separate time/date inputs and keeps native locale pickers out', () => {
@@ -62,7 +75,7 @@ describe('CusAppointmentPopover', () => {
     expect(container.querySelector('input[type="date"]')).toBeNull();
   });
 
-  it('opens the date panel from the date input and applies the picked day', () => {
+  it('opens the date panel from the date trigger and applies the picked day', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -74,15 +87,17 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const { date } = splitInputs(container);
-    fireEvent.click(date);
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lịch — Giờ hẹn đóng/trả' }));
     const dayCell = document.querySelector<HTMLButtonElement>('.dtp-grid button[data-idx="15"]');
     expect(dayCell).toBeTruthy();
     fireEvent.click(dayCell!);
 
     // Time was prefilled (08:00), so the completed pair publishes immediately.
     expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
-    expect(date.value).toBe('15/09/2026');
+    const { day, month, year } = splitInputs(container);
+    expect(day.value).toBe('15');
+    expect(month.value).toBe('09');
+    expect(year.value).toBe('2026');
   });
 
   it('keeps time and date as plain editable text inputs', () => {
@@ -96,11 +111,16 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const { time, date } = splitInputs(container);
-    expect(time.type).toBe('text');
-    expect(date.type).toBe('text');
-    expect(time.placeholder).toBe('HH:mm');
-    expect(date.placeholder).toBe('DD/MM/YYYY');
+    const { hour, minute, day, month, year } = splitInputs(container);
+    for (const input of [hour, minute, day, month, year]) {
+      expect(input.type).toBe('text');
+      expect(input.inputMode).toBe('numeric');
+    }
+    expect(hour.placeholder).toBe('HH');
+    expect(minute.placeholder).toBe('mm');
+    expect(day.placeholder).toBe('DD');
+    expect(month.placeholder).toBe('MM');
+    expect(year.placeholder).toBe('YYYY');
   });
 
   it('emits the composed value for complete 24h text entry across the day', () => {
@@ -141,14 +161,15 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const { time, date } = splitInputs(container);
+    const { time, date, hour, minute } = splitInputs(container);
     fireEvent.change(time, { target: { value: '13:3' } });
     fireEvent.change(date, { target: { value: '15/09/2026' } });
     expect(handleChange).not.toHaveBeenCalled();
     // The partial draft stays visible (unified contract: incomplete text is
     // never silently cleared or saved).
-    expect(time.value).toBe('13:3');
-    expect(date.value).toBe('15/09/2026');
+    expect(hour.value).toBe('13');
+    expect(minute.value).toBe('3');
+    expect(date.value).toBe('15');
   });
 
   it('closes when pressing outside via pointerdown on document', () => {
@@ -186,9 +207,12 @@ describe('CusAppointmentPopover', () => {
 
     // 06:30Z = 13:30 +07 — the old parse rendered browser-local (14:30 on a
     // +08 host), so the recomposed write drifted another hour.
-    const { time, date } = splitInputs(container);
-    expect(time.value).toBe('13:30');
-    expect(date.value).toBe('11/09/2026');
+    const { hour, minute, day, month, year } = splitInputs(container);
+    expect(hour.value).toBe('13');
+    expect(minute.value).toBe('30');
+    expect(day.value).toBe('11');
+    expect(month.value).toBe('09');
+    expect(year.value).toBe('2026');
   });
 
   it('round-trips a naive draft verbatim without re-interpreting it', () => {
@@ -202,9 +226,12 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const { time, date } = splitInputs(container);
-    expect(time.value).toBe('09:00');
-    expect(date.value).toBe('11/09/2026');
+    const { hour, minute, day, month, year } = splitInputs(container);
+    expect(hour.value).toBe('09');
+    expect(minute.value).toBe('00');
+    expect(day.value).toBe('11');
+    expect(month.value).toBe('09');
+    expect(year.value).toBe('2026');
   });
 
   it('confirms once from the visible button and keeps a rejected save open for retry', async () => {
@@ -216,9 +243,8 @@ describe('CusAppointmentPopover', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith('2026-09-08T08:00');
-    const { time, date } = splitInputs(document);
-    expect(time).toBeDisabled();
-    expect(date).toBeDisabled();
+    const { hour, minute, day, month, year } = splitInputs(document);
+    for (const input of [hour, minute, day, month, year]) expect(input).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Xóa hẹn' })).toBeDisabled();
     reject(new Error('network unavailable'));
@@ -264,9 +290,8 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const { time, date } = splitInputs(container);
-    expect(time.value).toBe('');
-    expect(date.value).toBe('');
+    const { hour, minute, day, month, year } = splitInputs(container);
+    for (const input of [hour, minute, day, month, year]) expect(input.value).toBe('');
     expect(screen.getByRole('button', { name: 'Hôm nay' }).className).not.toContain('is-active');
     for (const slot of ['08:00', '10:00', '13:30', '16:00']) {
       expect(screen.getByRole('button', { name: slot }).className).not.toContain('is-active');
