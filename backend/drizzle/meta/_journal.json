@@ -685,6 +685,13 @@
       "when": 1789814400000,
       "tag": "20260919140000_declaration_customs_channel",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1789814700000,
+      "tag": "20260919173000_trip_children_trip_fks",
+      "breakpoints": true
     }
   ]
 }
