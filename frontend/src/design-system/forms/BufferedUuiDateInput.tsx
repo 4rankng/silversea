@@ -1,8 +1,9 @@
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
-import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { formatDateInput as formatDate, useBufferedDateTextValue } from '../hooks/useBufferedDateTextValue';
 import { DatePickerSurface } from './DatePickerSurface';
+import { DateTimeSegments } from './DateTimeSegments';
 import './BufferedUuiDateInput.css';
 
 export interface BufferedUuiDateInputProps
@@ -76,6 +77,9 @@ export function BufferedUuiDateInput({
     if (!fieldRef.current?.contains(next) && !panelRef.current?.contains(next)) {
       setOpen(false);
       setTouched(true);
+      // Normalize a complete draft the moment focus leaves the whole field
+      // (segment-to-segment hops stay untouched drafts).
+      if (!validation && parsed) setDraft(formatDate(parsed));
     }
   };
 
@@ -85,7 +89,7 @@ export function BufferedUuiDateInput({
 
   return (
     <div
-      ref={fieldRef}
+      ref={(node) => { fieldRef.current = node; if (typeof groupRef === 'function') groupRef(node); else if (groupRef) groupRef.current = node; }}
       onFocusCapture={() => {
         if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
         blurFrame.current = null;
@@ -110,52 +114,43 @@ export function BufferedUuiDateInput({
       className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
     >
       {label && <Label isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
-      <InputBase
-        {...rest}
-        {...nativeProps}
-        ref={inputRef}
-        groupRef={groupRef}
-        id={id}
-        type="text"
-        name={undefined}
-        data-date-input
-        size={size}
+      <DateTimeSegments
+        id={`${id}-segments`}
+        part="date"
+        groupAriaLabel={label ?? 'Ngày'}
         value={draft}
-        placeholder="DD/MM/YYYY"
-        maxLength={10}
-        autoComplete="off"
-        isInvalid={isInvalid || Boolean(message)}
-        isDisabled={disabled}
+        onValueChange={update}
         disabled={disabled}
         readOnly={readOnly}
-        isRequired={required}
-        aria-invalid={isInvalid || Boolean(message) || nativeProps?.['aria-invalid'] || rest['aria-invalid']}
-        aria-describedby={describedBy}
-        aria-haspopup="dialog"
-        aria-expanded={active}
-        aria-controls={active ? `${id}-calendar` : undefined}
-        onChange={(event) => update(event.target.value)}
-        onClick={(event) => { (nativeProps?.onClick ?? rest.onClick)?.(event); if (!event.defaultPrevented) showCalendar(); }}
-        onInvalid={(event) => { setTouched(true); (nativeProps?.onInvalid ?? rest.onInvalid)?.(event); }}
-        onBlur={(event) => {
-          if (!panelRef.current?.contains(event.relatedTarget as Node | null)) {
-            setTouched(true);
-            if (!validation && parsed) setDraft(formatDate(parsed));
-          }
-          nativeProps?.onBlur?.(event);
-        }}
-        onKeyDown={(event) => {
-          (nativeProps?.onKeyDown ?? rest.onKeyDown)?.(event);
-          if (event.defaultPrevented || event.nativeEvent.isComposing) return;
-          if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); showCalendar(true); }
-          else if (event.key === 'Escape' && active) { event.preventDefault(); event.stopPropagation(); dismiss(); }
-          else if (event.key === 'Enter') {
-            setTouched(true);
-            if (active || validation) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
-          }
-        }}
-        inputClassName={inputClassName}
-        wrapperClassName={wrapperClassName}
+        size={size}
+        error={isInvalid || Boolean(message)}
+        anchorRef={inputRef}
+        onOpenPicker={() => showCalendar()}
+        popupExpanded={active}
+        popupControls={active ? `${id}-calendar` : undefined}
+        firstSegmentId={id}
+        firstSegmentAriaLabel={label ? '' : undefined}
+        firstSegmentProps={{ 'data-date-input': true }}
+        className={wrapperClassName} required={required}
+        inputProps={{
+          ...rest,
+          ...nativeProps,
+          name: undefined,
+          className: inputClassName,
+          'aria-invalid': isInvalid || Boolean(message) || nativeProps?.['aria-invalid'] || rest['aria-invalid'],
+          'aria-describedby': describedBy,
+          onInvalid: (event: React.FormEvent<HTMLInputElement>) => { setTouched(true); (nativeProps?.onInvalid ?? rest.onInvalid)?.(event); },
+          onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+            (nativeProps?.onKeyDown ?? rest.onKeyDown)?.(event);
+            if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+            if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); showCalendar(true); }
+            else if (event.key === 'Escape' && active) { event.preventDefault(); event.stopPropagation(); dismiss(); }
+            else if (event.key === 'Enter') {
+              setTouched(true);
+              if (active || validation) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
+            }
+          },
+        } as ComponentProps<typeof DateTimeSegments>['inputProps']}
       />
       {name && <input type="hidden" name={name} value={value} disabled={disabled} form={nativeProps?.form ?? rest.form} />}
       {(message || hint) && <p id={`${id}-hint`} role={message ? 'alert' : undefined} className={message ? 'uui-date-hint uui-date-hint--error' : 'uui-date-hint'}>{message || hint}</p>}

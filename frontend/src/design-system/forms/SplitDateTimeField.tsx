@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type Ref } from 'react';
-import { InputBase } from '../../components/untitled-ui/base/input/input';
+import { useEffect, useId, useRef, useState, type ComponentProps, type InputHTMLAttributes, type Ref } from 'react';
 import { formatDateTime24, parseDateTime24 } from '../../lib/format';
 import { DatePickerSurface } from './DatePickerSurface';
+import { DateTimeSegments } from './DateTimeSegments';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from './TimePickerSurface';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './SplitDateTimeField.css';
@@ -31,6 +31,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   const [keyboardPicker, setKeyboardPicker] = useState(false);
   const [touched, setTouched] = useState(false);
   const timeRef = useRef<HTMLInputElement>(null);
+  const lastTimeRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -132,18 +133,27 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     {!hideLabel && <span className="split-datetime__label">{label}</span>}
     <div className="split-datetime__fields">
       {(['time', 'date'] as const).map((part) => {
-        const fieldLabel = part === 'time' ? 'Giờ' : 'Ngày';
+        const invalid = Boolean(error) || (touched && Boolean(validation));
         return <div className="split-datetime__field" key={part}>
           <div className="split-datetime__control">
-            <InputBase {...inputProps} id={`${id}-${part}`} ref={part === 'time' ? timeRef : dateRef} type="text" size={size} inputClassName={inputClassName} wrapperClassName={wrapperClassName}
-              aria-label={`${fieldLabel} — ${label}`} aria-invalid={Boolean(error) || (touched && Boolean(validation)) || inputProps?.['aria-invalid']}
-              aria-describedby={[inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined}
-              aria-haspopup="dialog" aria-expanded={active && open === part} aria-controls={active && open === part ? `${id}-picker` : undefined}
-              value={draft[part]} onChange={(event) => update(part, event.target.value)}
-              onClick={() => openPanel(part)} onInvalid={() => setTouched(true)}
-              onKeyDown={(event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } }}
-              placeholder={part === 'time' ? 'HH:mm' : 'DD/MM/YYYY'} maxLength={part === 'time' ? 5 : 10}
-              autoComplete="off" isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required} />
+            <DateTimeSegments id={`${id}-${part}-segments`} part={part} groupAriaLabel={label}
+              value={draft[part]} onValueChange={(text) => update(part, text)}
+              disabled={disabled} readOnly={readOnly} size={size} error={invalid}
+              anchorRef={part === 'time' ? timeRef : dateRef}
+              lastSegmentRef={part === 'time' ? lastTimeRef : undefined}
+              onOpenPicker={() => openPanel(part)}
+              onBackFromStart={part === 'date' ? () => lastTimeRef.current?.focus() : undefined}
+              onForwardFromEnd={part === 'time' ? () => dateRef.current?.focus() : undefined}
+              popupExpanded={active && open === part} popupControls={active && open === part ? `${id}-picker` : undefined}
+              firstSegmentId={`${id}-${part}`} className={wrapperClassName} required={required}
+              inputProps={{
+                ...inputProps,
+                className: inputClassName,
+                'aria-invalid': invalid || inputProps?.['aria-invalid'],
+                'aria-describedby': [inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined,
+                onInvalid: () => setTouched(true),
+                onKeyDown: (event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } },
+              } as ComponentProps<typeof DateTimeSegments>['inputProps']} />
           </div>
         </div>;
       })}

@@ -1,8 +1,9 @@
 .split-datetime { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
 .split-datetime__label { font-size: var(--text-caption-size); color: var(--fg-3); }
-.split-datetime__fields { display: grid; grid-template-columns: minmax(0, calc(5ch + 18px)) minmax(0, calc(10ch + 18px)); gap: 6px; width: fit-content; max-width: 100%; font-size: var(--text-data-size); }
+/* Segmented controls: digit slots + separators + the picker trigger icon. */
+.split-datetime__fields { display: grid; grid-template-columns: minmax(0, calc(4ch + 38px)) minmax(0, calc(9ch + 40px)); gap: 6px; width: fit-content; max-width: 100%; font-size: var(--text-data-size); }
 .split-datetime__field { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .split-datetime__control { display: flex; align-items: stretch; min-width: 0; gap: 2px; }
 .split-datetime__control > [role='group'] { flex: 1; min-width: 0; }
-.split-datetime__control input { min-width: 0; padding-inline: 8px; }
+.split-datetime__control input { min-width: 0; }
 .split-datetime__error { font-size: var(--text-caption-size); color: var(--danger); white-space: normal; }

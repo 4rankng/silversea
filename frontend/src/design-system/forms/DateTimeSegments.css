@@ -1,0 +1,77 @@
+/* Segmented HH:mm / DD/MM/YYYY entry. The group carries the control chrome
+   (border, height via the shared [data-uui-control] geometry, radius ≤8px);
+   each segment is a borderless centered digit box, and the trailing trigger
+   stays visible at every density — never display:none. */
+.date-seg-group {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--uui-control-h, var(--control-default-h));
+  padding-inline: 2px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  transition: border-color 100ms linear;
+}
+
+.date-seg-group:focus-within {
+  border-color: var(--color-border-brand);
+  outline: 2px solid var(--color-border-brand);
+  outline-offset: 1px;
+}
+
+.date-seg-group--error { border-color: var(--color-border-error_subtle); }
+.date-seg-group--error:focus-within { border-color: var(--color-border-error); outline-color: var(--color-border-error); }
+
+/* Segments are raw digit slots: the group above is the only visible border. */
+.date-seg-wrapper {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.date-seg {
+  width: 2ch;
+  padding-inline: 1px;
+  text-align: center;
+}
+
+.date-seg[data-seg='yyyy'] { width: 4ch; }
+
+.date-sep {
+  flex: 0 0 auto;
+  color: var(--fg-3);
+  user-select: none;
+}
+
+/* Out-of-gate values (hh 24+, mm 60+, dd 32+, mm 13+) stay in place with a
+   red digit + subtle underline until the edit brings them back in range. */
+.date-seg--invalid {
+  color: var(--danger);
+  box-shadow: inset 0 -1px 0 var(--danger);
+}
+
+.date-seg-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-fg-quaternary);
+  cursor: pointer;
+}
+
+.date-seg-trigger:hover:not(:disabled),
+.date-seg-trigger:focus-visible { color: var(--color-fg-quaternary_hover); background: var(--color-bg-secondary); }
+
+.date-seg-trigger:disabled { cursor: not-allowed; opacity: 0.5; }
