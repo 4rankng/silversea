@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture.md": {
-      "pageVersion": "sha256:e168278e3c97b3720616f9f3855d13ec145ef760014626ef880597c9fb0a081b",
+      "pageVersion": "sha256:1acf2567f051cf6ba744cfe1b3f249f56864ffea7a1a51443f9d884ced077652",
       "completedBy": "claude-code",
-      "completedRunId": "480d82e0-8e96-4113-8364-0c2b482e26d6",
-      "gitHead": "d48e38ad14ca6873697b9cf9bbf0aa7688218e26",
-      "sourceFingerprint": "sha256:e0ddc07f013bb68d68063b26b70e69a4a62c9c4d442da6d1dd81e0656ff48a5a"
+      "completedRunId": "80afa71e-2a9e-49aa-933d-db36e84c46cb",
+      "gitHead": "a48e3dbc433a2a2b26ca8a5e80c7052b34c6c57e",
+      "sourceFingerprint": "sha256:460d66f250e1bf3a30c3f71c29c33e6597569699e6372aad7ab80b96d5e2353e"
     },
     "/openwiki/overview.md": {
-      "pageVersion": "sha256:4a6ef07c33dbee78d7a1b7271474a5de6604aea5f6bdd3b831fa803969060545",
+      "pageVersion": "sha256:fc2a5c41cf817721d0217cc804884afe3bad3b5a473dbb68cff266ea687aa2ef",
       "completedBy": "claude-code",
-      "completedRunId": "480d82e0-8e96-4113-8364-0c2b482e26d6",
-      "gitHead": "d48e38ad14ca6873697b9cf9bbf0aa7688218e26",
-      "sourceFingerprint": "sha256:e0ddc07f013bb68d68063b26b70e69a4a62c9c4d442da6d1dd81e0656ff48a5a"
+      "completedRunId": "80afa71e-2a9e-49aa-933d-db36e84c46cb",
+      "gitHead": "a48e3dbc433a2a2b26ca8a5e80c7052b34c6c57e",
+      "sourceFingerprint": "sha256:460d66f250e1bf3a30c3f71c29c33e6597569699e6372aad7ab80b96d5e2353e"
     },
     "/openwiki/quickstart.md": {
-      "pageVersion": "sha256:5575ec7b5a0baa2bef001d7d9f47990df4c0e70a22c1a642896fda138ac53188",
+      "pageVersion": "sha256:cbcbefb8bde3d54702b2594ae7b5b98cd91415458ca0c1df065a871a1bb2a1eb",
       "completedBy": "claude-code",
-      "completedRunId": "480d82e0-8e96-4113-8364-0c2b482e26d6",
-      "gitHead": "d48e38ad14ca6873697b9cf9bbf0aa7688218e26",
-      "sourceFingerprint": "sha256:e0ddc07f013bb68d68063b26b70e69a4a62c9c4d442da6d1dd81e0656ff48a5a"
+      "completedRunId": "80afa71e-2a9e-49aa-933d-db36e84c46cb",
+      "gitHead": "a48e3dbc433a2a2b26ca8a5e80c7052b34c6c57e",
+      "sourceFingerprint": "sha256:460d66f250e1bf3a30c3f71c29c33e6597569699e6372aad7ab80b96d5e2353e"
     }
   }
 }

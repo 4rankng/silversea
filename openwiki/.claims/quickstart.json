@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5575ec7b5a0baa2bef001d7d9f47990df4c0e70a22c1a642896fda138ac53188",
+  "pageVersion": "sha256:cbcbefb8bde3d54702b2594ae7b5b98cd91415458ca0c1df065a871a1bb2a1eb",
   "claims": [
     {
       "id": "claim_59b73370491448eb9843052fc1370da7",
@@ -8,7 +8,7 @@
       "evidence": [
         {
           "resource": "repo://Makefile",
-          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
+          "version": "repo-file-v1:sha256:d1642296433b6bfb3e4b6b9330d551852ac3cc1eb35756ad5ae3f53b7207653b"
         }
       ]
     },
@@ -24,11 +24,11 @@
     },
     {
       "id": "claim_98dbeaf9790947e4b670020ea2dd6fd6",
-      "statement": "Root package.json maps dev to make dev; backend runs on 3001 and frontend on 7174 strictPort with Postgres 5441, Redis 6391, Adminer 8083.",
+      "statement": "Root package.json maps dev to make dev; backend runs on 3002 and frontend on 7175 strictPort with Postgres 5441, Redis 6391, Adminer 8083 (ss-prod-* containers), and make dev waits on the database before booting the app stack.",
       "evidence": [
         {
           "resource": "repo://Makefile",
-          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
+          "version": "repo-file-v1:sha256:d1642296433b6bfb3e4b6b9330d551852ac3cc1eb35756ad5ae3f53b7207653b"
         },
         {
           "resource": "repo://package.json",
@@ -74,13 +74,13 @@
       "evidence": [
         {
           "resource": "repo://Makefile",
-          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
+          "version": "repo-file-v1:sha256:d1642296433b6bfb3e4b6b9330d551852ac3cc1eb35756ad5ae3f53b7207653b"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-19T03:11:07.450Z"
+    "at": "2026-09-19T20:52:17.505Z"
   }
 }

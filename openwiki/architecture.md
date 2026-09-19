@@ -1,11 +1,11 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán), and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-19 state of origin/prod (d48e38ad)."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 state of origin/prod (b7a9e4b4)."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-19T03:11:07.450Z
+    at: 2026-09-19T20:52:17.505Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -75,7 +75,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
+generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
 ---
 
 # Architecture and Codebase Map
@@ -126,6 +126,8 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - **Consolidated debit notes.** `POST /shipments/debit-notes` issues one note per customer per period: `billing_documents` rows typed `DEBIT_NOTE` are constrained by the partial unique index `billing_documents_active_period_unique` (WHERE deleted_at IS NULL AND type='DEBIT_NOTE'; `backend/drizzle/0000_flexible-baseline.sql:1990`), so a duplicate customer+period issuance returns 409. XLSX export streams from `billing-export-debit-note-xlsx.service.ts` (PDF template reads via `debit-note-template-reads.service.ts`).
 - **One contract, two packages.** FE and BE share the zod contract `shared/src/schemas/shipment-debit-edits.ts`; the save delta always emits `freightEdits` so typed PS values cannot be silently dropped, pinned by a round-trip test (type → save → read back).
 - **Money states.** Phải thu ≠ đã thu ≠ đã khóa ≠ chưa xác định (null renders "Chưa xác định", never 0) per `docs/prd/QuyTrinhO2C.md` §7.
+- **Business keys are the only display identifiers** (ruling 2026-09-19/20): internal DB ids and id-derived codes (SHP-*/GBN-*/#id) never render as user-facing text. Backend derivations live in `backend/src/lib/business-keys.ts` (debit labels read Số Bill/Booking first, số tờ khai second; legacy system-code rows collapse to "—"); the frontend mirror `frontend/src/features/expense-accounting/business-key.ts` guards render-side (`businessKey()` returns null for system-code patterns, `displayKey()` falls back to "—"). Billing export, work-inbox titles, and notification bodies share the same derivation.
+- **Zone surcharges are config data, not code** (2026-09-20): the Bảng 2.2/2.3 zone column reads its label from `zone-surcharge.service.ts` (source ladder OVERRIDE > INCIDENTAL > CONFIG > null); unconfigured lots render "—" in the header, amounts render null → "—", and the Phí khác cell shows both sides (Thu khách + chi hộ) when they differ.
 
 ## Pricing and fuel surcharge
 
@@ -142,6 +144,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - A portable mkdir lock serializes `make generate` so two concurrent agents cannot both claim the next journal index.
 - The pre-migrate `db-backup` gate fails closed: a backup under 1 KB aborts the migration rather than silently continuing.
 - Integration tests that touch Redis must close their connection (see `dispatch-fulfillment.test.ts`); an open handle at exit crashes the worker.
+- **In-place migration-statement rewrites** are the sanctioned repair for a migration whose statement is wrong-but-already-applied (precedent 2026-09-20: a dead-letter `UPDATE ... SET route_id=NULL` against a NOT NULL column survived every applied env as a no-op but killed pristine fresh-replay with 23502; rewritten in place to DELETE dangling rows, with a header note and ×2 pristine fresh-replay proof). Safe because the drizzle PG migrator is **when-cursor based — the recorded hash is written but never read**, so content edits never re-run applied migrations; the journal `when`/idx stay untouched and alignment checks ride the deploy-window checklist.
 
 ## Cross-cutting contracts
 
@@ -155,7 +158,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 
 - The pre-commit hook typechecks the touched project and runs the frontend structure guard so a tree that does not typecheck or a file past its frozen ceiling cannot reach the commit boundary. Bypass is `git commit --no-verify` with a stated reason in the commit body.
 - The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines and is documented as one such contract change in `structure.guard.test.ts`.
-- The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration. The allocation summary, schedule editor, and ledger rows all honor this contract.
+- The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback app-wide: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration. **Documented exception (2026-09-20):** the debit settlement money tables ship tabular-nums (QA-passed on the worked-numbers alignment) and are exempt from the scan. The allocation summary, schedule editor, and ledger rows honor the ban.
 - The QA gate table in `AGENTS.md` is mandatory for every change; a touched gate is not optional. Shared contract, Drizzle schema, financial-calculation, and RBAC changes require the full set including the e2e runner. Testplan ships a reusable harness (`testplan/qa/scripts/run-all.mjs`, `run-case.mjs`, `smoke.mjs`, `lib/{env,harness,selectors}.mjs`) and stores evidence under `testplan/qa/evidence/<date>_<scope>/`; the root `qa/` directory remains the cross-project evidence sink per `AGENTS.md`.
 
 ## Related pages

@@ -12,6 +12,8 @@ sources:
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
+  - id: openwiki-source-0c106052b3286e779bed85e7
+    resource: repo://docker-compose.dev.yml
   - id: openwiki-source-0047c2597980e18b4470c62d
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-f2f111426b499e3847bd2369
@@ -20,16 +22,14 @@ sources:
     resource: repo://frontend/src/pages/ShipmentDebitPage.tsx
   - id: openwiki-source-012f2c78e3b1446dfc35803f
     resource: repo://Makefile
-  - id: openwiki-source-5b54a58d1b51cd490b0e7162
-    resource: repo://package.json
   - id: openwiki-source-ea93faea42ab5474739e39ff
     resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
+generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-19T03:11:07.450Z
+    at: 2026-09-19T20:52:17.505Z
 ---
 
 # SilverSea System Overview
@@ -42,14 +42,14 @@ pnpm monorepo:
 
 | Piece | Tech | Port |
 |-------|------|------|
-| `backend/` | Express + TypeScript, Drizzle ORM, Postgres, Redis, JWT + Casbin RBAC | 3001 |
-| `frontend/` | React + Vite (strictPort), TypeScript, TanStack Query, Untitled UI | 7174 |
+| `backend/` | Express + TypeScript, Drizzle ORM, Postgres, Redis, JWT + Casbin RBAC | 3002 |
+| `frontend/` | React + Vite (strictPort), TypeScript, TanStack Query, Untitled UI | 7175 |
 | `shared/` | `@tingting/shared` — Zod intake schemas + financial calculations | — |
 | Postgres | local dev DB | 5441 |
 | Redis | local dev Redis | 6391 |
 | Adminer | local DB UI | 8083 |
 
-Demo mode is permanently disabled. Staging: https://vantai.tingting.vip (accounts in `testaccounts.txt`, shared password `Abc123`). Prod is live with customer data — never reset or reseed it.
+Demo mode is permanently disabled (the in-app demo-mode feature, not `make demo` — that Makefile target is the staging deploy to https://vantai.tingting.vip, accounts in `testaccounts.txt`, shared password `Abc123`). Dev containers are `ss-prod-*` (Postgres 5441, Redis 6391, Adminer 8083, volume key `ss-prod-pgdata`) per the two-checkout port plan; the sibling `silversea-main` checkout keeps `ss-main-*` on 5442/6392/8084. Prod is live with customer data — never reset or reseed it; `make deploy` to production is user-gated.
 
 ## The domain at a glance
 

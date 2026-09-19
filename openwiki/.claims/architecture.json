@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e168278e3c97b3720616f9f3855d13ec145ef760014626ef880597c9fb0a081b",
+  "pageVersion": "sha256:1acf2567f051cf6ba744cfe1b3f249f56864ffea7a1a51443f9d884ced077652",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:0484f66edea49975d0ccb7a24691bbc78e2216e069f4dae9dea12a148c4a67e1"
+          "version": "repo-file-v1:sha256:87b616dfe2719686a9ecd842732408b5237c8de28cefa6052894f811943f0e64"
         }
       ]
     },
@@ -74,7 +74,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/index.ts",
-          "version": "repo-file-v1:sha256:d681f233e0d8f799207ebc684714e83ad0ee63e87a04134cbf1cfb01a1035f67"
+          "version": "repo-file-v1:sha256:7150d3862a87af1f1e601922a6419d6de0d714bdf7b5667a9f2dcff38eb2cc17"
         }
       ]
     },
@@ -98,15 +98,15 @@
       "evidence": [
         {
           "resource": "repo://AGENTS.md",
-          "version": "repo-file-v1:sha256:c61ecd5731446ce9489ccb81502fcf382f4c209af7df864b7935aa4ff36e0c0b"
+          "version": "repo-file-v1:sha256:5eed994435f20b127bb9e2017d0cef90df3457cd663d64da94308c5d0c186edc"
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:0484f66edea49975d0ccb7a24691bbc78e2216e069f4dae9dea12a148c4a67e1"
+          "version": "repo-file-v1:sha256:87b616dfe2719686a9ecd842732408b5237c8de28cefa6052894f811943f0e64"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
-          "version": "repo-file-v1:sha256:f9299fe39aba3e144d519ab71d01a09a51acdb359fa2db96ff6d1924fb21c332"
+          "version": "repo-file-v1:sha256:3e357b323351658d6ab4d9781356b3ec0193aa5b3fae8992cdc80336fb56657a"
         }
       ]
     },
@@ -120,7 +120,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts",
-          "version": "repo-file-v1:sha256:881333e9410fd82bdb0979de0a5bebbba88bd41b1f8a5722045d216fb1bb1959"
+          "version": "repo-file-v1:sha256:13fd48ce376ae9e0cd5613bd5284203450c59573cb92ebe5c3a0059623dafcbf"
         },
         {
           "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
@@ -152,7 +152,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts",
-          "version": "repo-file-v1:sha256:881333e9410fd82bdb0979de0a5bebbba88bd41b1f8a5722045d216fb1bb1959"
+          "version": "repo-file-v1:sha256:13fd48ce376ae9e0cd5613bd5284203450c59573cb92ebe5c3a0059623dafcbf"
         }
       ]
     },
@@ -162,7 +162,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/routes/trips/status.ts",
-          "version": "repo-file-v1:sha256:9b25935d09e7798a07378d61a0eca16a662f2907d324af24d07f33128eeb756e"
+          "version": "repo-file-v1:sha256:d890462ca15eeb55a9c6bed3100271a7d161bbcd63bdb363bde175105bb587ac"
         },
         {
           "resource": "repo://backend/src/services/dispatch-planning-detail-plan.service.ts",
@@ -204,11 +204,11 @@
     },
     {
       "id": "claim_6eca1cb39ac34e9dad04174b801b4181",
-      "statement": "The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback; Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration.",
+      "statement": "The font-family contract bans font-variant-numeric: tabular-nums and the JetBrains Mono fallback app-wide: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on text-align: right. Documented exception (2026-09-20): the debit settlement money tables ship tabular-nums (QA-passed on worked-number alignment) and are exempt from the no-tabular-nums scan; the allocation summary, schedule editor, and ledger rows honor the ban.",
       "evidence": [
         {
           "resource": "repo://frontend/src/styles/font-family-contract.test.ts",
-          "version": "repo-file-v1:sha256:49812c376543d3003d9e339883e62cecbfd929a12e1b593394873d4782e919fb"
+          "version": "repo-file-v1:sha256:bd088a43f60a6dd9a01753f9e10fc4eac184c7bf0719670f0e1288c344c9bb2e"
         }
       ]
     },
@@ -218,11 +218,11 @@
       "evidence": [
         {
           "resource": "repo://backend/src/services/shipment-debit-detail.service.ts",
-          "version": "repo-file-v1:sha256:01c68128bdd908cb5a28b02317ac51ceb094a097a6bd9cf1b1c2ee2dad038a21"
+          "version": "repo-file-v1:sha256:571f8ee1b2c939d7257228f7482bad817337d352a8fddc92842bb9364abfe6f4"
         },
         {
           "resource": "repo://backend/src/services/shipment-debit-summary.service.ts",
-          "version": "repo-file-v1:sha256:91be6571a4d9df1fec1bcd019120e2d641a02874fa3b7b012666e4a67fefe915"
+          "version": "repo-file-v1:sha256:2d59e95c8c822cf24116afafac83f851185bae1677d90c8aa52d929cee885055"
         },
         {
           "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
@@ -236,11 +236,11 @@
       "evidence": [
         {
           "resource": "repo://backend/src/middleware/material-write.ts",
-          "version": "repo-file-v1:sha256:52b03ac17d2e07efe1cedf3b8cd5626b3764d37676c535cbc34b0b2d6e656b99"
+          "version": "repo-file-v1:sha256:ba256d12aca5dd019676a0018d1e2c129881157c2ce05872eda2296cb57388b6"
         },
         {
           "resource": "repo://backend/src/services/shipment-cost-lock.service.ts",
-          "version": "repo-file-v1:sha256:08a75c27b1dc716c26dec5fadb54fe597b28c52409374c6235582a3a514976e6"
+          "version": "repo-file-v1:sha256:f06c94882d14d7ee0885ec70666e497d204a9e0f47bd2cf0cbd4f659d6cb1a4e"
         }
       ]
     },
@@ -264,13 +264,13 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:56c6b78ffb090c190226463b69771ed0e109db7899b23ce22e1a7caf4c9bc4b9"
+          "version": "repo-file-v1:sha256:cba40a4a2583c194a86b77c7b78c56a6fc5aeebf497b39d57593beec593fa551"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-19T03:11:07.450Z"
+    "at": "2026-09-19T20:52:17.505Z"
   }
 }

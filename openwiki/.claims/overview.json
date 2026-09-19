@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4a6ef07c33dbee78d7a1b7271474a5de6604aea5f6bdd3b831fa803969060545",
+  "pageVersion": "sha256:fc2a5c41cf817721d0217cc804884afe3bad3b5a473dbb68cff266ea687aa2ef",
   "claims": [
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
@@ -18,21 +18,21 @@
       "evidence": [
         {
           "resource": "repo://AGENTS.md",
-          "version": "repo-file-v1:sha256:c61ecd5731446ce9489ccb81502fcf382f4c209af7df864b7935aa4ff36e0c0b"
+          "version": "repo-file-v1:sha256:5eed994435f20b127bb9e2017d0cef90df3457cd663d64da94308c5d0c186edc"
         }
       ]
     },
     {
       "id": "claim_4e60e43665954d67be7c50399d39ddb9",
-      "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local ports are backend 3001, frontend 7174 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, and demo mode is permanently disabled.",
+      "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local dev ports follow the two-checkout plan: backend 3002, frontend 7175 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, with ss-prod-* dev containers (volume key ss-prod-pgdata) while the sibling silversea-main checkout keeps ss-main-* on 5442/6392/8084. The in-app demo mode is permanently disabled; make demo is the staging deploy to vantai.tingting.vip and make deploy is the user-gated production deploy.",
       "evidence": [
         {
           "resource": "repo://Makefile",
-          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
+          "version": "repo-file-v1:sha256:d1642296433b6bfb3e4b6b9330d551852ac3cc1eb35756ad5ae3f53b7207653b"
         },
         {
-          "resource": "repo://package.json",
-          "version": "repo-file-v1:sha256:f83972a6018b84f18b416c8c8962bc56683b656afc4ee6fe491f1327ccec0492"
+          "resource": "repo://docker-compose.dev.yml",
+          "version": "repo-file-v1:sha256:cc330617cd0815cf19225b152d96479f66f92fb43a8fe2cb30d831abe17edef6"
         }
       ]
     },
@@ -42,7 +42,7 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:56c6b78ffb090c190226463b69771ed0e109db7899b23ce22e1a7caf4c9bc4b9"
+          "version": "repo-file-v1:sha256:cba40a4a2583c194a86b77c7b78c56a6fc5aeebf497b39d57593beec593fa551"
         },
         {
           "resource": "repo://testplan/flows/README.md",
@@ -78,7 +78,7 @@
         },
         {
           "resource": "repo://frontend/src/pages/ShipmentDebitPage.tsx",
-          "version": "repo-file-v1:sha256:8c4749b716c37e00529f8b01436f4247a202c69ff77f343ac48893520b510843"
+          "version": "repo-file-v1:sha256:f511b0553ff1304d64706afbb99a5ac80987f3205bda1d5d48491f1486cfbb6e"
         },
         {
           "resource": "repo://shared/src/constants/api-paths.ts",
@@ -89,6 +89,6 @@
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-19T03:11:07.450Z"
+    "at": "2026-09-19T20:52:17.505Z"
   }
 }

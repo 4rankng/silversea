@@ -18,10 +18,10 @@ sources:
     resource: repo://shared/package.json
   - id: openwiki-source-2321476aab68e6b1ce6c7ba0
     resource: repo://testplan/testaccounts.txt
-generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
+generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-19T03:11:07.450Z
+    at: 2026-09-19T20:52:17.505Z
 ---
 
 # Quickstart
@@ -33,13 +33,13 @@ SilverSea is a TingTing-platform deployment for the SilverSea container-trucking
 ```bash
 pnpm install
 make setup          # first time: start infra, recreate DB, migrate, seed
-make dev            # db + redis + backend (:3001) + frontend (:7174)
+make dev            # db + redis + backend (:3002) + frontend (:7175); waits on Postgres 5441
 ```
 
 | Service | Where | Port |
 |---------|-------|------|
-| Backend API | `backend/` | 3001 |
-| Frontend | `frontend/` | 7174 (strictPort) |
+| Backend API | `backend/` | 3002 |
+| Frontend | `frontend/` | 7175 (strictPort) |
 | Postgres | `silversea-db` container | 5441 |
 | Redis | local | 6391 |
 | Adminer | local | 8083 |
