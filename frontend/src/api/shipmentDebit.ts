@@ -21,6 +21,9 @@ export interface ShipmentDebitLotRow {
   chiHoTotal: number | null;
   /** phải thu khách − phải trả. null = chưa xác định. */
   receivableTotal: number | null;
+  /** TỔNG PHẢI TRẢ (CVC + phí chi cho Ops). Producer lands via _7/spec-close
+   *  FullStack half; null/absent = chưa xác định — never derived, never 0. */
+  payableTotal?: number | null;
   profit: number | null;
   lockStatus: 'OPEN' | 'LOCKED';
   lockedAt: string | null;
@@ -46,46 +49,23 @@ export async function listShipmentDebitSummary(params: {
 }
 
 // ── Chi phí - Quyết toán L2: per-lot detail workspace ──────────────────────
-// Mirrors backend shipment-debit-detail.service.ts. Rows are trip-keyed;
-// money is numeric with null = chưa xác định. The editable delta rides
-// `shipmentDebitEditPayloadSchema` from @tingting/shared — one contract.
+// ONE contract with the BE producer: the row types come from the shared
+// zod schema (card _7 contract swap) — never re-declared here. Money is
+// numeric with null = chưa xác định. The editable delta rides
+// `shipmentDebitEditPayloadSchema` from @tingting/shared.
+import type {
+  DebitDetailChiHoRow,
+  DebitDetailExpenseItem,
+  DebitDetailFreightRow,
+  ShipmentDebitDetail,
+} from '@tingting/shared';
 
-export interface DebitDetailFreightRow {
-  containerNumber: string;
-  containerTypeLabel: string | null;
-  freightCharge: number | null;
-  fuelSurcharge: number | null;
-  lachHuyenFee: number | null;
-  customsFee: number | null;
-  psActual: number | null;
-  psActualNote: string | null;
-}
-
-export interface DebitDetailExpenseItem {
-  id: number;
-  expenseType: string;
-  feeName: string | null;
-  amount: number | null;
-  thuKhach: number | null;
-  note: string | null;
-}
-
-export interface DebitDetailChiHoRow {
-  tripId: number;
-  containerNumber: string | null;
-  items: DebitDetailExpenseItem[];
-  otherFees: Array<{ id: number; name: string; amount: number | null }>;
-  carrierDetention: number | null;
-  repairAdvance: number | null;
-  opsDocsStatus: 'READY' | 'PENDING';
-}
-
-export interface ShipmentDebitDetail {
-  freightRows: DebitDetailFreightRow[];
-  chiHoRows: DebitDetailChiHoRow[];
-  payables: { chiHoTotal: number | null };
-  thuKhachTotal: number | null;
-}
+export type {
+  DebitDetailChiHoRow,
+  DebitDetailExpenseItem,
+  DebitDetailFreightRow,
+  ShipmentDebitDetail,
+};
 
 export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
   return api.get<ShipmentDebitDetail>(`/shipments/${encodeURIComponent(shipmentId)}/debit-detail`);

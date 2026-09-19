@@ -77,6 +77,7 @@ export function USearchableField({
   popoverPlacement,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
+  const selectedLabel = selected?.label;
   // Local input text so type-to-search survives the controlled re-renders.
   // Synced with the selected option's label whenever `value` changes externally
   // (form reset, dialog-create success, etc.).
@@ -88,18 +89,23 @@ export function USearchableField({
   // the suggestion menu mid-word (20260917_14).
   const [chosenKey, setChosenKey] = useState<string | null>(null);
   // Re-sync the visible text only when the FORM value actually changes
-  // (external reset, dialog apply). Catalog refetches rotate the `options`
-  // identity and must NOT clobber in-flight typed text.
+  // (external reset, dialog apply), or when the label for the CURRENT value
+  // resolves later — a reload can restore the id before the catalog lands,
+  // and the input must then catch up to the option's label. Catalog refetches
+  // rotate the `options` identity but keep the label string, so they still
+  // must NOT clobber in-flight typed text.
   const lastSyncedValue = useRef(value);
+  const lastSyncedLabel = useRef(selectedLabel);
   useEffect(() => {
-    if (lastSyncedValue.current === value) return;
+    if (lastSyncedValue.current === value && lastSyncedLabel.current === selectedLabel) return;
     lastSyncedValue.current = value;
+    lastSyncedLabel.current = selectedLabel;
     // Custom (allowsCustomValue) values are not in the catalog, so `selected`
     // is undefined — keep the applied value in the input instead of blanking it.
-    setInputValue(selected?.label ?? (allowsCustomValue ? value ?? '' : ''));
+    setInputValue(selectedLabel ?? (allowsCustomValue ? value ?? '' : ''));
     setChosenKey(selected?.value ?? (allowsCustomValue ? value ?? null : null));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, selectedLabel]);
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox

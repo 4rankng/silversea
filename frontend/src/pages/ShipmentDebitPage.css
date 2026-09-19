@@ -17,24 +17,41 @@
   min-width: 0;
 }
 
+/* One-row top bar: filters + toolbar share the row at desk widths; it only
+   wraps under 1280px. */
 .shipment-debit-workspace__header {
-  display: grid;
-  gap: 8px 12px;
-  grid-template-columns: minmax(260px, 1.2fr) auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   align-items: end;
 }
 
 .shipment-debit-filters {
-  display: grid;
-  gap: 8px 12px;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   align-items: end;
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.shipment-debit-filters > .csc-searchable-field {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .shipment-debit-filters__dates {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  grid-template-columns: repeat(2, minmax(140px, 180px));
+}
+
+@media (min-width: 1280px) {
+  .shipment-debit-workspace__header,
+  .shipment-debit-filters,
+  .shipment-debit-filters__dates {
+    flex-wrap: nowrap;
+  }
 }
 
 .shipment-debit-toolbar {
@@ -83,13 +100,52 @@
   cursor: pointer;
 }
 
+.shipment-debit-row__lead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* Identity block: code chip on top, customer in caps, factory in parens,
+   address italic — the drawing's three-line cell. */
 .shipment-debit-row__identity {
   display: grid;
   gap: 2px;
   min-width: 220px;
 }
 
-.shipment-debit-row__identity small {
+.shipment-debit-row__code {
+  justify-self: start;
+  font-weight: 600;
+  color: var(--ink-2);
+  border: 1px solid var(--border-1);
+  border-radius: 6px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.shipment-debit-row__customer {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.shipment-debit-row__factory {
+  color: var(--ink-2);
+}
+
+.shipment-debit-row__address {
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+.shipment-debit-row__docs {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+}
+
+.shipment-debit-row__docs small {
   color: var(--ink-3);
 }
 
@@ -98,13 +154,17 @@
   white-space: nowrap;
 }
 
+.shipment-debit-row__money--strong {
+  font-weight: 700;
+}
+
 .shipment-debit-row__lock {
   display: inline-flex;
   gap: 4px;
   align-items: center;
   white-space: nowrap;
   border-radius: 8px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border: 1px solid var(--border-1);
 }
 
@@ -114,11 +174,6 @@
 }
 
 @media (max-width: 820px) {
-  .shipment-debit-workspace__header,
-  .shipment-debit-filters {
-    grid-template-columns: 1fr;
-  }
-
   .shipment-debit-toolbar {
     justify-content: flex-start;
     flex-wrap: wrap;

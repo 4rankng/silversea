@@ -40,6 +40,12 @@
   white-space: nowrap;
 }
 
+/* Two-line container cells: number on top, type label beneath. */
+.csc-debit-table td > small {
+  display: block;
+  color: var(--ink-3);
+}
+
 .csc-debit-input {
   width: 100%;
   min-width: 72px;
@@ -51,6 +57,36 @@
 
 .csc-debit-input:disabled {
   opacity: 0.6;
+}
+
+.csc-debit-input--amount {
+  font-weight: 600;
+}
+
+/* Read-only Ops item lines: plain, muted — data, not a control. */
+.csc-debit-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.csc-debit-item--ro {
+  color: var(--ink-2);
+}
+
+.csc-debit-item__name {
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.csc-debit-item__amount {
+  white-space: nowrap;
+}
+
+.csc-debit-item__hd {
+  font-style: italic;
+  color: var(--ink-3);
 }
 
 .csc-debit-otherfee {
@@ -71,11 +107,28 @@
   border-radius: 8px;
   background: transparent;
   padding: 3px 8px;
+  cursor: pointer;
 }
 
-.csc-debit-row--warn .csc-debit-warn-cell {
-  background: color-mix(in srgb, #f97316 14%, transparent);
+.csc-debit-addfee:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Bracketed hold amounts: armed = above zero, the drawing's orange state. */
+.csc-debit-warn-cell {
+  white-space: nowrap;
+}
+
+.csc-debit-warn-cell--armed {
+  background: #fff3e0;
   color: #9a3412;
+}
+
+.csc-debit-warn-cell--armed svg {
+  color: #ea580c;
+  margin-right: 4px;
+  vertical-align: -2px;
 }
 
 .csc-debit-docs {
@@ -104,6 +157,44 @@
 .csc-debit-actions > button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* The lock is the terminal action — solid dark, not a pill. */
+.csc-debit-actions > button.csc-debit-actions__lock {
+  padding: 8px 16px;
+  border-color: var(--ink-1, #111827);
+  background: var(--ink-1, #111827);
+  color: var(--surface-1, #ffffff);
+  font-weight: 600;
+}
+
+.csc-debit-savebar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.csc-debit-savebar > button {
+  padding: 6px 14px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.csc-debit-savebar > button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.csc-debit-saved {
+  color: #15803d;
+}
+
+.csc-debit-save-error {
+  color: #b91c1c;
 }
 
 .csc-debit-thukhach {

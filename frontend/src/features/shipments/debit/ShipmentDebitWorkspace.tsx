@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../../../hooks/useAuth';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
-import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, type DraftState } from './ShipmentDebitTables';
+import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
 import './ShipmentDebitWorkspace.css';
 
 
@@ -36,12 +36,6 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     setDraft((current) => {
       const prev = current.freight[containerNumber] ?? { psActual: '', note: '' };
       return { ...current, freight: { ...current.freight, [containerNumber]: { psActual: patch.psActual ?? prev.psActual, note: patch.note ?? prev.note } } };
-    });
-  };
-  const setItem = (expenseId: number, patch: Partial<{ thuKhach: string; note: string }>) => {
-    setDraft((current) => {
-      const prev = current.items[expenseId] ?? { thuKhach: '', note: '' };
-      return { ...current, items: { ...current.items, [expenseId]: { thuKhach: patch.thuKhach ?? prev.thuKhach, note: patch.note ?? prev.note } } };
     });
   };
   const setFeeAmount = (feeId: number, value: string) => {
@@ -107,11 +101,12 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   if (detail.isError || !detail.data) return <p className="csc-debit-error" role="alert">Không thể tải chi tiết quyết toán của lô.</p>;
 
   const frozen = settled || save.isPending;
+  const delta = detail.data ? buildDelta(detail.data, draft) : null;
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
-      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setItem={setItem} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
-      <PayablesTable payables={detail.data.payables} />
+      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
+      <PayablesTable detail={detail.data} />
       {adjustOpen && (
         <AdjustPanel
           detail={detail.data}
@@ -123,14 +118,20 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
           onSubmit={() => adjust.mutate(adjustReason)}
         />
       )}
+      {!frozen && delta && !deltaIsEmpty(delta) && (
+        <div className="csc-debit-savebar">
+          <button type="button" disabled={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}
+          </button>
+          {save.isSuccess && <span className="csc-debit-saved" role="status">Đã lưu</span>}
+          {save.isError && <span className="csc-debit-save-error" role="alert">Không lưu được — thử lại.</span>}
+        </div>
+      )}
       <div className="csc-debit-actions">
-        <button type="button" disabled={frozen} onClick={() => save.mutate()}>{save.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}</button>
-        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" onClick={() => setAdjustOpen((open) => !open)}>✏️ Điều chỉnh cước</button>
-        <button type="button" disabled={settled || !canLock} aria-label="Khóa lô hàng" onClick={() => lockCost.mutate()}>🔒 Khóa lô hàng</button>
+        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" onClick={() => setAdjustOpen((open) => !open)}>✏️ ĐIỀU CHỈNH CƯỚC</button>
+        <button type="button" className="csc-debit-actions__lock" disabled={settled || !canLock} aria-label="Khóa lô hàng" onClick={() => lockCost.mutate()}>🔒 KHÓA LÔ HÀNG</button>
         {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
         {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
-        {save.isSuccess && <span className="csc-debit-saved" role="status">Đã lưu</span>}
-        {save.isError && <span className="csc-debit-save-error" role="alert">Không lưu được — thử lại.</span>}
       </div>
     </div>
   );

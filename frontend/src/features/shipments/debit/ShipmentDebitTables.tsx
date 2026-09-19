@@ -2,8 +2,16 @@
 // Split from ShipmentDebitWorkspace.tsx at the guard's new-file ceiling:
 // the container keeps queries, mutations and the action rail; this module
 // is the pure rendering and delta math.
+//
+// Fidelity pass (20260919_1-debit-cus-ui-fidelity): Bảng 2.2/2.3 follow the
+// customer drawing's column contracts; Bảng 2.1 reads the shared debit-detail
+// contract (card _7): contractFreightTotal is the wire's snapshot quantity,
+// the row total here is derived from components — never a wire pass-through.
+// Port-fee columns render the interim '—' in both tables (port-names ruling:
+// no place-named identifiers, config-sourced heading pending its producer);
+// customsFee renders '—' until its Ops-side producer lands.
 import { AlertTriangle, Paperclip } from 'lucide-react';
-import type { DebitDetailChiHoRow, ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
+import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
 import { formatMoney } from '../../../lib/format';
 
 const money = (value: number | null | undefined) => (value == null || Number.isNaN(value) ? 'Chưa xác định' : formatMoney(value));
@@ -13,42 +21,52 @@ const num = (value: string): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/** Canonical Ops-fee columns for Bảng 2.2 (Nâng/Hạ/CSHT), bucketed by
+ * expense-type keyword. Unmapped non-OTHER items stay visible read-only in
+ * the Phí khác cell — no data hides. */
+export function canonicalFeeBucket(expenseType: string): 'lift' | 'lower' | 'csht' | null {
+  const type = expenseType.toUpperCase();
+  if (type.includes('LIFT')) return 'lift';
+  if (type.includes('LOWER')) return 'lower';
+  if (type.includes('REPAIR') || type.includes('CSHT')) return 'csht';
+  return null;
+}
+
+/** The drawing's bracketed hold format for tiền treo cells: warn when above
+ * zero; null = chưa xác định — never rendered as 0. */
+const bracketMoney = (value: number | null | undefined): { text: string; warn: boolean } => {
+  if (value == null || Number.isNaN(value)) return { text: 'Chưa xác định', warn: false };
+  return { text: `[ ${formatMoney(value)} đ ]`, warn: value > 0 };
+};
+
 /** CUS draft: per-expense sell/note edits, other-fee amount edits, and the
  * Phí khác add/remove lists. Pure delta — untouched cells never travel. */
 export interface DraftState {
   freight: Record<string, { psActual: string; note: string }>;
-  items: Record<number, { thuKhach: string; note: string }>;
   feeAmounts: Record<number, string>;
   addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
   removedFeeIds: number[];
 }
 
-export const DRAFT_EMPTY: DraftState = { freight: {}, items: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
+export const DRAFT_EMPTY: DraftState = { freight: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
 
 export const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
   freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
-  items: {},
   feeAmounts: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.amount == null ? '' : String(fee.amount)]))),
   addedFees: [],
   removedFeeIds: [],
 });
 
+/** True when the draft carries no travel-worthy change — the contextual save
+ *  bar hides while nothing would be sent. */
+export const deltaIsEmpty = (delta: ShipmentDebitEditsBody): boolean =>
+  (delta.edits?.length ?? 0) === 0
+  && (delta.addOtherFees?.length ?? 0) === 0
+  && (delta.removeExpenseIds?.length ?? 0) === 0
+  && (delta.freightEdits?.length ?? 0) === 0;
+
 export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): ShipmentDebitEditsBody => {
   const edits: NonNullable<ShipmentDebitEditsBody['edits']> = [];
-  for (const row of detail.chiHoRows) {
-    for (const item of row.items) {
-      const cell = draft.items[item.id];
-      if (!cell) continue;
-      const sell = cell.thuKhach.trim() === '' ? null : num(cell.thuKhach);
-      const note = cell.note;
-      const changed = sell !== (item.thuKhach ?? null) || note !== (item.note ?? '');
-      if (changed) {
-        const edit: NonNullable<ShipmentDebitEditsBody['edits']>[number] = { expenseId: item.id, sellAmount: sell };
-        if (note !== (item.note ?? '')) edit.note = note;
-        edits.push(edit);
-      }
-    }
-  }
   for (const row of detail.chiHoRows) {
     for (const fee of row.otherFees) {
       const raw = draft.feeAmounts[fee.id];
@@ -59,13 +77,15 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
   }
   const freightEdits: NonNullable<ShipmentDebitEditsBody['freightEdits']> = [];
   for (const row of detail.freightRows) {
-    const cells = draft.freight[row.containerNumber];
+    const key = row.containerNumber;
+    if (key == null) continue;
+    const cells = draft.freight[key];
     if (!cells) continue;
     const ps = cells.psActual.trim() === '' ? null : num(cells.psActual);
     const note = cells.note;
     const changed = ps !== (row.psActual ?? null) || note !== (row.psActualNote ?? '');
     if (changed) {
-      const edit: NonNullable<ShipmentDebitEditsBody['freightEdits']>[number] = { containerNumber: row.containerNumber };
+      const edit: NonNullable<ShipmentDebitEditsBody['freightEdits']>[number] = { containerNumber: key };
       if (ps !== (row.psActual ?? null)) edit.psActual = ps ?? undefined;
       if (note !== (row.psActualNote ?? '')) edit.note = note;
       freightEdits.push(edit);
@@ -93,40 +113,45 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
         <th scope="col">Số Container</th>
         <th scope="col">Cước thu</th>
         <th scope="col">Phụ phí xăng dầu</th>
-        <th scope="col">Lạch Huyện</th>
+        {/* Port-fee column: config-sourced heading pending its producer —
+            interim '—' per the port-names ruling, no place-named label. */}
+        <th scope="col">—</th>
         <th scope="col">Phí Hải Quan</th>
-        <th scope="col">PS thực tế</th>
+        <th scope="col">Phát sinh</th>
         <th scope="col">Tổng</th>
         <th scope="col">Ghi chú</th>
       </tr></thead>
       <tbody>
         {detail.freightRows.map((row) => {
-          const cells = draft.freight[row.containerNumber] ?? { psActual: '', note: '' };
-          const total = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.lachHuyenFee ?? 0) + (row.customsFee ?? 0) + num(cells.psActual || '0');
+          const cells = row.containerNumber == null ? { psActual: '', note: '' } : (draft.freight[row.containerNumber] ?? { psActual: '', note: '' });
+          const known = row.freightCharge != null || row.fuelSurcharge != null || row.customsFee != null;
+          const derivedTotal = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.customsFee ?? 0) + num(cells.psActual || '0');
           return (
-            <tr key={row.containerNumber}>
+            <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
               <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small></td>
-              <td>{money(row.freightCharge)}</td>
-              <td>{money(row.fuelSurcharge)}</td>
-              <td>{money(row.lachHuyenFee)}</td>
-              <td>{money(row.customsFee)}</td>
+              <td>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</td>
+              <td>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</td>
+              <td>—</td>
+              <td>{row.customsFee == null ? '—' : formatMoney(row.customsFee)}</td>
               <td>
                 <input
                   className="csc-debit-input"
                   aria-label={`PS thực tế ${row.containerNumber}`}
+                  placeholder="✏️ PS thực tế"
                   value={cells.psActual}
                   disabled={frozen}
-                  onChange={(event) => setFreight(row.containerNumber, { psActual: event.target.value })}
+                  onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { psActual: event.target.value }); }}
                 />
               </td>
-              <td>{money(total === 0 && row.freightCharge == null ? null : total)}</td>
+              <td>{known ? formatMoney(derivedTotal) : 'Chưa xác định'}</td>
               <td>
                 <input
                   className="csc-debit-input"
                   aria-label={`Ghi chú PS ${row.containerNumber}`}
+                  placeholder="✏️ (ghi chú theo tên phí PS)"
                   value={cells.note}
                   disabled={frozen}
-                  onChange={(event) => setFreight(row.containerNumber, { note: event.target.value })}
+                  onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { note: event.target.value }); }}
                 />
               </td>
             </tr>
@@ -138,94 +163,89 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
 }
 
 
-/** Bảng 2.2 — chi hộ & tiền treo. Core expense rows read Ops amounts
- * read-only; thu khách and note are the CUS cells. OTHER lines are the
- * hand-managed Phí khác. */
-export function ChiHoTable({ detail, draft, frozen, setItem, setFeeAmount, addFee, removeFee, setAddedFee }: {
+/** Bảng 2.2 — chi hộ & tiền treo, the drawing's 8-column contract. The Ops
+ * fee columns (Nâng/Hạ/CSHT) bucket expenses canonically and render
+ * read-only; the Phí khác cell keeps unmapped non-OTHER lines visible
+ * read-only beside the CUS-managed OTHER rows; hold amounts render in the
+ * bracketed format, armed orange above zero. */
+export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, removeFee, setAddedFee }: {
   detail: ShipmentDebitDetail;
   draft: DraftState;
   frozen: boolean;
-  setItem: (expenseId: number, patch: Partial<{ thuKhach: string; note: string }>) => void;
   setFeeAmount: (feeId: number, value: string) => void;
   addFee: (tripId: number) => void;
   removeFee: (feeId: number) => void;
   setAddedFee: (key: string, patch: Partial<{ name: string; amount: string }>) => void;
 }) {
-  const armed = (row: DebitDetailChiHoRow) => (row.carrierDetention ?? 0) > 0 || (row.repairAdvance ?? 0) > 0;
+  const roItem = (item: ShipmentDebitDetail['chiHoRows'][number]['items'][number]) => (
+    <div className="csc-debit-item csc-debit-item--ro" key={item.id}>
+      <span className="csc-debit-item__amount">{money(item.amount)}</span>
+      {item.invoiceNumber && <small className="csc-debit-item__hd">HD: {item.invoiceNumber}</small>}
+    </div>
+  );
   return (
     <table className="csc-debit-table csc-debit-table--chiho">
       <caption>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</caption>
       <thead><tr>
-        <th scope="col">Container</th>
-        <th scope="col">Khoản chi (Ops)</th>
-        <th scope="col">Số tiền</th>
-        <th scope="col">Thu khách</th>
-        <th scope="col">Ghi chú</th>
-        <th scope="col">Phí khác (CUS)</th>
-        <th scope="col">Cược hãng tàu</th>
+        <th scope="col">Số Container</th>
+        <th scope="col">Phí Nâng</th>
+        <th scope="col">Phí Hạ</th>
+        <th scope="col">Phí CSHT</th>
+        <th scope="col">Phí khác (không hđ)</th>
+        <th scope="col">Cược Hãng Tàu (Tiền treo)</th>
         <th scope="col">Tạm thu sửa chữa</th>
         <th scope="col">Chứng từ Ops</th>
       </tr></thead>
       <tbody>
-        {detail.chiHoRows.map((row) => (
-          <tr key={row.tripId} className={armed(row) ? 'csc-debit-row--warn' : undefined}>
-            <td>{row.containerNumber ?? '—'}</td>
-            <td colSpan={4}>
-              <div className="csc-debit-itemlist">
-                {row.items.map((item) => (
-                  <div className="csc-debit-item" key={item.id}>
-                    <span className="csc-debit-item__name">{item.feeName ?? item.expenseType}</span>
-                    <span className="csc-debit-item__amount">{money(item.amount)}</span>
+        {detail.chiHoRows.map((row) => {
+          const liftItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lift');
+          const lowerItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lower');
+          const cshtItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'csht');
+          const otherItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === null && item.expenseType.toUpperCase() !== 'OTHER');
+          const detention = bracketMoney(row.carrierDetention);
+          const repair = bracketMoney(row.repairAdvance);
+          return (
+            <tr key={row.tripId ?? `row-${row.tripId}`}>
+              <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
+              <td>{liftItems.length === 0 ? <span>—</span> : liftItems.map(roItem)}</td>
+              <td>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</td>
+              <td>{cshtItems.length === 0 ? <span>—</span> : cshtItems.map(roItem)}</td>
+              <td>
+                {otherItems.map(roItem)}
+                {row.otherFees.map((fee) => (
+                  <div className="csc-debit-otherfee" key={fee.id}>
+                    <span className="csc-debit-item__name">{fee.name}</span>
                     <input
-                      className="csc-debit-input csc-debit-input--sell"
-                      aria-label={`Thu khách ${item.feeName ?? item.expenseType} ${row.containerNumber ?? row.tripId}`}
-                      placeholder="Thu khách"
-                      value={draft.items[item.id]?.thuKhach ?? (item.thuKhach == null ? '' : String(item.thuKhach))}
+                      className="csc-debit-input csc-debit-input--amount"
+                      aria-label={`Số tiền phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
+                      value={draft.feeAmounts[fee.id] ?? ''}
                       disabled={frozen}
-                      onChange={(event) => setItem(item.id, { thuKhach: event.target.value })}
+                      onChange={(event) => setFeeAmount(fee.id, event.target.value)}
                     />
-                    <input
-                      className="csc-debit-input csc-debit-input--note"
-                      aria-label={`Ghi chú ${item.feeName ?? item.expenseType} ${row.containerNumber ?? row.tripId}`}
-                      placeholder="Ghi chú"
-                      value={draft.items[item.id]?.note ?? item.note ?? ''}
-                      disabled={frozen}
-                      onChange={(event) => setItem(item.id, { note: event.target.value })}
-                    />
+                    <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
                   </div>
                 ))}
-                {row.items.length === 0 && <span>Chưa xác định</span>}
-              </div>
-            </td>
-            <td>
-              {row.otherFees.map((fee) => (
-                <div className="csc-debit-otherfee" key={fee.id}>
-                  <span className="csc-debit-item__name">{fee.name}</span>
-                  <input
-                    className="csc-debit-input"
-                    aria-label={`Số tiền phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
-                    value={draft.feeAmounts[fee.id] ?? ''}
-                    disabled={frozen}
-                    onChange={(event) => setFeeAmount(fee.id, event.target.value)}
-                  />
-                  <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
-                </div>
-              ))}
-              {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (
-                <div className="csc-debit-otherfee" key={fee.key}>
-                  <input className="csc-debit-input" placeholder="Tên phí" aria-label={`Tên phí mới ${row.containerNumber ?? row.tripId}`} value={fee.name} disabled={frozen}
-                    onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
-                  <input className="csc-debit-input" placeholder="Số tiền" aria-label={`Số tiền phí mới ${row.containerNumber ?? row.tripId}`} value={fee.amount} disabled={frozen}
-                    onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
-                </div>
-              ))}
-              {!frozen && <button type="button" className="csc-debit-addfee" onClick={() => addFee(row.tripId)}>+ Thêm chi phí</button>}
-            </td>
-            <td className="csc-debit-warn-cell">{(row.carrierDetention ?? 0) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.carrierDetention)}</td>
-            <td className="csc-debit-warn-cell">{(row.repairAdvance ?? 0) > 0 && <><AlertTriangle aria-hidden="true" size={13} />⚠ </>}{money(row.repairAdvance)}</td>
-            <td><span className="csc-debit-docs"><Paperclip aria-hidden="true" size={13} />{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
-          </tr>
-        ))}
+                {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (
+                  <div className="csc-debit-otherfee" key={fee.key}>
+                    <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? row.tripId}`} value={fee.name} disabled={frozen}
+                      onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
+                    <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? row.tripId}`} value={fee.amount} disabled={frozen}
+                      onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
+                  </div>
+                ))}
+                <button type="button" className="csc-debit-addfee" aria-label="+ Thêm chi phí" disabled={frozen}
+                  onClick={() => { if (row.tripId != null) addFee(row.tripId); }}>+ THÊM CHI PHÍ</button>
+              </td>
+              <td className={detention.warn ? 'csc-debit-warn-cell csc-debit-warn-cell--armed' : 'csc-debit-warn-cell'}>
+                {detention.warn && <AlertTriangle aria-hidden="true" size={13} />}{detention.text}
+              </td>
+              <td className={repair.warn ? 'csc-debit-warn-cell csc-debit-warn-cell--armed' : 'csc-debit-warn-cell'}>
+                {repair.warn && <AlertTriangle aria-hidden="true" size={13} />}{repair.text}
+              </td>
+              <td><span className="csc-debit-docs"><Paperclip aria-hidden="true" size={13} />{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -277,13 +297,33 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
   );
 }
 
-/** Bảng 2.3 — lot-level payable rollup. CUS reads; Ops writes upstream. */
-export function PayablesTable({ payables }: { payables: ShipmentDebitDetail['payables'] }) {
+/** Bảng 2.3 — per-container payables, read-only for the CUS. Amount columns
+ * wait on their Ops-side producers: unknown stays "Chưa xác định", never 0. */
+export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
   return (
     <table className="csc-debit-table csc-debit-table--payables">
       <caption>Bảng 2.3 — Phí Phải trả (chỉ xem)</caption>
+      <thead><tr>
+        <th scope="col">Số Container</th>
+        <th scope="col">Cước trả</th>
+        {/* Port-fee column: config-sourced heading pending its producer —
+            interim '—' per the port-names ruling, no place-named label. */}
+        <th scope="col">—</th>
+        <th scope="col">Phí HQGS</th>
+        <th scope="col">Phí Phát sinh</th>
+        <th scope="col">Ghi chú</th>
+      </tr></thead>
       <tbody>
-        <tr><th scope="row">Tổng chi hộ phải trả</th><td>{money(payables.chiHoTotal)}</td></tr>
+        {detail.freightRows.map((row) => (
+          <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
+            <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
+            <td>Chưa xác định</td>
+            <td>—</td>
+            <td>Chưa xác định</td>
+            <td>Chưa xác định</td>
+            <td>Chưa xác định</td>
+          </tr>
+        ))}
       </tbody>
     </table>
   );

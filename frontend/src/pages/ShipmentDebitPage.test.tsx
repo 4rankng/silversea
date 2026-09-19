@@ -47,6 +47,7 @@ const row = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
   freightAuto: 4_500_000,
   chiHoTotal: 2_000_000,
   receivableTotal: 9_000_000,
+  payableTotal: null,
   profit: 2_500_000,
   lockStatus: 'OPEN',
   lockedAt: null,
@@ -93,20 +94,31 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     listSummary.mockResolvedValue({
       items: [
         row({ lockStatus: 'LOCKED' }),
-        row({ shipmentId: 102, code: 'SHP-26-0002', freightAuto: null, profit: null, documentsSummary: null }),
+        row({ shipmentId: 102, code: 'SHP-26-0002', freightAuto: null, receivableTotal: null, profit: null, documentsSummary: null }),
       ],
       total: 2,
     });
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect(screen.getByText('TỔNG PHẢI TRẢ')).toBeTruthy();
     // Numbers format exactly as the payload says — never a fabricated 0.
     expect(screen.getByText('4.500.000')).toBeTruthy();
-    expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(3);
+    // Unknown money (freight/receivable/payable/profit on row 2, payable on
+    // row 1) stays "Chưa xác định" — null never renders as 0.
+    expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(5);
     // The locked row carries the badge and an enabled select box.
     const lockedBox = screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }) as HTMLInputElement;
     expect(lockedBox.disabled).toBe(false);
     const openBox = screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0002' }) as HTMLInputElement;
     expect(openBox.disabled).toBe(true);
+  });
+
+  it('renders TỔNG PHẢI TRẢ from the payableTotal wire field', async () => {
+    listSummary.mockResolvedValue({ items: [row({ payableTotal: 7_500_000 })], total: 1 });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    expect(screen.getByText('TỔNG PHẢI TRẢ')).toBeTruthy();
+    expect(screen.getByText('7.500.000')).toBeTruthy();
   });
 
   it('enables Xuất Debit Note only while a locked lot is selected', async () => {
@@ -141,7 +153,7 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
       shipmentId: 101,
       freightRows: [],
       chiHoRows: [],
-      payables: { freightReturn: null, lachHuyenReturn: null, customsFee: null, psOps: null },
+      payables: { chiHoTotal: null },
       thuKhachTotal: null,
     });
     renderPage('/shipments-debit?customer=1');

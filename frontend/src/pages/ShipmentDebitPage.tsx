@@ -39,7 +39,10 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
   return known.length > 0 ? known : null;
 }
 
-/** Lot-level settlement row (L1) — identity, money rollup, lock state. */
+/** Lot-level settlement row (L1) — identity, money rollup, lock state.
+ *  Nine columns per the customer drawing: the pick tick lives INSIDE the
+ *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
+ *  wire field — null stays "Chưa xác định", never derived, never 0. */
 function DebitLotRow({
   row, expanded, onToggle, onSaved, selected, onSelect,
 }: {
@@ -53,7 +56,7 @@ function DebitLotRow({
   return (
     <>
     <tr className="shipment-debit-row" data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}>
-      <td>
+      <td className="shipment-debit-row__lead">
         <input
           type="checkbox"
           aria-label={`Chọn lô ${row.code}`}
@@ -61,8 +64,6 @@ function DebitLotRow({
           disabled={row.lockStatus !== 'LOCKED'}
           onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
         />
-      </td>
-      <td className="shipment-debit-row__expand">
         <button
           type="button"
           className="shipment-debit-row__expand-button"
@@ -74,16 +75,19 @@ function DebitLotRow({
         </button>
       </td>
       <td className="shipment-debit-row__identity">
-        <strong>{row.code}</strong>
-        <span>{row.customerName}</span>
-        {row.factoryName && <span>{row.factoryName}{row.factoryAddress ? ` — ${row.factoryAddress}` : ''}</span>}
-        <span><small>Bill/Book:</small> {row.billOrBookNumber}</span>
-        <span><small>Tờ khai:</small> {row.customsNumber ?? 'Chưa có'}</span>
+        <span className="shipment-debit-row__code">{row.code}</span>
+        <strong className="shipment-debit-row__customer">{row.customerName?.toUpperCase()}</strong>
+        {row.factoryName && <span className="shipment-debit-row__factory">({row.factoryName})</span>}
+        {row.factoryAddress && <span className="shipment-debit-row__address"><em>{row.factoryAddress}</em></span>}
       </td>
-      <td>{row.documentsSummary ?? 'Chưa xác định'}</td>
+      <td className="shipment-debit-row__docs">
+        <span><small>Số Bill:</small> {row.billOrBookNumber ?? 'Chưa có'}</span>
+        <span><small>Số tờ khai:</small> {row.customsNumber ?? 'Chưa có'}</span>
+      </td>
       <td className="shipment-debit-row__money">{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</td>
       <td className="shipment-debit-row__money">{row.chiHoTotal == null ? 'Chưa xác định' : formatMoney(row.chiHoTotal)}</td>
-      <td className="shipment-debit-row__money">{row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)}</td>
+      <td className="shipment-debit-row__money shipment-debit-row__money--strong">{row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)}</td>
+      <td className="shipment-debit-row__money">{row.payableTotal == null ? 'Chưa xác định' : formatMoney(row.payableTotal)}</td>
       <td className="shipment-debit-row__money">{row.profit == null ? 'Chưa xác định' : formatMoney(row.profit)}</td>
       <td>
         {row.lockStatus === 'LOCKED'
@@ -218,13 +222,13 @@ export function ShipmentDebitPage() {
             <table className="shipment-debit-table">
               <thead>
                 <tr>
-                  <th scope="col"><span className="sr-only">Chọn</span></th>
-                  <th scope="col"><span className="sr-only">Mở rộng</span></th>
+                  <th scope="col"><span className="sr-only">Chọn và mở rộng</span></th>
                   <th scope="col">THÔNG TIN LÔ HÀNG</th>
                   <th scope="col">Chứng từ</th>
-                  <th scope="col">CƯỚC VẬN TẢI</th>
+                  <th scope="col">CƯỚC VẬN TẢI (Auto)</th>
                   <th scope="col">TỔNG CHI HỘ</th>
                   <th scope="col">TỔNG PHẢI THU KHÁCH</th>
+                  <th scope="col">TỔNG PHẢI TRẢ</th>
                   <th scope="col">LỢI NHUẬN</th>
                   <th scope="col">TRẠNG THÁI</th>
                 </tr>
