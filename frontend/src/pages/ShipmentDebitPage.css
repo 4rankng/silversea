@@ -67,6 +67,16 @@
   flex-shrink: 0;
 }
 
+/* The select's width:100% poisons the toolbar's intrinsic width: flex
+   resolves the percentage against indefinite space and the box lands at the
+   select's contribution alone, so the export button overflows the row and
+   clips at the viewport edge. Size the field from its own content with a
+   comfortable floor instead. */
+.shipment-debit-toolbar .ds-uui-select {
+  width: auto;
+  min-width: 180px;
+}
+
 .shipment-debit-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-1);
