@@ -16,6 +16,7 @@ import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
+import { getLotDeclaredChannel } from './shipment-documents.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
 
@@ -44,11 +45,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   }
   // Card 20260919_5 producer contract: the declared channel rides top-level
   // (lot-level attribute — every container row renders the same value).
-  const [declaration] = await db.select({ channel: s.shipmentDeclarations.channel })
-    .from(s.shipmentDeclarations)
-    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
-    .limit(1);
-  const customsChannel = declaration?.channel ?? null;
+  const customsChannel = await getLotDeclaredChannel(shipmentId);
 
   // Lớp 2 renders ONE ROW PER CONTAINER (REWORK B, 20260918_18): the container
   // list is the row skeleton; trips/expenses/snapshots merge onto their
@@ -195,7 +192,10 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         expenseType: expense.expenseType,
         feeName: expense.feeName,
         amount: Number(expense.buyAmount),
-        thuKhach: expense.sellAmount == null ? null : Number(expense.sellAmount),
+        // Ruling 2026-09-19: invoiced rows recharge at cost — the wire emits
+        // the SAME derived (buy) quantity the summary L1 rolls up, never the
+        // raw typed sell (CUS figures live on Phí khác rows only).
+        thuKhach: Number(expense.buyAmount),
         note: expense.note,
         // Bảng 2.2 (fidelity card): the invoice number renders italic under
         // the fee amount — "HD: 00123". Null = no invoice on the source row.

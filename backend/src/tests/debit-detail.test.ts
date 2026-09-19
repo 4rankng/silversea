@@ -13,6 +13,7 @@ import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { lockShipmentCost, SHIPMENT_COST_LOCKED_MESSAGE } from '../services/shipment-cost-lock.service';
+import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import shipmentRoutes from '../routes/shipments';
 
 // Debit-wave detail endpoints (FE _18 contract, BE1 lane): pins for
@@ -66,7 +67,7 @@ async function mkUser(role: Role) {
   return user.id;
 }
 
-async function mkShipmentWithTrip() {
+async function mkShipmentWithTrip(opts?: { linkTripToShipment?: boolean }) {
   const [customer] = await db.insert(s.customers)
     .values({ name: `DD customer ${suffix}-${createdCustomerIds.length}` }).returning();
   createdCustomerIds.push(customer.id);
@@ -87,6 +88,10 @@ async function mkShipmentWithTrip() {
   createdFulfillmentIds.push(fulfillment.id);
   const [trip] = await db.insert(s.trips).values({
     fulfillmentId: fulfillment.id,
+    // Card _16 parity fixture: real trips carry shipmentId — summary L1
+    // joins trips.shipmentId while the detail side resolves via the
+    // fulfillment join. Opt-in so every existing caller keeps its shape.
+    shipmentId: opts?.linkTripToShipment ? shipment.id : null,
     customerId: customer.id,
     routeId: route.id,
     departureDate: '2026-01-01',
@@ -445,5 +450,33 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       await db.delete(s.freightRateSnapshots).where(eq(s.freightRateSnapshots.id, snapshot.id));
       await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
     }
+  });
+});
+
+describe('20260919 card _16 — thu khách recharge parity: detail == summary L1', () => {
+  test('non-OTHER rows recharge at derived cost — detail total equals the summary L1 figure', async () => {
+    const lot = await mkShipmentWithTrip({ linkTripToShipment: true });
+    // Legacy typed sell ≠ buy on an invoiced row — exactly the figure HEAD
+    // wrongly emits. The parity pin watches detail follow the derivation.
+    await mkExpense(lot.trip.id, { expenseType: 'CUSTOMS', buyAmount: '400000', sellAmount: '500000' });
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    const summary = await getShipmentDebitSummary({ customerId: lot.customer.id, lockStatus: 'ALL' });
+    const l1 = summary.items.find((row) => row.shipmentId === lot.shipment.id);
+    assert.equal(String(l1?.receivableTotal), '400000', 'summary L1 counts the derived buy');
+    assert.equal(detail.body.thuKhachTotal, 400000, 'detail thuKhachTotal must equal the summary L1 figure');
+    const rows = detail.body.chiHoRows as Array<{ items: Array<{ expenseType: string; thuKhach: number | null }> }>;
+    const item = rows[0]!.items[0]!;
+    assert.equal(item.expenseType, 'CUSTOMS');
+    assert.equal(item.thuKhach, 400000, 'row recharge derives at cost pass-through, never the raw sell');
+  });
+
+  test('OTHER-row typed sell is untouched by the derivation', async () => {
+    const lot = await mkShipmentWithTrip();
+    await mkExpense(lot.trip.id, { expenseType: 'OTHER', feeName: 'Phí khác cột', buyAmount: '100000', sellAmount: '250000' });
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    const rows = detail.body.chiHoRows as Array<{ otherFees: Array<{ amount: number | null }> }>;
+    assert.equal(rows[0]!.otherFees[0]!.amount, 100000, 'otherFees keep carrying the cost cell');
   });
 });

@@ -15,6 +15,7 @@ import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { computeLotPayablesBreakdown } from './lot-payables.service';
+import { getLotDeclaredChannel } from './shipment-documents.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -79,11 +80,10 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
   const payables = await computeLotPayablesBreakdown(shipmentId);
   // Card 20260919_5 freeze contract: the declared channel belongs to the
-  // snapshot so a later re-declaration cannot rewrite an issued note.
-  const [declaration] = await db.select({ channel: s.shipmentDeclarations.channel })
-    .from(s.shipmentDeclarations)
-    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
-    .limit(1);
+  // snapshot so a later re-declaration cannot rewrite an issued note. The
+  // pick is the shared deterministic one (newest declaration, id desc) —
+  // the frozen value always equals what the wire displayed at freeze time.
+  const customsChannel = await getLotDeclaredChannel(shipmentId);
   return {
     freightAuto: item?.freightAuto ?? null,
     chiHoTotal: item?.chiHoTotal ?? null,
@@ -98,7 +98,7 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     unclassifiedFee: payables.unclassifiedFee,
     opsExpenseTotal: payables.opsExpenseTotal,
     payableTotal: payables.payableTotal,
-    customsChannel: declaration?.channel ?? null,
+    customsChannel,
   };
 }
 

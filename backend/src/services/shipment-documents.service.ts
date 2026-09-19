@@ -35,6 +35,24 @@ export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
     .orderBy(desc(s.shipmentDeclarations.createdAt));
 }
 
+// The lot's declared channel is the NEWEST declaration's channel (id desc):
+// a lot holding several declarations must read and freeze the same one, and
+// the pick must never depend on the rows' physical return order. A newest
+// declaration without a channel reads null — the latest tờ khai governs,
+// even when it carries no channel yet.
+export async function getLotDeclaredChannel(
+  shipmentId: number,
+  tx?: Tx,
+): Promise<(typeof s.shipmentDeclarations.channel.enumValues[number]) | null> {
+  const client = tx ?? db;
+  const [declaration] = await client.select({ channel: s.shipmentDeclarations.channel })
+    .from(s.shipmentDeclarations)
+    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+    .orderBy(desc(s.shipmentDeclarations.id))
+    .limit(1);
+  return declaration?.channel ?? null;
+}
+
 // Default declaration scope when a caller omits it (moved from
 // shipment.service.ts with the declaration upsert).
 export const DEFAULT_SHIPMENT_DECLARATION_SCOPE = 'SINGLE' as const;
