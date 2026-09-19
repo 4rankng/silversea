@@ -59,6 +59,7 @@ const CONFIG_CRUD_MATERIAL_WRITE_SPECS: readonly CrudMaterialWriteSpec[] = [
   { basePath: '/container-types', resource: 'container_types' },
   { basePath: '/seal-types', resource: 'seal_types' },
   { basePath: '/ports', resource: 'ports' },
+  { basePath: '/dispatch-zones', resource: 'dispatch_zones', disableDelete: true },
   { basePath: '/forwarder-expense-types', resource: 'forwarder_expense_types' },
   { basePath: '/pricing-tables', resource: 'pricing_tables' },
   { basePath: '/road-allowances', resource: 'road_allowances' },

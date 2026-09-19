@@ -207,6 +207,26 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-commands.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
+  ['shipments/core.routes.ts|POST|/debit-notes', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/lock', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/cost-adjustments', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'eq(s.shipmentCostAdjustments.idempotencyKey, input.idempotencyKey)',
+  }],
+  ['shipments/core.routes.ts|PUT|/:id/debit-edits', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-debit-detail.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_EDITS',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/debit-note', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK',
+  }],
   ['shipments/dispatch-planning.routes.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN',
@@ -680,8 +700,11 @@ function extractGeneratedCrudEndpoints(): string[] {
   addCrudEndpoints('/business-calendar', 'businessCalendarDays');
   addCrudEndpoints('/ancillary-revenue', 'ancillaryRevenue');
 
-  for (const match of source.matchAll(/router\.use\('([^']+)',\s*createCrudRouter\(s\.([A-Za-z0-9]+),/g)) {
-    addCrudEndpoints(match[1], match[2], match[2] === 'drivers');
+  // [\s\S] spans newlines and inline middleware args are skipped, so a
+  // multi-line router.use( mount (path, gate, then factory) still counts as
+  // a factory mount — it must not evade this registry.
+  for (const match of source.matchAll(/router\.use\(\s*'([^']+)',(?:(?!router\.use\()[\s\S])*?createCrudRouter\(s\.([A-Za-z0-9]+),/g)) {
+    addCrudEndpoints(match[1], match[2], match[2] === 'drivers' || match[2] === 'dispatchZones');
   }
 
   return [...endpoints];
