@@ -15,10 +15,11 @@
 -- not money; a trip whose route is gone cannot lose the stamp (NOT NULL), so
 -- the row itself is removed — the same disposition the first staging apply
 -- already witnessed (the cut that ran this file on staging carried DELETE
--- semantics). Applied environments never re-run this file, but their
--- migration tracking row for this entry is keyed by the file-content hash,
--- so it must be hash-aligned at the next migrate window (the runbook's
--- alignment step).
+-- semantics). Applied environments never re-run this file: the migrator
+-- tracks the newest applied journal `when` as a cursor and replays only
+-- entries newer than it, so an in-place content rewrite with the journal's
+-- idx/when untouched is invisible to them; fresh databases replay the
+-- current content.
 --
 -- schema.ts intentionally does NOT declare these FKs so a future
 -- drizzle-kit generate cannot drop them; this file is the source of truth.
