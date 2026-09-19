@@ -241,15 +241,15 @@ export function ShipmentDebitPage() {
             <table className="shipment-debit-table">
               <thead>
                 <tr>
-                  <th scope="col"><span className="sr-only">Chọn và mở rộng</span></th>
-                  <th scope="col">THÔNG TIN LÔ HÀNG</th>
-                  <th scope="col">Chứng từ</th>
-                  <th scope="col">CƯỚC VẬN TẢI (Auto)</th>
-                  <th scope="col">TỔNG CHI HỘ</th>
-                  <th scope="col">TỔNG PHẢI THU KHÁCH</th>
-                  <th scope="col">TỔNG PHẢI TRẢ</th>
-                  <th scope="col">LỢI NHUẬN</th>
-                  <th scope="col">TRẠNG THÁI</th>
+                  <th scope="col" className="shipment-debit-col--lead"><span className="sr-only">Chọn và mở rộng</span></th>
+                  <th scope="col" className="shipment-debit-col--text">THÔNG TIN LÔ HÀNG</th>
+                  <th scope="col" className="shipment-debit-col--docs">Chứng từ</th>
+                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--freight">CƯỚC VẬN TẢI (Auto)</th>
+                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--chiho">TỔNG CHI HỘ</th>
+                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--receivable">TỔNG PHẢI THU KHÁCH</th>
+                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--payable">TỔNG PHẢI TRẢ</th>
+                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--profit">LỢI NHUẬN</th>
+                  <th scope="col" className="shipment-debit-col--status">TRẠNG THÁI</th>
                 </tr>
               </thead>
               <tbody>

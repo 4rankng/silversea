@@ -84,8 +84,13 @@
   max-width: 1880px;
 }
 
+/* Fixed layout hands every unmeasured column to the identity column: the
+   seven measured columns hold their content, and ALL surplus width lands in
+   THÔNG TIN LÔ HÀNG — full-width rows with roomy identity cells instead of
+   money columns stretched around short values. */
 .shipment-debit-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--text-caption-size);
 }
@@ -97,6 +102,24 @@
   color: var(--ink-2);
   font-weight: 600;
   border-bottom: 1px solid var(--border-1);
+}
+
+/* Column triage so the nine columns fit 1280 and the widened 1440 sidebar
+   without horizontal scroll: long money headers wrap to two lines (their
+   values set the minimum), text headers stay single-line, and TRẠNG THÁI is
+   fixed per the standing fixed-status-column ruling. */
+.shipment-debit-table th.shipment-debit-col--lead { width: 36px; padding-inline: 6px; }
+.shipment-debit-table th.shipment-debit-col--docs { width: 140px; }
+.shipment-debit-table th.shipment-debit-col--money { white-space: normal; }
+.shipment-debit-table th.shipment-debit-col--freight { width: 110px; }
+.shipment-debit-table th.shipment-debit-col--chiho { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--receivable { width: 118px; }
+.shipment-debit-table th.shipment-debit-col--payable { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--profit { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--status {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
 }
 
 .shipment-debit-table td {
@@ -139,6 +162,7 @@
 .shipment-debit-row__code {
   justify-self: start;
   font-weight: 600;
+  font-size: 11px;
   color: var(--ink-2);
   border: 1px solid var(--border-1);
   border-radius: 6px;
@@ -161,12 +185,16 @@
 }
 
 .shipment-debit-row__docs {
-  min-width: 150px;
+  min-width: 0;
 }
 
 .shipment-debit-row__docs > span {
   display: block;
   width: fit-content;
+  max-width: 100%;
+  /* Bill/booking keys carry hyphens: they wrap at those break points inside
+     the 140px column instead of painting past the cell edge. */
+  overflow-wrap: normal;
 }
 
 /* 9.6px inherited small rendered the metadata unreadable — the label sits
