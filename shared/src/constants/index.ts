@@ -238,7 +238,7 @@ export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
  *  place identity lives in data rows, labels render from config). Rows whose
  *  type carries no category (null) fall into the on-screen 'Chưa phân loại'
  *  bucket so no money can silently leave the totals. */
-export enum ExpenseCategory {
+export enum ExpenseTypeCategory {
   HQGS = 'HQGS',
   PHAT_SINH = 'PHAT_SINH',
   KHAC = 'KHAC',
@@ -479,15 +479,15 @@ export const PENALTY_STATUS_LABELS: Record<PenaltyStatus, string> = {
  *  the card 20260919_3 settlement category (null = chưa phân loại — WEIGHING
  *  stays uncategorized per ruling; the admin surface reclassifies, no
  *  migration). */
-export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string; category?: ExpenseCategory | null }> = {
-  LIFTING:        { name: 'Phí nâng container',        defaultMarkup: false, billingLabel: 'Phí nâng container', category: ExpenseCategory.LIFT },
-  LOWERING:       { name: 'Phí hạ container',           defaultMarkup: false, billingLabel: 'Phí hạ container', category: ExpenseCategory.DROP },
-  WEIGHING:       { name: 'Phí cân hàng',               defaultMarkup: false, billingLabel: 'Phí cân hàng', category: null },
-  CUSTOMS:        { name: 'Phí làm tờ khai hải quan',   defaultMarkup: true,  billingLabel: 'Phí hải quan', category: ExpenseCategory.HQGS },
-  INFRASTRUCTURE: { name: 'Phí kết cấu hạ tầng',        defaultMarkup: false, billingLabel: 'Phí hạ tầng', category: ExpenseCategory.CSHT },
-  INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa', category: ExpenseCategory.HQGS },
-  INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa', category: ExpenseCategory.HQGS },
-  OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác', category: ExpenseCategory.KHAC },
+export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string; category?: ExpenseTypeCategory | null }> = {
+  LIFTING:        { name: 'Phí nâng container',        defaultMarkup: false, billingLabel: 'Phí nâng container', category: ExpenseTypeCategory.LIFT },
+  LOWERING:       { name: 'Phí hạ container',           defaultMarkup: false, billingLabel: 'Phí hạ container', category: ExpenseTypeCategory.DROP },
+  WEIGHING:       { name: 'Phí cân hàng',               defaultMarkup: false, billingLabel: 'Phí cân hàng', category: ExpenseTypeCategory.PHAT_SINH },
+  CUSTOMS:        { name: 'Phí làm tờ khai hải quan',   defaultMarkup: true,  billingLabel: 'Phí hải quan', category: ExpenseTypeCategory.HQGS },
+  INFRASTRUCTURE: { name: 'Phí kết cấu hạ tầng',        defaultMarkup: false, billingLabel: 'Phí hạ tầng', category: ExpenseTypeCategory.CSHT },
+  INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa', category: ExpenseTypeCategory.HQGS },
+  INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa', category: ExpenseTypeCategory.HQGS },
+  OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác', category: ExpenseTypeCategory.KHAC },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [

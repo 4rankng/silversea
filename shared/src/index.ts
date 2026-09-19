@@ -30,6 +30,7 @@ export {
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   DEFAULT_SHIPPING_LINES,
+  ExpenseTypeCategory,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';
@@ -387,3 +388,4 @@ export type { DriverIncidentalCostInput } from './schemas';
 export * from './schemas/treasury';
 export * from './schemas/shipment-debit-summary';
 export * from './schemas/shipment-debit-edits';
+export * from './schemas/shipment-debit-detail';

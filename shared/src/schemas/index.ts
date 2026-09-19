@@ -8,7 +8,7 @@ import {
   OperationalSiteType, FulfillmentCancellationDisposition, TripPodFileType,
   DriverProgressEventType,
   DriverIncidentalCostType,
-  ExpenseCategory,
+  ExpenseTypeCategory,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
   DISPATCH_CLASSIFICATIONS,
@@ -1505,7 +1505,7 @@ export const forwarderExpenseTypeSchema = z.object({
   // Card 20260919_3: explicit settlement category — the classification READS
   // this column (never name matching, which breaks retroactively on rename).
   // null = chưa phân loại → renders in the on-screen catch-all bucket.
-  category: z.nativeEnum(ExpenseCategory).nullable().optional(),
+  category: z.nativeEnum(ExpenseTypeCategory).nullable().optional(),
   requiresInvoice: z.boolean().optional(),
   substituteEvidenceAllowed: z.boolean().optional(),
   noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.optional(),
