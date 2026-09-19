@@ -1,4 +1,5 @@
 import { createDefaultDetailedPlanFilters, detailPlanQuery, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
+import { compareDetailPlanRows, nextDetailPlanSortState } from './detailedPlanSort';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import { ensureFulfillmentFor } from './ensureFulfillment';
@@ -154,15 +155,9 @@ export function useDispatchDetailPlan() {
   // Three-state header sort: unsorted → ascending → descending → unsorted.
   // Picking a different column restarts at ascending.
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDirection('asc');
-    } else if (sortDirection === 'asc') {
-      setSortDirection('desc');
-    } else {
-      setSortKey(null);
-      setSortDirection('asc');
-    }
+    const next = nextDetailPlanSortState(sortKey, sortDirection, key);
+    setSortKey(next.sortKey);
+    setSortDirection(next.sortDirection);
   }, [sortKey, sortDirection]);
 
   // Client-side sort over the loaded page (spec: bundle trips by run time,
@@ -172,22 +167,7 @@ export function useDispatchDetailPlan() {
   // only breaks ties between two time-less rows.
   const sortedItems = sortKey == null
     ? items
-    : [...items].sort((a, b) => {
-      if (sortKey === 'runHour') {
-        const [av, bv] = [a.time.runAt ?? null, b.time.runAt ?? null];
-        if (av == null || bv == null) {
-          return av != null ? -1 : bv != null ? 1
-            : (a.time.runHour ?? 99) - (b.time.runHour ?? 99);
-        }
-        const cmp = av.localeCompare(bv);
-        return sortDirection === 'desc' ? -cmp : cmp;
-      }
-      const [av, bv] = sortKey === 'customer'
-        ? [a.customerRoute.customerName ?? '', b.customerRoute.customerName ?? '']
-        : [a.customerRoute.deliveryPoint ?? '', b.customerRoute.deliveryPoint ?? ''];
-      const cmp = av.localeCompare(bv, 'vi');
-      return sortDirection === 'desc' ? -cmp : cmp;
-    });
+    : [...items].sort((a, b) => compareDetailPlanRows(a, b, sortKey, sortDirection));
 
   const assignPlate = useCallback(async (
     row: DispatchDetailPlanRow,
