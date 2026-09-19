@@ -100,3 +100,23 @@ describe('reset-seed tool', () => {
     assert.equal(Number(afterRow.n), Number(beforeRow.n), 'user count unchanged by the dry run');
   });
 });
+
+describe('reset wipe list covers the FK graph', () => {
+  test('every RESTRICT child of a wiped parent is wiped BEFORE that parent', () => {
+    // The FK map (20260919203000) makes these RESTRICT children of `routes`;
+    // a wipe of routes while any of them still holds rows must be impossible
+    // by construction — the plan order is the guarantee.
+    const restrictChildrenOfRoutes = [
+      'freight_rate_terms', 'fuel_norms', 'pricing_tables',
+      'road_allowances', 'weight_pricing_tiers', 'trips',
+    ];
+    const labels = WIPE_PLAN.map((step) => step.label);
+    const routesIdx = labels.indexOf('routes');
+    assert.ok(routesIdx > -1, 'routes is wiped');
+    for (const child of restrictChildrenOfRoutes) {
+      const childIdx = labels.indexOf(child);
+      assert.ok(childIdx > -1, `${child} (RESTRICT child of routes) must be in the wipe list`);
+      assert.ok(childIdx < routesIdx, `${child} must be wiped BEFORE routes`);
+    }
+  });
+});

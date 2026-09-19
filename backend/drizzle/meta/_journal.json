@@ -706,6 +706,13 @@
       "when": 1789816800000,
       "tag": "20260919200000_debit_trip_scope_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1789815000001,
+      "tag": "20260919203000_shipment_children_fks",
+      "breakpoints": true
     }
   ]
 }
