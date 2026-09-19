@@ -667,9 +667,14 @@ export async function seed() {
     console.log(`✅ Ports already exist, ${zoneFilled} zone backfilled, ${shortNameFilled} short name backfilled.`);
   }
 
-  // ─── Forwarder expense types (user-configurable) ─────────────────────────
-  // Upsert all 8 fee types with defaultMarkup, billingLabel, vatRate so that
-  // re-running seed is safe and always brings the table up to date.
+  // ─── Forwarder expense types (fill-only seed) ────────────────────────────
+  // The database owns this catalog once seeded: the seed FILLS, it never
+  // overwrites. A missing code inserts with the full default (including the
+  // ruled settlement category). An existing row whose category is NULL gets
+  // exactly that one column backfilled. Rows already carrying a category —
+  // and every admin-editable field (name, invoice policy, markup, label,
+  // VAT) — are never written by seed; soft-deleted rows stay deleted (an
+  // admin's deletion is admin data).
   const defaultNoInvoiceCodes = new Set([
     'LIFTING',
     'LOWERING',
@@ -679,15 +684,18 @@ export async function seed() {
     'INSPECTION_SVC',
     'OTHER',
   ]);
-  let fetUpsertCount = 0;
+  let fetInserted = 0;
+  let fetBackfilled = 0;
   const existingForwarderExpenseTypes = await db.select({
     id: schema.forwarderExpenseTypes.id,
     code: schema.forwarderExpenseTypes.code,
+    category: schema.forwarderExpenseTypes.category,
+    deletedAt: schema.forwarderExpenseTypes.deletedAt,
   }).from(schema.forwarderExpenseTypes);
   const forwarderExpenseTypeByCode = new Map(
     existingForwarderExpenseTypes
       .filter((row) => row.code)
-      .map((row) => [normalizeSeedText(row.code), row.id] as const),
+      .map((row) => [normalizeSeedText(row.code), row] as const),
   );
   for (const [code, meta] of Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)) {
     const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
@@ -704,17 +712,18 @@ export async function seed() {
       vatRate: '0.080',
       category: meta.category ?? null,
     } as const;
-    const existingId = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
-    if (existingId != null) {
-      await db.update(schema.forwarderExpenseTypes)
-        .set({ ...values, deletedAt: null, updatedAt: new Date() })
-        .where(eq(schema.forwarderExpenseTypes.id, existingId));
-    } else {
+    const existing = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
+    if (existing == null) {
       await db.insert(schema.forwarderExpenseTypes).values(values);
+      fetInserted += 1;
+    } else if (existing.deletedAt == null && existing.category == null && meta.category != null) {
+      await db.update(schema.forwarderExpenseTypes)
+        .set({ category: meta.category, updatedAt: new Date() })
+        .where(eq(schema.forwarderExpenseTypes.id, existing.id));
+      fetBackfilled += 1;
     }
-    fetUpsertCount++;
   }
-  console.log(`✅ Forwarder expense types upserted! (${fetUpsertCount} codes)`);
+  console.log(`✅ Forwarder expense types fill-only: ${fetInserted} inserted, ${fetBackfilled} categories backfilled, admin data untouched`);
 
   // ─── Own company info (used on config/document surfaces) ─────────────────
   // Seeds empty placeholder rows from COMPANY_INFO_DEFAULTS (white-label — no
