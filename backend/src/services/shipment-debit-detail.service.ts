@@ -17,6 +17,7 @@ import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
 import { getLotDeclaredChannel } from './shipment-documents.service';
+import { activeTripConditions } from './active-trip-scope';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
 
@@ -71,7 +72,10 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   })
     .from(s.trips)
     .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
-    .where(eq(s.shipmentFulfillments.shipmentId, shipmentId));
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      ...activeTripConditions(),
+    ));
   const tripIds = lotTrips.map((trip) => trip.id);
   const podByTrip = new Map(lotTrips.map((trip) => [trip.id, trip.podRecoveredAt]));
 
@@ -363,7 +367,10 @@ export async function saveDebitEdits(input: {
       const lotTrips = await tx.select({ id: s.trips.id })
         .from(s.trips)
         .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
-        .where(eq(s.shipmentFulfillments.shipmentId, input.shipmentId));
+        .where(and(
+          eq(s.shipmentFulfillments.shipmentId, input.shipmentId),
+          ...activeTripConditions(),
+        ));
       const tripIds = new Set(lotTrips.map((trip) => trip.id));
       for (const edit of payload.edits ?? []) {
         const [expense] = await tx.select().from(s.tripExpenses)

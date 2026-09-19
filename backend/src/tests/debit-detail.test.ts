@@ -480,3 +480,36 @@ describe('20260919 card _16 — thu khách recharge parity: detail == summary L1
     assert.equal(rows[0]!.otherFees[0]!.amount, 100000, 'otherFees keep carrying the cost cell');
   });
 });
+
+describe('20260919 card _20 — trip scope parity: dead trips leave both document layers', () => {
+  test('canceled-trip expense is absent from detail rows AND summary L1; its row 404s on edit', async () => {
+    const lot = await mkShipmentWithTrip({ linkTripToShipment: true });
+    await mkExpense(lot.trip.id, { expenseType: 'FUEL', buyAmount: '400000', sellAmount: '0' });
+    const [deadTrip] = await db.insert(s.trips).values({
+      fulfillmentId: lot.fulfillment.id,
+      shipmentId: lot.shipment.id,
+      customerId: lot.customer.id,
+      routeId: lot.route.id,
+      departureDate: '2026-01-02',
+      status: 'CANCELED',
+    }).returning({ id: s.trips.id });
+    createdTripIds.push(deadTrip.id);
+    const deadExpense = await mkExpense(deadTrip.id, { expenseType: 'FUEL', buyAmount: '999000', sellAmount: '0' });
+
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    const rendered = (detail.body.chiHoRows as Array<{ items: Array<{ id: number }> }>)
+      .flatMap((row) => row.items.map((item) => item.id));
+    assert.ok(!rendered.includes(deadExpense), 'dead trip expense must not render in Lớp 2');
+    assert.equal(detail.body.thuKhachTotal, 400000, 'detail total counts only the live trip');
+
+    const summary = await getShipmentDebitSummary({ customerId: lot.customer.id, lockStatus: 'ALL' });
+    const l1 = summary.items.find((row) => row.shipmentId === lot.shipment.id);
+    assert.equal(String(l1?.receivableTotal), '400000', 'summary L1 counts only the live trip');
+
+    const edit = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
+      edits: [{ expenseId: deadExpense, buyAmount: 1 }],
+    });
+    assert.equal(edit.status, 404, `dead-trip row must not be editable — got ${edit.status}`);
+  });
+});
