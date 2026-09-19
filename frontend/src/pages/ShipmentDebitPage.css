@@ -24,6 +24,7 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: end;
+  max-width: 1880px;
 }
 
 .shipment-debit-filters {
@@ -37,6 +38,7 @@
 
 .shipment-debit-filters > .csc-searchable-field {
   flex: 1 1 220px;
+  max-width: 480px;
   min-width: 0;
 }
 
@@ -58,12 +60,18 @@
   display: flex;
   gap: 8px;
   align-items: end;
+  flex-shrink: 0;
+}
+
+.shipment-debit-toolbar > * {
+  flex-shrink: 0;
 }
 
 .shipment-debit-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-1);
   border-radius: 8px;
+  max-width: 1880px;
 }
 
 .shipment-debit-table {
@@ -100,19 +108,22 @@
   cursor: pointer;
 }
 
+/* display:flex/grid on a <td> overrides table-cell and makes the row's
+   consecutive broken cells merge into ONE anonymous column (card _12 root
+   cause: the whole row shifted left by two headers). Keep tds plain. */
 .shipment-debit-row__lead {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   white-space: nowrap;
 }
 
 /* Identity block: code chip on top, customer in caps, factory in parens,
    address italic — the drawing's three-line cell. */
 .shipment-debit-row__identity {
-  display: grid;
-  gap: 2px;
   min-width: 220px;
+}
+
+.shipment-debit-row__identity > * {
+  display: block;
+  width: fit-content;
 }
 
 .shipment-debit-row__code {
@@ -140,18 +151,25 @@
 }
 
 .shipment-debit-row__docs {
-  display: grid;
-  gap: 2px;
   min-width: 150px;
 }
 
+.shipment-debit-row__docs > span {
+  display: block;
+  width: fit-content;
+}
+
+/* 9.6px inherited small rendered the metadata unreadable — the label sits
+   at 11px on the mid ink token (AA ≈ 7.4:1 on the surface). */
 .shipment-debit-row__docs small {
-  color: var(--ink-3);
+  color: var(--ink-2);
+  font-size: 11px;
 }
 
 .shipment-debit-row__money {
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .shipment-debit-row__money--strong {
