@@ -48,7 +48,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa rõ kết quả lưu. Giữ nguyên nội dung và thử lại.'); }
     finally { lock.current = false; }
   }
-  return <Drawer isOpen onClose={close} title="Thêm khoản chi" subtitle={`${work.shipmentCode} · ${work.containerNumber ?? 'Chung lô'}`} className="expense-accounting-drawer"
+  return <Drawer isOpen onClose={close} title="Thêm khoản chi" subtitle={`${work.shipmentCode ?? '—'} · ${work.containerNumber ?? 'Chung lô'}`} className="expense-accounting-drawer"
     footer={<><button type="button" className="btn btn--secondary" disabled={busy} onClick={close}>Đóng</button><button type="submit" form={formId} className="btn btn--primary" disabled={busy || !work.tripId}>{busy ? 'Đang lưu…' : 'Lưu khoản chi'}</button></>}>
     <form id={formId} onSubmit={(event) => void save(event)} className="expense-accounting-form">
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}

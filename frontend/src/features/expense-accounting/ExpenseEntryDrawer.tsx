@@ -55,7 +55,7 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
     finally { lock.current = false; }
   }
 
-  return <Drawer isOpen onClose={close} title={entry.feeName} subtitle={`${entry.shipmentCode} · ${entry.containerNumber ?? 'Phí chung lô'}`}
+  return <Drawer isOpen onClose={close} title={entry.feeName} subtitle={`${entry.shipmentCode || '—'} · ${entry.containerNumber ?? 'Phí chung lô'}`}
     className="expense-accounting-drawer" footer={<><button type="button" className="btn btn--secondary" onClick={close} disabled={update.isPending || correct.isPending}>Đóng</button>
       {canCorrect && !correcting && <button type="button" className="btn btn--primary" onClick={() => setCorrecting(true)}>Điều chỉnh có liên kết</button>}
       {!blocked && <button type="submit" form={id} className="btn btn--primary" disabled={disabled}>{update.isPending || correct.isPending ? 'Đang lưu…' : correcting ? 'Ghi nhận khoản thay thế' : 'Lưu điều chỉnh'}</button>}</>}>

@@ -14,7 +14,7 @@ function SourceRows({ sources }: { sources: Array<ExpenseSourceRef & { amount?: 
     const query = queries[index];
     return <article key={`${source.sourceKind}:${source.sourceId}`}>
       <strong>{query.data?.feeName ?? '—'}</strong>
-      <span>{query.data?.shipmentCode ?? ''} {query.data?.containerNumber ?? ''}</span>
+      <span>{query.data?.shipmentCode || '—'} {query.data?.containerNumber ?? ''}</span>
       <small>Nguồn {source.sourceKind} · phiên bản {source.expectedVersion}</small>
       {source.amount !== undefined && <strong>Phân bổ: {expenseMoney(source.amount)}</strong>}
       {query.data && <span>Thực chi hiện tại: {expenseMoney(query.data.amount)}</span>}
