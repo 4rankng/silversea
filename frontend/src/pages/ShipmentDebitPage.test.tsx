@@ -220,15 +220,32 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
   });
 
   it('names the overlapping lots when the issue call rejects with a uniqueness 409', async () => {
-    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
-    createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['157', '160'] }, 'conflict'));
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['101', '157'] }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
-    expect(await screen.findByText('Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.')).toBeTruthy();
+    expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: BL-1 +1')).toBeTruthy();
     // The selection survives the conflict so the user can adjust and retry.
     expect(screen.getAllByText('BL-1')[0].closest('tr')!.getAttribute('data-selected')).not.toBeNull();
+  });
+
+  it('caps the conflict toast at three business keys plus a count', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        row({ shipmentId: 101, lockStatus: 'LOCKED' }),
+        row({ shipmentId: 102, billOrBookNumber: 'BL-2', lockStatus: 'LOCKED' }),
+      ],
+      total: 2,
+    });
+    createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['101', '102', '201', '301', '401'] }, 'conflict'));
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: BL-1, BL-2 +3')).toBeTruthy();
   });
 
   it('keeps the generic failure toast when the error carries no lot codes', async () => {

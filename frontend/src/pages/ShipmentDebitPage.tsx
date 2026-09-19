@@ -151,11 +151,28 @@ export function ShipmentDebitPage() {
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (cause) {
-      // The 409 body carries internal lot codes; echoing them would surface
-      // id-derived identifiers, so the message stays actionable without them.
+      // The 409 body carries internal lot codes; the conflict names resolve
+      // through the loaded rows so the toast can name the lots by their
+      // business key (max 3, then a +n count) without echoing system codes.
       const overlapping = overlappingLotCodesFrom(cause);
+      const labelByCode = new Map<string, string>();
+      for (const row of items) {
+        const label = row.billOrBookNumber || row.customsNumber;
+        if (!label) continue;
+        labelByCode.set(String(row.code), label);
+        labelByCode.set(String(row.shipmentId), label);
+      }
+      const labels = (overlapping ?? [])
+        .map((code) => labelByCode.get(String(code)))
+        .filter((label): label is string => Boolean(label));
+      const total = overlapping?.length ?? 0;
+      const shown = labels.slice(0, 3);
+      const named = shown.join(', ');
+      const rest = total - shown.length;
       toast(overlapping
-        ? { kind: 'error', message: 'Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.' }
+        ? { kind: 'error', message: named
+          ? `Các lô đã nằm trong Debit Note đã xuất: ${named}${rest > 0 ? ` +${rest}` : ''}`
+          : 'Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.' }
         : { kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
     } finally {
       setIssuing(false);
