@@ -6,6 +6,20 @@
 -- nullable detach-and-survive rows. Orphan cleanup runs first, idempotent.
 -- trips_composite is a VIEW and is excluded (views carry no FKs).
 --
+-- 2026-09-20: the trips route_id cleanup below was rewritten in place from
+-- "UPDATE trips SET route_id = NULL" to a DELETE of the dangling rows.
+-- route_id on trips is NOT NULL since the baseline schema, so the UPDATE was
+-- a dead letter: it could only ever no-op (apply survived solely because
+-- zero rows matched), while a replay on data that carries a dangling stamp
+-- dies with a not-null violation mid-file. A route assignment is a stamp,
+-- not money; a trip whose route is gone cannot lose the stamp (NOT NULL), so
+-- the row itself is removed — the same disposition the first staging apply
+-- already witnessed (the cut that ran this file on staging carried DELETE
+-- semantics). Applied environments never re-run this file, but their
+-- migration tracking row for this entry is keyed by the file-content hash,
+-- so it must be hash-aligned at the next migrate window (the runbook's
+-- alignment step).
+--
 -- schema.ts intentionally does NOT declare these FKs so a future
 -- drizzle-kit generate cannot drop them; this file is the source of truth.
 
@@ -76,7 +90,7 @@ DELETE FROM road_allowances c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELEC
 --> statement-breakpoint
 DELETE FROM weight_pricing_tiers c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = c.route_id);
 --> statement-breakpoint
-UPDATE trips SET route_id = NULL WHERE route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = trips.route_id);
+DELETE FROM trips c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = c.route_id);
 --> statement-breakpoint
 UPDATE operational_sites SET route_id = NULL WHERE route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = operational_sites.route_id);
 --> statement-breakpoint
