@@ -81,8 +81,22 @@ describe('reset-seed tool', () => {
     // The per-step wipe log is '  wiped <table>' — distinct from the plan
     // header ('tables wiped in order'), so anchor to line start + spacing.
     assert.ok(!/^  wiped /m.test(out), 'no table is actually wiped in dry-run');
-    // The suite itself runs against the real dev DB — count users in-process.
-    const [row] = await db.select({ n: sql`count(*)::int` }).from(s.users);
-    assert.equal(Number(row.n), 13, 'user count unchanged by the dry run');
+    // The suite runs against the shared dev DB — the dry run must leave the
+    // count INVARIANT, whatever the current total is.
+    const [beforeRow] = await db.select({ n: sql`count(*)::int` }).from(s.users);
+    const result2 = spawnSync('npx', ['tsx', 'src/reset-seed.ts', '--dry-run'], {
+      cwd: backendRoot,
+      encoding: 'utf8',
+      timeout: 90000,
+      env: {
+        ...process.env,
+        TZ: 'UTC',
+        DATABASE_URL: 'postgres://postgres:postgres@localhost:5441/silversea',
+        REDIS_URL: 'redis://localhost:6391',
+      },
+    });
+    assert.equal(result2.status, 0, 'second dry run must succeed');
+    const [afterRow] = await db.select({ n: sql`count(*)::int` }).from(s.users);
+    assert.equal(Number(afterRow.n), Number(beforeRow.n), 'user count unchanged by the dry run');
   });
 });
