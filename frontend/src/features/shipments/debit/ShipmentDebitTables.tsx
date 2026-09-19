@@ -132,7 +132,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
           const derivedTotal = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.customsFee ?? 0) + num(cells.psActual || '0');
           return (
             <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
-              <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small></td>
+              <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small>{(row.liftSiteLabel || row.dropSiteLabel) && <small className="csc-debit-channel">Nâng: {row.liftSiteLabel ?? '—'} · Hạ: {row.dropSiteLabel ?? '—'}</small>}</td>
               <td>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</td>
               <td>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</td>
               <td>—</td>

@@ -250,6 +250,23 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('renders the lock-frozen port labels under the container (card _35)', async () => {
+    getDetail.mockResolvedValue({
+      ...wireDetail,
+      freightRows: wireDetail.freightRows.map((row) => ({ ...row, liftSiteLabel: 'PORT-A cũ', dropSiteLabel: 'PORT-B cũ' })),
+    });
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    expect(screen.getByText('Nâng: PORT-A cũ · Hạ: PORT-B cũ')).toBeTruthy();
+  });
+
+  it('hides the port label line when the lock predates _35 (card _35)', async () => {
+    getDetail.mockResolvedValue({ ...wireDetail, freightRows: wireDetail.freightRows.map((row) => ({ ...row, liftSiteLabel: null, dropSiteLabel: null })) });
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    expect(screen.queryByText(/Nâng: /)).toBeNull();
+  });
+
   it('leaves the channel blank when the lot has none (card _5)', async () => {
     getDetail.mockResolvedValue({ ...wireDetail, customsChannel: null });
     renderWorkspace();
