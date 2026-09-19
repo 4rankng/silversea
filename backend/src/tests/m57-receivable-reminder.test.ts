@@ -1092,7 +1092,10 @@ describe('M5.7 — retry delivery', () => {
     const t = await mkOverdueTrip(c.id, r.id, cg.id);
     await mkRevenue(c.id, t.id, 4_800_000, todayBusinessDate);
 
-    const staleTimestamp = new Date(Date.now() - 16 * 60 * 1000);
+    // Stale timestamp derived from the PINNED suite date, not the real
+    // clock: a run in the 23:44–00:00 VN window used to straddle midnight
+    // and the row's derived reference date missed the pinned obligations.
+    const staleTimestamp = atVnTime(suiteBusinessDate, 8);
     const [log] = await db.insert(s.customerEmailLogs).values({
       customerId: c.id,
       subject: `${REMINDER_SUBJECT_PREFIX} Đến hạn ${c.name} — 4.800.000 ₫`,
@@ -1104,7 +1107,7 @@ describe('M5.7 — retry delivery', () => {
     }).returning();
     createdEmailLogIds.push(log.id);
 
-    const retry = await runReceivableReminderRetries(new Date());
+    const retry = await runReceivableReminderRetries(atVnTime(suiteBusinessDate, 10));
     assert.equal(retry.retried, 1);
 
     const [updated] = await db.select().from(s.customerEmailLogs)
@@ -1118,7 +1121,7 @@ describe('M5.7 — retry delivery', () => {
     const t = await mkOverdueTrip(c.id, r.id, cg.id);
     await mkRevenue(c.id, t.id, 4_900_000, todayBusinessDate);
 
-    const readyAt = new Date(Date.now() - 16 * 60 * 1000);
+    const readyAt = atVnTime(suiteBusinessDate, 8, 30);
     for (let index = 0; index < 205; index += 1) {
       const [log] = await db.insert(s.customerEmailLogs).values({
         customerId: c.id,
@@ -1149,7 +1152,7 @@ describe('M5.7 — retry delivery', () => {
     }) as typeof db.select;
 
     try {
-      const retry = await runReceivableReminderRetries(new Date());
+      const retry = await runReceivableReminderRetries(atVnTime(suiteBusinessDate, 10));
       assert.equal(retry.scanned, 200);
       assert.equal(retry.retried, 200);
       assert.equal(calendarQueryCount, 1);
