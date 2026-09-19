@@ -213,4 +213,41 @@ describe('useDispatchMasterPlan zone truck presence', () => {
     await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
     expect(result.current.presence).toBeNull();
   });
+
+  // Characterization pins (2026-09-19, director order): these two tests pin
+  // the CURRENT default-zone behavior before the is_default migration —
+  // which zone the presence advisory queries on first load, and the
+  // zones[0] fallback when the deep-sea-cluster zone is absent from the
+  // taxonomy. Behavioral by design: they assert the observable presence
+  // query, not the selection mechanism, so the is_default work must keep
+  // them green without editing them.
+  describe('default presence zone (characterization pin)', () => {
+    it('defaults the presence advisory to the deep-sea-cluster zone on first load', async () => {
+      getDispatchZonesMock.mockResolvedValue({
+        items: [
+          { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5 },
+          { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
+        ],
+      });
+      renderHook(() => useDispatchMasterPlan());
+      await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+      expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(expect.objectContaining({ zone: 'LACH_HUYEN' }));
+    });
+
+    it('falls back to the first zone when the deep-sea-cluster zone is absent', async () => {
+      getDispatchZonesMock.mockResolvedValue({
+        items: [{ code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5 }],
+      });
+      listZoneTruckPresenceMock.mockResolvedValue({
+        date: '2026-08-24',
+        zone: 'HAI_PHONG',
+        zoneLabel: 'Cảng Hải Phòng',
+        items: [],
+      });
+      const { result } = renderHook(() => useDispatchMasterPlan());
+      await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+      expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(expect.objectContaining({ zone: 'HAI_PHONG' }));
+      await waitFor(() => expect(result.current.presence?.zone).toBe('HAI_PHONG'));
+    });
+  });
 });
