@@ -44,12 +44,16 @@
 }
 
 .date-seg-group .date-seg-wrapper .date-seg {
-  width: 2ch;
+  /* Letter placeholders run wider than the ch metric: 'DD' at 2ch overflows
+     ~1.3px and the centered clip shaves each D into an E-like sliver. em
+     measures the actual glyph set — 'MM' (the widest pair) is ~1.71em, so
+     the slot carries headroom for any two-letter placeholder. */
+  width: 1.8em;
   padding-inline: 1px;
   text-align: center;
 }
 
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 4ch; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.8em; }
 
 .date-sep {
   flex: 0 0 auto;
