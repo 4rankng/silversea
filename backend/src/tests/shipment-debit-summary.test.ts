@@ -243,6 +243,14 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
 });
 
 after(async () => {
+  // Children-first: the RESTRICT FKs refuse shipment deletion while cost
+  // locks or debit-note claims still reference the lot.
+  for (const { table, id } of cleanup) {
+    if (table === s.shipments) {
+      await db.delete(s.shipmentCostLocks).where(eq(s.shipmentCostLocks.shipmentId, id));
+      await db.delete(s.debitNoteLots).where(eq(s.debitNoteLots.shipmentId, id));
+    }
+  }
   for (const { table, id } of cleanup) {
     await db.delete(table).where(eq(table.id, id));
   }
