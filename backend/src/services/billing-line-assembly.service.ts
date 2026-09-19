@@ -14,6 +14,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, gte, lte, sql, isNull } from 'drizzle-orm';
 import { assembleDisbursementsForPeriod } from './disbursement-assembly.service';
+import { businessTitleOrDash } from '../lib/business-keys';
 
 export interface AssembledBillingLine {
   sourceType: 'TRIP' | 'EXPENSE' | 'ANCILLARY';
@@ -73,7 +74,7 @@ export async function assembleBillingLines(
         sourceId: trip.id,
         lineType: 'FREIGHT',
         typeLabel: 'Cước vận chuyển',
-        description: `Chuyến ${trip.tripCode} — ${trip.routeName ?? ''} (${trip.departureDate})`,
+        description: `Chuyến ${businessTitleOrDash(trip.tripCode)} — ${trip.routeName ?? ''} (${trip.departureDate})`,
         baseAmount: freight,
         routeName: trip.routeName,
       });

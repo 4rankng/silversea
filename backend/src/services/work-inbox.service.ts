@@ -9,6 +9,7 @@ import type {
   WorkInboxItemBase,
   WorkInboxResponseOf,
 } from '@tingting/shared';
+import { businessTitleOrDash } from '../lib/business-keys';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getForwarderTrips } from './forwarder-trip-query.service';
@@ -88,14 +89,7 @@ export function pageWorkInboxItems<T extends WorkInboxItemBase>(items: T[], quer
   return { asOf: new Date().toISOString(), timezone: 'Asia/Ho_Chi_Minh', counts, page: query.page, limit: query.limit, total: filtered.length, totalPages: Math.ceil(filtered.length / query.limit), items: filtered.slice((query.page - 1) * query.limit, query.page * query.limit) };
 }
 
-/**
- * One display decision for work/alert titles (card _44): the business key
- * when it exists, '—' when it does not — internal ids never render. Both
- * the live generators and any title re-derivation consumer call THIS.
- */
-export function businessTitleOrDash(code: string | null | undefined): string {
-  return code != null && code.trim() !== '' ? code : '—';
-}
+export { businessTitleOrDash } from '../lib/business-keys';
 
 export async function customerWorkInbox(customerId: number, query: InboxQuery) {
   const shipments = await db.select({

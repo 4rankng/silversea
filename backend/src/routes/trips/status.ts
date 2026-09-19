@@ -24,6 +24,7 @@ import {
   getExpectedVersion, getRequiredGovernanceReason,
 } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { businessTitleOrDash } from '../../lib/business-keys';
 
 const router = Router();
 
@@ -197,7 +198,7 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
     emitNotification({
       type: NotificationType.TRIP_CANCELED,
       title: 'Chuyến đã hủy',
-      message: `Chuyến ${outcome.trip.tripCode} đã bị hủy`,
+      message: `Chuyến ${businessTitleOrDash(outcome.trip.tripCode)} đã bị hủy`,
       relatedEntityType: 'trips',
       relatedEntityId: id,
       targetDriverId: outcome.trip.driverId ?? undefined,
