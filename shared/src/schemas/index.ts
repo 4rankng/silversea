@@ -1201,6 +1201,7 @@ export const dispatchZoneSchema = z.object({
   label: z.string().trim().min(1, 'Tên khu vực không được để trống').max(100),
   sortOrder: z.number().int().min(0).max(9999).default(0),
   isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
 });
 
 /** Update payload: `code` is stripped (immutable after create — the route

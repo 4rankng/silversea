@@ -1,7 +1,7 @@
 // AUTO-GENERATED from docs/BIẾU MẪU BÁO CÁO/*.xlsx by the customer-data extractor.
 // Do not edit by hand — re-run the extractor (see plans/260731-customer-audit-reseed) to refresh.
 // Values are the customer's real master data (2026-07-30 delivery).
-export interface SampleTrip { seq:number; date2026:string; customer:string; factory:string; route:string; contType:string; exportImport:string; weightTons:number|null; bill:string; containerNo:string; carrier:string; bks:string; receivable:{cuoc:number;lachHuyen:number;phuPhi:number;com:number;phatSinh:number;tongThu:number}; payable:{cuoc:number;lachHuyen:number;phuPhi:number;phatSinh:number;tongTra:number}; }
+export interface SampleTrip { seq:number; date2026:string; customer:string; factory:string; route:string; contType:string; exportImport:string; weightTons:number|null; bill:string; containerNo:string; carrier:string; bks:string; receivable:{cuoc:number;zoneSurcharge:number;phuPhi:number;com:number;phatSinh:number;tongThu:number}; payable:{cuoc:number;zoneSurcharge:number;phuPhi:number;phatSinh:number;tongTra:number}; }
 export const sampleTrips: SampleTrip[] = [
   {
     "seq": 1,
@@ -18,7 +18,7 @@ export const sampleTrips: SampleTrip[] = [
     "bks": "15F-01698",
     "receivable": {
       "cuoc": 4160000,
-      "lachHuyen": 0,
+      "zoneSurcharge": 0,
       "phuPhi": 398119,
       "com": 100000,
       "phatSinh": 0,
@@ -26,7 +26,7 @@ export const sampleTrips: SampleTrip[] = [
     },
     "payable": {
       "cuoc": 3800000,
-      "lachHuyen": 0,
+      "zoneSurcharge": 0,
       "phuPhi": 475000,
       "phatSinh": 0,
       "tongTra": 4275000
@@ -47,7 +47,7 @@ export const sampleTrips: SampleTrip[] = [
     "bks": "15H-014.85",
     "receivable": {
       "cuoc": 4500000,
-      "lachHuyen": 500000,
+      "zoneSurcharge": 500000,
       "phuPhi": 398119,
       "com": 0,
       "phatSinh": 0,
@@ -55,7 +55,7 @@ export const sampleTrips: SampleTrip[] = [
     },
     "payable": {
       "cuoc": 3800000,
-      "lachHuyen": 350000,
+      "zoneSurcharge": 350000,
       "phuPhi": 100000,
       "phatSinh": 0,
       "tongTra": 4250000
@@ -76,7 +76,7 @@ export const sampleTrips: SampleTrip[] = [
     "bks": "15C-332.45",
     "receivable": {
       "cuoc": 4500000,
-      "lachHuyen": 0,
+      "zoneSurcharge": 0,
       "phuPhi": 398119,
       "com": 0,
       "phatSinh": 0,
@@ -84,7 +84,7 @@ export const sampleTrips: SampleTrip[] = [
     },
     "payable": {
       "cuoc": 4000000,
-      "lachHuyen": 0,
+      "zoneSurcharge": 0,
       "phuPhi": 0,
       "phatSinh": 0,
       "tongTra": 4000000
@@ -105,7 +105,7 @@ export const sampleTrips: SampleTrip[] = [
     "bks": "15H-154.28",
     "receivable": {
       "cuoc": 4700000,
-      "lachHuyen": 500000,
+      "zoneSurcharge": 500000,
       "phuPhi": 398119,
       "com": 0,
       "phatSinh": 0,
@@ -113,7 +113,7 @@ export const sampleTrips: SampleTrip[] = [
     },
     "payable": {
       "cuoc": 4000000,
-      "lachHuyen": 350000,
+      "zoneSurcharge": 350000,
       "phuPhi": 250000,
       "phatSinh": 0,
       "tongTra": 4600000

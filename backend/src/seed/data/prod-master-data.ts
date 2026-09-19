@@ -11,7 +11,7 @@ export interface ProdSiteSeed { name: string; code: string; shortName: string | 
 export interface ProdRouteSeed { name: string; code: string; shortName: string; loadPoint: string | null; distanceKm: number | null; tolls: number | null; note: string | null; }
 export interface ProdTractorSeed { plate: string; driverName: string | null; vehicleClass: string | null; brand: string | null; towCapacityTons: number | null; fuelLPer100kmLoaded: number | null; fuelLPer100kmEmpty: number | null; inspectionDeadline: string | null; insuranceExpiry: string | null; preferredRoute: string | null; note: string | null; }
 export interface ProdTrailerSeed { plate: string; pairedTractor: string | null; type: string | null; maxPayloadTons: number | null; maxAxleLoadFrontTons: number | null; maxAxleLoadRearTons: number | null; inspectionDeadline: string | null; note: string | null; }
-export interface ProdPortSeed { name: string; code: string | null; classification: string | null; legalEntity: string | null; address: string | null; isLachHuyen: boolean; opsPortalUrl: string | null; position: string | null; }
+export interface ProdPortSeed { name: string; code: string | null; classification: string | null; legalEntity: string | null; address: string | null; opsPortalUrl: string | null; position: string | null; }
 export interface ProdCarrierSeed { name: string; shortName: string; taxCode: string | null; address: string | null; contactPerson: string | null; phone: string | null; }
 
 export const prodStaff: ProdStaffSeed[] = [
@@ -1744,7 +1744,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": "Công ty TNHH Cảng Container Quốc tế Tân Cảng Hải Phòng",
     "address": "ĐT356, KCN Đình Vũ, Đông Hải, Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.haiphongport.com.vn/User/Login",
     "position": null
   },
@@ -1754,7 +1753,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": "Công ty Cổ Phần Cảng Xanh VIP",
     "address": "Lô KB4 Khu công nghiệp Minh Phương, Phường Đông Hải, Thành phố Hải Phòng, Việt Nam",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.dinhvuport.com.vn/",
     "position": null
   },
@@ -1764,7 +1762,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": "Công ty Cổ phần Đầu tư Dịch vụ và Phát triển Xanh",
     "address": "Khu phi thuế quan và Khu công nghiệp Nam Đình Vũ, Phường Đông Hải 2, Quận Hải An, Hải Phòng.",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://smartport.gemadept.com.vn/login",
     "position": null
   },
@@ -1774,7 +1771,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Km 6 đường Đình Vũ, Phường Đông Hải, Thành Phố Hải Phòng, Việt Nam",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.namhaidvport.com.vn/",
     "position": null
   },
@@ -1784,7 +1780,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Số 1 Ngô Quyền, Phường Đông Hải, Thành phố Hải Phòng, Việt Nam",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.greenport.com.vn/",
     "position": null
   },
@@ -1794,7 +1789,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Khu kinh tế Đình Vũ – Cát Hải, P. Đông Hải, Tp.Hải Phòng, Việt Nam",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.vipgreenport.com.vn/",
     "position": null
   },
@@ -1804,7 +1798,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Tầng 1, toà nhà Hải An, km 2 đường Đình Vũ, , Thành phố Hải Phòng, Việt Nam",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://vietnamhub.vn/login",
     "position": null
   },
@@ -1814,7 +1807,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Khu Đôn Lương, thị trấn Cát Hải, huyện Cát Hải, thành phố Hải Phòng, Việt Nam",
-    "isLachHuyen": true,
     "opsPortalUrl": "https://eport.hict.net.vn/",
     "position": null
   },
@@ -1824,7 +1816,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Bến số 3 & 4 Cảng nước sâu Lạch Huyện, Khu phố Đôn Lương, Đặc khu Cát Hải, Thành Phố Hải Phòng, Việt Nam",
-    "isLachHuyen": true,
     "opsPortalUrl": "https://eport.htit.com.vn/",
     "position": null
   },
@@ -1834,7 +1825,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Số 5 đường Chùa Vẽ, phường Đông Hải, TP. Hải Phòng. Đây là Chi nhánh Cảng Chùa Vẽ – Cảng Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1844,7 +1834,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Bán đảo Đình Vũ, Khu kinh tế Đình Vũ – Cát Hải, phường Đông Hải, TP Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://eport.mpcport.com/User/Login",
     "position": null
   },
@@ -1854,7 +1843,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Khu Kinh tế Đình Vũ – Cát Hải, đường ĐT356, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1864,7 +1852,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Cảng",
     "legalEntity": null,
     "address": "Bến container số 5&6 Khu cảng Lạch Huyện, Đặc khu Cát Hải, TP. Hải Phòng, Việt Nam",
-    "isLachHuyen": true,
     "opsPortalUrl": "https://hhit.com.vn/",
     "position": null
   },
@@ -1874,7 +1861,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Cảng Đình Vũ - Đông Hải 2 - Hải An - Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1884,7 +1870,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Cát Hải, Hải Phòng",
-    "isLachHuyen": true,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1894,7 +1879,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô CN1.1 & CN1.2 KCN Minh Phương, Phường Đông Hải 2, Quận Hải An, Hải Phòng.",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1904,7 +1888,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Cát Vũ, KCN Đình Vũ, Đông Hải, Hải Phòng.",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1914,7 +1897,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô KB1.8 và Lô CN4-4, KCN MP Đình Vũ, phường Đông Hải, TP Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1924,7 +1906,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "KCN Minh Phương, đường Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1934,7 +1915,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Khu vực KCN Đình Vũ, phường Đông Hải, Hải Phòng.",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1944,7 +1924,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô CN3, Khu công nghiệp MP Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1954,7 +1933,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "KCN Minh Phương – Đường Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1964,7 +1942,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "ĐƯỜNG NỘI BỘ SỐ 4 KHU CÔNG NGHIỆP MINH\nPHƯƠNG, PHƯỜNG ĐÔNG HẢI, THÀNH PHỐ HẢI PHÒNG (CẠNH NAM HẢI\nICD)",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1974,7 +1951,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô KB4, KCN Minh Phương, đường Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1984,7 +1960,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Khu Dịch vụ cuối tuyến Đình Vũ, phường Đông Hải, Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -1994,7 +1969,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô CC2, KCN Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -2004,7 +1978,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô đất CN3.2G, KCN Đình Vũ, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -2014,7 +1987,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Khu công nghiệp Nam Đình Vũ, phường Đông Hải, Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": null,
     "position": null
   },
@@ -2024,7 +1996,6 @@ export const prodPorts: ProdPortSeed[] = [
     "classification": "Bãi",
     "legalEntity": null,
     "address": "Lô KB5, Khu công nghiệp Nam Đình Vũ (Khu 1), Khu kinh tế Đình Vũ – Cát Hải, phường Đông Hải, TP. Hải Phòng",
-    "isLachHuyen": false,
     "opsPortalUrl": "https://edepot.panhaian.com/dang-nhap.php",
     "position": null
   }

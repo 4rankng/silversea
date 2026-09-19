@@ -792,7 +792,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     const customer = await mkCustomer();
     const tag = Math.random().toString(36).slice(2, 8);
     const type = await mkContainerType(`40DC${tag}`, "40'DC");
-    const lachHuyen = await mkPort(`Cảng Lạch Huyện ${tag}`);
+    const dropZonePort = await mkPort(`Cảng Lạch Huyện ${tag}`);
     const dinhVu = await mkPort(`Cảng Đình Vũ ${tag}`);
     const factory = await mkPort(`Nhà máy Bắc Giang ${tag}`);
 
@@ -807,13 +807,13 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
       customerId: customer.id,
       cargoMode: 'FCL',
       expectedDeliveryDate: '2026-08-15',
-      pickupLocation: lachHuyen.name,
+      pickupLocation: dropZonePort.name,
     });
     createdShipmentIds.push(matching.id, legacyOnly.id);
 
     await mkContainer(matching.id, type.id, undefined, {
       pickupPortId: dinhVu.id,
-      dropoffPortId: lachHuyen.id,
+      dropoffPortId: dropZonePort.id,
     });
     await mkContainer(matching.id, type.id, undefined, {
       pickupPortId: dinhVu.id,
@@ -822,7 +822,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
 
     const result = await listShipmentsPaginated({
       customerId: customer.id,
-      portIds: [lachHuyen.id],
+      portIds: [dropZonePort.id],
       includeDispatchSummary: true,
       page: 1,
       limit: 20,
@@ -832,7 +832,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     assert.deepEqual(result.items[0]!.containerPortGroups, [
       {
         pickupPortName: dinhVu.name,
-        dropoffPortName: lachHuyen.name,
+        dropoffPortName: dropZonePort.name,
         localDate: null,
         containerSummary: `1 x 40DC${tag}`,
       },

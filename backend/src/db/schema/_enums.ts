@@ -260,7 +260,7 @@ export const driverProgressEventTypeEnum = applicationEnum([
 export const driverIncidentalCostTypeEnum = applicationEnum([
   // 27.8 spec additions:
   'PER_DIEM', 'LIFT_FEE', 'DROP_FEE', 'WAREHOUSE_FEE',
-  'LIFT_DROP_LACH_HUYEN', 'ROAD_ALLOWANCE',
+  'LIFT_DROP_ZONE', 'ROAD_ALLOWANCE',
   'PARKING', 'TOLL', 'FUEL',
   'CONTAINER_WASH', 'CONTAINER_WELD', 'TIRE_WEIGH',
   'OTHER',

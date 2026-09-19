@@ -114,6 +114,7 @@ router.get('/dispatch-zones/active', asyncHandler(async (_req: Request, res: Res
     code: s.dispatchZones.code,
     label: s.dispatchZones.label,
     sortOrder: s.dispatchZones.sortOrder,
+    isDefault: s.dispatchZones.isDefault,
   }).from(s.dispatchZones)
     .where(eq(s.dispatchZones.isActive, true))
     .orderBy(s.dispatchZones.sortOrder, s.dispatchZones.code);

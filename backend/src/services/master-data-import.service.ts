@@ -93,7 +93,6 @@ export interface PortPayload {
   // Sep-2026 sheet ("Cảng & Bãi") additions — null from the legacy parser.
   classification: string | null;
   legalEntity: string | null;
-  isLachHuyen: boolean;
   position: string | null;
 }
 
@@ -508,7 +507,6 @@ function parsePorts(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
       webUrl: /^https?:\/\//i.test(webUrl) ? webUrl : null,
       classification: null,
       legalEntity: null,
-      isLachHuyen: false,
       position: null,
     };
     rows.push(classifiedRow({
@@ -1195,7 +1193,6 @@ async function applyParsedRows(
       notes: payload.webUrl ? `Trang tác nghiệp: ${payload.webUrl}` : (existing?.notes ?? null),
       classification: payload.classification ?? existing?.classification ?? null,
       legalEntity: payload.legalEntity ?? existing?.legalEntity ?? null,
-      isLachHuyen: payload.isLachHuyen || (existing?.isLachHuyen ?? false),
       opsPortalUrl: payload.webUrl ?? existing?.opsPortalUrl ?? null,
       position: payload.position ?? existing?.position ?? null,
       updatedAt: new Date(),

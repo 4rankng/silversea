@@ -917,9 +917,7 @@ export async function seedClerkScope(): Promise<void> {
 
 // Stable reference IDs resolved by name/code at seed runtime (never
 // hard-coded) so they survive RESTART IDENTITY from a wipe.
-let PORT_HAI_PHONG = 0;
-let PORT_DINH_VU = 0;
-let PORT_LACH_HUYEN = 0;
+const SEED_PORT_IDS_BY_CODE: Record<string, number> = {};
 let CONTAINER_TYPE_40DC = 0;
 let CONTAINER_TYPE_40HC = 0;
 let ROUTE_NEWEB = 0;
@@ -931,9 +929,7 @@ async function resolveSeedReferenceIds() {
     .from(schema.ports)
     .where(isNull(schema.ports.deletedAt));
   for (const p of portByName) {
-    if (p.name === 'Cảng Hải Phòng') PORT_HAI_PHONG = p.id;
-    if (p.name === 'Cảng Đình Vũ') PORT_DINH_VU = p.id;
-    if (p.code === 'HICT') PORT_LACH_HUYEN = p.id;
+    if (p.code) SEED_PORT_IDS_BY_CODE[p.code] = p.id;
   }
   const ctByCode = await db.select({ id: schema.containerTypes.id, code: schema.containerTypes.code })
     .from(schema.containerTypes)
@@ -950,7 +946,7 @@ async function resolveSeedReferenceIds() {
     if (r.name === 'ASKEY') ROUTE_ASKEY = r.id;
     if (r.name === 'SUNRISE+  SJ') ROUTE_SUNRISE = r.id;
   }
-  if (!PORT_HAI_PHONG || !PORT_DINH_VU || !PORT_LACH_HUYEN || !CONTAINER_TYPE_40DC || !CONTAINER_TYPE_40HC) {
+  if (!SEED_PORT_IDS_BY_CODE['HPH'] || !SEED_PORT_IDS_BY_CODE['DVU'] || !SEED_PORT_IDS_BY_CODE['HICT'] || !CONTAINER_TYPE_40DC || !CONTAINER_TYPE_40HC) {
     throw new Error('Seed reference lookup failed: ports/container types missing — run the earlier seeders first.');
   }
 }
@@ -1282,8 +1278,8 @@ export async function seedShipments(passwordHash: string) {
       // carry type + both ports. IMPORT: lift at the sea port, drop at the
       // inland site; EXPORT is the mirror.
       const [pickupPortId, dropoffPortId] = s.tradeDirection === 'IMPORT'
-        ? [PORT_HAI_PHONG, PORT_DINH_VU]
-        : [PORT_DINH_VU, PORT_LACH_HUYEN];
+        ? [SEED_PORT_IDS_BY_CODE['HPH'], SEED_PORT_IDS_BY_CODE['DVU']]
+        : [SEED_PORT_IDS_BY_CODE['DVU'], SEED_PORT_IDS_BY_CODE['HICT']];
       // Per-container factory authority resolves by code within the shipment's
       // customer; a missing/invalid code leaves authority null (legacy row).
       const factorySiteIds = new Map<string, number>();

@@ -355,6 +355,9 @@ export const dispatchZones = pgTable('dispatch_zones', {
   label: varchar('label', { length: 100 }).notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
+  // Config flag for "which zone do new lots default to" — the FE must read
+  // this, never a hardcoded zone code. Exactly one row may carry it.
+  isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -393,7 +396,6 @@ export const ports = pgTable('ports', {
   // Fields from the customer's port/yard master-data sheet (Cảng & Bãi).
   classification: varchar('classification', { length: 20 }), // Cảng | Bãi
   legalEntity: varchar('legal_entity', { length: 255 }), // Pháp nhân
-  isLachHuyen: boolean('is_lach_huyen').default(false).notNull(), // Thuộc Lạch Huyện
   opsPortalUrl: text('ops_portal_url'), // Web tác nghiệp
   position: varchar('position', { length: 255 }), // Vị trí
   createdAt: timestamp('created_at').defaultNow().notNull(),

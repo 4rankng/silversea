@@ -790,7 +790,6 @@ export interface Port {
   dispatchZone: string | null;
   classification: string | null;
   legalEntity: string | null;
-  isLachHuyen: boolean;
   opsPortalUrl: string | null;
   position: string | null;
   createdAt: string;

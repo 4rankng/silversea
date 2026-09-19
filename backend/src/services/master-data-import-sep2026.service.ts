@@ -291,7 +291,7 @@ export function parsePortsV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]): voi
   const last = lastRelevantRow(sheet, 3, [1, 2]);
   for (let rowNumber = 3; rowNumber <= last; rowNumber += 1) {
     const { values, hasFormula } = cellsForRow(sheet, rowNumber, [1, 2, 3, 4, 5, 6, 7, 16]);
-    const [name, code, classification, legalEntity, address, lachHuyen, webUrl, position] = values;
+    const [name, code, classification, legalEntity, address, webUrl, position] = values;
     if (!values.some(Boolean)) { rows.push(templateRow(sheet.name, rowNumber, 'port')); continue; }
     if (hasFormula) { rows.push(blockedRow(sheet.name, rowNumber, 'port', 'FORMULA_NOT_ALLOWED', 'Ô dữ liệu chứa công thức và không được phép nhập.')); continue; }
     if (!name) { rows.push(blockedRow(sheet.name, rowNumber, 'port', 'MISSING_REQUIRED_FIELDS', 'Thiếu tên cảng/bãi.')); continue; }
@@ -303,7 +303,6 @@ export function parsePortsV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]): voi
       webUrl: /^https?:\/\//i.test(webUrl) ? webUrl : null,
       classification: classification || null,
       legalEntity: legalEntity || null,
-      isLachHuyen: normalizeLookup(lachHuyen) === 'CO',
       position: position || null,
     };
     rows.push(classifiedRow({

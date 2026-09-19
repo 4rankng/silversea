@@ -262,6 +262,10 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
   }
   if (tripIds.length > 0) {
+    // The postings and trip-claim FKs are RESTRICT: children minted by the
+    // issue flow (not just tracked ids) must go before their trips.
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
+    await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {
