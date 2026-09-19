@@ -108,23 +108,38 @@ export async function getShipmentDebitSummary(query: {
     ));
   const lockedByLot = new Map(lockRows.map((row) => [row.shipmentId, row]));
 
-  // TỔNG PHẢI THU KHÁCH (spec L138): the roll-up of ENTERED thu khách on the
-  // lot's Bảng-2.2 expense rows (tripExpenses.sellAmount) — NOT issued
-  // debit-note lines; Lớp 1 moves the moment CUS saves. For locked lots the
-  // frozen snapshot value wins (card _19: an edit behind an issued note must
-  // not move Lớp 1).
-  const sellRows = await db.select({
+  // TỔNG PHẢI THU KHÁCH (user ruling 2026-09-19, doc-proven arithmetic): both
+  // revenue tables roll up. 2.2 contributes the thu khách cells — typed on
+  // Phí khác rows; for pass-through/invoiced rows the recharge derives from
+  // the expense-type rule (cost pass-through today). 2.1 contributes its row
+  // totals (freight snapshots, entered PS thực tế, customs bucket) with PS
+  // counted once inside the row, never separately. Only a lot with NO data
+  // in either table reads null (Chưa xác định).
+  const revenueRows = await db.select({
     shipmentId: s.trips.shipmentId,
-    total: sql<string>`coalesce(sum(${s.tripExpenses.sellAmount}), 0)::text`,
+    expenseType: s.tripExpenses.expenseType,
+    buy: s.tripExpenses.buyAmount,
+    sell: s.tripExpenses.sellAmount,
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
-    ))
-    .groupBy(s.trips.shipmentId);
-  const sellByLot = new Map(sellRows.map((row) => [row.shipmentId, toNumber(row.total)]));
+    ));
+  const revenueByLot = new Map<number, { hasRows: boolean; otherSell: number; derived: number }>();
+  for (const row of revenueRows) {
+    if (row.shipmentId == null) continue;
+    const entry = revenueByLot.get(row.shipmentId) ?? { hasRows: true, otherSell: 0, derived: 0 };
+    if (row.expenseType === 'OTHER') {
+      entry.otherSell += Number(row.sell ?? 0);
+    } else {
+      // Pass-through recharge at cost; the type's markup rule says otherwise
+      // only when a markup mechanism exists — none lands before one does.
+      entry.derived += Number(row.buy ?? 0);
+    }
+    revenueByLot.set(row.shipmentId, entry);
+  }
 
   // TỔNG PHẢI TRẢ components, live: Cước trả = Σ trip_carrier_info
   // .external_freight_cost over the lot's active trips (unknown while any
@@ -161,6 +176,28 @@ export async function getShipmentDebitSummary(query: {
     total: toNumber(row.total),
   }]));
 
+  // 2.1's PS thực tế and customs contributions, bulk per lot.
+  const psRows = await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    total: sql<string>`coalesce(sum(${s.shipmentContainers.psActualAmount}), 0)::text`,
+    known: sql<number>`count(${s.shipmentContainers.psActualAmount})::int`,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.shipmentId, lotIds))
+    .groupBy(s.shipmentContainers.shipmentId);
+  const psByLot = new Map(psRows.map((row) => [row.shipmentId, { known: row.known > 0, total: toNumber(row.total) }]));
+
+  const hqgsRows = await db.select({
+    shipmentId: s.opsExpenseEntries.shipmentId,
+    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::text`,
+  }).from(s.opsExpenseEntries)
+    .innerJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
+    .where(and(
+      inArray(s.opsExpenseEntries.shipmentId, lotIds),
+      eq(s.forwarderExpenseTypes.category, 'HQGS'),
+    ))
+    .groupBy(s.opsExpenseEntries.shipmentId);
+  const hqgsByLot = new Map(hqgsRows.map((row) => [row.shipmentId, toNumber(row.total)]));
+
   /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
    *  before this landing) read null — Chưa xác định, never a fabricated 0. */
   const frozenNumber = (snapshot: unknown, key: string): number | null => {
@@ -176,10 +213,21 @@ export async function getShipmentDebitSummary(query: {
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
     const lock = lockedByLot.get(lot.id);
-    const enteredSell = sellByLot.get(lot.id);
+    const revenue = revenueByLot.get(lot.id);
+    const ps = psByLot.get(lot.id);
+    const hasAnyRevenue = revenue != null
+      || freightByLot.has(lot.id)
+      || (ps?.known ?? false)
+      || hqgsByLot.has(lot.id);
     const receivableValue = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
-      : sellByLot.has(lot.id) ? (enteredSell ?? 0) : null;
+      : hasAnyRevenue
+        ? (revenue?.otherSell ?? 0)
+          + (revenue?.derived ?? 0)
+          + (freightByLot.get(lot.id) ?? 0)
+          + (ps?.known ? ps.total : 0)
+          + (hqgsByLot.get(lot.id) ?? 0)
+        : null;
     const carrier = carrierByLot.get(lot.id);
     const ops = opsByLot.get(lot.id);
     const externalFreight = carrier?.known ? carrier.total : null;

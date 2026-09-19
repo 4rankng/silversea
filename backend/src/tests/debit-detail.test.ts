@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { Role, shipmentDebitDetailSchema } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -252,8 +252,8 @@ describe('20260918 debit-detail GET (red-first)', () => {
       assert.deepEqual(row.otherFees, []);
     }
     for (const row of result.body.freightRows as Array<Record<string, unknown>>) {
-      assert.equal(row.freight, null);
-      assert.equal(row.total, null);
+      assert.equal(row.freightCharge, null);
+      assert.equal(row.contractFreightTotal, null);
       assert.equal(row.containerTypeLabel, `40'HC rework`);
     }
     assert.equal(result.body.thuKhachTotal, null, 'no data — null, not 0');
@@ -275,17 +275,24 @@ describe('20260918 debit-edits PUT (red-first)', () => {
     assert.match(text, /Idempotency-Key/i);
   });
 
-  test('edits the editable fields: PS thực tế (buy), thu khách (sell), note', async () => {
+  test('edits the editable fields: buy/note on any row, thu khách (sell) only on Phí khác', async () => {
     const lot = await mkShipmentWithTrip();
-    const expenseId = await mkExpense(lot.trip.id, { buyAmount: '500000', sellAmount: '0' });
-    const result = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
-      edits: [{ expenseId, buyAmount: '650000', sellAmount: '750000', note: 'Điều chỉnh thực tế' }],
+    const customsExpenseId = await mkExpense(lot.trip.id, { buyAmount: '500000', sellAmount: '0' });
+    const otherExpenseId = await mkExpense(lot.trip.id, { expenseType: 'OTHER', buyAmount: '200000', sellAmount: '0' });
+    const buyNoteEdit = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
+      edits: [{ expenseId: customsExpenseId, buyAmount: '650000', note: 'Điều chỉnh thực tế' }],
     });
-    assert.equal(result.status, 200, JSON.stringify(result.body));
-    const [row] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
-    assert.equal(row.buyAmount, '650000');
-    assert.equal(Number(row.sellAmount), 750000);
-    assert.equal(row.recoveryNote, 'Điều chỉnh thực tế');
+    assert.equal(buyNoteEdit.status, 200, JSON.stringify(buyNoteEdit.body));
+    const [customsRow] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, customsExpenseId));
+    assert.equal(customsRow.buyAmount, '650000');
+    assert.equal(Number(customsRow.sellAmount), 0, 'the pass-through sell figure is system-derived — CUS cannot type it');
+    assert.equal(customsRow.recoveryNote, 'Điều chỉnh thực tế');
+    const sellEdit = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
+      edits: [{ expenseId: otherExpenseId, sellAmount: '750000' }],
+    });
+    assert.equal(sellEdit.status, 200, JSON.stringify(sellEdit.body));
+    const [otherRow] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, otherExpenseId));
+    assert.equal(Number(otherRow.sellAmount), 750000, 'the Phí khác customer figure is CUS-typed');
   });
 
   test('add and remove a Phí khác (OTHER) row', async () => {
@@ -369,5 +376,74 @@ describe('20260918 debit-edits PUT (red-first)', () => {
     });
     assert.equal(result.status, 409);
     assert.match(String(result.body.error), /đã khóa chi phí/i);
+  });
+});
+
+describe('20260919 card _7 acceptance — producer output parses against the shared contract', () => {
+  test('schema.parse on the real producer output — legacy and place-named keys absent', async () => {
+    const { shipment, trip } = await mkShipmentWithTrip();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `ACC-${suffix}`,
+    }).returning({ id: s.shipmentContainers.id, containerNumber: s.shipmentContainers.containerNumber });
+    const [snapshot] = await db.insert(s.freightRateSnapshots).values({
+      shipmentId: shipment.id,
+      tripId: trip.id,
+      freightAmount: '2500000',
+      surchargeAmount: '300000',
+      totalAmount: '2800000',
+      rateTermsId: 1, pricingTableId: 1, fuelNormId: 1, fuelPricePeriodId: 1,
+      billedKm: '10', liters: '0', fuelDelta: '0', sharePct: '0',
+    }).returning({ id: s.freightRateSnapshots.id });
+    const [hqgsType] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `ACC-HQGS-${suffix}`,
+      name: 'Phí hải quan ACC',
+      category: 'HQGS',
+    }).returning({ id: s.forwarderExpenseTypes.id });
+    const [opsRow] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      expenseTypeCode: `ACC-HQGS-${suffix}`,
+      amount: '300000',
+      paidById: adminId,
+      paidAt: '2026-10-01',
+    }).returning({ id: s.opsExpenseEntries.id });
+    const [tripLink] = await db.insert(s.tripContainers).values({
+      tripId: trip.id,
+      sourceShipmentId: shipment.id,
+      sourceShipmentContainerId: container.id,
+      containerNumber: `ACC-${suffix}`,
+    }).returning({ id: s.tripContainers.id });
+    await db.update(s.shipmentContainers).set({ psActualAmount: '500000' }).where(eq(s.shipmentContainers.id, container.id));
+    try {
+      const response = await api('GET', `/api/shipments/${shipment.id}/debit-detail`, accountantId);
+      assert.equal(response.status, 200, JSON.stringify(response.body).slice(0, 200));
+      const body = response.body as unknown as Record<string, unknown>;
+      // The acceptance gate: the REAL service output must parse — any drift
+      // between producer and contract fails here, not in a hand-written
+      // fixture.
+      const parsed = shipmentDebitDetailSchema.parse(body);
+      const row = parsed.freightRows.find((r) => r.containerNumber === `ACC-${suffix}`);
+      assert.ok(row, 'the container row renders');
+      assert.equal(row!.freightCharge, 2500000);
+      assert.equal(row!.fuelSurcharge, 300000);
+      assert.equal(row!.contractFreightTotal, 2800000, 'the snapshot freight+surcharge total rides the explicit wire name');
+      assert.equal(row!.psActual, 500000);
+      assert.equal(row!.customsFee, 300000, 'container-scoped HQGS ops rows produce the auto customs column');
+      assert.ok(!('freight' in row!), 'legacy field name is gone from the wire');
+      assert.ok(!('surcharge' in row!), 'legacy field name is gone from the wire');
+      assert.ok(!('total' in row!), 'the bare total word is gone from the wire');
+      assert.ok(!('lachHuyenFee' in row!), 'no place-named field exists on the wire');
+      const rawPayables = body.payables as Record<string, unknown>;
+      for (const key of ['chiHoTotal', 'externalFreightCost', 'hqgsFee', 'phatSinhFee', 'unclassifiedFee', 'opsExpenseTotal', 'payableTotal']) {
+        assert.ok(key in rawPayables, `payables carries ${key} on the raw wire`);
+      }
+    } finally {
+      await db.delete(s.tripContainers).where(eq(s.tripContainers.id, tripLink.id));
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, opsRow.id));
+      await db.delete(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, hqgsType.id));
+      await db.delete(s.freightRateSnapshots).where(eq(s.freightRateSnapshots.id, snapshot.id));
+      await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    }
   });
 });

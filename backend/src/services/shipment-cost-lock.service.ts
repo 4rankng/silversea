@@ -78,6 +78,12 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
   const payables = await computeLotPayablesBreakdown(shipmentId);
+  // Card 20260919_5 freeze contract: the declared channel belongs to the
+  // snapshot so a later re-declaration cannot rewrite an issued note.
+  const [declaration] = await db.select({ channel: s.shipmentDeclarations.channel })
+    .from(s.shipmentDeclarations)
+    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+    .limit(1);
   return {
     freightAuto: item?.freightAuto ?? null,
     chiHoTotal: item?.chiHoTotal ?? null,
@@ -92,6 +98,7 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     unclassifiedFee: payables.unclassifiedFee,
     opsExpenseTotal: payables.opsExpenseTotal,
     payableTotal: payables.payableTotal,
+    customsChannel: declaration?.channel ?? null,
   };
 }
 

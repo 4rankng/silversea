@@ -17,33 +17,11 @@ import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
+import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
 
 /** Chi hộ rows group O2C §7.1 evidence: READY = POD recovered on the trip. */
 function opsDocsStatusOf(trip: { podRecoveredAt: Date | null }): 'READY' | 'PENDING' {
   return trip.podRecoveredAt != null ? 'READY' : 'PENDING';
-}
-
-export interface DebitDetailFreightRow {
-  containerNumber: string | null;
-  containerTypeLabel: string | null;
-  psActual: number | null;
-  psActualNote: string | null;
-  tripId: number | null;
-  rateKey: string | null;
-  freight: number | null;
-  surcharge: number | null;
-  total: number | null;
-}
-
-export interface DebitDetailChiHoRow {
-  containerNumber: string | null;
-  containerTypeLabel: string | null;
-  tripId: number | null;
-  items: Array<{ id: number; expenseType: string; feeName: string | null; amount: number | null; thuKhach: number | null; note: string | null; invoiceNumber: string | null }>;
-  otherFees: Array<{ id: number; name: string; amount: number | null }>;
-  carrierDetention: number | null;
-  repairAdvance: number | null;
-  opsDocsStatus: 'READY' | 'PENDING';
 }
 
 export interface DebitDetailPayables {
@@ -56,13 +34,6 @@ export interface DebitDetailPayables {
   payableTotal: number | null;
 }
 
-export interface ShipmentDebitDetail {
-  freightRows: DebitDetailFreightRow[];
-  chiHoRows: DebitDetailChiHoRow[];
-  payables: DebitDetailPayables;
-  thuKhachTotal: number | null;
-}
-
 export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
   const [shipment] = await db.select({ id: s.shipments.id })
     .from(s.shipments)
@@ -71,6 +42,13 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   if (!shipment) {
     throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
   }
+  // Card 20260919_5 producer contract: the declared channel rides top-level
+  // (lot-level attribute — every container row renders the same value).
+  const [declaration] = await db.select({ channel: s.shipmentDeclarations.channel })
+    .from(s.shipmentDeclarations)
+    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+    .limit(1);
+  const customsChannel = declaration?.channel ?? null;
 
   // Lớp 2 renders ONE ROW PER CONTAINER (REWORK B, 20260918_18): the container
   // list is the row skeleton; trips/expenses/snapshots merge onto their
@@ -158,6 +136,26 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     expensesByTrip.set(expense.tripId, bucket);
   }
 
+  // Bảng 2.1's auto customs column: container-scoped ops rows classified
+  // HQGS via the explicit category column (never name matching).
+  const opsRows = await db.select({
+    containerId: s.opsExpenseEntries.shipmentContainerId,
+    category: s.forwarderExpenseTypes.category,
+    amount: s.opsExpenseEntries.amount,
+  })
+    .from(s.opsExpenseEntries)
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
+    .where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
+  const hqgsByContainer = new Map<number, number>();
+  const containersWithOps = new Set<number>();
+  for (const opsRow of opsRows) {
+    if (opsRow.containerId == null) continue;
+    containersWithOps.add(opsRow.containerId);
+    if (opsRow.category === ExpenseTypeCategory.HQGS) {
+      hqgsByContainer.set(opsRow.containerId, (hqgsByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
+    }
+  }
+
   function buildRow(container: {
     id: number | null;
     containerNumber: string | null;
@@ -181,9 +179,12 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
       psActualNote: container.psActualNote ?? null,
       tripId,
       rateKey: snapshot?.rateKey ?? null,
-      freight: snapshot?.freight != null ? Number(snapshot.freight) : null,
-      surcharge: snapshot?.surcharge != null ? Number(snapshot.surcharge) : null,
-      total: snapshot?.total != null ? Number(snapshot.total) : null,
+      freightCharge: snapshot?.freight != null ? Number(snapshot.freight) : null,
+      fuelSurcharge: snapshot?.surcharge != null ? Number(snapshot.surcharge) : null,
+      customsFee: container.id != null && containersWithOps.has(container.id)
+        ? (hqgsByContainer.get(container.id) ?? 0)
+        : null,
+      contractFreightTotal: snapshot?.total != null ? Number(snapshot.total) : null,
     };
     const chiHoRow: DebitDetailChiHoRow = {
       containerNumber: container.containerNumber,
@@ -264,6 +265,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     chiHoRows,
     payables,
     thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
+    customsChannel,
   };
 }
 
@@ -368,6 +370,12 @@ export async function saveDebitEdits(input: {
           .where(eq(s.tripExpenses.id, edit.expenseId)).limit(1);
         if (!expense || !tripIds.has(expense.tripId)) {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
+        }
+        // Ruling 2026-09-19: the customer figure is CUS-typed only on Phí
+        // khác rows — invoiced/pass-through rows recharge from the expense-
+        // type rule (cost pass-through today) and stay read-only here.
+        if (edit.sellAmount !== undefined && expense.expenseType !== 'OTHER') {
+          throw new ApiError(400, 'Chỉ dòng Phí khác (không hóa đơn) được nhập số phải thu khách. Dòng có hóa đơn tự tính lại theo quy tắc loại chi phí.');
         }
         await tx.update(s.tripExpenses).set({
           buyAmount: edit.buyAmount != null ? String(edit.buyAmount) : undefined,
