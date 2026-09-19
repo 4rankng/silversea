@@ -113,8 +113,14 @@ async function main() {
   await client.end();
 }
 
-main().catch(async (err) => {
-  console.error('❌ Reset failed:', err);
-  try { await client.end(); } catch { /* already closed */ }
-  process.exit(1);
-});
+// Run the reset only when invoked directly (npx tsx src/reset-seed.ts).
+// Without this guard, merely IMPORTING this module executes the wipe —
+// the exact import-for-side-effect hazard this tool exists to prevent.
+const isMainModule = process.argv[1]?.replace(/\.\w+$/, '')?.endsWith('reset-seed');
+if (isMainModule) {
+  main().catch(async (err) => {
+    console.error('❌ Reset failed:', err);
+    try { await client.end(); } catch { /* already closed */ }
+    process.exit(1);
+  });
+}
