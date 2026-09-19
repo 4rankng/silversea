@@ -48,6 +48,22 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   // (lot-level attribute — every container row renders the same value).
   const customsChannel = await getLotDeclaredChannel(shipmentId);
 
+  // Frozen port labels (card 20260919_35): locked lots read their lift/drop
+  // site labels from the snapshot; unlocked lots and old locks read null and
+  // the client falls back to the live label.
+  const [activeLabelLock] = await db.select({ snapshot: s.shipmentCostLocks.costSnapshot })
+    .from(s.shipmentCostLocks)
+    .where(and(
+      eq(s.shipmentCostLocks.shipmentId, shipmentId),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ))
+    .limit(1);
+  const frozenByContainer = new Map<number, { lift: string | null; drop: string | null }>();
+  const portLabels = (activeLabelLock?.snapshot as { portLabels?: { byContainer?: Array<{ containerId: number; liftSiteLabel: string | null; dropSiteLabel: string | null }> } } | null)?.portLabels;
+  for (const entry of portLabels?.byContainer ?? []) {
+    frozenByContainer.set(entry.containerId, { lift: entry.liftSiteLabel ?? null, drop: entry.dropSiteLabel ?? null });
+  }
+
   // Lớp 2 renders ONE ROW PER CONTAINER (REWORK B, 20260918_18): the container
   // list is the row skeleton; trips/expenses/snapshots merge onto their
   // container where the data exists. A container without a trip yet still
@@ -173,6 +189,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
       .map((expense) => ({ id: expense.id, name: expense.feeName ?? 'Phí khác', amount: Number(expense.buyAmount) }));
     const coreRows = tripExpenses.filter((expense) => expense.expenseType !== 'OTHER');
     const podRecoveredAt = tripId != null ? podByTrip.get(tripId) ?? null : null;
+    const frozenLabels = container.id != null ? frozenByContainer.get(container.id) : undefined;
     const freightRow: DebitDetailFreightRow = {
       containerNumber: container.containerNumber,
       containerTypeLabel: container.typeLabel,
@@ -186,6 +203,8 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         ? (hqgsByContainer.get(container.id) ?? 0)
         : null,
       contractFreightTotal: snapshot?.total != null ? Number(snapshot.total) : null,
+      liftSiteLabel: frozenLabels?.lift ?? null,
+      dropSiteLabel: frozenLabels?.drop ?? null,
     };
     const chiHoRow: DebitDetailChiHoRow = {
       containerNumber: container.containerNumber,

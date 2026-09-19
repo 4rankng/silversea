@@ -26,6 +26,10 @@ export const debitDetailFreightRowSchema = z.object({
   contractFreightTotal: nullableMoney,
   psActual: nullableMoney,
   psActualNote: z.string().nullable(),
+  /** Card 20260919_35 — labels frozen at lock time, resolved from the
+   *  snapshot; null = unlocked lot or old lock (render falls back live). */
+  liftSiteLabel: z.string().nullable().optional(),
+  dropSiteLabel: z.string().nullable().optional(),
 });
 
 export const debitDetailExpenseItemSchema = z.object({

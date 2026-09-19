@@ -84,6 +84,41 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   // pick is the shared deterministic one (newest declaration, id desc) —
   // the frozen value always equals what the wire displayed at freeze time.
   const customsChannel = await getLotDeclaredChannel(shipmentId);
+  // Freeze contract: port labels join the frozen basis — a rename after the
+  // lock must not rewrite the issued note's lift/drop columns. Per-container
+  // capture (catalog labels + ad-hoc raw names); old snapshots lack the key
+  // and consumers fall back to live reads (null = not frozen).
+  const lotContainers = await db.select({
+    id: s.shipmentContainers.id,
+    pickupPortId: s.shipmentContainers.pickupPortId,
+    dropoffPortId: s.shipmentContainers.dropoffPortId,
+    rawPickupPortName: s.shipmentContainers.rawPickupPortName,
+    rawDropoffPortName: s.shipmentContainers.rawDropoffPortName,
+  }).from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId))
+    .orderBy(s.shipmentContainers.id);
+  const portIdSet = new Set<number>();
+  for (const c of lotContainers) {
+    if (c.pickupPortId != null) portIdSet.add(c.pickupPortId);
+    if (c.dropoffPortId != null) portIdSet.add(c.dropoffPortId);
+  }
+  const portNameById = new Map<number, string>();
+  if (portIdSet.size > 0) {
+    const portRows = await db.select({ id: s.ports.id, name: s.ports.name })
+      .from(s.ports)
+      .where(inArray(s.ports.id, [...portIdSet]));
+    for (const row of portRows) portNameById.set(row.id, row.name);
+  }
+  const portLabels = {
+    byContainer: lotContainers.map((c) => ({
+      containerId: c.id,
+      liftSiteLabel: c.pickupPortId != null ? portNameById.get(c.pickupPortId) ?? null : null,
+      dropSiteLabel: c.dropoffPortId != null ? portNameById.get(c.dropoffPortId) ?? null : null,
+      rawLiftSiteName: c.rawPickupPortName,
+      rawDropSiteName: c.rawDropoffPortName,
+    })),
+    ports: Object.fromEntries([...portIdSet].map((id) => [String(id), portNameById.get(id) ?? null])),
+  };
   return {
     freightAuto: item?.freightAuto ?? null,
     chiHoTotal: item?.chiHoTotal ?? null,
@@ -99,6 +134,7 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     opsExpenseTotal: payables.opsExpenseTotal,
     payableTotal: payables.payableTotal,
     customsChannel,
+    portLabels,
   };
 }
 
