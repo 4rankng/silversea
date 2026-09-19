@@ -28,7 +28,7 @@ describe('role workspace pagination', () => {
     // track edit), the search field spans two tracks, and the reset sits
     // under the rail flush with its left edge. The retired full-row
     // plan-filter rule must stay retired.
-    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*180px\),\s*1fr\)\);/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*150px\),\s*1fr\)\);/);
     expect(css).not.toMatch(/\.cus-worksheet-toolbar__filters \.cus-plan-status-filter\s*\{[^}]*grid-column:\s*1 \/ -1;/);
   });
 });

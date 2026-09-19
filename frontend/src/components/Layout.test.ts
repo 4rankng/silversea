@@ -96,6 +96,7 @@ describe('getNavItems', () => {
     [Role.CUS, [
       ['Tổng quan lô hàng', '/shipments'],
       ['Chi tiết lô hàng', '/shipments-detail'],
+      ['Chi phí - Quyết toán', '/shipments-debit'],
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
@@ -256,7 +257,7 @@ describe('getNavItems', () => {
 
   it('shows CUS only the document-ops and catalog items without the recoverable-costs capability', () => {
     const items = getNavItems(Role.CUS);
-    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'customers', 'config-routes', 'config-fuel-price-periods']);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'customers', 'config-routes', 'config-fuel-price-periods']);
     expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 

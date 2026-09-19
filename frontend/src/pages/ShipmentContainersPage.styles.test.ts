@@ -40,7 +40,7 @@ describe('shipment detail workboard styling', () => {
     expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái điều xe"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
-    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*1\s*\/\s*-1;[^}]*align-items:\s*end;/);
+    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*2\s*\/\s*-1;[^}]*align-self:\s*end;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
