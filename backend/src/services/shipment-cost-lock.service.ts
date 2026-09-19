@@ -209,10 +209,16 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<A
  *  document's content, so a same-selection replay always derives the same
  *  range. A selection with no delivery dates falls back to the processing
  *  day (the columns are notNull); the residual is logged, not hidden. */
-function deriveRangeFromSelection(lots: ReadonlyArray<{ expectedDeliveryDate: string | null }>): { rangeFrom: string; rangeTo: string; fallback: boolean } {
+/** The business calendar is VN-local: a "day" is the Asia/Ho_Chi_Minh
+ *  calendar date of an instant, never the UTC date of the ISO string. */
+export function vnCalendarDay(instant: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant);
+}
+
+function deriveRangeFromSelection(lots: ReadonlyArray<{ expectedDeliveryDate: string | null }>, now: () => Date = () => new Date()): { rangeFrom: string; rangeTo: string; fallback: boolean } {
   const dates = lots.map((lot) => lot.expectedDeliveryDate).filter((date): date is string => date != null).sort();
   if (dates.length === 0) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = vnCalendarDay(now());
     console.warn(`[debit-note] range falls back to the processing day — the selection carries no expected delivery dates`);
     return { rangeFrom: today, rangeTo: today, fallback: true };
   }
