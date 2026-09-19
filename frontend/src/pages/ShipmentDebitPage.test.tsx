@@ -168,6 +168,25 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
   });
 });
 
+describe('L2 open-state reload persistence (card _11)', () => {
+  it('restores the open workspace from sessionStorage on mount', async () => {
+    sessionStorage.setItem('shipment-debit.expanded-lot', '101');
+    listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
+    getDetail.mockResolvedValue({ shipmentId: 101, freightRows: [], chiHoRows: [], payables: { chiHoTotal: null }, thuKhachTotal: null });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
+    sessionStorage.removeItem('shipment-debit.expanded-lot');
+  });
+
+  it('keeps nothing open when no lot id is stored', async () => {
+    sessionStorage.removeItem('shipment-debit.expanded-lot');
+    listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
+    renderPage('/shipments-debit;customer=1'.replace(';', '?'));
+    await screen.findByText('SHP-26-0001');
+    expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
+  });
+});
+
 describe('Xuất Debit Note — batched issue (ruling: one POST per selection)', () => {
   it('issues one batched call with all selected locked ids and downloads the union document', async () => {
     listSummary.mockResolvedValue({

@@ -19,6 +19,9 @@ import { Lock, Unlock } from 'lucide-react';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
 
+/** sessionStorage key for the L2 open-state restore (reload persistence). */
+const EXPANDED_LOT_KEY = 'shipment-debit.expanded-lot';
+
 const LOCK_FILTERS = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'OPEN', label: 'Đang mở' },
@@ -156,7 +159,20 @@ export function ShipmentDebitPage() {
       setIssuing(false);
     }
   }
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  // L2 open state survives a reload within the session (card _11): the open
+  // lot id rides sessionStorage and is restored on mount. A stored id that no
+  // longer matches the visible list simply expands nothing.
+  const [expandedId, setExpandedId] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem(EXPANDED_LOT_KEY);
+    if (stored == null || !Number.isFinite(Number(stored))) return null;
+    return Number(stored);
+  });
+  const toggleExpandedLot = (id: number) => {
+    const next = expandedId === id ? null : id;
+    setExpandedId(next);
+    if (next == null) sessionStorage.removeItem(EXPANDED_LOT_KEY);
+    else sessionStorage.setItem(EXPANDED_LOT_KEY, String(next));
+  };
 
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
   const summary = useQuery({
@@ -240,7 +256,7 @@ export function ShipmentDebitPage() {
                     key={row.shipmentId}
                     row={row}
                     expanded={expandedId === row.shipmentId}
-                    onToggle={() => setExpandedId((current) => (current === row.shipmentId ? null : row.shipmentId))}
+                    onToggle={() => toggleExpandedLot(row.shipmentId)}
                     onSaved={() => summary.refetch()}
                     selected={selectedIds.has(row.shipmentId)}
                     onSelect={(id, next) => setSelectedIds((current) => {
