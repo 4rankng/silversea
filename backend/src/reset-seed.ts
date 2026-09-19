@@ -18,6 +18,11 @@ import { seed } from './seed';
 export const WIPE_PLAN: Array<{ label: string; wipe: () => Promise<unknown> }> = [
   { label: 'trip_legs', wipe: () => db.delete(s.tripLegs) },
   { label: 'trip_photos', wipe: () => db.delete(s.tripPhotos) },
+  // No enforced FK to trips — deleting trips orphans these silently and
+  // mints invisible money rows. Sweep them WITH the trip graph.
+  { label: 'trip_expenses', wipe: () => db.delete(s.tripExpenses) },
+  { label: 'freight_rate_snapshots', wipe: () => db.delete(s.freightRateSnapshots) },
+  { label: 'trip_containers', wipe: () => db.delete(s.tripContainers) },
   { label: 'trips', wipe: () => db.delete(s.trips) },
   { label: 'ledger', wipe: () => db.delete(s.ledger) },
   { label: 'penalties', wipe: () => db.delete(s.penalties) },
