@@ -1123,6 +1123,9 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     bareRender('/my-trips/23', client);
     // Lean fulfillment-less detail instead of the hard 404 error.
     expect(await screen.findByText(/chưa có đầu việc vận chuyển/)).toBeTruthy();
+    // The ad-hoc title leads with a business descriptor — the internal TRP
+    // code never renders as the title.
+    expect(screen.queryByText(/TRP-23-ADHOC/)).toBeNull();
     expect(getDriverTripMock).toHaveBeenCalledWith(23);
   });
 

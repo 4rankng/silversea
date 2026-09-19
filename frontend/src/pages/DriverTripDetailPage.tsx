@@ -239,8 +239,10 @@ function DriverTripDetailContent() {
       <div className="driver-task-screen">
         <section className="driver-task-section">
           <div className="driver-task-section__head">
-            {/* business key render; id never user-facing — fall back to plate/date when tripCode is absent */}
-            <span>{basic.tripCode ?? ['Chuyến', basic.truckPlate ?? '', basic.departureDate ? formatDate(basic.departureDate) : ''].filter(Boolean).join(' · ')}</span>
+            {/* Business descriptor first on the ad-hoc screen: customer, route,
+                or the ad-hoc journey label — the internal TRP code never
+                renders as this title. */}
+            <span>{[basic.customerName ?? basic.routeName ?? 'Hành trình ad-hoc', basic.truckPlate ?? '', basic.departureDate ? formatDate(basic.departureDate) : ''].filter(Boolean).join(' · ')}</span>
           </div>
           <p className="driver-task-empty">
             Lô hàng này chưa có đầu việc vận chuyển (ad-hoc) — không có cột mốc,
