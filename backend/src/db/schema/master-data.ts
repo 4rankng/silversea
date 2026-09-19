@@ -386,7 +386,7 @@ export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"
   shortName: varchar('short_name', { length: 255 }).notNull().default(''),
-  code: varchar('code', { length: 20 }).unique(),     // e.g. "HPH"
+  code: varchar('code', { length: 20 }),             // e.g. "HPH" — unique among live rows that carry one (partial index)
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),
   notes: text('notes'),
@@ -401,7 +401,11 @@ export const ports = pgTable('ports', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => [
+  // Unique only real codes on live rows: NULLs and '' never collide, and
+  // soft-deleted rows don't block reuse.
+  uniqueIndex('ports_code_unique').on(table.code).where(sql`code IS NOT NULL AND code <> '' AND deleted_at IS NULL`),
+]);
 
 export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   id: serial('id').primaryKey(),
