@@ -108,8 +108,8 @@
    without horizontal scroll: long money headers wrap to two lines (their
    values set the minimum), text headers stay single-line, and TRẠNG THÁI is
    fixed per the standing fixed-status-column ruling. */
-.shipment-debit-table th.shipment-debit-col--lead { width: 36px; padding-inline: 6px; }
-.shipment-debit-table th.shipment-debit-col--docs { width: 140px; }
+.shipment-debit-table th.shipment-debit-col--lead { width: 32px; padding-inline: 6px; }
+.shipment-debit-table th.shipment-debit-col--docs { width: 118px; }
 .shipment-debit-table th.shipment-debit-col--money { white-space: normal; }
 .shipment-debit-table th.shipment-debit-col--freight { width: 110px; }
 .shipment-debit-table th.shipment-debit-col--chiho { width: 104px; }
@@ -159,20 +159,28 @@
   width: fit-content;
 }
 
+/* The chip wraps at its hyphens inside a squeezed identity cell instead of
+   painting over the next column (fixed table layout lets content overflow). */
 .shipment-debit-row__code {
   justify-self: start;
   font-weight: 600;
   font-size: 11px;
+  max-width: 100%;
   color: var(--ink-2);
   border: 1px solid var(--border-1);
   border-radius: 6px;
   padding: 1px 6px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: normal;
 }
 
 .shipment-debit-row__customer {
   font-weight: 700;
   letter-spacing: 0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shipment-debit-row__factory {

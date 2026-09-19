@@ -210,7 +210,7 @@ export function ShipmentDebitPage() {
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
 
   return (
-    <div className="shipment-debit-page">
+    <div className="shipment-debit-page data-workspace">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi phí - Quyết toán' }]} />
       <PageHeader title="Chi phí - Quyết toán" iconName="cargo" description="Tổng hợp doanh thu - chi phí theo lô để quyết toán với khách hàng." />
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}

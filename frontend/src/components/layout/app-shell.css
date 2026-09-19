@@ -165,6 +165,14 @@
   margin-inline: auto;
 }
 
+/* The readability cap above is a default for forms and prose — it must not
+   veto a page's own width. A data workspace opts out by carrying this
+   class: its rows span the full available width instead of floating in a
+   capped strip with page void on both sides. */
+.app-main:not(.driver-mode) .app-body > .data-workspace {
+  width: 100%;
+}
+
 @media (min-width: 1024px) and (max-width: 1280px) {
   :root { --app-body-pad-x: 20px; }
 
