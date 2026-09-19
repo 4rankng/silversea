@@ -6,9 +6,9 @@ import {
   listShipmentCostAdjustments,
   lockShipmentCost,
   saveShipmentDebitEdits,
-  type ShipmentDebitDetail,
 } from '../../../api/shipmentClient';
 import { useAuth } from '../../../hooks/useAuth';
+import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
 import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, type DraftState } from './ShipmentDebitTables';
 import './ShipmentDebitWorkspace.css';
@@ -21,7 +21,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
 }) {
   const queryClient = useQueryClient();
   const detail = useQuery({
-    queryKey: ['shipment-debit-detail', shipmentId],
+    queryKey: qk.shipmentDebit.detail(shipmentId),
     queryFn: () => getShipmentDebitDetail(shipmentId),
   });
   const [draft, setDraft] = useState<DraftState>(DRAFT_EMPTY);
@@ -64,8 +64,8 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     },
     onSuccess: async () => {
       setDraft(DRAFT_EMPTY);
-      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-summary'] });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
       onSaved();
     },
   });
@@ -80,8 +80,8 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     mutationFn: () => lockShipmentCost(shipmentId, crypto.randomUUID()),
     onSuccess: async () => {
       setJustLocked(true);
-      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-summary'] });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
       onSaved();
     },
   });
@@ -91,12 +91,12 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     onSuccess: async () => {
       setAdjustOpen(false);
       setAdjustReason('');
-      await queryClient.invalidateQueries({ queryKey: ['shipment-debit-detail', shipmentId] });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
     },
   });
 
   const history = useQuery({
-    queryKey: ['shipment-cost-adjustments', shipmentId],
+    queryKey: qk.shipmentDebit.costAdjustments(shipmentId),
     queryFn: () => listShipmentCostAdjustments(shipmentId),
     enabled: adjustOpen,
   });
