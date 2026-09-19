@@ -209,6 +209,8 @@ Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và ch�
 
 Mỗi **loại chi phí** trong danh mục có một **Nhóm quyết toán** do người có quyền đặt (Hải quan giám sát, Phát sinh, Khác, Nâng, Hạ, CSHT — sửa chữa hạ tầng, ...). Bảng quyết toán của lô nhóm tiền theo Nhóm quyết toán này; loại nào chưa được phân nhóm hiển thị trong nhóm **Chưa phân loại** trên bảng và **tổng các nhóm luôn khớp tổng chi phí của lô** — không để mất một đồng nào khỏi bảng. Đổi Nhóm quyết toán của một loại chỉ ảnh hưởng quyết toán sau đó; chứng từ đã phát hành giữ nguyên cấu trúc tại thời điểm phát hành. Phí cân hàng mặc định thuộc nhóm **Phát sinh**.
 
+Về chứng từ: **nâng, hạ, cân hàng, cơ sở hạ tầng và kiểm hóa là nhóm "yêu cầu hóa đơn"** — đường phê duyệt/quyết toán đòi số hóa đơn thật, không chấp nhận bằng chứng thay thế cho nhóm này; chỉ Phí khác và dịch vụ kiểm hóa (kiểm dịch vụ) mới được cân nhắc bằng chứng thay thế khi phê duyệt. Dòng chi phí đã gắn số hóa đơn bị khóa trên màn quyết toán (xem quy trình lô §7.9). Cờ này là cờ **đường phê duyệt** — không phải khóa sửa theo loại trên màn hình nhập chi phí.
+
 Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách phải đọc được tại kế hoạch điều vận và nơi CUS/kế toán xử lý khoản thu.
 
 ### 9.2 Xác nhận chi phí và bảng hoàn ứng
