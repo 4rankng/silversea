@@ -11,6 +11,7 @@ import { usePageAnimations } from '../../hooks/animations';
 
 interface ForwarderExpenseType {
   id: number;
+  category?: string | null;
   code: string;
   name: string;
   status: string;
@@ -54,6 +55,20 @@ function PolicyCheckbox({
   );
 }
 
+/** Display labels for the settlement category of an expense type (BE _3). */
+const CATEGORY_LABELS: Record<string, string> = {
+  HQGS: 'HQGS (hải quan giám sát)',
+  PHAT_SINH: 'Phát sinh',
+  KHAC: 'Khác',
+  LIFT: 'Phí nâng',
+  DROP: 'Phí hạ',
+  CSHT: 'CSHT (sửa chữa hạ tầng)',
+  CARRIER_DETENTION: 'Cược hãng tàu',
+  REPAIR_ADVANCE: 'Tạm thu sửa chữa',
+  CARRIER_FREIGHT: 'Cước hãng tàu',
+  ZONE_SURCHARGE: 'Phụ phí vùng',
+};
+
 function ExpenseTypeForm({
   saving,
   item,
@@ -74,6 +89,7 @@ function ExpenseTypeForm({
   const [code, setCode] = useState(item?.code || '');
   const [name, setName] = useState(item?.name || '');
   const [defaultMarkup, setDefaultMarkup] = useState<boolean>(item?.defaultMarkup ?? false);
+  const [category, setCategory] = useState<string>(item?.category ?? '');
   const [billingLabel, setBillingLabel] = useState(item?.billingLabel || '');
   const [vatRate, setVatRate] = useState(item?.vatRate ? String(parseFloat(item.vatRate) * 100) : '8');
   const [requiresInvoice, setRequiresInvoice] = useState(item?.requiresInvoice ?? false);
@@ -123,6 +139,19 @@ function ExpenseTypeForm({
           </Field>
         </div>
       </div>
+
+      <Field label="Nhóm chi phí (quyết toán)">
+        <select
+          className="input"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        >
+          <option value="">— Chưa phân nhóm —</option>
+          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </Field>
 
       <Field label="Nhãn trên giấy báo nợ">
         <input
@@ -252,6 +281,7 @@ function ExpenseTypeForm({
                 name: name.trim(),
                 defaultMarkup,
                 billingLabel: billingLabel.trim() || null,
+                category: category || null,
                 vatRate: Number.isFinite(rate) ? (rate / 100).toFixed(3) : '0.080',
                 requiresInvoice,
                 substituteEvidenceAllowed: noInvoiceEnabled,
