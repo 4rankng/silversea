@@ -513,3 +513,61 @@ describe('20260919 card _20 — trip scope parity: dead trips leave both documen
     assert.equal(edit.status, 404, `dead-trip row must not be editable — got ${edit.status}`);
   });
 });
+
+describe('20260919 freight scope parity: canceled legs leave L1 like they leave Lớp 2', () => {
+  test('canceled-trip freight is out of L1; active legs and shipment-issue (null-trip) freezes still count', async () => {
+    const lot = await mkShipmentWithTrip({ linkTripToShipment: true });
+    const [deadTrip] = await db.insert(s.trips).values({
+      fulfillmentId: lot.fulfillment.id,
+      shipmentId: lot.shipment.id,
+      customerId: lot.customer.id,
+      routeId: lot.route.id,
+      departureDate: '2026-01-02',
+      status: 'CANCELED',
+    }).returning({ id: s.trips.id });
+    createdTripIds.push(deadTrip.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: lot.shipment.id,
+      containerNumber: `FSP-${suffix}`,
+    }).returning({ id: s.shipmentContainers.id, containerNumber: s.shipmentContainers.containerNumber });
+    const [tripLink] = await db.insert(s.tripContainers).values({
+      tripId: lot.trip.id,
+      sourceShipmentId: lot.shipment.id,
+      sourceShipmentContainerId: container.id,
+      containerNumber: `FSP-${suffix}`,
+    }).returning({ id: s.tripContainers.id });
+    const mkSnapshot = (tripId: number | null, total: string) => db.insert(s.freightRateSnapshots).values({
+      shipmentId: lot.shipment.id,
+      tripId,
+      freightAmount: total,
+      surchargeAmount: '0',
+      totalAmount: total,
+      rateTermsId: 1, pricingTableId: 1, fuelNormId: 1, fuelPricePeriodId: 1,
+      billedKm: '10', liters: '0', fuelDelta: '0', sharePct: '0',
+    }).returning({ id: s.freightRateSnapshots.id });
+    const [liveSnapshot] = await mkSnapshot(lot.trip.id, '400000');
+    const [deadSnapshot] = await mkSnapshot(deadTrip.id, '999000');
+    // Shipment-issue freeze: the snapshot was stamped when the lot itself was
+    // issued, before any leg existed — no trip to point at.
+    const [issueSnapshot] = await mkSnapshot(null, '50000');
+    try {
+      const summary = await getShipmentDebitSummary({ customerId: lot.customer.id, lockStatus: 'ALL' });
+      const l1 = summary.items.find((row) => row.shipmentId === lot.shipment.id);
+      // A canceled leg never hauls, so its freight never reaches L1. The
+      // shipment-issue freeze is a different class: issued freight still
+      // counts even though Lớp 2 cannot render it (known gap, documented
+      // exception).
+      assert.equal(String(l1?.freightAuto), '450000', 'L1 counts live 400k + shipment-issue 50k, never the canceled 999k');
+
+      const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+      assert.equal(detail.status, 200, JSON.stringify(detail.body).slice(0, 200));
+      const freightRendered = (detail.body.freightRows as Array<{ contractFreightTotal: number }>)
+        .reduce((acc, row) => acc + row.contractFreightTotal, 0);
+      assert.equal(freightRendered, 400000, 'Lớp 2 renders only the live leg');
+    } finally {
+      await db.delete(s.freightRateSnapshots).where(inArray(s.freightRateSnapshots.id, [liveSnapshot.id, deadSnapshot.id, issueSnapshot.id]));
+      await db.delete(s.tripContainers).where(eq(s.tripContainers.id, tripLink.id));
+      await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    }
+  });
+});

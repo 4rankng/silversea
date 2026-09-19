@@ -8,11 +8,12 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { aliasedTable, and, eq, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
+import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 
 function toNumber(value: string | number | null | undefined): number {
@@ -62,11 +63,22 @@ export async function getShipmentDebitSummary(query: {
   const lotIds = lots.map((lot) => lot.id);
 
   // Auto freight: per-trip snapshots summed per lot; absent = unknown.
+  // A canceled leg never hauls, so its snapshot freight drops out of L1
+  // (the helper's active-trip scope, matching Lớp 2). Shipment-issue
+  // freezes carry no trip and still count — Lớp 2 cannot render them
+  // (documented exception), so L1 stays the superset there by design.
   const freightRows = await db.select({
     shipmentId: s.freightRateSnapshots.shipmentId,
     total: sql<string>`coalesce(sum(${s.freightRateSnapshots.totalAmount}), 0)::text`,
   }).from(s.freightRateSnapshots)
-    .where(inArray(s.freightRateSnapshots.shipmentId, lotIds))
+    .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
+    .where(and(
+      inArray(s.freightRateSnapshots.shipmentId, lotIds),
+      or(
+        isNull(s.freightRateSnapshots.tripId),
+        and(...activeTripConditions()),
+      ),
+    ))
     .groupBy(s.freightRateSnapshots.shipmentId);
   const freightByLot = new Map(freightRows.map((row) => [row.shipmentId, toNumber(row.total)]));
 
