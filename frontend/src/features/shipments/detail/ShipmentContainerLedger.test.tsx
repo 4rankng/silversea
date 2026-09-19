@@ -349,6 +349,23 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     fireEvent.pointerDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
+
+  // EDIT-JUMP-01..03 (testplan/2026-09-19-edit-cell-scroll-jump.md): a plain
+  // focus() on mount lets the browser's focusing steps scroll the expanded
+  // editor into view, yanking the tapped cell away from the user's finger.
+  it('focuses the editor container with preventScroll on mount', () => {
+    const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
+    try {
+      renderLedger('container');
+      const editor = document.querySelector('.shipment-container-ledger__inline-editor');
+      expect(editor).not.toBeNull();
+      const editorCallIndex = focusSpy.mock.contexts.findIndex((context) => context === editor);
+      expect(editorCallIndex).toBeGreaterThanOrEqual(0);
+      expect(focusSpy.mock.calls[editorCallIndex][0]).toEqual({ preventScroll: true });
+    } finally {
+      focusSpy.mockRestore();
+    }
+  });
 });
 
 describe('ShipmentContainerLedger missing-fields summary', () => {

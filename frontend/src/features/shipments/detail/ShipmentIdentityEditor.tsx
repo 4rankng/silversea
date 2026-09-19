@@ -33,7 +33,7 @@ export function ShipmentIdentityEditor({ detail, line, customerName, currentFact
       placeholder="Chọn nhà máy" disabled={saving || line.fieldAccess.operationalSiteId?.mode !== 'DIRECT'}
       hint={line.fieldAccess.operationalSiteId?.mode === 'READ_ONLY' ? line.fieldAccess.operationalSiteId.reason : undefined}
     /> : <>
-      <label><span>Nhà máy</span><input autoFocus value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
+      <label><span>Nhà máy</span><input value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
       <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>
       <label><span>Điểm giao</span><input value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.deliveryLocation.mode === 'READ_ONLY'} /></label>
     </>}

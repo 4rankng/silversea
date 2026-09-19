@@ -1,63 +1,75 @@
 # Current Development Handoff
 
-## Active delivery — bulk appointment copy on "Chi tiết lô hàng", 18 September 2026
+## Active delivery — edit-cell scroll jump fix on "Chi tiết lô hàng", 19 September 2026
 
-Controller: agent session, 2026-09-18 ~12:59 (+08). Branch `prod`, HEAD `586ce46b`
-(app commit `1fcfbf2d`). Working tree clean; pushed to `origin/prod`. Staging
-(`https://vantai.tingting.vip`) deployed by `make demo` and reporting
-`buildHash=1fcfbf2d` — the follow-up `586ce46b` touches only `testplan/` and the
-tracked QA driver, so no app bits are missing there.
+Controller: agent session, 2026-09-19 ~01:40 (+08). Branch `prod`, HEAD
+`8add9a37`. Working tree also carries an unrelated pre-existing WIP (one-line
+`padding-bottom` removals in six page CSS files + a `pre-polish-patch` stash
+entry) — NOT part of this fix, left untouched, uncommitted.
 
-**Goal:** customer request relayed by Kiên 2026-09-18 — lots entered without a
-schedule must be able to take the delivery datetime once for every container,
-on the lot detail surface (the customer pointed at the "Chi tiết" drawer; user
-ruled option A: add the missing copy affordance to the `/shipments-detail`
-workboard, which was the only container-schedule surface without it).
+**User report (mobile screenshots):** tapping a ledger cell (e.g. Hạ /
+container) on `/shipments-detail` to edit it made the page jump — the tapped
+cell flew away from under the finger.
 
-**Shipped:**
-- `frontend/src/features/shipments/detail/AppointmentCopyButton.tsx` — affordance
-  in the identity cell's reserved gutter (26×26 / radius 8, hover + focus-within,
-  always visible ≤640px/coarse pointer), source-gated (row has an appointment and
-  its appointment field is writable).
-- `frontend/src/features/shipments/detail/appointment-copy.ts` — label helper.
-- `frontend/src/features/shipments/cus/use-appointment-copy.ts` — batch write:
-  targets resolved from the LOT (`GET /cus-workspace/:id`), sequential
-  `POST /cus-workspace/:id/containers/:containerId` with `Idempotency-Key` and
-  the version each response returns; conflict → stop, reload, report partial
-  count; no empty targets → notice, no writes.
-- Ledger + page wiring, CSS, `ShipmentContainersPage.styles.test.ts` CSS lock,
-  two unit sheets, `testplan/2026-09-18-detail-copy-appointment.md`,
-  `testplan/qa/scripts/ui-detail-copy-20260918.mjs` (also usable against staging
-  with `PRESENCE_ONLY=1`).
+**Root cause:** the inline editor's mount effect called `focus()` without
+`preventScroll`; the browser's focusing-steps scroll aligned the whole expanded
+editor (328–400px tall) into view, yanking the scrollport. The `autoFocus` on
+the first input added a second transient focusing-steps scroll + keyboard flash
+before the editor container stole focus back.
 
-**Deliberate divergence from the reference surfaces** (`/shipments/new`, CUS
-ledger): the target count is not gated on what the page shows — this workboard's
-container/date filters and pagination can hide a lot's other containers, so the
-gate would hide the feature exactly when the customer needs it. Documented in the
-testplan.
+**Changed (3 files):**
+- `frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx` —
+  editor container focuses with `{ preventScroll: true }`; removed `autoFocus`
+  from the documents (Số Bill / Số Booking) and container (Số container) inputs.
+- `frontend/src/features/shipments/detail/ShipmentIdentityEditor.tsx` — removed
+  the dead `autoFocus` on the LCL Nhà máy input (stolen by the container focus
+  anyway).
+- `frontend/src/features/shipments/detail/ShipmentContainerLedger.test.tsx` —
+  regression guard: the editor container must be focused with
+  `{ preventScroll: true }` on mount.
+- `testplan/2026-09-19-edit-cell-scroll-jump.md` — case IDs EDIT-JUMP-01..05.
 
-**NOT verified:** any write on staging (local only, deliberately); dispatcher /
-accountant roles; 390px viewport (unit + CSS rules only); locked lots.
+**Verified (UI DRIVEN, local dev, CUS `thanhdc`, 390×844 + 1440×800):**
+scroll-top delta on open was +498 / +176 / +420px (container / route /
+identity) before the fix and **0 on every mode after**, tapped trigger stays
+put, editor leading edge mounts at the cell's bottom edge, focus lands on the
+editor container (Enter/Esc still work). Artifacts:
+`qa/2026-09-19_edit-jump-<mode>-<before|after>_ui-*.png` + `_ui-driver.log`,
+plus `qa/2026-09-19_edit-jump-desktop-after_*`. Driver pattern:
+puppeteer-spa-auth token injection, handle-click on the in-view trigger,
+scroll-event tracing (an earlier driver draft produced false deltas via
+puppeteer's own scrollIntoViewIfNeeded on an off-screen first match — superseded).
 
-**QA:** lint 0 error · frontend `tsc -b` 0 · frontend 2502 tests / 385 files ·
-`make build` ok · UI DRIVEN locally with DB proof
-(`qa/2026-09-18-detail-copy/`, one click filled 2 containers never listed on the
-page) · staging presence-only UI run
-(`qa/2026-09-18-detail-copy-staging/`).
+**QA:** lint 0 errors (9 pre-existing warnings) · frontend `tsc -b` 0 ·
+frontend suite 2530/2535 — 4 failures are **pre-existing on the unmodified
+tree** (Layout CUS nav matrix ×2, RoleWorkspacePagination filter-rail style,
+ShipmentsPage typography rhythm; reproduced via stash baseline) and match the
+unrelated CSS WIP; ClerkShipmentCreatePage timeout was parallel-load flake
+(passes isolated) · focused ledger/cus suites 213/213 · `make build` ok.
 
-**Not in scope / not done:** prod deploy (not authorized), E2E suite (frontend-only
-change: no API, schema, RBAC or `shared/src/calculations` touch).
+**Not verified:** staging writes; other roles (DISPATCHER/OPS); real iOS
+keyboard behavior (headless Chrome has no soft keyboard — the removed
+`autoFocus` keyboard-flash reasoning is from the focusing-steps spec, the
+measured scrolls are browser-verified); schedule/vehicle/notes modes were not
+re-run in the driver (same editor mount path, container/route/identity cover
+all three editor layouts).
+
+**Not in scope / not done:** commit (not requested), prod deploy, E2E suite
+(frontend-only change — no API/schema/RBAC/shared-calculations touch),
+`.ua` graph refresh (already stale at session start `cfa0753` vs HEAD
+`8add9a37`; the post-commit hook owns it on the next commit).
 
 ---
 
-## Preserved prior state — requirements implementation and UI polish, 15 September 2026
+## Preserved prior state — bulk appointment copy on "Chi tiết lô hàng", 18 September 2026
 
-Prior task, claims not re-verified here. Uncommitted code + portable zipped patch
-requested then; base was `d4d7366039877658f173e45c7767274fd1cfde80`. Cumulative
-package: `~/Downloads/silversea-production-polish-20260915-d4d73660.zip` (earlier
-Kanban package: `~/Downloads/silversea-kanban-20260915-d4d73660.zip`) — do not
-apply both to one base. Product constraints from that pass (online-only, approval
-workflows removed, compact 12px/11px/14px/16px/18px/20px type scale) remain the
-working style rules. Remaining release-only checks it listed: 24h catalog watch,
+Prior task, claims not re-verified here. HEAD then `586ce46b`. The copy
+affordance was subsequently **reverted** (`047bb654 revert(shipments): drop the
+appointment copy affordance from the detail workboard`), so its shipped files
+(`AppointmentCopyButton.tsx`, `appointment-copy.ts`, `use-appointment-copy.ts`)
+are no longer on the workboard; its testplan
+(`testplan/2026-09-18-detail-copy-appointment.md`) and QA artifacts
+(`qa/2026-09-18-detail-copy*/`) remain as history. Remaining release-only
+checks from the 15 September polish pass still stand: 24h catalog watch,
 deployed DB migration history/integrity, GitHub alert closure, physical
 devices/push.

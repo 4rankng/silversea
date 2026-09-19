@@ -269,8 +269,13 @@ function InlineEditor({
               : 'ghi chú';
   const label = `${modeLabel} ${row.containerNumber || `container số ${row.ordinal}`}`;
 
+  // Focus silently on mount: the browser's focusing steps would otherwise
+  // scroll the expanded editor (330–400px tall) fully into view and yank the
+  // tapped cell away from the user's finger (report 2026-09-19). The editor
+  // opens directly under the tapped cell, so its leading edge is already in
+  // view; anything past the fold is reached by natural scrolling.
   useEffect(() => {
-    editorRef.current?.focus();
+    editorRef.current?.focus({ preventScroll: true });
   }, []);
 
   const save = async () => {
@@ -441,8 +446,8 @@ function InlineEditor({
               { value: 'EXPORT', label: 'Xuất' },
             ]}
           /></label>
-          {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
-          {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
+          {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
+          {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
           {!tradeDirection && <small>Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ.</small>}
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
           <small>Tờ khai dùng luồng chứng từ có kiểm soát riêng: {detail.summary.fieldAccess.declarationNumber.reason}</small>
@@ -450,7 +455,7 @@ function InlineEditor({
       )}
       {mode === 'container' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Số container</span><input autoFocus value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
+          <label><span>Số container</span><input value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
           <label><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
           <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
           <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>
