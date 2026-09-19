@@ -262,8 +262,8 @@ export default function PortsConfigPage() {
         {
           header: 'Trạng thái',
           render: (z) => z.isActive
-            ? <span className="cfg-pill cfg-pill--success">Đang dùng</span>
-            : <span className="cfg-pill cfg-pill--neutral">Đã ngưng</span>,
+            ? <span className="cfg-pill cfg-pill--success cfg-status-tag">Đang dùng</span>
+            : <span className="cfg-pill cfg-pill--neutral cfg-status-tag">Đã ngưng</span>,
         },
       ]}
       renderForm={(p) => (

@@ -1314,3 +1314,12 @@
   .cfg-page--fuel-price-periods .record-table tbody td { text-align: left; }
   .cfg-page--fuel-price-periods .record-table tbody td[data-label='Ghi chú'] { grid-column: 1 / -1; }
 }
+
+/* Status pills DISPLAY state — they are not toggles; the status changes ride
+   the edit form's optimistic lock. Flattened so nothing reads clickable. */
+.cfg-status-tag {
+  cursor: default;
+  border-radius: 6px;
+  min-height: 0;
+  margin-left: 0;
+}
