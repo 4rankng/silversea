@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "code-review-graph": {
+      "type": "local",
+      "command": [
+        "/Users/dev/.local/bin/code-review-graph",
+        "serve",
+        "--repo",
+        "/Volumes/LexarSSD/projects/silversea-prod"
+      ]
+    }
+  }
+}
