@@ -336,6 +336,11 @@ describe('CusAppointmentPopover', () => {
     expect(confirmBtn).toBeDisabled();
 
     // Explicit pick via quick pill — commits the picked slot.
+    // Freeze ONLY the clock at a Vietnam-morning instant: the pill derives
+    // its slot on the Vietnam day while this assertion used the runner's
+    // local day, and a run straddling midnight flips one of the "todays".
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-19T09:00:00+07:00'));
     const today = new Date();
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
@@ -345,6 +350,7 @@ describe('CusAppointmentPopover', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
     await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${y}-${m}-${d}T08:00`));
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
   });
 
   it('closes on Escape; Enter without a commit path shows an error and stays open', () => {
