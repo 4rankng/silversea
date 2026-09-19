@@ -671,6 +671,13 @@
       "when": 1789787053827,
       "tag": "20260919030413_slow_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1789811400000,
+      "tag": "20260919131000_expense_type_category",
+      "breakpoints": true
     }
   ]
 }

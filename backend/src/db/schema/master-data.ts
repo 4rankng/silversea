@@ -406,6 +406,10 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   code: varchar('code', { length: 50 }).notNull().unique(),
   name: varchar('name', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  // Card 20260919_3: explicit settlement category read by the per-lot
+  // payables split (never name matching — a tenant rename must not rewrite
+  // categorized history). null = chưa phân loại → on-screen catch-all.
+  category: varchar('category', { length: 30 }),
   // Wave 2 M3.7: when true, trip expenses of this type MUST have an invoice
   // number before approval. When false (default), substitute evidence is OK.
   requiresInvoice: boolean('requires_invoice').default(false),

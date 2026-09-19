@@ -702,6 +702,7 @@ export async function seed() {
       defaultMarkup: meta.defaultMarkup,
       billingLabel: meta.billingLabel,
       vatRate: '0.080',
+      category: meta.category ?? null,
     } as const;
     const existingId = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
     if (existingId != null) {
