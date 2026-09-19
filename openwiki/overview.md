@@ -3,12 +3,11 @@ type: Reference
 title: "SilverSea System Overview"
 description: "System-level overview of SilverSea's product scope, runtime stack, O2C workflow, and the merged dispatch, shipment, and driver capabilities."
 tags: [overview, product, o2c, dispatch, ops]
-verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-09T05:57:42.350Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
+  - id: openwiki-source-22287984c48f175c9111b39c
+    resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-7633dc761224043313afe6c1
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
@@ -17,13 +16,20 @@ sources:
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-f2f111426b499e3847bd2369
     resource: repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx
+  - id: openwiki-source-b393e30a884bdab2b871670a
+    resource: repo://frontend/src/pages/ShipmentDebitPage.tsx
   - id: openwiki-source-012f2c78e3b1446dfc35803f
     resource: repo://Makefile
   - id: openwiki-source-5b54a58d1b51cd490b0e7162
     resource: repo://package.json
+  - id: openwiki-source-ea93faea42ab5474739e39ff
+    resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "opencode", at: "2026-09-09T05:57:42.350Z" }
+generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-19T03:11:07.450Z
 ---
 
 # SilverSea System Overview
@@ -53,7 +59,7 @@ Modules: CUS (chứng từ) creates shipments (FCL/LCL, ad-hoc `Lệnh chạy ng
 
 ## Current dispatch and shipment behavior
 
-The main tree as of commit `468bd371` (origin/prod merge) plus `7d4a55eb` (post-merge `FROZEN_MAX_LOC` contract bump) carries the following waves, all now live in the same shipping branch:
+The main tree as of commit `00e07a69` (origin/prod, 2026-09-19) carries the following waves, all now live in the same shipping branch:
 
 - **External-carrier staff close.** When the carrier does not run the driver app, dispatch or CUS confirm completion from the detail-plan row; `taskStatus` flips to `COMPLETED` and the same `transitionTripStatus` machinery that powers driver close posts revenue/AP/AR and writes the ledger snapshot. Surfaced through `completeDispatchExternalTrip` in `dispatchPlanningClient.ts` and `trip-external-close.service.ts`.
 - **Multi-day allocation breakdown.** Carrier allocation in the master plan groups demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validates against the per-day demand, and saves through a partial-save endpoint that echoes the persisted row back to the grid. Long operational notes truncate with a `MasterPlanNoteModal` popup so dense rows stay readable.
@@ -62,6 +68,7 @@ The main tree as of commit `468bd371` (origin/prod merge) plus `7d4a55eb` (post-
 - **Dispatch task-tag pool.** `listDispatchTaskTags` / `createDispatchTaskTag` / `updateDispatchTaskTag` / `deactivateDispatchTaskTag` live in `dispatchPlanningClient.ts` beside the other dispatch planning calls, with NFC-normalized duplicate detection and a soft-delete path that preserves historical notes.
 - **Idempotent detail-plan saves.** Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it. The editor modal closes on a successful save and restores focus to the trigger button (`a6e68a91`); a regression sweep (TC-DISPATCH-EDIT-002) keeps that behavior pinned.
 - **Font-family contract enforcement.** The allocation summary, schedule editor, and ledger rows drop the legacy `tabular-nums` declaration so Be Vietnam Pro's proportional figures render correctly under right-aligned numerics.
+- **Shipment settlement — Chi phí – Quyết toán (2026-09-17→19 wave).** CUS-side consolidated settlement screen (sidebar below Chi tiết lô hàng): top-bar customer filter (required to gom Debit), delivery-date range, lock filter; Lớp 1 lot rollups (cước vận tải, tổng chi hộ, phải thu, phải trả, lợi nhuận, lock state); Lớp 2 container-keyed freight and chi-hộ tables with editable Phát sinh (PS thực tế) and ad-hoc fees; locking a lot freezes its inputs; [Xuất Debit Note] issues one consolidated note per customer per period as XLSX — a locked lot can ride only one issued note, and a conflicting selection is rejected with 409 naming the overlapping lot codes.
 
 ## Removed features — do not treat as current
 

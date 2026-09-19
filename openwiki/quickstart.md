@@ -3,9 +3,6 @@ type: Reference
 title: "Quickstart"
 description: "Shortest safe path to install, run, validate, and understand the current SilverSea checkout."
 tags: [quickstart, setup, tests, scripts, validation]
-verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-09T05:57:42.350Z
 sources:
   - id: openwiki-source-39c3295efc089133e87a9c80
     resource: repo://CONTEXT.md
@@ -21,7 +18,10 @@ sources:
     resource: repo://shared/package.json
   - id: openwiki-source-2321476aab68e6b1ce6c7ba0
     resource: repo://testplan/testaccounts.txt
-generated: { by: "opencode", at: "2026-09-09T05:48:17.279Z" }
+generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-19T03:11:07.450Z
 ---
 
 # Quickstart
@@ -71,6 +71,10 @@ node testplan/qa/scripts/smoke.mjs
 ```
 
 The harness depends on `testplan/qa/lib/{env,harness,selectors}.mjs`. Evidence lives under `testplan/qa/evidence/<date>_<scope>/` — never under `frontend/qa/` or `backend/qa/`. The root `qa/` directory remains the cross-project evidence sink per `AGENTS.md` and is what the QA gate report should reference.
+
+## Deploys
+
+`make demo` ships the current tree to staging (https://vantai.tingting.vip) and keeps the existing DB; cut from a clean detached checkout so uncommitted lane work never bakes into the build, then verify the `buildHash` and asset guard via `/api/health`. `make deploy` ships to prod (https://silversea.tingting.vip) from the synced prod branch and refuses a dirty tree. Prod deploys stay gated on an all-green test wave and explicit go-ahead.
 
 ## Pre-commit hook
 

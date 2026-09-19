@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1b7d05e14d0833fccf0d094fec8c5d00fcbcf437dff455ba48140b6cb6922839",
+  "pageVersion": "sha256:4a6ef07c33dbee78d7a1b7271474a5de6604aea5f6bdd3b831fa803969060545",
   "claims": [
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
@@ -8,7 +8,7 @@
       "evidence": [
         {
           "resource": "repo://testplan/flows/README.md",
-          "version": "repo-file-v1:sha256:80ef50acacf0720a0b6616c5d3f5c64596c0537d17279f8adfeb09aa694a6dd0"
+          "version": "repo-file-v1:sha256:3a46486f6ec5381aecf666cfea01f08d7d86371b997cd90f2c9ee08c47c576b0"
         }
       ]
     },
@@ -18,7 +18,7 @@
       "evidence": [
         {
           "resource": "repo://AGENTS.md",
-          "version": "repo-file-v1:sha256:778660c9b3307b2cb4477f959b9e214b0de3a0a435168ed09b7862921cdd6eef"
+          "version": "repo-file-v1:sha256:c61ecd5731446ce9489ccb81502fcf382f4c209af7df864b7935aa4ff36e0c0b"
         }
       ]
     },
@@ -27,12 +27,12 @@
       "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local ports are backend 3001, frontend 7174 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, and demo mode is permanently disabled.",
       "evidence": [
         {
-          "resource": "repo://Makefile#L1-L31",
-          "version": "repo-lines-v1:sha256:fd44f837b988aec6307f09e6853dd0c3769ce4a5fb5285f038e7f0cb32d694f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlYWI4ZDczNDE3MGFhZTEyMTRhYzI2MThjOTFlNjhjNjAyOWJkMGMxYzZlNzQzYzhkOWE3ZjEzNjRmNGRmNzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1YTMzYzQ1NjgwZWU5MmJjNGY4N2U3MTIwNmJiNDZlMjZkZTNlZDgwOTE4MWY2OTY3YzU3ODIwNTBiMTY4ZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGM3NjYwNzBjMmYzYzIwNWMzYzA0YTUzMDY1M2JjYjc4Y2NmMWUyODUyNTllYWJkNjJkMzE1ZDgxNzc1MWQifQ"
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
         },
         {
-          "resource": "repo://package.json#L1-L21",
-          "version": "repo-lines-v1:sha256:f5548dfaf5a689750d1e013deb6bfc16ff21a4b3950e9dbe921ba59cd5efe05b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNWNkMmZiNGYzZGY4ODQ1MTUyNTViMzk1MjNmMmY4YjU0NzJiZWVhOWY1NjZmZmNhMjA0ZGI4MDI1NjEwNDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjMjIyY2I3ZjViNjM0NzAxYTY0ODc4ZmUwMmE1MDA4MTRmMTVmMzk3ZjMwZTcyZTdhNjQyZGNiNjNhN2U4NDQifQ"
+          "resource": "repo://package.json",
+          "version": "repo-file-v1:sha256:f83972a6018b84f18b416c8c8962bc56683b656afc4ee6fe491f1327ccec0492"
         }
       ]
     },
@@ -41,12 +41,12 @@
       "statement": "The O2C state machine is NEW → DISPATCHED → IN_TRANSIT → COMPLETED with CANCELED as exception exit; docs/prd/QuyTrinhO2C.md is the canonical spec and diagram-based content is authoritative.",
       "evidence": [
         {
-          "resource": "repo://docs/prd/QuyTrinhO2C.md#L325-L353",
-          "version": "repo-lines-v1:sha256:03ff7e50adb97abb88d894d84e9e7324dc4eb622d22ceca8d0f5f11bb1d5668e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmNTZkMTdmYWZhZmNiNGM0MDU3MmE4Yjc2YmIyODQ1MWJiZmY1MjhhYjI2YmNiZGZlNzUwNTE1OWE4OGE2NGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4NDhkZTc4YWJhMDY4YjVmOGRlZGZjZjUyMGFlZWZiYTFjZmY0MzQwM2I5MzJiYTNiOTgwZWE3MTMxMWVhYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJjYWRiZTFiZjEwMTMzZWI4NTBhOGE5NGJiOWU2ZTk4NzI0YjE2ZTgxYWFhNzUzMGY4NzY2NDA0MzA0Y2VmYWIifQ"
+          "resource": "repo://docs/prd/QuyTrinhO2C.md",
+          "version": "repo-file-v1:sha256:56c6b78ffb090c190226463b69771ed0e109db7899b23ce22e1a7caf4c9bc4b9"
         },
         {
-          "resource": "repo://testplan/flows/README.md#L29-L35",
-          "version": "repo-lines-v1:sha256:22f771ec8d141375d0358a7686e03b53bed5aaac6da4ab4dbfdadcf3c5fdadc5:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdmY2Y2ZTc2ZjdlODY1MDMwYWI3YzRkZjg1NTZiYWJjYzc1YmM3YWQ2ZDAzZWRmNmM1MTliYTVhYjE1OWQxMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDdjMDZjNTYxZDVjMzI3MzQzNjg1MjY4YTQ2YjMzOTFmMzk5OGVlZTg5MGQyYmU1MWYwZDIxY2M0YTUzYWU2ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+          "resource": "repo://testplan/flows/README.md",
+          "version": "repo-file-v1:sha256:3a46486f6ec5381aecf666cfea01f08d7d86371b997cd90f2c9ee08c47c576b0"
         }
       ]
     },
@@ -55,22 +55,40 @@
       "statement": "The merged dispatch surface pairs a master-plan grid (per-shipment, one schedule block per container appointment) with a detailed-plan grid (per-fulfillment) sharing the dispatch planning client and backend route family, and the dispatcher-selected per-container classification flows through the atomic plan save while the CUS-owned lot-level combined flag is stripped at the route.",
       "evidence": [
         {
-          "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts#L390-L426",
-          "version": "repo-lines-v1:sha256:2be2f143a61a133f3950a407e57d54918aa954c557250cc481e422a82ac122ff:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNWE4NTlhYjUzODY0MzZiMGRlMDZlZjMwMDE1NTVlOThiNTA0MDQzNTc1ODU2MWVhMTAwZGVkODE2MDJmNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5OTY3ZWMxZWQzODM2ZjhlYjE3YWZmMTcyYjViZmVmN2RlNjA0ODVhNDM5YzZjYTExYzU5MWUxNzU1NzM5YWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzMTM0ZTRhOWZjYjE2YWE3YWI5MGUyNDEyMDMwMDE0YmU2MGEzYTc3N2RhYzQ1N2Q4ZGVlZWI0OWQ5YmI1Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzYjBhNGRhMmFmY2VkMmRiOGZhMTVmY2VjZDcwZTYwZWQ1ZjEwNmI4MTI2ODMyYzVhZTE3MDdkZDM2Yzc4MDAifQ"
+          "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts",
+          "version": "repo-file-v1:sha256:678fad8e95397e1bcb6a967de5dec00a18568bc43962560c6aadd7b025797b2d"
         },
         {
-          "resource": "repo://backend/src/services/dispatch-task-tags.service.ts#L17-L124",
-          "version": "repo-lines-v1:sha256:e2a2721435184971ec428178f55af5b3c0d06605bb8cc9fc24ddb810b674c416:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjZTllMjYwZmI1N2Y4NjIxMDg1YWM0OGY3N2M2NWZlYmIxMGNmYzZmNTcwYzA5ZDhkNWRlZDhiZDRkY2E2ZTk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1YTdlYjE5YWJjZTcwZWFjM2UyOTFlY2RiN2ZiOGE4Y2U2NjI3YjkxOTkyZTJmYjZiZDMyMDI1OWM3MDg3NjcwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+          "resource": "repo://backend/src/services/dispatch-task-tags.service.ts",
+          "version": "repo-file-v1:sha256:edd7c15bb0b5c41407d0f927a2e1e6c949bcea035f3492c3f34c0004b53a9dbe"
         },
         {
-          "resource": "repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx#L40-L210",
-          "version": "repo-lines-v1:sha256:5914ed6f211be5b9a49e5ac0c49e7b7050850ce210a5d6826d216b1400531119:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMzI2OTA5ODY5MzZlYzFkMmQxNzNkNTIxODU2ZTAyMzJkNjNlNjk1N2YyODdkZjE1YjczZjFhOWM0OGUxYWNlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxYjA5ZTMzYjQ4MmMwNTdiNDA2Y2ZkOWUyZDU5MTNlMzMyOTMwYTMwZDcwNWU4NmE5ZmVlODA3OGFkNDY4YjM2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmNjA0Y2VjMGU4OTMyNGJlNTI2M2UwYzEyYjlhODdmZjg3YmFkYWE5NjQwMjZjNzllOWQyZmY0OGVlYmQ4NWFmIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5YTJiMjkxYWIyNTAyNGIyZjQ3ZmQ5NzM0NWIyYzc2MjYzMTliY2IzNmZiNDg5NDZkZGI4ZTFlNGY0OWVkYTQzIn0"
+          "resource": "repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx",
+          "version": "repo-file-v1:sha256:9a9c34793f5566ce46581f7d3d5f417f1eff961b4b1b6438e5097ee48ece3708"
+        }
+      ]
+    },
+    {
+      "id": "claim_be4feb01c67c40f3bab15b402e0417c1",
+      "statement": "The CUS settlement screen Chi phí – Quyết toán consolidates a customer's locked lots for debit-note export: top-bar customer filter (required), delivery-date range and lock-status filters, Lớp 1 lot rollups (freight, chi hộ, phải thu, phải trả, lợi nhuận, lock state), Lớp 2 container-keyed freight/chi-hộ tables with editable Phát sinh, and Xuất Debit Note issuing one consolidated note per customer per period, rejecting overlapping selections with a 409 naming the overlapping lot codes.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/core.routes.ts",
+          "version": "repo-file-v1:sha256:346bbbbd63a83d135a2c50e5dcd4153a4dd61efc30007a83a29421ec6545ca03"
+        },
+        {
+          "resource": "repo://frontend/src/pages/ShipmentDebitPage.tsx",
+          "version": "repo-file-v1:sha256:8c4749b716c37e00529f8b01436f4247a202c69ff77f343ac48893520b510843"
+        },
+        {
+          "resource": "repo://shared/src/constants/api-paths.ts",
+          "version": "repo-file-v1:sha256:9116cd8d5b196ea0a42aad9ae30d1667fa3763a45ed9f1d97a19198657573b6c"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-09T05:57:42.350Z"
+    "at": "2026-09-19T03:11:07.450Z"
   }
 }

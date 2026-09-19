@@ -1,38 +1,52 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the origin/prod → main merge at commit 468bd371 plus the 2026-09-09 FROZEN_MAX_LOC contract bump."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán), and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-19 state of origin/prod (d48e38ad)."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-09T05:57:42.350Z
+    at: 2026-09-19T03:11:07.450Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
+  - id: openwiki-source-140d3d74c1896e4779866932
+    resource: repo://backend/drizzle/0000_flexible-baseline.sql
+  - id: openwiki-source-9a7277933ab0110af5cb7cbe
+    resource: repo://backend/package.json
+  - id: openwiki-source-e9e879d7129d1316457b3c7b
+    resource: repo://backend/src/middleware/material-write.ts
+  - id: openwiki-source-22287984c48f175c9111b39c
+    resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-7633dc761224043313afe6c1
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
   - id: openwiki-source-137a747b8b837eb52cb71981
     resource: repo://backend/src/routes/trips/status.ts
   - id: openwiki-source-a08d0826dadf2aa659264512
     resource: repo://backend/src/services/aging.service.ts
+  - id: openwiki-source-b783cbfcbb631c4f9e488edc
+    resource: repo://backend/src/services/dispatch-planning-detail-plan.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
   - id: openwiki-source-3aa37080f2fc30dc35478ecb
     resource: repo://backend/src/services/pricing.service.ts
   - id: openwiki-source-277912ce7743608f9e00b0cf
     resource: repo://backend/src/services/shipment-containers.service.ts
-  - id: openwiki-source-4afb35865261980e32bf269a
-    resource: repo://backend/src/services/trip-create.service.ts
+  - id: openwiki-source-8e8aeb260c46a0fa2e09cde1
+    resource: repo://backend/src/services/shipment-cost-lock.service.ts
+  - id: openwiki-source-74f75edc280b913e369ea0fe
+    resource: repo://backend/src/services/shipment-debit-detail.service.ts
+  - id: openwiki-source-6bbe3d8292f04ae241cde05c
+    resource: repo://backend/src/services/shipment-debit-summary.service.ts
   - id: openwiki-source-69663e0b3d165a9d5d1ceca1
     resource: repo://backend/src/services/trip-external-close.service.ts
   - id: openwiki-source-15eb9c2bd185a2889b65874f
     resource: repo://backend/src/tests/dispatch-detail-plan.test.ts
   - id: openwiki-source-22f3807e21b8281a0a2994f6
     resource: repo://backend/src/tests/dispatch-task-tags.service.test.ts
+  - id: openwiki-source-0047c2597980e18b4470c62d
+    resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-1047363cf615000e4c9bb694
     resource: repo://frontend/package.json
-  - id: openwiki-source-589fae43514a21e0b98492f6
-    resource: repo://frontend/src/features/dispatch/components/DispatchIssueStatus.tsx
   - id: openwiki-source-c2b24497935143d8246afc05
     resource: repo://frontend/src/features/dispatch/master-plan/allocationDayHelpers.ts
   - id: openwiki-source-564940d299e8b46bece798bc
@@ -59,7 +73,9 @@ sources:
     resource: repo://shared/src/schemas/cus-shipment-workspace.ts
   - id: openwiki-source-b650eeedb63cbb73aa890ab2
     resource: repo://shared/src/schemas/index.ts
-generated: { by: "opencode", at: "2026-09-09T05:57:42.350Z" }
+  - id: openwiki-source-f89b776b27b18792107af8c0
+    resource: repo://shared/src/schemas/shipment-debit-edits.ts
+generated: { by: "claude-code", at: "2026-09-19T03:11:07.450Z" }
 ---
 
 # Architecture and Codebase Map
@@ -98,7 +114,18 @@ The CUS workspace exposes two complementary views of the same shipment list. The
 - A CUS ledger container row stays at `PENDING_DATE` until every container in the FCL lot has its own `customerAppointmentAt`; clearing the last appointment of a lot that already moved to `READY_FOR_DISPATCH` is rejected with 409 so the workboard's "Chưa chốt ngày" warning can never silently clear.
 - The shared contract is the single source of truth for filter shapes, sort keys, and the chip vocabulary; backend services and frontend hooks both import from the same package.
 - The detail-screen container ledger has inline per-row `Xác nhận` (confirm) and `Revert` actions, with success/error toasts and Enter/Escape handling, so the user no longer has to press Enter or hunt for the header "Hoàn tất" button after typing a container appointment. Inline draft editors dismiss via `useClickOutside` so the row state stays consistent on accidental focus loss.
-- The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time the same way it is read on the workboard and the typed value can be parsed back deterministically.
+- The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time the same way it is read on the workboard and the typed surface can parse the typed value back deterministically.
+
+## Shipment settlement and debit notes (Chi phí – Quyết toán)
+
+The settlement surface gives the CUS role one consolidated view of a customer's lots: Lớp 1 rolls each lot up to freight (auto), chi hộ, phải thu, phải trả, lợi nhuận, and lock state behind customer (required), delivery-date-range, and lock-status filters; Lớp 2 opens per lot with container-keyed tables.
+
+- **Read/edit models.** `shipment-debit-summary.service.ts` projects the Lớp 1 rollups; `shipment-debit-detail.service.ts` serves the Lớp 2 workspace. The CUS may edit Phát sinh (PS thực tế) per container and ad-hoc no-invoice fees (Phí khác), while invoice-numbered chi hộ fees (Phí Nâng/Hạ/CSHT with HD numbers) stay read-only.
+- **Warning contract.** Cược Hãng Tàu and Tạm thu sửa chữa greater than zero demand original documents: the UI flags them (warning icon + cam background) so the CUS chases the paperwork before locking.
+- **Lock and adjust.** `shipment-cost-lock.service.ts` freezes all Lớp 2 inputs when a lot is locked; the adjustment form covers customer-specific freight agreements. Lock, freight-adjustment, and debit-note writes are registered in the material-write registry (`backend/src/middleware/material-write.ts`) with audit events and `Idempotency-Key` requirements.
+- **Consolidated debit notes.** `POST /shipments/debit-notes` issues one note per customer per period: `billing_documents` rows typed `DEBIT_NOTE` are constrained by the partial unique index `billing_documents_active_period_unique` (WHERE deleted_at IS NULL AND type='DEBIT_NOTE'; `backend/drizzle/0000_flexible-baseline.sql:1990`), so a duplicate customer+period issuance returns 409. XLSX export streams from `billing-export-debit-note-xlsx.service.ts` (PDF template reads via `debit-note-template-reads.service.ts`).
+- **One contract, two packages.** FE and BE share the zod contract `shared/src/schemas/shipment-debit-edits.ts`; the save delta always emits `freightEdits` so typed PS values cannot be silently dropped, pinned by a round-trip test (type → save → read back).
+- **Money states.** Phải thu ≠ đã thu ≠ đã khóa ≠ chưa xác định (null renders "Chưa xác định", never 0) per `docs/prd/QuyTrinhO2C.md` §7.
 
 ## Pricing and fuel surcharge
 
@@ -119,6 +146,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 ## Cross-cutting contracts
 
 - **RBAC** is enforced at the route boundary through Casbin; accountants are excluded from operational writes even when the underlying service supports them. The dispatch plan routes strip the dispatcher from `isCombined`, the external-trip close routes guard the dispatcher/CUS/ADMIN/MANAGER roles, and the note composer route mirrors the read mask on the plan.
+- **No internal approval routing.** The former internal approval workflows (approval requests, gate tables, and their FE queues) were removed by product ruling (2026-09-15): finance/ops writes post directly under role checks and audit events instead of an internal approval hop.
 - **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically. Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
 - **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in.
 - **Local date formatters** live in `lib/format`; the structure guard bans bespoke formatters outside an allowlist and names every documented exception.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:69641f2d818dda6b344567871831f399d58e9e9fe28868c7647433ba988b272f",
+  "pageVersion": "sha256:5575ec7b5a0baa2bef001d7d9f47990df4c0e70a22c1a642896fda138ac53188",
   "claims": [
     {
       "id": "claim_59b73370491448eb9843052fc1370da7",
@@ -8,7 +8,7 @@
       "evidence": [
         {
           "resource": "repo://Makefile",
-          "version": "repo-file-v1:sha256:08d3a2e2312790310dacedda657f1f4dd4e131103a3d779b326878c8b581ee21"
+          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
         }
       ]
     },
@@ -18,7 +18,7 @@
       "evidence": [
         {
           "resource": "repo://testplan/testaccounts.txt",
-          "version": "repo-file-v1:sha256:2797ae2a8fd625d8ec9293f220dc2e6d44f23f3d782d00e901647f7775c2b093"
+          "version": "repo-file-v1:sha256:79f5fe1408e1d80b7e27b90655e66034b6c8253f3fd0430892f2c4210d207ee7"
         }
       ]
     },
@@ -27,12 +27,12 @@
       "statement": "Root package.json maps dev to make dev; backend runs on 3001 and frontend on 7174 strictPort with Postgres 5441, Redis 6391, Adminer 8083.",
       "evidence": [
         {
-          "resource": "repo://Makefile#L11-L31",
-          "version": "repo-lines-v1:sha256:8e44513f57168a8736bd61533b84ff49fbfaf8f1ff93e41a075b3de3a514cb3a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZDU3MTkzOGI4MmU5NDdjNTg0ZjEzNGEyYzg4MzM0ZTRmMDc2YTAxY2RkYzU5OWI5NGI0MzlmMDc5OGVmYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1YTMzYzQ1NjgwZWU5MmJjNGY4N2U3MTIwNmJiNDZlMjZkZTNlZDgwOTE4MWY2OTY3YzU3ODIwNTBiMTY4ZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVjNjJiNTllOWRkMWI5ODM3NjhlMzQ0YTJhNWFiNWE3NjY1NzUyZDQzZWVlOWRiZmVjNDY0NTE5ZWUxMmI0MWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGM3NjYwNzBjMmYzYzIwNWMzYzA0YTUzMDY1M2JjYjc4Y2NmMWUyODUyNTllYWJkNjJkMzE1ZDgxNzc1MWQifQ"
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
         },
         {
-          "resource": "repo://package.json#L5-L21",
-          "version": "repo-lines-v1:sha256:559277ff9b765aef074a9fc1fd30fb7dca11766d8030eb25f14be440b109487a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkZjQ4MGZkZWU2MzhhNzZjMWRkZTc4ODY0M2NlZTE3ZWJhYzhjYjNiMTlkMTE3MGEwYmM1ZjAzNTg0ZjQxNzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNWNkMmZiNGYzZGY4ODQ1MTUyNTViMzk1MjNmMmY4YjU0NzJiZWVhOWY1NjZmZmNhMjA0ZGI4MDI1NjEwNDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFkMTljMzlmZmE2NDRkOTlmY2JhNjhmYmNlNGM2ZTg1NThlY2Q5MjVmYTE2NDVjODliMjFiMjhmNjBjMzBiZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjMjIyY2I3ZjViNjM0NzAxYTY0ODc4ZmUwMmE1MDA4MTRmMTVmMzk3ZjMwZTcyZTdhNjQyZGNiNjNhN2U4NDQifQ"
+          "resource": "repo://package.json",
+          "version": "repo-file-v1:sha256:f83972a6018b84f18b416c8c8962bc56683b656afc4ee6fe491f1327ccec0492"
         }
       ]
     },
@@ -67,10 +67,20 @@
           "version": "repo-lines-v1:sha256:327c13525454f5a45399c7b41ba676a6eb798b1e59e8c98ce1e503815c526b70:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
         }
       ]
+    },
+    {
+      "id": "claim_c2e72c83c5ed47a285cf5fc4b92c96f0",
+      "statement": "make demo deploys the current tree to staging (vantai.tingting.vip) keeping the existing DB, and make deploy ships the synced prod branch to prod (silversea.tingting.vip) refusing a dirty tree; staging cuts verify buildHash and asset guard via /api/health, and prod deploys stay gated on an all-green test wave.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:d2124dab3ab207bd1a38add8d52296a46bc24af392e9e1512f51fcf7eca87ebb"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-09T05:57:42.350Z"
+    "at": "2026-09-19T03:11:07.450Z"
   }
 }
