@@ -115,15 +115,19 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
       }
     }}
     onKeyDown={(event) => {
-      if (event.defaultPrevented || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return;
+      if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+      // Escape dismisses the open panel from ANY surface in the group
+      // (segments, trigger button), not just text inputs; the revert and
+      // commit paths stay input-scoped so plain buttons keep their keys.
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopPropagation();
         if (active) { close(); return; }
+        if (!(event.target instanceof HTMLInputElement)) return;
         const restored = valueAtFocus.current;
         lastValue.current = restored;
         setDraft(splitValue(restored)); setTouched(false); onChange(restored);
         event.target.blur();
-      } else if (event.key === 'Enter') {
+      } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
         event.preventDefault(); event.stopPropagation();
         setOpen(null);
         setTouched(true);
