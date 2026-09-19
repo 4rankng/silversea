@@ -1,8 +1,13 @@
 .split-datetime { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
 .split-datetime__label { font-size: var(--text-caption-size); color: var(--fg-3); }
-/* Segmented controls: digit slots + separators + the picker trigger icon. */
-.split-datetime__fields { display: grid; grid-template-columns: minmax(0, calc(4ch + 38px)) minmax(0, calc(9ch + 40px)); gap: 6px; width: fit-content; max-width: 100%; font-size: var(--text-data-size); }
-.split-datetime__field { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* Segmented controls: digit slots + separators + the picker trigger icon.
+   Columns are content-driven (auto) — the previous ch-arithmetic capped the
+   date column under its real content. The field's min-width:max-content is
+   what track sizing reads: the nested flex min-width:0 chain under-reports
+   the control's content width by a few px, so the item must carry the floor
+   or the year segment and trigger clip inside the cell. */
+.split-datetime__fields { display: grid; grid-template-columns: auto auto; gap: 6px; width: fit-content; max-width: 100%; font-size: var(--text-data-size); }
+.split-datetime__field { min-width: max-content; display: flex; flex-direction: column; gap: 2px; }
 .split-datetime__control { display: flex; align-items: stretch; min-width: 0; gap: 2px; }
 .split-datetime__control > [role='group'] { flex: 1; min-width: 0; }
 .split-datetime__control input { min-width: 0; }

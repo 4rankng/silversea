@@ -25,10 +25,17 @@
 .date-seg-group--error { border-color: var(--color-border-error_subtle); }
 .date-seg-group--error:focus-within { border-color: var(--color-border-error); outline-color: var(--color-border-error); }
 
-/* Segments are raw digit slots: the group above is the only visible border. */
-.date-seg-wrapper {
+/* Segments are raw digit slots: the group above is the only visible border.
+   Selectors are prefixed with .date-seg-group because InputBase ships the
+   Tailwind w-full utility on both the wrapper and the input; at equal
+   specificity the later-loaded utilities sheet wins and every segment
+   stretches to its host cell (150px filter columns collapse to one visible
+   segment, the year and trigger pushed outside). The prefix outranks the
+   utility regardless of stylesheet order. */
+.date-seg-group .date-seg-wrapper {
   width: auto;
   flex: 0 0 auto;
+  min-width: 0;
   min-height: 0;
   border: 0;
   background: transparent;
@@ -36,13 +43,13 @@
   box-shadow: none;
 }
 
-.date-seg {
+.date-seg-group .date-seg-wrapper .date-seg {
   width: 2ch;
   padding-inline: 1px;
   text-align: center;
 }
 
-.date-seg[data-seg='yyyy'] { width: 4ch; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 4ch; }
 
 .date-sep {
   flex: 0 0 auto;
