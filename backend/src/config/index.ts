@@ -132,7 +132,10 @@ const withDefaults = {
   ...raw,
   port: raw.port || '3001',
   databaseUrl: raw.databaseUrl || (isProd ? undefined : 'postgres://postgres:postgres@localhost:5441/silversea'),
-  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6392'),
+  // 6391 = this checkout's ss-prod-redis (the ss-main checkout's redis is 6392).
+  // REDIS_URL in backend/.env must win at runtime; the default only has to
+  // name the right container for THIS tree.
+  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6391'),
   jwtSecret: raw.jwtSecret || (isProd ? undefined : 'dev-secret-change-in-production'),
   jwtExpiresIn: raw.jwtExpiresIn || '7d',
   uploadDir: raw.uploadDir || './uploads',

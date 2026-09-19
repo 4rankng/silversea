@@ -4,6 +4,7 @@ import cors from 'cors';
 import { config } from './config';
 import { client as dbClient } from './db';
 import { disconnectRedis } from './lib/redis';
+import { checkRedisAtBoot } from './lib/boot-redis';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
@@ -232,6 +233,20 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'Không tìm thấy
 
 // ── Global error handler (MUST be last) ────────────────────────────────────
 app.use(globalErrorHandler);
+
+// Boot-time dependency gate: a wrong redis URL used to surface only as
+// silent per-request 503s — the config must die loudly here instead.
+const redisBoot = await checkRedisAtBoot(config.redisUrl);
+if (!redisBoot.ok) {
+  console.error('');
+  console.error('  ██ CRITICAL BOOT FAILURE — REDIS UNREACHABLE ██');
+  console.error(`  ██ url: ${redisBoot.url}`);
+  console.error(`  ██ ${redisBoot.error}`);
+  console.error('  ██ fix REDIS_URL in backend/.env, then restart. ██');
+  console.error('');
+  process.exit(1);
+}
+console.log(`[Boot] redis ok at ${redisBoot.url}`);
 
 const server = app.listen(config.port, () => {
   console.log(`NEPO API running on port ${config.port} [${config.nodeEnv}]`);
