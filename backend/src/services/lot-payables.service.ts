@@ -1,36 +1,34 @@
-// Ruling 2026-09-19 (cards _18/_19): the per-lot payables composition behind
+// Cards _18/_19 ruling 2026-09-19: the per-lot payables composition behind
 // Bảng 2.3 and the Lớp-1 TỔNG PHẢI TRẢ.
 //
 // Cước trả = trip_carrier_info.external_freight_cost summed over the lot's
-// active trips; ops expenses = the lot's ops_expense_entries. Null = chưa
-// xác định — zero rows never masquerade as a known zero.
+// active trips; ops expenses = the lot's ops_expense_entries joined to the
+// catalog for its CATEGORY (card 20260919_3). Null = chưa xác định — zero
+// rows never masquerade as a known zero; with rows present an EMPTY bucket
+// reads a known 0 (the classification-contract tests pin this).
 //
-// The customs/phat-sinh BUCKET split (Phí HQGS / Phí Phát sinh / Chưa phân
-// loại columns) is NOT produced here: classification reads card 20260919_3's
-// explicit category column (name matching is forbidden to survive per that
-// ruling). Until it lands every ops row reads unclassified — the catch-all
-// stays the whole ops total, money conservation holds trivially, and the
-// customs/phat-sinh columns ride null ('—').
+// The split never name-matches. A tenant rename must not rewrite categorized
+// history; null-category (chưa phân loại) rows land in the catch-all beside
+// the KHAC rows so no money can leave the table.
 import { and, eq, isNull, ne } from 'drizzle-orm';
+import { ExpenseTypeCategory } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 
 export interface LotPayablesBreakdown {
   /** Cước trả — the CVC freight on the lot's trips (trip_carrier_info). */
   externalFreightCost: number | null;
-  /** Category buckets (card 20260919_3): null = no category producer yet. */
   hqgsFee: number | null;
   phatSinhFee: number | null;
-  /** Catch-all: every ops row the buckets above do not claim. With no
-   *  category producer it carries the WHOLE ops total so no money leaves
-   *  the 2.3 table while still counting in TỔNG PHẢI TRẢ. */
+  /** Catch-all: null-category + KHAC rows — everything the customs/phat-sinh
+   *  buckets do not claim, so conservation is exact. */
   unclassifiedFee: number | null;
   opsExpenseTotal: number | null;
   /** Cước trả + ops expenses; null whenever either side is unknown. */
   payableTotal: number | null;
 }
 
-/** Live per-lot payables breakdown. */
+/** Live per-lot payables breakdown (Bảng 2.3 + TỔNG PHẢI TRẢ). */
 export async function computeLotPayablesBreakdown(shipmentId: number): Promise<LotPayablesBreakdown> {
   const trips = await db.select({ carrierCost: s.tripCarrierInfo.externalFreightCost })
     .from(s.trips)
@@ -45,15 +43,34 @@ export async function computeLotPayablesBreakdown(shipmentId: number): Promise<L
     ? carrierCosts.reduce((sum, cost) => sum + Number(cost), 0)
     : null;
 
-  const rows = await db.select({ amount: s.opsExpenseEntries.amount })
+  const rows = await db.select({
+    category: s.forwarderExpenseTypes.category,
+    amount: s.opsExpenseEntries.amount,
+  })
     .from(s.opsExpenseEntries)
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
-  const opsExpenseTotal = rows.length === 0 ? null : rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const withRows = rows.length > 0;
+  const bucketTotal = (predicate: (category: string | null) => boolean): number =>
+    rows.reduce((sum, row) => {
+      if (!predicate(row.category)) return sum;
+      const amount = Number(row.amount);
+      if (!Number.isFinite(amount)) {
+        throw new Error('Non-finite ops expense amount — refusing to sum.');
+      }
+      return sum + amount;
+    }, 0);
+  const hqgsFee = withRows ? bucketTotal((c) => c === ExpenseTypeCategory.HQGS) : null;
+  const phatSinhFee = withRows ? bucketTotal((c) => c === ExpenseTypeCategory.PHAT_SINH) : null;
+  const unclassifiedFee = withRows
+    ? bucketTotal((c) => c !== ExpenseTypeCategory.HQGS && c !== ExpenseTypeCategory.PHAT_SINH)
+    : null;
+  const opsExpenseTotal = withRows ? bucketTotal(() => true) : null;
   return {
     externalFreightCost,
-    hqgsFee: null,
-    phatSinhFee: null,
-    unclassifiedFee: opsExpenseTotal,
+    hqgsFee,
+    phatSinhFee,
+    unclassifiedFee,
     opsExpenseTotal,
     payableTotal: externalFreightCost != null && opsExpenseTotal != null
       ? externalFreightCost + opsExpenseTotal

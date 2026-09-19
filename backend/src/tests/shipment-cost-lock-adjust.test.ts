@@ -348,8 +348,8 @@ describe('2026-09-19 ruling — the lock freezes the 2.3 composition', () => {
     assert.equal(snapshot['externalFreightCost'], 500000, 'Cước trả freezes as a number');
     assert.equal(snapshot['opsExpenseTotal'], 390000);
     assert.equal(snapshot['unclassifiedFee'], 390000, 'State A: the whole ops total sits in the visible catch-all');
-    assert.equal(snapshot['hqgsFee'], null, 'no category producer yet — customs reads null, never a guess');
-    assert.equal(snapshot['phatSinhFee'], null);
+    assert.equal(snapshot['hqgsFee'], 0, 'rows present, none categorized HQGS — a known zero, not a guess');
+    assert.equal(snapshot['phatSinhFee'], 0);
     assert.equal(snapshot['payableTotal'], 890000);
     assert.equal(
       (snapshot['hqgsFee'] as number | null ?? 0) + (snapshot['phatSinhFee'] as number | null ?? 0) + (snapshot['unclassifiedFee'] as number | null ?? 0),
