@@ -17,8 +17,8 @@ const TMP_DB = `shipment_fk_test_${Date.now().toString(36)}`;
 const TMP_URL = 'postgres://postgres:postgres@localhost:5441/' + TMP_DB;
 
 const SHIP_CASCADE = ['customer_visible_events','delivery_attempts','dispatch_handoffs','shipment_change_requests','shipment_cost_adjustments','shipment_declarations','shipment_document_custody_facts','shipment_documents','shipment_finance_actions','shipment_milestones','shipment_recovery_facts','shipment_status_history','user_shipment_links','user_shipment_pins'];
-const SHIP_RESTRICT = ['debit_note_lots','shipment_accounting_locks','shipment_cost_locks','ops_expense_entries','container_deposit_records','shipment_invoice_records'];
-const SHIP_SETNULL = ['ancillary_revenue','credit_override_requests','customer_email_logs','expense_accounting_sources','freight_rate_snapshots','profitability_snapshots','salesperson_assignments','trips'];
+const SHIP_RESTRICT = ['debit_note_lots','shipment_accounting_locks','shipment_cost_locks','ops_expense_entries','container_deposit_records','shipment_invoice_records','expense_accounting_sources'];
+const SHIP_SETNULL = ['ancillary_revenue','credit_override_requests','customer_email_logs','freight_rate_snapshots','profitability_snapshots','salesperson_assignments','trips'];
 const ROUTE_RESTRICT = ['freight_rate_terms','fuel_norms','pricing_tables','road_allowances','weight_pricing_tiers','trips'];
 const ROUTE_SETNULL = ['operational_sites','shipment_containers','shipments'];
 const BILL_RESTRICT = ['payment_allocations','shipment_accounting_locks'];
@@ -44,9 +44,15 @@ before(async () => {
   assert.ok(t[0].n > 100, 'schema restored');
   await probe.end();
   sql = postgres(TMP_URL);
-  // Apply the migration under test.
+  // Apply the migration under test. The dump may already carry the
+  // constraints (time-bomb: it snapshots whatever the dev DB has become),
+  // so every constraint the file adds is dropped first — derived from the
+  // file itself, never from a hardcoded list.
   const content = readFileSync(path.join(backendRoot, 'drizzle/20260919203000_shipment_children_fks.sql'), 'utf8');
   const statements = content.split('--> statement-breakpoint').map((x) => x.trim()).filter(Boolean);
+  for (const match of content.matchAll(/ALTER TABLE (\S+) ADD CONSTRAINT (\S+) FOREIGN KEY/g)) {
+    await sql.unsafe(`ALTER TABLE IF EXISTS ${match[1]} DROP CONSTRAINT IF EXISTS ${match[2]}`);
+  }
   for (const stmt of statements) await sql.unsafe(stmt);
 });
 
