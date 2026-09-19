@@ -88,6 +88,15 @@ export function pageWorkInboxItems<T extends WorkInboxItemBase>(items: T[], quer
   return { asOf: new Date().toISOString(), timezone: 'Asia/Ho_Chi_Minh', counts, page: query.page, limit: query.limit, total: filtered.length, totalPages: Math.ceil(filtered.length / query.limit), items: filtered.slice((query.page - 1) * query.limit, query.page * query.limit) };
 }
 
+/**
+ * One display decision for work/alert titles (card _44): the business key
+ * when it exists, '—' when it does not — internal ids never render. Both
+ * the live generators and any title re-derivation consumer call THIS.
+ */
+export function businessTitleOrDash(code: string | null | undefined): string {
+  return code != null && code.trim() !== '' ? code : '—';
+}
+
 export async function customerWorkInbox(customerId: number, query: InboxQuery) {
   const shipments = await db.select({
     id: s.shipments.id,
@@ -204,7 +213,7 @@ export async function driverWorkInbox(driverId: number, query: InboxQuery) {
     const milestone = done ? null : delivered ? acceptedPod ? 'Hoàn tất chuyến' : latestPod?.status === 'REJECTED' ? 'Bổ sung POD giao hàng' : 'Nộp POD giao hàng' : latestProgress?.eventType === 'LOADING_OR_RETURNING' ? 'Báo đã giao hàng' : latestProgress?.eventType === 'PICKED_UP' ? 'Báo đang trả hoặc xếp hàng' : latestProgress?.eventType === 'ORDER_RECEIVED' ? 'Báo đã lấy hàng' : 'Xác nhận đã nhận lệnh gốc';
     const state = done ? 'DONE' : waiting ? 'WAITING' : 'ACTION';
     const blockers = waiting ? [{ code: 'PAPER_ORDER', label: 'Chưa giao lệnh gốc', ownerRole: 'OPS', ownerLabel: 'Điều hành' }] : emptyParty;
-    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: row.code ?? '—', subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.tripId}` }, targetRoute: `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
+    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: businessTitleOrDash(row.code), subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.tripId}` }, targetRoute: `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
   });
   return pageWorkInboxItems(items, query);
 }
@@ -286,7 +295,7 @@ export async function financialWorkInbox(query: InboxQuery) {
     const unanswered = attempts.length > 0 && responses.some((response) => response.decision == null);
     const advisories = disputed ? [{ code: 'CUSTOMER_DISPUTE', label: 'Khách hàng báo sai lệch giao hàng (không chặn tài chính)', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' }] : unanswered ? [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng (không chặn tài chính)', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }] : emptyParty;
     const targetRoute = `/accounting?view=transport&search=${encodeURIComponent(row.code ?? String(row.id))}`;
-    items.push({ id: `trip:${row.id}`, entityType: 'trip', entityId: row.id, title: row.code ?? '—', subtitle: blockers.length ? 'Cần hoàn thiện điều kiện tài chính' : 'Sẵn sàng đối soát', state: blockers.length ? 'WAITING' : 'ACTION', priority: blockers.length ? 70 : 90, dueAt: null, freshnessAt: row.updatedAt.toISOString(), blockers, advisories, nextAction: { label: 'Mở hồ sơ vận tải', targetRoute }, targetRoute, tripId: row.id, acceptedPod: acceptedPodReady, expenseApprovalPending: pendingExpenseTripIds.has(row.id), settlementComplete, profitabilitySnapshotReady });
+    items.push({ id: `trip:${row.id}`, entityType: 'trip', entityId: row.id, title: businessTitleOrDash(row.code), subtitle: blockers.length ? 'Cần hoàn thiện điều kiện tài chính' : 'Sẵn sàng đối soát', state: blockers.length ? 'WAITING' : 'ACTION', priority: blockers.length ? 70 : 90, dueAt: null, freshnessAt: row.updatedAt.toISOString(), blockers, advisories, nextAction: { label: 'Mở hồ sơ vận tải', targetRoute }, targetRoute, tripId: row.id, acceptedPod: acceptedPodReady, expenseApprovalPending: pendingExpenseTripIds.has(row.id), settlementComplete, profitabilitySnapshotReady });
   }
   return pageWorkInboxItems(items, query);
 }
@@ -344,7 +353,7 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
     const startedAt = row.plannedStartAt ?? row.orderExchangeCompletedAt!;
     items.push({
       id: `paper-handoff:${row.id}`, entityType: 'trip', entityId: row.id,
-      title: `${row.code ?? '—'} quá hạn bàn giao lệnh gốc`,
+      title: `${businessTitleOrDash(row.code)} quá hạn bàn giao lệnh gốc`,
       subtitle: 'Đổi lệnh đã hoàn tất nhưng tài xế chưa nhận lệnh gốc', state: 'ACTION', priority: 96,
       dueAt: row.plannedStartAt?.toISOString() ?? null, freshnessAt: row.orderExchangeCompletedAt!.toISOString(),
       blockers: [{ code: 'PAPER_HANDOFF_OVERDUE', label: 'Bàn giao lệnh gốc quá hạn', ownerRole: 'OPS', ownerLabel: 'Vận hành' }], advisories: emptyParty,
@@ -356,7 +365,7 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
   for (const row of slaExceptions) {
     items.push({
       id: `shipment-sla:${row.id}`, entityType: 'shipment', entityId: row.id,
-      title: `${row.code ?? '—'} quá hạn cut-off`, subtitle: 'Lô hàng chưa hoàn tất sau thời điểm cut-off hải quan',
+      title: `${businessTitleOrDash(row.code)} quá hạn cut-off`, subtitle: 'Lô hàng chưa hoàn tất sau thời điểm cut-off hải quan',
       state: 'ACTION', priority: 94, dueAt: row.cutoffAt!.toISOString(), freshnessAt: row.updatedAt.toISOString(),
       blockers: [{ code: 'CUSTOMS_CUTOFF_OVERDUE', label: 'Quá hạn cut-off hải quan', ownerRole: 'DISPATCHER', ownerLabel: 'Điều vận' }], advisories: emptyParty,
       nextAction: { label: 'Xem chi tiết lô hàng', targetRoute: `/shipments-detail?shipmentId=${row.id}` }, targetRoute: `/shipments-detail?shipmentId=${row.id}`,
