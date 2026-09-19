@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
+import { getOffsetDateString } from './cusAppointmentUtils';
 
 // The segmented datetime rework split each part into per-digit inputs
 // ([data-seg]) inside the shared SplitDateTimeField; these helpers target the
@@ -321,6 +322,13 @@ describe('CusAppointmentPopover', () => {
   it('_15: Xác nhận stays disabled until the user makes an explicit pick, then commits it', async () => {
     const onCommit = vi.fn();
     const onClose = vi.fn();
+    // The pill derives its slot via businessDateOffsetISO (Vietnam-anchored
+    // day). Freeze the clock BEFORE the first render so every render's slot
+    // and the assertion below share one instant — runs straddling midnight
+    // VN/local can no longer split the two.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-19T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(0, new Date());
     render(
       <CusAppointmentPopover
         isOpen
@@ -336,19 +344,10 @@ describe('CusAppointmentPopover', () => {
     expect(confirmBtn).toBeDisabled();
 
     // Explicit pick via quick pill — commits the picked slot.
-    // Freeze ONLY the clock at a Vietnam-morning instant: the pill derives
-    // its slot on the Vietnam day while this assertion used the runner's
-    // local day, and a run straddling midnight flips one of the "todays".
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-09-19T09:00:00+07:00'));
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     expect(confirmBtn).toBeEnabled();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
-    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${y}-${m}-${d}T08:00`));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${expectedDay}T08:00`));
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     vi.useRealTimers();
   });
