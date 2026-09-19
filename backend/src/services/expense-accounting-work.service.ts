@@ -58,7 +58,7 @@ export async function listExpenseAccountingWork(actor: ExpenseActor, query: Expe
       const cs = containers.filter(c => c.c.tripId === t.id);
       const first = cs[0]?.source;
       const firstType = cs[0]?.c.containerTypeId;
-      return { id: `TRIP:${t.id}`, tripId: t.id, shipmentId: shipment.id, shipmentCode: shipment.shipmentCode ?? `#${shipment.id}`,
+      return { id: `TRIP:${t.id}`, tripId: t.id, shipmentId: shipment.id, shipmentCode: shipment.bookingRef ?? shipment.blNumber ?? null,
         scheduledAt: first?.customerAppointmentAt?.toISOString() ?? shipment.plannedReturnAt?.toISOString() ?? t.departureDate,
         factoryName: [...new Set(cs.map(c => sites.find(site => site.id === c.source?.operationalSiteId)?.name).filter(Boolean))].join(', ')
           || sites.find(site => site.id === shipment.operationalSiteId)?.name || shipment.factoryName || null,

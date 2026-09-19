@@ -5,7 +5,7 @@
 // verbatim (pure code movement); leaves import these one-way.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { inArray, eq } from 'drizzle-orm';
+import { inArray, eq, sql } from 'drizzle-orm';
 import { canonicalFreightDescription } from '@tingting/shared';
 import type { BillingDocumentLine, DebitNoteTemplateColumn } from '@tingting/shared';
 import {
@@ -167,7 +167,7 @@ export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTempl
     case 'tripCode':
       return col.id === 'chung_tu'
         ? data.documentCode ?? null
-        : data.tripCode ?? (line.sourceType === 'TRIP' ? String(line.sourceId ?? '') : null);
+        : data.tripCode ?? data.billNumber ?? data.declarationNumber ?? null;
     default: return null;
   }
 }
@@ -212,11 +212,29 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
     notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    billNumber: s.shipments.blNumber,
+    shipmentId: s.tripsComposite.shipmentId,
   }).from(s.tripsComposite)
     .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.tripsComposite.shipmentId))
     .where(inArray(s.tripsComposite.id, tripIds));
   const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
+  // Batched explicit read: declaration numbers per lot (raw-sql aggregates in
+  // drizzle select objects alias unreliably — silent undefined beats a loud
+  // failure here, so read the rows and join in JS).
+  const lotIds = [...new Set(trips.map((trip) => trip.shipmentId).filter((value): value is number => value != null))];
+  const declarationRows = lotIds.length === 0
+    ? []
+    : await db.select({ shipmentId: s.shipmentDeclarations.shipmentId, declarationNumber: s.shipmentDeclarations.declarationNumber })
+      .from(s.shipmentDeclarations)
+      .where(inArray(s.shipmentDeclarations.shipmentId, lotIds));
+  const declarationNumbersByLot = new Map<number, string>();
+  for (const row of declarationRows) {
+    if (row.declarationNumber == null || row.declarationNumber === '') continue;
+    const current = declarationNumbersByLot.get(row.shipmentId);
+    declarationNumbersByLot.set(row.shipmentId, current == null ? row.declarationNumber : `${current}, ${row.declarationNumber}`);
+  }
   const containersByTrip = await loadContainersByTrip(tripIds);
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);
 
@@ -248,13 +266,19 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
       ...line,
       routeName: line.routeName ?? trip.routeName ?? null,
       containerNumbers: line.containerNumbers ?? containerNumbers(containers),
-      renderData: buildTripRenderData({
-        tripId: trip.id,
-        trip,
-        containers,
-        legs: legsByTrip.get(trip.id),
-        note: trip.notes ?? null,
-      }),
+      renderData: {
+        ...buildTripRenderData({
+          tripId: trip.id,
+          trip,
+          containers,
+          legs: legsByTrip.get(trip.id),
+          note: trip.notes ?? null,
+        }),
+        // Business keys for the export cells (Số Bill/tờ khai) — same fields
+        // the draft path stamps, so fresh lines render identical to stored ones.
+        billNumber: trip.billNumber ?? null,
+        declarationNumber: declarationNumbersByLot.get(trip.shipmentId ?? 0) ?? null,
+      },
     };
     return {
       ...enrichedLine,

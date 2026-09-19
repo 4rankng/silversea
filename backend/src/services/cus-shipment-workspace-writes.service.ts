@@ -388,7 +388,8 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.newExternalCarrier != null
     );
     if (trip && requestedOperationalMutation) {
-      const tripLabel = trip.tripCode || `TRP-${trip.id}`;
+      // Business keys only — never fabricate an id-derived label.
+      const tripLabel = trip.tripCode || '—';
       throw new ApiError(409, `Container đã gắn chuyến xe (${tripLabel}). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.`);
     }
     // Approval workflow parked (customer undecided 2026-09-08): container

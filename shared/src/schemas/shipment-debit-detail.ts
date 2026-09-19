@@ -77,6 +77,13 @@ export const shipmentDebitDetailSchema = z.object({
    *  level): every container row renders this same value; null/absent = '—'
    *  (optional-nullable so the producer upgrade can land independently). */
   customsChannel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable().optional(),
+  /** Card 20260919_39 — lot-level business display keys (Số Bill / Số
+   *  Booking / số tờ khai). Internal ids and id-derived codes (SHP-/GBN-)
+   *  are banned from display text; null/absent = '—', never an invented
+   *  identifier. */
+  bookingRef: z.string().nullable().optional(),
+  billNumber: z.string().nullable().optional(),
+  declarationNumber: z.string().nullable().optional(),
 });
 
 export type DebitDetailFreightRow = z.infer<typeof debitDetailFreightRowSchema>;

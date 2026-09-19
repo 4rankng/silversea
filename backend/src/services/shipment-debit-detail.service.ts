@@ -9,7 +9,7 @@
 //        (buy), thu khách (sell) and the note on chi-hộ rows, plus Phí khác
 //        (OTHER) add/remove. Everything else stays read-only; the lot being
 //        debit-locked rejects edits with the _19 lock message.
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -37,13 +37,27 @@ export interface DebitDetailPayables {
 }
 
 export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
-  const [shipment] = await db.select({ id: s.shipments.id })
+  const [shipment] = await db.select({
+    id: s.shipments.id,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+  })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) {
     throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
   }
+  // Lot-level business keys for the wire (card _39): declaration numbers ride
+  // comma-joined; an explicit read avoids raw-sql alias mapping surprises.
+  const declarationRows = await db.select({ declarationNumber: s.shipmentDeclarations.declarationNumber })
+    .from(s.shipmentDeclarations)
+    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+    .orderBy(s.shipmentDeclarations.id);
+  const lotDeclarationNumber = declarationRows
+    .map((row) => row.declarationNumber)
+    .filter((value): value is string => value != null && value !== '')
+    .join(', ') || null;
   // Card 20260919_5 producer contract: the declared channel rides top-level
   // (lot-level attribute — every container row renders the same value).
   const customsChannel = await getLotDeclaredChannel(shipmentId);
@@ -289,6 +303,9 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     payables,
     thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
     customsChannel,
+    bookingRef: shipment.bookingRef ?? null,
+    billNumber: shipment.blNumber ?? null,
+    declarationNumber: lotDeclarationNumber,
   };
 }
 

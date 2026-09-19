@@ -117,7 +117,10 @@ export interface TruckAccountantAssignment {
 }
 
 export interface ExpenseWorkRow {
-  id: string; tripId: number | null; shipmentId: number; shipmentCode: string;
+  // shipmentCode carries a BUSINESS key (Số Booking/Bill) since the id-leak
+  // purge — id-derived codes are banned from display text. null = neither
+  // present → the UI renders '—'.
+  id: string; tripId: number | null; shipmentId: number; shipmentCode: string | null;
   scheduledAt: string | null; customerName: string; routeName: string | null;
   factoryName: string | null;
   roadBreakdown: { roadAllowance: number | null; shiftAllowance: number | null; toll: number | null; extra: number | null; tollBasis: 'ACTUAL' | 'ESTIMATED' | 'UNKNOWN'; sharedWithTripId: number | null };

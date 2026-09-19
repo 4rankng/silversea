@@ -939,9 +939,21 @@ describe('CUS container-flat projection', () => {
       cargoMode: 'FCL',
     });
     await seedContainer(lockedShipment.id, { containerNumber: `DSP${marker}L` });
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live (shipment-children FK wave), sentinel ids violate it.
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `DSP lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: lockedShipment.id,
-      billingDocumentId: 900_000_000 + lockedShipment.id,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       billingPeriodSnapshot: {
         rangeFrom: '2026-08-01',
@@ -972,6 +984,7 @@ describe('CUS container-flat projection', () => {
     } finally {
       await db.delete(s.shipmentAccountingLocks)
         .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
   });
 
@@ -3157,8 +3170,16 @@ describe('FCL workspace factory source editing', () => {
     await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
       input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: accountantActor }),
     (error: unknown) => error instanceof ApiError && error.statusCode === 403);
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live (shipment-children FK wave), sentinel ids violate it.
+    assert.ok(shipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: shipment.customerId,
+      entityName: `UI-CD-12 lock doc ${suffix}`, rangeFrom: '2026-09-01', rangeTo: '2026-09-30',
+      totalInclVat: '0',
+    }).returning();
     await db.insert(s.shipmentAccountingLocks).values({ shipmentId: shipment.id,
-      billingDocumentId: 900_000_000 + shipment.id, billingDocumentVersion: 1,
+      billingDocumentId: lockDoc.id, billingDocumentVersion: 1,
       billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: '2026-09-17T00:00:00.000Z' },
       shipmentVersionAtLock: shipment.version, reason: 'UI-CD-12 regression', activatedBy: cusActor.userId });
     try {
@@ -3169,6 +3190,7 @@ describe('FCL workspace factory source editing', () => {
       (error: unknown) => error instanceof ApiError && error.statusCode === 409);
     } finally {
       await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
   });
 });
