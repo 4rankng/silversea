@@ -28,7 +28,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
   const [classification, setClassification] = useState(item?.classification || '');
   const [legalEntity, setLegalEntity] = useState(item?.legalEntity || '');
   const [address, setAddress] = useState(item?.address || '');
-  const [isLachHuyen, setIsLachHuyen] = useState(item?.isLachHuyen || false);
   const [opsPortalUrl, setOpsPortalUrl] = useState(item?.opsPortalUrl || '');
   const [position, setPosition] = useState(item?.position || '');
   const [zone, setZone] = useState<ZoneChoice>(item?.dispatchZone ?? 'NONE');
@@ -97,21 +96,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
         />
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
-        <Field label="Thuộc Lạch Huyện">
-          <label style={{
-            display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            padding: '9px 12px', border: '1px solid var(--line)',
-            borderRadius: 'var(--app-radius-md)', background: isLachHuyen ? 'var(--warning-soft, #fef3c7)' : 'transparent',
-          }}>
-            <input
-              type="checkbox"
-              checked={isLachHuyen}
-              onChange={e => setIsLachHuyen(e.target.checked)}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 'var(--text-data-size)' }}>Lạch Huyện</span>
-          </label>
-        </Field>
       </div>
       <div style={{ flex: 2, minWidth: 200 }}>
         <Field label="Web tác nghiệp">
@@ -159,7 +143,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             legalEntity: legalEntity.trim() || null,
             address: address.trim() || null,
             dispatchZone: zone === 'NONE' ? null : zone,
-            isLachHuyen,
             opsPortalUrl: opsPortalUrl.trim() || null,
             position: position.trim() || null,
           });
@@ -288,12 +271,6 @@ export default function PortsConfigPage() {
         {
           header: 'Địa chỉ',
           render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.address || '—'}</span>,
-        },
-        {
-          header: 'Thuộc Lạch Huyện',
-          render: (p) => p.isLachHuyen
-            ? <span className="badge badge--success">Có</span>
-            : <span style={{ color: 'var(--fg-3)' }}>—</span>,
         },
         {
           header: 'Web tác nghiệp',

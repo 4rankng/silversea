@@ -40,7 +40,7 @@ export const configClient = {
   // every zone-scoped dispatch surface; no zone constants exist client-side.
   // /active = active-only rows for dispatch readers (any config-read role);
   // the bare /dispatch-zones factory list (all statuses) is ADMIN-managed.
-  getDispatchZones: () => api.get<{ items: Array<{ code: string; label: string; sortOrder: number }> }>(`${CONFIG.DISPATCH_ZONES}/active`),
+  getDispatchZones: () => api.get<{ items: Array<{ code: string; label: string; sortOrder: number; isDefault?: boolean }> }>(`${CONFIG.DISPATCH_ZONES}/active`),
 
   getTrucks: () => fetchAllPaginated<Truck>(CONFIG.TRUCKS),
 

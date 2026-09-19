@@ -55,7 +55,7 @@ export function useDispatchMasterPlan() {
   const requestIdRef = useRef(0);
 
   // Zone truck presence for today: advisory panel showing OWN trucks.
-  const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  const [zones, setZones] = useState<Array<{ code: string; label: string; isDefault?: boolean }>>([]);
   const [presence, setPresence] = useState<{ zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null>(null);
   const presenceRequestIdRef = useRef(0);
   useEffect(() => {
@@ -65,9 +65,10 @@ export function useDispatchMasterPlan() {
       .catch(() => { /* no taxonomy → no presence panel */ });
     return () => { cancelled = true; };
   }, []);
-  // Pin the presence advisory (zone hint + panel) to Lạch Huyện when the
-  // taxonomy carries it; fall back to the first active zone otherwise.
-  const presenceZone = zones.find((zone) => zone.code === 'LACH_HUYEN')?.code || zones[0]?.code || '';
+  // Pin the presence advisory to the default-flagged dispatch zone (BE sets
+  // the flag per zone row — port-names ruling: selection rides data, never a
+  // slug literal); fall back to the first active zone when nothing is flagged.
+  const presenceZone = zones.find((zone) => zone.isDefault)?.code || zones[0]?.code || '';
   useEffect(() => {
     if (!presenceZone) { setPresence(null); return; }
     const requestId = ++presenceRequestIdRef.current;
