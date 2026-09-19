@@ -506,6 +506,9 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa', category: ExpenseTypeCategory.HQGS },
   INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa', category: ExpenseTypeCategory.HQGS },
   OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác', category: ExpenseTypeCategory.KHAC },
+  // Card _2: dispatcher-entered zone surcharge — the structural kind the 2.3
+  // ladder reads (payee ruling (i): carrier-paid costs via ops intake).
+  ZONE_SURCHARGE: { name: 'Phí nâng/hạ theo vùng',        defaultMarkup: false, billingLabel: 'Phí nâng/hạ theo vùng', category: ExpenseTypeCategory.PHAT_SINH },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [

@@ -349,6 +349,26 @@ export const sealTypes = pgTable('seal_types', {
 // Port-cluster taxonomy lives in the DB (not code constants): adding a
 // cluster is a seed row + port classification, no deploy. Codes are stable
 // cross-environment keys; labels are operator-facing.
+// Zone-surcharge configuration is DATA (card _2 / ruling 2026-09-19): one
+// row per port + structural kind slug. The display label rides the row, so
+// renaming a zone or adding a port is a data operation — never a migration.
+export const portZoneSurcharges = pgTable('port_zone_surcharges', {
+  id: serial('id').primaryKey(),
+  portId: integer('port_id')
+    .notNull()
+    .references(() => ports.id, { onDelete: 'cascade' }),
+  kindSlug: varchar('kind_slug', { length: 64 }).notNull(),
+  label: varchar('label', { length: 128 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('port_zone_surcharges_port_kind_uniq')
+    .on(table.portId, table.kindSlug)
+    .where(sql`deleted_at is null`),
+]);
+
 export const dispatchZones = pgTable('dispatch_zones', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 32 }).notNull().unique(),

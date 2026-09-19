@@ -15,6 +15,7 @@ import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { computeLotPayablesBreakdown } from './lot-payables.service';
+import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { getLotDeclaredChannel } from './shipment-documents.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
@@ -135,6 +136,7 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     payableTotal: payables.payableTotal,
     customsChannel,
     portLabels,
+    zoneSurcharge: await resolveLotZoneSurcharge(shipmentId),
   };
 }
 

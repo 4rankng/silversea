@@ -51,6 +51,10 @@ export const debitDetailChiHoRowSchema = z.object({
     id: z.number().int().positive(),
     name: z.string(),
     amount: nullableMoney,
+    /** Card _2 (2b) — the SELL side of 'Phí khác', split from amount (the
+     *  buy/chi hộ side) so thu-vs-trả reconciles per component. null =
+     *  chưa nhập → '—', never a silent 0. */
+    thuKhach: nullableMoney.optional(),
   })),
   carrierDetention: nullableMoney,
   repairAdvance: nullableMoney,
@@ -84,6 +88,17 @@ export const shipmentDebitDetailSchema = z.object({
   bookingRef: z.string().nullable().optional(),
   billNumber: z.string().nullable().optional(),
   declarationNumber: z.string().nullable().optional(),
+  /** Card _2 — the zone-surcharge column of Bảng 2.3: one lot-level number
+   *  from a single source ladder (dispatcher override > driver incidental
+   *  actuals > port config when configured), with the display label FROM
+   *  CONFIG (place names are data, never identifiers). null = chưa xác
+   *  định — the column renders '—', never a fabricated 0. source says
+   *  which rung fired so QA can audit the number's provenance. */
+  zoneSurcharge: z.object({
+    label: z.string(),
+    amount: nullableMoney,
+    source: z.enum(['OVERRIDE', 'INCIDENTAL', 'CONFIG']),
+  }).nullable().optional(),
 });
 
 export type DebitDetailFreightRow = z.infer<typeof debitDetailFreightRowSchema>;

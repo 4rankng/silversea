@@ -18,6 +18,7 @@ import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
 import { getLotDeclaredChannel } from './shipment-documents.service';
 import { activeTripConditions } from './active-trip-scope';
+import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
 
@@ -200,7 +201,16 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     const tripExpenses = tripId != null ? (expensesByTrip.get(tripId) ?? []) : [];
     const otherFees = tripExpenses
       .filter((expense) => expense.expenseType === 'OTHER')
-      .map((expense) => ({ id: expense.id, name: expense.feeName ?? 'Phí khác', amount: Number(expense.buyAmount) }));
+      .map((expense) => ({
+        id: expense.id,
+        name: expense.feeName ?? 'Phí khác',
+        amount: Number(expense.buyAmount),
+        // Card _2 (2b): the SELL side rides beside the buy side — null when
+        // not entered (default 0 = chưa nhập → '—', never a silent 0).
+        thuKhach: expense.sellAmount == null || Number(expense.sellAmount) === 0
+          ? null
+          : Number(expense.sellAmount),
+      }));
     const coreRows = tripExpenses.filter((expense) => expense.expenseType !== 'OTHER');
     const podRecoveredAt = tripId != null ? podByTrip.get(tripId) ?? null : null;
     const frozenLabels = container.id != null ? frozenByContainer.get(container.id) : undefined;
@@ -297,6 +307,10 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot) }
     : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown };
 
+  // Frozen lots (card _35 family): the snapshot captured the zone surcharge
+  // at lock time — renames/config changes after the lock never rewrite it.
+  const snapshotZone = (activeLabelLock?.snapshot as { zoneSurcharge?: { label: string; amount: number; source: 'OVERRIDE' | 'INCIDENTAL' | 'CONFIG' } | null } | null)?.zoneSurcharge;
+  const zoneSurcharge = snapshotZone ?? await resolveLotZoneSurcharge(shipmentId);
   return {
     freightRows,
     chiHoRows,
@@ -306,9 +320,17 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     bookingRef: shipment.bookingRef ?? null,
     billNumber: shipment.blNumber ?? null,
     declarationNumber: lotDeclarationNumber,
+    zoneSurcharge,
   };
 }
 
+/** Card _2 — the 2.3 zone-surcharge column's single source ladder. The
+ *  dispatcher override (ops expense rows of the structural zone kind, entered
+ *  through the audited ops intake) wins; then driver-reported incidental
+ *  actuals (LIFT_DROP_ZONE rows on the lot's trips); then the configured
+ *  amount when the lot's ports carry a zone-surcharge config row ("tự nhảy
+ *  khi cài đặt"); otherwise null — the column shows '—', never a fabricated 0.
+ *  Place names live in the config ROW (label), never in code. */
 /** Frozen 2.3 reads for locked lots: missing snapshot keys read null —
  *  Chưa xác định, never a fabricated 0. */
 function payablesFromSnapshot(snapshot: unknown): LotPayablesBreakdown {
