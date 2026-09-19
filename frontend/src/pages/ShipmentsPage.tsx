@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
 import {
-  CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
@@ -16,17 +15,13 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
-import { CusFilterSummary } from '../features/shipments/cus/CusFilterSummary';
-import { WorkboardFilters, WORKBOARD_BUCKETS } from '../components/WorkboardFilters';
+import { WorkboardToolbar, WORKBOARD_BUCKETS, type WorkboardToolbarHandle } from '../components/WorkboardFilters';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
-import { parseDateTime24 } from '../lib/format';
-import { validateDateInputText } from '../design-system/hooks/useBufferedDateTextValue';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
@@ -73,15 +68,11 @@ export default function ShipmentsPage() {
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
   const sort: TableSortState | null = useMemo(() => sortKey ? { by: sortKey, dir: sortDir } : null, [sortKey, sortDir]);
 
-  const [searchInput, setSearchInput] = useState(suffixParam);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [dateResetKey, setDateResetKey] = useState(0);
-  const [hasDateDraft, setHasDateDraft] = useState(false);
-  const filterFormRef = useRef<HTMLFormElement>(null);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
+  const filtersRef = useRef<WorkboardToolbarHandle>(null);
 
   const ws = useCusWorkspaceState({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
@@ -114,7 +105,6 @@ export default function ShipmentsPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  useEffect(() => setSearchInput(suffixParam), [suffixParam]);
 
   // Both sort params are written in one setSearchParams pass so no render can
   // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
@@ -153,56 +143,11 @@ export default function ShipmentsPage() {
     setDrawerId(null);
   }, [drawerCloseConfirmId, setDetailDirty]);
 
-  const validateFilterDates = () => {
-    const fromInput = filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-from');
-    const toInput = filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-to');
-    const visibleFrom = fromInput?.value ? parseDateTime24(`00:00 ${fromInput.value}`)?.slice(0, 10) ?? '' : '';
-    const visibleTo = toInput?.value ? parseDateTime24(`00:00 ${toInput.value}`)?.slice(0, 10) ?? '' : '';
-    // Read the actual draft pair: a rapid submit can precede the next render
-    // and its validity effect, so URL state alone is not validation evidence.
-    if (fromInput) fromInput.setCustomValidity(validateDateInputText(fromInput.value, '', visibleTo));
-    if (toInput) toInput.setCustomValidity(validateDateInputText(toInput.value, visibleFrom));
-    const invalidInput = filterFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid');
-    if (!invalidInput) return true;
-    setAdvancedOpen(true);
-    // Reveal collapsed criteria before moving focus to the invalid draft.
-    requestAnimationFrame(() => {
-      invalidInput.focus();
-      invalidInput.reportValidity();
-    });
-    return false;
-  };
 
-  const submitSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!validateFilterDates()) return;
-    const value = (filterFormRef.current?.querySelector<HTMLInputElement>('#cus-filter-search')?.value ?? searchInput).trim();
-    if (value && !CUS_SEARCH_PATTERN.test(value)) {
-      setSearchError('Nhập một phần số Bill/Book, container hoặc tờ khai, tối thiểu 4 ký tự (không dùng % hoặc _).');
-      return;
-    }
-    setSearchError(null);
-    updateParam('searchSuffix', value || null);
-  };
 
-  // One apply model for the whole bar (2026-09-18): every control applies as it
-  // changes — the text search on a short debounce. Enter still applies at once.
-  useEffect(() => {
-    const value = searchInput.trim();
-    if (value === suffixParam) return;
-    if (value && !CUS_SEARCH_PATTERN.test(value)) return;
-    const timer = setTimeout(() => {
-      setSearchError(null);
-      updateParam('searchSuffix', value || null);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput, suffixParam, updateParam]);
 
-  const clearFilters = () => {
-    setDateResetKey((key) => key + 1);
-    setHasDateDraft(false);
-    setSearchInput('');
-    setSearchError(null);
+  const clearFiltersUrl = () => {
+    filtersRef.current?.clear();
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'adHoc', 'page'].forEach((key) => next.delete(key));
@@ -232,11 +177,8 @@ export default function ShipmentsPage() {
     ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc);
-  const activeFilterCount = [dateFrom, dateTo, direction, bucket, adHoc].filter(Boolean).length;
-  // Phone/tablet: secondary criteria collapse so records start higher.
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const exportWorksheet = async () => {
-    if (!validateFilterDates()) return;
+    if (!(filtersRef.current?.validateDates() ?? true)) return;
     setExporting(true);
     ws.setError(null);
     try {
@@ -296,91 +238,18 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        <form ref={filterFormRef} className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate
-          onInput={(event) => { if ((event.target as HTMLElement).matches('[data-date-input]')) setHasDateDraft(true); }}>
-          <div className="cus-worksheet-toolbar__filters" aria-label={'Bộ lọc' + (activeFilterCount ? ' đang áp dụng ' + activeFilterCount : '')}>
-            <div className="cus-search-field">
-              <div className="cus-search-field__anchor">
-                <UUIInput
-                  id="cus-filter-search"
-                  label="Bill/Book hoặc tờ khai"
-                  size="sm"
-                  icon={Search}
-                  value={searchInput}
-                  onChange={(value) => {
-                    setSearchInput(value);
-                    setSearchError(null);
-                  }}
-                  placeholder="Nhập một phần Bill/Book, số container hoặc tờ khai (≥ 4 ký tự)"
-                  inputProps={{
-                    inputMode: 'text',
-                    pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',
-                    autoCapitalize: 'characters',
-                    autoCorrect: 'off',
-                    spellCheck: false,
-                  }}
-                  isInvalid={Boolean(searchError)}
-                  aria-describedby={searchError ? 'cus-search-error' : undefined}
-                  className="shipment-uui-field"
-                  wrapperClassName="shipment-uui-control"
-                  inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
-                  iconClassName="shipment-uui-control__icon"
-                  tooltipClassName="cus-search-field__validation-icon"
-                />
-                {searchInput && (
-                  <UUIButton
-                    size="sm"
-                    color="tertiary"
-                    className="shipment-uui-clear"
-                    onPress={() => {
-                      setSearchInput('');
-                      setSearchError(null);
-                      updateParam('searchSuffix', null);
-                    }}
-                    aria-label="Xóa tìm kiếm"
-                    iconLeading={<X size={16} aria-hidden="true" />}
-                  />
-                )}
-              </div>
-              {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
-            </div>
-
-            <UUIButton
-              type="button" size="sm" color="secondary" className="cus-advanced-toggle"
-              aria-label="Bộ lọc nâng cao"
-              aria-expanded={advancedOpen} aria-controls="cus-advanced-filters"
-              onPress={() => setAdvancedOpen((o) => !o)}
-              iconLeading={SlidersHorizontal}>
-              Bộ lọc{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
-            </UUIButton>
-            {activeFilterCount > 0 && !advancedOpen && (
-              <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
-            )}
-            <div id="cus-advanced-filters" className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
-              <WorkboardFilters
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                direction={direction}
-                adHoc={adHoc}
-                bucket={bucket}
-                dateResetKey={dateResetKey}
-                updateParam={updateParam}
-              />
-            </div>
-          </div>
-
-          {(hasFilters || hasDateDraft) && (
-            <UUIButton
-              size="sm"
-              color="tertiary"
-              className="shipment-uui-button shipment-uui-button--tertiary cus-worksheet-toolbar__reset"
-              onPress={clearFilters}
-              iconLeading={<RotateCcw size={16} aria-hidden="true" />}
-            >
-              Xóa lọc
-            </UUIButton>
-          )}
-        </form>
+        <WorkboardToolbar
+          ref={filtersRef}
+          suffixParam={suffixParam}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          direction={direction}
+          bucket={bucket}
+          adHoc={adHoc}
+          hasFilters={hasFilters}
+          updateParam={updateParam}
+          onClear={clearFiltersUrl}
+        />
 
         {ws.data && (
           <section className="cus-workspace-summary" aria-label="Tóm tắt ưu tiên xử lý">
@@ -432,7 +301,7 @@ export default function ShipmentsPage() {
             icon={Search}
             title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
             description={hasFilters ? 'Điều chỉnh hoặc xóa bộ lọc để xem lại danh sách.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
-            action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}
+            action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFiltersUrl}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}
           />
         ) : (
           <>

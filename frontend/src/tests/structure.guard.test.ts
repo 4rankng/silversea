@@ -297,7 +297,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 696 → 697: 2026-09-18 office request — the rows-per-page selector
   // joins the pagination bar. One line (the URL reader call); the selector
   // options come from the workboard hook module the page already imports.
-  'src/pages/ShipmentsPage.tsx': 697,
+  // Shrunk 697 → 509: 2026-09-19 debt card D2 residual — the workboard
+  // toolbar (search, advanced toggle, reset and their draft state/handlers)
+  // extracted to components/WorkboardFilters.tsx beside the advanced-
+  // criteria half; DOM/classname parity pinned by the page suite.
+  'src/pages/ShipmentsPage.tsx': 509,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
