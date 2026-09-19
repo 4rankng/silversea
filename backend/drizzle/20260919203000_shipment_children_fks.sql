@@ -76,7 +76,7 @@ DELETE FROM road_allowances c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELEC
 --> statement-breakpoint
 DELETE FROM weight_pricing_tiers c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = c.route_id);
 --> statement-breakpoint
-DELETE FROM trips c WHERE c.route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = c.route_id);
+UPDATE trips SET route_id = NULL WHERE route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = trips.route_id);
 --> statement-breakpoint
 UPDATE operational_sites SET route_id = NULL WHERE route_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM routes g WHERE g.id = operational_sites.route_id);
 --> statement-breakpoint
