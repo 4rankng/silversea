@@ -103,6 +103,19 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Debit-note document reads for the settlement screen (Chi phí - Quyết
+  // toán): the issuing CUS must read + export the note it issued. The
+  // financial policy grants no CUS row, so bridge just the two GET document
+  // routes; the routes' own requireRoles includes CUS there and keeps every
+  // other financial surface (list, writes) denied to CUS.
+  if (
+    resource === 'financial'
+    && req.user.role === Role.CUS
+    && req.method === 'GET'
+    && /^\/finance\/billing-documents\/\d+(\/export)?$/.test(req.path)
+  ) {
+    return true;
+  }
   return false;
 }
 
