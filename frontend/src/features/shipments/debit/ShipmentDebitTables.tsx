@@ -219,9 +219,10 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
                 {row.otherFees.map((fee) => (
                   <div className="csc-debit-otherfee" key={fee.id}>
                     <span className="csc-debit-item__name">{fee.name}</span>
+                    <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
                     <input
                       className="csc-debit-input csc-debit-input--amount"
-                      aria-label={`Số tiền phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
+                      aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
                       value={draft.feeAmounts[fee.id] ?? ''}
                       disabled={frozen}
                       onChange={(event) => setFeeAmount(fee.id, event.target.value)}
@@ -310,9 +311,10 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
       <thead><tr>
         <th scope="col">Số Container</th>
         <th scope="col">Cước trả</th>
-        {/* Port-fee column: config-sourced heading pending its producer —
-            interim '—' per the port-names ruling, no place-named label. */}
-        <th scope="col">—</th>
+        {/* Zone surcharge: the heading is CONFIG DATA rendered verbatim —
+            place names are data, never identifiers. No configured zone keeps
+            the interim '—' column; null amounts render '—', never 0. */}
+        <th scope="col">{detail.zoneSurcharge?.label ?? '—'}</th>
         <th scope="col">Phí HQGS</th>
         <th scope="col">Phí Phát sinh</th>
         <th scope="col">Ghi chú</th>
@@ -322,7 +324,7 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
           <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
             <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
             <td>Chưa xác định</td>
-            <td>—</td>
+            <td>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</td>
             <td>Chưa xác định</td>
             <td>Chưa xác định</td>
             <td>Chưa xác định</td>

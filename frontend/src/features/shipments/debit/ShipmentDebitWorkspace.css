@@ -92,7 +92,17 @@
 .csc-debit-otherfee {
   display: flex;
   gap: 4px;
+  align-items: center;
   margin-bottom: 4px;
+}
+
+/* The sell side reads from the wire — a muted readout beside the editable
+   chi-hộ input so the two numbers never blur into one. */
+.csc-debit-otherfee__sell {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
 .csc-debit-otherfee button {

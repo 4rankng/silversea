@@ -48,7 +48,7 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
       { id: 9001, expenseType: 'PS', feeName: 'PS thực tế', amount: 180000, thuKhach: null, note: null, invoiceNumber: '00123' },
       { id: 9003, expenseType: 'LIFTING', feeName: 'Phí nâng hạ', amount: 250000, thuKhach: null, note: null, invoiceNumber: null },
     ],
-    otherFees: [{ id: 9002, name: 'Phí đăng kiểm', amount: 200000 }],
+    otherFees: [{ id: 9002, name: 'Phí đăng kiểm', amount: 200000, thuKhach: 250000 }],
     carrierDetention: 0,
     repairAdvance: null,
     opsDocsStatus: 'READY',
@@ -119,8 +119,10 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     expect(amount.tagName).toBe('SPAN');
     expect(screen.queryByLabelText(/Thu khách/)).toBeNull();
     expect(screen.queryByLabelText(/Ghi chú PS thực tế/)).toBeNull();
-    // The Phí khác OTHER rows stay the CUS-editable cells.
-    expect(screen.getByLabelText(/Số tiền phí khác/)).toBeTruthy();
+    // The Phí khác OTHER rows stay the CUS-editable cells, and the wire's
+    // sell side renders as a read-only number beside the chi-hộ input.
+    expect(screen.getByLabelText(/Số tiền chi hộ phí khác/)).toBeTruthy();
+    expect(screen.getByText('Thu khách: 250.000')).toBeTruthy();
     // No save bar before any edit exists.
     expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).toBeNull();
     const payables = screen.getByText('Bảng 2.3 — Phí Phải trả (chỉ xem)').closest('table')!;
@@ -135,11 +137,26 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     expect(screen.getByText('[ 350.000 đ ]')).toBeTruthy();
   });
 
+  it('renders the zone column heading verbatim from the config label with the lot amount', async () => {
+    getDetail.mockResolvedValue(detail({ zoneSurcharge: { label: 'Phí vùng Cánh Dương', amount: 950000, source: 'CONFIG' } }));
+    renderWorkspace();
+    const payables = (await screen.findByText('Bảng 2.3 — Phí Phải trả (chỉ xem)')).closest('table')!;
+    expect(payables.querySelector('thead th:nth-child(3)')?.textContent).toBe('Phí vùng Cánh Dương');
+    expect(payables.textContent).toContain('950.000');
+  });
+
+  it('keeps the interim dash column when no zone is configured', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    const payables = (await screen.findByText('Bảng 2.3 — Phí Phải trả (chỉ xem)')).closest('table')!;
+    expect(payables.querySelector('thead th:nth-child(3)')?.textContent).toBe('—');
+  });
+
   it('sends the strict delta and validates it against the shared schema', async () => {
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
-    fireEvent.change(screen.getByLabelText(/Số tiền phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền chi hộ phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalled());
     const body = saveEdits.mock.calls[0][1];
@@ -161,7 +178,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
     fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
     fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
-    fireEvent.change(screen.getByLabelText('Số tiền phí khác Phí đăng kiểm CONT-001'), { target: { value: '250000' } });
+    fireEvent.change(screen.getByLabelText('Số tiền chi hộ phí khác Phí đăng kiểm CONT-001'), { target: { value: '250000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalled());
     const body = saveEdits.mock.calls[0][1];
@@ -195,7 +212,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     const { onSaved } = renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
     expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).toBeNull();
-    fireEvent.change(screen.getByLabelText(/Số tiền phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền chi hộ phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
     expect(await screen.findByRole('button', { name: 'Lưu điều chỉnh' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalledTimes(1));
