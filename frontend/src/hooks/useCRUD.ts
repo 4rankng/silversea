@@ -64,7 +64,13 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       setShowAddForm(false);
       await refreshAll();
       handleMutationSuccess('create');
-    } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi lưu'); } finally { setSaving(false); }
+    } catch (e: unknown) {
+      const message = getErrorMessage(e) || 'Lỗi lưu';
+      setError(message);
+      // Card _11: a failed mutation must never be silent — the in-modal
+      // alert alone disappears with the dialog; the toast survives it.
+      toast({ kind: 'error', message });
+    } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
   // KP-135: Each mutation carries the caller-bound version token from the
@@ -77,7 +83,11 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       setEditingId(null);
       await refreshAll();
       handleMutationSuccess('update');
-    } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi cập nhật'); } finally { setSaving(false); }
+    } catch (e: unknown) {
+      const message = getErrorMessage(e) || 'Lỗi cập nhật';
+      setError(message);
+      toast({ kind: 'error', message });
+    } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
   const doDelete = useCallback(async (id: number, expectedUpdatedAt?: string) => {
@@ -86,7 +96,11 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       await api.delete(`${apiPath}/${id}`, expectedUpdatedAt ? { expectedUpdatedAt } : undefined);
       await refreshAll();
       handleMutationSuccess('delete');
-    } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi xóa'); } finally { setDeleting(null); }
+    } catch (e: unknown) {
+      const message = getErrorMessage(e) || 'Lỗi xóa';
+      setError(message);
+      toast({ kind: 'error', message });
+    } finally { setDeleting(null); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
   const cancelForm = useCallback(() => { setShowAddForm(false); setEditingId(null); }, []);
