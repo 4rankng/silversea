@@ -14,6 +14,8 @@ export type DispatchZoneOption = { code: string; label: string; sortOrder: numbe
 interface DispatchZoneRow extends DispatchZoneOption {
   id: number;
   isActive: boolean;
+  /** Exactly one zone should carry the default presence pin (BE-enforced). */
+  isDefault?: boolean;
 }
 
 type ZoneChoice = string;
@@ -25,11 +27,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
   const [code, setCode] = useState(item?.code || '');
-  const [classification, setClassification] = useState(item?.classification || '');
-  const [legalEntity, setLegalEntity] = useState(item?.legalEntity || '');
   const [address, setAddress] = useState(item?.address || '');
-  const [opsPortalUrl, setOpsPortalUrl] = useState(item?.opsPortalUrl || '');
-  const [position, setPosition] = useState(item?.position || '');
   const [zone, setZone] = useState<ZoneChoice>(item?.dispatchZone ?? 'NONE');
 
   return (
@@ -55,28 +53,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
           />
         </Field>
       </div>
-      <div style={{ flex: 1, minWidth: 140 }}>
-        <UuiSelectField
-          label="Phân loại"
-          value={classification}
-          onChange={e => setClassification(e.target.value)}
-          options={[
-            { value: '', label: '— Chọn —' },
-            { value: 'Cảng', label: 'Cảng' },
-            { value: 'Bãi', label: 'Bãi' },
-          ]}
-        />
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Pháp nhân">
-          <input
-            className="input"
-            value={legalEntity}
-            onChange={e => setLegalEntity(e.target.value)}
-            placeholder="Pháp nhân sở hữu"
-          />
-        </Field>
-      </div>
       <div style={{ flex: 2, minWidth: 200 }}>
         <Field label="Địa chỉ">
           <input
@@ -94,28 +70,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
           options={zoneOptions}
           onChange={(e) => setZone(e.target.value as ZoneChoice)}
         />
-      </div>
-      <div style={{ flex: 1, minWidth: 140 }}>
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Web tác nghiệp">
-          <input
-            className="input"
-            value={opsPortalUrl}
-            onChange={e => setOpsPortalUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </Field>
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Vị trí">
-          <input
-            className="input"
-            value={position}
-            onChange={e => setPosition(e.target.value)}
-            placeholder="Vị trí trong cảng/bãi"
-          />
-        </Field>
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
         <Field label="Tên viết tắt">
@@ -139,12 +93,8 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             name: name.trim(),
             shortName: shortName.trim() || null,
             code: code.trim() || null,
-            classification: classification || null,
-            legalEntity: legalEntity.trim() || null,
             address: address.trim() || null,
             dispatchZone: zone === 'NONE' ? null : zone,
-            opsPortalUrl: opsPortalUrl.trim() || null,
-            position: position.trim() || null,
           });
         }}
       />
@@ -160,6 +110,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   const [label, setLabel] = useState(item?.label ?? '');
   const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(item?.isActive ?? true);
+  const [isDefault, setIsDefault] = useState(item?.isDefault ?? false);
 
   return (
     <InlineForm colSpan={4}>
@@ -197,6 +148,22 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
             onChange={e => setSortOrder(Number(e.target.value))}
           />
         </Field>
+      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+          padding: '9px 12px', border: '1px solid var(--line)',
+          borderRadius: 'var(--app-radius-md)', background: isDefault ? 'var(--warning-soft, #fef3c7)' : 'transparent',
+          width: '100%',
+        }}>
+          <input
+            type="checkbox"
+            checked={isDefault}
+            onChange={e => setIsDefault(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 'var(--text-data-size)' }}>Mặc định</span>
+        </label>
+      </div>
       </div>
       <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
         <UuiSelectField
@@ -218,8 +185,8 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         onsave={() => {
           if (!label.trim()) return;
           onsave(item
-            ? { label: label.trim(), sortOrder, isActive }
-            : { code: code.trim(), label: label.trim(), sortOrder, isActive });
+            ? { label: label.trim(), sortOrder, isActive, isDefault }
+            : { code: code.trim(), label: label.trim(), sortOrder, isActive, isDefault });
         }}
       />
     </InlineForm>
@@ -261,26 +228,8 @@ export default function PortsConfigPage() {
         },
         { header: 'Mã cảng', render: (p) => <span style={{ color: 'var(--fg-2)', whiteSpace: 'nowrap' }}>{p.code || '—'}</span> },
         {
-          header: 'Phân loại',
-          render: (p) => <span style={{ color: 'var(--fg-2)' }}>{p.classification || '—'}</span>,
-        },
-        {
-          header: 'Pháp nhân',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.legalEntity || '—'}</span>,
-        },
-        {
           header: 'Địa chỉ',
           render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.address || '—'}</span>,
-        },
-        {
-          header: 'Web tác nghiệp',
-          render: (p) => p.opsPortalUrl
-            ? <a href={p.opsPortalUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: 'var(--text-data-size)' }}>{p.opsPortalUrl}</a>
-            : <span style={{ color: 'var(--fg-3)' }}>—</span>,
-        },
-        {
-          header: 'Vị trí',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.position || '—'}</span>,
         },
         {
           header: 'Khu vực điều phối',
