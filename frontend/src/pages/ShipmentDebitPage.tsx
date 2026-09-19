@@ -5,6 +5,7 @@ import { tripClient } from '../api/tripClient';
 import { listShipmentDebitSummary, type ShipmentDebitLotRow } from '../api/shipmentClient';
 import { createDebitNoteBatch, exportDebitNoteFile } from '../api/shipmentDebit';
 import { useToast } from '../components/shared/Toast';
+import { ApiError } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
@@ -22,6 +23,20 @@ const LOCK_FILTERS = [
   { value: 'OPEN', label: 'Đang mở' },
   { value: 'LOCKED', label: 'Đã khóa' },
 ];
+
+/** A 409 from the batched issue call can carry the selection's lot codes that
+ *  are already inside an issued debit note — surface exactly those, falling
+ *  back to the generic failure message when the body shape is unexpected. */
+function overlappingLotCodesFrom(cause: unknown): string[] | null {
+  if (!(cause instanceof ApiError) || cause.status !== 409) return null;
+  const raw = cause.raw as { overlappingLotCodes?: unknown } | null;
+  const codes = raw?.overlappingLotCodes;
+  if (!Array.isArray(codes)) return null;
+  const known = codes
+    .filter((code): code is string | number => typeof code === 'string' || typeof code === 'number')
+    .map(String);
+  return known.length > 0 ? known : null;
+}
 
 /** Lot-level settlement row (L1) — identity, money rollup, lock state. */
 function DebitLotRow({
@@ -126,8 +141,11 @@ export function ShipmentDebitPage() {
       anchor.download = `giay-bao-no-${items.find((row) => row.shipmentId === ids[0])?.code ?? ids[0]}.xlsx`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch {
-      toast({ kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
+    } catch (cause) {
+      const overlapping = overlappingLotCodesFrom(cause);
+      toast(overlapping
+        ? { kind: 'error', message: `Các lô đã nằm trong Debit Note đã xuất: ${overlapping.join(', ')}` }
+        : { kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
     } finally {
       setIssuing(false);
     }

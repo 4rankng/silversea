@@ -21,6 +21,7 @@ vi.mock('../api/shipmentDebit', () => ({
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
+import { ApiError } from '../lib/api';
 
 function renderPage(initialEntry = '/shipments-debit') {
   return render(
@@ -184,5 +185,27 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
     expect(createBatch.mock.calls[0][1]).toBe(createBatch.mock.calls[1][1]);
     expect(createBatch.mock.calls[1][1]).toBe('debit-note-101');
+  });
+
+  it('names the overlapping lots when the issue call rejects with a uniqueness 409', async () => {
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['157', '160'] }, 'conflict'));
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: 157, 160')).toBeTruthy();
+    // The selection survives the conflict so the user can adjust and retry.
+    expect((screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('keeps the generic failure toast when the error carries no lot codes', async () => {
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'SHP-26-0001', lockStatus: 'LOCKED' })], total: 1 });
+    createBatch.mockRejectedValue(new ApiError(409, { error: 'Trùng lô đã xuất' }, 'conflict'));
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('SHP-26-0001')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    expect(await screen.findByText('Không xuất được Debit Note. Vui lòng thử lại.')).toBeTruthy();
   });
 });
