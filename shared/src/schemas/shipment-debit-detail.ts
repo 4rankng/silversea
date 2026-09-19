@@ -58,6 +58,15 @@ export const shipmentDebitDetailSchema = z.object({
   chiHoRows: z.array(debitDetailChiHoRowSchema),
   payables: z.object({
     chiHoTotal: nullableMoney,
+    /** Card _19 snapshot composition (Bảng 2.3) — key names exactly as the
+     *  BE producer emits them. Optional-nullable so the template can render
+     *  before the producer upgrade lands; null = chưa xác định, never 0. */
+    externalFreightCost: nullableMoney.optional(),
+    hqgsFee: nullableMoney.optional(),
+    phatSinhFee: nullableMoney.optional(),
+    unclassifiedFee: nullableMoney.optional(),
+    opsExpenseTotal: nullableMoney.optional(),
+    payableTotal: nullableMoney.optional(),
   }),
   thuKhachTotal: nullableMoney,
   /** Card 20260919_5 — the customs channel belongs to the LOT (declaration
