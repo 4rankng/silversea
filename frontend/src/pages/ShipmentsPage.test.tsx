@@ -33,6 +33,9 @@ import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+// 2026-09-19: the flat filter rail wave extracted the filter controls into
+// the shared WorkboardFilters component — source assertions follow the markup into that file.
+const filtersSource = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
 const filterCss = css.slice(css.indexOf('@container cus-workboard'));
@@ -1449,10 +1452,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByLabelText('Chi tiết container');
     if (field === 'appointment') {
       fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-      const splitInputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
-      fireEvent.change(splitInputs[0], { target: { value: '15:17' } });
-      fireEvent.change(splitInputs[1], { target: { value: '24/09/2026' } });
-      fireEvent.keyDown(splitInputs[0], { key: 'Enter' });
+      // Segmented pair: the first segment of each part distributes a full
+      // pasted string across its segments.
+      const hourInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="hh"]')!;
+      const dayInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="dd"]')!;
+      fireEvent.change(hourInput, { target: { value: '15:17' } });
+      fireEvent.change(dayInput, { target: { value: '24/09/2026' } });
+      fireEvent.keyDown(hourInput, { key: 'Enter' });
     } else {
       const plate = screen.getByLabelText(/Biển số xe của container MSKU1234567/);
       fireEvent.change(plate, { target: { value: '15C-666.66' } });
@@ -1482,10 +1488,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
     fireEvent.change(plate, { target: { value: '15C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/ }));
-    // Unified split pair — complete time + date text publishes the contract.
-    const splitInputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
-    fireEvent.change(splitInputs[0], { target: { value: '10:30' } });
-    fireEvent.change(splitInputs[1], { target: { value: '14/08/2026' } });
+    // Segmented pair — complete time + date text publishes the contract
+    // (pasted into the first segment of each part).
+    const hourInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="hh"]')!;
+    const dayInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="dd"]')!;
+    fireEvent.change(hourInput, { target: { value: '10:30' } });
+    fireEvent.change(dayInput, { target: { value: '14/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
@@ -1535,7 +1543,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
   });
 
-  it('keeps a sibling container draft while refreshing its shipment version after another save', async () => {
+  // 2026-09-19 (card _D2 wave): this test flaked red once on FullStack's
+  // parity run and passes isolated at the same sha — the default 5000ms
+  // per-test timeout is tight for this 90-test suite on the slow-SSD
+  // external-volume checkout (module graph cold-paging). 15000ms covers the
+  // p95 without masking real hangs; scoped to this test, not blanket.
+  it('keeps a sibling container draft while refreshing its shipment version after another save',
+    { timeout: 15000 }, async () => {
     const secondLine = { ...detail.containers[0], id: 11, ordinal: 2, containerNumber: 'MSKU7654321', plateNumber: '15C-456.78' };
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
@@ -1558,7 +1572,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(((await screen.findByLabelText(/Biển số xe của container MSKU7654321/)) as HTMLInputElement).value).toBe('15C-888.88');
   });
 
-  it('creates a new external carrier through the container workflow', async () => {
+  // 2026-09-19 slow-SSD external-volume bump (BE dispatch, LEAD option a):
+  // cold module-graph paging makes the 5s default structurally tight for this
+  // suite; 15s covers p95 without masking real hangs. Live-flaked at 5334ms.
+  it('creates a new external carrier through the container workflow', { timeout: 15000 }, async () => {
     apiPost.mockResolvedValueOnce({
       line: {
         ...detail.containers[0],
@@ -1711,13 +1728,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
-    expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
-    expect(source).not.toContain('className="cus-filter-field shipment-uui-field"');
+    expect(source + filtersSource).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
+    expect(source + filtersSource).not.toContain('className="cus-filter-field shipment-uui-field"');
     for (const label of ['Bill/Book hoặc tờ khai', 'Từ ngày giao', 'Đến ngày giao']) {
-      expect(source).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+size="sm"`));
+      expect(source + filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+size="sm"`));
     }
     for (const label of ['Xuất / Nhập', 'Kế hoạch']) {
-      expect(source).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
+      expect(source + filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
     }
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*32px;/);
@@ -1732,7 +1749,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Container codes: one line, never bold, copy icon in the ordinal slot
     // (user ruling 2026-09-18).
     expect(css).toMatch(/\.cus-container-cell--identity strong\s*\{[^}]*font-weight:\s*400;[^}]*white-space:\s*nowrap;/);
-    expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
+    // 2026-09-18 relocation ruling: the copy affordance replaces the ordinal on
+    // hover — same top-right slot, never over the container number.
+    expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*auto;[^}]*right:\s*12px;/);
     expect(source).toContain('cus-workspace-summary__export');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     // CUS-OVERVIEW-02: search and disclosure share a row, while the revealed
