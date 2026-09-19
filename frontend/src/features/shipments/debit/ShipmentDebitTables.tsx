@@ -14,6 +14,10 @@ import { AlertTriangle, Paperclip } from 'lucide-react';
 import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
 import { formatMoney } from '../../../lib/format';
 
+/** Luồng hải quan labels (card _5): Customs assigns the channel per tờ khai;
+ *  every container row of the lot renders the same one. */
+const CHANNEL_LABELS: Record<string, string> = { RED: 'Luồng đỏ', YELLOW: 'Luồng vàng', GREEN: 'Luồng xanh' };
+
 const money = (value: number | null | undefined) => (value == null || Number.isNaN(value) ? 'Chưa xác định' : formatMoney(value));
 
 const num = (value: string): number => {
@@ -132,7 +136,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
               <td>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</td>
               <td>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</td>
               <td>—</td>
-              <td>{row.customsFee == null ? '—' : formatMoney(row.customsFee)}</td>
+              <td>{row.customsFee == null ? '—' : formatMoney(row.customsFee)}{detail.customsChannel && <small className="csc-debit-channel">{CHANNEL_LABELS[detail.customsChannel]}</small>}</td>
               <td>
                 <input
                   className="csc-debit-input"

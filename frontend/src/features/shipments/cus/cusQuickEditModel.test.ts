@@ -247,9 +247,39 @@ describe('declaration upsert rules', () => {
     const draft = draftFrom(makeItem(), 'documents', { declarationNumber: '   ' });
     expect(buildQuickEditDeclarationBody(draft)).toEqual({
       declarationNumber: null,
+      // Card _5: the body always states the channel — null = cleared, never
+      // an accidental keep.
+      channel: null,
       issuedAt: '2026-08-31T02:00:00.000Z',
       scope: 'IMPORT',
       note: 'ghi-chu-to-khai',
     });
+  });
+});
+
+describe('declaration channel (card _5)', () => {
+  it('seeds the draft with the row channel', () => {
+    const channeled = makeItem({ raw: { declarationChannel: 'YELLOW' } });
+    expect(draftFrom(channeled, 'documents').declarationChannel).toBe('YELLOW');
+    expect(draftFrom(makeItem(), 'documents').declarationChannel).toBe('');
+  });
+
+  it('fires the declaration save for a channel-only change', () => {
+    const base = makeItem();
+    expect(quickEditDeclarationChanged(draftFrom(base, 'documents', { declarationChannel: 'RED' }), base)).toBe(true);
+    expect(isQuickEditUnchanged(draftFrom(base, 'documents', { declarationChannel: 'RED' }), base)).toBe(false);
+    // Same channel (both unset) stays unchanged — the PUT never fires.
+    expect(isQuickEditUnchanged(draftFrom(base, 'documents'), base)).toBe(true);
+  });
+
+  it('carries the channel in the upsert body, unset as null', () => {
+    const base = makeItem();
+    expect(buildQuickEditDeclarationBody(draftFrom(base, 'documents', { declarationChannel: 'GREEN' })).channel).toBe('GREEN');
+    expect(buildQuickEditDeclarationBody(draftFrom(base, 'documents')).channel).toBeNull();
+  });
+
+  it('keeps a READ_ONLY declaration number gating the channel too', () => {
+    const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
+    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents', { declarationChannel: 'RED' }), locked)).toBe(false);
   });
 });

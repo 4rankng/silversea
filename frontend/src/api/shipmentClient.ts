@@ -497,6 +497,9 @@ export interface ShipmentChangeRequest {
 
 export interface ShipmentDeclarationRequest {
   declarationNumber?: string | null;
+  /** Luồng hải quan (card _5): assigned by Customs per tờ khai. Additive
+   *  optional — omitted keeps the stored channel, null clears it. */
+  channel?: 'RED' | 'YELLOW' | 'GREEN' | null;
   issuedAt?: string | null;
   scope?: 'SINGLE' | 'SHARED';
   note?: string | null;

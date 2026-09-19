@@ -237,6 +237,26 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     expect(screen.getByText('4.800.000')).toBeTruthy();
   });
 
+  it('renders the lot declaration channel on every container row (card _5)', async () => {
+    getDetail.mockResolvedValue({
+      ...wireDetail,
+      customsChannel: 'RED',
+      freightRows: wireDetail.freightRows.map((row) => ({ ...row, containerNumber: 'CONT-00X' })),
+    });
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    const cells = screen.getAllByText('Luồng đỏ');
+    expect(cells.length).toBe(1);
+    expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('leaves the channel blank when the lot has none (card _5)', async () => {
+    getDetail.mockResolvedValue({ ...wireDetail, customsChannel: null });
+    renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    expect(screen.queryByText(/Luồng (đỏ|vàng|xanh)/)).toBeNull();
+  });
+
   it('carries no place-named field in the shared wire schema', async () => {
     const { debitDetailFreightRowSchema } = await import('@tingting/shared');
     // Port-names ruling: the banned key is composed, not spelled out, so the

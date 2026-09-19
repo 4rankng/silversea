@@ -32,6 +32,12 @@ export function ShipmentQuickEditFields({
         {documentDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.bookingRef.mode === 'READ_ONLY'} title={item.fieldAccess.bookingRef.reason} /></label>}
         {!documentDirection && <p className="cus-quick-edit-modal__help">Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking.</p>}
         <label><span>Số tờ khai</span><input value={draft.declarationNumber} onChange={(event) => update({ declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} /></label>
+        <label><span>Luồng hải quan</span><select value={draft.declarationChannel} onChange={(event) => update({ declarationChannel: event.target.value as ShipmentQuickEditDraft['declarationChannel'] })} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason}>
+          <option value="">— Chưa có —</option>
+          <option value="RED">Luồng đỏ</option>
+          <option value="YELLOW">Luồng vàng</option>
+          <option value="GREEN">Luồng xanh</option>
+        </select></label>
         <p className="cus-quick-edit-modal__help">{documentDirection === 'IMPORT' ? 'Hàng Nhập chỉ dùng Số Bill.' : documentDirection === 'EXPORT' ? 'Hàng Xuất chỉ dùng Số Booking.' : 'Số Bill và Số Booking không thể cùng thuộc một lô hàng.'} Tờ khai đã có sẽ được cập nhật số mới.</p>
       </>}
       {draft.field === 'classification' && <>

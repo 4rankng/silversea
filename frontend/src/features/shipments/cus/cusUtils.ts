@@ -141,6 +141,9 @@ export interface ShipmentQuickEditDraft {
   blNumber: string;
   bookingRef: string;
   declarationNumber: string;
+  // Luồng hải quan (card _5) — assigned by Customs per tờ khai, so it rides
+  // the declaration row; '' = unset. One lot shows one channel everywhere.
+  declarationChannel: '' | 'RED' | 'YELLOW' | 'GREEN';
   // Existing declaration identity — needed because the PUT endpoint replaces
   // the whole row, so the modal must resend issuedAt/scope/note verbatim.
   declarationId: number | null;

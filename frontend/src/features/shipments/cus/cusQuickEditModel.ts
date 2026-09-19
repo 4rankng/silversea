@@ -52,6 +52,7 @@ export function buildQuickEditDraft(item: ShipmentCusWorkspaceListItem, field: Q
     blNumber: item.raw.blNumber ?? '',
     bookingRef: item.raw.bookingRef ?? '',
     declarationNumber: item.raw.declarationNumber ?? '',
+    declarationChannel: item.raw.declarationChannel ?? '',
     declarationId: item.raw.declarationId,
     declarationIssuedAt: item.raw.declarationIssuedAt,
     declarationScope: item.raw.declarationScope,
@@ -76,7 +77,8 @@ export function isQuickEditUnchanged(draft: ShipmentQuickEditDraft, item: Shipme
     : draft.field === 'documents'
       ? draft.blNumber.trim() === (item.raw.blNumber ?? '') && draft.bookingRef.trim() === (item.raw.bookingRef ?? '')
         && (item.fieldAccess.declarationNumber.mode === 'READ_ONLY'
-          || draft.declarationNumber.trim() === (item.raw.declarationNumber ?? ''))
+          || (draft.declarationNumber.trim() === (item.raw.declarationNumber ?? '')
+            && draft.declarationChannel === (item.raw.declarationChannel ?? '')))
       : draft.field === 'classification'
         ? draft.tradeDirection === (item.raw.tradeDirection ?? '') && draft.shippingLineName.trim() === (item.raw.shippingLineName ?? '')
         : draft.field === 'cargo'
@@ -148,12 +150,14 @@ export function buildQuickEditPayload(draft: ShipmentQuickEditDraft, item: Shipm
 export function quickEditDeclarationChanged(draft: ShipmentQuickEditDraft, item: ShipmentCusWorkspaceListItem): boolean {
   return draft.field === 'documents'
     && item.fieldAccess.declarationNumber.mode !== 'READ_ONLY'
-    && draft.declarationNumber.trim() !== (item.raw.declarationNumber ?? '');
+    && (draft.declarationNumber.trim() !== (item.raw.declarationNumber ?? '')
+      || draft.declarationChannel !== (item.raw.declarationChannel ?? ''));
 }
 
 export function buildQuickEditDeclarationBody(draft: ShipmentQuickEditDraft): QuickEditDeclarationBody {
   return {
     declarationNumber: draft.declarationNumber.trim() || null,
+    channel: draft.declarationChannel || null,
     issuedAt: draft.declarationIssuedAt,
     scope: draft.declarationScope ?? undefined,
     note: draft.declarationNote,

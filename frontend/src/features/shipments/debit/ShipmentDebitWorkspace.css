@@ -247,3 +247,6 @@
   border-bottom: 1px dashed var(--border-1);
   padding-bottom: 4px;
 }
+
+/* Luồng hải quan line under the customs fee (card _5). */
+.csc-debit-channel { display: block; font-size: var(--text-caption-size); color: var(--fg-3); }
