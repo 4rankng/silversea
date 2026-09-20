@@ -1,11 +1,11 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 state of origin/prod (06b97179) including frontend build-freshness, dialog a11y, and form layout contracts."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 post-cut-8 state of origin/prod (280f0bc8): billing-issue readiness gate, fuel-preview MANUAL reasons, the zero-vs-missing display contract, one-row filter bars, icon-only action columns, and in-dropdown row creation."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T04:11:11.112Z
+    at: 2026-09-20T06:47:25.307Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -21,12 +21,18 @@ sources:
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
   - id: openwiki-source-137a747b8b837eb52cb71981
     resource: repo://backend/src/routes/trips/status.ts
+  - id: openwiki-source-6ee9d82604a0a878f2bd4f58
+    resource: repo://backend/src/seed/seed-demo-freight-pricing.ts
   - id: openwiki-source-a08d0826dadf2aa659264512
     resource: repo://backend/src/services/aging.service.ts
+  - id: openwiki-source-10e4db2d245bc653bfb84cab
+    resource: repo://backend/src/services/billing-document-governance.service.ts
   - id: openwiki-source-b783cbfcbb631c4f9e488edc
     resource: repo://backend/src/services/dispatch-planning-detail-plan.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
+  - id: openwiki-source-a3a0a1921d5309133aa9d113
+    resource: repo://backend/src/services/freight-pricing-engine.service.ts
   - id: openwiki-source-3aa37080f2fc30dc35478ecb
     resource: repo://backend/src/services/pricing.service.ts
   - id: openwiki-source-277912ce7743608f9e00b0cf
@@ -39,10 +45,14 @@ sources:
     resource: repo://backend/src/services/shipment-debit-summary.service.ts
   - id: openwiki-source-69663e0b3d165a9d5d1ceca1
     resource: repo://backend/src/services/trip-external-close.service.ts
+  - id: openwiki-source-c6551d55e5de7de94ecf32ca
+    resource: repo://backend/src/services/trip-queries.service.ts
   - id: openwiki-source-15eb9c2bd185a2889b65874f
     resource: repo://backend/src/tests/dispatch-detail-plan.test.ts
   - id: openwiki-source-22f3807e21b8281a0a2994f6
     resource: repo://backend/src/tests/dispatch-task-tags.service.test.ts
+  - id: openwiki-source-7c110e1f554a6edd95993c36
+    resource: repo://docs/prd/PhuongAnTinhCuocTuDong.md
   - id: openwiki-source-0047c2597980e18b4470c62d
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-1047363cf615000e4c9bb694
@@ -63,14 +73,22 @@ sources:
     resource: repo://frontend/src/features/dispatch/master-plan/DispatchAllocationDaySection.tsx
   - id: openwiki-source-38dccf151d65378ca3cdc49f
     resource: repo://frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx
+  - id: openwiki-source-e629bb1d867391a312ae3e80
+    resource: repo://frontend/src/features/shipments/create/FreightPreviewCard.tsx
+  - id: openwiki-source-71a326847137afbebdb7c372
+    resource: repo://frontend/src/features/shipments/create/uui-searchable-field.tsx
   - id: openwiki-source-a39f35618da371aac500abf1
     resource: repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx
+  - id: openwiki-source-9f3012bd7b3b7e37fa71ae81
+    resource: repo://frontend/src/features/trips/tripColumns.tsx
   - id: openwiki-source-3cd8eec45a7d817a3965fbd2
     resource: repo://frontend/src/hooks/useBuildFreshness.ts
   - id: openwiki-source-79395e5dd2432d131123d5c9
     resource: repo://frontend/src/lib/chunk-error.ts
   - id: openwiki-source-a6f1236afb85bf62c18f5389
     resource: repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx
+  - id: openwiki-source-e91ca5eb093baa7f2c484a34
+    resource: repo://frontend/src/pages/finance-derived.ts
   - id: openwiki-source-8563d5234cbb0742f6b8d8a3
     resource: repo://frontend/src/pages/ShipmentContainersPage.css
   - id: openwiki-source-2df1e682c7dcb9ba56509847
@@ -93,7 +111,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-20T04:11:11.112Z" }
+generated: { by: "claude-code", at: "2026-09-20T06:47:25.307Z" }
 ---
 
 # Architecture and Codebase Map
@@ -145,6 +163,7 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - **One contract, two packages.** FE and BE share the zod contract `shared/src/schemas/shipment-debit-edits.ts`; the save delta always emits `freightEdits` so typed PS values cannot be silently dropped, pinned by a round-trip test (type → save → read back).
 - **Money states.** Phải thu ≠ đã thu ≠ đã khóa ≠ chưa xác định (null renders "Chưa xác định", never 0) per `docs/prd/QuyTrinhO2C.md` §7.
 - **Business keys are the only display identifiers** (ruling 2026-09-19/20): internal DB ids and id-derived codes (SHP-*/GBN-*/#id) never render as user-facing text. Backend derivations live in `backend/src/lib/business-keys.ts` (debit labels read Số Bill/Booking first, số tờ khai second; legacy system-code rows collapse to "—"); the frontend mirror `frontend/src/features/expense-accounting/business-key.ts` guards render-side (`businessKey()` returns null for system-code patterns, `displayKey()` falls back to "—"). Billing export, work-inbox titles, and notification bodies share the same derivation.
+- **Issue readiness gate (2026-09-20, card _30):** `requestBillingDocumentIssue` collects EVERY missing §7.2 condition before issuing a debit note — goods (no presentation lines), price (per-line grossAmount=0), and §7.1 original-document receipt keyed on `trips.pod_recovered_at/by` (the POD-mộc-đỏ recovery, not the ops paper-order handoff) — and rejects with one 409 carrying `details[]`, one item per reason, no masking; eligible documents keep their old path unchanged. The FE builder footer renders each 409 reason on its own line (`role="alert"`), never overflowing. Pinned by isolated-DB tests incl. a recovered-trip control proving the reason list names only unrecovered trips (`backend/src/services/billing-document-governance.service.ts:308-420`).
 - **Zone surcharges are config data, not code** (2026-09-20): the Bảng 2.2/2.3 zone column reads its label from `zone-surcharge.service.ts` (source ladder OVERRIDE > INCIDENTAL > CONFIG > null); unconfigured lots render "—" in the header, amounts render null → "—", and the Phí khác cell shows both sides (Thu khách + chi hộ) when they differ.
 
 ## Frontend interaction and layout contracts
@@ -165,11 +184,18 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - Segmented datetime fields (HH/mm/DD/MM/YYYY) render ONE continuous frame per input: the field group owns border, radius, and background; every segment is a borderless centered digit box, and only the trailing trigger inherits the shared control geometry (`frontend/src/design-system/forms/DateTimeSegments.css`).
 - The segment group declares `min-width: max-content` so the app's chained `min-width: 0` / `width: 100%` flex wrappers cannot cramp it below the digits' intrinsic width (`frontend/src/design-system/forms/DateTimeSegments.css`).
 - Detail-screen quick filters pack left (the filters footer uses `justify-content: flex-start`), and every filter and input wrapper runs `width: 100%` + `min-width: 0` so date fields size from content instead of forcing a horizontal scroll at laptop widths (`frontend/src/pages/ShipmentContainersPage.css`).
+- **One-row filter bars (2026-09-20 user ruling, card _34):** at wide viewports the whole filter bar — fields plus the quick-filter rail — renders as ONE row; the quick-filter group flows right after the last field, and a wrapped row never holds a lone control. The quick-filter group is a grid rail item (`grid-column: span 2`, `align-self: end`), completing the single row at ≥1920 and sharing the last wrapped row at narrow widths (`frontend/src/pages/ShipmentContainersPage.css:45-70`).
+- **Zero-vs-missing display contract (2026-09-20, cards _27/_31):** absent sources render "—" and computed zeros render "0", enforced at the derive layer: `finance-derived.ts` seeds report-backed cells with `?? null` (formatter renders "—") while keeps `?? 0` ONLY inside sums over defined arrays (arithmetic zero); `marginPct`/`yoyPct` return "—" on null inputs (`frontend/src/pages/finance-derived.ts:17-73`).
+- **Trips 15T missing-price chip (2026-09-20, card _32):** a trips-list row whose truck class is 15T and whose revenue is missing renders "—" plus a right-aligned in-cell chip "Thiếu giá 15T" (tooltip: the base price is missing, never displayed as 0); the predicate keys on `trucks.vehicleClass` added to the trips-list payload (`frontend/src/features/trips/tripColumns.tsx:451`, `backend/src/services/trip-queries.service.ts`).
+- **Row-cell creation lives in the combobox (2026-09-20, card _26):** the create-page goods table carries no in-cell buttons — route, port, and container-type creation happens by typing in the cell combobox, which offers a create option that opens the prefilled dialog (`initialName`/`initialCode`); `ShipmentCreateWorkspace` ratcheted 1123→1130 for the listbox wiring (`frontend/src/features/shipments/create/uui-searchable-field.tsx`, `frontend/src/tests/structure.guard.test.ts:231-234`).
 
 ## Pricing and fuel surcharge
 
 The pricing service composes freight, fuel surcharge, and shared financial calculations into one transaction-aware surface. The fuel-surcharge path delegates the math to `@tingting/shared`.
 
+- **Threshold fires at equality (2026-09-20 adjudication):** a fuel-price change exactly equal to the ngưỡng counts as đạt ngưỡng and opens a new price period — both PRD docs were amended to match the engine, which already used `<` (`backend/src/services/freight-pricing-engine.service.ts:244-257`).
+- **MANUAL reasons surface verbatim (2026-09-20, card _28):** when a fuel clause is missing (UNSET threshold, unconfirmed lag) the engine returns `source: 'MANUAL'` with a specific formula reason, and `FreightPreviewCard` renders that formula text directly instead of a hardcoded "Thiếu giá gốc" string — the user sees lag-vs-threshold-vs-price missing, never a fabricated number (`frontend/src/features/shipments/create/FreightPreviewCard.tsx:32-45`).
+- **15T demo prices are not seeded (2026-09-20, card _29):** dev/staging seed no invented 15T contract rows, so every environment behaves like prod — 15T without customer prices returns MANUAL "Thiếu giá gốc cho 15T" (`backend/src/seed/seed-demo-freight-pricing.ts`).
 - Fuel-price period config surfaces label the value simply "Giá dầu (đ/lít)" / "Giá dầu theo kỳ" — the 2026-09-20 rename dropped the DO unit suffix from every display label; the fuel type is implied by the config context (`frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx`).
 
 - The shared `computeFuelSurcharge` returns 0 when the base price is unset, when the share percent is non-positive, when quota liters are non-positive, or when the current price does not exceed the base; otherwise the surcharge is `roundInt(round2dp(delta × quotaLiters × sharePct/100))`. Each trip creation snapshots the inputs (`currentFuelPrice`, `baseFuelPrice`, `quotaLiters`, `customerSharePct`) so future price changes do not retroactively rewrite cước đã phát hành.
@@ -196,7 +222,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 ## Mechanical gates and enforcement
 
 - The pre-commit hook typechecks the touched project and runs the frontend structure guard so a tree that does not typecheck or a file past its frozen ceiling cannot reach the commit boundary. Bypass is `git commit --no-verify` with a stated reason in the commit body.
-- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines and is documented as one such contract change in `structure.guard.test.ts`.
+- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines, and the 2026-09-20 wave added two dated bumps in the same style (ShipmentCreateWorkspace 1123→1130 for card _26, tripColumns 513→524 for the 15T chip) — all documented in `structure.guard.test.ts`.
 - The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback app-wide: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration. **Documented exception (2026-09-20):** the debit settlement money tables ship tabular-nums (QA-passed on the worked-numbers alignment) and are exempt from the scan. The allocation summary, schedule editor, and ledger rows honor the ban.
 - The QA gate table in `AGENTS.md` is mandatory for every change; a touched gate is not optional. Shared contract, Drizzle schema, financial-calculation, and RBAC changes require the full set including the e2e runner. Testplan ships a reusable harness (`testplan/qa/scripts/run-all.mjs`, `run-case.mjs`, `smoke.mjs`, `lib/{env,harness,selectors}.mjs`) and stores evidence under `testplan/qa/evidence/<date>_<scope>/`; the root `qa/` directory remains the cross-project evidence sink per `AGENTS.md`.
 

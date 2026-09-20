@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:7c23dcc65540f5c0a28a295eeee911332c1aa97f9a048cfd383bb491a176c9e8",
+  "claims": [
+    {
+      "id": "claim_a14c0582dfff450fb754f048a152128f",
+      "statement": "computeFreightRate computes freight J and fuel surcharge H independently — H = MAX(0, ROUND((G − F) × liters)) — rounding each to whole đồng (HALF_UP) with total K = J + H, and a legacy helper that applied the share percent to the surcharge is deprecated as wrong per the Excel PRD.",
+      "evidence": [
+        {
+          "resource": "repo://shared/src/calculations/fuelSurcharge.ts#L88-L99",
+          "version": "repo-lines-v1:sha256:3812fa278348568cd73d1ed6b6e70f3bfecf4b6ad4154892ad21160e81653f32:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0M2Y5ZDBhMmY0MzQzZjVkYmZlN2E2OWFlNGEwOTliMzNjZWJmMGM0ZjExOGFkZTgxMWEyNWY1Y2M4OTA3M2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM1ZDliYzBmYTRiOWQ4ZDM4NDNhMjU4ZGY2NWFlMThlMmFjYmExMjkzMzJjNmQyN2JmZmUwMjc2OTQ4MGE0OTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9300d7b92a2141759e427148b01e7ccf",
+      "statement": "The fuel benchmark F is persisted at full precision as freight_rate_terms.base_fuel_price numeric(12,4) (19.270/1,08 = 17.842,5926); the visible 17.842,59 is a display abridgment, and storing a rounded F would drift every surcharge.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/db/schema/pricing.ts#L239-L241",
+          "version": "repo-lines-v1:sha256:240862469b384f11d6b074b946fbfdec929ce64d7d7842241dd88a301ae74985:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmY3NDg3ZWUyYmJmNGNlMjdjZDk0MGNjYWY3NzFlN2VkYzAyZjgwMmJlZDBlMWQ4NGI2ODI2ZmE4NDJmNDE2MyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWM3MDg2ZDlmOTdjNTYyMjNiNGUyYWMwNjhhYWY4MmU1ZWNkOTQ2YjM0MmRlMDVkZmFmZGQ3MGNhYWRkYjc5NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2IxNGU3NmVhNTc1MDExNzAzNWQzZDZiNzc0ZDI3OTRlNWE5MGYzNzRlZTg4Yjk5MDI2Njk5NzgyNzNjZmQ4YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTQyNDllZmFkN2NhM2ViYWJkYzU3YjA1NGIyMDA0OTJlNzFlOTBhMWNiNjAwNjhmZjA0ZmVlY2EwNzRkOWI2NCJ9"
+        },
+        {
+          "resource": "repo://backend/src/seed/seed-demo-freight-pricing.ts#L133-L133",
+          "version": "repo-lines-v1:sha256:9ae49f6362b0e0abe71e5f696465626c28b612fe67d9041615508486829dd53a:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWFlNDlmNjM2MmIwZTBhYmU3MWU1ZjY5NjQ2NTYyNmMyOGI2MTJmZTY3ZDkwNDE2MTU1MDg0ODY4MjlkZDUzYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWFlNDlmNjM2MmIwZTBhYmU3MWU1ZjY5NjQ2NTYyNmMyOGI2MTJmZTY3ZDkwNDE2MTU1MDg0ODY4MjlkZDUzYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2QwMmNhYmFkYmE3Mjc0NzYzODZkNWM3OWM1MTI2ZTAxNWVhYTMxZThjNmQ1NzVjMzg0Njk3MWRlNzY3OTliOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzliZGNiMzJmNDY2YmY3ODExNTk3Njg4ZTM2ODgxOGQyOWIyZTFiNjAxNzJiZWMyYmYwOWQ3ZmNiYTY2NzIwNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_0395e435027e4d22b85d1b0134089b8b",
+      "statement": "The adjustment threshold fires at equality: the engine keeps the prior price only while the fuel-price change is strictly below the ngưỡng, so a change exactly equal to it opens a new price period (đạt ngưỡng), and the PRD was amended 2026-09-20 to state this.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/freight-pricing-engine.service.ts#L244-L257",
+          "version": "repo-lines-v1:sha256:02b62b797e4d5c257a2fb64570782f875fda9d725ccf583e08c0d211846e2f7f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjN2MzZjlmNzBiMDc5OTM2MTM5YTNhMTM3M2M4ZDNhNjk4MzAwMzRhOTI0M2NlOTI1NWMzZWI2NjU0ODJlZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlMGZiZjkwMzk0YzE5YmEwYWEzY2RhZGVkODBiMDExYTViZmY5ZWMyYzNjMjc0MmU0ZjM3MzExNzgxOTVlMmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiN2Q3YTU0MWEwODIzY2Y4Y2JiNTliNzdlNjY2MTMwZjVlNTFkNWI2NGI1M2FmNzgyNDdiMmZkNjM1ZDAzNTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ4NTgyYWQwNzRkYzRiN2RmMTU3ODY3NjA1YWE5YjY3MzAwNDI3ODFkZjczOGIyYTNlZTNkMTI0OWU2MzAzM2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ec41839377b043a7953dfe7328ce991f",
+      "statement": "An incomplete fuel contract term (UNSET threshold, unconfirmed lag, missing price/period) never auto-computes: the engine returns source MANUAL with not-applicable zeros and a formula string naming the exact missing item, never substituting 0, an example number, or another route's price.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/freight-pricing-engine.service.ts#L148-L168",
+          "version": "repo-lines-v1:sha256:5cc84bfa02a84f771559966c92c26bf3135d5699cc2604ee012e82d5880c165c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4NzY1MzcxYWVhMWNjN2Q0NmVjNmVmY2NiYmU5ZTllNzNjOTE4OTRmMGQwNmM3MWYxMjVhYzhiZTI1NWI3YmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZDVjMmE2NTUwMGM0MzBmNTkxOGQzMDI0NDBmMzBlYTE5NzE0YjE1ZDFjMDFjNDFkNmFkZjY4Yzc0OTk1MGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyMzIxMTg0MjYwNmU0NzM3ODhkYTg4N2UwMTQ2ZTYyYzE1ODMwODljNzg5OTNlZGYwMzYwYzEyMTkwNzVjNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlZWVmZGQ1MTEzZDk5MDU2ZjFlMTlkZTFiN2Q1YmVkZTZlMGEzMDFmOWU4ZjdiZTRlYWQzZjhmOGRhODY2YzgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4a20054fe6644106b1cfccf0af797cb1",
+      "statement": "Missing sources render '—' (indeterminate values render 'Chưa xác định') while computed zeros render '0': formatters render — for null, and the finance derive layer propagates null for report-backed cells while reserving ?? 0 for sums over defined arrays.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/lib/format.ts",
+          "version": "repo-file-v1:sha256:2ebcd437ba8e8a7fed72d0d1976ca7b958654d824c9e54c043c2e582b399c3fd"
+        },
+        {
+          "resource": "repo://frontend/src/pages/finance-derived.ts#L17-L73",
+          "version": "repo-lines-v1:sha256:25e167ce2eeb9f396eef357115b1858eeed24a1f38a3afa80d5ed0af547c8c6f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2YTY1ZDQyZGI3YmRlYzU3NDNlNjYyZjM1MzYyM2QyOGNjYjY3MTJhNjIxYzk1YmE1NmYzMjM2MWExMmRjMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0Mjk1NjIyZjM0YjUzNzQ5NTg2OWVlMzNjMjQ3ZGM4NTE4ZjUyN2I4ZmY3NGQwNTM1NDU1ZWFkOGEzNDY4ODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJmYTNkNDdjNWNhZWNkMjg2YTdjOGM5MWM5NWEzZjRlMjRhZDc2YzFlMGI4OGVjNmUwMmUwMTNlNTQxOWIwOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4ZDZhZmM2ODA5MzEwNzEzOTYxMTI2NWY3ZDUyNDYyYmQ1YTQ3ZmRkNTZiNTZiMzExNmYyODY1ZmVhYjcwMDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e224354e41aa435b9a8d0d6ab161fbc3",
+      "statement": "No environment seeds invented 15T contract prices: the seed module excludes them deliberately, so a 15T vehicle without customer prices resolves MANUAL with 'Thiếu giá gốc cho 15T' and the trips list marks the row with a 'Thiếu giá 15T' chip instead of any automatic price.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/seed/seed-demo-freight-pricing.ts",
+          "version": "repo-file-v1:sha256:55115cbc56a541f305485ed8786ff1f085f1f6426a1d64c37d976a56d6792c44"
+        },
+        {
+          "resource": "repo://frontend/src/features/trips/tripColumns.tsx#L451-L451",
+          "version": "repo-lines-v1:sha256:e2c818b2612d4f9170c0b142e28391a491dddde7605e6084d73f31c6be58c7b1:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJjODE4YjI2MTJkNGY5MTcwYzBiMTQyZTI4MzkxYTQ5MWRkZGRlNzYwNWU2MDg0ZDczZjMxYzZiZTU4YzdiMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJjODE4YjI2MTJkNGY5MTcwYzBiMTQyZTI4MzkxYTQ5MWRkZGRlNzYwNWU2MDg0ZDczZjMxYzZiZTU4YzdiMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGNiZDhjNWNmZDdiNzQ3YTM1OTAzY2VjZGIxYTYxMDU1OTE2NWMyNTU3YjkxYzkyNGEzMjliNGNiZDIyYWY0MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTgwYjNmM2I5M2VmMTBmOTNmMjdiMTMzM2QwNGQ0MjA4OGFkY2ZkYmFkODRlOWM2NjRkNjU5ZGU0NzJmZmE5MCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_13cd0bbe65dc4dc6ba373b7d25919958",
+      "statement": "Bảng kê issuance requires the four §7.2 conditions — goods, price, documents, open period — where documents means pod_recovered_at/by set with person and date (POD-mộc-đỏ recovery), and the issue gate collects every missing condition into one 409 whose details[] names each reason without masking.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/billing-document-governance.service.ts#L308-L420",
+          "version": "repo-lines-v1:sha256:eab719a9842336d23b4fadc9d23822c5501333014ec44a1bf90f059680dbe5e6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmM2M1YjEzZTc0MWFmOTY5OTBlYjEyYmVjMWZjOGVkNjMyN2YyMGY0NTlhMWNmM2VmMzI3NWQ1Mzg1ZTkyNzRkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5ZGJmYTE0MDZkZjEyMjgxYTBmMTZiYjg1NzUxMjk0YzVjZGVlNzBiZDA5OGI0Yjg4MGE3NDhjNmQ4Y2ZhZDk0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyYjQ4ZWU5YWU5OGViNzU0OGVjZTBmNDgxZDY2NWZhOTczNWJhY2RhMGE2YjdjYTg1YjUzNGFlNTU3NTk5YTAyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_05b48e0067d7477a82ff3405c74eae85",
+      "statement": "The only sanctioned manual price entry is the accountant's negotiated final price on the statement (the auto price stays stored for reconciliation); there is no manual override of the fuel-clause gate — a missing clause blocks auto-calc and names what is missing.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/billing-document-governance.service.ts",
+          "version": "repo-file-v1:sha256:bee88dea498f892ea2fad23604f3231b7ee9a405cac312c838672f66d86fbba5"
+        },
+        {
+          "resource": "repo://docs/prd/PhuongAnTinhCuocTuDong.md#L138-L139",
+          "version": "repo-lines-v1:sha256:e814f999e01bfedc2a6ba0cd47c0fcc3c75c1f1368ab996e6efdf706d0c610f0:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDE0MDQ4OWQ4ZGEwMWU4MjQxMWNmZmE2NGYyYzU1NTkyOWY0N2ZiNzQ5MmYwZGFkY2Q0OWQxN2Q4MWM1YzhmMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTU5MmQ3YzI2OTlhYzRmMmYxMmQ2MjkyNGUwNjNjNGVlNTAzOWRlNDI3NzJjMWE2YWMwOTE4MWFiYjAwZGQ1MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGJhM2QwYmExNTYzMzE3NDQ4NmIyZjBlMTFlMzRmY2M1NzZjOGIyNTBhMTIzYmE5OGVlZGRlNDFkZTUxMWRiOCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_418bda16805e4c7ba62b9404570f378e",
+      "statement": "All internal approval workflows were removed by product ruling (2026-09-15) and the corpus stays consistent: finance/ops writes execute directly under role checks with audit events, and the 2026-09-20 audit closed the last approval-language remnants in BACKLOG.",
+      "evidence": [
+        {
+          "resource": "repo://BACKLOG.md",
+          "version": "repo-file-v1:sha256:ab5927233aed096bb7edb7a2e0c7c136df9aa4773ebe392f88db768e98eac6e7"
+        },
+        {
+          "resource": "repo://docs/prd/README.md#L53-L58",
+          "version": "repo-lines-v1:sha256:25098edab13436fc0fb0ebd41feea03a6a66ff48428e8f3771d9b432bb2c079a:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTA1YWRhMzY5NWIwYzhjZjUzZTFmZDdkYWJjYmM3NzBiZmM0OTlhNjQxNDYwMzg0OGI3OGZjYTlhMWFjODM1NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZlMTU0MjNiM2EyZDczNGYwNTI2NWY3ZTZlZTFhN2NiNzZkMWYwMjFkMGJhNTMyYWRjMWVkOGFkNDc1ZjAwZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjMxNjBiZmQyMDliZGFjZWRjOTkzODNhMGRiOTAyMjcyNzNmZjNmZmRhODUyZDIyYzQwZTgyM2Q5YTRmNjljNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2JjNjMxN2FiYTBjNTdiOGNiOTQ3ZjgwNzdlYTljZjgwMDljYmJiZTVmYzY5YmFhODMwYjlmMDJhYzRmNzU1MiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-20T06:47:25.307Z"
+  }
+}

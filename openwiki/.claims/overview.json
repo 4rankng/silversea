@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:fc2a5c41cf817721d0217cc804884afe3bad3b5a473dbb68cff266ea687aa2ef",
+  "pageVersion": "sha256:1c66714755db73459b786aec6e39822d84d9f70dfb3eaab6788fc15241388988",
   "claims": [
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
@@ -42,7 +42,7 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:cba40a4a2583c194a86b77c7b78c56a6fc5aeebf497b39d57593beec593fa551"
+          "version": "repo-file-v1:sha256:80487d5805c1ddcce5055e567b922f726b8e9dd6747850b6b5a18524d292fe3f"
         },
         {
           "resource": "repo://testplan/flows/README.md",
@@ -82,13 +82,13 @@
         },
         {
           "resource": "repo://shared/src/constants/api-paths.ts",
-          "version": "repo-file-v1:sha256:9116cd8d5b196ea0a42aad9ae30d1667fa3763a45ed9f1d97a19198657573b6c"
+          "version": "repo-file-v1:sha256:019b1c71886222597d5d2a6ef90d3635d39e471789fceb2e0e32940fef2ed521"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-19T20:52:17.505Z"
+    "at": "2026-09-20T06:47:25.307Z"
   }
 }

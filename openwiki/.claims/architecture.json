@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:53120c17441018dc8d120ec440458324b9abc1b04532f9cedad2079d288f1189",
+  "pageVersion": "sha256:9d09e57dfe06d692eaceaf17f9c4ed4b21a11c8e99b66fb08259d9efd7c5229a",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:1b8bf2bf20db929bdd8e59c447c3dbb5942dd7e518defed6a3aa94a28e06e3a5"
+          "version": "repo-file-v1:sha256:912330f085e5f946cb2c8ea99c867516e832217b6d9b6cff5bc1acb6be5f5f3d"
         }
       ]
     },
@@ -102,7 +102,7 @@
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:1b8bf2bf20db929bdd8e59c447c3dbb5942dd7e518defed6a3aa94a28e06e3a5"
+          "version": "repo-file-v1:sha256:912330f085e5f946cb2c8ea99c867516e832217b6d9b6cff5bc1acb6be5f5f3d"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -264,7 +264,7 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:5d5fe5918516fd3281fc6735f2fed2a27205119b7db6b517f1e7d09eb7483cd3"
+          "version": "repo-file-v1:sha256:80487d5805c1ddcce5055e567b922f726b8e9dd6747850b6b5a18524d292fe3f"
         }
       ]
     },
@@ -332,7 +332,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/pages/ShipmentContainersPage.css#L51-L64",
-          "version": "repo-lines-v1:sha256:e93c741cde06d0dba696000f7eb1a8a20ea2439f438eb6b567783480ad131c78:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0YjBmOTBlMzYyMjY4ZjNkOWQyNGFmMjlkMzhmMWU4NDMwMDMyNGIzYzBhMTljZWQzYmE4MjI5YTg3MDVhYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkZWIzMDM2MzI3MDAxM2U2ZTAyMGRkZTE3ZjQ3YTVmZGMxYjQ1OTFhOTAxMDhiZDUyNmY0YzQ4MWJiMjhjYjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxNzIzNDA4NTAzZWE3YWNlMWFhMmEwMTdmNTkyMTRiYmEwYTczNjZhZjA5YjQzNjg1NDhmOGU2NzhjZTgxNTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZjkyNjYxZmYwMzFiN2IxZjI0MDdlY2IxMDkzMjIzZmQ2NDUwNjk4ZWZhYzk3N2RiMWUwNjFiNWJiNmIxZGIifQ"
+          "version": "repo-lines-v1:sha256:7df597e559d5c2607a7e26f1f6dfad316d09ef4aff735fc8c7f39af4aeb79c59:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0YjBmOTBlMzYyMjY4ZjNkOWQyNGFmMjlkMzhmMWU4NDMwMDMyNGIzYzBhMTljZWQzYmE4MjI5YTg3MDVhYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMWJiNGYxMTM1ZDU1Njc3OTUyMGI4MzY2YTlhNGFmNzgzNjYwZTQwODdkODhjYjYwNGY3M2Q5Mjk4YjQ1YWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxNzIzNDA4NTAzZWE3YWNlMWFhMmEwMTdmNTkyMTRiYmEwYTczNjZhZjA5YjQzNjg1NDhmOGU2NzhjZTgxNTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZjkyNjYxZmYwMzFiN2IxZjI0MDdlY2IxMDkzMjIzZmQ2NDUwNjk4ZWZhYzk3N2RiMWUwNjFiNWJiNmIxZGIifQ"
         }
       ]
     },
@@ -345,10 +345,102 @@
           "version": "repo-file-v1:sha256:cdf31f34b1caa9ab75e2c0abbd08498f7d2b42e0e870c99a142b795a265428d9"
         }
       ]
+    },
+    {
+      "id": "claim_fe0388ff47314069959b2f2e08eaaffa",
+      "statement": "Debit-note issuance is gated server-side on every §7.2 readiness condition — presentation lines exist, every line carries a non-zero grossAmount, and each source trip has pod_recovered_at/by (the POD-mộc-đỏ original-document recovery, not the ops paper-order handoff) — collected into one 409 whose details[] names each missing reason without masking, while eligible documents keep the prior validation path unchanged.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/billing-document-governance.service.ts#L308-L420",
+          "version": "repo-lines-v1:sha256:eab719a9842336d23b4fadc9d23822c5501333014ec44a1bf90f059680dbe5e6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmM2M1YjEzZTc0MWFmOTY5OTBlYjEyYmVjMWZjOGVkNjMyN2YyMGY0NTlhMWNmM2VmMzI3NWQ1Mzg1ZTkyNzRkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5ZGJmYTE0MDZkZjEyMjgxYTBmMTZiYjg1NzUxMjk0YzVjZGVlNzBiZDA5OGI0Yjg4MGE3NDhjNmQ4Y2ZhZDk0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyYjQ4ZWU5YWU5OGViNzU0OGVjZTBmNDgxZDY2NWZhOTczNWJhY2RhMGE2YjdjYTg1YjUzNGFlNTU3NTk5YTAyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_397e4d9a67e54b66b58b8e8040953e2e",
+      "statement": "A fuel-price change exactly equal to the ngưỡng threshold counts as đạt ngưỡng and opens a new price period: the engine keeps the prior price only when the change is strictly below threshold, and the PRD docs were amended on 2026-09-20 to state this rule, matching running code.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/freight-pricing-engine.service.ts#L244-L257",
+          "version": "repo-lines-v1:sha256:02b62b797e4d5c257a2fb64570782f875fda9d725ccf583e08c0d211846e2f7f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjN2MzZjlmNzBiMDc5OTM2MTM5YTNhMTM3M2M4ZDNhNjk4MzAwMzRhOTI0M2NlOTI1NWMzZWI2NjU0ODJlZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlMGZiZjkwMzk0YzE5YmEwYWEzY2RhZGVkODBiMDExYTViZmY5ZWMyYzNjMjc0MmU0ZjM3MzExNzgxOTVlMmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiN2Q3YTU0MWEwODIzY2Y4Y2JiNTliNzdlNjY2MTMwZjVlNTFkNWI2NGI1M2FmNzgyNDdiMmZkNjM1ZDAzNTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ4NTgyYWQwNzRkYzRiN2RmMTU3ODY3NjA1YWE5YjY3MzAwNDI3ODFkZjczOGIyYTNlZTNkMTI0OWU2MzAzM2MifQ"
+        },
+        {
+          "resource": "repo://docs/prd/PhuongAnTinhCuocTuDong.md",
+          "version": "repo-file-v1:sha256:7ff68a506bb2ca02ff4f524cfc13a04e19d259563f2f92e2a0a92f50d8b61f18"
+        }
+      ]
+    },
+    {
+      "id": "claim_5b5d33adc60d4c608ccf91acde4449f2",
+      "statement": "When a fuel term is missing (UNSET threshold or unconfirmed lag) the freight preview renders the engine's MANUAL formula reason verbatim — naming lag, threshold, or missing base price — instead of a hardcoded 'Thiếu giá gốc' string, so users see what is actually missing and never a fabricated amount.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/shipments/create/FreightPreviewCard.tsx#L32-L45",
+          "version": "repo-lines-v1:sha256:313ecf315139777ee8d5e48289a2a223fb628578a3560206a55828940b543936:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0YWExMjY0MjdkODUyMTU0MzlkMzcwOGI4YTQwNzMzMjhkOGRjYTFjMjhhZWE0MzJmOTRmNGZjNGIyYmZiYmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwMzI0YzMyOGZiODEwMGVjZTBjOTkyZTVmZjg4YTc3NzVjMTg4MGRjMWEyMzY3MzljMzI2NjI0OGY4ZTAxM2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwZWNlYmQxYjlhODA5MGRlYzNiNzBkNGMzZmNiZTU1YzY0MDE2NGVhODNiNWZjNDgxNDU4ZDk0ZTU3MTNmYzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk4MDU0MTU3MjgzZDZjMjUxYjEyY2QyYzQwNTAzNDA4ZmE1MGEwNTVlNmZlNmNmMTNlZWJiNGNiOTU4MDJlZjcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7479f5501f3c4e319195da76b509af25",
+      "statement": "The dev/staging seed creates no invented 15T contract prices, so all environments match production: a 15T vehicle without customer prices resolves to MANUAL with reason 'Thiếu giá gốc cho 15T' rather than an automatic price.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/seed/seed-demo-freight-pricing.ts",
+          "version": "repo-file-v1:sha256:55115cbc56a541f305485ed8786ff1f085f1f6426a1d64c37d976a56d6792c44"
+        }
+      ]
+    },
+    {
+      "id": "claim_e98f7c7726fd4d089657566cbe72ae70",
+      "statement": "Filter bars follow a one-row contract at wide viewports: the quick-filter group is a grid rail item that flows after the last field on the same row, and no wrapped row ever holds a lone control; every filter and input wrapper runs width:100% with min-width:0 so controls size from content.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css#L45-L70",
+          "version": "repo-lines-v1:sha256:743a350aca0ed3cc49d7fa7c7eaf541441f03b37de9b92a58856aed5ce4fb503:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwOGRiYTQ5NzU1YjQ2ZDk3MTZiZjY2OTJkZGFjOGI4ZTZiNzI2NDc1NGNhMWQwZTJkOTZhMjNiYjlkODE3ZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZGY1ZGEzMzU4OGEwM2QyY2QyZmRlMzZlY2ZkNGY2MDNlNWVkNjFjZjJlZmY2NGIzNTRlMjdmZGNkYzU1OTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlZWU3ODA2OTdiZGViZjEzZjZjMWEwOTM3MjQ5ODk3NDljNGE1NzM3YWM0NmU4MWZmYjk3MjZhZmRiNTVlNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2NmRkZjBjNWQxZmVkMmM4YWJhM2U4MjNjNmQ3MmEwOTc5NmQ5Y2M3OTI3NTFkOWRiZWMzYzVkMjM2NGM4N2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_68417babee6e49faa89c5fb05877eba5",
+      "statement": "The finance P&L derive layer enforces the zero-vs-missing boundary: report-backed cells propagate null (rendered '—' by formatters) while ?? 0 appears only inside sums over defined arrays (arithmetic zero), and marginPct/yoyPct return '—' for null inputs.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/pages/finance-derived.ts#L17-L73",
+          "version": "repo-lines-v1:sha256:25e167ce2eeb9f396eef357115b1858eeed24a1f38a3afa80d5ed0af547c8c6f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2YTY1ZDQyZGI3YmRlYzU3NDNlNjYyZjM1MzYyM2QyOGNjYjY3MTJhNjIxYzk1YmE1NmYzMjM2MWExMmRjMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE0Mjk1NjIyZjM0YjUzNzQ5NTg2OWVlMzNjMjQ3ZGM4NTE4ZjUyN2I4ZmY3NGQwNTM1NDU1ZWFkOGEzNDY4ODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJmYTNkNDdjNWNhZWNkMjg2YTdjOGM5MWM5NWEzZjRlMjRhZDc2YzFlMGI4OGVjNmUwMmUwMTNlNTQxOWIwOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4ZDZhZmM2ODA5MzEwNzEzOTYxMTI2NWY3ZDUyNDYyYmQ1YTQ3ZmRkNTZiNTZiMzExNmYyODY1ZmVhYjcwMDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d7b7adf417be4a72a21fb8c676522ed7",
+      "statement": "Trips-list rows with truck vehicleClass '15T' and missing revenue render '—' plus a right-aligned in-cell chip 'Thiếu giá 15T' whose tooltip states the base price is missing and never displayed as zero; the predicate reads vehicleClass added to the trips-list payload.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/trip-queries.service.ts",
+          "version": "repo-file-v1:sha256:f47f01d755e827090ebbbe83ea5780aefa8e37db2e962dd6e439760d42a3b6e6"
+        },
+        {
+          "resource": "repo://frontend/src/features/trips/tripColumns.tsx#L451-L451",
+          "version": "repo-lines-v1:sha256:e2c818b2612d4f9170c0b142e28391a491dddde7605e6084d73f31c6be58c7b1:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJjODE4YjI2MTJkNGY5MTcwYzBiMTQyZTI4MzkxYTQ5MWRkZGRlNzYwNWU2MDg0ZDczZjMxYzZiZTU4YzdiMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJjODE4YjI2MTJkNGY5MTcwYzBiMTQyZTI4MzkxYTQ5MWRkZGRlNzYwNWU2MDg0ZDczZjMxYzZiZTU4YzdiMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGNiZDhjNWNmZDdiNzQ3YTM1OTAzY2VjZGIxYTYxMDU1OTE2NWMyNTU3YjkxYzkyNGEzMjliNGNiZDIyYWY0MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTgwYjNmM2I5M2VmMTBmOTNmMjdiMTMzM2QwNGQ0MjA4OGFkY2ZkYmFkODRlOWM2NjRkNjU5ZGU0NzJmZmE5MCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_421d3e27c2af4a1fbf078cc5b9a703a2",
+      "statement": "The create-page goods table has no in-cell add buttons: route, port, and container-type creation happens by typing in the cell combobox, which offers a create option opening the prefilled create dialog (initialName/initialCode), with ShipmentCreateWorkspace ratcheted to 1130 lines for the listbox wiring.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/shipments/create/uui-searchable-field.tsx",
+          "version": "repo-file-v1:sha256:376a89f59a00eb7b672e4fadf46f3fad712a8a309b97a20279eedc144c39608c"
+        },
+        {
+          "resource": "repo://frontend/src/tests/structure.guard.test.ts#L231-L234",
+          "version": "repo-lines-v1:sha256:a61d45a84eb216f2099e67c65816f08911753f74dfca8a791732afe4472f0990:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmQ0YzAwNzRlNTAxZTBhMWNjM2ExNDI4OWQzZDI0MzRiMWVkYzA0MGVlMTRiODExZjI3ZmNjNGFmYWM2NDk1MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZWIwNTMyYTJiNjI3OTQ5NTdiMjIyMWI5NDhjZDA0ZmQ1YTk2YTQyZDczNTEzMDgzOTFhYzhkNDYxYmQ4NzQ2NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGM4MTJlNDQ4MWYxYzg3OThhNzE5OWJmYmFhZjZjNGE0OGZlMzg3MmUxZTYwN2VkZGQ2YzZkNjQxZTEyNjg1ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDA1NGJiZTdiZDczOWE3NTUyNDc1YzBiNGMwMTQxNzM1NWY2ODg0M2YxYjFlZjIxYzE5MzNiMmRlODdiM2RlMCJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T04:11:11.112Z"
+    "at": "2026-09-20T06:47:25.307Z"
   }
 }
