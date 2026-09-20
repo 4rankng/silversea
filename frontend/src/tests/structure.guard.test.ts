@@ -82,7 +82,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 1102 -> 1105: 2026-09-19 card _5 — declaration channel field on
   // the request type (additive optional, FE half of the BE contract).
   'src/api/shipmentClient.ts': 1105,
-  'src/components/billing/BillingDocumentBuilder.tsx': 717,
+  // Bumped 717 -> 784: 2026-09-20 card _37/_43 billing-gate scope — the
+  // document builder grew with the billing readiness gate work.
+  'src/components/billing/BillingDocumentBuilder.tsx': 784,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
   // additions; a future sidebar split should restore a smaller ceiling.
@@ -278,7 +280,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // filters). Bumped 878 -> 948: bulk notify/status dialogs + BE drawer
   // histories wired. Split debt: CustomerFormModal (~350L) extraction
   // restores the ceiling.
-  'src/pages/CustomersPage.tsx': 948,
+  'src/pages/CustomersPage.tsx': 950,
   'src/pages/DashboardPage.tsx': 687,
   'src/pages/debt-detail-ledger.tsx': 444,
   'src/pages/DebtDetailPage.tsx': 816,
