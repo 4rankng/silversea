@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1acf2567f051cf6ba744cfe1b3f249f56864ffea7a1a51443f9d884ced077652",
+  "pageVersion": "sha256:53120c17441018dc8d120ec440458324b9abc1b04532f9cedad2079d288f1189",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:87b616dfe2719686a9ecd842732408b5237c8de28cefa6052894f811943f0e64"
+          "version": "repo-file-v1:sha256:1b8bf2bf20db929bdd8e59c447c3dbb5942dd7e518defed6a3aa94a28e06e3a5"
         }
       ]
     },
@@ -102,7 +102,7 @@
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:87b616dfe2719686a9ecd842732408b5237c8de28cefa6052894f811943f0e64"
+          "version": "repo-file-v1:sha256:1b8bf2bf20db929bdd8e59c447c3dbb5942dd7e518defed6a3aa94a28e06e3a5"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -264,13 +264,91 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:cba40a4a2583c194a86b77c7b78c56a6fc5aeebf497b39d57593beec593fa551"
+          "version": "repo-file-v1:sha256:5d5fe5918516fd3281fc6735f2fed2a27205119b7db6b517f1e7d09eb7483cd3"
+        }
+      ]
+    },
+    {
+      "id": "claim_762bc7482e6449c98c435d5cfe133ce1",
+      "statement": "useBuildFreshness polls /api/health buildHash every 60 seconds against the value fetched at boot; polling pauses on hidden tabs and re-checks immediately on regain; polling stops permanently once a mismatch is flagged; a failed poll keeps the last-known state and never fabricates a mismatch.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/hooks/useBuildFreshness.ts",
+          "version": "repo-file-v1:sha256:16070510239bf597c945e79e7f09adf6672bf538a9569000bf7913943c1d0778"
+        }
+      ]
+    },
+    {
+      "id": "claim_72b7f055d62e496e999d9481782bd8b0",
+      "statement": "StaleBuildBanner renders a faint fixed bottom-left role=status prompt that reloads only on click — an in-progress form is never auto-reloaded — and it mounts once in App() above the route tree, covering both the login screen and the authenticated shell.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/App.tsx#L404-L419",
+          "version": "repo-lines-v1:sha256:222a779af025b9780a69e70359453b71214fd46305c58663505356dbbc5946c2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1ZWYwMWJjMDhkYmMzYjYzZTRlNzVlYTNkMjZhNWI5NDE4OTE4NzdlMjdhZDg5MTMyOWM4NDExZDdkOGRjNGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4MjU5MTRmNGYwMjY4OTAyY2E1YjMxYWJiNjg0ZmNiZWNhZTdiZmViYTNiMjRlMDdjN2JkMWEzNGRjOTFhZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://frontend/src/components/shared/StaleBuildBanner.tsx",
+          "version": "repo-file-v1:sha256:0dd0272f6501f09ea95e88103f259408c23c3497e6ab77d5c9ffb2e01999eb07"
+        }
+      ]
+    },
+    {
+      "id": "claim_685c67fb854a4d279469c758ea0ca888",
+      "statement": "The stale-build banner is the proactive complement of the reactive chunk-error handler: the handler reloads only after a lazy chunk already failed, and only after verifying a newer entry asset is reachable via an app-version-check fetch of the current origin.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/lib/chunk-error.ts#L24-L45",
+          "version": "repo-lines-v1:sha256:b5670227edee62aa94a467e6fc89d970a09786c12fcb5fbbbf237c352c3d517a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3MGNkMzYyMTU5ZDEyZTI0NzU1NTJmYjY0ZTQ3OTZjYzU5Y2QxZWEwZTdmMTA1ZTA2YjcwNjc2YTZkOWU4ZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE3NTc0Njk2YjBiNGNkMjFjYzU5M2E1NTA3M2IyMzMyM2I5NDNjMmMzYjBhZjIyN2MzZWEwNGRmNWRmNDA5YTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwY2Y4MzJjYzBmZmYxZjMyODU3YThkODNmNTJkM2IyYTY3N2I2M2IzODc4MWQ5MWVlYmQ0ZjFiNjA3ZGJmY2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2d184aab66ec49af9a9e0b9741bac40c",
+      "statement": "Every confirm and modal surface carries role=dialog + aria-modal=true + an accessible name, and ConfirmDialog deliberately declares role=dialog rather than alertdialog because role-based lookups match exactly — neither CSS [role=dialog] nor testing-library getByRole('dialog') resolves alertdialog — which had made role-based a11y probes blind to every confirm modal; the attribute contract is pinned in UI.overlay.test.tsx and confirm-dialog.test.tsx.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/components/UI.overlay.test.tsx#L208-L254",
+          "version": "repo-lines-v1:sha256:24ccfc177c803aca7811b82627f824da04aad3117718f54d39579a8a084525ff:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzMzA1OTJhOTU5NjJlZGY5MWI5ZmJiMmVmMzI4NjQyMmNmZmZlNjI0YjI2ZGRlZmJlOTIxMDYwMjNhNDAyODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3NzlkMTE4ZDZlM2NiZjQ1MDUzOTc0OGRlZTdhNDMwN2FjYmU2NDQ2Y2JhMjk3ZjI3NjBmYTVkMGJiYTFiYzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://frontend/src/components/confirm-dialog.tsx#L56-L69",
+          "version": "repo-lines-v1:sha256:06e2331ad2b96923cb7a5eb1fd94d4f6bc9b255419a9a381687d5d1089a957c1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3Y2JiNDU1YTZjM2ExYzMxMDY3YzczZGI1YjEwODNkMzE1YTlkNTRjMGU0NmEzZjY4NWQ0YjY0ZjhlNThlMmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRhM2YxYzAyYjQyODYxMzU1NjRmYjMyNjI1YTZmNGUwZmZmNWRhYjA3YzI4ZDQ1ZWNhOWFkNTg3MTJlNDk2ZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5OWEzNmYwYTc1NmY5ZGYzNDZhNjA0NjMyOWMyNGYzODUwN2JkYjM1ZDBlMDJhZmQ2ZGEyZjIyYTU4NjA5MjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzNmMyZTU5OTJhZThlOWNmNzhmNjg0N2VjMTRjYzZiZTI1ODcyODdmNWI1NzYwZDNiYTZmNGYyYWYxMzA4NWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4f430cbda43048498246abc87f76b8b2",
+      "statement": "Segmented datetime fields render one continuous frame per input — the field group owns border, radius, and background, every segment is a borderless centered digit box, and only the trailing trigger inherits the shared control geometry — and the segment group declares min-width: max-content so chained min-width:0 / width:100% wrappers cannot cramp it below the digits' intrinsic width.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/design-system/forms/DateTimeSegments.css#L1-L24",
+          "version": "repo-lines-v1:sha256:6fcfcf18ac7ea31f6dbd06c46a1d4400524363e1eee9288e584ffc9a89a61e8f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzVhZTI0ZTc3M2Y1NGFlMTU1MDY0NTBjNTNkM2Y0ZDVkYzE0ZmNhYzVmZjRhYWI5MDdhMjJjZjllZmVjZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhYzQ1ZWEwODI3ZjVmMmI1NDhiYTNmNjE1NGZjOTI5OTllYjcyZTVmZmRlMWY0YWY5NjEzZTUzMjM0ODllNmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d7163901c1db4ec9b38747fb5b22b968",
+      "statement": "Detail-screen quick filters pack left (filters footer justify-content: flex-start) and every filter and input wrapper runs width:100% + min-width:0, so date fields size from content instead of forcing a horizontal scroll at laptop widths.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css#L51-L64",
+          "version": "repo-lines-v1:sha256:e93c741cde06d0dba696000f7eb1a8a20ea2439f438eb6b567783480ad131c78:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0YjBmOTBlMzYyMjY4ZjNkOWQyNGFmMjlkMzhmMWU4NDMwMDMyNGIzYzBhMTljZWQzYmE4MjI5YTg3MDVhYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkZWIzMDM2MzI3MDAxM2U2ZTAyMGRkZTE3ZjQ3YTVmZGMxYjQ1OTFhOTAxMDhiZDUyNmY0YzQ4MWJiMjhjYjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxNzIzNDA4NTAzZWE3YWNlMWFhMmEwMTdmNTkyMTRiYmEwYTczNjZhZjA5YjQzNjg1NDhmOGU2NzhjZTgxNTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZjkyNjYxZmYwMzFiN2IxZjI0MDdlY2IxMDkzMjIzZmQ2NDUwNjk4ZWZhYzk3N2RiMWUwNjFiNWJiNmIxZGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_daf9dd4d30ff4779a30d1f4e12068535",
+      "statement": "Fuel-price period config surfaces label the value \"Giá dầu (đ/lít)\" / \"Giá dầu theo kỳ\" without the DO unit suffix (2026-09-20 rename); the fuel type is implied by the config context.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx",
+          "version": "repo-file-v1:sha256:cdf31f34b1caa9ab75e2c0abbd08498f7d2b42e0e870c99a142b795a265428d9"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-19T20:52:17.505Z"
+    "at": "2026-09-20T04:11:11.112Z"
   }
 }

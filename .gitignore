@@ -126,3 +126,6 @@ backend/.drizzle-generate.lock.d/
 testplan/qa/evidence/
 # Added by code-review-graph
 .code-review-graph/
+
+# OpenWiki machine run-state (resumable run bookkeeping; pages/claims/indexes are the tracked knowledge)
+openwiki/.run.json

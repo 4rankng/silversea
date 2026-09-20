@@ -1,11 +1,11 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 state of origin/prod (b7a9e4b4)."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 state of origin/prod (06b97179) including frontend build-freshness, dialog a11y, and form layout contracts."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-19T20:52:17.505Z
+    at: 2026-09-20T04:11:11.112Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -47,6 +47,16 @@ sources:
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-1047363cf615000e4c9bb694
     resource: repo://frontend/package.json
+  - id: openwiki-source-454c9bcdde0b77b35e0fc994
+    resource: repo://frontend/src/App.tsx
+  - id: openwiki-source-472ad1b590b610500099dded
+    resource: repo://frontend/src/components/confirm-dialog.tsx
+  - id: openwiki-source-8983de0d62b7ad43b88fe8ed
+    resource: repo://frontend/src/components/shared/StaleBuildBanner.tsx
+  - id: openwiki-source-65b39f1208bfc596ca936ff0
+    resource: repo://frontend/src/components/UI.overlay.test.tsx
+  - id: openwiki-source-aa11da64ee9879d38bc2a7fb
+    resource: repo://frontend/src/design-system/forms/DateTimeSegments.css
   - id: openwiki-source-c2b24497935143d8246afc05
     resource: repo://frontend/src/features/dispatch/master-plan/allocationDayHelpers.ts
   - id: openwiki-source-564940d299e8b46bece798bc
@@ -55,6 +65,14 @@ sources:
     resource: repo://frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx
   - id: openwiki-source-a39f35618da371aac500abf1
     resource: repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx
+  - id: openwiki-source-3cd8eec45a7d817a3965fbd2
+    resource: repo://frontend/src/hooks/useBuildFreshness.ts
+  - id: openwiki-source-79395e5dd2432d131123d5c9
+    resource: repo://frontend/src/lib/chunk-error.ts
+  - id: openwiki-source-a6f1236afb85bf62c18f5389
+    resource: repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx
+  - id: openwiki-source-8563d5234cbb0742f6b8d8a3
+    resource: repo://frontend/src/pages/ShipmentContainersPage.css
   - id: openwiki-source-2df1e682c7dcb9ba56509847
     resource: repo://frontend/src/styles/font-family-contract.test.ts
   - id: openwiki-source-316dfb4c2b43d4800b46fd34
@@ -75,7 +93,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
+generated: { by: "claude-code", at: "2026-09-20T04:11:11.112Z" }
 ---
 
 # Architecture and Codebase Map
@@ -129,9 +147,30 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - **Business keys are the only display identifiers** (ruling 2026-09-19/20): internal DB ids and id-derived codes (SHP-*/GBN-*/#id) never render as user-facing text. Backend derivations live in `backend/src/lib/business-keys.ts` (debit labels read Số Bill/Booking first, số tờ khai second; legacy system-code rows collapse to "—"); the frontend mirror `frontend/src/features/expense-accounting/business-key.ts` guards render-side (`businessKey()` returns null for system-code patterns, `displayKey()` falls back to "—"). Billing export, work-inbox titles, and notification bodies share the same derivation.
 - **Zone surcharges are config data, not code** (2026-09-20): the Bảng 2.2/2.3 zone column reads its label from `zone-surcharge.service.ts` (source ladder OVERRIDE > INCIDENTAL > CONFIG > null); unconfigured lots render "—" in the header, amounts render null → "—", and the Phí khác cell shows both sides (Thu khách + chi hộ) when they differ.
 
+## Frontend interaction and layout contracts
+
+### Build freshness (stale-tab prompt)
+
+- `useBuildFreshness` polls `/api/health` `buildHash` every 60 s against the value fetched at boot. Polling pauses on hidden tabs and re-checks immediately when the tab becomes visible again; it stops permanently once a mismatch is flagged. A failed poll keeps the last-known state — a health blip never fabricates a mismatch (`frontend/src/hooks/useBuildFreshness.ts`).
+- `StaleBuildBanner` renders a faint fixed bottom-left `role="status"` prompt ("Phiên bản mới — tải lại?") that reloads ONLY on click — an in-progress form is never auto-reloaded. It mounts once in `App()` above the route tree, so it covers the login screen and the authenticated shell alike (`frontend/src/components/shared/StaleBuildBanner.tsx`, `frontend/src/App.tsx`).
+- This is the proactive complement of the reactive chunk-error handler, which reloads only after a lazy chunk already failed to load, and even then only after verifying a newer entry asset is actually reachable (`frontend/src/lib/chunk-error.ts`).
+
+### Dialog accessibility probe contract
+
+- Every confirm and modal surface carries `role="dialog"` + `aria-modal="true"` + an accessible name: the shared `Modal` and `Drawer`, `ConfirmDialog`, `OpsModalBackdrop`, the tire dialogs, and `BillingDocumentBuilder`.
+- `ConfirmDialog` deliberately declares `role="dialog"` (not `alertdialog`): role-based lookups match exactly — neither a CSS `[role="dialog"]` selector nor testing-library `getByRole('dialog')` resolves `alertdialog` — so the more specific role had made QA's a11y probes blind to every confirm modal in the app. The attribute contract (role, `aria-modal`, accessible name, `aria-describedby`) is pinned in `frontend/src/components/UI.overlay.test.tsx` and `frontend/src/components/confirm-dialog.test.tsx`.
+
+### Segmented datetime fields and filter bars
+
+- Segmented datetime fields (HH/mm/DD/MM/YYYY) render ONE continuous frame per input: the field group owns border, radius, and background; every segment is a borderless centered digit box, and only the trailing trigger inherits the shared control geometry (`frontend/src/design-system/forms/DateTimeSegments.css`).
+- The segment group declares `min-width: max-content` so the app's chained `min-width: 0` / `width: 100%` flex wrappers cannot cramp it below the digits' intrinsic width (`frontend/src/design-system/forms/DateTimeSegments.css`).
+- Detail-screen quick filters pack left (the filters footer uses `justify-content: flex-start`), and every filter and input wrapper runs `width: 100%` + `min-width: 0` so date fields size from content instead of forcing a horizontal scroll at laptop widths (`frontend/src/pages/ShipmentContainersPage.css`).
+
 ## Pricing and fuel surcharge
 
 The pricing service composes freight, fuel surcharge, and shared financial calculations into one transaction-aware surface. The fuel-surcharge path delegates the math to `@tingting/shared`.
+
+- Fuel-price period config surfaces label the value simply "Giá dầu (đ/lít)" / "Giá dầu theo kỳ" — the 2026-09-20 rename dropped the DO unit suffix from every display label; the fuel type is implied by the config context (`frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx`).
 
 - The shared `computeFuelSurcharge` returns 0 when the base price is unset, when the share percent is non-positive, when quota liters are non-positive, or when the current price does not exceed the base; otherwise the surcharge is `roundInt(round2dp(delta × quotaLiters × sharePct/100))`. Each trip creation snapshots the inputs (`currentFuelPrice`, `baseFuelPrice`, `quotaLiters`, `customerSharePct`) so future price changes do not retroactively rewrite cước đã phát hành.
 - The pricing service is the only place that resolves per-customer share percent and per-config base price; trips persist the resolved numbers so downstream ledger reads never re-resolve.
