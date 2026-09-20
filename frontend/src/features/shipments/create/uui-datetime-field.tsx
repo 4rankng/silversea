@@ -36,7 +36,7 @@ export function UDateTimeField({
       onChange={(next) => onChange(asEvent(next))}
       disabled={disabled}
       error={error}
-      className="csc-uui-field csc-control-boundary"
+      className="csc-uui-field"
     />
   );
 }

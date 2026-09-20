@@ -88,7 +88,7 @@ export function UDateField({
       isInvalid={Boolean(error)}
       hint={error}
       inputProps={{ min }}
-      className="csc-uui-field csc-control-boundary"
+      className="csc-uui-field"
     />
   );
 }
