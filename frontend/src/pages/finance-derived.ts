@@ -14,18 +14,20 @@ export function compactNum(value: number): string {
   return `${(value / 1e3).toFixed(0)}k`;
 }
 
-export function marginPct(grossProfit: number, totalRevenue: number): string {
+export function marginPct(grossProfit: number | null, totalRevenue: number | null): string {
+  if (grossProfit == null || totalRevenue == null) return '—';
   return totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0.0';
 }
 
-export function yoyPct(current: number, previous: number): string {
-  if (previous == null || previous === 0) return current > 0 ? 'Mới' : '—';
+export function yoyPct(current: number | null, previous: number | null): string {
+  if (current == null || previous == null) return '—';
+  if (previous === 0) return current > 0 ? 'Mới' : '—';
   const pct = ((current - previous) / previous * 100).toFixed(1);
   return `${Number(pct) >= 0 ? '+' : ''}${pct}%`;
 }
 
-export function yoyClass(current: number, previous: number): string {
-  if (previous == null) return '';
+export function yoyClass(current: number | null, previous: number | null): string {
+  if (current == null || previous == null) return '';
   return current >= previous ? 'pnl-row__pct--up' : 'pnl-row__pct--down';
 }
 
@@ -45,24 +47,37 @@ interface FinanceDerivedInput {
 }
 
 export function deriveTripCostBreakdown(report?: PnlReport) {
-  const tripDetails = report?.tripDetails ?? [];
+  // Missing source at the CONTAINER level (no report at all) → every display
+  // cell is missing ('—'), never a fabricated 0 (PRD QuyTrinhO2C §7.9: 0
+  // means computed-from-complete-inputs, absent means no source). Arithmetic
+  // that genuinely needs numbers seeds them at the consumption site below.
+  if (!report) {
+    return {
+      fuelCost: null, roadCost: null, driverCost: null, tollAndTicketsCost: null,
+      maintenanceCost: null, fleetDepreciationCost: null, fleetFixedCost: null,
+      otherTripCost: null, companyExpenses: null,
+    };
+  }
+  const tripDetails = report.tripDetails ?? [];
   const fuelCost = tripDetails.reduce((sum, trip) => sum + (trip.fuelOrHireCost ?? 0), 0);
   const roadCost = tripDetails.reduce((sum, trip) => sum + (trip.roadAllowance ?? 0), 0);
   const driverCost = tripDetails.reduce((sum, trip) => sum + (trip.driverAndAllowances ?? 0), 0);
   const tollAndTicketsCost = tripDetails.reduce((sum, trip) => sum + (trip.tollAndCompanyTickets ?? 0), 0);
-  const maintenanceCost = report?.maintenanceExpensesTotal ?? 0;
-  const fleetDepreciationCost = report?.fleetDepreciationTotal ?? 0;
-  const fleetFixedCost = report?.fleetMonthlyFixedCostTotal ?? 0;
-  const companyExpenses = report?.companyExpenses ?? 0;
+  // Field-level missing source on an EXISTING report also propagates: the
+  // backend computed totals are the authoritative sources for these cells.
+  const maintenanceCost = report.maintenanceExpensesTotal ?? null;
+  const fleetDepreciationCost = report.fleetDepreciationTotal ?? null;
+  const fleetFixedCost = report.fleetMonthlyFixedCostTotal ?? null;
+  const companyExpenses = report.companyExpenses ?? null;
   const otherTripCost = Math.round(
-    (report?.totalCosts ?? 0)
+    (report.totalCosts ?? 0)
       - fuelCost
       - roadCost
       - driverCost
       - tollAndTicketsCost
-      - maintenanceCost
-      - fleetDepreciationCost
-      - fleetFixedCost,
+      - (report.maintenanceExpensesTotal ?? 0)
+      - (report.fleetDepreciationTotal ?? 0)
+      - (report.fleetMonthlyFixedCostTotal ?? 0),
   );
   return {
     fuelCost,
@@ -86,7 +101,7 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
       activeCapTable, revenueChartData, costPieData, topTrucks, categoryBreakdown, truckBreakdown,
     } = useMemo(() => {
       const activeTrips = allTrips.filter((t: TripDetail) => t.status !== 'CANCELED');
-      const totalCosts = report?.totalCosts ?? 0;
+      const totalCosts = report?.totalCosts ?? null;
       const {
         fuelCost,
         roadCost,
@@ -99,26 +114,44 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
         companyExpenses,
       } = deriveTripCostBreakdown(report);
 
-      const operatingRevenue = report?.totalRevenue ?? 0;
-      const otherRevenue = report?.otherIncome ?? 0;
-      const externalMargin = report?.externalMarginTotal ?? 0;
-      const serviceMargin = report?.serviceMarginTotal ?? 0;
-      const transRevenue = operatingRevenue - externalMargin - serviceMargin;
-      const totalRevenue = operatingRevenue + otherRevenue;
+      // Field-level missing sources propagate to display cells; arithmetic
+      // that needs numbers seeds them locally (charts, YoY math).
+      const operatingRevenue = report?.totalRevenue ?? null;
+      const otherRevenue = report?.otherIncome ?? null;
+      const externalMargin = report?.externalMarginTotal ?? null;
+      const serviceMargin = report?.serviceMarginTotal ?? null;
+      const transRevenue = operatingRevenue != null && externalMargin != null && serviceMargin != null
+        ? operatingRevenue - externalMargin - serviceMargin
+        : null;
+      const totalRevenue = operatingRevenue != null && otherRevenue != null
+        ? operatingRevenue + otherRevenue
+        : null;
       // totalCosts is already defined above
-      const grossProfit = report?.grossProfit ?? (totalRevenue - totalCosts);
-      const netProfit = report?.netProfit ?? (grossProfit - companyExpenses + otherRevenue);
+      const grossProfit = report?.grossProfit
+        ?? (totalRevenue != null && totalCosts != null ? totalRevenue - totalCosts : null);
+      const netProfit = report?.netProfit
+        ?? (grossProfit != null && companyExpenses != null && otherRevenue != null
+          ? grossProfit - companyExpenses + otherRevenue
+          : null);
 
-      const operatingRevenueLY = prevReport?.totalRevenue ?? 0;
-      const otherRevenueLY = prevReport?.otherIncome ?? 0;
-      const transRevenueLY = operatingRevenueLY
-        - (prevReport?.externalMarginTotal ?? 0)
-        - (prevReport?.serviceMarginTotal ?? 0);
-      const totalRevenueLY = operatingRevenueLY + otherRevenueLY;
-      const totalCostsLY = prevReport?.totalCosts ?? 0;
-      const grossProfitLY = prevReport?.grossProfit ?? (totalRevenueLY - totalCostsLY);
-      const companyExpensesLY = prevReport?.companyExpenses ?? 0;
-      const netProfitLY = prevReport?.netProfit ?? (grossProfitLY - companyExpensesLY + otherRevenueLY);
+      const operatingRevenueLY = prevReport?.totalRevenue ?? null;
+      const otherRevenueLY = prevReport?.otherIncome ?? null;
+      const transRevenueLY = operatingRevenueLY != null
+        && (prevReport?.externalMarginTotal ?? null) != null
+        && (prevReport?.serviceMarginTotal ?? null) != null
+        ? operatingRevenueLY - (prevReport!.externalMarginTotal as number) - (prevReport!.serviceMarginTotal as number)
+        : null;
+      const totalRevenueLY = operatingRevenueLY != null && otherRevenueLY != null
+        ? operatingRevenueLY + otherRevenueLY
+        : null;
+      const totalCostsLY = prevReport?.totalCosts ?? null;
+      const grossProfitLY = prevReport?.grossProfit
+        ?? (totalRevenueLY != null && totalCostsLY != null ? totalRevenueLY - totalCostsLY : null);
+      const companyExpensesLY = prevReport?.companyExpenses ?? null;
+      const netProfitLY = prevReport?.netProfit
+        ?? (grossProfitLY != null && companyExpensesLY != null && otherRevenueLY != null
+          ? grossProfitLY - companyExpensesLY + otherRevenueLY
+          : null);
 
       const activeCapTable = getActiveCapTable(capTableRaw)
         .map(c => ({ name: c.partnerName, pct: c.percentage }));
@@ -130,14 +163,14 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
       }));
 
       const costPieData = [
-        { name: 'Nhiên liệu', value: fuelCost, fill: '#059669' },
-        { name: 'Phụ cấp đường', value: roadCost, fill: '#D97706' },
-        { name: 'Lương lái xe', value: driverCost, fill: '#2563EB' },
-        { name: 'Vé cầu đường · phí công ty', value: tollAndTicketsCost, fill: '#0EA5E9' },
-        { name: 'Chi phí chuyến khác · điều chỉnh', value: otherTripCost, fill: '#64748B' },
-        { name: 'Bảo dưỡng', value: maintenanceCost, fill: '#DC2626' },
-        { name: 'Khấu hao', value: fleetDepreciationCost, fill: '#7C3AED' },
-        { name: 'Cố định đội xe', value: fleetFixedCost, fill: '#0F766E' },
+        { name: 'Nhiên liệu', value: fuelCost ?? 0, fill: '#059669' },
+        { name: 'Phụ cấp đường', value: roadCost ?? 0, fill: '#D97706' },
+        { name: 'Lương lái xe', value: driverCost ?? 0, fill: '#2563EB' },
+        { name: 'Vé cầu đường · phí công ty', value: tollAndTicketsCost ?? 0, fill: '#0EA5E9' },
+        { name: 'Chi phí chuyến khác · điều chỉnh', value: otherTripCost ?? 0, fill: '#64748B' },
+        { name: 'Bảo dưỡng', value: maintenanceCost ?? 0, fill: '#DC2626' },
+        { name: 'Khấu hao', value: fleetDepreciationCost ?? 0, fill: '#7C3AED' },
+        { name: 'Cố định đội xe', value: fleetFixedCost ?? 0, fill: '#0F766E' },
       ].filter(d => d.value > 0.5);
 
       const categoryBreakdown: Array<{ categoryName: string; total: number }> =

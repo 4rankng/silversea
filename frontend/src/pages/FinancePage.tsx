@@ -96,7 +96,7 @@ export default function FinancePage() {
   const allocatedFleetFixedCostTotal = report?.allocatedFleetFixedCostTotal ?? 0;
   const unallocatedFleetFixedCostTotal = report?.unallocatedFleetFixedCostTotal ?? 0;
   const currentPolicy = report?.financialPolicy ?? null;
-  const showFleetCostColumns = fleetDepreciationCost + fleetFixedCost > 0;
+  const showFleetCostColumns = (fleetDepreciationCost ?? 0) + (fleetFixedCost ?? 0) > 0;
 
   const tripDetailsByTruck = useMemo(() => {
     return groupFinanceTripDetails(allTrips, report?.tripDetails);
@@ -160,19 +160,19 @@ export default function FinancePage() {
               if (!report) return;
               const headers = ['Khoản mục', `Tháng ${String(month).padStart(2,'0')}/${year}`, `Tháng ${String(month).padStart(2,'0')}/${year - 1}`];
               const rows = [
-                ['Doanh thu vận tải', transRevenue, transRevenueLY],
-                ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? 0, prevReport?.externalMarginTotal ?? 0],
-                ['Thu nhập khác', otherRevenue, otherRevenueLY],
-                ['Tổng doanh thu', totalRevenue, totalRevenueLY],
-                ['Nhiên liệu', fuelCost, ''],
-                ['Tiền đi đường', roadCost, ''],
-                ['Lương lái xe', driverCost, ''],
-                ['Khấu hao đội xe', fleetDepreciationCost, prevReport?.fleetDepreciationTotal ?? 0],
-                ['Chi phí cố định đội xe', fleetFixedCost, prevReport?.fleetMonthlyFixedCostTotal ?? 0],
-                ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? 0],
-                ['Tổng chi phí vận hành', totalCosts, totalCostsLY],
-                ['Lợi nhuận gộp', grossProfit, grossProfitLY],
-                ['Lợi nhuận ròng', netProfit, netProfitLY],
+                ['Doanh thu vận tải', transRevenue ?? '—', transRevenueLY ?? '—'],
+                ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? '—', prevReport?.externalMarginTotal ?? '—'],
+                ['Thu nhập khác', otherRevenue ?? '—', otherRevenueLY ?? '—'],
+                ['Tổng doanh thu', totalRevenue ?? '—', totalRevenueLY ?? '—'],
+                ['Nhiên liệu', fuelCost ?? '—', ''],
+                ['Tiền đi đường', roadCost ?? '—', ''],
+                ['Lương lái xe', driverCost ?? '—', ''],
+                ['Khấu hao đội xe', fleetDepreciationCost ?? '—', prevReport?.fleetDepreciationTotal ?? '—'],
+                ['Chi phí cố định đội xe', fleetFixedCost ?? '—', prevReport?.fleetMonthlyFixedCostTotal ?? '—'],
+                ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? '—'],
+                ['Tổng chi phí vận hành', totalCosts ?? '—', totalCostsLY ?? '—'],
+                ['Lợi nhuận gộp', grossProfit ?? '—', grossProfitLY ?? '—'],
+                ['Lợi nhuận ròng', netProfit ?? '—', netProfitLY ?? '—'],
               ];
               await downloadCSV(`bao-cao-lai-lo-${String(month).padStart(2, '0')}-${String(year).slice(-2)}.csv`, headers, rows, {
                 title: 'BÁO CÁO LÃI LỖ',
@@ -510,7 +510,7 @@ export default function FinancePage() {
               <div className="pnl-row__yoy">—</div><div className="pnl-row__pct">—</div>
             </div>
 
-            {maintenanceCost > 0 && (
+            {(maintenanceCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Bảo dưỡng &amp; sửa chữa
@@ -521,7 +521,7 @@ export default function FinancePage() {
             </div>
             )}
 
-            {fleetDepreciationCost > 0 && (
+            {(fleetDepreciationCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Khấu hao đội xe
@@ -530,14 +530,14 @@ export default function FinancePage() {
                 </div>
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetDepreciationCost)}</div>
-              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetDepreciationTotal ?? 0) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? 0) : ''}`}>
-                {prevReport ? yoyPct(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? 0) : '—'}
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetDepreciationTotal ?? null) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null) : ''}`}>
+                {prevReport ? yoyPct(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null) : '—'}
               </div>
             </div>
             )}
 
-            {fleetFixedCost > 0 && (
+            {(fleetFixedCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Chi phí cố định đội xe
@@ -546,9 +546,9 @@ export default function FinancePage() {
                 </div>
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetFixedCost)}</div>
-              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetMonthlyFixedCostTotal ?? 0) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? 0) : ''}`}>
-                {prevReport ? yoyPct(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? 0) : '—'}
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null) : ''}`}>
+                {prevReport ? yoyPct(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}
               </div>
             </div>
             )}
@@ -569,7 +569,7 @@ export default function FinancePage() {
               <div className={`pnl-row__pct ${prevReport ? yoyClass(grossProfit, grossProfitLY) : ''}`}>{prevReport ? yoyPct(grossProfit, grossProfitLY) : '—'}</div>
             </div>
 
-            {companyExpenses > 0 && (
+            {(companyExpenses ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Chi phí công ty
@@ -581,7 +581,7 @@ export default function FinancePage() {
             </div>
             )}
 
-            {companyExpenses > 0 && (
+            {(companyExpenses ?? 0) > 0 && (
               <div className="pnl-row pnl-row--subtotal">
                 <div className="pnl-row__label">Tổng chi phí hoạt động</div>
                 <div className="pnl-row__amount">{formatNumber(companyExpenses)}</div>
@@ -604,7 +604,7 @@ export default function FinancePage() {
           <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: '14px 0 24px', lineHeight: 1.5 }}>
             * Lợi nhuận ròng kế toán: <strong>{formatNumber(netProfit)} ₫</strong>.
             {activeCapTable.length > 0
-              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit * p.pct / 100)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
+              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit != null ? netProfit * p.pct / 100 : null)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
               : ' Chưa cấu hình bảng cổ phần.'
             }{' '}
             <Link to='/profit'
@@ -764,7 +764,7 @@ export default function FinancePage() {
                             <SortHeader label="Chưa phân bổ" sortKey="unallocatedFleetFixedCost" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                           </>
                         )}
-                        {maintenanceCost > 0 && (
+                        {(maintenanceCost ?? 0) > 0 && (
                           <>
                             <SortHeader label="BD đầu kéo" sortKey="maintTruck" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                             <SortHeader label="BD rơ-mooc" sortKey="maintTrailer" sort={truckSort} onSortChange={handleTruckSort} className="num" />
@@ -804,7 +804,7 @@ export default function FinancePage() {
                                   <td data-label="Chưa phân bổ" className="num">{t.unallocatedFleetFixedCost > 0 ? formatNumber(t.unallocatedFleetFixedCost) : '—'}</td>
                                 </>
                               )}
-                              {maintenanceCost > 0 && (
+                              {(maintenanceCost ?? 0) > 0 && (
                                 <>
                                   <td data-label="BD đầu kéo" className="num">{maintComp.truck > 0 ? formatNumber(maintComp.truck) : '—'}</td>
                                   <td data-label="BD rơ-mooc" className="num">{maintComp.trailer > 0 ? formatNumber(maintComp.trailer) : '—'}</td>
@@ -816,7 +816,7 @@ export default function FinancePage() {
                             </tr>
                             {isExpanded && (
                               <tr id={`truck-details-${t.id}`} className="truck-details-row">
-                                <td data-label="" colSpan={(maintenanceCost > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
+                                <td data-label="" colSpan={((maintenanceCost ?? 0) > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
                                   <div className="truck-details-panel">
                                     <div className="truck-details-panel__intro">
                                       <span><strong>{tripDetails.length}/{t.trips}</strong> lệnh trong kỳ</span>
