@@ -23,8 +23,8 @@ local:
     DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
     OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
-    DRIVER:      38 named drivers (no Mã NV) — e.g. bqhuong, btdung,
-                 vvtrung, tvtham; every one logs in with username + Abc123
+    DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
+                 (no Mã NV); every one logs in with username + Abc123
 
 staging:
   baseUrl: https://vantai.tingting.vip
@@ -45,8 +45,8 @@ staging:
     DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
     OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
-    DRIVER:      38 named drivers (no Mã NV) — e.g. bqhuong, btdung,
-                 vvtrung, tvtham; every one logs in with username + Abc123
+    DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
+                 (no Mã NV); every one logs in with username + Abc123
   # API notes for scripted testing (learned 2026-09-06):
   #   - POST /api/auth/login takes {"identifier", "password"} — "username"
   #     field gets 400. Identifier may be username, email, or phone.

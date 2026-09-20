@@ -23,7 +23,7 @@ export default async function (ctx) {
   // ── Step 1: Find a route with a road_allowance for exactly one trailer type ──
   const routesRes = await api.get('/api/routes');
   if (!routesRes.ok) return { verdict: 'BLOCKED', errors: ['Cannot fetch routes'] };
-  const routes = routesRes.data;
+  const routes = routesRes.data.items;
 
   let targetRoute = null;
   let typeWithRate = null;
@@ -32,7 +32,7 @@ export default async function (ctx) {
   for (const route of routes) {
     const allowancesRes = await api.get(`/api/road-allowances?routeId=${route.id}`);
     if (!allowancesRes.ok) continue;
-    const allowances = allowancesRes.data;
+    const allowances = allowancesRes.data.items;
     const types = allowances.map((a) => a.trailerType);
 
     if (types.includes('20FT') && !types.includes('40FT')) {

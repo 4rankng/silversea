@@ -16,8 +16,8 @@ async function main() {
   const roles = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'CUS', 'DISPATCHER', 'DRIVER', 'OPS'];
   for (const role of roles) {
     const u = env.userFor(role);
-    // Skip usernames that don't look like real accounts (the DRIVER line has
-    // a prose description, not a username — its first token is "38").
+    // Defensive: env's parser filters prose-prefix tokens, but a hand-edited
+    // testaccounts line could still land a non-username here — skip it.
     const looksLikeUsername = u && /^[a-z][a-z0-9-]+$/i.test(u);
     if (!u || !looksLikeUsername) {
       console.log(`  ${role}: -- no users in env ${env.env} (likely local-only role)`);

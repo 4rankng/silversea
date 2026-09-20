@@ -113,6 +113,29 @@ export async function createSession({ env, role, evidenceDir, runId }) {
       return { status: r.status, body: (() => { try { return JSON.parse(text); } catch { return text; } })() };
     },
 
+    // Write-capable API client for cases that create or mutate fixtures
+    // (ctx.apiGet stays read-only). Returns the fetch-like shape cases
+    // expect ({ok, status, data}). Paths may carry a leading "/api" —
+    // env.api already ends in /api, so it is stripped to avoid doubling.
+    api: {
+      async _call(method, path, body) {
+        const clean = path.startsWith('/api/') ? path.slice(4) : path;
+        const r = await fetch(`${env.api.replace(/\/$/, '')}/${clean.replace(/^\//, '')}`, {
+          method,
+          headers: { Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+        const text = await r.text();
+        const data = (() => { try { return JSON.parse(text); } catch { return text; } })();
+        return { ok: r.ok, status: r.status, data };
+      },
+      get(path) { return this._call('GET', path); },
+      post(path, body) { return this._call('POST', path, body); },
+      put(path, body) { return this._call('PUT', path, body); },
+      patch(path, body) { return this._call('PATCH', path, body); },
+      delete(path) { return this._call('DELETE', path); },
+    },
+
     async snapshotShipment(id) {
       return await this.apiGet(`/shipments/${id}`);
     },
