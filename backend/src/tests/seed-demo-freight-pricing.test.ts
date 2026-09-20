@@ -7,26 +7,13 @@ import * as s from '../db/schema';
 import { seedDemoFreightPricing } from '../seed/seed-demo-freight-pricing';
 import { resolveFreightRate } from '../services/freight-pricing-engine.service';
 
-// D4 demo-pricing seed: converges the LONG MINH demo chain (15T base prices,
-// threshold modes, lag) and leaves foreign fixture rows alone. Runs against
-// the shared dev DB — the module is idempotent, so a second invocation must
-// change nothing (the "converges" contract).
+// D4 demo-pricing seed: converges the LONG MINH demo chain (threshold modes,
+// lag, norms, anchors) and leaves foreign fixture rows alone. Since the
+// 2026-09-20 NO-SEED ruling (card 20260920_29) the seed leaves the 15T rung
+// blank — the engine must answer MANUAL for 15T exactly like prod.
 const CANONICAL_CLASS_CODES = ['1.25T', '2.5T', '3.5T', '5T', '8T', '10T', '15T', 'CONT20', 'CONT40'];
 const ROUTE_NAMES = ['Hải Phòng-NEWEB', 'ASKEY', 'SUNRISE+  SJ'] as const;
 const LONG_MINH_NAME = 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH';
-
-const EXPECTED_15T_PRICE: Record<string, string> = {
-  'Hải Phòng-NEWEB': '3500000',
-  'ASKEY': '3400000',
-  'SUNRISE+  SJ': '3500000',
-};
-
-// base price × (1 + sharePct/100)
-const EXPECTED_15T_FREIGHT: Record<string, number> = {
-  'Hải Phòng-NEWEB': 3_570_000,   // 3.5M × 1.02
-  'ASKEY': 3_536_000,             // 3.4M × 1.04
-  'SUNRISE+  SJ': 3_587_500,      // 3.5M × 1.025
-};
 
 let customerId = 0;
 const routeIds: Record<string, number> = {};
@@ -61,12 +48,12 @@ describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
     await client.end();
   });
 
-  test('converges idempotently — two runs, one row set', async () => {
+  test('converges idempotently and leaves NO active 15T rows (NO-SEED)', async () => {
     await seedDemoFreightPricing();
     await seedDemoFreightPricing();
 
-    // Exactly one 15T row per route (revive must not duplicate), active,
-    // on the matrix rung, with the DEMO ladder price.
+    // Two runs must not create 15T rows — invented ladder prices read as real
+    // contract data (card 20260920_29). Any 15T row here would be a regression.
     const rows15T = await db.select({
       routeId: s.pricingTables.routeId,
       price: s.pricingTables.price,
@@ -77,13 +64,8 @@ describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
         eq(s.pricingTables.rateKey, '15T'),
         eq(s.pricingTables.effectiveDate, '2026-07-30'),
       ));
-    assert.equal(rows15T.length, ROUTE_NAMES.length, JSON.stringify(rows15T));
-    for (const name of ROUTE_NAMES) {
-      const row = rows15T.find((r) => r.routeId === routeIds[name]);
-      assert.ok(row, `15T row for ${name}`);
-      assert.equal(row.price, EXPECTED_15T_PRICE[name], `${name} DEMO 15T price`);
-      assert.equal(row.deletedAt, null, `${name} 15T row must be active`);
-    }
+    const active15T = rows15T.filter((r) => r.deletedAt === null);
+    assert.equal(active15T.length, 0, JSON.stringify(rows15T));
   });
 
   test('terms carry the D4 demo knobs: lag 1/0/0, all 3 threshold modes', async () => {
@@ -117,7 +99,7 @@ describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
     }
   });
 
-  test('engine resolves 15T as AUTO on all 3 demo routes', async () => {
+  test('engine resolves 15T as MANUAL (missing base price) on all 3 routes', async () => {
     const transportDate = new Date().toISOString().slice(0, 10);
     for (const name of ROUTE_NAMES) {
       const result = await resolveFreightRate({
@@ -126,21 +108,13 @@ describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
         vehicleSizeClassCode: '15T',
         transportDate,
       });
-      // 20260917_11: ASKEY (lag unconfirmed per PRD) and SUNRISE+SJ (lag AND
-      // threshold unconfirmed) no longer auto-apply a fuel period as if the
-      // grounds were complete — the engine flags them MANUAL with the exact
-      // missing grounds. NEWEB (confirmed lag + 5% threshold) stays AUTO.
-      const confirmedRoute = name === 'Hải Phòng-NEWEB';
-      if (confirmedRoute) {
-        assert.equal(result.source, 'AUTO', `${name}: ${result.formula}`);
-        assert.equal(Number(result.freight), EXPECTED_15T_FREIGHT[name], `${name} freight`);
-        // Fuel is well above the base price, so the threshold adjusts.
-        assert.ok(Number(result.surcharge) > 0, `${name} surcharge must be positive`);
-        assert.ok(result.formula.length > 0, `${name} formula trace`);
-      } else {
-        assert.equal(result.source, 'MANUAL', `${name}: ${result.formula}`);
-        assert.match(result.formula, /Thiếu căn cứ phụ phí dầu/);
-      }
+      // NO-SEED: the 15T rung is blank everywhere, so the engine answers
+      // MANUAL with the missing-base-price reason on every environment —
+      // exactly like prod (PRD CuocPhiPhuPhiDau §5: missing data, not
+      // policy). The lag/threshold MANUAL paths keep their own pins in the
+      // surcharge-threshold-confirmation suite.
+      assert.equal(result.source, 'MANUAL', `${name}: ${result.formula}`);
+      assert.match(result.formula, /Thiếu giá gốc cho 15T/);
     }
   });
 

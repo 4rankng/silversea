@@ -27,17 +27,16 @@
  *        ASKEY           : lag 0, threshold 1,500 VNĐ/l (abs mode)
  *        SUNRISE+  SJ    : lag 0, threshold NULL (always adjust)
  *      → all three threshold modes demoable on real routes.
- *   5. pricing_tables 15T rungs — the customer Excel leaves 15T blank
- *      (engine falls back to MANUAL by design). DEMO ladder-consistent
- *      prices fill the gap: 10T + half of the 10T→CONT20 gap per route:
- *        Hải Phòng-NEWEB : 3,500,000  (10T 3.1M / CONT20 3.9M)
- *        ASKEY           : 3,400,000  (10T 3.0M / CONT20 3.8M)
- *        SUNRISE+  SJ    : 3,500,000  (10T 3.1M / CONT20 3.9M)
+ *   5. (removed 2026-09-20, card 20260920_29 NO-SEED ruling) pricing_tables
+ *      15T rungs are NO LONGER seeded — invented ladder-consistent 15T prices
+ *      read as real contract data on dev/staging (QA, 2026-09-20). The engine
+ *      now returns MANUAL 'missing base price' exactly like prod on any env
+ *      where UAT validates against the PRD (CuocPhiPhuPhiDau.md §5: missing
+ *      data, not policy). A real customer 15T price is entered through the
+ *      config UI like any other contract rung.
  *
- * DEMO provenance: pricing_tables has no note column, so the 15T rows are
- * flagged here, in the seeding commit message, and on the terms rows' note.
- * The demo 15T rows share the customer's matrix effective date so a future
- * real price entered with a later date supersedes them naturally.
+ * DEMO provenance: pricing_tables has no note column, so the D4 threshold
+ * demo on the terms rows is flagged here and on the terms rows' note.
  *
  * Test fixtures (FreightEng/DBG rows, suffixed classes and periods) never
  * match these natural keys and are left for QA's cleanup lane.
@@ -49,9 +48,8 @@ import { pricing } from './data/index.js';
 
 const LONG_MINH_NAME = 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH';
 
-// Matches the customer's matrix rung (seedPricingTables EFFECTIVE_DATE) so the
-// demo 15T row lives on the same timeline; a blank-Excel re-extract soft
-// deletes it and the next full seed converges it back (revive pattern).
+// Matches the customer's matrix rung (seedPricingTables EFFECTIVE_DATE) for
+// the anchor rungs below.
 const PRICE_EFFECTIVE_DATE = '2026-07-30';
 // The D3 defaults rung the live terms rows already carry.
 const TERMS_EFFECTIVE_DATE = '2026-09-09';
@@ -132,13 +130,6 @@ const TERMS_BY_ROUTE = [
 
 const BASE_FUEL_PRICE = '17842.5926';
 
-// DEMO 15T prices — ladder-consistent: 10T + half the 10T→CONT20 gap.
-const DEMO_15T_PRICE_BY_ROUTE: Record<string, number> = {
-  'Hải Phòng-NEWEB': 3_500_000,
-  'ASKEY': 3_400_000,
-  'SUNRISE+  SJ': 3_500_000,
-};
-
 // The 3 pricing routes as canonical reference rows (seed/data/reference.ts
 // shape). Ensured insert-if-missing so the demo chain also converges on a
 // staging DB that mirrors prod master data (which never ran the dev
@@ -178,7 +169,6 @@ export async function seedDemoFreightPricing(): Promise<void> {
   const routeIdByName = new Map(routeRows.map((r) => [r.name, r.id]));
 
   await convergeFreightRateTerms(customer.id, routeIdByName);
-  await convergeDemo15TPrices(customer.id, routeIdByName);
 }
 
 // ─── Step 1: vehicle size classes (ensure-if-missing) ───────────────────────
@@ -276,7 +266,8 @@ async function ensurePricingRoutes(): Promise<void> {
 // On dev these belong to seedPricingTables; on staging (prod mirror) nobody
 // seeds them, so the DEMO 15T rungs would hang off a ladder with no anchors.
 // Insert-if-missing only — existing rows are never touched, and the blank
-// 15T cells stay with the demo step below.
+// 15T cells stay blank: the engine answers MANUAL exactly like prod
+// (card 20260920_29, NO-SEED ruling).
 async function ensureAnchorPricingRungs(customerId: number): Promise<void> {
   const routeRows = await db.select({ id: s.routes.id, name: s.routes.name })
     .from(s.routes)
@@ -352,45 +343,6 @@ async function convergeFreightRateTerms(customerId: number, routeIdByName: Map<s
     }
   }
   console.log(`✅ Freight rate terms converged! (${TERMS_BY_ROUTE.length} routes; lag 1/0/0, thresholds 5% / 1500đ/l / none)`);
-}
-
-// ─── Step 5: DEMO 15T base prices (revive-or-insert on the matrix rung) ─────
-async function convergeDemo15TPrices(customerId: number, routeIdByName: Map<string, number>): Promise<void> {
-  for (const [routeName, price] of Object.entries(DEMO_15T_PRICE_BY_ROUTE)) {
-    const routeId = routeIdByName.get(routeName);
-    if (routeId == null) {
-      throw new Error(`Không tìm thấy tuyến đường để nạp giá 15T demo: ${routeName}`);
-    }
-    // Same lookup shape as seedPricingTables — includes soft-deleted rows so
-    // a blank-Excel re-extract sweep (15T basePrice 0 ⇒ withhold+delete)
-    // converges back to the demo price on the next run.
-    const [existing] = await db.select({ id: s.pricingTables.id })
-      .from(s.pricingTables)
-      .where(and(
-        eq(s.pricingTables.customerId, customerId),
-        eq(s.pricingTables.routeId, routeId),
-        eq(s.pricingTables.rateKey, '15T'),
-        eq(s.pricingTables.effectiveDate, PRICE_EFFECTIVE_DATE),
-        isNull(s.pricingTables.containerTypeId),
-      ))
-      .limit(1);
-    const values = {
-      customerId,
-      routeId,
-      price: String(price),
-      rateKey: '15T',
-      effectiveDate: PRICE_EFFECTIVE_DATE,
-      deletedAt: null,
-      updatedAt: new Date(),
-    };
-    if (existing) {
-      await db.update(s.pricingTables).set(values)
-        .where(eq(s.pricingTables.id, existing.id));
-    } else {
-      await db.insert(s.pricingTables).values(values);
-    }
-  }
-  console.log(`✅ DEMO 15T base prices converged! (${Object.keys(DEMO_15T_PRICE_BY_ROUTE).length} routes @ ${PRICE_EFFECTIVE_DATE} — DEMO, replace with real customer prices)`);
 }
 
 // CLI entry — standalone application on staging after a deploy/stgdb cycle.
