@@ -28,7 +28,6 @@ let targetId: number;
 let otherId: number;
 let tombstonedId: number;
 let adminToken: string;
-let managerToken: string;
 let dispatcherToken: string;
 let customerRoleToken: string;
 let cskhToken: string;
@@ -108,7 +107,6 @@ before(async () => {
     config.jwtSecret,
   );
   adminToken = mint(users[0].id, users[0].username!, users[0].role);
-  managerToken = mint(users[1].id, users[1].username!, users[1].role);
   dispatcherToken = mint(users[2].id, users[2].username!, users[2].role);
   cskhToken = mint(users[3].id, users[3].username!, users[3].role);
   customerRoleToken = mint(users[4].id, users[4].username!, users[4].role, targetId);
@@ -290,7 +288,7 @@ describe('customers screen bulk status (lock/unlock)', () => {
       body: { customerIds: [targetId, tombstonedId], status: 'LOCKED' },
     });
     assert.equal(lock.status, 200);
-    let body = lock.body as { requested: number; updated: number; skipped: number; status: string };
+    const body = lock.body as { requested: number; updated: number; skipped: number; status: string };
     assert.equal(body.requested, 2);
     assert.equal(body.updated, 1);
     assert.equal(body.skipped, 1);
@@ -323,7 +321,7 @@ describe('customers screen bulk status: replay + RBAC', () => {
       body: { customerIds: [otherId], status: 'LOCKED' },
     });
     assert.equal(lock.status, 200);
-    let body = lock.body as { updated: number };
+    const body = lock.body as { updated: number };
     assert.equal(body.updated, 1);
     const replay = await request('/api/customers/bulk-status', {
       method: 'POST',
@@ -332,7 +330,7 @@ describe('customers screen bulk status: replay + RBAC', () => {
       body: { customerIds: [otherId], status: 'LOCKED' },
     });
     assert.equal(replay.status, 200);
-    let rbody = replay.body as { updated: number };
+    const rbody = replay.body as { updated: number };
     assert.equal(rbody.updated, 1);
     const [row] = await db.select({ status: s.customers.status }).from(s.customers).where(eq(s.customers.id, otherId));
     assert.equal(row?.status, 'LOCKED');
