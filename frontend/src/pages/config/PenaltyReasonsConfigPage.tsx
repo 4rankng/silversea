@@ -12,6 +12,7 @@ import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/pe
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { EmptyState } from '../../design-system';
 
 /* ─── Page-scoped styles ─── */
 const pageStyles = `
@@ -457,17 +458,12 @@ export default function PenaltyReasonsConfigPage() {
           <div>Đang tải dữ liệu...</div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="empty-state">
-          <img
-            src={resolveEmptyIllustration('empty-penalties')}
-            alt=""
-            aria-hidden="true"
-            style={{ width: 160, height: 132, objectFit: 'contain' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-          <p className="empty-state-title">Không tìm thấy lỗi vi phạm</p>
-          <p className="empty-state-desc">Thử từ khóa khác hoặc thay đổi bộ lọc.</p>
-        </div>
+        <EmptyState
+          variant="compact"
+          illustration="empty-penalties"
+          title="Không tìm thấy lỗi vi phạm"
+          description="Thử từ khóa khác hoặc thay đổi bộ lọc."
+        />
       ) : (
         <div className="pr-grid">
           {filteredItems.map((d, i) => {

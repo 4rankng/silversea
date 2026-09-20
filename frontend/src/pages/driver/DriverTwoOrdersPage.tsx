@@ -19,6 +19,7 @@ import { usePageAnimations } from '../../hooks/animations';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { formatDate } from '../../lib/format';
 import './DriverSecondaryPages.css';
+import { EmptyState } from '../../design-system';
 
 interface TripSummary {
   id: number;
@@ -95,14 +96,16 @@ export default function DriverTwoOrdersPage() {
   if (error) return (
     <div className="driver-secondary-page">
       <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi.</p>
-        <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+      <EmptyState
+        role="alert"
+        variant="compact"
+        icon={AlertTriangle}
+        title={error}
+        description="Hệ thống tạm thời không phản hồi."
+        action={<button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
           {isFetching ? 'Đang tải…' : 'Thử lại'}
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -118,11 +121,12 @@ export default function DriverTwoOrdersPage() {
   if (!view || (!hasPersistedPair && allToday.length === 0)) return (
     <div className="driver-secondary-page">
       <PageHeader title={pageTitle} description={pageDescription} />
-      <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        <h3 className="empty-state-title">Hôm nay không có lệnh</h3>
-        <p className="empty-state-desc">Bạn chưa được phân công lệnh nào cho hôm nay.</p>
-      </div>
+      <EmptyState
+        variant="compact"
+        illustration="empty-trips"
+        title="Hôm nay không có lệnh"
+        description="Bạn chưa được phân công lệnh nào cho hôm nay."
+      />
     </div>
   );
 

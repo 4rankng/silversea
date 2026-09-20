@@ -13,6 +13,7 @@ import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import './DriverSecondaryPages.css';
+import { EmptyState } from '../../design-system';
 
 interface PayslipEarnings {
   salarySnapshotState?: 'LIVE' | 'CONFIRMED' | 'UNAVAILABLE';
@@ -139,14 +140,16 @@ export default function DriverPayslipsPage() {
   if (error) return (
     <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi.</p>
-        <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+      <EmptyState
+        role="alert"
+        variant="compact"
+        icon={AlertTriangle}
+        title={error}
+        description="Hệ thống tạm thời không phản hồi."
+        action={<button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
           {isFetching ? 'Đang tải…' : 'Thử lại'}
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -155,11 +158,12 @@ export default function DriverPayslipsPage() {
   if (items.length === 0) return (
     <div className="driver-secondary-page">
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
-      <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        <h3 className="empty-state-title">Chưa có kỳ lương nào</h3>
-        <p className="empty-state-desc">Bảng lương sẽ xuất hiện ở đây khi kế toán chốt kỳ.</p>
-      </div>
+      <EmptyState
+        variant="compact"
+        illustration="empty-trips"
+        title="Chưa có kỳ lương nào"
+        description="Bảng lương sẽ xuất hiện ở đây khi kế toán chốt kỳ."
+      />
     </div>
   );
 

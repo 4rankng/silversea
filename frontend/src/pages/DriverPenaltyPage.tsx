@@ -7,6 +7,7 @@ import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
 import { UuiSelectField } from '../design-system';
 import './DriverPenaltyPage.css';
+import { EmptyState } from '../design-system';
 
 interface DriverPenaltyRow {
   id: number;
@@ -81,18 +82,20 @@ export default function DriverPenaltyPage() {
   if (loadError) return (
     <div className="driver-penalty-page">
       <PageHeader title="Kỷ luật của tôi" description="Lịch sử vi phạm và khấu trừ lương của bạn" iconName="alert" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">Không thể tải biên bản vi phạm</h3>
-        <button
+      <EmptyState
+        role="alert"
+        variant="compact"
+        icon={AlertTriangle}
+        title="Không thể tải biên bản vi phạm"
+        action={<button
           type="button"
           className="btn btn--secondary btn--sm"
           onClick={() => void refetch()}
           disabled={isFetching}
         >
           Thử lại
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
