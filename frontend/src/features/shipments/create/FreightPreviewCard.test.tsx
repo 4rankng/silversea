@@ -48,10 +48,43 @@ describe('FreightPreviewCard', () => {
     expect(container.textContent).toContain('5.071.744 đ');
   });
 
-  it('renders MANUAL state text', () => {
-    mockHook.mockReturnValue({ data: { ...autoResult, source: 'MANUAL' }, isPending: false } as never);
+  it('renders the engine reason for a missing base price (15T) — never the old hardcoded line', () => {
+    mockHook.mockReturnValue({
+      data: { ...autoResult, source: 'MANUAL', freight: 0, surcharge: 0, total: 0, formula: 'Thiếu căn cứ tính cước: thiếu giá gốc theo khối lượng 15T — nhập tay.' },
+      isPending: false,
+    } as never);
     const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
     expect(container.querySelector('[data-freight-preview="manual"]')).not.toBeNull();
-    expect(container.textContent).toContain('Thiếu giá gốc — nhập tay');
+    expect(container.textContent).toContain('thiếu giá gốc theo khối lượng 15T');
+    expect(container.textContent).not.toContain('Thiếu giá gốc — nhập tay');
+  });
+
+  it('renders the engine reason for an unconfirmed fuel lag (ASKEY case)', () => {
+    mockHook.mockReturnValue({
+      data: { ...autoResult, source: 'MANUAL', freight: 0, surcharge: 0, total: 0, formula: 'Thiếu căn cứ phụ phí dầu: độ trễ giá dầu chưa được xác nhận — cần người có thẩm quyền chốt.' },
+      isPending: false,
+    } as never);
+    const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
+    expect(container.textContent).toContain('độ trễ giá dầu chưa được xác nhận');
+    expect(container.textContent).not.toContain('Thiếu giá gốc — nhập tay');
+  });
+
+  it('renders the engine reason for an unconfirmed fuel threshold (SUNRISE + SJ case)', () => {
+    mockHook.mockReturnValue({
+      data: { ...autoResult, source: 'MANUAL', freight: 0, surcharge: 0, total: 0, formula: 'Thiếu căn cứ phụ phí dầu: ngưỡng biến động giá dầu chưa được khách chốt; độ trễ giá dầu chưa được xác nhận — cần người có thẩm quyền chốt.' },
+      isPending: false,
+    } as never);
+    const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
+    expect(container.textContent).toContain('ngưỡng biến động giá dầu chưa được khách chốt');
+    expect(container.textContent).not.toContain('Thiếu giá gốc — nhập tay');
+  });
+
+  it('never renders a 0 đ amount in the MANUAL state (PRD CuocPhiPhuPhiDau §5, §11.1)', () => {
+    mockHook.mockReturnValue({
+      data: { ...autoResult, source: 'MANUAL', freight: 0, surcharge: 0, total: 0, formula: 'Thiếu căn cứ tính cước: thiếu giá gốc theo khối lượng 15T — nhập tay.' },
+      isPending: false,
+    } as never);
+    const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
+    expect(container.querySelector('[data-freight-preview="manual"]')?.textContent).not.toMatch(/0 đ/);
   });
 });
