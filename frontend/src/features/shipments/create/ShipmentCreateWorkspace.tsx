@@ -113,8 +113,9 @@ export function ShipmentCreateWorkspace() {
   });
   // Container-row target for the route dialog (null = the LCL form-level field).
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
+  const [routeDialogInitialName, setRouteDialogInitialName] = useState('');
   // Port dialog + which container cell asked for it.
-  const [portDialog, setPortDialog] = useState<{ open: boolean; target: { key: string; field: 'pickupPortId' | 'dropoffPortId' } | null }>({ open: false, target: null });
+  const [portDialog, setPortDialog] = useState<{ open: boolean; target: { key: string; field: 'pickupPortId' | 'dropoffPortId'; name: string } | null }>({ open: false, target: null });
   // Container-type dialog — extracted to useContainerTypeCreate so the
   // workspace stays under its frozen ceiling (structure guard ratchet).
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
@@ -341,6 +342,7 @@ export function ShipmentCreateWorkspace() {
   function closeRouteDialog() {
     setRouteDialogOpen(false);
     setRouteDialogTargetKey(null);
+    setRouteDialogInitialName('');
     queueMicrotask(() => routeAddButtonRef.current?.focus());
   }
 
@@ -876,17 +878,18 @@ export function ShipmentCreateWorkspace() {
                         allowsCustomValue={form.isAdHoc}
                         {...(form.isAdHoc ? { onCustomValue: (text: string) => containerRouteCustomText(row.key, text) } : {})}
                         popoverPlacement="top"
+                      
+                        createOption={{
+                          label: (typed) => (typed.trim() ? `＋ Thêm tuyến “${typed.trim()}”…` : '＋ Thêm tuyến mới…'),
+                          onSelect: (typed) => {
+                            const name = typed.trim();
+                            if (!name) return;
+                            setRouteDialogTargetKey(row.key);
+                            setRouteDialogInitialName(name);
+                            setRouteDialogOpen(true);
+                          },
+                        }}
                       />
-                      {factory?.routeId == null && (
-                        <button
-                          type="button"
-                          className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-                          onClick={() => { setRouteDialogTargetKey(row.key); setRouteDialogOpen(true); }}
-                          disabled={Boolean(saving)}
-                        >
-                          <Plus size={15} aria-hidden="true" />Thêm
-                        </button>
-                      )}
                     </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
@@ -897,15 +900,16 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} allowsCustomValue={form.isAdHoc} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} popoverPlacement="top" />
-                      <button
-                        type="button"
-                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-                        onClick={() => setPortDialog({ open: true, target: { key: row.key, field: 'pickupPortId' } })}
-                        disabled={Boolean(saving)}
-                      >
-                        <Plus size={15} aria-hidden="true" />Thêm
-                      </button>
+                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} allowsCustomValue={form.isAdHoc} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} popoverPlacement="top"
+                        createOption={{
+                          label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
+                          onSelect: (typed) => {
+                            const name = typed.trim();
+                            if (!name) return;
+                            setPortDialog({ open: true, target: { key: row.key, field: 'pickupPortId', name } });
+                          },
+                        }}
+                      />
                     </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
@@ -916,15 +920,16 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})} popoverPlacement="top" />
-                      <button
-                        type="button"
-                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-                        onClick={() => setPortDialog({ open: true, target: { key: row.key, field: 'dropoffPortId' } })}
-                        disabled={Boolean(saving)}
-                      >
-                        <Plus size={15} aria-hidden="true" />Thêm
-                      </button>
+                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})} popoverPlacement="top"
+                        createOption={{
+                          label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
+                          onSelect: (typed) => {
+                            const name = typed.trim();
+                            if (!name) return;
+                            setPortDialog({ open: true, target: { key: row.key, field: 'dropoffPortId', name } });
+                          },
+                        }}
+                      />
                     </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
@@ -1068,11 +1073,13 @@ export function ShipmentCreateWorkspace() {
         isOpen={routeDialogOpen}
         onClose={closeRouteDialog}
         onCreated={handleRouteCreated}
+        initialName={routeDialogInitialName}
       />
       <PortCreateDialog
         isOpen={portDialog.open}
         onClose={closePortDialog}
         onCreated={handlePortCreated}
+        initialName={portDialog.target?.name ?? ''}
       />
       <CustomerCreateDialog
         isOpen={customerDialogOpen}

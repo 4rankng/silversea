@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import type { ContainerType } from '@tingting/shared';
 import { USearchableField as SearchableField } from './uui-fields';
 import { ContainerTypeCreateDialog } from './ContainerTypeCreateDialog';
-import { Plus } from 'lucide-react';
 
 interface ContainerTypeCellPickerProps {
   /** The id of the currently-selected container type, or empty string. */
@@ -32,6 +31,8 @@ interface ContainerTypeCellPickerProps {
  */
 export function ContainerTypeCellPicker({ value, onChange, options, fieldId, saving, error }: ContainerTypeCellPickerProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  // Typed text carried from the combobox create option into the dialog.
+  const [initialCode, setInitialCode] = useState('');
   // Rows created inline this session. The catalog query (staleTime minutes)
   // will not contain them until its next refetch, so the cell merges them
   // itself — otherwise the just-created code cannot display as selected.
@@ -56,16 +57,14 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           disabled={Boolean(saving)}
           error={error}
           popoverPlacement="top"
+          createOption={{
+            label: (typed) => (typed.trim() ? `＋ Thêm loại “${typed.trim()}”…` : '＋ Thêm loại container…'),
+            onSelect: (typed) => {
+              setInitialCode(typed.trim());
+              setCreateOpen(true);
+            },
+          }}
         />
-        <button
-          type="button"
-          className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-          onClick={() => setCreateOpen(true)}
-          disabled={Boolean(saving)}
-          aria-label="Thêm loại container"
-        >
-          <Plus size={15} aria-hidden="true" />Thêm
-        </button>
       </div>
       <ContainerTypeCreateDialog
         isOpen={createOpen}
@@ -75,6 +74,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           setCreatedTypes((prev) => (prev.some((item) => item.id === created.id) ? prev : [...prev, { id: created.id, code: created.code, name: created.name }]));
           setCreateOpen(false);
         }}
+        initialCode={initialCode}
       />
     </>
   );

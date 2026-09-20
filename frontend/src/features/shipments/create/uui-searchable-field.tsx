@@ -53,6 +53,14 @@ interface USearchableFieldProps {
    * when the trigger is jammed against the viewport top.
    */
   popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
+  /**
+   * "Create from typed text" footer option rendered at the end of the
+   * listbox. It always matches the filter (its search text carries the typed
+   * value) and selection hands the typed text to the caller instead of
+   * committing a value — the create dialogs open from the dropdown, not the
+   * row (20260920_26).
+   */
+  createOption?: { label: (typed: string) => string; onSelect: (typed: string) => void };
 }
 
 export function USearchableField({
@@ -75,6 +83,7 @@ export function USearchableField({
   onCustomValue,
   hideLabel,
   popoverPlacement,
+  createOption,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
@@ -130,6 +139,10 @@ export function USearchableField({
           setInputValue('');
         }}
         onSelectionChange={(key) => {
+          if (createOption && String(key) === '__create__') {
+            createOption.onSelect(inputValue);
+            return;
+          }
           if (key === null) {
             // RAC re-fires the current selection (or null) when a blur or an
             // Enter without a highlighted option settles the input. Nothing
@@ -164,12 +177,18 @@ export function USearchableField({
             }
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
-            : {})}
+            : createOption
+              ? { onInputChange: (text: string) => setInputValue(text) }
+              : {})}
         items={options.map((option) => ({
           id: option.value,
           label: option.label,
           searchText: option.searchText,
-        }))}
+        })).concat(createOption ? [{
+          id: '__create__',
+          label: createOption.label(inputValue ?? ''),
+          searchText: inputValue ?? '',
+        }] : [])}
         placeholder={placeholder}
         isDisabled={disabled}
         isRequired={required}

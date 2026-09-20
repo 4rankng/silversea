@@ -9,9 +9,11 @@ interface RouteCreateDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (route: Route) => void;
+  /** Typed text carried in from the combobox create option. */
+  initialName?: string;
 }
 
-export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDialogProps) {
+export function RouteCreateDialog({ isOpen, onClose, onCreated, initialName }: RouteCreateDialogProps) {
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [distanceKm, setDistanceKm] = useState('');
@@ -20,11 +22,11 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
 
   useEffect(() => {
     if (!isOpen) return;
-    setName('');
+    setName(initialName ?? '');
     setShortName('');
     setDistanceKm('');
     setError(null);
-  }, [isOpen]);
+  }, [isOpen, initialName]);
 
   function close() {
     if (saving) return;

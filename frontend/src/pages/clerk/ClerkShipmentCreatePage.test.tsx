@@ -828,27 +828,34 @@ describe('ClerkShipmentCreatePage', () => {
   // TC-CUS-CREATE-020: Loại container gets a "+ Thêm" sibling so CUS can
   // extend the container-type catalog inline from the create-shipment form
   // without bouncing out to /config/container-types.
-  it('creates a new container type from the FCL cell add button and selects it into the row', async () => {
+  it('creates a new container type from the FCL cell dropdown create option and selects it into the row', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    // Find the Loại container cell, then its sibling "Thêm" button.
+    // Type into the Loại container combobox: the create option lives at the
+    // end of the listbox (2026-09-20 card 20260920_26 — no row "+ Thêm").
     const typeCell = screen.getByRole('combobox', { name: /Loại container/ }).closest('td')!;
-    const addButton = within(typeCell as HTMLElement).getByRole('button', { name: 'Thêm loại container' });
-    fireEvent.click(addButton);
+    const combobox = within(typeCell as HTMLElement).getByRole('combobox', { name: /Loại container/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    fireEvent.change(combobox, { target: { value: '45HC' } });
+
+    const createOption = await screen.findByRole('option', { name: /Thêm loại/ }, { timeout: 3000 });
+    fireEvent.click(createOption);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm loại container' });
 
     // react-aria in jsdom can produce label/input id mismatches that defeat
     // getByLabelText inside a custom Modal mock. Target the input by walking
-    // the label's `for` attribute instead — that path is stable. We match
-    // the label text by prefix because required fields append a "*" marker
-    // inside an aria-hidden span.
+    // the label's `for` attribute, but fall back to containment inside the
+    // CURRENT dialog node — the create-option flow re-mounts the dialog
+    // (initialCode effect) and react-aria rotates the generated ids, so a
+    // document-wide getElementById can land on an unrelated field.
     function setFieldByLabel(container: HTMLElement, labelText: string, value: string) {
       const label = Array.from(container.querySelectorAll('label')).find((el) => el.textContent?.trim().startsWith(labelText));
       if (!label) throw new Error(`Không tìm thấy label "${labelText}"`);
-      const id = label.getAttribute('for');
-      const input = id ? document.getElementById(id) : null;
+      const scoped = label.closest('div')?.querySelector('input');
+      const input = scoped ?? document.getElementById(label.getAttribute('for') ?? '');
       if (!input) throw new Error(`Không tìm thấy input cho label "${labelText}"`);
       fireEvent.change(input, { target: { value } });
     }
@@ -861,7 +868,12 @@ describe('ClerkShipmentCreatePage', () => {
       name: "Container 45' High Cube",
     });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm loại container' }));
+    // Re-mount-safe submit: the initialCode effect re-renders the dialog, so
+    // find the submit button through a fresh query at click time. Query the
+    // button directly — with the row "+ Thêm" removed, the dialog's submit is
+    // the only element carrying this accessible name (the Modal mock can
+    // leave the dialog itself aria-hidden in jsdom).
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm loại container', hidden: true }));
 
     await waitFor(() => expect(mocks.createContainerType).toHaveBeenCalledWith({
       code: '45HC',
