@@ -1,60 +1,62 @@
 # BACKLOG — Silversea test debt from recent intentional refactors
 
-> **Scope**: Backend tests in this repo still assert the OLD governance queue / dispatch / config-write contracts. The corresponding production code is intentional per its commit messages (`d3599b0b` governance direct-apply, `7eb62387` customer `isCarrier` + maker-checker removal, `4651f8f2` PENDING_EXPENSE_APPROVAL retirement). Each test here needs a one-off re-pin to the new contract — no production code change is required.
+> **Scope (2026-09-06, superseded 2026-09-20 — see purge note below)**: these tests asserted the OLD governance queue / dispatch / config-write contracts. The corresponding production code is intentional per its commit messages (`d3599b0b` governance direct-apply, `7eb62387` customer `isCarrier` + maker-checker removal, `4651f8f2` PENDING_EXPENSE_APPROVAL retirement). Each test here needs a one-off re-pin to the new contract — no production code change is required.
 
 Each line is one fix: scope = the test file (read + targeted edit), expected-effort = minutes.
 
+> **2026-09-20 approval-language purge (card 20260920_33, decision B3 of _27):** every
+> approval-shaped item below was re-verified against the current tree and CLOSED — the
+> queue contract they described was already re-pinned or removed by earlier commits
+> (`42b50f8b` cluster-A direct-apply re-pin, `7d98d71f` governance_actions drop). The
+> approval-shaped q23 test was deleted back in `42b50f8b`, before this card; per-item
+> status + evidence are inline. Historical sections below the line stay read-only.
+
 ---
 
-## Cluster A — Governance queue → direct-apply (commit `d3599b0b`, 2026-09-05)
+## Cluster A — Governance queue → direct-apply (commit `d3599b0b`, 2026-09-05) — ALL ITEMS CLOSED 2026-09-20
 
-The pattern is uniform across these files. Use `backend/src/tests/config-material-update-governance.test.ts` as the template — it was re-pinned in the same commit and pins the new contract for `MANAGER` writes (direct apply + APPROVED audit row).
+> The queue was removed with the internal-approval ruling (2026-09-15); the recipe below
+> is kept only as the historical record of how these files were re-pinned. Every item in
+> this cluster verifies green against the current tree — do NOT re-apply these steps.
 
-Common fix steps (per test in cluster A):
+The pattern was uniform across these files. `backend/src/tests/config-material-update-governance.test.ts` was the template — re-pinned in the same commit to the new contract for `MANAGER` writes (direct apply + APPROVED audit row).
+
+Common fix steps (per test in cluster A) — HISTORICAL, approval removed 2026-09-15:
 1. Replace `expectPendingAction(201, 'PENDING_CHECK')` with `expectDirectApply(200)` + a follow-up `db.select` for the matching APPROVED audit row in `governanceActions`.
 2. Remove the `checkAction` → `approveAction` two-step when a test asserts the row only after approval. The row is now applied on the first PUT/POST.
 3. Drop `'PENDING' in body` / `body.status === 'PENDING_CHECK'` assertions.
 
-### A-1 — `backend/src/tests/q15-price-config-governance.test.ts` (8 ✖)
-- `lets Admin directly approve a legacy pending price-config request they created`
-- `serializes duplicate governed requests even with different idempotency keys`
-- `submits all financially material generated config resources for maker/checker/approver review before any DB effect`
-- `replays identical pending requests, rejects viewers, blocks checker self-approval, and prevents stale approval on the shared config path`
-- `keeps governed rows unchanged when returned for evidence or rejected`
-- `applies ADMIN price-config writes immediately even when a pending request exists`
-- `keeps ordinary customer edits direct while debt-authority fields require governance`
-- Effort: 60–90 min. The two-step `check/approve` helpers need to be replaced with audit-row queries.
+### A-1 — `backend/src/tests/q15-price-config-governance.test.ts` (8 ✖) — CLOSED 2026-09-20: already re-pinned to direct-apply by `42b50f8b`. The remaining `PENDING_CHECK` strings are NEGATIVE assertions (`assert.notEqual(status, 'PENDING_CHECK', 'direct ... must not create governance action')`) — they pin the absence of the queue. No edit needed.
+Historical failure list (all resolved; test names kept as record — the approval-shaped ones were deleted, the rest re-pinned to direct-apply):
+- `lets Admin directly approve a legacy pending price-config request they created` — DELETED (approval removed 2026-09-15)
+- `serializes duplicate governed requests even with different idempotency keys` — re-pinned, green
+- `submits all financially material generated config resources for maker/checker/approver review before any DB effect` — DELETED (approval removed 2026-09-15)
+- `replays identical pending requests, rejects viewers, blocks checker self-approval, and prevents stale approval on the shared config path` — DELETED/superseded by the direct-apply replay pins
+- `keeps governed rows unchanged when returned for evidence or rejected` — re-pinned, green
+- `applies ADMIN price-config writes immediately even when a pending request exists` — re-pinned, green
+- `keeps ordinary customer edits direct while debt-authority fields require governance` — re-pinned, green
+- Effort line obsolete: the two-step `check/approve` helpers no longer exist anywhere in the file.
 
-### A-2 — `backend/src/tests/q23-config-crud-idempotency.test.ts` (3 ✖)
-- `keeps an accountant fuel-surcharge share update pending and unchanged until independent approval` — **XÓA test này**: hành vi phê duyệt đã bị bỏ khỏi sản phẩm (2026-09-15); không sửa, không tái hiện.
-- `replays a financial-authority create exactly and rejects key reuse with another payload`
-- `commits the existing customer partner hook in the same replay transaction`
-- Effort: 30 min (hai test còn lại) + xóa test phê duyệt.
+### A-2 — `backend/src/tests/q23-config-crud-idempotency.test.ts` (3 ✖) — CLOSED 2026-09-20: the approval test `keeps an accountant fuel-surcharge share update pending and unchanged until independent approval` was already DELETED by `42b50f8b` (no separate deletion commit needed — nothing to delete on this tree). The two idempotency tests (`replays a financial-authority create exactly...`, `commits the existing customer partner hook...`) are kept and green; full file passes 1/1 on the isolated runner (2026-09-20).
 
-### A-3 — `backend/src/tests/q12-q13-no-invoice-boundary-routes.test.ts` (1 ✖)
-- `config CRUD persists policy-configurable approval titles and only bumps version on policy change`
-- Effort: 15 min.
+### A-3 — `backend/src/tests/q12-q13-no-invoice-boundary-routes.test.ts` (1 ✖) — CLOSED 2026-09-20: the approval-titles test no longer exists; the file's config-CRUD test asserts direct apply ("the update applies directly (200 + applied row, no approval flow)"). Nothing to re-pin.
 
 ### A-4 — `backend/src/tests/q23-singleton-config-routes.test.ts` (1 ✖)
 - "road/fuel/company routes enforce RBAC, replay exactly, reject drift, and require current version on existing data"
 - Effort: 15 min.
 
-### A-5 — `backend/src/tests/final-q01-q02-q07-q08-coverage.test.ts` (1 ✖)
-- The `approvePendingAction` helper at line 118 assumes the OLD queue flow.
-- Effort: 20 min.
+### A-5 — `backend/src/tests/final-q01-q02-q07-q08-coverage.test.ts` (1 ✖) — CLOSED 2026-09-20: the `approvePendingAction` queue helper is gone from the file; current assertions pin direct apply ("Direct apply: 200 with the updated row, no approval step") plus the APPROVED audit row. Nothing to re-pin.
 
 ### A-6 — `backend/src/tests/q15-governance-foundation.test.ts` (foundation tests)
 - Likely already PASS (re-verifying): the file tests schema-level concerns, not queue behaviour. Run `pnpm test -- src/tests/q15-governance-foundation.test.ts` to confirm before touching.
 
 ---
 
-## Cluster B — PENDING_EXPENSE_APPROVAL retirement (commit `4651f8f2`)
+## Cluster B — PENDING_EXPENSE_APPROVAL retirement (commit `4651f8f2`) — CLOSED 2026-09-20
 
-These predate D-2 but the test files still expect rows to traverse the retired stage. **Mostly already addressed by commit `efc94827`**; remaining outliers:
+The retired stage left the vocabulary entirely (`7dd66d05`); no test file references it anymore (the remaining outliers listed below were re-pinned by `efc94827` and verified clean 2026-09-20):
 
-### B-1 — `backend/src/tests/shipment-accounting-lock.test.ts`
-- Re-pin any `expect(status === 'PENDING_EXPENSE_APPROVAL')` to `'COMPLETED'` (the new direct close).
-- Effort: 20 min.
+### B-1 — `backend/src/tests/shipment-accounting-lock.test.ts` — CLOSED 2026-09-20: zero `PENDING_EXPENSE_APPROVAL` references remain in the file; the lock tests pin the direct `COMPLETED` close. Nothing to re-pin.
 
 ---
 
@@ -90,15 +92,9 @@ These predate D-2 but the test files still expect rows to traverse the retired s
 
 ## Cluster E — Misc single-test failures
 
-### E-1 — `backend/src/tests/customer-portal-routes.test.ts`
-- `does not emit delivered portal event on first completed trip; shipment COMPLETED emits exactly one` — outcome now is "no event" with the new direct-close contract.
-- **Re-pin**: expect the portal event to fire on `IN_TRANSIT → COMPLETED` (or `HOÀN THÀNH CHUYẾN` driver-side) instead of on `IN_TRANSIT → PENDING_EXPENSE_APPROVAL`.
-- Effort: 30 min.
+### E-1 — `backend/src/tests/customer-portal-routes.test.ts` — CLOSED 2026-09-20: zero `PENDING_EXPENSE_APPROVAL` references remain; the portal-event tests pin emission on the direct `COMPLETED` transition. Nothing to re-pin.
 
-### E-2 — `backend/src/tests/M3.3 — deriveMilestoneFromTripStatus.test.ts` (1 ✖)
-- The trip-milestone derivation expects `PENDING_EXPENSE_APPROVAL` as an intermediate stage.
-- **Re-pin**: milestone chain is now `IN_TRANSIT → COMPLETED` directly.
-- Effort: 20 min.
+### E-2 — `backend/src/tests/M3.3 — deriveMilestoneFromTripStatus.test.ts` (1 ✖) — CLOSED 2026-09-20 (obsolete): the standalone M3.3 test file was removed in the status-vocabulary wave; milestone derivation now lives in `milestone.service.ts` / `trip-status-machine.service.ts` and its `IN_TRANSIT → COMPLETED` chain is pinned by the trip-status-machine suite. Nothing to re-pin.
 
 ### E-3 — `backend/src/tests/dispatcher-catalog-create-authz.test.ts:1:3932` (depends on D-3 fix above)
 - Once the customer-intake service is fixed (commit `efc94827`), this should pass. Re-run after merge.
