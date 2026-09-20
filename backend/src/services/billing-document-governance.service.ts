@@ -331,13 +331,13 @@ async function collectIssueReadinessReasons(
     const trips = await tx.select({
       id: s.trips.id,
       tripCode: s.trips.tripCode,
-      paperAt: s.trips.paperOrderCollectedAt,
-      paperBy: s.trips.paperOrderCollectedBy,
+      podAt: s.trips.podRecoveredAt,
+      podBy: s.trips.podRecoveredBy,
     })
       .from(s.trips)
       .where(inArray(s.trips.id, tripIds));
     for (const trip of trips) {
-      if (!trip.paperAt || !trip.paperBy) {
+      if (!trip.podAt || !trip.podBy) {
         reasons.push(`Chuyến ${trip.tripCode ?? `#${trip.id}`}: chưa nhận chứng từ gốc (cần người nhận và ngày nhận thực tế).`);
       }
     }

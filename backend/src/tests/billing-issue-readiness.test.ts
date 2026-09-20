@@ -31,7 +31,7 @@ async function makeCustomer(label: string) {
   return customer;
 }
 
-async function makeTrip(customerId: number) {
+async function makeTrip(customerId: number, opts: { recovered?: boolean } = {}) {
   const [route] = await db.insert(s.routes).values({ name: `Issue-gate route ${suffix}-${routeIds.length}` }).returning();
   routeIds.push(route.id);
   const [trip] = await db.insert(s.trips).values({
@@ -39,6 +39,7 @@ async function makeTrip(customerId: number) {
     routeId: route.id,
     departureDate: '2026-07-10',
     status: 'COMPLETED',
+    ...(opts.recovered ? { podRecoveredAt: new Date('2026-07-20T08:00:00Z'), podRecoveredBy: 1 } : {}),
   }).returning();
   tripIds.push(trip.id);
   return trip;
@@ -165,8 +166,10 @@ describe('billing issue readiness gate (QuyTrinhO2C 7.2)', () => {
   test('blocks issue with the original-document reason when a source trip has no paper receipt', async () => {
     const customer = await makeCustomer('no-receipt');
     const trip = await makeTrip(customer.id);
+    const recovered = await makeTrip(customer.id, { recovered: true });
     const document = await makeDraftDocument(customer);
     await addTripLine(document.id, trip.id, '250000');
+    await addTripLine(document.id, recovered.id, '260000');
     await assert.rejects(issue(document.id), (err: unknown) => {
       const reasons = reasonTexts(err);
       assert.equal(reasons.length, 1, JSON.stringify({ message: (err as ApiError).message, details: (err as { details?: unknown }).details }));
