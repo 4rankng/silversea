@@ -555,9 +555,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage('/shipments?limit=200');
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=200')));
-    const select = await screen.findByLabelText('Số dòng mỗi trang');
-    expect((select as HTMLSelectElement).value).toBe('200');
-    fireEvent.change(select, { target: { value: '50' } });
+    // The design-system select trigger's acc-name is "<selected> <label>".
+    fireEvent.click(await screen.findByRole('button', { name: '200 Số dòng mỗi trang' }));
+    fireEvent.click(await screen.findByRole('option', { name: '50' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=50')));
   });
 

@@ -1,8 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Pagination } from './Pagination';
 
+const paginationSource = readFileSync(resolve(process.cwd(), 'src/design-system/Pagination.tsx'), 'utf8');
+
 describe('Pagination', () => {
+  beforeEach(() => {
+    // React Aria measures the trigger during render; jsdom reports zeros.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 100, y: 200, width: 280, height: 34 }));
+  });
+  afterEach(() => vi.restoreAllMocks());
+
   it('renders nothing when totalPages <= 1 and no summary', () => {
     const { container } = render(
       <Pagination page={1} totalPages={1} onChange={() => {}} />,
@@ -23,12 +33,17 @@ describe('Pagination', () => {
   // Rows-per-page selector (office request 2026-09-18: see up to 200 rows).
   it('offers the rows-per-page choices only when a handler is supplied', () => {
     const onPageSizeChange = vi.fn();
-    const { getByLabelText, unmount } = render(
+    const { unmount } = render(
       <Pagination page={1} totalPages={7} totalItems={144} pageSize={20} pageSizeOptions={[20, 50, 100, 200]} onPageSizeChange={onPageSizeChange} onChange={() => {}} />,
     );
-    const select = getByLabelText('Số dòng mỗi trang') as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).toEqual(['20', '50', '100', '200']);
-    fireEvent.change(select, { target: { value: '200' } });
+    // The RAC trigger's accessible name is "<selected> <label>" — the
+    // aria-labelledby refs (selected value + visible label span) outrank the
+    // aria-label per the acc-name algorithm.
+    fireEvent.click(screen.getByRole('button', { name: '20 Số dòng mỗi trang' }));
+    for (const option of ['20', '50', '100', '200']) {
+      expect(screen.getByRole('option', { name: option })).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole('option', { name: '200' }));
     expect(onPageSizeChange).toHaveBeenCalledWith(200);
     unmount();
 
@@ -36,19 +51,24 @@ describe('Pagination', () => {
     render(
       <Pagination page={1} totalPages={7} totalItems={144} pageSize={20} pageSizeOptions={[20, 200]} onChange={() => {}} />,
     );
-    expect(screen.queryByLabelText('Số dòng mỗi trang')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Số dòng mỗi trang' })).toBeNull();
   });
 
   it('keeps the rows-per-page selector reachable on a single page', () => {
     // Staging 2026-09-18: choosing 200 left one page, the bar vanished and the
     // choice could not be changed back from the UI.
     const onPageSizeChange = vi.fn();
-    const { getByLabelText, queryAllByRole, container } = render(
+    const { container, getByRole } = render(
       <Pagination page={1} totalPages={1} totalItems={145} pageSize={200} pageSizeOptions={[20, 200]} onPageSizeChange={onPageSizeChange} onChange={() => {}} />,
     );
-    expect(getByLabelText('Số dòng mỗi trang')).toBeTruthy();
+    expect(getByRole('button', { name: '200 Số dòng mỗi trang' })).toBeTruthy();
     expect(container.textContent).toContain('Hiển thị');
-    expect(queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /Trang (trước|sau)/ })).toHaveLength(0);
+  });
+
+  it('renders the design-system select, never a raw native select (card _21)', () => {
+    expect(paginationSource).not.toMatch(/<select/);
+    expect(paginationSource).toContain('UuiSelectField');
   });
 
   it('renders summary when totalItems + pageSize are provided', () => {

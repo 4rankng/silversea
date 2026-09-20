@@ -1,5 +1,6 @@
 import { useMemo, type FormEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { UuiSelectField } from './forms/UuiSelectField';
 import './Pagination.css';
 
 export interface PaginationProps {
@@ -61,17 +62,18 @@ export function Pagination({
     <nav className="ds-pagination" aria-label="Phân trang">
       <div className="ds-pagination__summary-slot">
         {sizeOptions && (
-          <label className="ds-pagination__size">
+          <div className="ds-pagination__size">
             <span>{pageSizeLabel}</span>
-            <select
+            <UuiSelectField
+              label={pageSizeLabel}
+              hideLabel
               value={String(pageSize)}
-              disabled={disabled}
-              aria-label={pageSizeLabel}
               onChange={(event) => onPageSizeChange?.(Number(event.target.value))}
-            >
-              {sizeOptions.map((option) => <option key={option} value={String(option)}>{option}</option>)}
-            </select>
-          </label>
+              options={sizeOptions.map((option) => ({ value: String(option), label: String(option) }))}
+              disabled={disabled}
+              width="content"
+            />
+          </div>
         )}
         {summary ?? defaultSummary}
       </div>
