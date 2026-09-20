@@ -254,3 +254,17 @@ tables present.
   effects shipped long ago under the stored original values. Left as-is:
   no UPDATEs without explicit user re-authorization (prod halted,
   user directive 2026-09-20).
+
+## 9. 2026-09-20 window #2 execution record (pricing-and-billing wave)
+
+- Trigger: user order "once done deploy to staging and prod" after the wave
+  drained QA_PASSED (35 cards, cut #8 + cut #9 both green on staging).
+- Backup: /root/prod-backup-20260920-152552.sql.gz (1,039,249 bytes, gzip OK,
+  "PostgreSQL database dump complete" verified) — taken before any write.
+- Preflight: prod cursor 1789853402000 (idx 105), single row, row93 intact;
+  no new journal entries in the wave (last idx still 105) → migrate no-op.
+- Deploy: `make deploy` exit 0, clean tree at 8fe28cbd (includes cut #9).
+- Postverify: schema probes 9/9 PASS, /api/health ok, buildHash = 8fe28cbd
+  (matches cut). When-list FAIL is the SAME documented restamp-era finding as
+  window 1 (§8): pre-idx-92 rows hold pre-restamp whens, below the cursor,
+  bookkeeping-only, no action.
