@@ -217,7 +217,7 @@ export default function ShipmentContainersPage() {
       <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={detail.loading}>
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
-            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập một phần Bill/Book, số container hoặc tờ khai (≥ 4 ký tự)" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
+            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Bill/Book, số container hoặc tờ khai" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
             <UUIButton
               type="button"
               size="sm"

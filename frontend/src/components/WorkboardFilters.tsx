@@ -200,7 +200,7 @@ export function WorkboardToolbar({ suffixParam, dateFrom, dateTo, direction, buc
                 setSearchInput(value);
                 setSearchError(null);
               }}
-              placeholder="Nhập một phần Bill/Book, số container hoặc tờ khai (≥ 4 ký tự)"
+              placeholder="Bill/Book, số container hoặc tờ khai"
               inputProps={{
                 inputMode: 'text',
                 pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',

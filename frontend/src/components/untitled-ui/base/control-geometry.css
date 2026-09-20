@@ -36,6 +36,13 @@
   padding-block: 4px;
 }
 
+/* Long placeholders end with an ellipsis, never a mid-word clip (QA ruling
+   2026-09-20): the browser's clip default cut '…hoặc tờ' at the box edge. */
+[data-uui-control='input'] > input::placeholder,
+#root [data-uui-control='input'] > input::placeholder {
+  text-overflow: ellipsis;
+}
+
 [data-uui-control='select'] > [data-uui-select-value],
 [data-uui-control='combobox'] > [data-combobox-value] {
   box-sizing: border-box;
