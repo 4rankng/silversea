@@ -232,3 +232,25 @@ tables present.
       tail, buildHash, smoke results — into the wave's deploy notes.
 - [ ] Reminder for SKILL.md (already codified): journal `when` is immutable
       post-ship; amendment = new migration; journal edits are append-only.
+
+## 8. 2026-09-20 window execution record
+
+- Window executed by the lead: 3R-1 realign (1789719600000 → 1789744800000)
+  + migrate applied idx 93–105; prod tracking now 106 rows, cursor =
+  1789853402000 (journal idx 105); postverify schema probes (9/9) +
+  /api/health buildHash PASSED.
+- Postverify when-list check flagged pre-idx-92 tracking rows whose stored
+  `when` differs from today's journal (rows 71–74: 1789269610891–94 vs
+  journal 1789269611890 / 1789269614890; row 81: 1789400000001 vs
+  1789400001000; row 89: 1789570029711 vs 1789570029000; row 90:
+  1789572048120 vs 1789572048000 — re-verified read-only 2026-09-20).
+  **Finding (documented, no action taken):** these are restamp-era rows —
+  the 2026-09-19 restamp rewrote journal `when` values for entries well
+  below idx 92 (git -S traces the rewrites to bd6951f2 / 5b30c336) —
+  and they sit OUTSIDE the census's idx 92–105 scope. Bookkeeping-only
+  under cursor semantics: every flagged row is BELOW the post-realign
+  cursor (1789744800000), and the migrator only applies entries with
+  `when > max(created_at)`, so no re-run is possible; those migrations'
+  effects shipped long ago under the stored original values. Left as-is:
+  no UPDATEs without explicit user re-authorization (prod halted,
+  user directive 2026-09-20).
