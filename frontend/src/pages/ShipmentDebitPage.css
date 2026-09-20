@@ -31,14 +31,22 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: end;
-  flex: 1 1 420px;
+  /* Content-sized, never grown: growing this box stretched it across the
+     header and pinned the toolbar to the far right edge behind ~550px of dead
+     middle space (user report 2026-09-20). Packing left keeps the whole bar
+     data-dense; the toolbar follows right after the date fields. */
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 .shipment-debit-filters > .csc-searchable-field {
   flex: 1 1 220px;
   max-width: 480px;
-  min-width: 0;
+  /* The searchable chain under-reports its intrinsic width the same way the
+     date groups did: without a floor the content-sized filters box shrinks
+     the picker to a 65px sliver (placeholder truncates). 240px holds the
+     required-customer placeholder and selected names. */
+  min-width: 240px;
 }
 
 .shipment-debit-filters__dates {

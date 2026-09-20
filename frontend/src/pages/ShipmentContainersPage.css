@@ -57,10 +57,11 @@
 
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-/* The date shortcuts and the reset belong with the rail they act on: they
-   take the row of the first control that wrapped, so the rail never spends
-   a whole third row on the chips while row 2 holds a single orphan select. */
-.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-self: end; align-items: end; justify-content: flex-start; }
+/* The date shortcuts and the reset anchor to the rail's LEFT edge, flush
+   under the search field (user ruling 2026-09-20): they start at track 1 and
+   span the full row width, so the group never floats mid-row at a position
+   that drifts with the viewport. */
+.shipments-detail-filters__footer { display: flex; grid-column: 1 / -1; min-width: 0; align-self: end; align-items: end; justify-content: flex-start; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
