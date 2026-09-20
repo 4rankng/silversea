@@ -1,13 +1,14 @@
 /* Segmented HH:mm / DD/MM/YYYY entry. The group carries the control chrome
    (border, height via the shared [data-uui-control] geometry, radius ≤8px);
-   each segment is a borderless centered digit box, and the trailing trigger
-   stays visible at every density — never display:none. */
+   each segment is a borderless centered digit box. No trailing trigger: the
+   owner removed the calendar icon (card _25) — the whole group click-opens
+   the picker surface; the per-segment svgs stay display:none by that ruling. */
 .date-seg-group {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   width: 100%;
-  /* The segments + trailing trigger ARE the field's content floor. Bars
+  /* The segments ARE the field's content floor. Bars
      commonly chain min-width:0 / width:100% at every level, which reports the
      field's intrinsic width as ~0 and lets flex/grid squeeze the control below
      its segments (debit filter: dates crammed to 113px) or wrap mid-group.

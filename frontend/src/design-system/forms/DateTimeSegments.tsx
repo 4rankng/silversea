@@ -45,7 +45,10 @@ export interface DateTimeSegmentsProps {
   anchorRef?: Ref<HTMLInputElement>;
   /** Receives the LAST segment <input> (backward navigation target). */
   lastSegmentRef?: Ref<HTMLInputElement>;
-  /** Opens the part's picker surface from the trailing icon trigger. */
+  /** Called when the field asks for the picker surface: click-anywhere on the
+    segments group. The owner removed the trailing calendar icon (card _25
+    ruling: "calendar must stay reachable from segments") — do not
+    reintroduce an icon trigger. */
   onOpenPicker: () => void;
   /** Called when the final segment is filled with valid characters. */
   onComplete?: () => void;
@@ -68,7 +71,10 @@ export interface DateTimeSegmentsProps {
 
 /** Segmented HH:mm / DD/MM/YYYY entry: auto-advance on complete in-range
  * digits, paste distribution across segments, backspace/arrows navigation,
- * and an always-visible trailing trigger that opens the picker surface. */
+ * and a click-anywhere group that opens the picker surface. The trailing
+ * calendar icon was REMOVED by owner ruling (card _25: "calendar must stay
+ * reachable from segments") — do not reintroduce an icon trigger.
+ */
 export function DateTimeSegments({
   id, part, groupAriaLabel, value, onValueChange, disabled, readOnly, required, size = 'sm', error,
   anchorRef, lastSegmentRef, onOpenPicker, onComplete, onBackFromStart, onForwardFromEnd,

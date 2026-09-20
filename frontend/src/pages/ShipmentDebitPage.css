@@ -55,6 +55,15 @@
   gap: 8px;
 }
 
+/* Same intrinsic-width poison the searchable field's 240px floor fights: the
+   date inputs' w-full chains report ~0, so this content-sized cluster squeezed
+   to 198px (95px per group — placeholder pinned to the right border, the
+   calendar trigger collapsing to 0px, no affordance). 149px is the same
+   control's measured width on /dispatch — cross-page coherence. */
+.shipment-debit-filters__dates > * {
+  min-width: 149px;
+}
+
 @media (min-width: 1280px) {
   .shipment-debit-workspace__header,
   .shipment-debit-filters,
