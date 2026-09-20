@@ -164,6 +164,7 @@ export const FINANCIAL = {
   BILLING_DOCUMENT_GENERATE: '/finance/billing-documents/generate',
   BILLING_DOCUMENT: (id: number) => `/finance/billing-documents/${id}`,
   BILLING_DOCUMENT_EXPORT: (id: number) => `/finance/billing-documents/${id}/export`,
+  BILLING_DOCUMENT_ISSUE: (id: number) => `/finance/billing-documents/${id}/issue`,
 } as const;
 
 // ─── Reports ────────────────────────────────────────────────────────────────────

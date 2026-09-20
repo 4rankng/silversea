@@ -304,6 +304,47 @@ export async function requestBillingDocumentAdjustment(input: {
  * issue applies in the same request/transaction. Period-lock and source-drift
  * invariants run at build time exactly as before.
  */
+/**
+ * §7.2 issue readiness (QuyTrinhO2C.md): goods (presentation lines), price
+ * (per-line amounts), original document received (§7.1: actual person + date
+ * on each source trip) — each missing condition contributes its own reason so
+ * none masks another. Period conditions are collected separately by the
+ * caller via the existing period-writable assert.
+ */
+async function collectIssueReadinessReasons(
+  tx: Tx,
+  lines: BillingDocumentLineRow[],
+): Promise<string[]> {
+  const reasons: string[] = [];
+  const presentable = lines.filter((line) => !line.excluded);
+  if (presentable.length === 0) {
+    reasons.push('Bảng kê chưa có dòng trình bày hàng hóa.');
+    return reasons;
+  }
+  for (const line of presentable) {
+    if (!(Number(line.grossAmount) > 0)) {
+      reasons.push(`Dòng "${line.typeLabel}" (STT ${line.sortOrder}): chưa có giá.`);
+    }
+  }
+  const tripIds = tripSourceIds(presentable);
+  if (tripIds.length > 0) {
+    const trips = await tx.select({
+      id: s.trips.id,
+      tripCode: s.trips.tripCode,
+      paperAt: s.trips.paperOrderCollectedAt,
+      paperBy: s.trips.paperOrderCollectedBy,
+    })
+      .from(s.trips)
+      .where(inArray(s.trips.id, tripIds));
+    for (const trip of trips) {
+      if (!trip.paperAt || !trip.paperBy) {
+        reasons.push(`Chuyến ${trip.tripCode ?? `#${trip.id}`}: chưa nhận chứng từ gốc (cần người nhận và ngày nhận thực tế).`);
+      }
+    }
+  }
+  return reasons;
+}
+
 export async function requestBillingDocumentIssue(input: {
   documentId: number;
   expectedVersion: number;
@@ -347,7 +388,6 @@ export async function requestBillingDocumentIssue(input: {
       document.rangeFrom,
       document.rangeTo,
     );
-    await assertDebitNotePeriodWritable(tx, authority);
 
     const lines = await loadDocumentLines(tx, document.id);
     await lockTripFinancialAuthority(tx, tripSourceIds(lines));
@@ -361,6 +401,23 @@ export async function requestBillingDocumentIssue(input: {
       lines: lines as unknown as import('@tingting/shared').BillingDocumentLine[],
       actorUserId: input.makerId,
     });
+
+    // §7.2 readiness gate: collect EVERY missing condition (goods, price,
+    // original document received) plus the period-writable assert so no
+    // reason masks another, then reject once with the full list.
+    const missingReasons = await collectIssueReadinessReasons(tx, lines);
+    try {
+      await assertDebitNotePeriodWritable(tx, authority);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        missingReasons.push(err.message);
+      } else {
+        throw err;
+      }
+    }
+    if (missingReasons.length > 0) {
+      throw new ApiError(409, 'Bảng kê chưa đủ điều kiện phát hành.', missingReasons.map((message) => ({ message })));
+    }
 
     const originalPeriodLock = await getClosedPeriodLock(tx, authority);
     const lineSnapshots = await captureIssueSourceSnapshots(tx, lines);

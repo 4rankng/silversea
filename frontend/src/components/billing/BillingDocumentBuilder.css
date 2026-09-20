@@ -923,3 +923,32 @@
     height: 38px;
   }
 }
+
+/* §7.2 issue readiness (card 20260920_30): reasons each on their own line so
+   none masks another and the notice never overflows. */
+.billing-builder__issue {
+  display: grid;
+  gap: 8px;
+  margin: 0 20px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.billing-builder__issue-blockers {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-soft, #fff4f3);
+  color: var(--danger-text, #8f2f2f);
+  font-size: var(--text-caption-size);
+}
+
+.billing-builder__issue-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.billing-builder__issue-row .input { flex: 1 1 auto; }

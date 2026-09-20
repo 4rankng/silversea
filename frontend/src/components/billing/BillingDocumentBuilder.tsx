@@ -72,6 +72,9 @@ export default function BillingDocumentBuilder({
   const [exporting, setExporting] = useState(false);
   const [eligibilitySummary, setEligibilitySummary] = useState<BillingDraftEligibilitySummary | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [issueReasonInput, setIssueReasonInput] = useState('');
+  const [issuing, setIssuing] = useState(false);
+  const [issueBlockers, setIssueBlockers] = useState<string[]>([]);
   // Selected export template. null = auto (customer/default for debit notes,
   // document-type default for payment statements), resolved + snapshotted server-side.
   const [templateId, setTemplateId] = useState<number | null>(initialDoc?.debitNoteTemplateId ?? null);
@@ -332,6 +335,38 @@ export default function BillingDocumentBuilder({
   };
 
   const busy = loading || saving || exporting;
+  // §7.2 issue request — a 409 carries `details: [{message}]` with EVERY
+  // missing readiness condition (goods, price, original document received,
+  // period). Each reason renders on its own line in the builder footer.
+  const issueDocument = async () => {
+    if (!savedId || issuing) return;
+    const reason = issueReasonInput.trim();
+    if (!reason) {
+      showToast({ kind: 'error', message: 'Lý do phát hành là bắt buộc.' });
+      return;
+    }
+    setIssuing(true);
+    setIssueBlockers([]);
+    try {
+      await financialClient.issueBillingDocument(savedId, {
+        expectedVersion: initialDoc?.version ?? 1,
+        reason,
+      });
+      showToast({ kind: 'success', message: 'Đã phát hành bảng kê.' });
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      const details = (err as { raw?: { details?: unknown } }).raw?.details;
+      const list = Array.isArray(details)
+        ? details.map((item) => typeof item === 'string' ? item : (item as { message?: string })?.message ?? '').filter(Boolean)
+        : [];
+      const blockers = list.length > 0 ? list : [(err as Error).message || 'Lỗi phát hành bảng kê.'];
+      setIssueBlockers(blockers);
+      showToast({ kind: 'error', message: 'Phát hành bị chặn — xem các lý do trong biểu mẫu.' });
+    } finally {
+      setIssuing(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -699,6 +734,39 @@ export default function BillingDocumentBuilder({
           </label>
         </section>
       </main>
+
+        {type === 'DEBIT_NOTE' && savedId != null && ((initialDoc?.debitNoteStatus ?? 'DRAFT') === 'DRAFT') && (
+          <section className="billing-builder__issue">
+            {issueBlockers.length > 0 && (
+              <div role="alert" className="billing-builder__issue-blockers">
+                <strong>Bảng kê chưa đủ điều kiện phát hành — bổ sung rồi lưu nháp:</strong>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {issueBlockers.map((reason, index) => (
+                    <span key={index}>{reason}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <label className="billing-builder__issue-row">
+              <input
+                className="input"
+                value={issueReasonInput}
+                onChange={(e) => setIssueReasonInput(e.target.value)}
+                placeholder="Lý do phát hành (bắt buộc)"
+                disabled={issuing || busy}
+              />
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={issueDocument}
+                disabled={issuing || busy || !issueReasonInput.trim()}
+              >
+                {issuing ? <Loader2 size={15} className="spin" /> : null}
+                Phát hành
+              </button>
+            </label>
+          </section>
+        )}
 
       <footer className="billing-builder__footer">
         <button className="btn btn--secondary" type="button" onClick={onClose} disabled={busy}>

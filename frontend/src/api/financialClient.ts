@@ -258,6 +258,10 @@ export const financialClient = {
   getBillingDocument: (id: number) =>
     api.get<BillingDocument>(FINANCIAL.BILLING_DOCUMENT(id)),
 
+  /** §7.2 issue request; 409 carries details:[{message}] per missing condition. */
+  issueBillingDocument: (id: number, data: { expectedVersion: number; reason: string }) =>
+    api.post<unknown>(FINANCIAL.BILLING_DOCUMENT_ISSUE(id), data),
+
   deleteBillingDocument: (id: number) =>
     api.delete<{ ok: true }>(FINANCIAL.BILLING_DOCUMENT(id)),
 
