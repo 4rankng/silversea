@@ -1,6 +1,20 @@
 // testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DV-DISPATCH-051.mjs
-// TC-DV-DISPATCH-051 — New Calendar Design in Phát lệnh (QuickIssueOrderDialog & DispatchPlanEditorCell)
-// Source: User reported: replace the old calendar design (datetime-local) with the new one
+// TC-DV-DISPATCH-051 — Phát lệnh flow: quick-issue affordance + assignment-editor contract.
+//
+// MUTATION SURFACE: none — this case is READ-ONLY.
+// 2026-09-20 ruling (card 20260920_45 incident note): mutation-class row actions are
+// NEVER swept. Every tap on a row action must be a single fixture-row tap preceded by
+// an affirmative read of the button's contract — no iterate-and-click loops, ever.
+// This case taps NO row action at all. The quick-issue icon ("Phát lệnh · <container>",
+// QuickIssueOrderButton) ISSUES THE REAL ORDER on click — "A row action issues directly
+// without mounting the assignment dialog" — so it is asserted as AFFORDANCE-EXISTS only
+// (aria-label + title contract text). The old "quick-issue calendar modal" no longer
+// exists: planning times are CUS-owned ("dispatchers never pick times", useIssueOrder),
+// so the calendar assertions are re-homed to the ASSIGNMENT EDITOR dialog (opened via
+// the dispatch-cell trigger, closed via Hủy = non-mutating): carrier/vehicle fields
+// present, and the obsolete input[type="datetime-local"] absent.
+//
+// mutates: nothing.
 
 export const caseId = 'TC-DV-DISPATCH-051';
 export const role = 'ADMIN';
@@ -9,202 +23,99 @@ export default async function (ctx) {
   const { page } = ctx;
   await ctx.goto('/dispatch-detail');
   await page.waitForSelector('.dispatch-assignment-cell__trigger, .detailed-plan-grid', { timeout: 30000 });
-  await new Promise((r) => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1500));
+
+  // 1. Quick-issue affordance exists (contract read only — never clicked).
+  //    Each button carries the immediate-issue contract in its title.
+  const quickIssue = await page.evaluate(() => {
+    const buttons = Array.from(document.querySelectorAll('button[aria-label^="Phát lệnh ·"]'));
+    return {
+      count: buttons.length,
+      samples: buttons.slice(0, 5).map((b) => ({
+        ariaLabel: b.getAttribute('aria-label'),
+        title: b.getAttribute('title'),
+        titleIsIssueContract: (b.getAttribute('title') || '').includes('Phát lệnh ngay'),
+      })),
+    };
+  });
+  if (quickIssue.count === 0) {
+    await ctx.screenshot('01_dispatch_detail_no_quick_issue');
+    return {
+      verdict: 'BLOCKED',
+      errors: ['Không có dòng plated-not-issued nào trên trang 1 — cần fixture (mã prefix QA0920-) ở trạng thái có biển nhưng chưa phát lệnh.'],
+      quickIssue,
+    };
+  }
 
   await ctx.screenshot('01_dispatch_detail_overview');
 
-  // Find a row that has the quick-issue button (.dispatch-assignment-cell__quick-issue)
-  const issueButtonCount = await page.evaluate(() =>
-    document.querySelectorAll('button[aria-label^="Phát lệnh ·"]').length);
-  if (issueButtonCount === 0) {
-    return { verdict: 'FAIL', errors: ['Không tìm thấy nút "Phát lệnh · <container>" trên /dispatch-detail'] };
-  }
-
-  // Iterate containers until one has a valid route: route-less containers
-  // open the dialog in an error variant ('Container chưa có tuyến đường hợp
-  // lệ.') — data-dependent, so try up to 6 buttons.
-  let quickIssueFound = null;
-  for (let i = 0; i < issueButtonCount; i++) {
-    quickIssueFound = await page.evaluate((idx) => {
-      const btns = Array.from(document.querySelectorAll('button[aria-label^="Phát lệnh ·"]'));
-      const b = btns[idx];
-      if (!b) return null;
-      b.scrollIntoView({ block: 'center' });
-      b.click();
-      return { buttonAriaLabel: b.getAttribute('aria-label') };
-    }, i);
-    await new Promise((r) => setTimeout(r, 1500));
-    const openState = await page.evaluate(() => {
-      const dlg = document.querySelector('[class*="dispatch-assignment-dialog"]');
-      if (!dlg) return { open: false };
-      if (/chưa có tuyến đường hợp lệ/i.test(dlg.textContent)) return { open: false, errorVariant: true };
-      return { open: true };
-    });
-    if (openState.open) { quickIssueFound.openState = openState; break; }
-    await page.keyboard.press('Escape');
-    await new Promise((r) => setTimeout(r, 600));
-  }
-
-  if (!quickIssueFound || !quickIssueFound.openState || !quickIssueFound.openState.open) {
-    return {
-      verdict: 'FAIL',
-      errors: [`Không container nào trong ${issueButtonCount} nút có tuyến đường hợp lệ để mở dialog phát lệnh (guard errors = data-dependent)`],
-    };
-  }
-  await new Promise((r) => setTimeout(r, 600));
-
-  await ctx.screenshot('02_quick_issue_modal_open_new_calendar');
-
-  // 1. Check DOM elements for new calendar design
-  const calendarInspection = await page.evaluate(() => {
-    const quickDayButtons = Array.from(document.querySelectorAll('.dispatch-assignment-dialog__schedule-pill'))
-      .map((b) => b.textContent.trim());
-
-    const timePresets = Array.from(document.querySelectorAll('.dispatch-assignment-dialog__schedule-time-pill'))
-      .map((b) => b.textContent.trim());
-
-    const startTimeInput = document.querySelector('.modal input[type="time"][id*="start"]');
-    const endTimeInput = document.querySelector('.modal input[type="time"][id*="end"]');
-    const dateInput = document.querySelector('.modal input[type="date"][id*="date"], .modal input[lang="en-GB"][id*="date"]');
-
-    // Confirm that old datetime-local input is NOT present
-    const oldDatetimeInput = document.querySelector('.modal input[type="datetime-local"]');
-
-    return {
-      foundSchedule: quickDayButtons.length > 0 && timePresets.length > 0,
-      quickDayButtons,
-      timePresets,
-      hasStartTimeInput: Boolean(startTimeInput),
-      hasEndTimeInput: Boolean(endTimeInput),
-      hasDateInput: Boolean(dateInput),
-      dateInputLang: dateInput ? dateInput.getAttribute('lang') : null,
-      hasOldDatetimeLocal: Boolean(oldDatetimeInput),
-      initialDateValue: dateInput ? dateInput.value : null,
-      initialStartTime: startTimeInput ? startTimeInput.value : null,
-      initialEndTime: endTimeInput ? endTimeInput.value : null,
-    };
-  });
-
-  if (!calendarInspection.foundSchedule) {
-    return { verdict: 'FAIL', errors: ['Không tìm thấy phần lịch trình mới trong modal Phát lệnh'] };
-  }
-
-  if (calendarInspection.hasOldDatetimeLocal) {
-    return { verdict: 'FAIL', errors: ['Vẫn còn tồn tại input[type="datetime-local"] cũ thay vì thiết kế mới'] };
-  }
-
-  // 2. Click "Ngày mai" quick day preset
-  const clickedTomorrow = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('.dispatch-assignment-dialog__schedule-pill'));
-    const tomorrowBtn = buttons.find((b) => b.textContent.includes('Ngày mai'));
-    if (!tomorrowBtn) return false;
-    tomorrowBtn.click();
-    return true;
-  });
-
-  // 3. Click "10:00" time preset
-  const clickedTimePreset = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('.dispatch-assignment-dialog__schedule-time-pill'));
-    const tenBtn = buttons.find((b) => b.textContent.includes('10:00'));
-    if (!tenBtn) return false;
-    tenBtn.click();
-    return true;
-  });
-
-  await new Promise((r) => setTimeout(r, 400));
-  await ctx.screenshot('03_quick_issue_presets_selected');
-
-  // Verify inputs updated
-  const updatedValues = await page.evaluate(() => {
-    const startTimeInput = document.querySelector('.modal input[type="time"][id*="start"]');
-    const endTimeInput = document.querySelector('.modal input[type="time"][id*="end"]');
-    const dateInput = document.querySelector('.modal input[type="date"][id*="date"], .modal input[lang="en-GB"][id*="date"]');
-    return {
-      dateValue: dateInput ? dateInput.value : null,
-      startTime: startTimeInput ? startTimeInput.value : null,
-      endTime: endTimeInput ? endTimeInput.value : null,
-    };
-  });
-
-  // Calculate expected tomorrow date YYYY-MM-DD
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const pad = (n) => String(n).padStart(2, '0');
-  const expectedTomorrow = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-  const tomorrowMatches = updatedValues.dateValue === expectedTomorrow;
-  const timePresetMatches = updatedValues.startTime === '10:00' && updatedValues.endTime === '12:00';
-
-  // 4. Test validation error when end time <= start time
-  await page.evaluate(() => {
-    const endTimeInput = document.querySelector('.modal input[type="time"][id*="end"]');
-    if (endTimeInput) {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-      if (setter) {
-        setter.call(endTimeInput, '08:00');
-      } else {
-        endTimeInput.value = '08:00';
-      }
-      endTimeInput.dispatchEvent(new Event('input', { bubbles: true }));
-      endTimeInput.dispatchEvent(new Event('change', { bubbles: true }));
+  // 2. Assignment-editor dialog: opened via the dispatch-cell trigger (a cell,
+  //    not a row action). Read-only until save; closed via Hủy. Triggers on
+  //    DISPATCHED rows with a CREATED/IN_TRANSIT trip open the REASSIGN
+  //    dialog instead — pick an edit-mode trigger (aria-haspopup="dialog").
+  const editable = await page.evaluate(() => {
+    const triggers = Array.from(document.querySelectorAll('.dispatch-assignment-cell__trigger'));
+    const target = triggers.find((t) => t.getAttribute('aria-haspopup') === 'dialog' && !t.disabled);
+    if (target) {
+      // Scroll + click atomically: the app resets main scrollTop on re-render,
+      // so a puppeteer scroll-then-click across ticks lands on stale coordinates.
+      target.scrollIntoView({ block: 'center' });
+      target.click();
+      return { found: true, label: target.getAttribute('aria-label') };
     }
+    return { found: false, label: null, total: triggers.length };
   });
-
-  // Click Phát lệnh button inside modal footer
-  await page.evaluate(() => {
-    const modal = document.querySelector('.modal');
-    const buttons = Array.from(modal.querySelectorAll('button'));
-    const issueBtn = buttons.find((b) => b.textContent?.includes('Phát lệnh'));
-    if (issueBtn) issueBtn.click();
-  });
-
-  await new Promise((r) => setTimeout(r, 500));
-  await ctx.screenshot('04_quick_issue_validation_error');
-
-  const errorInspection = await page.evaluate(() => {
-    const errorEl = document.querySelector('.dispatch-assignment-dialog__error');
+  if (!editable.found) {
+    await ctx.screenshot('02_no_editable_trigger');
     return {
-      hasError: Boolean(errorEl),
-      errorText: errorEl ? errorEl.textContent.trim() : null,
+      verdict: 'BLOCKED',
+      errors: ['Không có trigger điều phối ở chế độ sửa (mọi dòng đều đã phát lệnh/đã hoàn thành) — cần fixture plated-not-issued.'],
+      quickIssue,
+      editable,
+    };
+  }
+  await page.waitForSelector('form.dispatch-assignment-dialog', { timeout: 10000 });
+  await new Promise((r) => setTimeout(r, 800));
+  await ctx.screenshot('02_assignment_editor_dialog');
+
+  const editor = await page.evaluate(() => {
+    const dialog = document.querySelector('form.dispatch-assignment-dialog');
+    const labels = Array.from(dialog.querySelectorAll('label > span')).map((s) => s.textContent.trim());
+    return {
+      dialogPresent: Boolean(dialog),
+      carrierField: labels.includes('Nhà xe'),
+      vehicleField: labels.includes('Xe / biển số'),
+      hasOldDatetimeLocal: Boolean(dialog.querySelector('input[type="datetime-local"]')),
+      datetimeLocalAnywhere: Boolean(document.querySelector('input[type="datetime-local"]')),
+      legendTexts: Array.from(dialog.querySelectorAll('legend')).map((l) => l.textContent.trim()),
     };
   });
 
-  // 5. Close the dialog cleanly via Hủy button
+  // 3. Close via Hủy (footer button) and verify the dialog unmounts.
   await page.evaluate(() => {
     const modal = document.querySelector('.modal');
-    const buttons = Array.from(modal.querySelectorAll('button'));
+    const buttons = Array.from((modal || document).querySelectorAll('button'));
     const cancelBtn = buttons.find((b) => b.textContent?.trim() === 'Hủy');
     if (cancelBtn) cancelBtn.click();
   });
+  await new Promise((r) => setTimeout(r, 800));
+  await ctx.screenshot('03_editor_closed');
 
-  await new Promise((r) => setTimeout(r, 500));
-  await ctx.screenshot('05_quick_issue_closed');
+  const closed = await page.evaluate(() => document.querySelector('form.dispatch-assignment-dialog') == null);
 
-  const isClosed = await page.evaluate(() => {
-    return document.querySelector('.dispatch-assignment-dialog__schedule-pills') == null;
-  });
-
-  const ok = calendarInspection.foundSchedule
-    && !calendarInspection.hasOldDatetimeLocal
-    && calendarInspection.hasStartTimeInput
-    && calendarInspection.hasEndTimeInput
-    && calendarInspection.hasDateInput
-    && calendarInspection.dateInputLang === 'en-GB'
-    && clickedTomorrow && tomorrowMatches
-    && clickedTimePreset && timePresetMatches
-    && errorInspection.hasError && errorInspection.errorText?.includes('Giờ kết thúc phải sau giờ chạy')
-    && isClosed;
+  const ok = quickIssue.count > 0
+    && quickIssue.samples.every((s) => s.titleIsIssueContract)
+    && editor.dialogPresent
+    && editor.carrierField
+    && editor.vehicleField
+    && !editor.hasOldDatetimeLocal
+    && !editor.datetimeLocalAnywhere
+    && closed;
 
   return {
     verdict: ok ? 'PASS' : 'FAIL',
-    calendarInspection,
-    clickedTomorrow,
-    tomorrowMatches,
-    clickedTimePreset,
-    timePresetMatches,
-    updatedValues,
-    expectedTomorrow,
-    errorInspection,
-    isClosed,
+    quickIssue: { count: quickIssue.count, samples: quickIssue.samples },
+    editor,
+    closed,
   };
 }
