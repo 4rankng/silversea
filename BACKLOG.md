@@ -26,10 +26,10 @@ Common fix steps (per test in cluster A):
 - Effort: 60–90 min. The two-step `check/approve` helpers need to be replaced with audit-row queries.
 
 ### A-2 — `backend/src/tests/q23-config-crud-idempotency.test.ts` (3 ✖)
-- `keeps an accountant fuel-surcharge share update pending and unchanged until independent approval`
+- `keeps an accountant fuel-surcharge share update pending and unchanged until independent approval` — **XÓA test này**: hành vi phê duyệt đã bị bỏ khỏi sản phẩm (2026-09-15); không sửa, không tái hiện.
 - `replays a financial-authority create exactly and rejects key reuse with another payload`
 - `commits the existing customer partner hook in the same replay transaction`
-- Effort: 30 min.
+- Effort: 30 min (hai test còn lại) + xóa test phê duyệt.
 
 ### A-3 — `backend/src/tests/q12-q13-no-invoice-boundary-routes.test.ts` (1 ✖)
 - `config CRUD persists policy-configurable approval titles and only bumps version on policy change`

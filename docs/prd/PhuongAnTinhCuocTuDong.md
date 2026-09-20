@@ -68,10 +68,12 @@ Phương án khách hàng nêu hai cách theo hợp đồng:
 Chọn tối đa một cách cho cùng điều khoản; không đồng thời áp cả hai. Các mức ví
 dụ không tự thành ngưỡng của Long Minh.
 
-Cần làm rõ trước khi áp hợp đồng có ngưỡng: đúng bằng ngưỡng có đổi giá hay
-chưa; so với kỳ liền trước hay mốc đang được áp; nếu nhiều kỳ liên tiếp chưa
-đạt ngưỡng thì giữ mốc nào; kỳ đầu áp thế nào. Tài liệu nguồn có cả cách nói
-“vượt” và “đạt/vượt”, nên chưa thể tự chọn một cách.
+Đúng bằng ngưỡng được tính là **đạt** ngưỡng: thay đổi giá dầu đúng bằng ngưỡng
+đã đủ điều kiện mở kỳ giá mới.
+
+Cần làm rõ trước khi áp hợp đồng có ngưỡng: so với kỳ liền trước hay mốc đang
+được áp; nếu nhiều kỳ liên tiếp chưa đạt ngưỡng thì giữ mốc nào; kỳ đầu áp thế
+nào.
 
 Phân biệt **đã thỏa thuận không dùng ngưỡng** với **chưa điền thông tin**. Nếu
 không dùng ngưỡng, áp kỳ phù hợp theo ngày và độ trễ; nếu còn thiếu điều khoản,
@@ -199,7 +201,7 @@ tạo tiền hoặc chứng từ trùng. Lịch sử và số đã phát hành k
 | Biểu cước khách ngoài Long Minh | Khách nào dùng cùng mô hình, khách nào có cách tính khác |
 | Lag ASKEY/SUNRISE+SJ | Số ngày thực tế theo từng hợp đồng/tuyến |
 | Giá gốc 15T | Ba mức giá thật, không phải số 0 hoặc giá ví dụ |
-| Ngưỡng điều chỉnh | % hoặc số tiền/lít và giá trị; đúng tại ngưỡng có áp không |
+| Ngưỡng điều chỉnh | % hoặc số tiền/lít và giá trị; đúng bằng ngưỡng đã tính là đạt, phần giá trị theo hợp đồng còn thiếu |
 | Mốc so sánh qua nhiều kỳ | So với giá kỳ liền trước hay giá đã áp; giữ mốc thế nào khi nhiều kỳ chưa đạt ngưỡng; áp kỳ đầu thế nào |
 | Không dùng ngưỡng | Xác nhận rõ là không dùng, không suy từ ô còn trống |
 | Nguồn giá dầu | Dùng chung hay riêng theo khách; lịch áp giá, nguồn công bố và cách quy đổi VAT |

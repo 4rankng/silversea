@@ -359,9 +359,9 @@ Các điểm dưới đây chưa có kết luận của khách hàng. Sản ph�
 không tự chọn giá trị thay thế.
 
 - Ba giá gốc 15T; độ trễ áp giá dầu của ASKEY và SUNRISE + SJ.
-- Giá trị ngưỡng % hoặc số tiền/lít cho từng hợp đồng; áp khi **vượt** hay **đạt**
-  ngưỡng; lấy kỳ liền trước hay mốc đang áp qua nhiều kỳ; xử lý kỳ đầu và trường
-  hợp không dùng ngưỡng. Ô trống không được coi là xác nhận “luôn áp giá mới”.
+- Giá trị ngưỡng % hoặc số tiền/lít cho từng hợp đồng; lấy kỳ liền trước hay mốc
+  đang áp qua nhiều kỳ; xử lý kỳ đầu và trường hợp không dùng ngưỡng. Ô trống
+  không được coi là xác nhận “luôn áp giá mới”.
 - Khách khác có dùng cùng mô hình Long Minh hay biểu giá khác; phạm vi dùng chung
   một nguồn giá dầu; lịch công bố, nguồn và cách quy đổi VAT cho các kỳ tương lai.
 

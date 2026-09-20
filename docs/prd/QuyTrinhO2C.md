@@ -236,7 +236,7 @@ CUS bổ sung thông tin được phép sau phát lệnh. Khi một thay đổi 
 
 ### 7.2 Lập bảng kê và phản hồi khách hàng
 
-Kế toán lập và phát hành bảng kê/debit note trực tiếp khi đủ dữ liệu hàng hóa, giá, chứng từ và điều kiện kỳ. Một phần việc không được tính lặp trên các dòng nguồn đang có hiệu lực. Nếu chưa đủ, hiển thị đầy đủ từng lý do và cách bổ sung; các lý do không che nhau hay tràn ra ngoài vùng thông báo.
+Kế toán lập và phát hành bảng kê/debit note trực tiếp khi đủ dữ liệu hàng hóa, giá, chứng từ và điều kiện kỳ (chứng từ đúng nghĩa §7.1: đã nhận chứng từ gốc với người và ngày nhận thực tế). Một phần việc không được tính lặp trên các dòng nguồn đang có hiệu lực. Nếu chưa đủ, hiển thị đầy đủ từng lý do và cách bổ sung; các lý do không che nhau hay tràn ra ngoài vùng thông báo.
 
 Khách hàng xác nhận giao hàng hoặc phản hồi bảng kê theo phạm vi của mình, có người phản hồi và thời điểm. Đây là phản hồi bên ngoài, không phải cấp phê duyệt nội bộ. Xác nhận giao nhận không tự có nghĩa đã thanh toán.
 
