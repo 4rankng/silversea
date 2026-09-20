@@ -268,3 +268,19 @@ tables present.
   (matches cut). When-list FAIL is the SAME documented restamp-era finding as
   window 1 (§8): pre-idx-92 rows hold pre-restamp whens, below the cursor,
   bookkeeping-only, no action.
+
+## 10. 2026-09-20 window #3 execution record (UX overhaul wave, cuts #10-13)
+
+- Trigger: user order "once done deploy to staging and prod" after the second
+  wave drained (customers overhaul, filter grid, and the 7 defect cards).
+- Backup: /root/prod-backup-20260920-090112.sql.gz (BE pre-staged, 1,042,109
+  bytes, complete-marker verified) + the deploy's own server-side backup.
+- Preflight: PASS (cursor 1789853402000, row93 intact; no new migrations —
+  journal idx still 105, migrate no-op).
+- Staging cuts: #10 (3dc7cd82), #11 (452bc6e6), #12 (731cac7f), #13 (3682733a)
+  — each with buildHash match + asset guard OK; rung sheets Y/Z + delta + the
+  7-card sheet, all green.
+- One refused first attempt (dirty tree from mid-flight _45/_46 test-infra
+  WIP) — resolved by land-or-park: 427f45f4 + f239e787 landed, tree clean.
+- Deploy: `make deploy` exit 0 at f239e787. Postverify: probes 9/9, health ok,
+  buildHash match; when-list = the same documented restamp-era finding.
