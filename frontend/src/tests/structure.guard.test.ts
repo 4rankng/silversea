@@ -273,7 +273,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/config/DebitNoteTemplateEditorPage.tsx': 421,
   'src/pages/config/PenaltyReasonsConfigPage.tsx': 537,
   'src/pages/config/RoutesConfigPage.tsx': 449,
-  'src/pages/CustomersPage.tsx': 722,
+  // Bumped 722 -> 807: 2026-09-20 card _37 — the owner's 13-criterion UX
+  // overhaul (column selector, merged cells, bulk select, drawer, KPI
+  // filters). Bumped 878 -> 948: bulk notify/status dialogs + BE drawer
+  // histories wired. Split debt: CustomerFormModal (~350L) extraction
+  // restores the ceiling.
+  'src/pages/CustomersPage.tsx': 948,
   'src/pages/DashboardPage.tsx': 687,
   'src/pages/debt-detail-ledger.tsx': 444,
   'src/pages/DebtDetailPage.tsx': 816,

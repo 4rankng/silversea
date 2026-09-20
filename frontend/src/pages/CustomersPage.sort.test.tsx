@@ -84,7 +84,7 @@ describe('CustomersPage server-side sort headers', () => {
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
 
     // First click: fresh column starts ascending and jumps back to page 1.
-    fireEvent.click(screen.getByRole('button', { name: 'Tên khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đối tác' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=name');
@@ -92,7 +92,7 @@ describe('CustomersPage server-side sort headers', () => {
     });
 
     // Second click on the active column flips to descending.
-    fireEvent.click(screen.getByRole('button', { name: 'Tên khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đối tác' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
