@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
+import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentRoutes } from './lib/role-access';
 import { getModernRole } from './lib/role-helpers';
@@ -408,6 +409,7 @@ export default function App() {
         <ToastProvider>
           <MonthProvider>
             <SearchProvider>
+              <StaleBuildBanner />
               <AppRoutes />
             </SearchProvider>
           </MonthProvider>
