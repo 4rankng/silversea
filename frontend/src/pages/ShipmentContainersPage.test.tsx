@@ -251,11 +251,13 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
-    const actionGroup = document.querySelector('.shipments-detail-filters__date-actions') as HTMLElement;
+    // Card _36: presets live in their connected segmented group; the reset is
+    // a standalone rail item at the row's right edge.
+    const actionGroup = document.querySelector('.shipments-detail-presets') as HTMLElement;
     const todayBtn = within(actionGroup).getByRole('button', { name: 'Hôm nay' });
     const tomorrowBtn = within(actionGroup).getByRole('button', { name: 'Hôm sau' });
     const allBtn = within(actionGroup).getByRole('button', { name: 'Tất cả' });
-    const resetBtn = within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' });
+    const resetBtn = screen.getByRole('button', { name: 'Xóa bộ lọc' });
     for (const button of [todayBtn, tomorrowBtn, allBtn, resetBtn]) expect(button).toBeEnabled();
     expect(todayBtn).toHaveAttribute('aria-pressed', 'true');
     expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
@@ -585,10 +587,10 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-15&customerId=7&direction=IMPORT&searchSuffix=abcd']}><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    const actionGroup = document.querySelector('.shipments-detail-filters__date-actions');
+    const actionGroup = document.querySelector('.shipments-detail-presets');
     expect(actionGroup).toBeTruthy();
     expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Tất cả' })).toBeTruthy();
-    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
     expect(screen.queryByText('Đang lọc')).toBeNull();
     expect(screen.queryByText(/Ngày vận chuyển:/)).toBeNull();
 
