@@ -13,6 +13,7 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
+import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 
@@ -71,6 +72,7 @@ before(async () => {
   await initEnforcer();
   const app = express();
   app.use(express.json());
+  app.use(auditLogMiddleware);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use(globalErrorHandler);
   await new Promise<void>((resolve) => {
@@ -271,5 +273,103 @@ describe('customers screen bulk notify', () => {
       method: 'POST', token: adminToken, idempotencyKey: `o-${suffix}`, body: { customerIds: Array.from({ length: 501 }, (_, i) => i + 1), title: 't', message: 'm' },
     });
     assert.equal(oversized.status, 400);
+  });
+});
+
+describe('customers screen bulk status (lock/unlock)', () => {
+  test('requires Idempotency-Key', async () => {
+    const res = await request('/api/customers/bulk-status', { method: 'POST', token: adminToken, body: { customerIds: [targetId], status: 'LOCKED' } });
+    assert.equal(res.status, 400);
+  });
+
+  test('locks and re-activates live customers, skipping tombstones', async () => {
+    const lock = await request('/api/customers/bulk-status', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `lock-${suffix}`,
+      body: { customerIds: [targetId, tombstonedId], status: 'LOCKED' },
+    });
+    assert.equal(lock.status, 200);
+    let body = lock.body as { requested: number; updated: number; skipped: number; status: string };
+    assert.equal(body.requested, 2);
+    assert.equal(body.updated, 1);
+    assert.equal(body.skipped, 1);
+    assert.equal(body.status, 'LOCKED');
+    const [row] = await db.select({ status: s.customers.status }).from(s.customers).where(eq(s.customers.id, targetId));
+    assert.equal(row?.status, 'LOCKED');
+  });
+
+  test('re-activates a locked customer', async () => {
+    const unlock = await request('/api/customers/bulk-status', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `unlock-${suffix}`,
+      body: { customerIds: [targetId], status: 'ACTIVE' },
+    });
+    assert.equal(unlock.status, 200);
+    const body = unlock.body as { updated: number; status: string };
+    assert.equal(body.updated, 1);
+    const [after] = await db.select({ status: s.customers.status }).from(s.customers).where(eq(s.customers.id, targetId));
+    assert.equal(after?.status, 'ACTIVE');
+  });
+});
+
+describe('customers screen bulk status: replay + RBAC', () => {
+  test('replay with same key returns stored response without re-applying', async () => {
+    const lock = await request('/api/customers/bulk-status', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `rp-${suffix}`,
+      body: { customerIds: [otherId], status: 'LOCKED' },
+    });
+    assert.equal(lock.status, 200);
+    let body = lock.body as { updated: number };
+    assert.equal(body.updated, 1);
+    const replay = await request('/api/customers/bulk-status', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `rp-${suffix}`,
+      body: { customerIds: [otherId], status: 'LOCKED' },
+    });
+    assert.equal(replay.status, 200);
+    let rbody = replay.body as { updated: number };
+    assert.equal(rbody.updated, 1);
+    const [row] = await db.select({ status: s.customers.status }).from(s.customers).where(eq(s.customers.id, otherId));
+    assert.equal(row?.status, 'LOCKED');
+  });
+
+  test('denies non-screen roles and rejects invalid payloads', async () => {
+    for (const token of [dispatcherToken, customerRoleToken, cskhToken]) {
+      const denied = await request('/api/customers/bulk-status', {
+        method: 'POST', token, idempotencyKey: `d-${suffix}`, body: { customerIds: [targetId], status: 'LOCKED' },
+      });
+      assert.equal(denied.status, 403);
+    }
+    const invalid = await request('/api/customers/bulk-status', {
+      method: 'POST', token: adminToken, idempotencyKey: `i-${suffix}`, body: { customerIds: [targetId], status: 'PAUSED' },
+    });
+    assert.equal(invalid.status, 400);
+    const empty = await request('/api/customers/bulk-status', {
+      method: 'POST', token: adminToken, idempotencyKey: `e2-${suffix}`, body: { customerIds: [], status: 'LOCKED' },
+    });
+    assert.equal(empty.status, 400);
+  });
+
+  test('restore other customer to ACTIVE for downstream suites', async () => {
+    const restore = await request('/api/customers/bulk-status', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `rst-${suffix}`,
+      body: { customerIds: [otherId], status: 'ACTIVE' },
+    });
+    assert.equal(restore.status, 200);
+  });
+});
+
+describe('customers screen bulk ops audit trail', () => {
+  test('material writes persist audit rows for the actor', async () => {
+    const rows = await db.select({ id: s.auditLogs.id }).from(s.auditLogs)
+      .where(eq(s.auditLogs.userId, userIds[0]));
+    assert.ok(rows.length >= 2, `expected audit rows from bulk ops, got ${rows.length}`);
   });
 });

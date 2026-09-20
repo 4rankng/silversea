@@ -156,4 +156,42 @@ router.post('/bulk-notify', requireRoles(...SCREEN_ROLES), asyncHandler(async (r
   res.json(result);
 }));
 
+
+// ─── 4. Bulk status lock/unlock (RBAC + Idempotency-Key + audit) ────────────
+
+const bulkStatusSchema = z.object({
+  customerIds: z.array(z.number().int().positive()).min(1).max(500),
+  status: z.enum(['LOCKED', 'ACTIVE']),
+});
+
+// Mass status flip is an admin action: intentionally last-write-wins (no
+// expected_updated_at optimistic guard) — the actor's decision supersedes any
+// concurrent single-row edit, and the per-request transaction keeps the flip
+// atomic.
+router.post('/bulk-status', requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
+  const actor = getUser(req);
+  const { customerIds, status } = bulkStatusSchema.parse(req.body);
+  const ids = [...new Set(customerIds)];
+  const { result } = await runIdempotent({
+    endpoint: 'customers.bulk-status',
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { customerIds: ids, status },
+    createdBy: actor.userId,
+    create: async (tx) => {
+      const flipped = await tx.update(s.customers)
+        .set({ status, updatedAt: new Date() })
+        .where(and(inArray(s.customers.id, ids), isNull(s.customers.deletedAt)))
+        .returning({ id: s.customers.id, status: s.customers.status });
+      return {
+        requested: ids.length,
+        updated: flipped.length,
+        skipped: ids.length - flipped.length,
+        status,
+      };
+    },
+  });
+  res.json(result);
+}));
+
 export default router;
+
