@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Loader2, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Loader2, Calendar, Minus } from 'lucide-react';
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicleAlerts } from '../hooks/useQueries';
@@ -6,6 +6,7 @@ import { useDriverEarningsPeriod } from '../hooks/useDriverEarningsPeriod';
 import { usePageAnimations } from '../hooks/animations';
 import './DriverEarningsPage.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { EmptyState } from '../design-system';
 
 interface PenaltyEntry {
   id: number;
@@ -59,18 +60,20 @@ export default function DriverEarningsPage() {
   if (error) return (
     <div className="driver-earnings-page">
       <PageHeader title="Thu nhập" description="Tổng hợp thu nhập và khấu trừ" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">{error}</h3>
-        <button
+      <EmptyState
+        role="alert"
+        variant="compact"
+        icon={AlertTriangle}
+        title={error}
+        action={<button
           type="button"
           className="btn btn--secondary btn--sm"
           onClick={() => void refetchEarnings()}
           disabled={earningsFetching}
         >
           Thử lại
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -79,7 +82,9 @@ export default function DriverEarningsPage() {
   const netNum = parseFloat(earnings.netIncome);
   const payableNum = parseFloat(earnings.payableBalance);
   const adjustmentNum = earnings.adjustment ?? 0;
-  const isPositive = payableNum >= 0;
+  // Surface color encodes money state: green only for a truly positive
+  // balance, bronze for negative, neutral for zero or missing data.
+  const payableState = payableNum > 0 ? 'positive' : payableNum < 0 ? 'negative' : 'zero';
   const penaltyNum = parseFloat(earnings.penalties);
   const tripIncomeNum = parseFloat(earnings.productionSalary) + parseFloat(earnings.roadAllowance);
   const adjustmentLabel = adjustmentNum >= 0 ? 'Thưởng công' : 'Trừ công';
@@ -129,7 +134,7 @@ export default function DriverEarningsPage() {
       )}
 
       {/* ═══ Zone 1 — Salary answer card ═══ */}
-      <div className={`earnings-hero-bento fade-up ${isPositive ? 'earnings-hero-bento--positive' : 'earnings-hero-bento--negative'}`}>
+      <div className={`earnings-hero-bento fade-up earnings-hero-bento--${payableState}`}>
         <div className="earnings-hero-bento__content">
           <p className="earnings-hero-bento__eyebrow">{payableLabel}</p>
           <div className="earnings-hero-bento__amount">
@@ -141,9 +146,11 @@ export default function DriverEarningsPage() {
           </p>
         </div>
         <div className="earnings-hero-bento__icon">
-          {isPositive
+          {payableState === 'positive'
             ? <TrendingUp size={24} />
-            : <TrendingDown size={24} />
+            : payableState === 'negative'
+              ? <TrendingDown size={24} />
+              : <Minus size={24} />
           }
         </div>
         <div className="earnings-hero-bento__watermark">
@@ -177,7 +184,7 @@ export default function DriverEarningsPage() {
             <span>Đã tạm ứng/đã thanh toán</span>
             <strong>{formatNumber(earnings.paidOrAdvanced ?? '0')} đ</strong>
           </div>
-          <div className={`earnings-equation__item earnings-equation__item--total ${payableNum < 0 ? 'earnings-equation__item--danger' : 'earnings-equation__item--success'}`}>
+          <div className={`earnings-equation__item earnings-equation__item--total ${payableState === 'negative' ? 'earnings-equation__item--danger' : payableState === 'positive' ? 'earnings-equation__item--success' : 'earnings-equation__item--zero'}`}>
             <span>Còn chưa thanh toán</span>
             <strong>{formatNumber(earnings.payableBalance)} đ</strong>
           </div>

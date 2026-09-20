@@ -29,6 +29,14 @@ export interface EmptyStateProps {
   preview?: EmptyStatePreview;
   /** Number of placeholder items. Defaults to 3 (cards) or 4 (rows/list). */
   previewCount?: number;
+  /**
+   * `compact` = the operational list face (card _41): smaller illustration,
+   * tighter padding, ≤160px tall on phones — replaces the retired
+   * .empty-state chrome from components/UI.css.
+   */
+  variant?: 'default' | 'compact';
+  /** Forwarded to the root (e.g. role="alert" for error faces). */
+  role?: 'alert' | 'status';
   className?: string;
 }
 
@@ -40,16 +48,18 @@ export function EmptyState({
   action,
   preview,
   previewCount,
+  variant,
+  role,
   className,
 }: EmptyStateProps) {
   const showPreview = Boolean(preview);
   const count = previewCount ?? (preview === 'cards' ? 3 : 4);
-  const cls = ['ds-empty-state', showPreview ? `ds-empty-state--with-preview ds-empty-state--preview-${preview}` : '', className]
+  const cls = ['ds-empty-state', showPreview ? `ds-empty-state--with-preview ds-empty-state--preview-${preview}` : '', variant === 'compact' ? 'ds-empty-state--compact' : '', className]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <div className={cls}>
+    <div className={cls} role={role}>
       <div className="ds-empty-state__message">
         {illustration ? (
           <img

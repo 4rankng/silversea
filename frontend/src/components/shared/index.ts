@@ -4,7 +4,6 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { useToast, ToastProvider } from './Toast';
 export type { ToastOptions } from './Toast';
 export { Skeleton, SkeletonLine, SkeletonCircle, SkeletonCard, SkeletonTable, SkeletonKPIs } from './Skeleton';
-export { EmptyState } from './EmptyState';
 export { EmptyIllustration } from './EmptyIllustration';
 export { ClickableCard } from './ClickableCard';
 // daisyUI-backed primitives (prefixed .d-* — see styles/tokens.css).
