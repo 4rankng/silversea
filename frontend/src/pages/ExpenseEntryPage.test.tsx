@@ -63,4 +63,19 @@ describe('ExpenseEntryPage load and recovery', () => {
     expect(screen.getByRole('button', { name: 'Lưu chi phí' })).toBeEnabled();
     expect(suppliers).toHaveBeenCalledTimes(2);
   });
+
+  it('marks every invalid required field and reports no hidden native required control on invalid submit', async () => {
+    renderPage();
+    const save = await screen.findByRole('button', { name: 'Lưu chi phí' });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(save);
+    expect(screen.getByLabelText('Số tiền (đ)', { exact: false })).toHaveAttribute('aria-invalid', 'true');
+    const selectErrors = [...document.querySelectorAll('.ds-uui-select__error')].map(e => e.textContent);
+    expect(selectErrors).toContain('Vui lòng chọn nhà cung cấp');
+    expect(selectErrors).toContain('Vui lòng chọn hạng mục chi phí');
+    expect(screen.getByText('Số tiền phải là số dương')).toBeInTheDocument();
+    // The app validates and displays itself; no offscreen native [required]
+    // control participates (AC 2).
+    expect(document.querySelectorAll('[required]')).toHaveLength(0);
+  });
 });

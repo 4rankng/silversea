@@ -61,7 +61,6 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                         size="md"
                         id="paymentStatus"
                         label="Trạng thái thanh toán"
-                        required
                         value="UNPAID"
                         onChange={() => { /* ledger-backed: stays Ghi nợ until settled */ }}
                         options={[{ value: 'UNPAID', label: 'Ghi nợ' }]}

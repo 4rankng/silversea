@@ -417,13 +417,13 @@ export default function ExpenseEntryPage() {
                     disabled={catalogsUnavailable}
                     onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
+                    error={errors.supplierId}
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
                       ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
                     ]}
                   />
                 )}
-                {errors.supplierId && <p className="expense-field-error">{errors.supplierId}</p>}
               </div>
 
               <div className="expense-group expense-group--catalog">
@@ -465,13 +465,13 @@ export default function ExpenseEntryPage() {
                     disabled={catalogsUnavailable}
                     onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
+                    error={errors.categoryId}
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
                       ...categories.map(c => ({ value: String(c.id), label: c.name })),
                     ]}
                   />
                 )}
-                {errors.categoryId && <p className="expense-field-error">{errors.categoryId}</p>}
               </div>
 
               <div className="expense-group">
@@ -550,6 +550,7 @@ export default function ExpenseEntryPage() {
                     id="amount"
                     inputMode="numeric"
                     className="expense-input expense-amount-input"
+                    aria-invalid={Boolean(errors.amount) || undefined}
                     value={form.amount ? formatAmountDisplay(form.amount) : ''}
                     onChange={e => set('amount', parseAmountInput(e.target.value))}
                     placeholder="0"
