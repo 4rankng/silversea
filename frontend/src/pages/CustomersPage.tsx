@@ -145,6 +145,7 @@ function CustomerDrawerHistories({ customerId }: { customerId: number }) {
           <dd key={item.id} style={{ fontWeight: 400 }}>
             {item.timestamp.slice(0, 10)} · {item.note || item.txnType} ·{' '}
             {Number(item.credit ?? 0) > 0 ? `+${Number(item.credit).toLocaleString('vi-VN')}` : `-${Number(item.debit ?? 0).toLocaleString('vi-VN')}`}
+            {item.balance != null ? ` · còn lại ${Number(item.balance).toLocaleString('vi-VN')}` : ''}
           </dd>
         ))}
       </dl>
