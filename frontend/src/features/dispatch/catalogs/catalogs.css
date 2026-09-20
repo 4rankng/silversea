@@ -132,6 +132,33 @@
   overflow-wrap: anywhere;
 }
 
+/* Identifier numbers must never wrap mid-digit (PRD §3: "các mã quan trọng
+   không bị cắt hoặc ngắt"). The normal/anywhere wrap above is for prose
+   columns; these data-label cells carry fixed-length identifiers and keep one
+   line — the auto table layout takes their width from the prose columns
+   (name, bank), which stay wrappable or capped below. */
+.dispatch-catalogs__table td[data-label="Mã tài xế"],
+.dispatch-catalogs__table td[data-label="Số CCCD"],
+.dispatch-catalogs__table td[data-label="GPLX"],
+.dispatch-catalogs__table td[data-label="Số điện thoại"],
+.dispatch-catalogs__table td[data-label="Số TK nhận tiền"] {
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__table td[data-label="Mã tài xế"] .dispatch-catalogs__desktop-driver-code {
+  white-space: nowrap;
+}
+
+/* Bank names are prose ("Ngoại thương Việt Nam (VCB)") — cap the column and
+   truncate with an ellipsis instead of wrapping; the full name stays on the
+   cell's title tooltip. */
+.dispatch-catalogs__table td[data-label="Ngân hàng nhận tiền"] {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .dispatch-catalogs__table tbody tr:hover { background: var(--hover-bg, rgba(0, 0, 0, 0.02)); }
 }

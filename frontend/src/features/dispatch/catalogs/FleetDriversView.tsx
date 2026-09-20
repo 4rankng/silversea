@@ -133,7 +133,7 @@ export function FleetDriversView() {
                   <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>
                   <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>{d.licenseExpiryDate ? formatISODate(d.licenseExpiryDate) : '—'}</td>
                   <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>
-                  <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined}>{d.bankName || '—'}</td>
+                  <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>
                   <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>
                   <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>
                 </tr>
