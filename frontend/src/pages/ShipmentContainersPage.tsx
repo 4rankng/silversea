@@ -233,42 +233,27 @@ export default function ShipmentContainersPage() {
             </UUIButton>
             <div id="cus-detail-advanced-filters" className="shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
               <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
-                <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
-                <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
+                <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
+                <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
               </div>
               <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
-                <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
-                <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
-                <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
-                <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter" />
+                <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
+                <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
+                <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />
+                <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--info" />
               </div>
-            </div>
-            <div className="shipments-detail-filters__footer">
-              <div className="shipments-detail-filters__date-actions">
-                <UUIButton
-                  size="sm"
-                  color="secondary"
-                  onPress={showToday}
-                  aria-pressed={dateFrom === today && dateTo === today}
-                >
-                  Hôm nay
-                </UUIButton>
-                <UUIButton
-                  size="sm"
-                  color="secondary"
-                  onPress={showTomorrow}
-                  aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}
-                >
-                  Hôm sau
-                </UUIButton>
-                <UUIButton
-                  size="sm"
-                  color="secondary"
-                  onPress={showAllDates}
-                  aria-pressed={allDates}
-                >
-                  Tất cả
-                </UUIButton>
+              <div className="shipments-detail-filters__group shipments-detail-filters__group--presets">
+                <div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">
+                  <UUIButton size="sm" color="secondary" onPress={showToday} aria-pressed={dateFrom === today && dateTo === today}>
+                    Hôm nay
+                  </UUIButton>
+                  <UUIButton size="sm" color="secondary" onPress={showTomorrow} aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}>
+                    Hôm sau
+                  </UUIButton>
+                  <UUIButton size="sm" color="secondary" onPress={showAllDates} aria-pressed={allDates}>
+                    Tất cả
+                  </UUIButton>
+                </div>
                 <UUIButton
                   size="sm"
                   color="secondary"

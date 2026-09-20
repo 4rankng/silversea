@@ -28,49 +28,58 @@
 }
 .shipments-detail-filters {
   display: grid;
-  /* One self-sizing rail, matching the overview workboard: every filter shares a
-     left edge, a label baseline and the row's leftover width. The old three
-     hand-tuned tracks gave the four selects only three columns, so the last one
-     wrapped, the outer row grew and align-items:end dropped the search and the
-     dates to the bottom — the empty top-left hole. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 8px 12px;
+  /* Owner's final filter spec (2026-09-20, card _36): one predictable 12-col
+     grid at every desktop width — two fixed rows, no auto-flow reflow. Row 1:
+     search 4 · from 2 · to 2 · customer 4. Row 2: direction 3 · dispatch 3 ·
+     info 2 · date presets 2 · reset 2 (right). Supersedes the one-row ruling. */
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px 16px;
   align-items: end;
   min-width: 0;
 }
+/* Every control in the bar shares the owner-spec compact 36px geometry
+   (addendum to card _36: minimal vertical space, data density first). */
+.shipments-detail-filters [data-uui-control] { --uui-control-h: 36px; box-sizing: border-box; }
 .shipments-detail-filters .cus-advanced-toggle { display: none; }
 /* Neither the disclosure nor its groups are layout boxes: their fields are rail
    items. Adding a filter never needs a track edit. */
 .shipments-detail-filters__advanced,
 .shipments-detail-filters__group { display: contents; }
-/* The identity field is the only one that needs two tracks. */
-.shipments-detail-filter--search { grid-column: span 2; }
+/* Owner-spec column spans. Row 1. */
+.shipments-detail-filter--search { grid-column: span 4; }
+.shipments-detail-filter--from { grid-column: span 2; }
+.shipments-detail-filter--to { grid-column: span 2; }
+.shipments-detail-filter--customer { grid-column: span 4; }
+/* Row 2. */
+.shipments-detail-filter--direction { grid-column: span 3; }
+.shipments-detail-filter--dispatch { grid-column: span 3; }
+.shipments-detail-filter--info { grid-column: span 2; }
+.shipments-detail-presets { grid-column: span 2; }
+.shipments-detail-filters__reset { grid-column: span 2; justify-self: end; width: auto; }
 /* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
    stack at 4px. Match them or the select labels ride 2px above the rest. */
 .shipments-detail-filter .ds-uui-select__control { gap: 4px; }
-.shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
+.shipments-detail-filter { width: 100%; min-width: 0; gap: 6px; }
 .shipments-detail-filter > *,
 .shipments-detail-filter input { width: 100%; min-width: 0; }
-.shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
+.shipments-detail-filter [data-label],
+.shipments-detail-filter label { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); font-size: 12px; white-space: nowrap; }
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
 
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-/* The quick-filter group is a rail item like the fields (2026-09-20 ruling on
-   _34): it flows right after the last field — completing the ONE row at wide
-   widths and sharing the wrapped row with the last select at narrow widths,
-   so no row ever holds a lone control. Left-packed, never justified across
-   the bar; two tracks keep the four chips on one line. */
-.shipments-detail-filters__footer { display: flex; grid-column: span 2; min-width: 0; align-self: end; align-items: end; justify-content: flex-start; }
-.shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
-.shipments-detail-filters__date-actions button,
-.shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
-.shipments-detail-filters__date-actions button:hover,
-.shipments-detail-filters__date-actions button[data-hovered],
-.shipments-detail-filters__reset:hover,
-.shipments-detail-filters__reset[data-hovered] { border-color: var(--ink-4); background: var(--surface-2); color: var(--ink); }
-.shipments-detail-filters__reset { flex: 0 0 auto; }
+/* Date presets: ONE connected segmented group (owner spec) sitting in the
+   labelless rail slots — the grid's align-items:end keeps its bottom flush
+   with the adjacent selects. */
+.shipments-detail-presets { display: inline-flex; align-items: stretch; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.shipments-detail-presets button { flex: 1 1 auto; height: 34px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; padding-inline: 10px; }
+.shipments-detail-presets button + button { border-left: 1px solid var(--line-2); }
+.shipments-detail-presets button:hover,
+.shipments-detail-presets button[data-hovered] { background: var(--surface-2); color: var(--ink); }
+/* Selected segment = FILLED ink block with contrasting text (addendum 2:
+   a green tint read as unselected); unselected stays transparent + muted. */
+.shipments-detail-presets button[aria-pressed='true'] { background: var(--ink); color: var(--surface); }
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 

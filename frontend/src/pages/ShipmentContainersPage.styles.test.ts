@@ -31,18 +31,26 @@ describe('shipment detail workboard styling', () => {
   it('uses a compact filter-only header and aligns the mixed control families', () => {
     expect(css).not.toContain('.shipments-detail-workspace__intro');
     expect(css).not.toContain('.shipments-detail-eyebrow');
-    expect(css).toMatch(/\.shipments-detail-filter \[data-label\]\s*\{[^}]*margin-bottom:\s*0;[^}]*font-weight:\s*var\(--fw-semibold\);/);
-    expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*4px;/);
+    expect(css).toMatch(/\.shipments-detail-filter \[data-label\],\s*\n?\.shipments-detail-filter label\s*\{[^}]*margin-bottom:\s*0;[^}]*font-weight:\s*var\(--fw-semibold\);/);
+    expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*6px;/);
     expect(css).toMatch(/\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*gap:\s*4px;/);
     expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái điều xe"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
+    // Owner's final filter spec (card _36): 12-col grid, two fixed rows.
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*1fr\);[^}]*gap:\s*12px 16px;[^}]*align-items:\s*end;/);
+    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{[^}]*grid-column:\s*span 4;/);
+    expect(css).toMatch(/\.shipments-detail-filter--customer\s*\{[^}]*grid-column:\s*span 4;/);
+    expect(css).toMatch(/\.shipments-detail-filter--direction\s*\{[^}]*grid-column:\s*span 3;/);
+    expect(css).toMatch(/\.shipments-detail-filter--info\s*\{[^}]*grid-column:\s*span 2;/);
+    expect(css).toMatch(/\.shipments-detail-presets\s*\{[^}]*grid-column:\s*span 2;/);
+    expect(css).toMatch(/\.shipments-detail-filters__reset\s*\{[^}]*grid-column:\s*span 2;[^}]*justify-self:\s*end;/);
+    expect(source).toMatch(/<div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">[\s\S]*?Hôm nay[\s\S]*?Hôm sau[\s\S]*?Tất cả[\s\S]*?<UUIButton[\s\S]*?shipments-detail-filters__reset[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
-    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*span\s*2;[^}]*align-self:\s*end;/);
-    expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
-    expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
+    expect(source).not.toContain('shipments-detail-filters__footer');
+    expect(css).not.toContain('.shipments-detail-filters__date-actions');
+    expect(css).toMatch(/\.shipments-detail-presets button \+ button\s*\{[^}]*border-left:\s*1px solid var\(--line-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
     expect(ledgerSource).toMatch(/<SummaryRail\s/);
     expect(ledgerSource).not.toContain('shipment-container-summary');
@@ -54,13 +62,14 @@ describe('shipment detail workboard styling', () => {
 
   it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
-    // One self-sizing rail shared with the overview workboard: every filter is a
-    // rail item, so adding one never needs a track edit. The old hand-tuned
-    // three-track template gave the four selects three columns, wrapping the
-    // last one and leaving a hole at the top-left.
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
+    // Owner's final spec (card _36): one predictable 12-col grid — two fixed
+    // rows at every desktop width, predictable over crammed one-row flow.
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*1fr\);/);
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*gap:\s*12px 16px;/);
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*align-items:\s*end;/);
+    expect(css).toMatch(/\.shipments-detail-filters \[data-uui-control\]\s*\{[^}]*--uui-control-h:\s*36px;/);
     expect(css).toMatch(/\.shipments-detail-filters__advanced,\s*\.shipments-detail-filters__group\s*\{\s*display:\s*contents;\s*\}/);
-    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{\s*grid-column:\s*span 2;\s*\}/);
+    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{[^}]*grid-column:\s*span 4;/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*box-shadow:\s*none;/);
