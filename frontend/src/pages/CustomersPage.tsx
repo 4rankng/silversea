@@ -105,14 +105,15 @@ function CustomerDrawerHistories({ customerId }: { customerId: number }) {
   useEffect(() => {
     let alive = true;
     setLogistics(null); setPayments(null); setOutstanding(null); setFailed(false);
+    // lib/api resolves the parsed JSON body directly (no .data wrapper).
     api.get(`/customers/${customerId}/logistics-history?limit=5`).then(
-      (r: unknown) => { if (alive) setLogistics((r as { data?: { items?: CustomerLogisticsItem[] } })?.data?.items ?? []); },
+      (r: unknown) => { if (alive) setLogistics((r as { items?: CustomerLogisticsItem[] })?.items ?? []); },
       () => { if (alive) setFailed(true); },
     );
     api.get(`/customers/${customerId}/payment-history?limit=5`).then(
       (r: unknown) => {
         if (!alive) return;
-        const body = (r as { data?: { items?: CustomerPaymentItem[]; outstanding?: string | number } })?.data;
+        const body = r as { items?: CustomerPaymentItem[]; outstanding?: string | number };
         setPayments(body?.items ?? []);
         setOutstanding(body?.outstanding != null ? Number(body.outstanding) : null);
       },
@@ -453,7 +454,7 @@ export default function CustomersPage() {
       const r = await api.post('/customers/bulk-status', { customerIds: [...selected], status }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      const body = (r as { data?: { updated?: number; skipped?: number } } | undefined)?.data;
+      const body = r as { updated?: number; skipped?: number };
       // Lead condition on the dropped-confirm acceptance: the toast must
       // surface the affected count so the action's scope stays visible.
       const action = status === 'LOCKED' ? 'khóa' : 'mở khóa';
@@ -476,7 +477,7 @@ export default function CustomersPage() {
       const r = await api.post('/customers/bulk-notify', { customerIds: ids, title: notifyTitle.trim(), message: notifyMessage.trim() }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      const body = (r as { data?: { notified?: number; matchedCustomers?: number } } | undefined)?.data;
+      const body = r as { notified?: number; matchedCustomers?: number };
       toast({ kind: 'success', message: `Đã gửi thông báo đến ${body?.notified ?? 0}/${body?.matchedCustomers ?? ids.length} người dùng liên quan` });
       setNotifyOpen(false);
       setNotifyTitle(''); setNotifyMessage('');
