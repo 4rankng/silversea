@@ -40,7 +40,7 @@ ssh "$SERVER" bash -s -- "$MODE" "$OLD_WHEN" "$NEW_WHEN" <<'REMOTE'
 set -eu
 MODE=$1
 OLD_WHEN=$2
-NEW_WHEN=$3
+NEW_WHEN=${3:-}
 BASE="/opt/silversea"  # remote shell does not inherit REALIGN_*
 COMPOSE_FILE="deploy/docker-compose.silversea.yml"
 cd "$BASE"
