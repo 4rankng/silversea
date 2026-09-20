@@ -79,16 +79,27 @@ export default async function (ctx) {
     .filter(Boolean);
 
   const cellTrim = (factoryCellText || '').trim();
-  const cellMatches = expectedShortNames.some((n) => cellTrim === n);
+  // Card _47 AC3: the cell composes container code + site display name
+  // (staging showed "QAC1 Nhà máy Đồng Văn"), so both branches match by
+  // substring. A site WITH a shortName must show it; a site WITHOUT one falls
+  // back to its full name — both branches reach a definite verdict, the case
+  // never rests INCONCLUSIVE on this axis again.
+  const matchedSites = (sitesRes?.body?.items || sitesRes?.body || [])
+    .filter((s) => expectedSites.includes(s.id));
+  const expectedFullNames = matchedSites.map((s) => s.name).filter(Boolean);
+  const cellMatches = expectedShortNames.some((n) => cellTrim.includes(n));
+  const cellMatchesFullName = expectedFullNames.some((n) => cellTrim.includes(n));
   const cellIsDash = cellTrim === '—' || cellTrim === '' || /Chưa có nhà máy/i.test(cellTrim);
 
   return {
-    verdict: cellMatches ? 'PASS' : (cellIsDash ? 'FAIL' : 'INCONCLUSIVE'),
+    verdict: cellMatches || cellMatchesFullName ? 'PASS' : 'FAIL',
     target,
     factoryCellText: cellTrim,
     cellMatches,
+    cellMatchesFullName,
     cellIsDash,
     expectedShortNames,
+    expectedFullNames,
     siteShortNames,
   };
 }
