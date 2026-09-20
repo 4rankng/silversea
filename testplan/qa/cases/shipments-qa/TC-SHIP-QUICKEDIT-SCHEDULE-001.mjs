@@ -1,8 +1,10 @@
 // cases/shipments-qa/TC-SHIP-QUICKEDIT-SCHEDULE-001.mjs
-// /shipments workboard quick-edit, CUS-gated cell groups (current contract):
-//   • schedule + notes triggers are enabled only for CUS-role actors on
-//     unlocked lots (transportDateEditable = role CUS && lot not locked), so
-//     this rung runs as CUS and taps ONE unlocked LCL fixture row.
+// /shipments workboard quick-edit, schedule + notes cell groups (current contract):
+//   • schedule + notes triggers are enabled for CUS, ADMIN and DISPATCHER
+//     actors on unlocked lots (transportDateEditable = role in {CUS, ADMIN,
+//     DISPATCHER} && lot not locked); this rung runs as CUS and taps ONE
+//     unlocked LCL fixture row — the full role matrix is exercised on
+//     staging during the release rung.
 //   • schedule: open the quick-edit modal, interact with the time field
 //     (click, type) and assert the modal stays open throughout — the dialog
 //     must not self-close during time/date interaction.

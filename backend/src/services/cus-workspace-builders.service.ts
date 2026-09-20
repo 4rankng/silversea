@@ -160,7 +160,13 @@ function buildOperationalSummary(
     : bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
       ? 'OVERDUE' as const
       : 'SCHEDULED' as const;
-  const transportDateEditable = actor.role === Role.CUS
+  // Quick-edit of schedule + notes opens to CUS, ADMIN and DISPATCHER
+  // (product ruling 2026-09-20); an active accounting lock still closes both
+  // for every role. The workboard triggers gate on this flag and the inline
+  // editor re-checks the four matching fieldAccess keys.
+  const transportDateEditable = (actor.role === Role.CUS
+    || actor.role === Role.ADMIN
+    || actor.role === Role.DISPATCHER)
     && support.locksByShipment.get(row.shipment.id) == null;
 
   // Some trips link to a shipment directly (`trips.shipmentId`, e.g. a
@@ -653,6 +659,11 @@ function shipmentFieldAccess(
 ): ShipmentCusWorkspaceListItem['fieldAccess'] {
   const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
   const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
+  // Schedule + notes quick-edit opens to dispatchers as well: the workboard
+  // triggers gate on transportDateEditable, and the inline editor re-checks
+  // these four keys before opening — they must read DIRECT here for the
+  // dispatcher or the modal refuses despite the enabled trigger.
+  const scheduleNotesKeys = new Set(['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes']);
   for (const field of allShipmentFieldKeys) {
     if (field === 'declarationNumber') {
       access[field] = !canWriteShipment
@@ -664,7 +675,7 @@ function shipmentFieldAccess(
     }
     if (hasActiveLock) {
       access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
-    } else if (!canWriteShipment) {
+    } else if (!canWriteShipment && !(actor.role === Role.DISPATCHER && scheduleNotesKeys.has(field))) {
       access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
     } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
       access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');

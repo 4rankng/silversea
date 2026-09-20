@@ -6,8 +6,9 @@
 //   • LCL rows: identity / documents / classification / cargo open the
 //     quick-edit modal. Positive control per group: open → assert title +
 //     form fields → Hủy → assert closed.
-//   • notes + schedule cells are CUS-role rungs — covered by
-//     TC-SHIP-QUICKEDIT-SCHEDULE-001 (role CUS).
+//   • notes + schedule rungs are covered by
+//     TC-SHIP-QUICKEDIT-SCHEDULE-001 (runs as CUS; the trigger gate now
+//     spans CUS/ADMIN/DISPATCHER on unlocked lots).
 // Mutation surface: READ-ONLY rungs — every open closes via Hủy, no data
 // writes. Taps stay on ONE fixture row per rung. Finders are aria-label-only
 // and scoped to .cus-dashboard-table (document-wide innerText matching used

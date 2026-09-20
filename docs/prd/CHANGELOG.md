@@ -4,6 +4,10 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-20 — Quick-edit lịch & ghi chú mở cho đủ ba vai
+
+- **Quyền chỉnh nhanh lịch trình lô và ghi chú trên Tổng quan lô hàng mở cho CUS, Quản trị viên và Điều vận** (`QuyTrinhO2C.md` §3): khi lô chưa khóa kế toán, cả ba vai đều bấm được ô lịch và ô ghi chú để sửa trực tiếp; khóa kế toán vẫn chặn mọi vai; các ô khác giữ quyền như cũ — điều vận chỉ mở đúng hai ô này.
+
 ## 2026-09-20 — Đối chiếu toàn diện: ngưỡng ≥, 0 khác thiếu, bảng kê đủ dữ liệu, dọn phê duyệt
 
 - **Ngưỡng điều chỉnh áp khi đạt ngưỡng (≥)** (`PhuongAnTinhCuocTuDong.md` §3.2, `CuocPhiPhuPhiDau.md` §10): thay đổi giá dầu đúng bằng ngưỡng được coi là đạt ngưỡng và mở kỳ giá mới. Cả hai tài liệu ghi mở trước đó ("chưa thể tự chọn một cách"); engine đang chạy đúng hướng này (thay đổi == ngưỡng đã áp thay đổi), nên đây là quyết định khớp engine — không đổi hành vi runtime. Phần còn mở: giá trị ngưỡng theo hợp đồng, so kỳ liền trước hay mốc, kỳ đầu.

@@ -655,6 +655,87 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
     assert.equal(item.fieldAccess.factoryName.mode, 'DIRECT');
   });
 
+  test('workboard schedule and notes quick-edit opens to admin and dispatcher on unlocked lots', async () => {
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const shipment = await seedShipment({
+      status: 'IN_TRANSIT',
+      bookingRef: `BOOK-RAW-02-${suffix}`,
+      closingAt: new Date('2026-08-20T01:00:00.000Z'),
+      customerNotes: 'Ghi chú khách hàng',
+    });
+
+    for (const actor of [adminActor, dispatcherActor]) {
+      const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+      const item = response.items.find((candidate) => candidate.id === shipment.id);
+      assert.ok(item, `${actor.role} sees the shipment on the workboard`);
+      assert.equal(item.operational.transportDateEditable, true, `${actor.role} schedule/notes trigger enabled`);
+      for (const key of ['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes'] as const) {
+        assert.equal(item.fieldAccess[key].mode, 'DIRECT', `${actor.role} ${key} opens the quick-edit modal`);
+      }
+    }
+  });
+
+  test('accounting lock still closes schedule and notes quick-edit for every opened role', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live, sentinel ids violate it.
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Schedule/notes quick-edit stays closed while the lot is locked',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      for (const actor of [cusActor, adminActor, dispatcherActor]) {
+        const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(item, `${actor.role} sees the locked shipment`);
+        assert.equal(item.operational.transportDateEditable, false, `${actor.role} trigger disabled while locked`);
+        for (const key of ['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes'] as const) {
+          assert.equal(item.fieldAccess[key].mode, 'READ_ONLY', `${actor.role} ${key} closed while locked`);
+        }
+      }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
   // TODO/20260911_3 BUG3: CUS creates the lot before the container numbers
   // arrive, then supplements them the next day. The save must be DIRECT —
   // no approval request, no pending row — as long as dispatch has not
