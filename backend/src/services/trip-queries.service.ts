@@ -22,6 +22,7 @@ const TRIP_RELATION_FIELDS = {
   customerName: CUSTOMER_OPERATIONAL_NAME,
   driverName: s.drivers.name,
   truckPlate: s.trucks.licensePlate,
+  truckClass: s.trucks.vehicleClass,
   routeName: ROUTE_OPERATIONAL_NAME,
   routeDistance: s.routes.distanceKm,
   routeIsMountain: s.routes.isMountain,
@@ -57,7 +58,7 @@ function shapeTripRelations(item: Record<string, unknown>, extras?: {
     ...item,
     customer: item.customerName ? { id: item.customerId, name: item.customerName } : null,
     driver: item.driverName ? { id: item.driverId, name: item.driverName } : null,
-    truck: item.truckPlate ? { id: item.truckId, licensePlate: item.truckPlate } : null,
+    truck: item.truckPlate ? { id: item.truckId, licensePlate: item.truckPlate, vehicleClass: item.truckClass ?? null } : null,
     route: item.routeName ? { id: item.routeId, name: item.routeName, distanceKm: item.routeDistance, isMountain: item.routeIsMountain, fixedFuelAllowance: item.routeFixedFuelAllowance } : null,
     trailerType: item.trailerType || '40FT',
     trailer: item.trailerId ? {

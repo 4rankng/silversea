@@ -228,7 +228,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 1120 → 1123: 2026-09-20 card 20260920_13 — the adhoc-lot toggle
   // docks on the identity section header (eb27d82c); split debt tracked on
   // the D1 extraction note.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1123,
+  // Bumped 1123 → 1130: 2026-09-20 card 20260920_26 — the row-cell "+ Thêm"
+  // buttons move into the combobox listbox as a typed-text create option;
+  // split debt tracked on the D1 extraction note.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1130,
   // Bumped 1143 → 1169: 2026-09-18 card 20260918_8 — row-tier creatable
   // factory/route cells (allowsCustomValue + raw passthrough updaters).
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
@@ -248,7 +251,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
-  'src/features/trips/tripColumns.tsx': 513,
+  // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T
+  // revenue cell renders '—' + 'Thiếu giá 15T' chip + tooltip per the
+  // CHANGELOG spec; cell branch + predicate import only, no new columns.
+  'src/features/trips/tripColumns.tsx': 524,
   'src/features/users/components/UserEditPanel.tsx': 423,
   'src/features/users/components/UserTable.tsx': 603,
   // Bumped 609 → 650: 2026-09-14 trip-create atomicity — pre-create leg

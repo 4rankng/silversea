@@ -87,6 +87,17 @@ export function getMissingIndicators(trip: TripDetail): MissingIndicator[] {
   return missing;
 }
 
+/**
+ * D2 (CHANGELOG 2026-09-20): a 15T-classed truck row with no revenue is the
+ * missing-ground-price case — the revenue cell shows '—' plus the compact
+ * "Thiếu giá 15T" chip. Rows of other classes (or 15T rows that have a
+ * price) stay plain. Keys on the same class code the pricing table keys on
+ * (trucks.vehicleClass), never on capacity heuristics.
+ */
+export function isMissingGroundPrice15T(trip: TripDetail): boolean {
+  return trip.truck?.vehicleClass === '15T' && !(Number(trip.revenue ?? 0) > 0);
+}
+
 export type DataCompleteness = 'complete' | 'incomplete' | 'na';
 
 export function getDataCompleteness(trip: TripDetail): DataCompleteness {

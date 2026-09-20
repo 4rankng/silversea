@@ -11,6 +11,7 @@ import { formatDayMonth } from '../../lib/date';
 import { formatCurrency } from '../../lib/format';
 import {
   buildTripCode, calcConsumption, getMissingIndicators, getDataCompleteness,
+  isMissingGroundPrice15T,
   STATUS_PILL_CLASS, type TripListContainer, type TripListRow,
   getTripDistance, getTripDisplayGrossProfit,
 } from './tripHelpers';
@@ -437,6 +438,17 @@ export function buildTripColumns(
                 disabled={!editable}
                 onChange={(value) => quickEdit.onDraftChange(trip.id, 'revenue', value)}
               />
+            </div>
+          );
+        }
+        if (isMissingGroundPrice15T(trip)) {
+          return (
+            <div
+              className="money-empty trip-missing-price"
+              title="Giá gốc 15T chưa có — báo thiếu, không hiển thị 0"
+            >
+              <span>—</span>
+              <span className="trip-missing-price-chip">Thiếu giá 15T</span>
             </div>
           );
         }
