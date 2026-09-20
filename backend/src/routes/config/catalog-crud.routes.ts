@@ -25,6 +25,7 @@ import { assertTireSerialAvailable } from '../../services/tire.service';
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
 import driverUserBindingRouter from './driver-user-binding.routes';
+import customersScreenRouter from './customers.routes';
 import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
@@ -226,6 +227,9 @@ const supplierLinkedCustomerNameSortSql = sql`(
   where ${s.customers.id} = ${s.suppliers.linkedCustomerId}
 )`;
 
+// Card _37 customers screen: drawer history + bulk ops resolve BEFORE the
+// CRUD sub-router; unhandled paths fall through via next().
+router.use('/customers', customersScreenRouter);
 router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   // 2026-09-10 customer report: lookup by tax code or phone tail found
   // nothing — the catalog search only matched name fields. Identifiers are
