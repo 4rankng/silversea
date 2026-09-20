@@ -20,6 +20,13 @@
 .csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
 .csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
+/* Section-header action chip (Lệnh chạy ngoài): right-aligned on the heading
+   row, compact like the page's utility buttons (≥34px desktop, 44px mobile);
+   rectangular 8px radius per house style — never a pill. */
+.csc-section__actions { margin-left: auto; flex: 0 0 auto; }
+.csc-adhoc-toggle--chip { min-height: 34px; padding: 0 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); font-size: var(--text-control-size); font-weight: 650; }
+.csc-adhoc-toggle--chip:hover { border-color: color-mix(in srgb, var(--accent, #2563eb) 45%, var(--border-2)); }
+@media (max-width: 640px) { .csc-adhoc-toggle--chip { min-height: 44px; } .csc-section__heading { flex-wrap: wrap; } }
 /* Single visible boundary per control: the `csc-control-boundary` class on
    each field adapter owns the wrapper border/focus ring (and gives headless
    QA a solid, screenshot-visible control edge). Inputs nested inside an

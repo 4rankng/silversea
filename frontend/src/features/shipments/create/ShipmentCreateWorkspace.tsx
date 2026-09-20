@@ -571,18 +571,21 @@ export function ShipmentCreateWorkspace() {
       <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1, quyết định 2026-09-18) —
-            neo cố định trên cùng form, thấy ngay không cần cuộn. Bật/tắt
-            KHÔNG bao giờ xoá nội dung đã gõ; nó chỉ đổi chế độ khóa/trường. */}
-        <label className="csc-adhoc-toggle" data-field-id="shipment-is-adhoc">
-          <input
-            type="checkbox"
-            checked={form.isAdHoc}
-            onChange={(event) => update('isAdHoc', event.target.checked)}
-            disabled={Boolean(saving)}
-          />
-          <span>Lệnh chạy ngoài</span>
-        </label>
-        <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
+            chip gọn trên header Nhận diện lô: cờ cấp LÔ, thấy ngay không cần
+            cuộn, tiết kiệm chiều dọc. Bật/tắt KHÔNG bao giờ xoá nội dung đã
+            gõ; nó chỉ đổi chế độ khóa/trường. */}
+        <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu."
+          actions={
+            <label className="csc-adhoc-toggle csc-adhoc-toggle--chip" data-field-id="shipment-is-adhoc">
+              <input
+                type="checkbox"
+                checked={form.isAdHoc}
+                onChange={(event) => update('isAdHoc', event.target.checked)}
+                disabled={Boolean(saving)}
+              />
+              <span>Lệnh chạy ngoài</span>
+            </label>
+          }>
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
             <div className="csc-identity-grid__customer csc-customer-picker" data-field="shipment-customer" data-field-id="shipment-customer">
