@@ -8,7 +8,7 @@ describe('confirmation keyboard actions', () => {
     const onCancel = vi.fn();
     render(<ConfirmDialog isOpen message="Bỏ thay đổi chưa lưu?" onConfirm={onConfirm} onCancel={onCancel} />);
     const cancel = await screen.findByRole('button', { name: 'Hủy' });
-    expect(screen.getByRole('alertdialog', { name: 'Xác nhận thao tác' })).toHaveAccessibleDescription('Bỏ thay đổi chưa lưu?');
+    expect(screen.getByRole('dialog', { name: 'Xác nhận thao tác' })).toHaveAccessibleDescription('Bỏ thay đổi chưa lưu?');
     cancel.focus();
     fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
     expect(onConfirm).not.toHaveBeenCalled();
@@ -35,5 +35,15 @@ describe('confirmation keyboard actions', () => {
     expect(onCancel).not.toHaveBeenCalled();
     fireEvent.keyDown(confirm, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes the dialog probe contract: role=dialog, aria-modal set, named, described', async () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(<ConfirmDialog isOpen message="Xóa cấu hình này?" onConfirm={onConfirm} onCancel={onCancel} />);
+    const dialog = screen.getByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy();
   });
 });

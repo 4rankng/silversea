@@ -55,7 +55,7 @@ export function ConfirmDialog({ isOpen, message, confirmLabel = 'Xác nhận', c
   const iconBg = variant === 'danger' ? 'confirm-icon--danger' : variant === 'warning' ? 'confirm-icon--warning' : 'confirm-icon--primary';
   return createPortal(visible ? (
     <div ref={overlayRef} className="confirm-overlay" onClick={handleClose}>
-      <div ref={boxRef} role="alertdialog" aria-modal="true" aria-label="Xác nhận thao tác" aria-describedby={messageId} className="confirm-box" onClick={(event) => event.stopPropagation()}>
+      <div ref={boxRef} role="dialog" aria-modal="true" aria-label="Xác nhận thao tác" aria-describedby={messageId} className="confirm-box" onClick={(event) => event.stopPropagation()}>
         <div className="confirm-body">
           <div className={`confirm-icon ${iconBg}`}><Icon size={22} color={iconColor} /></div>
           <p id={messageId} className="confirm-message">{message}</p>
