@@ -21,7 +21,7 @@ sources:
 generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-19T20:52:17.505Z
+    at: 2026-09-20T10:45:13.890Z
 ---
 
 # Quickstart

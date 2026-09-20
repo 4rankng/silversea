@@ -5,7 +5,7 @@ description: "System-level map of SilverSea's backend, frontend, shared contract
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T06:47:25.307Z
+    at: 2026-09-20T10:45:13.890Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -37,8 +37,6 @@ sources:
     resource: repo://backend/src/services/pricing.service.ts
   - id: openwiki-source-277912ce7743608f9e00b0cf
     resource: repo://backend/src/services/shipment-containers.service.ts
-  - id: openwiki-source-8e8aeb260c46a0fa2e09cde1
-    resource: repo://backend/src/services/shipment-cost-lock.service.ts
   - id: openwiki-source-74f75edc280b913e369ea0fe
     resource: repo://backend/src/services/shipment-debit-detail.service.ts
   - id: openwiki-source-6bbe3d8292f04ae241cde05c
@@ -63,10 +61,16 @@ sources:
     resource: repo://frontend/src/components/confirm-dialog.tsx
   - id: openwiki-source-8983de0d62b7ad43b88fe8ed
     resource: repo://frontend/src/components/shared/StaleBuildBanner.tsx
+  - id: openwiki-source-b2f0a15746f0cff9934d9148
+    resource: repo://frontend/src/components/UI.css
   - id: openwiki-source-65b39f1208bfc596ca936ff0
     resource: repo://frontend/src/components/UI.overlay.test.tsx
+  - id: openwiki-source-07b8e2add53a179335ec3d8b
+    resource: repo://frontend/src/design-system/EmptyState.tsx
   - id: openwiki-source-aa11da64ee9879d38bc2a7fb
     resource: repo://frontend/src/design-system/forms/DateTimeSegments.css
+  - id: openwiki-source-d99f57ac8730cbefb9347920
+    resource: repo://frontend/src/features/dispatch/catalogs/FleetDriversView.tsx
   - id: openwiki-source-c2b24497935143d8246afc05
     resource: repo://frontend/src/features/dispatch/master-plan/allocationDayHelpers.ts
   - id: openwiki-source-564940d299e8b46bece798bc
@@ -111,7 +115,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-20T06:47:25.307Z" }
+generated: { by: "claude-code", at: "2026-09-20T10:45:13.890Z" }
 ---
 
 # Architecture and Codebase Map
@@ -181,10 +185,10 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 
 ### Segmented datetime fields and filter bars
 
-- Segmented datetime fields (HH/mm/DD/MM/YYYY) render ONE continuous frame per input: the field group owns border, radius, and background; every segment is a borderless centered digit box, and only the trailing trigger inherits the shared control geometry (`frontend/src/design-system/forms/DateTimeSegments.css`).
+- Segmented datetime fields (HH/mm/DD/MM/YYYY) render ONE continuous frame per input: the group carries the control chrome (border, shared 36px control geometry, radius ≤8px), every segment is a borderless centered digit box, and there is NO trailing trigger — the owner removed the calendar icon (card _25), so the whole group click-opens the picker and the per-segment svgs stay `display:none` by that ruling. The group declares `min-width: max-content` so chained `min-width:0` wrappers cannot cramp it below the digits' intrinsic width (`frontend/src/design-system/forms/DateTimeSegments.css:1-30`).
 - The segment group declares `min-width: max-content` so the app's chained `min-width: 0` / `width: 100%` flex wrappers cannot cramp it below the digits' intrinsic width (`frontend/src/design-system/forms/DateTimeSegments.css`).
-- Detail-screen quick filters pack left (the filters footer uses `justify-content: flex-start`), and every filter and input wrapper runs `width: 100%` + `min-width: 0` so date fields size from content instead of forcing a horizontal scroll at laptop widths (`frontend/src/pages/ShipmentContainersPage.css`).
-- **One-row filter bars (2026-09-20 user ruling, card _34):** at wide viewports the whole filter bar — fields plus the quick-filter rail — renders as ONE row; the quick-filter group flows right after the last field, and a wrapped row never holds a lone control. The quick-filter group is a grid rail item (`grid-column: span 2`, `align-self: end`), completing the single row at ≥1920 and sharing the last wrapped row at narrow widths (`frontend/src/pages/ShipmentContainersPage.css:45-70`).
+- Filter and input wrappers keep `width: 100%` + `min-width: 0` so date fields size from content instead of forcing a horizontal scroll at laptop widths (`frontend/src/pages/ShipmentContainersPage.css`).
+- **Two-row 12-column filter grid (2026-09-20 owner spec, card _36 — supersedes the earlier one-row ruling):** the shipments-detail filter bar is a fixed 12-track grid — row 1: search span-4, from 2, to 2, customer 4; row 2: direction 3, dispatch 3, info 2, connected date-preset segmented group 2, ghost reset 2 right-aligned. All controls share the owner-spec 36px geometry (`--uui-control-h: 36px` scoped to the bar), labelless rail slots stay bottom-flush via `align-items: end`, and adding a filter never needs a track edit (`display: contents` groups are layout-invisible; `frontend/src/pages/ShipmentContainersPage.css:40-75`).
 - **Zero-vs-missing display contract (2026-09-20, cards _27/_31):** absent sources render "—" and computed zeros render "0", enforced at the derive layer: `finance-derived.ts` seeds report-backed cells with `?? null` (formatter renders "—") while keeps `?? 0` ONLY inside sums over defined arrays (arithmetic zero); `marginPct`/`yoyPct` return "—" on null inputs (`frontend/src/pages/finance-derived.ts:17-73`).
 - **Trips 15T missing-price chip (2026-09-20, card _32):** a trips-list row whose truck class is 15T and whose revenue is missing renders "—" plus a right-aligned in-cell chip "Thiếu giá 15T" (tooltip: the base price is missing, never displayed as 0); the predicate keys on `trucks.vehicleClass` added to the trips-list payload (`frontend/src/features/trips/tripColumns.tsx:451`, `backend/src/services/trip-queries.service.ts`).
 - **Row-cell creation lives in the combobox (2026-09-20, card _26):** the create-page goods table carries no in-cell buttons — route, port, and container-type creation happens by typing in the cell combobox, which offers a create option that opens the prefilled dialog (`initialName`/`initialCode`); `ShipmentCreateWorkspace` ratcheted 1123→1130 for the listbox wiring (`frontend/src/features/shipments/create/uui-searchable-field.tsx`, `frontend/src/tests/structure.guard.test.ts:231-234`).
@@ -216,7 +220,9 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - **RBAC** is enforced at the route boundary through Casbin; accountants are excluded from operational writes even when the underlying service supports them. The dispatch plan routes strip the dispatcher from `isCombined`, the external-trip close routes guard the dispatcher/CUS/ADMIN/MANAGER roles, and the note composer route mirrors the read mask on the plan.
 - **No internal approval routing.** The former internal approval workflows (approval requests, gate tables, and their FE queues) were removed by product ruling (2026-09-15): finance/ops writes post directly under role checks and audit events instead of an internal approval hop.
 - **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically. Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
-- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in.
+- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in. The 2026-09-20 customers overhaul added `customers.bulk-notify` and `customers.bulk-status` (lock/unlock) as registry entries with Idempotency-Key + in-transaction audit (`backend/src/middleware/material-write.ts:86-87`).
+- **Single empty-state primitive (2026-09-20, card _41):** the app has exactly one EmptyState (the design-system primitive, with compact cards/rows/list preview variants); the parallel `.empty-state` chrome and the dead shared component were consolidated away, and the float animation carries a `prefers-reduced-motion` guard (`frontend/src/design-system/EmptyState.tsx`, `frontend/src/components/UI.css`).
+- **License-expiry risk flags (2026-09-20, card _44):** the fleet driver catalog renders a pure state function over the license expiry date — overdue rows get an oxblood icon+label ("Quá hạn N ngày"), ≤30-day rows bronze ("Còn N ngày"), long-dated/missing rows stay bare — so a compliance-risk field never renders as plain data (`frontend/src/features/dispatch/catalogs/FleetDriversView.tsx:26-40`).
 - **Local date formatters** live in `lib/format`; the structure guard bans bespoke formatters outside an allowlist and names every documented exception.
 
 ## Mechanical gates and enforcement

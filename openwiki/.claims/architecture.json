@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:9d09e57dfe06d692eaceaf17f9c4ed4b21a11c8e99b66fb08259d9efd7c5229a",
+  "pageVersion": "sha256:f62c3fc50080faad6c57a65596f34ded823debe549d4b8f2ec3612f3564b2c77",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:912330f085e5f946cb2c8ea99c867516e832217b6d9b6cff5bc1acb6be5f5f3d"
+          "version": "repo-file-v1:sha256:eda09f42db6e2740d36d55b0d623ba963fddb29d8e7eea582800f14a9d0caf51"
         }
       ]
     },
@@ -102,7 +102,7 @@
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:912330f085e5f946cb2c8ea99c867516e832217b6d9b6cff5bc1acb6be5f5f3d"
+          "version": "repo-file-v1:sha256:eda09f42db6e2740d36d55b0d623ba963fddb29d8e7eea582800f14a9d0caf51"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -232,15 +232,11 @@
     },
     {
       "id": "claim_7e993a159e7f42cb9290dcc7ae7c9752",
-      "statement": "Locking a lot via shipment-cost-lock.service freezes all Lớp 2 inputs; the lock, freight-adjustment, and debit-note writes are registered in the material-write registry (backend/src/middleware/material-write.ts) with audit events and Idempotency-Key requirements.",
+      "statement": "Lock, freight-adjustment, and debit-note writes are registered in the material-write registry, and the registry grew with the 2026-09-20 customers overhaul: customers.bulk-notify and customers.bulk-status (lock/unlock) are registered endpoints requiring Idempotency-Key with in-transaction audit, and the exhaustive test suite asserts no out-of-registry writes slip in.",
       "evidence": [
         {
-          "resource": "repo://backend/src/middleware/material-write.ts",
-          "version": "repo-file-v1:sha256:ba256d12aca5dd019676a0018d1e2c129881157c2ce05872eda2296cb57388b6"
-        },
-        {
-          "resource": "repo://backend/src/services/shipment-cost-lock.service.ts",
-          "version": "repo-file-v1:sha256:f06c94882d14d7ee0885ec70666e497d204a9e0f47bd2cf0cbd4f659d6cb1a4e"
+          "resource": "repo://backend/src/middleware/material-write.ts#L86-L87",
+          "version": "repo-lines-v1:sha256:caee8fdd645210b687ef3cc51842b10358236227fbf9b92b75b12b3021c46a33:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDhlODgyNzkwNjFiOTViNDQ5MDE0NzRhOTZmNGRiMGYzZmZkZjAxMGI2MjI4MTZhZWM1OTNmMzYwZDQ3ZTM0NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQ0MTkyODYxMTYxNmNkMmM0MmI1ZWQ2NzRhYTc3MDY4N2VkNDc2ODcyOGI2NmRmNzhkOTRjZjZiNmEyN2M1OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjRlYTNjNzFhM2FlYTU0YTBkYjY3OTRlOGM2N2YzMWVkNTE2YmJiYzQyMzhjOGM4MDlhMmNjYTNkZTBhNDRmYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTVhMzdiMzc5NTE4ODk4Y2NkODAxMDJkNWEyODcxN2JmMjk1NTQ1OGRhZWJiN2FmODRhODIwY2RmMmI5ZGQ5OSJ9"
         }
       ]
     },
@@ -318,21 +314,21 @@
     },
     {
       "id": "claim_4f430cbda43048498246abc87f76b8b2",
-      "statement": "Segmented datetime fields render one continuous frame per input — the field group owns border, radius, and background, every segment is a borderless centered digit box, and only the trailing trigger inherits the shared control geometry — and the segment group declares min-width: max-content so chained min-width:0 / width:100% wrappers cannot cramp it below the digits' intrinsic width.",
+      "statement": "Segmented datetime fields render one continuous frame — the group carries the control chrome at the shared 36px geometry, segments are borderless centered digit boxes, there is NO trailing trigger (the owner removed the calendar icon, card _25: the whole group click-opens the picker, per-segment svgs stay display:none), and min-width:max-content makes the group uncrampable by chained min-width:0 wrappers.",
       "evidence": [
         {
-          "resource": "repo://frontend/src/design-system/forms/DateTimeSegments.css#L1-L24",
-          "version": "repo-lines-v1:sha256:6fcfcf18ac7ea31f6dbd06c46a1d4400524363e1eee9288e584ffc9a89a61e8f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzVhZTI0ZTc3M2Y1NGFlMTU1MDY0NTBjNTNkM2Y0ZDVkYzE0ZmNhYzVmZjRhYWI5MDdhMjJjZjllZmVjZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhYzQ1ZWEwODI3ZjVmMmI1NDhiYTNmNjE1NGZjOTI5OTllYjcyZTVmZmRlMWY0YWY5NjEzZTUzMjM0ODllNmMifQ"
+          "resource": "repo://frontend/src/design-system/forms/DateTimeSegments.css",
+          "version": "repo-file-v1:sha256:382ee07536824dc399b75ea350c89ea724c0baccf2b09c9fe457da5b4c28ade0"
         }
       ]
     },
     {
       "id": "claim_d7163901c1db4ec9b38747fb5b22b968",
-      "statement": "Detail-screen quick filters pack left (filters footer justify-content: flex-start) and every filter and input wrapper runs width:100% + min-width:0, so date fields size from content instead of forcing a horizontal scroll at laptop widths.",
+      "statement": "Filter and input wrappers run width:100% with min-width:0 so date fields size from content instead of forcing a horizontal scroll at laptop widths; the old pack-left footer contract was superseded by the two-row grid.",
       "evidence": [
         {
-          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css#L51-L64",
-          "version": "repo-lines-v1:sha256:7df597e559d5c2607a7e26f1f6dfad316d09ef4aff735fc8c7f39af4aeb79c59:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0YjBmOTBlMzYyMjY4ZjNkOWQyNGFmMjlkMzhmMWU4NDMwMDMyNGIzYzBhMTljZWQzYmE4MjI5YTg3MDVhYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMWJiNGYxMTM1ZDU1Njc3OTUyMGI4MzY2YTlhNGFmNzgzNjYwZTQwODdkODhjYjYwNGY3M2Q5Mjk4YjQ1YWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxNzIzNDA4NTAzZWE3YWNlMWFhMmEwMTdmNTkyMTRiYmEwYTczNjZhZjA5YjQzNjg1NDhmOGU2NzhjZTgxNTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZjkyNjYxZmYwMzFiN2IxZjI0MDdlY2IxMDkzMjIzZmQ2NDUwNjk4ZWZhYzk3N2RiMWUwNjFiNWJiNmIxZGIifQ"
+          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
+          "version": "repo-file-v1:sha256:0c149052712cf5d6a8ca5c03502b49cd680cc5f25be310ba3136141885a7de62"
         }
       ]
     },
@@ -392,11 +388,11 @@
     },
     {
       "id": "claim_e98f7c7726fd4d089657566cbe72ae70",
-      "statement": "Filter bars follow a one-row contract at wide viewports: the quick-filter group is a grid rail item that flows after the last field on the same row, and no wrapped row ever holds a lone control; every filter and input wrapper runs width:100% with min-width:0 so controls size from content.",
+      "statement": "The shipments-detail filter bar is a fixed two-row 12-column grid per the owner's 2026-09-20 spec (superseding the earlier one-row ruling): row 1 spans search 4 / from 2 / to 2 / customer 4; row 2 spans direction 3 / dispatch 3 / info 2 / connected date-preset segmented group 2 / ghost reset 2 right-aligned; all controls share a 36px geometry scoped to the bar; labelless rail slots stay bottom-flush via align-items:end; display:contents groups mean adding a filter never needs a track edit.",
       "evidence": [
         {
-          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css#L45-L70",
-          "version": "repo-lines-v1:sha256:743a350aca0ed3cc49d7fa7c7eaf541441f03b37de9b92a58856aed5ce4fb503:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwOGRiYTQ5NzU1YjQ2ZDk3MTZiZjY2OTJkZGFjOGI4ZTZiNzI2NDc1NGNhMWQwZTJkOTZhMjNiYjlkODE3ZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZGY1ZGEzMzU4OGEwM2QyY2QyZmRlMzZlY2ZkNGY2MDNlNWVkNjFjZjJlZmY2NGIzNTRlMjdmZGNkYzU1OTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRlZWU3ODA2OTdiZGViZjEzZjZjMWEwOTM3MjQ5ODk3NDljNGE1NzM3YWM0NmU4MWZmYjk3MjZhZmRiNTVlNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2NmRkZjBjNWQxZmVkMmM4YWJhM2U4MjNjNmQ3MmEwOTc5NmQ5Y2M3OTI3NTFkOWRiZWMzYzVkMjM2NGM4N2MifQ"
+          "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
+          "version": "repo-file-v1:sha256:0c149052712cf5d6a8ca5c03502b49cd680cc5f25be310ba3136141885a7de62"
         }
       ]
     },
@@ -437,10 +433,34 @@
           "version": "repo-lines-v1:sha256:a61d45a84eb216f2099e67c65816f08911753f74dfca8a791732afe4472f0990:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmQ0YzAwNzRlNTAxZTBhMWNjM2ExNDI4OWQzZDI0MzRiMWVkYzA0MGVlMTRiODExZjI3ZmNjNGFmYWM2NDk1MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZWIwNTMyYTJiNjI3OTQ5NTdiMjIyMWI5NDhjZDA0ZmQ1YTk2YTQyZDczNTEzMDgzOTFhYzhkNDYxYmQ4NzQ2NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGM4MTJlNDQ4MWYxYzg3OThhNzE5OWJmYmFhZjZjNGE0OGZlMzg3MmUxZTYwN2VkZGQ2YzZkNjQxZTEyNjg1ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDA1NGJiZTdiZDczOWE3NTUyNDc1YzBiNGMwMTQxNzM1NWY2ODg0M2YxYjFlZjIxYzE5MzNiMmRlODdiM2RlMCJ9"
         }
       ]
+    },
+    {
+      "id": "claim_81e559129f684b858781b2fba3b3e3cc",
+      "statement": "The app has exactly one empty-state primitive — the design-system EmptyState with compact cards/rows/list preview variants; the parallel .empty-state chrome and the dead shared component were consolidated away, and the float animation carries a prefers-reduced-motion guard.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/components/UI.css",
+          "version": "repo-file-v1:sha256:4f074001e01990a191c2e2ec440189157f8c499f49e1418e4b65dae035e42457"
+        },
+        {
+          "resource": "repo://frontend/src/design-system/EmptyState.tsx",
+          "version": "repo-file-v1:sha256:2f60edd27940674ba46dcd9f850dc38b2655e570f7bb74c5c0240c90cbc3a941"
+        }
+      ]
+    },
+    {
+      "id": "claim_1b3e194a1b884d64a706385fb4936dca",
+      "statement": "The fleet driver catalog renders license expiry through a pure state function: overdue rows get an oxblood icon+label ('Quá hạn N ngày'), rows within 30 days get bronze ('Còn N ngày'), long-dated/missing rows stay bare — a compliance-risk field never renders as plain data.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/dispatch/catalogs/FleetDriversView.tsx#L26-L40",
+          "version": "repo-lines-v1:sha256:9c210e482ad284ba7214463236ca1a75575c03eaf9ca62bba235a7f42eed5c62:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjMTk3YWM1MGYzNDY5NTIzZjFiNjFhNjRmOWE4MzlmNmYzYTJkYTQzMmE3NTE0NDQ5ODdkOTBiNDhlMjI5NjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwYjc2ZGI3NmViOWI1ZDcxMjhjZjBjZGVhNjNlNTBkNGZlODM4MDg0Y2U3MTY4NDdlZGZiNzAxZThkZGZhZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRkMTA2ZDFlYzFkODZmNDM1YWJmZGU0NjhmNDY3YWYzYzYxY2I1ZjI5ZjgwNzBmNmFlMDYyNTMyZDE2NjVmM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzMjQ5ODlmZWY1ODI3M2NhNDY3Nzk4NzkxMjU0ZWIyZTY3NmM4YzcxNzQ5MDA0NzRjNTUzOGQ4OTFhYTU5YTMifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T06:47:25.307Z"
+    "at": "2026-09-20T10:45:13.890Z"
   }
 }
