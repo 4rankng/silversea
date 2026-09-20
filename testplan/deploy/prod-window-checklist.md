@@ -44,17 +44,24 @@ the remaining environment.
 
   | journal idx | current `when` (from journal) | prod tracked `when` (observed) | needs realign? |
   |---|---|---|---|
-  | 97 |  |  |  |
-  | 98 |  |  |  |
-  | 99 |  |  |  |
-  | 100 |  |  |  |
-  | 101 |  |  |  |
-  | 102 |  |  |  |
+  | 92 | 1789744800000 | 1789719600000 (row id 93, original pre-restamp value) | YES — see §3-revised |
+  | 97 | 1789826400000 | no tracking row — effect verified absent | n/a — applies fresh |
+  | 98 | 1789839000000 | no tracking row — effect verified absent | n/a — applies fresh |
+  | 99 | 1789844400000 | no tracking row — effect verified absent | n/a — applies fresh |
+  | 100 | 1789848000000 | no tracking row — data-only, effect verified absent | n/a — applies fresh |
+  | 101 | 1789849800000 | no tracking row — effect verified absent | n/a — applies fresh |
+  | 102 | 1789851600000 | no tracking row — prod's `ports_code_unique` is the old plain index, not this partial variant | n/a — applies fresh (idempotent) |
 
 - [ ] If observed == current for every idx: SKIP to step 4 (nothing to
       align). Never run alignment UPDATEs "just in case".
 
 ## 3. Marker-row alignment (exact-match UPDATEs, one transaction)
+
+> **2026-09-20 census result: the five-pair template below does NOT hold on
+> prod — do not run step 3 as written.** Prod holds exactly ONE divergent
+> tracking row (idx 92) and zero rows for idx 93–102; effects for 93–105 are
+> all verified absent, so nothing else needs realigning or marking. Run
+> §3-revised below instead.
 
 Rules: one UPDATE per row, matched ONLY on the exact observed `when` value;
 wrap in BEGIN/COMMIT with pre/post counts inside the transaction. If any
@@ -98,6 +105,90 @@ Migrations NEWER than idx 102 (idx 103 invoice-policy alignment, idx 104
 shipment code counter, anything landed after) apply FRESH in step 4 — no
 alignment needed for them as long as the journal `when` ban holds
 (append-only, `Date.now()`-based).
+
+## 3-revised. Marker-row alignment — 2026-09-20 observed state
+
+Prepared by the peer census lane 2026-09-20, superseding step 3 for this
+window. Census executed strictly read-only against prod (single `BEGIN READ
+ONLY` transaction, `ON_ERROR_STOP=1`) with the local dev DB (all 106 journal
+entries applied, cursor at idx 105) as the fully-applied reference. Journal
+anchor: commit 330cadaa. Re-verify anchors at window time: cut #6 may append
+journal entries — appends are harmless (they apply fresh); only a RE-RESTAMP
+would invalidate this plan (re-run the census if `max(created_at)` on prod
+changes or idx 92's `when` in the journal moves off 1789744800000).
+
+### Observed prod state (journal idx 92–105)
+
+| idx | migration | prod observed | verdict |
+|---|---|---|---|
+| 92 | 20260918152000_shipment_container_raw_factory_route | `raw_factory_name` + `raw_route_name` present; tracking row id 93 holds the original pre-restamp `when` 1789719600000; file sha256 (6ef30ecb…f71617) equals the row hash — file unamended | APPLIED — realign `when` (3R-1) |
+| 93 | 20260918210000_shipment_cost_locks | neither table exists | absent — applies fresh |
+| 94 | 20260918144811_shipment_container_ps_actual | `ps_actual_amount`/`ps_actual_note` absent | absent — applies fresh |
+| 95 | 20260919030413_slow_star_brand | `debit_note_lots` absent; `billing_documents_active_period_unique` (which 95 drops) still present | absent — applies fresh |
+| 96 | 20260919131000_expense_type_category | `category` column absent | absent — applies fresh |
+| 97 | 20260919140000_declaration_customs_channel | `channel` column absent | absent — applies fresh |
+| 98 | 20260919173000_trip_children_trip_fks | 0 of 22 FK constraints | absent — applies fresh |
+| 99 | 20260919190000_port_identity_out_of_code | `ports.is_lach_huyen` still present; `dispatch_zones.is_default` absent; its unique index absent | absent — applies fresh |
+| 100 | 20260919200000_debit_trip_scope_backfill | data-only backfill; no tracking row; 0 unlinked active trips on prod (consistent) | absent — applies fresh |
+| 101 | 20260919203000_shipment_children_fks | 0 of 40 FK constraints | absent — applies fresh |
+| 102 | 20260919210000_ports_code_partial_unique | prod's `ports_code_unique` is the OLD plain index `ON (code)` with NO WHERE predicate — not this migration's partial variant; SQL is idempotent (IF EXISTS / IF NOT EXISTS) so fresh apply converts it cleanly | absent — applies fresh |
+| 103 | 20260919213000_align_expense_type_invoice_policy | the five codes return 0 rows on prod (seed differs from dev) — UPDATE matches nothing | absent — applies as no-op |
+| 104 | 20260919161608_shipment_code_counter | table absent | absent — applies fresh |
+| 105 | 20260919163645_port_zone_surcharges | table absent | absent — applies fresh |
+
+No interleaving: applied = {92} is a clean prefix of the re-apply window;
+absent = {93–105} contiguous. Migrator semantics (drizzle-orm 0.45.2
+`pg-core/dialect.js migrate()`: single max(created_at) cursor, applies every
+journal entry with `when > cursor`, everything else silently skipped, all in
+one transaction) would make any absent entry BELOW the new cursor skip
+forever — that case does not occur here. Therefore: **no INSERT markers are
+needed, and inserting any would be wrong** — a marker for an absent entry
+would make migrate skip it permanently, and a marker for idx 92 would
+duplicate its existing row instead of realigning it.
+
+### 3R-1. Realign the one divergent row (one transaction, exact-match UPDATE)
+
+Journal anchor (330cadaa): idx 92 `when` = 1789744800000. Prod row id 93
+still carries the original 1789719600000. This is step 3's own template with
+a single pair:
+
+```sql
+BEGIN;
+-- pre-counts: if either differs from expectation → ROLLBACK and stop
+SELECT count(*) FROM drizzle.__drizzle_migrations WHERE created_at = 1789719600000; -- expect 1
+SELECT count(*) FROM drizzle.__drizzle_migrations WHERE created_at = 1789744800000; -- expect 0 (target free)
+
+UPDATE drizzle.__drizzle_migrations SET created_at = 1789744800000 WHERE created_at = 1789719600000;  -- must report UPDATE 1
+
+-- post-counts: old must be 0, new must be 1
+SELECT count(*) FROM drizzle.__drizzle_migrations WHERE created_at = 1789719600000; -- expect 0
+SELECT count(*) FROM drizzle.__drizzle_migrations WHERE created_at = 1789744800000; -- expect 1
+COMMIT;
+```
+
+No `hash` update: the migrator compares `created_at` only (verified in the
+0.45.2 source); prod's row hash still equals the unamended idx-92 file hash
+(6ef30ecb…f71617, verified 2026-09-20).
+
+### 3R-2. Pre-migrate verify (read-only)
+
+- [ ] `SELECT max(created_at), count(*) FILTER (WHERE created_at = 1789744800000) FROM drizzle.__drizzle_migrations;` → 1789744800000 / 1
+- [ ] Journal at the cut HEAD re-read per step 0: idx 92 = 1789744800000 (current journal value)
+      and entries 93–105 all have `when` > 1789744800000
+- [ ] If either check fails → STOP: re-run the census (queries + full outputs
+      preserved in `plans/reports/census-260920-1057-prod-journal-realign.md`)
+      and re-derive before touching anything.
+
+### 3R-3. Then migrate (step 4)
+
+Migrate applies idx 93–105 fresh, in journal order, one drizzle transaction
+for all of it. Expected after success: 13 new tracking rows (ids 94–106),
+max `when` = 1789853402000 (or higher if the cut appended idx 106+), and the
+census probes flip to local's reference values: 22 trip FKs, 40 shipment
+FKs, partial `ports_code_unique` WITH its WHERE predicate, `debit_note_lots`
+exists and `billing_documents_active_period_unique` gone, `category` +
+`channel` columns present, `shipment_code_counters` + `port_zone_surcharges`
+tables present.
 
 ## 4. Migrate
 
