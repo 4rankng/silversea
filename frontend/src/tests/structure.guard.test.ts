@@ -225,7 +225,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Shrunk 1174 → 1120: 2026-09-18 debt card D1 — the adhoc free-text
   // decision logic extracted to createAdhocFieldLogic.ts (factory over
   // injected callbacks; behavior pinned by the mode-toggle + clerk suites).
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1120,
+  // Bumped 1120 → 1123: 2026-09-20 card 20260920_13 — the adhoc-lot toggle
+  // docks on the identity section header (eb27d82c); split debt tracked on
+  // the D1 extraction note.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1123,
   // Bumped 1143 → 1169: 2026-09-18 card 20260918_8 — row-tier creatable
   // factory/route cells (allowsCustomValue + raw passthrough updaters).
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
