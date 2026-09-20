@@ -7,6 +7,7 @@ tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc 
 ## 2026-09-20 — Quick-edit lịch & ghi chú mở cho đủ ba vai
 
 - **Quyền chỉnh nhanh lịch trình lô và ghi chú trên Tổng quan lô hàng mở cho CUS, Quản trị viên và Điều vận** (`QuyTrinhO2C.md` §3): khi lô chưa khóa kế toán, cả ba vai đều bấm được ô lịch và ô ghi chú để sửa trực tiếp; khóa kế toán vẫn chặn mọi vai; các ô khác giữ quyền như cũ — điều vận chỉ mở đúng hai ô này.
+- **Ghi chú (khách hàng + điều hành) tách khỏi khóa kế toán** (`QuyTrinhO2C.md` §3): chủ sản phẩm quyết định "both notes can be edit" — trên lô đã khóa kế toán, CUS, Quản trị viên và Điều vận vẫn sửa được cả hai ô ghi chú trên Tổng quan lô hàng; lịch trình, tờ khai và các trường khác vẫn bị khóa chặn như cũ (điều chỉnh mệnh đề "khóa kế toán vẫn chặn mọi vai" của quyết định mở quick-edit cùng ngày).
 
 ## 2026-09-20 — Đối chiếu toàn diện: ngưỡng ≥, 0 khác thiếu, bảng kê đủ dữ liệu, dọn phê duyệt
 

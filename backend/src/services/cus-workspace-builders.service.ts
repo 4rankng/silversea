@@ -673,6 +673,22 @@ function shipmentFieldAccess(
           : { mode: 'DIRECT', reason: 'Cập nhật tờ khai trực tiếp theo lô hàng.' };
       continue;
     }
+    // Product ruling 2026-09-20 ("both notes can be edit"): the two note
+    // fields decouple from the accounting lock for the three quick-edit
+    // roles (CUS/ADMIN/DISPATCHER). The lock clause and every other field
+    // stay closed exactly as before — MANAGER keeps its existing notes
+    // authority (direct unlocked, read-only under lock).
+    if (field === 'customerNotes' || field === 'operationalNotes') {
+      const notesWriter = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.DISPATCHER;
+      access[field] = notesWriter
+        ? { mode: 'DIRECT', reason: 'Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán.' }
+        : !canWriteShipment
+          ? readOnly('Vai trò hiện tại chỉ được xem trường này.')
+          : hasActiveLock
+            ? readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.')
+            : { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
+      continue;
+    }
     if (hasActiveLock) {
       access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
     } else if (!canWriteShipment && !(actor.role === Role.DISPATCHER && scheduleNotesKeys.has(field))) {

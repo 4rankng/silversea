@@ -681,7 +681,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
     }
   });
 
-  test('accounting lock still closes schedule and notes quick-edit for every opened role', async () => {
+  test('accounting lock closes the schedule quick-edit while notes stay open for every opened role', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const dispatcherActor: AuthUser = {
       userId: 0,
@@ -716,7 +716,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
         issuedAt: '2026-09-01T00:00:00.000Z',
       },
       shipmentVersionAtLock: lockedShipment.version,
-      reason: 'Schedule/notes quick-edit stays closed while the lot is locked',
+      reason: 'Schedule stays closed while the lot is locked; notes stay editable',
       activatedBy: cusActor.userId,
     });
     try {
@@ -724,11 +724,151 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
         const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
         const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
         assert.ok(item, `${actor.role} sees the locked shipment`);
-        assert.equal(item.operational.transportDateEditable, false, `${actor.role} trigger disabled while locked`);
-        for (const key of ['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes'] as const) {
+        assert.equal(item.operational.transportDateEditable, false, `${actor.role} schedule trigger disabled while locked`);
+        for (const key of ['closingAt', 'plannedReturnAt'] as const) {
           assert.equal(item.fieldAccess[key].mode, 'READ_ONLY', `${actor.role} ${key} closed while locked`);
         }
+        for (const key of ['customerNotes', 'operationalNotes'] as const) {
+          assert.equal(item.fieldAccess[key].mode, 'DIRECT', `${actor.role} ${key} opens while locked (notes decouple)`);
+        }
       }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
+  // Product ruling 2026-09-20 ("both notes can be edit"): the accounting lock
+  // freezes schedule/financial fields but no longer the two note fields —
+  // CUS, ADMIN and DISPATCHER keep writing them on locked lots. The lock
+  // clause on transportDateEditable and the schedule fieldAccess keys stays.
+  test('notes quick-edit survives the accounting lock for CUS, ADMIN and DISPATCHER', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Notes stay editable while the schedule stays locked',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      let expectedVersion = lockedShipment.version;
+      for (const actor of [cusActor, adminActor, dispatcherActor]) {
+        const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(item, `${actor.role} sees the locked shipment`);
+        assert.equal(item.operational.transportDateEditable, false, `${actor.role} schedule trigger stays disabled while locked`);
+        assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT', `${actor.role} customerNotes opens under lock`);
+        assert.equal(item.fieldAccess.operationalNotes.mode, 'DIRECT', `${actor.role} operationalNotes opens under lock`);
+        assert.equal(item.fieldAccess.closingAt.mode, 'READ_ONLY', `${actor.role} schedule stays closed under lock`);
+        assert.equal(item.fieldAccess.declarationNumber.mode, 'READ_ONLY', `${actor.role} declaration stays closed under lock`);
+
+        const updated = await updateShipment(lockedShipment.id, {
+          expectedVersion,
+          customerNotes: `Ghi chú sau khóa — ${actor.role}`,
+          operationalNotes: `Ghi chú điều hành sau khóa — ${actor.role}`,
+        }, actor);
+        expectedVersion = updated.version;
+        const after = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const afterItem = after.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(afterItem);
+        assert.equal(afterItem.raw.customerNotes, `Ghi chú sau khóa — ${actor.role}`, `${actor.role} customerNotes persisted through the lock`);
+        assert.equal(afterItem.raw.operationalNotes, `Ghi chú điều hành sau khóa — ${actor.role}`, `${actor.role} operationalNotes persisted through the lock`);
+      }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
+  test('non-notes writes and unopened roles stay closed under the accounting lock', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const managerActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-manager',
+      email: null,
+      fullName: null,
+      role: Role.MANAGER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Negation pin: non-notes fields and unopened roles stay closed',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      await assert.rejects(
+        () => updateShipment(lockedShipment.id, {
+          expectedVersion: lockedShipment.version,
+          closingAt: '2026-08-21T01:00:00.000Z',
+        }, cusActor),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+        'schedule write under lock still 409s for CUS',
+      );
+      await assert.rejects(
+        () => updateShipment(lockedShipment.id, {
+          expectedVersion: lockedShipment.version,
+          customerNotes: 'Ghi chú quản lý',
+          operationalNotes: 'Ghi chú điều hành quản lý',
+        }, managerActor),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+        'MANAGER notes-only write layer stays 409',
+      );
+      const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, managerActor);
+      const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+      assert.ok(item, 'MANAGER sees the locked shipment');
+      assert.equal(item.fieldAccess.customerNotes.mode, 'READ_ONLY', 'MANAGER customerNotes stays closed under lock');
+      assert.equal(item.fieldAccess.operationalNotes.mode, 'READ_ONLY', 'MANAGER operationalNotes stays closed under lock');
     } finally {
       await db.delete(s.shipmentAccountingLocks)
         .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));

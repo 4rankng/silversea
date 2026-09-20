@@ -6,7 +6,7 @@ import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { and, eq, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { canonicalShipmentStatus } from '@tingting/shared';
+import { canonicalShipmentStatus, Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { UpdateShipmentInput } from './shipment-types';
@@ -47,8 +47,17 @@ export async function updateShipment(
       .for('update') // pessimistic row lock so the version bump is race-free
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
-    await assertShipmentAccountingUnlocked(tx, id);
+    // Product ruling 2026-09-20 ("both notes can be edit"): a notes-only
+    // update by CUS/ADMIN/DISPATCHER skips the intake-status gate and the
+    // accounting lock — the two note fields stay writable on locked lots.
+    // Every other field combination keeps both guards. The pessimistic row
+    // lock from the select above keeps the version bump race-free either way.
+    const notesOnly = isNotesOnlyShipmentUpdate(input)
+      && (actor?.role === Role.CUS || actor?.role === Role.ADMIN || actor?.role === Role.DISPATCHER);
+    if (!notesOnly) {
+      assertDispatcherCanMutateShipmentIntake(actor, existing.status);
+      await assertShipmentAccountingUnlocked(tx, id);
+    }
     // Master refs carry no DB FKs — validate only the refs this input
     // actually CHANGES, so pre-existing orphan rows (2026-09-15 sweep:
     // 94 shipments referencing deleted masters) stay editable, including
@@ -283,4 +292,16 @@ export async function updateShipment(
   };
   const result = await runInTx(transaction, execute);
   return result;
+}
+
+/** A notes-only update carries nothing beyond the two note fields plus
+ * bookkeeping keys, so the accounting-lock exception ("both notes can be
+ * edit", product ruling 2026-09-20) can safely skip the aggregate guard.
+ * driverNotes reaches this service already resolved to operationalNotes. */
+function isNotesOnlyShipmentUpdate(input: UpdateShipmentInput): boolean {
+  const definedKeys = Object.entries(input)
+    .filter(([, value]) => value !== undefined)
+    .map(([key]) => key);
+  const exemptKeys = new Set(['customerNotes', 'operationalNotes', 'expectedVersion', 'version', 'updatedBy']);
+  return definedKeys.length > 0 && definedKeys.every((key) => exemptKeys.has(key));
 }

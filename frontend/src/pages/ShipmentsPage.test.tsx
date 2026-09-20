@@ -1111,6 +1111,36 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
+  it('keeps the notes cell editable on locked lots while the schedule stays locked', async () => {
+    const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
+      key,
+      { ...access, mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+    ])) as typeof row.fieldAccess;
+    const lockedRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      cargoMode: 'LCL',
+      bucket: ShipmentCusBucket.LOCKED,
+      bucketLabel: 'Đã khóa',
+      fieldAccess: {
+        ...lockedFieldAccess,
+        customerNotes: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' },
+        operationalNotes: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' },
+      },
+      operational: { ...row.operational, transportDateEditable: false },
+    };
+    apiGet.mockResolvedValue(listResponse([lockedRow]));
+
+    renderPage();
+    await screen.findByRole('table');
+    const rowElement = masterRow();
+    const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
+    expect(notesButton).not.toBeDisabled();
+    fireEvent.click(notesButton);
+    expect(await screen.findByLabelText('Ghi chú cho khách hàng')).toBeTruthy();
+    const scheduleButton = within(rowElement).getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
+    expect(scheduleButton).toBeDisabled();
+  });
+
   it('cancels a cell dialog with Escape without persisting', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();

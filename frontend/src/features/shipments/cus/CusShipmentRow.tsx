@@ -173,7 +173,7 @@ export function CusShipmentRow({
           className="cus-inline-trigger cus-note-preview"
           data-cell-label="Ghi chú"
           title={[item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined}
-          disabled={!item.operational.transportDateEditable || quickEditOpen || savingQuickEdit}
+          disabled={((item.fieldAccess.customerNotes.mode === 'READ_ONLY' && item.fieldAccess.operationalNotes.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit)}
           aria-haspopup="dialog"
           aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
           onClick={() => onStartQuickEdit(item, 'notes')}
