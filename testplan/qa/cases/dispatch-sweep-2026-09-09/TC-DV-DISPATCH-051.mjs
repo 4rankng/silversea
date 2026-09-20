@@ -15,22 +15,15 @@ export default async function (ctx) {
 
   // Find a row that has the quick-issue button (.dispatch-assignment-cell__quick-issue)
   const quickIssueFound = await page.evaluate(() => {
-    const quickButtons = Array.from(document.querySelectorAll('.dispatch-assignment-cell__quick-issue'));
-    if (quickButtons.length === 0) return null;
-
-    let targetBtn = quickButtons.find((btn) => {
-      const row = btn.closest('tr, .detailed-plan-grid__row');
-      return row && row.textContent.includes('MSKU1234565');
-    });
-
-    if (!targetBtn) {
-      targetBtn = quickButtons[0];
-    }
-
+    // Current affordance: per-container 'Phát lệnh · <container>' buttons
+    // (the old 'Phát lệnh nhanh' quick-issue class was removed).
+    const issueButtons = Array.from(document.querySelectorAll('button[aria-label^="Phát lệnh ·"]'));
+    if (issueButtons.length === 0) return null;
+    const targetBtn = issueButtons[0];
     targetBtn.scrollIntoView({ block: 'center' });
     targetBtn.click();
     return {
-      totalQuickButtons: quickButtons.length,
+      totalIssueButtons: issueButtons.length,
       buttonAriaLabel: targetBtn.getAttribute('aria-label'),
     };
   });
@@ -38,7 +31,7 @@ export default async function (ctx) {
   if (!quickIssueFound) {
     return {
       verdict: 'FAIL',
-      errors: ['Không tìm thấy nút Phát lệnh nhanh (.dispatch-assignment-cell__quick-issue) trên /dispatch-detail'],
+      errors: ['Không tìm thấy nút Phát lệnh · <container> trên /dispatch-detail'],
     };
   }
 

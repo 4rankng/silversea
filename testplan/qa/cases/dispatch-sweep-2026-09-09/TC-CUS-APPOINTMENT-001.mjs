@@ -60,13 +60,13 @@ export default async function (ctx) {
   await ctx.screenshot('02_appointment_popover_open');
 
   const fields = await page.evaluate(() => {
-    const wraps = Array.from(document.querySelectorAll('.cus-appointment-popover .cus-appointment-input-wrap'));
-    return wraps.map((w) => ({
-      label: w.querySelector('label')?.innerText.trim(),
-      type: w.querySelector('input')?.type,
-      value: w.querySelector('input')?.value,
-      lang: w.querySelector('input')?.getAttribute('lang'),
-    }));
+    // Current control: design-system 24h split-datetime input (design-system.md
+    // forbids relying on native time/date inputs for format enforcement).
+    const dt = document.querySelector('.cus-appointment-popover [data-split-datetime]');
+    const label = dt?.closest('label,div')?.querySelector('label')?.innerText.trim()
+      || dt?.getAttribute('aria-label') || '';
+    const native = document.querySelectorAll('.cus-appointment-popover input[type="time"], .cus-appointment-popover input[type="date"]').length;
+    return [{ label, placeholder: dt?.placeholder || '', nativeInputs: native }];
   });
 
   // Close popover
@@ -79,11 +79,14 @@ export default async function (ctx) {
   if (closeDrawer) await closeDrawer.click();
   await new Promise((r) => setTimeout(r, 400));
 
-  const isGioFirst = fields.length >= 2
-    && fields[0].label.toUpperCase().includes('GIỜ')
-    && fields[0].type === 'time'
-    && fields[1].label.toUpperCase().includes('NGÀY')
-    && fields[1].type === 'date';
+  // Spec: hour-before-date order lives in the 24h input's placeholder
+  // ("HH:mm DD/MM/YYYY") — HH:mm precedes DD/MM/YYYY; no native inputs.
+  const f = fields[0] || {};
+  const ph = f.placeholder || '';
+  const isGioFirst = fields.length >= 1
+    && /HH:mm\s+DD\/MM\/YYYY/.test(ph)
+    && ph.indexOf('HH:mm') < ph.indexOf('DD/MM/YYYY')
+    && f.nativeInputs === 0;
 
   return {
     verdict: isGioFirst ? 'PASS' : 'FAIL',

@@ -1,9 +1,11 @@
 // cases/shipments-qa/TC-SHIP-ACTIONS-001.mjs
-// /shipments actions: open action modal (confirm/lock/reopen), verify
-// modal content, test reason field, cancel.
+// /shipments actions under the no-approval policy (internal-approval ruling
+// removed 2026-09-15): Khóa lô is a direct CUS action — ADMIN tapping it gets
+// the permission toast; no reason textarea exists anywhere in the flow.
 //
-// Verdict: PASS when action modal opens with correct title and reason
-// field, and cancels cleanly.
+// Verdict: PASS when (a) ADMIN tapping 'Khóa lô' receives the role toast
+// 'Chỉ CUS được khóa lô.', (b) no reason textarea is present, (c) cancel
+// leaves the shipment untouched.
 
 export const caseId = 'TC-SHIP-ACTIONS-001';
 export const role = 'ADMIN';
@@ -16,142 +18,62 @@ export default async function (ctx) {
   await page.waitForSelector('.cus-dashboard-table tbody tr', { timeout: 15000 });
   await ctx.screenshot('01_page_loaded');
 
-  // Find a row with an action button (confirm/lock/reopen)
-  const actionBtn = await page.evaluate(() => {
+  // Open the first shipment drawer
+  const detailClicked = await page.evaluate(() => {
     const buttons = Array.from(document.querySelectorAll('button'));
-    // Look for action buttons in the drawer workflow section or row actions
-    const match = buttons.find((b) => {
-      const name = (b.getAttribute('aria-label') || b.innerText || '').toLowerCase();
-      return name.includes('xác nhận') || name.includes('khóa lô') || name.includes('mở khóa');
-    });
-    if (match) {
-      match.scrollIntoView({ block: 'center' });
-      return { label: match.innerText.trim(), ariaLabel: match.getAttribute('aria-label') || '' };
-    }
-    return null;
+    const match = buttons.find((b) => (b.getAttribute('aria-label') || '').toLowerCase().includes('mở chi tiết'));
+    if (match) { match.click(); return true; }
+    return false;
   });
+  if (!detailClicked) {
+    return { verdict: 'FAIL', errors: ['No "Mở chi tiết" button found on /shipments'] };
+  }
+  await page.waitForSelector('[role="dialog"]', { timeout: 8000 });
+  await new Promise((r) => setTimeout(r, 1200));
+  await ctx.screenshot('02_drawer_open');
 
-  if (!actionBtn) {
-    // Actions may only be available inside the drawer for specific shipments
-    // Try opening a drawer first
-    const detailClicked = await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const match = buttons.find((b) => {
-        const name = (b.getAttribute('aria-label') || '').toLowerCase();
-        return name.includes('mở chi tiết');
-      });
-      if (match) { match.click(); return true; }
+  // (b) No reason textarea — the approval-era reason field is gone.
+  const textareas = await page.evaluate(() => document.querySelectorAll('[role="dialog"] textarea').length);
+  if (textareas > 0) {
+    errors.push(`Reason textarea still present in drawer (${textareas}) — no-approval violation`);
+  }
+
+  // (a) ADMIN taps 'Khóa lô' → permission toast 'Chỉ CUS được khóa lô.'
+  const lockTapped = await page.evaluate(() => {
+    const drawer = document.querySelector('[role="dialog"]');
+    const buttons = Array.from((drawer || document).querySelectorAll('button'));
+    const match = buttons.find((b) => /khóa lô/i.test(b.innerText || b.getAttribute('aria-label') || ''));
+    if (!match) return false;
+    match.click();
+    return true;
+  });
+  if (!lockTapped) {
+    errors.push('No "Khóa lô" button found in drawer');
+  } else {
+    await new Promise((r) => setTimeout(r, 1200));
+    const toast = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll('[class*="toast"], [role="status"], [role="alert"]'));
+      return nodes.filter((n) => n.offsetWidth).map((n) => n.innerText).join(' | ');
+    });
+    await ctx.screenshot('03_admin_lock_toast');
+    if (!toast.includes('Chỉ CUS được khóa lô')) {
+      errors.push(`Expected permission toast 'Chỉ CUS được khóa lô.', got: "${toast.slice(0, 120)}"`);
+    }
+    // (c) Cancel cleanly — close the drawer, nothing mutated.
+    const closed = await page.evaluate(() => {
+      const btn = document.querySelector('[role="dialog"] [aria-label*="Đóng"], [role="dialog"] [class*="close"]');
+      if (btn) { btn.click(); return true; }
       return false;
     });
-
-    if (detailClicked) {
-      await new Promise((r) => setTimeout(r, 2000));
-
-      // Now look for action button inside drawer
-      const drawerAction = await page.evaluate(() => {
-        const drawer = document.querySelector('.cus-shipment-drawer');
-        if (!drawer) return null;
-        const buttons = Array.from(drawer.querySelectorAll('button'));
-        const match = buttons.find((b) => {
-          const text = (b.innerText || '').toLowerCase();
-          return text.includes('xác nhận') || text.includes('khóa') || text.includes('điều chỉnh');
-        });
-        if (match) {
-          match.click();
-          return match.innerText.trim();
-        }
-        return null;
-      });
-
-      if (drawerAction) {
-        await new Promise((r) => setTimeout(r, 800));
-        await ctx.screenshot('02_action_modal_open');
-
-        // Check modal opened
-        const modalContent = await page.evaluate(() => {
-          const modals = document.querySelectorAll('[role="dialog"], .modal__content');
-          for (const m of modals) {
-            if (m.offsetParent !== null || getComputedStyle(m).display !== 'none') {
-              return m.innerText.substring(0, 300);
-            }
-          }
-          return null;
-        });
-
-        if (!modalContent) {
-          errors.push('Action modal did not open');
-        } else {
-          // Check for reason textarea
-          const hasReasonField = await page.evaluate(() => {
-            const ta = document.querySelector('.cus-action-reason textarea, textarea[required]');
-            return ta != null;
-          });
-          if (!hasReasonField) {
-            errors.push('Reason textarea not found in action modal');
-          }
-
-          await ctx.screenshot('03_action_modal_detail');
-        }
-
-        // Cancel the modal
-        await page.evaluate(() => {
-          const buttons = Array.from(document.querySelectorAll('button'));
-          const cancel = buttons.find((b) => b.innerText.trim() === 'Hủy');
-          if (cancel) cancel.click();
-        });
-        await new Promise((r) => setTimeout(r, 500));
-      } else {
-        errors.push('No action button found inside drawer');
-      }
-
-      // Close drawer
-      await page.evaluate(() => {
-        const closeBtn = document.querySelector('.drawer__close, [aria-label*="Đóng"]');
-        if (closeBtn) closeBtn.click();
-      });
-      await new Promise((r) => setTimeout(r, 500));
-    } else {
-      errors.push('No action button or detail button found on page');
-    }
-  } else {
-    // Click the action button directly
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const match = buttons.find((b) => {
-        const name = (b.getAttribute('aria-label') || b.innerText || '').toLowerCase();
-        return name.includes('xác nhận') || name.includes('khóa lô') || name.includes('mở khóa');
-      });
-      if (match) match.click();
-    });
+    if (!closed) await page.keyboard.press('Escape');
     await new Promise((r) => setTimeout(r, 800));
-    await ctx.screenshot('02_action_modal_direct');
-
-    const modalContent = await page.evaluate(() => {
-      const modals = document.querySelectorAll('[role="dialog"], .modal__content');
-      for (const m of modals) {
-        if (m.offsetParent !== null || getComputedStyle(m).display !== 'none') {
-          return m.innerText.substring(0, 300);
-        }
-      }
-      return null;
-    });
-
-    if (!modalContent) {
-      errors.push('Action modal did not open');
-    }
-
-    // Cancel
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const cancel = buttons.find((b) => b.innerText.trim() === 'Hủy');
-      if (cancel) cancel.click();
-    });
-    await new Promise((r) => setTimeout(r, 500));
+    const drawerGone = await page.evaluate(() => !document.querySelector('[role="dialog"]'));
+    if (!drawerGone) errors.push('Drawer did not close after cancel');
   }
 
   return {
     verdict: errors.length === 0 ? 'PASS' : 'FAIL',
-    actionBtn,
+    textareas,
     errors,
   };
 }

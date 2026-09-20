@@ -23,7 +23,7 @@ export default async function (ctx) {
   }
 
   // --- 2. Search for a known ref (SHELL-BILL-001 exists on staging) ---
-  const searchInput = await page.$('input[aria-label*="Bill/Book"]');
+  const searchInput = await page.$('input[placeholder*="Bill/Book"]');
   if (!searchInput) {
     return { verdict: 'FAIL', errors: ['Search input not found'] };
   }
@@ -49,7 +49,7 @@ export default async function (ctx) {
   // --- 3. Search for non-existent ref → empty state ---
   await ctx.goto('/shipments');
   await page.waitForSelector('.cus-dashboard-table tbody tr', { timeout: 15000 });
-  const searchInput2 = await page.$('input[aria-label*="Bill/Book"]');
+  const searchInput2 = await page.$('input[placeholder*="Bill/Book"]');
   await searchInput2.click();
   await page.keyboard.type('ZZZZNOTEXIST', { delay: 20 });
   await page.keyboard.press('Enter');
@@ -68,7 +68,7 @@ export default async function (ctx) {
   // --- 4. Search validation: short input (< 4 chars) ---
   await ctx.goto('/shipments');
   await page.waitForSelector('.cus-dashboard-table tbody tr', { timeout: 15000 });
-  const searchInput3 = await page.$('input[aria-label*="Bill/Book"]');
+  const searchInput3 = await page.$('input[placeholder*="Bill/Book"]');
   await searchInput3.click();
   await page.keyboard.type('ab', { delay: 20 });
   await page.keyboard.press('Enter');

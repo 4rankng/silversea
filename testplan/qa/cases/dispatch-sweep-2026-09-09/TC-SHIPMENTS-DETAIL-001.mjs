@@ -23,14 +23,17 @@ export default async function (ctx) {
     });
   });
 
-  const plannedRows = rows.filter((r) => r.badge === 'Đã phân xe');
+  const CURRENT_LABELS = ['Chờ phân xe', 'Đã điều xe', 'Đang chạy', 'Hoàn thành', 'Đã tạo chuyến'];
+  const plannedRows = rows.filter((r) => CURRENT_LABELS.includes(r.badge));
+  const dieuXeRows = rows.filter((r) => r.badge === 'Đã điều xe');
   const platedRows = rows.filter((r) => Boolean(r.plate));
 
-  const ok = rows.length > 0 && plannedRows.length > 0 && platedRows.length > 0;
+  const ok = rows.length > 0 && plannedRows.length > 0 && platedRows.length > 0 && dieuXeRows.length > 0;
   return {
     verdict: ok ? 'PASS' : 'FAIL',
     totalRows: rows.length,
     plannedCount: plannedRows.length,
+    dieuXeCount: dieuXeRows.length,
     platedCount: platedRows.length,
     samplePlanned: plannedRows.slice(0, 3),
   };
