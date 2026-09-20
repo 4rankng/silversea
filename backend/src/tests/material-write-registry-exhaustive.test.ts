@@ -802,6 +802,8 @@ describe('material-write registry coverage', () => {
       ['POST', '/api/expense-categories', 'config.expense_categories.create'],
       ['PUT', '/api/expense-categories/11', 'config.expense_categories.update'],
       ['DELETE', '/api/expense-categories/11', 'config.expense_categories.delete'],
+      ['POST', '/api/customers/bulk-notify', 'customers.bulk-notify'],
+      ['POST', '/api/customers/bulk-status', 'customers.bulk-status'],
       ['POST', '/api/debit-note-templates', 'config.debit-note-templates.create'],
       ['PUT', '/api/debit-note-templates/5', 'config.debit-note-templates.update'],
       ['DELETE', '/api/debit-note-templates/5', 'config.debit-note-templates.delete'],

@@ -83,6 +83,8 @@ const CONFIG_CRUD_MATERIAL_WRITE_SPECS: readonly CrudMaterialWriteSpec[] = [
 ];
 
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
+  { method: 'POST', endpoint: 'customers.bulk-notify', pattern: /^\/api\/customers\/bulk-notify$/ },
+  { method: 'POST', endpoint: 'customers.bulk-status', pattern: /^\/api\/customers\/bulk-status$/ },
   { method: 'POST', endpoint: 'shipments.invoice-records.save', pattern: /^\/api\/shipments\/[^/]+\/invoice-records$/ },
   { method: 'POST', endpoint: 'shipments.container-deposits.save', pattern: /^\/api\/shipments\/[^/]+\/container-deposits$/ },
   { method: 'POST', endpoint: 'expense-accounting.create', pattern: /^\/api\/expense-accounting\/entries$/ },

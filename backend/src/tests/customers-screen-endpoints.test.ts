@@ -98,6 +98,7 @@ before(async () => {
     { username: `cust-disp-${suffix}`, passwordHash: hash, role: 'DISPATCHER' as const },
     { username: `cust-cus-${suffix}`, passwordHash: hash, role: 'CUS' as const },
     { username: `cust-cust-${suffix}`, passwordHash: hash, role: 'CUSTOMER' as const, customerId: targetId },
+    { username: `cust-cust-locked-${suffix}`, passwordHash: hash, role: 'CUSTOMER' as const, customerId: targetId, status: 'LOCKED' },
   ]).returning();
   userIds.push(...users.map((u) => u.id));
   const mint = (userId: number, username: string, role: string, customerId?: number) => jwt.sign(
@@ -212,5 +213,63 @@ describe('customers screen drawer history endpoints', () => {
     const body = res.body as { id: number; name: string };
     assert.equal(body.id, targetId);
     assert.ok(body.name.includes('Screen target'));
+  });
+});
+
+describe('customers screen bulk notify', () => {
+  const payload = (ids: number[]) => ({ customerIds: ids, title: `Cảnh báo thử ${suffix}`, message: `Nội dung thử ${suffix}` });
+
+  test('requires Idempotency-Key on a declared material write', async () => {
+    const res = await request('/api/customers/bulk-notify', { method: 'POST', token: adminToken, body: payload([targetId]) });
+    assert.equal(res.status, 400);
+  });
+
+  test('notifies ACTIVE linked customer users only, with counts', async () => {
+    const key = `notify-${suffix}`;
+    const res = await request('/api/customers/bulk-notify', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: key,
+      body: payload([targetId, otherId, tombstonedId]),
+    });
+    assert.equal(res.status, 200);
+    const body = res.body as { requested: number; matchedCustomers: number; notified: number };
+    assert.equal(body.requested, 3);
+    assert.equal(body.matchedCustomers, 2);
+    assert.equal(body.notified, 1, 'only the ACTIVE linked CUSTOMER user gets a row');
+    const [row] = await db.select({ id: s.notifications.id }).from(s.notifications)
+      .where(eq(s.notifications.userId, userIds[4]));
+    assert.ok(row, 'notification row exists for the linked user');
+  });
+
+  test('replay with same key does not duplicate notifications', async () => {
+    const key = `notify-${suffix}`;
+    const res = await request('/api/customers/bulk-notify', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: key,
+      body: payload([targetId, otherId, tombstonedId]),
+    });
+    assert.equal(res.status, 200);
+    const rows = await db.select({ id: s.notifications.id }).from(s.notifications)
+      .where(eq(s.notifications.userId, userIds[4]));
+    assert.equal(rows.length, 1, 'exactly one notification row after replay');
+  });
+
+  test('denies non-screen roles and rejects invalid payloads', async () => {
+    for (const token of [dispatcherToken, customerRoleToken, cskhToken]) {
+      const denied = await request('/api/customers/bulk-notify', {
+        method: 'POST', token, idempotencyKey: `x-${suffix}`, body: payload([targetId]),
+      });
+      assert.equal(denied.status, 403);
+    }
+    const empty = await request('/api/customers/bulk-notify', {
+      method: 'POST', token: adminToken, idempotencyKey: `e-${suffix}`, body: { customerIds: [], title: 't', message: 'm' },
+    });
+    assert.equal(empty.status, 400);
+    const oversized = await request('/api/customers/bulk-notify', {
+      method: 'POST', token: adminToken, idempotencyKey: `o-${suffix}`, body: { customerIds: Array.from({ length: 501 }, (_, i) => i + 1), title: 't', message: 'm' },
+    });
+    assert.equal(oversized.status, 400);
   });
 });

@@ -3,7 +3,7 @@
 // Mounted in catalog-crud.routes.ts BEFORE the customers CRUD sub-router so
 // the specific paths resolve first and everything else falls through to CRUD.
 import { Router } from 'express';
-import { and, count, desc, eq, isNull, sum } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, sum } from 'drizzle-orm';
 import { z } from 'zod';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
@@ -105,6 +105,55 @@ router.get('/:id/payment-history', requireRoles(...SCREEN_ROLES), asyncHandler(a
     },
     outstanding: summary.outstanding,
   });
+}));
+
+// ─── 3. Bulk notification (RBAC + Idempotency-Key + audit) ─────────────────
+
+const bulkNotifySchema = z.object({
+  customerIds: z.array(z.number().int().positive()).min(1).max(500),
+  title: z.string().trim().min(1).max(200),
+  message: z.string().trim().min(1).max(2000),
+});
+
+router.post('/bulk-notify', requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
+  const actor = getUser(req);
+  const { customerIds, title, message } = bulkNotifySchema.parse(req.body);
+  const { result } = await runIdempotent({
+    endpoint: 'customers.bulk-notify',
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { customerIds, title, message },
+    createdBy: actor.userId,
+    create: async (tx) => {
+      const liveCustomers = await tx.select({ id: s.customers.id })
+        .from(s.customers)
+        .where(and(inArray(s.customers.id, customerIds), isNull(s.customers.deletedAt)));
+      const liveIds = liveCustomers.map((row) => row.id);
+      const targets = liveIds.length === 0 ? [] : await tx.select({ id: s.users.id, customerId: s.users.customerId })
+        .from(s.users)
+        .where(and(
+          inArray(s.users.customerId, liveIds),
+          eq(s.users.role, Role.CUSTOMER),
+          eq(s.users.status, 'ACTIVE'),
+          isNull(s.users.deletedAt),
+        ));
+      if (targets.length > 0) {
+        await tx.insert(s.notifications).values(targets.map((target) => ({
+          userId: target.id,
+          type: 'SYSTEM_ANNOUNCEMENT' as const,
+          title,
+          message,
+          relatedEntityType: 'CUSTOMER',
+          relatedEntityId: target.customerId,
+        })));
+      }
+      return {
+        requested: customerIds.length,
+        matchedCustomers: liveIds.length,
+        notified: targets.length,
+      };
+    },
+  });
+  res.json(result);
 }));
 
 export default router;
