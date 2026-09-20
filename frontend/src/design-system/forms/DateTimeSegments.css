@@ -73,22 +73,3 @@
   color: var(--danger);
   box-shadow: inset 0 -1px 0 var(--danger);
 }
-
-.date-seg-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 2px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-fg-quaternary);
-  cursor: pointer;
-}
-
-.date-seg-trigger:hover:not(:disabled),
-.date-seg-trigger:focus-visible { color: var(--color-fg-quaternary_hover); background: var(--color-bg-secondary); }
-
-.date-seg-trigger:disabled { cursor: not-allowed; opacity: 0.5; }

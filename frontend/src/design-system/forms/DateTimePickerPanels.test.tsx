@@ -132,13 +132,13 @@ describe('DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact)', () 
   it('disabling the field closes its open picker and re-enabling never reopens it', async () => {
     const onChange = vi.fn();
     const { rerender } = render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
-    click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
     expect(await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeTruthy();
     rerender(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} isDisabled />);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).not.toBeInTheDocument());
     rerender(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
     expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('textbox', { name: 'Giờ — Hẹn' })).toHaveAttribute('aria-expanded', 'false');
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -159,7 +159,7 @@ describe('DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact)', () 
   it('the trigger opens the compact portaled picker; picks stream the buffered contract and Xong closes', async () => {
     const onChange = vi.fn();
     render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
-    click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
     expect(dialog.classList.contains('time-picker__popup')).toBe(true);
     expect(dialog.parentElement).toBe(document.body);
@@ -195,13 +195,13 @@ function DialogHost({ onChange }: { onChange: (v: string) => void }) {
 describe('BufferedUuiDateTimeInput — split-field picker openings (P0 regression)', () => {
   it('the time trigger opens the time picker', async () => {
     render(<DialogHost onChange={vi.fn()} />);
-    click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
     expect(await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeTruthy();
   });
 
   it('the date trigger opens the date picker, keeping the field label in the accessible names', async () => {
     render(<DialogHost onChange={vi.fn()} />);
-    click(screen.getByRole('button', { name: 'Mở lịch — Hẹn' }));
+    click(screen.getByRole('textbox', { name: 'Ngày — Hẹn' }));
     expect(await screen.findByRole('dialog', { name: 'Chọn ngày — Hẹn' })).toBeTruthy();
   });
 
@@ -216,7 +216,7 @@ describe('BufferedUuiDateTimeInput — split-field picker openings (P0 regressio
     );
     click(screen.getByLabelText('Giờ — Hẹn'));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('textbox', { name: 'Giờ — Hẹn' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Giờ — Hẹn' })).toHaveAttribute('aria-expanded', 'false');
   });
 });

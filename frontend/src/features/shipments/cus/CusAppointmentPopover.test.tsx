@@ -88,7 +88,7 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mở lịch — Giờ hẹn đóng/trả' }));
+    fireEvent.click(screen.getByRole('textbox', { name: 'Ngày — Giờ hẹn đóng/trả' }));
     const dayCell = document.querySelector<HTMLButtonElement>('.dtp-grid button[data-idx="15"]');
     expect(dayCell).toBeTruthy();
     fireEvent.click(dayCell!);

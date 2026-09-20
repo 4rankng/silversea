@@ -90,7 +90,7 @@ describe('adaptive time entry', () => {
     it('keeps exact entry inside the modal, applies without premature pair error and restores the original field', async () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      const trigger = screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' });
+      const trigger = screen.getByRole('textbox', { name: 'Giờ — Hẹn' });
       click(trigger);
       const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       expect(dialog.closest('.time-picker__sheet')).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe('adaptive time entry', () => {
     it('keeps minute-first blank selection partial, and completes without inventing the hour', async () => {
       render(<SplitHarness />);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
       const dialog = await screen.findByRole('dialog');
       click(within(within(dialog).getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '05' }));
       expect(time).toHaveValue('');
@@ -149,7 +149,7 @@ describe('adaptive time entry', () => {
     it('keeps background focus out and dismisses through the backdrop without rounding an exact value', async () => {
       render(<><SplitHarness value="2026-09-19T20:46" /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
       const dialog = await screen.findByRole('dialog');
       await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
       act(() => screen.getByLabelText('Outside').focus());
@@ -165,7 +165,7 @@ describe('adaptive time entry', () => {
     it('nested picker Escape closes only the picker and preserves the buffered value', async () => {
       const onChange = vi.fn();
       render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T20:46" onChange={onChange} />);
-      click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' }));
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
       const sheet = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       const exact = within(sheet).getByLabelText('Giờ chính xác (HH:mm)');
       click(exact); fireEvent.change(exact, { target: { value: '1417' } });

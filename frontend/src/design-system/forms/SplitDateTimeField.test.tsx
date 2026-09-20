@@ -13,8 +13,8 @@ function clickWithFocus(element: HTMLElement) {
 // Segmented entry contract: each part is several [data-seg] inputs plus one
 // icon trigger that opens the picker. Full-string changes still work on the
 // first segment (paste distribution fills the following segments).
-const timeTrigger = () => screen.getByRole('button', { name: 'Mở bộ chọn giờ — Hẹn' });
-const dateTrigger = () => screen.getByRole('button', { name: 'Mở lịch — Hẹn' });
+const timeTrigger = () => screen.getByRole('textbox', { name: 'Giờ — Hẹn' });
+const dateTrigger = () => screen.getByRole('textbox', { name: 'Ngày — Hẹn' });
 const hour = () => screen.getByLabelText('Giờ — Hẹn');
 const minute = () => screen.getByLabelText('Phút — Hẹn');
 const day = () => screen.getByLabelText('Ngày — Hẹn');
@@ -89,12 +89,14 @@ describe('SplitDateTimeField', () => {
     await waitFor(() => expect(hour()).toHaveFocus());
   });
 
-  it('keeps segment clicks for typing and routes picker opening through the icon trigger', () => {
+  it('segment clicks open the picker while typing stays in the segments', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     clickWithFocus(hour());
     expect(hour()).toHaveFocus();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Segment click opens the part's picker (2026-09-20 ruling: no icon
+    // trigger on the segmented fields); typing continues in the segment.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.change(hour(), { target: { value: '13:30' } });
     expect(hour()).toHaveValue('13');
     expect(minute()).toHaveValue('30');

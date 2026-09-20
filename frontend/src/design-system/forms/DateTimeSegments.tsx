@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useRef, type InputHTMLAttributes, type KeyboardEvent, type Ref } from 'react';
-import { CalendarDays, Clock } from 'lucide-react';
 import { InputBase } from '../../components/untitled-ui/base/input/input';
 import './DateTimeSegments.css';
 
@@ -170,6 +169,7 @@ export function DateTimeSegments({
   };
 
   return <div id={id} role="group" data-seg-part={part} data-uui-control="segments" data-control-size={size}
+    onClick={() => { if (!disabled && !readOnly) onOpenPicker(); }}
     className={['date-seg-group', error ? 'date-seg-group--error' : '', className].filter(Boolean).join(' ')}>
     {specs.map((spec, index) => {
       const outOfRange = isOutOfRange(spec, texts[index]);
@@ -182,23 +182,22 @@ export function DateTimeSegments({
         else if (firstSegmentAriaLabel !== undefined) label = firstSegmentAriaLabel;
       }
       const first = index === 0;
-      return <Fragment key={spec.key}>
+      return <Fragment key={spec.key}
+      >
         {index > 0 && <span className="date-sep" aria-hidden="true">{separator}</span>}
         <InputBase {...(first ? { ...inputProps, ...firstSegmentProps } : inputProps)} ref={(node) => assignRef(index, node)}
           id={first ? firstSegmentId : undefined} data-seg={spec.key} type="text" inputMode="numeric" size={size}
           value={texts[index]} placeholder={spec.placeholder} maxLength={spec.maxLength} autoComplete="off"
           aria-label={label || undefined} aria-invalid={Boolean(error) || outOfRange || Boolean(inputProps?.['aria-invalid']) || undefined}
-          onChange={(event) => write(index, event.target.value)} onKeyDown={(event) => handleKeyDown(event, index)}
+          aria-haspopup={first ? 'dialog' : undefined} aria-expanded={first ? Boolean(popupExpanded) : undefined}
+          aria-controls={first ? popupControls : undefined}
+          onChange={(event) => write(index, event.target.value)}
+          onKeyDown={(event) => handleKeyDown(event, index)}
           onFocus={(event) => { inputProps?.onFocus?.(event); event.target.select(); }}
           isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required}
           inputClassName={['date-seg', outOfRange ? 'date-seg--invalid' : '', inputProps?.className].filter(Boolean).join(' ')}
           wrapperClassName="date-seg-wrapper" />
       </Fragment>;
     })}
-    <button type="button" className="date-seg-trigger" disabled={disabled || readOnly} onClick={onOpenPicker}
-      aria-label={`${part === 'time' ? 'Mở bộ chọn giờ' : 'Mở lịch'} — ${groupAriaLabel}`}
-      aria-haspopup="dialog" aria-expanded={Boolean(popupExpanded)} aria-controls={popupControls}>
-      {part === 'time' ? <Clock size={13} aria-hidden="true" /> : <CalendarDays size={14} aria-hidden="true" />}
-    </button>
   </div>;
 }

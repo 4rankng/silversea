@@ -29,7 +29,7 @@ const pathNow = () => screen.getByTestId('escape-path-probe').textContent;
 describe('SplitDateTimeField Escape behavior (card _13 regression lock)', () => {
   it('closes the open time picker without navigating', () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mở bộ chọn giờ — Ngày giờ đóng trả' }));
+    fireEvent.click(screen.getByRole('textbox', { name: 'Giờ — Ngày giờ đóng trả' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -38,7 +38,7 @@ describe('SplitDateTimeField Escape behavior (card _13 regression lock)', () => 
 
   it('closes the open date picker without navigating', () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mở lịch — Ngày giờ đóng trả' }));
+    fireEvent.click(screen.getByRole('textbox', { name: 'Ngày — Ngày giờ đóng trả' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
