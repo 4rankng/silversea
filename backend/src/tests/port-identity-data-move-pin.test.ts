@@ -70,11 +70,13 @@ before(async () => {
     await sql`insert into forwarder_expense_types (code, name, category) values (${`PINPORT-${i}`}, ${`pinport ${i}`}, ${OLD_VALUE})`;
   }
   // postgres.js double-encodes a pre-stringified JSON parameter (::jsonb on
-  // a string lands as a scalar), so pass the array object directly.
-  await sql`insert into debit_note_templates (name, columns) values ('port-identity-pin', ${[
+  // a string lands as a scalar), so pass the array object directly. The
+  // template's param slots are declared scalar-only, hence the never cast.
+  const columnsParam = [
     { id: 'lach_huyen', label: 'Phí nâng hạ theo vùng' },
     { id: 'zone_surcharge', label: 'nâng hạ' },
-  ]}::jsonb)`;
+  ] as never;
+  await sql`insert into debit_note_templates (name, columns) values ('port-identity-pin', ${columnsParam})`;
 
   // The file's own remap statements for the swept columns, in file order.
   // Prose comment lines are stripped first so header notes never pollute the
