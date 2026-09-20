@@ -95,7 +95,8 @@
    short. Keep single-row and touch layouts in normal flow; pin pagination only
    for longer desktop ledgers where it materially improves navigation. */
 @media (min-width: 1101px) {
-  .shipment-container-ledger:has(tbody > tr:nth-child(2)) > .ds-pagination { position: sticky; bottom: 0; }
+  /* margin-bottom/padding-bottom seal the .app-body 32px strip (card _38). */
+  .shipment-container-ledger:has(tbody > tr:nth-child(2)) > .ds-pagination { position: sticky; bottom: 0; margin-bottom: -32px; padding-bottom: calc(12px + 32px); }
 }
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

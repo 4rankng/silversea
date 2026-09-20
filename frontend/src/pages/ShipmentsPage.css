@@ -431,7 +431,12 @@
   bottom: 0;
   z-index: 4;
   margin: 0;
+  /* The .app-body frame keeps a 32px bottom padding; sticky bottom:0 stops at
+     the padding edge and page content bleeds through the exposed strip (card
+     _38). Extend the bar's own box over the strip so it seals the frame. */
+  margin-bottom: -32px;
   padding: 12px;
+  padding-bottom: calc(12px + 32px);
   border-top: 1px solid var(--line);
   background: var(--surface);
 }

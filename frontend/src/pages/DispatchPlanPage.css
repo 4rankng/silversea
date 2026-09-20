@@ -79,7 +79,10 @@
   bottom: 0;
   z-index: 3;
   margin: 0;
+  /* Seal the .app-body 32px bottom-padding strip (card _38). */
+  margin-bottom: -32px;
   padding: 12px;
+  padding-bottom: calc(12px + 32px);
   border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
   background: var(--surface, #fff);
 }
