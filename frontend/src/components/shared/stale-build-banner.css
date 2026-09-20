@@ -1,9 +1,11 @@
-/* Faint corner notice — visible, never render-blocking. Sits in the top-right
-   corner (toasts own the bottom edge, z-toast 500) and below the toast layer. */
+/* Faint corner notice — visible, never render-blocking. Bottom-LEFT: toasts
+   own the bottom-right corner (z-toast 500) and the header owns the top edge;
+   the banner clears both and stays below the toast layer. */
 .stale-build-banner {
   position: fixed;
-  top: var(--space-sm, 8px);
-  right: var(--space-sm, 8px);
+  bottom: var(--space-lg, 16px);
+  left: calc(var(--space-lg, 16px) + 56px); /* clears the collapsed sidebar rail */
+
   z-index: 450;
   display: flex;
   align-items: center;
@@ -32,4 +34,10 @@
 
 .stale-build-banner button:hover {
   background: var(--bg-hover, #f5f5f5);
+}
+
+@media (max-width: 767px) {
+  .stale-build-banner {
+    left: var(--space-sm, 8px);
+  }
 }
