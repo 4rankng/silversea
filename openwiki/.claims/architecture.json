@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:f62c3fc50080faad6c57a65596f34ded823debe549d4b8f2ec3612f3564b2c77",
+  "pageVersion": "sha256:55aaf9b6458556328d10624e135d27ff20946983b0910246e3046a0b884f4c24",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -457,10 +457,42 @@
           "version": "repo-lines-v1:sha256:9c210e482ad284ba7214463236ca1a75575c03eaf9ca62bba235a7f42eed5c62:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjMTk3YWM1MGYzNDY5NTIzZjFiNjFhNjRmOWE4MzlmNmYzYTJkYTQzMmE3NTE0NDQ5ODdkOTBiNDhlMjI5NjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwYjc2ZGI3NmViOWI1ZDcxMjhjZjBjZGVhNjNlNTBkNGZlODM4MDg0Y2U3MTY4NDdlZGZiNzAxZThkZGZhZWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRkMTA2ZDFlYzFkODZmNDM1YWJmZGU0NjhmNDY3YWYzYzYxY2I1ZjI5ZjgwNzBmNmFlMDYyNTMyZDE2NjVmM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzMjQ5ODlmZWY1ODI3M2NhNDY3Nzk4NzkxMjU0ZWIyZTY3NmM4YzcxNzQ5MDA0NzRjNTUzOGQ4OTFhYTU5YTMifQ"
         }
       ]
+    },
+    {
+      "id": "claim_660eff8ee8654788a3aa84400f539493",
+      "statement": "Workboard quick-edit of the schedule and notes cell groups is gated to CUS, ADMIN, and DISPATCHER: transportDateEditable is the (CUS|ADMIN|DISPATCHER) && !locked clause in the CUS workspace builders, and shipmentFieldAccess grants those three roles DIRECT access on the four schedule/notes keys (closingAt, plannedReturnAt, customerNotes, operationalNotes) before any lock check; other cell groups and other roles (e.g. MANAGER) are untouched.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/cus-workspace-builders.service.ts#L664-L699",
+          "version": "repo-lines-v1:sha256:e5e72b6a9a02a42f179fb793404f88a3508c6c2b0a69f848c0980dd1093422fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5YTZlZDFiODQ4YTJlNThkY2NlODIxZmJmYzQwYjI3MjJjNDRkMWRhY2E1ZTIzYThkOWMxM2I1YzA1YTIzYWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4YjMxMDY4ZGE2NzJiZDBhOGY0MjMyMDgzOTA5N2MwMWMxY2M1NTM5NjVmZmY5YTQwYzNhMThhOWVhYjkwYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiNGQwNjk5MjczNjU0NTU5MjJjMTZkYTc0NWY2ZmU1M2JiMDAwMjk0ZGMwNDZkMDBiMmM4ODQ4MmZkODFiOGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1MzNlY2VkZTZlZDg4NTBkNjNlMDlhNGQ4ZTllZGRiMzgwMjU0NjU4ZDQwMTNkYmRkNDU0NGM1ZWQ0ZDAwNjYifQ"
+        },
+        {
+          "resource": "repo://frontend/src/features/shipments/cus/CusShipmentRow.tsx#L162-L185",
+          "version": "repo-lines-v1:sha256:67a4463c1494562560699564f85de69a5408316aabc876c0e4426f4ed1ca9834:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNkMGQyNmJlMzNjYjg5NmYzZmE2ZmMwZWJhYWU0ZTE2NjJhN2Q2MjNmYzZlYWRiOTY2YzA3OTRiMzdmY2I2MzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NTI5MTE4YWJmZjU0NGQ5MzU2YWViYWMwZTljN2M1MThmOWJhMmUzNDAxNjk4NmUxMTA4MmE5ZTliZmNjZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2NTllZWZiNzFhM2Y3MmI2ZWQ2MzVmNGIzZGMzOGJiMGQ3ZjhjMTliYjExZDZjYmZkZGRkODkxMTk0ZmVhOGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3ODUyNWEzNzhlM2VmNmVjZWMxNGExZjg1NjlmYmMzMGFhMzg5YjFkNGI1NzA0Y2M5YjM2NzRmNWIwNDljYjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d3de4cee5a3c45759df15af095d280bb",
+      "statement": "Both note fields (customerNotes, operationalNotes) are decoupled from the shipment accounting lock across all three tiers: the FE notes trigger disables only when both fields are READ_ONLY (fieldAccess-driven); fieldAccess returns DIRECT for the two note fields for CUS/ADMIN/DISPATCHER even under hasActiveLock; and a notes-only update — a payload carrying nothing beyond the two note fields plus bookkeeping keys (expectedVersion/version/updatedBy) — skips assertShipmentAccountingUnlocked, while any mixed update still 409s under lock and schedule/declaration fields stay locked for every role.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/cus-workspace-builders.service.ts#L664-L699",
+          "version": "repo-lines-v1:sha256:e5e72b6a9a02a42f179fb793404f88a3508c6c2b0a69f848c0980dd1093422fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5YTZlZDFiODQ4YTJlNThkY2NlODIxZmJmYzQwYjI3MjJjNDRkMWRhY2E1ZTIzYThkOWMxM2I1YzA1YTIzYWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4YjMxMDY4ZGE2NzJiZDBhOGY0MjMyMDgzOTA5N2MwMWMxY2M1NTM5NjVmZmY5YTQwYzNhMThhOWVhYjkwYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiNGQwNjk5MjczNjU0NTU5MjJjMTZkYTc0NWY2ZmU1M2JiMDAwMjk0ZGMwNDZkMDBiMmM4ODQ4MmZkODFiOGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1MzNlY2VkZTZlZDg4NTBkNjNlMDlhNGQ4ZTllZGRiMzgwMjU0NjU4ZDQwMTNkYmRkNDU0NGM1ZWQ0ZDAwNjYifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/shipment-update.service.ts#L47-L59",
+          "version": "repo-lines-v1:sha256:8470846063ae01094206ee19d3ceb5e61e1f09b66abc041991aa1cef53a27849:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwMzBkMDcyYTRiZDU5Mjc0ODI1MjNhZGNiNTI0YzZiMzQ0YjAyYTQ5MTIxYjgyMGE0MmFjNTE3ODFkNzI0MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0Njc0MWNkOGNiZTAzYjBlZTc1OWRlOTlmZDViOTM4NzIyZWY5ZmRlYjNkOTg4YmViYzg3NDJkNjM0OWE1Y2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5MjdjOGY5MTk2NmNjNmVlZmYyN2EzYzAxNzJjNjY3ZTNhYWYwZmU5NmU3NTNkZDgzMjMxOGJiY2JmMzRjNmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTUwNjlmZDcwNGM2NjhhOWI3YmIxZGU5YzYwNmEwN2VmMDY5Y2QzOGJjZWUwMzAwZmEzN2I0YjEzNDI1YzEifQ"
+        },
+        {
+          "resource": "repo://frontend/src/features/shipments/cus/CusShipmentRow.tsx#L162-L185",
+          "version": "repo-lines-v1:sha256:67a4463c1494562560699564f85de69a5408316aabc876c0e4426f4ed1ca9834:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNkMGQyNmJlMzNjYjg5NmYzZmE2ZmMwZWJhYWU0ZTE2NjJhN2Q2MjNmYzZlYWRiOTY2YzA3OTRiMzdmY2I2MzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NTI5MTE4YWJmZjU0NGQ5MzU2YWViYWMwZTljN2M1MThmOWJhMmUzNDAxNjk4NmUxMTA4MmE5ZTliZmNjZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2NTllZWZiNzFhM2Y3MmI2ZWQ2MzVmNGIzZGMzOGJiMGQ3ZjhjMTliYjExZDZjYmZkZGRkODkxMTk0ZmVhOGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3ODUyNWEzNzhlM2VmNmVjZWMxNGExZjg1NjlmYmMzMGFhMzg5YjFkNGI1NzA0Y2M5YjM2NzRmNWIwNDljYjIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T10:45:13.890Z"
+    "at": "2026-09-20T13:43:19.777Z"
   }
 }

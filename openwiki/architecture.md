@@ -1,11 +1,11 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 post-cut-8 state of origin/prod (280f0bc8): billing-issue readiness gate, fuel-preview MANUAL reasons, the zero-vs-missing display contract, one-row filter bars, icon-only action columns, and in-dropdown row creation."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 post-cut-14 state of origin/prod (7aedcfed): billing-issue readiness gate, fuel-preview MANUAL reasons, the zero-vs-missing display contract, the two-row 12-column filter grid, icon-only action columns, in-dropdown row creation, three-role workboard quick-edit (CUS/ADMIN/DISPATCHER), and both note fields editable under the accounting lock."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T10:45:13.890Z
+    at: 2026-09-20T13:43:19.777Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -27,6 +27,8 @@ sources:
     resource: repo://backend/src/services/aging.service.ts
   - id: openwiki-source-10e4db2d245bc653bfb84cab
     resource: repo://backend/src/services/billing-document-governance.service.ts
+  - id: openwiki-source-86b278930bf8667e24b587f6
+    resource: repo://backend/src/services/cus-workspace-builders.service.ts
   - id: openwiki-source-b783cbfcbb631c4f9e488edc
     resource: repo://backend/src/services/dispatch-planning-detail-plan.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
@@ -41,6 +43,8 @@ sources:
     resource: repo://backend/src/services/shipment-debit-detail.service.ts
   - id: openwiki-source-6bbe3d8292f04ae241cde05c
     resource: repo://backend/src/services/shipment-debit-summary.service.ts
+  - id: openwiki-source-95f1cc71c37cefdade7ef7bf
+    resource: repo://backend/src/services/shipment-update.service.ts
   - id: openwiki-source-69663e0b3d165a9d5d1ceca1
     resource: repo://backend/src/services/trip-external-close.service.ts
   - id: openwiki-source-c6551d55e5de7de94ecf32ca
@@ -81,6 +85,8 @@ sources:
     resource: repo://frontend/src/features/shipments/create/FreightPreviewCard.tsx
   - id: openwiki-source-71a326847137afbebdb7c372
     resource: repo://frontend/src/features/shipments/create/uui-searchable-field.tsx
+  - id: openwiki-source-9b47a81d8349af3735aeaff8
+    resource: repo://frontend/src/features/shipments/cus/CusShipmentRow.tsx
   - id: openwiki-source-a39f35618da371aac500abf1
     resource: repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx
   - id: openwiki-source-9f3012bd7b3b7e37fa71ae81
@@ -115,7 +121,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-20T10:45:13.890Z" }
+generated: { by: "claude-code", at: "2026-09-20T13:43:19.777Z" }
 ---
 
 # Architecture and Codebase Map
@@ -154,7 +160,8 @@ The CUS workspace exposes two complementary views of the same shipment list. The
 - A CUS ledger container row stays at `PENDING_DATE` until every container in the FCL lot has its own `customerAppointmentAt`; clearing the last appointment of a lot that already moved to `READY_FOR_DISPATCH` is rejected with 409 so the workboard's "Chưa chốt ngày" warning can never silently clear.
 - The shared contract is the single source of truth for filter shapes, sort keys, and the chip vocabulary; backend services and frontend hooks both import from the same package.
 - The detail-screen container ledger has inline per-row `Xác nhận` (confirm) and `Revert` actions, with success/error toasts and Enter/Escape handling, so the user no longer has to press Enter or hunt for the header "Hoàn tất" button after typing a container appointment. Inline draft editors dismiss via `useClickOutside` so the row state stays consistent on accidental focus loss.
-- The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time the same way it is read on the workboard and the typed surface can parse the typed value back deterministically.
+- The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time closingAt/plannedReturnAt the same way it is read on the workboard and the typed surface can parse the typed value back deterministically.
+- **Workboard quick-edit contract (2026-09-20 evening, cards _49/_51):** quick-edit of the schedule and notes cell groups on Tổng quan lô hàng opens to CUS, ADMIN, and DISPATCHER — `transportDateEditable` is the CUS/ADMIN/DISPATCHER && !locked clause, and `shipmentFieldAccess` grants those three roles DIRECT on the four schedule/notes keys (`closingAt`, `plannedReturnAt`, `customerNotes`, `operationalNotes`) before any lock check; other cell groups and MANAGER are untouched. **Both note fields decouple from the accounting lock across all three tiers:** the FE notes trigger disables only when BOTH fields are READ_ONLY (fieldAccess-driven, `CusShipmentRow.tsx:176`); fieldAccess returns DIRECT for the two note fields for the three roles even under `hasActiveLock` ("Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."); and a notes-only update — nothing beyond the two note fields plus bookkeeping keys — skips `assertShipmentAccountingUnlocked`, while any mixed update still 409s under lock and schedule/declaration fields stay locked for everyone. Lock negatives hold per role (schedule cell readonly, outside roles like MANAGER stay blocked). Pinned by `backend/src/tests/cus-shipment-workspace.test.ts`, `frontend/src/pages/ShipmentsPage.test.tsx`, and the PRD changelog section "Quick-edit lịch & ghi chú mở cho đủ ba vai" (`docs/prd/CHANGELOG.md`).
 
 ## Shipment settlement and debit notes (Chi phí – Quyết toán)
 
