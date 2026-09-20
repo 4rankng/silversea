@@ -363,6 +363,7 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 - Tất cả vai trò cần Internet để làm việc với thông tin hiện hành. Mất mạng phải ngừng thao tác ghi và nói rõ thông tin đang xem có thể chưa mới.
 - Nội dung đang nhập nếu còn giữ trên màn hình phải được ghi rõ chưa lưu; cảnh báo khi rời hoặc tải lại có thể làm mất nội dung. Không cho nhập nghiệp vụ ngoại tuyến với lời hứa sẽ tự gửi.
 - Khi có mạng, mở lại trang hoặc đổi tài khoản, không tự thực hiện các thao tác cũ. Người dùng chủ động tiếp tục sau khi biết kết quả lần trước.
+- Tab mở qua một đợt cập nhật hệ thống: ứng dụng báo có phiên bản mới và cho phép làm mới trang ở thời điểm người dùng chọn; không tự tải lại giữa chừng làm mất nội dung đang nhập.
 - Lỗi dịch vụ tạm thời không bị gọi là hết phiên đăng nhập nếu phiên vẫn hợp lệ. Người dùng có cách thử lại mà không mất nội dung đang làm.
 - Quyền luôn theo vai trò, tổ chức, phân công và đối tượng hiện hành; biết mã hay từng mở liên kết không tự cấp quyền. Khách hàng không xem dữ liệu khách hàng khác; lái xe/Ops không giữ quyền cũ sau khi phân công đổi.
 - Xóa/hủy dựa vào quyền, công việc đã phát sinh, dữ liệu liên quan và kỳ đã khóa. Người đủ điều kiện xác nhận rồi thực hiện trực tiếp; không bị đưa vào hàng đợi phê duyệt. Tình huống không được xóa phải giải thích và hướng tới cách xử lý hợp lệ.
