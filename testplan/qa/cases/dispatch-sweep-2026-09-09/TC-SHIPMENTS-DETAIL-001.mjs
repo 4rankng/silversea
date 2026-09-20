@@ -10,6 +10,17 @@ export default async function (ctx) {
   await ctx.goto('/shipments-detail?dateScope=all');
   await page.waitForSelector('.shipment-container-ledger table', { timeout: 15000 });
 
+  // Narrow to the QA0920 fixture chain so a 'Đã điều xe' row lands on page 1
+  // (the full ledger paginates at 20 rows and the dispatched fixture sits
+  // deeper). Fixture rows are lead-approved QA0920-* data.
+  const searchBox = await page.$('input[placeholder*="Bill/Book"]');
+  if (searchBox) {
+    await searchBox.click();
+    await page.keyboard.type('QA0920-BL-RE', { delay: 20 });
+    await page.keyboard.press('Enter');
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
   await ctx.screenshot('01_shipments_detail_ledger');
 
   const rows = await page.evaluate(() => {

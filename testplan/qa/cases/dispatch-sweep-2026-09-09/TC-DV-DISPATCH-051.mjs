@@ -14,29 +14,43 @@ export default async function (ctx) {
   await ctx.screenshot('01_dispatch_detail_overview');
 
   // Find a row that has the quick-issue button (.dispatch-assignment-cell__quick-issue)
-  const quickIssueFound = await page.evaluate(() => {
-    // Current affordance: per-container 'Phát lệnh · <container>' buttons
-    // (the old 'Phát lệnh nhanh' quick-issue class was removed).
-    const issueButtons = Array.from(document.querySelectorAll('button[aria-label^="Phát lệnh ·"]'));
-    if (issueButtons.length === 0) return null;
-    const targetBtn = issueButtons[0];
-    targetBtn.scrollIntoView({ block: 'center' });
-    targetBtn.click();
-    return {
-      totalIssueButtons: issueButtons.length,
-      buttonAriaLabel: targetBtn.getAttribute('aria-label'),
-    };
-  });
-
-  if (!quickIssueFound) {
-    return {
-      verdict: 'FAIL',
-      errors: ['Không tìm thấy nút Phát lệnh · <container> trên /dispatch-detail'],
-    };
+  const issueButtonCount = await page.evaluate(() =>
+    document.querySelectorAll('button[aria-label^="Phát lệnh ·"]').length);
+  if (issueButtonCount === 0) {
+    return { verdict: 'FAIL', errors: ['Không tìm thấy nút "Phát lệnh · <container>" trên /dispatch-detail'] };
   }
 
-  // Wait for QuickIssueOrderDialog to open
-  await page.waitForSelector('.dispatch-assignment-dialog__schedule-pills, .dispatch-assignment-dialog__issue-grid', { timeout: 8000 });
+  // Iterate containers until one has a valid route: route-less containers
+  // open the dialog in an error variant ('Container chưa có tuyến đường hợp
+  // lệ.') — data-dependent, so try up to 6 buttons.
+  let quickIssueFound = null;
+  for (let i = 0; i < issueButtonCount; i++) {
+    quickIssueFound = await page.evaluate((idx) => {
+      const btns = Array.from(document.querySelectorAll('button[aria-label^="Phát lệnh ·"]'));
+      const b = btns[idx];
+      if (!b) return null;
+      b.scrollIntoView({ block: 'center' });
+      b.click();
+      return { buttonAriaLabel: b.getAttribute('aria-label') };
+    }, i);
+    await new Promise((r) => setTimeout(r, 1500));
+    const openState = await page.evaluate(() => {
+      const dlg = document.querySelector('[class*="dispatch-assignment-dialog"]');
+      if (!dlg) return { open: false };
+      if (/chưa có tuyến đường hợp lệ/i.test(dlg.textContent)) return { open: false, errorVariant: true };
+      return { open: true };
+    });
+    if (openState.open) { quickIssueFound.openState = openState; break; }
+    await page.keyboard.press('Escape');
+    await new Promise((r) => setTimeout(r, 600));
+  }
+
+  if (!quickIssueFound || !quickIssueFound.openState || !quickIssueFound.openState.open) {
+    return {
+      verdict: 'FAIL',
+      errors: [`Không container nào trong ${issueButtonCount} nút có tuyến đường hợp lệ để mở dialog phát lệnh (guard errors = data-dependent)`],
+    };
+  }
   await new Promise((r) => setTimeout(r, 600));
 
   await ctx.screenshot('02_quick_issue_modal_open_new_calendar');

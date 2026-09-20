@@ -60,13 +60,16 @@ export default async function (ctx) {
   await ctx.screenshot('02_appointment_popover_open');
 
   const fields = await page.evaluate(() => {
-    // Current control: design-system 24h split-datetime input (design-system.md
-    // forbids relying on native time/date inputs for format enforcement).
-    const dt = document.querySelector('.cus-appointment-popover [data-split-datetime]');
-    const label = dt?.closest('label,div')?.querySelector('label')?.innerText.trim()
-      || dt?.getAttribute('aria-label') || '';
-    const native = document.querySelectorAll('.cus-appointment-popover input[type="time"], .cus-appointment-popover input[type="date"]').length;
-    return [{ label, placeholder: dt?.placeholder || '', nativeInputs: native }];
+    // Current control: design-system 24h split-datetime (segments HH/mm then
+    // DD/MM/YYYY; design-system.md forbids native time/date inputs).
+    const pop = document.querySelector('.cus-appointment-popover');
+    const dt = pop?.querySelector('[data-split-datetime]');
+    const segs = dt ? Array.from(dt.querySelectorAll('input')) : [];
+    const segPh = segs.map((i) => i.placeholder || i.getAttribute('aria-label') || '');
+    const ph = segPh.join(' ');
+    const label = dt?.getAttribute('aria-label') || segs[0]?.getAttribute('aria-label') || '';
+    const native = pop ? pop.querySelectorAll('input[type="time"], input[type="date"]').length : 0;
+    return [{ label, placeholder: ph, segmentCount: segs.length, nativeInputs: native }];
   });
 
   // Close popover
@@ -84,8 +87,8 @@ export default async function (ctx) {
   const f = fields[0] || {};
   const ph = f.placeholder || '';
   const isGioFirst = fields.length >= 1
-    && /HH:mm\s+DD\/MM\/YYYY/.test(ph)
-    && ph.indexOf('HH:mm') < ph.indexOf('DD/MM/YYYY')
+    && f.segmentCount >= 3
+    && ph.indexOf('HH') !== -1 && ph.indexOf('HH') < ph.indexOf('DD')
     && f.nativeInputs === 0;
 
   return {

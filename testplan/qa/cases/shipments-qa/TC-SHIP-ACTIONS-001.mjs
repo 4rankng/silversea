@@ -50,22 +50,21 @@ export default async function (ctx) {
   if (!lockTapped) {
     errors.push('No "Khóa lô" button found in drawer');
   } else {
-    await new Promise((r) => setTimeout(r, 1200));
-    const toast = await page.evaluate(() => {
-      const nodes = Array.from(document.querySelectorAll('[class*="toast"], [role="status"], [role="alert"]'));
-      return nodes.filter((n) => n.offsetWidth).map((n) => n.innerText).join(' | ');
+    await new Promise((r) => setTimeout(r, 800));
+    // ADMIN contract: a persistent inline note 'Chỉ CUS được khóa lô.' renders
+    // beside the Khóa lô control (not a transient toast).
+    const lockNote = await page.evaluate(() => {
+      const drawer = document.querySelector('[role="dialog"]');
+      const nodes = Array.from((drawer || document).querySelectorAll('*')).filter((n) => n.children.length === 0 && n.offsetWidth && n.textContent.includes('Chỉ CUS được khóa lô'));
+      return nodes.length;
     });
-    await ctx.screenshot('03_admin_lock_toast');
-    if (!toast.includes('Chỉ CUS được khóa lô')) {
-      errors.push(`Expected permission toast 'Chỉ CUS được khóa lô.', got: "${toast.slice(0, 120)}"`);
+    await ctx.screenshot('03_admin_lock_note');
+    if (lockNote === 0) {
+      errors.push("Expected inline note 'Chỉ CUS được khóa lô.' beside the Khóa lô control");
     }
     // (c) Cancel cleanly — close the drawer, nothing mutated.
-    const closed = await page.evaluate(() => {
-      const btn = document.querySelector('[role="dialog"] [aria-label*="Đóng"], [role="dialog"] [class*="close"]');
-      if (btn) { btn.click(); return true; }
-      return false;
-    });
-    if (!closed) await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await new Promise((r) => setTimeout(r, 600));
     await new Promise((r) => setTimeout(r, 800));
     const drawerGone = await page.evaluate(() => !document.querySelector('[role="dialog"]'));
     if (!drawerGone) errors.push('Drawer did not close after cancel');
