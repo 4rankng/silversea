@@ -40,7 +40,7 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label="Giá dầu DO mới (đ/lít)">
+        <Field label="Giá dầu mới (đ/lít)">
           <input
             className="input"
             type="number"
@@ -88,7 +88,7 @@ export default function FuelPricePeriodsConfigPage() {
   return (
     <div ref={pageRef}>
       <CrudTable<FuelPricePeriodRow>
-        title="Giá dầu DO theo kỳ"
+        title="Giá dầu theo kỳ"
         description="Giá dầu Petrolimex công bố theo kỳ — nhập một bản ghi mỗi lần công bố giá mới"
         endpoint={CONFIG.FUEL_PRICE_PERIODS}
         colSpan={3}
@@ -98,7 +98,7 @@ export default function FuelPricePeriodsConfigPage() {
         sortFn={(a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom)}
         columns={[
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveFrom) },
-          { header: 'Giá dầu DO (đ/lít)', render: r => fmtPrice(r.unitPrice) },
+          { header: 'Giá dầu (đ/lít)', render: r => fmtPrice(r.unitPrice) },
           { header: 'Ghi chú', render: r => r.sourceNote || '—' },
         ]}
         renderForm={p => (

@@ -42,7 +42,7 @@ const SAVE = 'Thêm';
 
 function fillFuelForm(host: HTMLElement, date: string, price: string, note: string) {
   fireEvent.change(within(host).getByLabelText('Ngày hiệu lực'), { target: { value: date } });
-  fireEvent.change(within(host).getByLabelText('Giá dầu DO mới (đ/lít)'), { target: { value: price } });
+  fireEvent.change(within(host).getByLabelText('Giá dầu mới (đ/lít)'), { target: { value: price } });
   fireEvent.change(within(host).getByLabelText('Ghi chú (tùy chọn)'), { target: { value: note } });
 }
 

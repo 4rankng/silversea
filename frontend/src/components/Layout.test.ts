@@ -72,7 +72,7 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
-      ['Giá dầu DO theo kỳ', '/config/fuel-price-periods'],
+      ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
@@ -100,7 +100,7 @@ describe('getNavItems', () => {
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
-      ['Giá dầu DO theo kỳ', '/config/fuel-price-periods'],
+      ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
     ]],
     [Role.DISPATCHER, [
       ['Kế hoạch tổng quát', '/dispatch'],
