@@ -284,3 +284,27 @@ tables present.
   WIP) — resolved by land-or-park: 427f45f4 + f239e787 landed, tree clean.
 - Deploy: `make deploy` exit 0 at f239e787. Postverify: probes 9/9, health ok,
   buildHash match; when-list = the same documented restamp-era finding.
+
+## 11. 2026-09-20 window #4 execution record (workboard quick-edit wave)
+
+- Trigger: explicit user go-ahead ("Deploy to prod now") via the lead's
+  approval question after `_49`+`_51` drained QA_PASSED on staging cut #14.
+- Ships: `_49` (44add77e — workboard schedule/notes quick-edit opened to
+  CUS/ADMIN/DISPATCHER) + `_51` (7aedcfed — both note fields decoupled from
+  the accounting lock across FE trigger / fieldAccess / update-route tiers)
+  + wave-close docs (b1d23b63 openwiki reconciliation).
+- Backup FIRST: /root/prod-backup-20260920-215350.sql.gz (1,051,629 bytes,
+  gzip -t OK, "PostgreSQL database dump complete" verified via zcat tail).
+- Journal re-read at HEAD: 106 entries, idx 105 = 1789853402000 unchanged,
+  idx 92 = 1789744800000 → no new migrations this wave, migrate no-op.
+- Preflight: PASS by inspection — max_when 1789853402000 (= journal idx 105),
+  old_rows 0, row93_when 1789744800000, row93_hash 6ef30ecb823b intact. The
+  script's printed FAIL is its hard-coded FIRST-window expectation (cursor
+  == pre-realign value) and does not apply from window #2 onward.
+- Deploy: `make deploy` exit 0 at b1d23b63; health ok, buildHash match.
+- Postverify: schema probes 9/9 PASS, tracking 106 rows with cursor
+  unchanged, /api/health ok + buildHash = b1d23b63. When-list FAIL = the
+  SAME documented restamp-era finding as §8 (all diffed rows BELOW the
+  cursor, bookkeeping-only, effects shipped long ago; left as-is per the
+  standing user directive — no prod UPDATEs without explicit
+  re-authorization).
