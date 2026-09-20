@@ -6,7 +6,7 @@
  * to keep mutations direct.
  */
 import { useMemo, useState } from 'react';
-import { Users } from 'lucide-react';
+import { AlertTriangle, Users } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
@@ -16,12 +16,33 @@ import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
-import { formatISODate } from '../../../lib/format';
+import { formatISODate, businessDateISO } from '../../../lib/format';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { matchesCatalogSearch } from './catalog-search';
 import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
+
+// License-expiry risk states (card _44): a driver's license is the compliance
+// field that gates whether they may drive at all. Overdue reads in oxblood
+// with an icon and day-count label; ≤30 days reads in the lighter bronze;
+// longer or missing dates stay neutral so the table carries no extra color.
+export const LICENSE_SOON_WINDOW_DAYS = 30;
+
+export function licenseExpiryState(
+  licenseExpiryDate: string,
+  todayIso: string,
+): { level: 'overdue' | 'soon'; days: number } | null {
+  const parse = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const days = Math.round((parse(licenseExpiryDate) - parse(todayIso)) / 86_400_000);
+  if (Number.isNaN(days)) return null;
+  if (days < 0) return { level: 'overdue', days: Math.abs(days) };
+  if (days <= LICENSE_SOON_WINDOW_DAYS) return { level: 'soon', days };
+  return null;
+}
 
 
 
@@ -41,6 +62,7 @@ export function FleetDriversView() {
   }, [trucks]);
 
   const needle = search.trim().toLowerCase();
+  const todayIso = businessDateISO();
   const filtered = useMemo(() => {
     if (!needle) return drivers;
     return drivers.filter((driver) => {
@@ -131,7 +153,23 @@ export function FleetDriversView() {
                   <td data-label="Họ tên" className="dispatch-catalogs__desktop-driver-name">{d.name}</td>
                   <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>
                   <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>
-                  <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>{d.licenseExpiryDate ? formatISODate(d.licenseExpiryDate) : '—'}</td>
+                  <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>
+                    {d.licenseExpiryDate ? (
+                      <>
+                        <span className="dispatch-catalogs__license-date">{formatISODate(d.licenseExpiryDate)}</span>
+                        {(() => {
+                          const flag = licenseExpiryState(d.licenseExpiryDate, todayIso);
+                          if (!flag) return null;
+                          return (
+                            <span className={`dispatch-catalogs__license-flag dispatch-catalogs__license-flag--${flag.level}`}>
+                              <AlertTriangle size={12} aria-hidden="true" />
+                              {flag.level === 'overdue' ? `Quá hạn ${flag.days} ngày` : `Còn ${flag.days} ngày`}
+                            </span>
+                          );
+                        })()}
+                      </>
+                    ) : '—'}
+                  </td>
                   <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>
                   <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>
                   <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>

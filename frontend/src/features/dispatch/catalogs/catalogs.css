@@ -332,3 +332,22 @@
     background: transparent;
   }
 }
+
+/* License-expiry risk flags (card _44): oxblood for overdue, the lighter
+   bronze for the ≤30-day window; icon + text label so the signal never
+   rides on color alone (design-system risk contract). */
+.dispatch-catalogs__license-date { display: block; }
+
+.dispatch-catalogs__license-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: var(--text-caption-size, 11px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__license-flag--overdue { color: var(--danger); }
+
+.dispatch-catalogs__license-flag--soon { color: var(--warning); }
