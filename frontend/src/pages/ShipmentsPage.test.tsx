@@ -657,7 +657,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const record = within(masterRow());
     expect(record.getAllByText('Chưa chốt ngày')).toHaveLength(1);
     expect(record.queryByText('Chờ chốt lịch')).toBeNull();
-    expect(record.getByText('Chờ thu hồi')).toBeTruthy();
+    expect(record.getByTitle('Chờ thu hồi')).toBeTruthy();
     expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
   });
 
@@ -670,7 +670,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     const record = within(masterRow());
-    expect(record.getByText('Lịch đã quá hạn')).toBeTruthy();
+    expect(record.getByTitle('Lịch đã quá hạn')).toBeTruthy();
     expect(record.getByText('Đã điều xe')).toBeTruthy();
     expect(record.getByText('Đã phát lệnh 1/2 cont')).toBeTruthy();
     expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
@@ -1826,7 +1826,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('shows the specific highest-priority exception instead of a generic attention flag', async () => {
     renderPage();
     await screen.findByRole('table');
-    expect(screen.getByText('Lỗ')).toBeTruthy();
+    expect(screen.getByTitle('Lỗ')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
   });
 
@@ -1840,7 +1840,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     await screen.findByRole('table');
-    expect(screen.getByText('Lỗ')).toBeTruthy();
+    expect(screen.getByTitle('Lỗ')).toBeTruthy();
     expect(screen.queryByText('Chờ chốt lịch')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));

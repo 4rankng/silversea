@@ -852,11 +852,10 @@
 }
 .cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; }
 
-.cus-row-actions { display: grid; gap: 7px; min-width: 0; justify-items: stretch; }
-.cus-row-actions__summary { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+.cus-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.cus-row-actions__summary { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
-.cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }
-.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
+.cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
 .cus-attention-label--info { color: var(--info, #2563eb); }
 .cus-dashboard-detail {
@@ -1256,13 +1255,10 @@
 
 .cus-row-actions__buttons {
   display: flex;
-  flex-wrap: wrap;
   gap: 5px;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 1px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .cus-dashboard-delete {
@@ -1281,6 +1277,14 @@
    still names the action for assistive tech. */
 .cus-dashboard-delete[data-text],
 .cus-dashboard-delete [data-text] {
+  display: none !important;
+}
+
+/* Same-row icon-only action column (user ruling 2026-09-18): "Chi tiết"
+   keeps its label for assistive tech and the hover tooltip, but renders as
+   the bare chevron so the badge + signal + action pair share one line. */
+.cus-dashboard-detail[data-text],
+.cus-dashboard-detail [data-text] {
   display: none !important;
 }
 

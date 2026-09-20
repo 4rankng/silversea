@@ -189,7 +189,16 @@ export function CusShipmentRow({
         <div className="cus-row-actions">
           <div className="cus-row-actions__summary">
             <WorkflowBadge item={item} />
-            {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
+            {primarySignal && PrimarySignalIcon && (
+              <span
+                className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}
+                title={primarySignal.label}
+                role="img"
+                aria-label={primarySignal.label}
+              >
+                <PrimarySignalIcon size={13} aria-hidden="true" />
+              </span>
+            )}
           </div>
           <div className="cus-row-actions__buttons">
             {item.operational.deletable && (
