@@ -25,7 +25,7 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo }: {
             <td>{formatCurrency(row.tienNang)}</td><td>{formatCurrency(row.tienHa)}</td>
             <td>{formatCurrency(row.psKhac)}</td><td><strong>{formatCurrency(row.tongPhaiThuTra)}</strong></td>
             <td>{formatCurrency(row.daThuTra)}</td><td>{formatCurrency(row.conLai)}</td>
-            <td>{row.ghiChu ?? '—'}</td>
+            <td>{row.daThuTra > row.tongPhaiThuTra && row.tongPhaiThuTra > 0 ? 'Đã thu/trả vượt — cần hoàn lại phần chênh' : row.ghiChu ?? '—'}</td>
           </tr>
         ))}
         {grand && (

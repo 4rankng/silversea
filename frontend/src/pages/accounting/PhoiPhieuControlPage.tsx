@@ -88,7 +88,7 @@ export default function PhoiPhieuControlPage() {
   }
 
   const totals = useMemo(() => {
-    const visible = rows.filter((row) => canSelect(row));
+    const visible = rows;
     return {
       thu: visible.reduce((sum, row) => sum + (row.chiHoThu ?? 0), 0),
       tra: visible.reduce((sum, row) => sum + (row.chiHoTra ?? 0), 0),

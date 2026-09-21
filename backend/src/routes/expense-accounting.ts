@@ -15,6 +15,8 @@ import { assignTruckAccountant, confirmAccountingExpenses, updateAccountingExpen
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
 import { listExpenseAccountingWork } from '../services/expense-accounting-work.service';
+import { db } from '../db';
+import { listPhoiPhieuTruckAssignments } from '../services/phoi-phieu-control.service';
 import { exportExpenseAccountingReport } from '../services/expense-accounting-export.service';
 import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } from './shipments/shipment-shared';
 
@@ -44,12 +46,41 @@ router.get('/phoi-phieu/stk', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(as
 }));
 
 router.get('/phoi-phieu/report', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+  const user = getUser(req);
   const query = parse(z.object({
     kind: z.enum(['THU', 'TRA']),
     dateFrom: z.string().date().optional(),
     dateTo: z.string().date().optional(),
+    // Card 20260921_8 — scope defaults to the logged-in accountant's own
+    // vehicles; ADMIN/MANAGER default ALL; explicit override wins.
+    scope: z.enum(['SELF', 'ALL', 'UNASSIGNED']).optional(),
   }).strict(), req.query);
-  res.json(await getPhoiPhieuReport(query));
+  const scope = query.scope ?? (user.role === Role.ACCOUNTANT ? 'SELF' : 'ALL');
+  res.json(await getPhoiPhieuReport({
+    kind: query.kind,
+    dateFrom: query.dateFrom,
+    dateTo: query.dateTo,
+    ...(scope === 'SELF' ? { accountantId: user.userId }
+      : scope === 'UNASSIGNED' ? { accountantId: null } : {}),
+  }));
+}));
+
+// Card 20260921_8 — the assignment board data + the reassignment write.
+router.get('/phoi-phieu/truck-assignments', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (_req, res) => {
+  res.json(await listPhoiPhieuTruckAssignments());
+}));
+
+router.put('/phoi-phieu/trucks/:truckId/accountant', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+  const user = getUser(req);
+  const truckId = parse(idSchema, req.params.truckId);
+  const input = parse(z.object({
+    accountantId: z.number().int().positive().nullable(),
+    expectedVersion: z.number().int().min(0),
+  }).strict(), req.body);
+  const updated = await db.transaction((tx) => assignTruckAccountant(
+    tx, { userId: user.userId, role: user.role }, truckId, input.accountantId, input.expectedVersion,
+  ));
+  res.json(updated);
 }));
 
 router.get('/phoi-phieu/:tripId/chi-ho', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {

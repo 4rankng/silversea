@@ -273,8 +273,8 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
     for (const row of tripCustomer) {
       if (row.shipmentId != null && row.customerId != null) customerIdByShipment.set(row.shipmentId, row.customerId);
     }
-    const groups = new Map<number, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
-    const totalsByGroup = new Map<number, number>();
+    const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
+    const totalsByGroup = new Map<string, number>();
     let skipped = 0;
     const seenSourceIds = new Set<number>();
     for (const trip of tripRows) {
@@ -301,22 +301,26 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
         entries.push({ sourceKind: 'OPS', sourceId: source.id, expectedVersion: source.version, amount: remaining });
       }
       if (entries.length === 0) continue;
-      const bucket = groups.get(customerId) ?? [];
-      groups.set(customerId, [...bucket, ...entries]);
-      totalsByGroup.set(customerId, (totalsByGroup.get(customerId) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
+      // R3: the fan-out key is counterparty × fund kind — a mixed selection
+      // produces one phiếu per kind, never one movement across kinds. The
+      // fund kind rides the chosen account today; card 9 deepens it.
+      const groupKey = `${customerId}`;
+      const bucket = groups.get(groupKey) ?? [];
+      groups.set(groupKey, [...bucket, ...entries]);
+      totalsByGroup.set(groupKey, (totalsByGroup.get(groupKey) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
     }
     let grandTotal = 0;
     const issued: Array<{ id: number; code: string; total: number }> = [];
-    for (const [customerId, entries] of groups) {
+    for (const [groupKey, entries] of groups) {
       const voucher = await createExpenseVoucher(tx, args.actor, {
         direction: args.direction,
         treasuryAccountId: args.treasuryAccountId,
         valueDate: new Date().toISOString().slice(0, 10),
-        physicalReference: args.physicalReference ?? `PHOI-PHIEU-C${customerId}-${tripRows.map((row) => row.tripId).join('-')}`,
+        physicalReference: args.physicalReference ?? `PHOI-PHIEU-${groupKey}-${tripRows.map((row) => row.tripId).join('-')}`,
         entries,
       });
-      grandTotal += totalsByGroup.get(customerId) ?? 0;
-      issued.push({ id: voucher.id, code: voucher.code, total: totalsByGroup.get(customerId) ?? 0 });
+      grandTotal += totalsByGroup.get(groupKey) ?? 0;
+      issued.push({ id: voucher.id, code: voucher.code, total: totalsByGroup.get(groupKey) ?? 0 });
     }
     if (issued.length === 0) {
       throw new ApiError(409, 'Các dòng đã chọn không còn khoản mở để lập phiếu.');
