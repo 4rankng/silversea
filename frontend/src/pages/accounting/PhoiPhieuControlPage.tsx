@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { createPhoiPhieuVoucher, getPhoiPhieuReport, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
@@ -165,6 +166,11 @@ export default function PhoiPhieuControlPage() {
           onSaved={() => void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] })}
         />
       )}
+      <div style={{ margin: '16px 0' }}>
+        <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo tháng</h2>
+        <PhoiPhieuReportTable kind="THU" dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
+        <PhoiPhieuReportTable kind="TRA" dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
+      </div>
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}

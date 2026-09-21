@@ -134,3 +134,23 @@ export async function confirmPhoiPhieuTienDuong(tripId: number, sourceId: number
     entries: [{ sourceKind: 'DRIVER', sourceId, expectedVersion }],
   }, { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } });
 }
+
+export interface PhoiPhieuReportRow {
+  party: string;
+  tienNang: number;
+  tienHa: number;
+  psKhac: number;
+  tongPhaiThuTra: number;
+  daThuTra: number;
+  conLai: number;
+  ghiChu: string | null;
+}
+
+export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
+  dateFrom?: string; dateTo?: string;
+}): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
+  const query = new URLSearchParams({ kind });
+  if (params.dateFrom) query.set('dateFrom', params.dateFrom);
+  if (params.dateTo) query.set('dateTo', params.dateTo);
+  return api.get(`/expense-accounting/phoi-phieu/report?${query.toString()}`);
+}

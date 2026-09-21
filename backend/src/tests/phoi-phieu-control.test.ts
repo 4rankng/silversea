@@ -242,3 +242,44 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
     assert.equal(datePlates[0], truckA, 'the explicit date sort wins over the truck grouping');
   });
 });
+
+describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
+  test('buckets by category, groups by party, totals to the dong', async () => {
+    const { getPhoiPhieuReport } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    const [liftType] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `C17-LIFT-${suffix}`, name: 'Phí nâng C17', category: 'LIFT',
+    }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code });
+    track(s.forwarderExpenseTypes, liftType.id);
+    const [liftEntry] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.shipment.id, expenseTypeCode: liftType.code,
+      amount: '20000', customerChargeAmount: '20000', paidById: accountantId, paidAt: '2026-09-22',
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, liftEntry.id);
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+    const liftSource = await upsertExpenseAccountingSource(db as never, { sourceKind: 'OPS', sourceId: liftEntry.id,
+      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!,
+      expenseTypeCode: liftType.code, costGroup: 'INVOICED_LIFT', feeName: liftType.name, amount: 20000,
+      customerChargeAmount: 20000, expenseDate: '2026-09-22', payerKind: 'USER', recordedById: accountantId });
+    track(s.expenseAccountingSources, liftSource.id);
+
+    const thu = await getPhoiPhieuReport({ kind: 'THU' });
+    const row = thu.rows.find((row) => row.party.includes('C16 customer') || row.party.includes('C12 customer'));
+    assert.ok(row, 'a customer row exists');
+    assert.equal(row.tienNang, 20000, 'LIFT-category fees bucket to tien nang');
+    assert.equal(row.psKhac, 250000, 'the OTHER-catalog base fee lands in PS khac');
+    assert.equal(row.tongPhaiThuTra, row.tienNang + row.tienHa + row.psKhac, 'Tong = nang + ha + PS khac');
+    assert.equal(row.conLai, Math.max(row.tongPhaiThuTra - row.daThuTra, 0), 'Con = Tong - Da');
+
+    const [truck] = await db.insert(s.trucks).values({
+      licensePlate: `C17-${suffix.slice(0, 8)}`, status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.trucks.id });
+    track(s.trucks, truck.id);
+    await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, fixture.trip.id));
+    const tra = await getPhoiPhieuReport({ kind: 'TRA' });
+    const internal = tra.rows.find((row) => row.party.startsWith('XE NHÀ'));
+    assert.ok(internal, 'internal trucks group under the Silver Sea carrier code');
+    assert.equal(internal!.tongPhaiThuTra, 270000, 'the carrier row carries the trip chi-ho total to the dong');
+  });
+});

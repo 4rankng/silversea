@@ -19,6 +19,7 @@ void expenseVndSchema;
 
 type Executor = Tx | typeof db;
 
+const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
 const liftPort = aliasedTable(s.ports, 'lift_port');
 const dropPort = aliasedTable(s.ports, 'drop_port');
 
@@ -485,4 +486,116 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
       confirmed: confirmedRows.reduce((sum, row) => sum + row.amount, 0),
     },
   };
+}
+
+// ── Card 20260921_17: monthly phai-thu / phai-tra reports ───────────────────
+
+export interface PhoiPhieuReportRow {
+  party: string;
+  tienNang: number;
+  tienHa: number;
+  psKhac: number;
+  tongPhaiThuTra: number;
+  daThuTra: number;
+  conLai: number;
+  ghiChu: string | null;
+}
+
+const INTERNAL_CARRIER_CODE = 'XE NHÀ — SILVER SEA';
+
+/** Bucket an ops fee into the customer's three families via the structural
+ *  category (LIFT → nâng, DROP → hạ, else → PS khác) — never by name. */
+function bucketByCategory(category: string | null | undefined): 'nang' | 'ha' | 'khac' {
+  if (category === 'LIFT') return 'nang';
+  if (category === 'DROP') return 'ha';
+  return 'khac';
+}
+
+export async function getPhoiPhieuReport(query: {
+  kind: 'THU' | 'TRA'; dateFrom?: string; dateTo?: string;
+}): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
+  const tripConditions: SQL[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
+  if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
+  if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
+
+  const tripIds = (await db.select({ id: s.trips.id })
+    .from(s.trips).where(and(...tripConditions))).map((row) => row.id);
+  if (tripIds.length === 0) {
+    return { rows: [], grand: { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null } };
+  }
+
+  const sources = await db.select({
+    id: s.expenseAccountingSources.id,
+    tripId: s.expenseAccountingSources.tripId,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+    allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
+    feeName: s.opsExpenseEntries.feeName,
+    amount: s.opsExpenseEntries.amount,
+    customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
+    category: s.forwarderExpenseTypes.category,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
+    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds),
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
+
+  // Party attribution.
+  const tripParty = new Map<number, { name: string | null; ghiChu: string | null }>();
+  if (query.kind === 'THU') {
+    const parties = await db.select({
+      tripId: s.trips.id, name: s.customers.name, ghiChu: s.shipments.customerNotes,
+    })
+      .from(s.trips).leftJoin(s.customers, eq(s.customers.id, s.trips.customerId))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+      .where(inArray(s.trips.id, tripIds));
+    for (const row of parties) tripParty.set(row.tripId, { name: row.name, ghiChu: row.ghiChu });
+  } else {
+    const parties = await db.select({
+      tripId: s.trips.id,
+      externalName: carrierCustomer.name,
+      plate: s.trucks.licensePlate,
+    })
+      .from(s.trips)
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .leftJoin(aliasedTable(s.customers, 'carrier_customer'), eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId))
+      .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId));
+    for (const row of parties) {
+      if (!tripParty.has(row.tripId)) {
+        tripParty.set(row.tripId, {
+          name: row.externalName ?? (row.plate ? INTERNAL_CARRIER_CODE : null),
+          ghiChu: null,
+        });
+      }
+    }
+  }
+
+  const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null }>();
+  for (const source of sources) {
+    if (source.tripId == null) continue;
+    const partyInfo = tripParty.get(source.tripId);
+    const party = partyInfo?.name ?? 'Chưa xác định';
+    const bucket = groups.get(party) ?? { tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null };
+    const bucketKey = bucketByCategory(source.category);
+    const amount = Number(source.amount ?? 0);
+    if (bucketKey === 'nang') bucket.tienNang += amount;
+    else if (bucketKey === 'ha') bucket.tienHa += amount;
+    else bucket.psKhac += amount;
+    const cash = await getExpenseCashTotals(db as unknown as Tx, source.id);
+    bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
+    groups.set(party, bucket);
+  }
+
+  const rows: PhoiPhieuReportRow[] = [...groups.entries()].map(([party, bucket]) => {
+    const tong = bucket.tienNang + bucket.tienHa + bucket.psKhac;
+    const conLai = Math.max(tong - bucket.da, 0);
+    return { party, tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
+      tongPhaiThuTra: tong, daThuTra: Math.min(bucket.da, tong), conLai, ghiChu: bucket.ghiChu };
+  }).sort((a, b) => b.tongPhaiThuTra - a.tongPhaiThuTra);
+  const grand = rows.reduce((acc, row) => ({
+    party: 'TỔNG CỘNG', tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,
+    psKhac: acc.psKhac + row.psKhac, tongPhaiThuTra: acc.tongPhaiThuTra + row.tongPhaiThuTra,
+    daThuTra: acc.daThuTra + row.daThuTra, conLai: acc.conLai + row.conLai, ghiChu: null,
+  }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null });
+  return { rows, grand };
 }
