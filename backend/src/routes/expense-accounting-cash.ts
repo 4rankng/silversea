@@ -16,6 +16,7 @@ import { getExpenseReconciliation, getExpenseVoucher, listExpenseReconciliations
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
 import { listFundBook } from '../services/treasury-fund-book.service';
+import { listOpsCostReview } from '../services/ops-cost-review.service';
 
 const router = Router();
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -45,6 +46,19 @@ router.get('/fund-book', asyncHandler(async (req, res) => {
   requireExpenseFinance(getUser(req));
   const source = parse(z.enum(['COMPANY', 'TM']), req.query.source);
   res.json(await listFundBook(source));
+}));
+// Card 20260921_10 — the ops cost review table (finance-only): rows carry
+// confirmRef so tick/tick-all posts the EXISTING batch /confirm — no forked
+// confirmation path.
+router.get('/ops-review', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+    payerId: z.coerce.number().int().positive().optional(),
+    progress: z.enum(['CHUA_XAC_NHAN', 'DA_XAC_NHAN', 'DA_LAP_PHIEU']).optional(),
+    page: z.coerce.number().int().min(1).optional(), limit: z.coerce.number().int().min(1).max(100).optional(),
+  }), req.query);
+  res.json(await listOpsCostReview(getUser(req), query));
 }));
 router.post('/vouchers', asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);
