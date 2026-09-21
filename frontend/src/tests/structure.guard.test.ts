@@ -40,6 +40,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // tag-pool/trip-detail polish client. Reviewed as a contract change.
   'src/api/driverClient.ts': 691,
   'src/api/keys.ts': 562,
+  // Added as baseline 414 (was new-file capped): 2026-09-21 card 20260921_2 -
+  // the CUS detail hook gains addContainer/removeContainer row mutations
+  // beside the existing per-mode edit sessions. A future split should
+  // extract the mutation family and restore a smaller ceiling.
+  'src/features/shipments/cus/use-cus-detail.ts': 414,
   // Added as baseline 432 (was new-file capped): 2026-09-10 T4 — the page
   // mounts DebitNoteFreightOverride (financial trio) reading the detail's
   // freightRate.latest snapshot view.
@@ -81,7 +86,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // contracts extracted to src/api/shipmentDebit.ts (re-exported).
   // Bumped 1102 -> 1105: 2026-09-19 card _5 — declaration channel field on
   // the request type (additive optional, FE half of the BE contract).
-  'src/api/shipmentClient.ts': 1105,
+  // Bumped 1105 -> 1143: 2026-09-21 card 20260921_2 - add/remove container
+  // row clients beside the CUS workspace line-update call.
+  'src/api/shipmentClient.ts': 1143,
   // Bumped 717 -> 784: 2026-09-20 card _37/_43 billing-gate scope — the
   // document builder grew with the billing readiness gate work.
   'src/components/billing/BillingDocumentBuilder.tsx': 784,
@@ -250,7 +257,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // refetch hook). Reviewed as a contract change; a future split (extract
   // the external-trip close dialog) should restore a smaller ceiling.
   'src/features/shipments/cus/CusContainerLedger.tsx': 530,
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
+  // Bumped 750 -> 852: 2026-09-21 card 20260921_2 - per-row add/remove
+  // affordances and the inline add-row form on the container workboard.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 852,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T

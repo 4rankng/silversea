@@ -9,14 +9,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+  ShipmentCusContainerAddInput,
   ShipmentCusContainerFlatResponse,
   ShipmentCusContainerFlatRow,
   ShipmentCusContainerSortKey,
   ShipmentCusWorkspaceContainerLine,
 } from '@tingting/shared';
 import {
+  addCusShipmentContainerRow,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
+  removeCusShipmentContainerRow,
   updateCusShipmentContainerLine,
   updateShipment,
 } from '../../../api/shipmentClient';
@@ -289,6 +292,32 @@ export function useCusDetail(params: CusDetailListParams) {
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
+  // Card 20260921_2 — add/remove a container row. The per-row trip guard and
+  // the optimistic-version contract live server-side; a rejection surfaces
+  // its Vietnamese message through the hook's edit error channel.
+  const addContainer = useCallback(async (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => {
+    try {
+      await addCusShipmentContainerRow(shipmentId, payload);
+    } catch (error) {
+      if (rowId != null) setEditError({ rowId, message: safeError(error, 'Không thể thêm container. Vui lòng thử lại.') });
+      throw error;
+    }
+    await finishSave();
+  }, [finishSave]);
+
+  const removeContainer = useCallback(async (row: ShipmentCusContainerFlatRow) => {
+    setEditError(null);
+    try {
+      await removeCusShipmentContainerRow(row.shipmentId, row.id, {
+        expectedShipmentVersion: row.shipmentVersion,
+      });
+    } catch (error) {
+      setEditError({ rowId: row.id, message: safeError(error, 'Không thể xóa container. Vui lòng thử lại.') });
+      throw error;
+    }
+    await finishSave();
+  }, [finishSave]);
+
   const saveVehicle = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const signature = JSON.stringify(['vehicle', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft]);
@@ -380,5 +409,6 @@ export function useCusDetail(params: CusDetailListParams) {
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
+    addContainer, removeContainer,
   };
 }

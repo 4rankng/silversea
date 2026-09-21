@@ -3,6 +3,7 @@ import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff, Clock3 } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
+  ShipmentCusContainerAddInput,
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
@@ -19,7 +20,7 @@ import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
@@ -515,6 +516,64 @@ function InlineEditor({
   );
 }
 
+/** Card 20260921_2 — inline add-row form: the container spec fields plus the
+ *  row appointment (schedule follows the container — a new row is a new row
+ *  awaiting its appointment, no re-confirmation step). Container TYPE is set
+ *  through the row editor afterwards; this form stays catalog-free on
+ *  purpose so it can open straight from a workboard row without fetching
+ *  the lot's workspace detail. */
+function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, onSubmit, onCancel }: {
+  shipmentId: number;
+  expectedShipmentVersion: number;
+  submitting: boolean;
+  onSubmit: (shipmentId: number, payload: ShipmentCusContainerAddInput) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [number, setNumber] = useState('');
+  const [weight, setWeight] = useState('');
+  const [volume, setVolume] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [error, setError] = useState('');
+  const busy = submitting;
+
+  async function submit() {
+    if (!number.trim()) {
+      setError('Số container là bắt buộc.');
+      return;
+    }
+    if ((appointmentDate ? 1 : 0) !== (appointmentTime ? 1 : 0)) {
+      setError('Vui lòng nhập đầy đủ cả Ngày và Giờ đóng/trả.');
+      return;
+    }
+    setError('');
+    await onSubmit(shipmentId, {
+      expectedShipmentVersion,
+      containerNumber: number.trim().toUpperCase(),
+      ...(weight.trim() ? { cargoWeightKg: weight.trim() } : {}),
+      ...(volume.trim() ? { cargoVolumeCbm: volume.trim() } : {}),
+      ...(appointmentDate && appointmentTime
+        ? { customerAppointmentAt: localDateTimeToIso(`${appointmentDate}T${appointmentTime}`) }
+        : {}),
+    });
+  }
+
+  return (
+    <div className="shipment-container-ledger__editor-grid" data-testid="add-container-form">
+      <label><span>Số container *</span><input aria-label="Số container mới" value={number} onChange={(event) => setNumber(event.target.value.toUpperCase())} maxLength={20} disabled={busy} /></label>
+      <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={weight} onChange={(event) => setWeight(event.target.value)} disabled={busy} /></label>
+      <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={volume} onChange={(event) => setVolume(event.target.value)} disabled={busy} /></label>
+      <label><span>Ngày đóng/trả</span><input aria-label="Ngày đóng/trả mới" type="date" value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} disabled={busy} /></label>
+      <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
+      {error && <span role="alert">{error}</span>}
+      <div>
+        <button type="button" className="btn-primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>
+        <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>Hủy</button>
+      </div>
+    </div>
+  );
+}
+
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
   totalContainers: number;
@@ -534,6 +593,9 @@ interface ShipmentContainerLedgerProps {
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
   onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
   onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
+  /** Card 20260921_2 — add/remove rows (per-row trip guard lives server-side). */
+  onAddContainer?: (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => Promise<void>;
+  onRemoveContainer?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
   /** Cột bị ẩn theo tuỳ chỉnh người dùng (20260917_4) — khoá theo nhãn cột. */
 }
 
@@ -556,8 +618,27 @@ export function ShipmentContainerLedger({
   onSaveIdentity,
   onSaveDocuments,
   onSaveContainer,
+  onAddContainer,
+  onRemoveContainer,
 }: ShipmentContainerLedgerProps) {
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
+  // Card 20260921_2: the add-row form opens for a ROW's lot (the workboard is
+  // multi-lot); removal is a per-row action. Both hide while an edit session
+  // is open, and both hide when the parent chose not to wire them.
+  const [addForRow, setAddForRow] = useState<ShipmentCusContainerFlatRow | null>(null);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const canMutateRows = onAddContainer != null && onRemoveContainer != null && activeEdit == null;
+
+  async function submitAddRow(row: ShipmentCusContainerFlatRow, payload: ShipmentCusContainerAddInput) {
+    if (!onAddContainer) return;
+    setAddSubmitting(true);
+    try {
+      await onAddContainer(row.shipmentId, payload, row.id);
+      setAddForRow(null);
+    } finally {
+      setAddSubmitting(false);
+    }
+  }
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
   const renderInlineEditor = (edit: ActiveShipmentDetailEdit, editorId: string) => (
     <InlineEditor
@@ -619,6 +700,15 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
+        {addForRow && canMutateRows && (
+          <AddContainerRowForm
+            shipmentId={addForRow.shipmentId}
+            expectedShipmentVersion={addForRow.shipmentVersion}
+            submitting={addSubmitting}
+            onSubmit={(shipmentId, payload) => submitAddRow(addForRow, payload)}
+            onCancel={() => setAddForRow(null)}
+          />
+        )}
         <table>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
@@ -640,6 +730,7 @@ export function ShipmentContainerLedger({
             <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />
+            {canMutateRows && <th scope="col">Thao tác</th>}
           </tr></thead>
           <tbody>
             {rows.map((row) => {
@@ -730,6 +821,25 @@ export function ShipmentContainerLedger({
                       )}
                     </div>
                   </td>
+                  {canMutateRows && (
+                    <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
+                      <div className="shipment-container-ledger__multiline">
+                        <button
+                          type="button"
+                          className="btn-secondary btn--sm"
+                          aria-label={`Thêm container cùng lô ${row.containerNumber || row.ordinal}`}
+                          onClick={() => setAddForRow(addForRow?.id === row.id ? null : row)}
+                        >＋ Thêm</button>
+                        <button
+                          type="button"
+                          className="btn-secondary btn--sm shipment-container-ledger__remove"
+                          aria-label={`Xóa container ${row.containerNumber || row.ordinal}`}
+                          disabled={addSubmitting || editLoadingRowId === row.id}
+                          onClick={() => void onRemoveContainer?.(row)}
+                        >Xóa</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

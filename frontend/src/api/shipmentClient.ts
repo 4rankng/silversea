@@ -20,6 +20,10 @@ import {
   type ShipmentCusReopenRequestInput,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
+  type ShipmentCusContainerAddInput,
+  type ShipmentCusContainerAddResult,
+  type ShipmentCusContainerRemoveInput,
+  type ShipmentCusContainerRemoveResult,
   type ShipmentCusContainerSortKey,
   type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
@@ -868,6 +872,13 @@ export async function updateShipmentDeclaration(
   return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
 }
 
+export async function deleteShipmentDeclaration(
+  shipmentId: number,
+  declarationId: number,
+): Promise<void> {
+  await api.delete(`/shipments/${shipmentId}/declarations/${declarationId}`);
+}
+
 export async function deleteCusShipment(
   shipmentId: number,
   version: number,
@@ -1052,6 +1063,33 @@ export async function updateCusShipmentContainerLine(
 ): Promise<ShipmentCusContainerLineUpdateResult> {
   return api.post<ShipmentCusContainerLineUpdateResult>(
     SHIPMENTS.CUS_WORKSPACE_CONTAINER_LINE(shipmentId, containerId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+// Card 20260921_2 — add/remove a container row after intake (per-row trip
+// guard lives server-side; the row-level 409 message surfaces as-is).
+export async function addCusShipmentContainerRow(
+  shipmentId: number,
+  body: ShipmentCusContainerAddInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerAddResult> {
+  return api.post<ShipmentCusContainerAddResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_ADD(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function removeCusShipmentContainerRow(
+  shipmentId: number,
+  containerId: number,
+  body: ShipmentCusContainerRemoveInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerRemoveResult> {
+  return api.post<ShipmentCusContainerRemoveResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_REMOVE(shipmentId, containerId),
     body,
     { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
   );
