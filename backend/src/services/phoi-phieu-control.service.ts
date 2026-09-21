@@ -57,8 +57,13 @@ function billOrBookingOf(direction: string | null, bl: string | null, booking: s
   return bl ?? booking;
 }
 
+/** Card 20260921_16: 'grouped' (default) keeps same-plate rows consecutive —
+ *  kẹp-paired trips of one truck land adjacent — while 'date' is the user's
+ *  explicit override back to pure chronological order. Filters apply either
+ *  way; the sort choice never narrows the row set. */
 export async function listPhoiPhieuRows(query: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
+  sortBy?: 'grouped' | 'date';
 }): Promise<PhoiPhieuRow[]> {
   const tripConditions: SQL[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
   if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
@@ -111,7 +116,9 @@ export async function listPhoiPhieuRows(query: {
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
     .where(and(...tripConditions))
-    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
+    .orderBy(...(query.sortBy === 'date'
+      ? [desc(s.trips.departureDate), desc(s.trips.id)]
+      : [asc(s.trucks.licensePlate), desc(s.trips.departureDate), desc(s.trips.id)]))
     .limit(300);
   if (rows.length === 0) return [];
 

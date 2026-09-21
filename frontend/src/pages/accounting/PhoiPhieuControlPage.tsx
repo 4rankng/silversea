@@ -21,11 +21,11 @@ const money = (value: number | null | undefined) =>
   value == null || !Number.isFinite(value) ? 'Chưa xác định' : formatCurrency(value);
 
 interface Filters {
-  dateFrom: string; dateTo: string; status: string; search: string;
+  dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
 }
 
 export default function PhoiPhieuControlPage() {
-  const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '' });
+  const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped' });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
@@ -103,6 +103,7 @@ export default function PhoiPhieuControlPage() {
         <label>Đến ngày <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
         <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} wrapperClassName="phoi-phieu-filter" />
         <label>Tìm kiếm <input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Mã chuyến, container, khách" /></label>
+        <UuiSelectField label="Sắp xếp" value={filters.sortBy} onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'grouped' | 'date' })} options={[{ value: 'grouped', label: 'Gom theo số xe' }, { value: 'date', label: 'Theo ngày' }]} wrapperClassName="phoi-phieu-filter" />
       </div>
 
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}

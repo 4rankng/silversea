@@ -27,6 +27,7 @@ const phoiPhieuQuerySchema = z.object({
   dateTo: z.string().date().optional(),
   status: z.string().max(20).optional(),
   search: z.string().trim().max(64).optional(),
+  sortBy: z.enum(['grouped', 'date']).optional(),
 });
 
 router.get('/phoi-phieu/rows', asyncHandler(async (req, res) => {

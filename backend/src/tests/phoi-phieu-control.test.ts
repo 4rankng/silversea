@@ -186,3 +186,59 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
     assert.equal(adjusted.rows[0]!.driverEnteredAmount, 300000, 'the driver original is retained for comparison');
   });
 });
+
+describe('card 20260921_16 — same-truck rows group consecutively', () => {
+  test('grouped mode lands paired trips of one truck adjacent; date sort overrides', async () => {
+    const mk = async (plate: string | null, day: string) => {
+      const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
+      track(s.customers, customer.id);
+      const [route] = await db.insert(s.routes).values({ name: `C16 route ${suffix}-${cleanup.length}` }).returning({ id: s.routes.id });
+      track(s.routes, route.id);
+      const [shipment] = await db.insert(s.shipments).values({
+        customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+      }).returning({ id: s.shipments.id });
+      track(s.shipments, shipment.id);
+      let truckId: number | null = null;
+      if (plate) {
+        const [known] = await db.select({ id: s.trucks.id }).from(s.trucks)
+          .where(eq(s.trucks.licensePlate, plate)).limit(1);
+        if (known) {
+          truckId = known.id;
+        } else {
+          const [truck] = await db.insert(s.trucks).values({
+            licensePlate: plate, status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+          }).returning({ id: s.trucks.id });
+          track(s.trucks, truck.id);
+          truckId = truck.id;
+        }
+      }
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: shipment.id, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1,
+      }).returning({ id: s.shipmentFulfillments.id });
+      track(s.shipmentFulfillments, fulfillment.id);
+      const [trip] = await db.insert(s.trips).values({
+        fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+        truckId, departureDate: day, status: 'IN_TRANSIT',
+      }).returning({ id: s.trips.id });
+      track(s.trips, trip.id);
+      return trip.id;
+    };
+
+    const truckA = `30K-111.${suffix.slice(0, 2)}`;
+    const truckB = `30K-222.${suffix.slice(0, 2)}`;
+    const a1 = await mk(truckA, '2026-09-20');
+    const b1 = await mk(truckB, '2026-09-21');
+    const a2 = await mk(truckA, '2026-09-22');
+    void b1;
+
+    const grouped = await listPhoiPhieuRows({ search: 'C16 customer' });
+    const plates = grouped.map((row) => row.plateNumber);
+    const aIndexes = plates.map((plate, index) => (plate === truckA ? index : -1)).filter((index) => index >= 0);
+    assert.equal(aIndexes.length, 2);
+    assert.equal(aIndexes[1]! - aIndexes[0]!, 1, 'paired trips of one truck land adjacent in grouped mode');
+
+    const byDate = await listPhoiPhieuRows({ search: 'C16 customer', sortBy: 'date' });
+    const datePlates = byDate.map((row) => row.plateNumber);
+    assert.equal(datePlates[0], truckA, 'the explicit date sort wins over the truck grouping');
+  });
+});

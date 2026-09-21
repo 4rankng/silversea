@@ -29,12 +29,14 @@ export interface PhoiPhieuRow {
 
 export async function listPhoiPhieuRows(params: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
+  sortBy?: 'grouped' | 'date';
 }): Promise<{ items: PhoiPhieuRow[] }> {
   const query = new URLSearchParams();
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
   if (params.status) query.set('status', params.status);
   if (params.search) query.set('search', params.search);
+  if (params.sortBy) query.set('sortBy', params.sortBy);
   return api.get(`/expense-accounting/phoi-phieu/rows?${query.toString()}`);
 }
 
