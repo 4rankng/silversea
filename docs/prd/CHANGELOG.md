@@ -4,6 +4,16 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-21 — Quyền chi phí Ops theo xe, guard giai đoạn, Lớp 1 đọc bản chốt mới nhất
+
+- **Quyền khai chi phí của Ops sinh từ gán xe (auto-link theo xe)** (`OpsVanHanh.md` §3.3): chủ sản phẩm chốt — Ops được gán đầu xe (phân công xe–Ops) tự có quyền lưu chi phí trên các lô do xe đó chở; gán tay từng lô qua form người dùng (Admin) vẫn hoạt động song song; thu hồi gán xe làm mất quyền trên các lô chưa có khoản chi đã lưu. Trước đó cổng `user_shipment_links` chỉ có writer gán tay nên Ops thật không thể lưu chi phí.
+- **Đường ghi-chú nhanh không nuốt guard giai đoạn Điều vận** (`QuyTrinhO2C.md` §3): quyết định "ghi chú tách khóa kế toán" chỉ áp cho khóa kế toán — Điều vận vẫn chỉ được sửa lô trong giai đoạn tiếp nhận kể cả khi payload chỉ-có-ghi-chú (sửa hồi sau khi phát hiện exception bỏ quên guard vai; bản đã ship đêm 20-09 từng nuốt guard này).
+- **Lớp 1 cước vận tải (AUTO) đọc theo bản chốt mới nhất** (`QuyTrinhO2C.md` §7.9): snapshot cước là INSERT-only (đổi Ngày vận chuyển/phát lệnh = chốt bản mới thay bản cũ); bản bị thay thế KHÔNG cộng vào bất kỳ tổng nào — chân chuyến cộng dồn theo từng leg, lô chỉ có bản chốt lúc tiếp nhận tính một lần, lô khóa kỳ đọc số đóng băng; Lớp 1 luôn khớp Bảng 2.1 và giá đè `final_debit_freight`.
+- **Cước FCL chốt theo cont của chuyến khi phát lệnh** (`QuyTrinhO2C.md` §7.9): anchor cước lấy từ cont của chính fulfillment được điều vận (loại + lịch hẹn), nên lô FCL không còn trường hợp "không bao giờ chốt cước" khi `route_id` cấp lô trống; lệnh chạy ngoài vẫn miễn và không tự bịa giá.
+- **Xuất đề nghị thanh toán Ops: trung thực định dạng** (`OpsVanHanh.md`): định dạng không hỗ trợ trả lỗi rõ thay vì im lặng trả xlsx; xlsx là chuẩn xuất, in A4 là đường giấy theo PRD.
+- **Không lộ mã số nội bộ trên sheet đề nghị thanh toán** (`OpsVanHanh.md`): lô thiếu mã hiển thị Số Bill/Booking hoặc "—", không bao giờ hiện DB id.
+- **Kỳ giá dầu ghi Người nhập** (`CuocPhiPhuPhiDau.md` §4): kỳ mới lưu người tạo; kỳ cũ hiển thị "Không xác định".
+
 ## 2026-09-20 — Quick-edit lịch & ghi chú mở cho đủ ba vai
 
 - **Quyền chỉnh nhanh lịch trình lô và ghi chú trên Tổng quan lô hàng mở cho CUS, Quản trị viên và Điều vận** (`QuyTrinhO2C.md` §3): khi lô chưa khóa kế toán, cả ba vai đều bấm được ô lịch và ô ghi chú để sửa trực tiếp; khóa kế toán vẫn chặn mọi vai; các ô khác giữ quyền như cũ — điều vận chỉ mở đúng hai ô này.
