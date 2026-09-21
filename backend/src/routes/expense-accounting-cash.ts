@@ -17,6 +17,7 @@ import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
 import { listFundBook } from '../services/treasury-fund-book.service';
 import { listOpsCostReview } from '../services/ops-cost-review.service';
+import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
 
 const router = Router();
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -59,6 +60,16 @@ router.get('/ops-review', asyncHandler(async (req, res) => {
     page: z.coerce.number().int().min(1).optional(), limit: z.coerce.number().int().min(1).max(100).optional(),
   }), req.query);
   res.json(await listOpsCostReview(getUser(req), query));
+}));
+// Card 20260921_11 — the monthly reconciliation summary (finance-only):
+// per-staff ĐNTT vs held advances with labeled sign semantics; vouchers ride
+// the existing engine.
+router.get('/reconciliation-report', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+  }), req.query);
+  res.json(await listMonthlyReconciliationReport(getUser(req), query));
 }));
 router.post('/vouchers', asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);
