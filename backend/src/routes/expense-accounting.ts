@@ -1,5 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -37,6 +37,15 @@ router.get('/phoi-phieu/rows', asyncHandler(async (req, res) => {
 
 router.get('/phoi-phieu/stk', asyncHandler(async (_req, res) => {
   res.json({ items: await listPhoiPhieuStk() });
+}));
+
+router.get('/phoi-phieu/report', asyncHandler(async (req, res) => {
+  const query = parse(z.object({
+    kind: z.enum(['THU', 'TRA']),
+    dateFrom: z.string().date().optional(),
+    dateTo: z.string().date().optional(),
+  }).strict(), req.query);
+  res.json(await getPhoiPhieuReport(query));
 }));
 
 router.get('/phoi-phieu/:tripId/chi-ho', asyncHandler(async (req, res) => {
