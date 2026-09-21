@@ -470,7 +470,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
-  [Role.CUS]: 'CUS',
+  // Card 20260921_25: business label, never the internal role code — the
+  // nav calls this role "Nghiệp vụ Chứng từ" and the users permission badges
+  // already said "Chứng từ" while this map still leaked the code.
+  [Role.CUS]: 'Chứng từ',
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {
