@@ -26,6 +26,7 @@ import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
 import { seedPricingTables } from './seed/seed-pricing-tables';
+import { seedForwarderExpenseTypes } from './seed/seed-expense-types';
 import { seedDemoFreightPricing } from './seed/seed-demo-freight-pricing';
 import { seedOperationalSites } from './seed/seed-operational-sites';
 import { seedFactories } from './seed/seed-factories';
@@ -685,53 +686,11 @@ export async function seed() {
   }
 
   // ─── Forwarder expense types (fill-only seed) ────────────────────────────
-  // The database owns this catalog once seeded: the seed FILLS, it never
-  // overwrites. A missing code inserts with the full default (including the
-  // ruled settlement category). An existing row whose category is NULL gets
-  // exactly that one column backfilled. Rows already carrying a category —
-  // and every admin-editable field (name, invoice policy, markup, label,
-  // VAT) — are never written by seed; soft-deleted rows stay deleted (an
-  // admin's deletion is admin data).
-  let fetInserted = 0;
-  let fetBackfilled = 0;
-  const existingForwarderExpenseTypes = await db.select({
-    id: schema.forwarderExpenseTypes.id,
-    code: schema.forwarderExpenseTypes.code,
-    category: schema.forwarderExpenseTypes.category,
-    deletedAt: schema.forwarderExpenseTypes.deletedAt,
-  }).from(schema.forwarderExpenseTypes);
-  const forwarderExpenseTypeByCode = new Map(
-    existingForwarderExpenseTypes
-      .filter((row) => row.code)
-      .map((row) => [normalizeSeedText(row.code), row] as const),
-  );
-  for (const [code, meta] of Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)) {
-    const policy = expenseTypeSeedPolicy(code);
-    const values = {
-      code,
-      name: meta.name,
-      requiresInvoice: policy.requiresInvoice,
-      substituteEvidenceAllowed: policy.substituteEvidenceAllowed,
-      noInvoiceEvidenceTypes: policy.substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
-      noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
-      noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
-      defaultMarkup: meta.defaultMarkup,
-      billingLabel: meta.billingLabel,
-      vatRate: '0.080',
-      category: meta.category ?? null,
-    } as const;
-    const existing = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
-    if (existing == null) {
-      await db.insert(schema.forwarderExpenseTypes).values(values);
-      fetInserted += 1;
-    } else if (existing.deletedAt == null && existing.category == null && meta.category != null) {
-      await db.update(schema.forwarderExpenseTypes)
-        .set({ category: meta.category, updatedAt: new Date() })
-        .where(eq(schema.forwarderExpenseTypes.id, existing.id));
-      fetBackfilled += 1;
-    }
-  }
-  console.log(`✅ Forwarder expense types fill-only: ${fetInserted} inserted, ${fetBackfilled} categories backfilled, admin data untouched`);
+  // Card 20260922_1: the fill logic moved verbatim to seed/seed-expense-types.ts
+  // so the make-demo seed step can run it without demo data; the fill-only
+  // semantics are pinned by tests there and unchanged here.
+  const fet = await seedForwarderExpenseTypes();
+  console.log(`✅ Forwarder expense types fill-only: ${fet.inserted} inserted, ${fet.backfilled} categories backfilled, admin data untouched`);
 
   // ─── Own company info (used on config/document surfaces) ─────────────────
   // Seeds empty placeholder rows from COMPANY_INFO_DEFAULTS (white-label — no

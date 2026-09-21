@@ -229,8 +229,9 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@$(MAKE) --no-print-directory -C frontend push
 	@echo "2/4  Image pull on $(DEMO_SERVER) (DB volume untouched)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
-	@echo "3/4  Migrate + cutover..."
+	@echo "3/4  Migrate + catalogs + cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend node dist/seed/seed-cut-catalogs.js"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(DEMO_COMPOSE) up -d --no-deps backend frontend"
 	@echo "  Frontend stale-asset guard (04:43 lesson)..."
