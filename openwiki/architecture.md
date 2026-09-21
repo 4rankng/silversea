@@ -5,10 +5,8 @@ description: "System-level map of SilverSea's backend, frontend, shared contract
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T13:43:19.777Z
+    at: 2026-09-21T04:49:12.152Z
 sources:
-  - id: openwiki-source-8037e2358a2c4f9b2c722a11
-    resource: repo://AGENTS.md
   - id: openwiki-source-140d3d74c1896e4779866932
     resource: repo://backend/drizzle/0000_flexible-baseline.sql
   - id: openwiki-source-9a7277933ab0110af5cb7cbe
@@ -33,8 +31,14 @@ sources:
     resource: repo://backend/src/services/dispatch-planning-detail-plan.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
+  - id: openwiki-source-4341a9e59b7d70859686defb
+    resource: repo://backend/src/services/expense-owner-scope.service.ts
   - id: openwiki-source-a3a0a1921d5309133aa9d113
     resource: repo://backend/src/services/freight-pricing-engine.service.ts
+  - id: openwiki-source-9c806678d597d282966e49e6
+    resource: repo://backend/src/services/freight-rate-snapshot-lifecycle.service.ts
+  - id: openwiki-source-200cd3cf936b00d433e49423
+    resource: repo://backend/src/services/ops-settlement-export.service.ts
   - id: openwiki-source-3aa37080f2fc30dc35478ecb
     resource: repo://backend/src/services/pricing.service.ts
   - id: openwiki-source-277912ce7743608f9e00b0cf
@@ -81,6 +85,8 @@ sources:
     resource: repo://frontend/src/features/dispatch/master-plan/DispatchAllocationDaySection.tsx
   - id: openwiki-source-38dccf151d65378ca3cdc49f
     resource: repo://frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx
+  - id: openwiki-source-623f1288565b2d67403440cf
+    resource: repo://frontend/src/features/ops/OpsSettlementsPanel.tsx
   - id: openwiki-source-e629bb1d867391a312ae3e80
     resource: repo://frontend/src/features/shipments/create/FreightPreviewCard.tsx
   - id: openwiki-source-71a326847137afbebdb7c372
@@ -121,7 +127,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-20T13:43:19.777Z" }
+generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
 ---
 
 # Architecture and Codebase Map
@@ -161,7 +167,7 @@ The CUS workspace exposes two complementary views of the same shipment list. The
 - The shared contract is the single source of truth for filter shapes, sort keys, and the chip vocabulary; backend services and frontend hooks both import from the same package.
 - The detail-screen container ledger has inline per-row `Xác nhận` (confirm) and `Revert` actions, with success/error toasts and Enter/Escape handling, so the user no longer has to press Enter or hunt for the header "Hoàn tất" button after typing a container appointment. Inline draft editors dismiss via `useClickOutside` so the row state stays consistent on accidental focus loss.
 - The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time closingAt/plannedReturnAt the same way it is read on the workboard and the typed surface can parse the typed value back deterministically.
-- **Workboard quick-edit contract (2026-09-20 evening, cards _49/_51):** quick-edit of the schedule and notes cell groups on Tổng quan lô hàng opens to CUS, ADMIN, and DISPATCHER — `transportDateEditable` is the CUS/ADMIN/DISPATCHER && !locked clause, and `shipmentFieldAccess` grants those three roles DIRECT on the four schedule/notes keys (`closingAt`, `plannedReturnAt`, `customerNotes`, `operationalNotes`) before any lock check; other cell groups and MANAGER are untouched. **Both note fields decouple from the accounting lock across all three tiers:** the FE notes trigger disables only when BOTH fields are READ_ONLY (fieldAccess-driven, `CusShipmentRow.tsx:176`); fieldAccess returns DIRECT for the two note fields for the three roles even under `hasActiveLock` ("Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."); and a notes-only update — nothing beyond the two note fields plus bookkeeping keys — skips `assertShipmentAccountingUnlocked`, while any mixed update still 409s under lock and schedule/declaration fields stay locked for everyone. Lock negatives hold per role (schedule cell readonly, outside roles like MANAGER stay blocked). Pinned by `backend/src/tests/cus-shipment-workspace.test.ts`, `frontend/src/pages/ShipmentsPage.test.tsx`, and the PRD changelog section "Quick-edit lịch & ghi chú mở cho đủ ba vai" (`docs/prd/CHANGELOG.md`).
+- **Workboard quick-edit contract (2026-09-20 evening, cards _49/_51; guard corrected 2026-09-21, _63):** quick-edit of the schedule and notes cell groups on Tổng quan lô hàng opens to CUS, ADMIN, and DISPATCHER — `transportDateEditable` is the CUS/ADMIN/DISPATCHER && !locked clause, and `shipmentFieldAccess` grants those three roles DIRECT on the four schedule/notes keys (`closingAt`, `plannedReturnAt`, `customerNotes`, `operationalNotes`) before any lock check; other cell groups and MANAGER are untouched. **Both note fields decouple from the accounting lock, and ONLY from it:** the FE notes trigger disables only when BOTH fields are READ_ONLY (fieldAccess-driven); fieldAccess returns DIRECT for the two note fields for the three roles even under `hasActiveLock`; a notes-only update — nothing beyond the two note fields plus bookkeeping keys — skips `assertShipmentAccountingUnlocked`, while any mixed update still 409s under lock and schedule/declaration fields stay locked for everyone. The dispatcher stage gate is role-scope, not payload-scope: `assertDispatcherCanMutateShipmentIntake` runs for DISPATCHER on EVERY update (notes-only included), so a dispatcher cannot mutate a post-intake lot through the notes path (`shipment-update.service.ts`, comment block above the notes-only branch); CUS/ADMIN are untouched by that gate. Pinned by `backend/src/tests/cus-shipment-workspace.test.ts`, `frontend/src/pages/ShipmentsPage.test.tsx`, and the PRD changelog section "Quick-edit lịch & ghi chú mở cho đủ ba vai" (`docs/prd/CHANGELOG.md`).
 
 ## Shipment settlement and debit notes (Chi phí – Quyết toán)
 
@@ -170,6 +176,8 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - **Read/edit models.** `shipment-debit-summary.service.ts` projects the Lớp 1 rollups; `shipment-debit-detail.service.ts` serves the Lớp 2 workspace. The CUS may edit Phát sinh (PS thực tế) per container and ad-hoc no-invoice fees (Phí khác), while invoice-numbered chi hộ fees (Phí Nâng/Hạ/CSHT with HD numbers) stay read-only.
 - **Warning contract.** Cược Hãng Tàu and Tạm thu sửa chữa greater than zero demand original documents: the UI flags them (warning icon + cam background) so the CUS chases the paperwork before locking.
 - **Lock and adjust.** `shipment-cost-lock.service.ts` freezes all Lớp 2 inputs when a lot is locked; the adjustment form covers customer-specific freight agreements. Lock, freight-adjustment, and debit-note writes are registered in the material-write registry (`backend/src/middleware/material-write.ts`) with audit events and `Idempotency-Key` requirements.
+- **L1 freight rollup is per-anchor supersede (2026-09-21, cards _60/_61/_62):** freight snapshots are INSERT-only (each transport-date change or dispatch supersedes by inserting), so `shipment-debit-summary.service.ts` counts each superseded freeze in NO total: per-trip freezes are additive legs (latest row per `(shipment, trip)`), an active trip freeze supersedes the trip-NULL intake freeze, and an intake-only lot still counts once — L1 always equals Bảng 2.1 / `debit_note_overrides.final_debit_freight`. Locked lots keep their frozen values; canceled legs stay excluded.
+- **OPS expense rights derive at save-time (2026-09-21, _54):** `expense-owner-scope.service.ts` grants the write when the ops user holds a manual user↔shipment link (admin user form) OR an active `truck_ops_assignments` row whose truck hauls the lot on any non-canceled trip (auto-link via trucks, owner ruling) — no link-row syncing; unassigning the truck removes the right on lots with no saved expenses.
 - **Consolidated debit notes.** `POST /shipments/debit-notes` issues one note per customer per period: `billing_documents` rows typed `DEBIT_NOTE` are constrained by the partial unique index `billing_documents_active_period_unique` (WHERE deleted_at IS NULL AND type='DEBIT_NOTE'; `backend/drizzle/0000_flexible-baseline.sql:1990`), so a duplicate customer+period issuance returns 409. XLSX export streams from `billing-export-debit-note-xlsx.service.ts` (PDF template reads via `debit-note-template-reads.service.ts`).
 - **One contract, two packages.** FE and BE share the zod contract `shared/src/schemas/shipment-debit-edits.ts`; the save delta always emits `freightEdits` so typed PS values cannot be silently dropped, pinned by a round-trip test (type → save → read back).
 - **Money states.** Phải thu ≠ đã thu ≠ đã khóa ≠ chưa xác định (null renders "Chưa xác định", never 0) per `docs/prd/QuyTrinhO2C.md` §7.
@@ -208,6 +216,7 @@ The pricing service composes freight, fuel surcharge, and shared financial calcu
 - **MANUAL reasons surface verbatim (2026-09-20, card _28):** when a fuel clause is missing (UNSET threshold, unconfirmed lag) the engine returns `source: 'MANUAL'` with a specific formula reason, and `FreightPreviewCard` renders that formula text directly instead of a hardcoded "Thiếu giá gốc" string — the user sees lag-vs-threshold-vs-price missing, never a fabricated number (`frontend/src/features/shipments/create/FreightPreviewCard.tsx:32-45`).
 - **15T demo prices are not seeded (2026-09-20, card _29):** dev/staging seed no invented 15T contract rows, so every environment behaves like prod — 15T without customer prices returns MANUAL "Thiếu giá gốc cho 15T" (`backend/src/seed/seed-demo-freight-pricing.ts`).
 - Fuel-price period config surfaces label the value simply "Giá dầu (đ/lít)" / "Giá dầu theo kỳ" — the 2026-09-20 rename dropped the DO unit suffix from every display label; the fuel type is implied by the config context (`frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx`).
+- **FCL freight freezes anchor on the container (2026-09-21, card _60):** `freight-rate-snapshot-lifecycle.service.ts` derives the anchor from the dispatching fulfillment's own container (type + appointment at dispatch, superseding the shipment's first container), so FCL lots freeze freight even when `shipments.route_id` is null; ad-hoc (Lệnh chạy ngoài) lots stay exempt and routeless derivations stay silent — no invented rates.
 
 - The shared `computeFuelSurcharge` returns 0 when the base price is unset, when the share percent is non-positive, when quota liters are non-positive, or when the current price does not exceed the base; otherwise the surcharge is `roundInt(round2dp(delta × quotaLiters × sharePct/100))`. Each trip creation snapshots the inputs (`currentFuelPrice`, `baseFuelPrice`, `quotaLiters`, `customerSharePct`) so future price changes do not retroactively rewrite cước đã phát hành.
 - The pricing service is the only place that resolves per-customer share percent and per-config base price; trips persist the resolved numbers so downstream ledger reads never re-resolve.

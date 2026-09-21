@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:55aaf9b6458556328d10624e135d27ff20946983b0910246e3046a0b884f4c24",
+  "pageVersion": "sha256:b77a0154b172a49718a1d6fc5a018ae72cb9ab58c29327106b230e645a7efc9c",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -96,10 +96,6 @@
       "id": "claim_c3864051d467484ab24e2a129019db54",
       "statement": "The pre-commit hook typechecks any project with staged sources, runs the frontend structure guard, and refuses the commit on failure; escape hatch is git commit --no-verify with a stated reason in the commit body.",
       "evidence": [
-        {
-          "resource": "repo://AGENTS.md",
-          "version": "repo-file-v1:sha256:5eed994435f20b127bb9e2017d0cef90df3457cd663d64da94308c5d0c186edc"
-        },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
           "version": "repo-file-v1:sha256:eda09f42db6e2740d36d55b0d623ba963fddb29d8e7eea582800f14a9d0caf51"
@@ -214,15 +210,15 @@
     },
     {
       "id": "claim_3a6d27005722439a9906eaf3c4d47c84",
-      "statement": "The CUS settlement screen (Chi phí – Quyết toán) reads consolidated lot money rollups from shipment-debit-summary.service (customer filter required, delivery-date range, lock status) and edits container-keyed freight/chi-hộ tables through shipment-debit-detail.service; the CUS may edit Phát sinh (PS thực tế) and ad-hoc no-invoice fees, while invoice-numbered chi hộ fees stay read-only.",
+      "statement": "The CUS settlement surface reads consolidated lot money rollups from shipment-debit-summary.service (customer filter required, delivery-date range, lock status) and edits container-keyed freight/chi-hộ tables through shipment-debit-detail.service; the CUS may edit Phát sinh (PS thực tế) and ad-hoc no-invoice fees, while invoice-numbered chi hộ fees stay read-only. The L1 auto-freight rollup reads per-anchor supersede semantics: freight snapshots are INSERT-only, per-trip freezes are additive legs (latest row per (shipment, trip)), an active trip freeze supersedes the trip-NULL intake freeze, an intake-only lot counts once, and superseded freezes count in NO total — L1 equals Bảng 2.1 / debit_note_overrides.final_debit_freight.",
       "evidence": [
         {
           "resource": "repo://backend/src/services/shipment-debit-detail.service.ts",
-          "version": "repo-file-v1:sha256:571f8ee1b2c939d7257228f7482bad817337d352a8fddc92842bb9364abfe6f4"
+          "version": "repo-file-v1:sha256:90a1fc58d024f914dae54c7ae35025b43dbf05f728e75fee789e010733deef41"
         },
         {
-          "resource": "repo://backend/src/services/shipment-debit-summary.service.ts",
-          "version": "repo-file-v1:sha256:2d59e95c8c822cf24116afafac83f851185bae1677d90c8aa52d929cee885055"
+          "resource": "repo://backend/src/services/shipment-debit-summary.service.ts#L65-L99",
+          "version": "repo-lines-v1:sha256:c3306a1aee5c215204afd32c75fd9e932dc6e6665c92010d4c2e56c3b1ee0f7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNDY5ZTRhODY1NWFjZDg1MmUxYWFhODNiYmJhNTQzM2RiODU3YjE4YzJmZTdjMjk5Nzk1NjhjYzgwNmY4MzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmMDE4NWJkYTNhYmM2NzIxZTA5MjBjODlkODA1NTQwNTZmMTJkNzQyMjk1MWJmZGEyMThmNTI5NzFjMjE4OWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImExNGQwZGQ2MGE4YTc1Yjc0MGNlNDcxNGM5MzQxMDJkNzkxOWU0YTk4NGQ5YjNmMmY1ZmNjNDYzZTM1NjY3NmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmYzc0MDIyMzIwYjdhNjc5YjA1ZjRkMjhmMmJiNjA1MGE1NTJjMGQwM2Y1ZjZkYTMzOTNkNjVkN2RiYTE4MjkifQ"
         },
         {
           "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
@@ -334,11 +330,11 @@
     },
     {
       "id": "claim_daf9dd4d30ff4779a30d1f4e12068535",
-      "statement": "Fuel-price period config surfaces label the value \"Giá dầu (đ/lít)\" / \"Giá dầu theo kỳ\" without the DO unit suffix (2026-09-20 rename); the fuel type is implied by the config context.",
+      "statement": "Fuel-price period config surfaces label the value \"Giá dầu (đ/lít)\" / \"Giá dầu theo kỳ\" without the DO unit suffix (2026-09-20 rename); the fuel type is implied by the config context. The table records creator attribution — a Người nhập column renders createdByName or 'Không xác định' for legacy rows (created_by populated on new periods since 2026-09-21).",
       "evidence": [
         {
-          "resource": "repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx",
-          "version": "repo-file-v1:sha256:cdf31f34b1caa9ab75e2c0abbd08498f7d2b42e0e870c99a142b795a265428d9"
+          "resource": "repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx#L103-L103",
+          "version": "repo-lines-v1:sha256:7e60e61a02d98cbee95cde56ace1393583916068c6f3c04fd3a510e5cacaeb9e:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2U2MGU2MWEwMmQ5OGNiZWU5NWNkZTU2YWNlMTM5MzU4MzkxNjA2OGM2ZjNjMDRmZDNhNTEwZTVjYWNhZWI5ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2U2MGU2MWEwMmQ5OGNiZWU5NWNkZTU2YWNlMTM5MzU4MzkxNjA2OGM2ZjNjMDRmZDNhNTEwZTVjYWNhZWI5ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjM0NTYxMjMwMmU1ZGIxNDU5NTM4YTE3N2QxMTQzODk1OGY3Yjk4OGJkZDc4YjQ4YTk0NjU3ZjhlNTQ4ZGU4NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTA4Njk2ZTFhOTBlMTc0ZTJmYjk4Nzk3NmNlZTFkN2ExN2YxNDFhMTgxNDlhZGY2ZDU1YjI1NzIwMDY3NDNjMCJ9"
         }
       ]
     },
@@ -474,25 +470,59 @@
     },
     {
       "id": "claim_d3de4cee5a3c45759df15af095d280bb",
-      "statement": "Both note fields (customerNotes, operationalNotes) are decoupled from the shipment accounting lock across all three tiers: the FE notes trigger disables only when both fields are READ_ONLY (fieldAccess-driven); fieldAccess returns DIRECT for the two note fields for CUS/ADMIN/DISPATCHER even under hasActiveLock; and a notes-only update — a payload carrying nothing beyond the two note fields plus bookkeeping keys (expectedVersion/version/updatedBy) — skips assertShipmentAccountingUnlocked, while any mixed update still 409s under lock and schedule/declaration fields stay locked for every role.",
+      "statement": "Both note fields (customerNotes, operationalNotes) are decoupled from the shipment accounting lock ONLY: the FE notes trigger disables only when both fields are READ_ONLY (fieldAccess-driven); fieldAccess returns DIRECT for the two note fields for CUS/ADMIN/DISPATCHER even under hasActiveLock; and a notes-only update — a payload carrying nothing beyond the two note fields plus bookkeeping keys (expectedVersion/version/updatedBy) — skips assertShipmentAccountingUnlocked while any mixed update still 409s under lock. The dispatcher stage gate is role-scope, not payload-scope: assertDispatcherCanMutateShipmentIntake runs for DISPATCHER on EVERY update including notes-only (fixed 2026-09-21 after the exception briefly bypassed it), so a dispatcher cannot mutate a post-intake lot through the notes path; CUS/ADMIN are untouched by that gate.",
       "evidence": [
         {
           "resource": "repo://backend/src/services/cus-workspace-builders.service.ts#L664-L699",
           "version": "repo-lines-v1:sha256:e5e72b6a9a02a42f179fb793404f88a3508c6c2b0a69f848c0980dd1093422fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5YTZlZDFiODQ4YTJlNThkY2NlODIxZmJmYzQwYjI3MjJjNDRkMWRhY2E1ZTIzYThkOWMxM2I1YzA1YTIzYWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4YjMxMDY4ZGE2NzJiZDBhOGY0MjMyMDgzOTA5N2MwMWMxY2M1NTM5NjVmZmY5YTQwYzNhMThhOWVhYjkwYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZiNGQwNjk5MjczNjU0NTU5MjJjMTZkYTc0NWY2ZmU1M2JiMDAwMjk0ZGMwNDZkMDBiMmM4ODQ4MmZkODFiOGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1MzNlY2VkZTZlZDg4NTBkNjNlMDlhNGQ4ZTllZGRiMzgwMjU0NjU4ZDQwMTNkYmRkNDU0NGM1ZWQ0ZDAwNjYifQ"
         },
         {
-          "resource": "repo://backend/src/services/shipment-update.service.ts#L47-L59",
-          "version": "repo-lines-v1:sha256:8470846063ae01094206ee19d3ceb5e61e1f09b66abc041991aa1cef53a27849:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwMzBkMDcyYTRiZDU5Mjc0ODI1MjNhZGNiNTI0YzZiMzQ0YjAyYTQ5MTIxYjgyMGE0MmFjNTE3ODFkNzI0MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0Njc0MWNkOGNiZTAzYjBlZTc1OWRlOTlmZDViOTM4NzIyZWY5ZmRlYjNkOTg4YmViYzg3NDJkNjM0OWE1Y2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5MjdjOGY5MTk2NmNjNmVlZmYyN2EzYzAxNzJjNjY3ZTNhYWYwZmU5NmU3NTNkZDgzMjMxOGJiY2JmMzRjNmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTUwNjlmZDcwNGM2NjhhOWI3YmIxZGU5YzYwNmEwN2VmMDY5Y2QzOGJjZWUwMzAwZmEzN2I0YjEzNDI1YzEifQ"
+          "resource": "repo://backend/src/services/shipment-update.service.ts#L51-L63",
+          "version": "repo-lines-v1:sha256:bbbcd3f751f6a4f7ce94f85bafb7ca853b676321000fe119941efae8180757c4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3NjU0OWExNjBiYTNhOGFmZDI4ZTU4MGZhYmMzYjdkMWEwZTdiOWM1NmE5YTJkZjlhYjkyOTQ5N2Q1ZTc2YzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0Njc0MWNkOGNiZTAzYjBlZTc1OWRlOTlmZDViOTM4NzIyZWY5ZmRlYjNkOTg4YmViYzg3NDJkNjM0OWE1Y2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0MjM1NTY2ZjA1MzA1OWRkZTVhMGNhZjQ0NTkzNDRkYjYxZmY4MTQ5YTBkZWFhMTQ5YjVmZmE2NmQxODcyYTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0OTUwNjlmZDcwNGM2NjhhOWI3YmIxZGU5YzYwNmEwN2VmMDY5Y2QzOGJjZWUwMzAwZmEzN2I0YjEzNDI1YzEifQ"
         },
         {
           "resource": "repo://frontend/src/features/shipments/cus/CusShipmentRow.tsx#L162-L185",
           "version": "repo-lines-v1:sha256:67a4463c1494562560699564f85de69a5408316aabc876c0e4426f4ed1ca9834:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNkMGQyNmJlMzNjYjg5NmYzZmE2ZmMwZWJhYWU0ZTE2NjJhN2Q2MjNmYzZlYWRiOTY2YzA3OTRiMzdmY2I2MzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NTI5MTE4YWJmZjU0NGQ5MzU2YWViYWMwZTljN2M1MThmOWJhMmUzNDAxNjk4NmUxMTA4MmE5ZTliZmNjZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU2NTllZWZiNzFhM2Y3MmI2ZWQ2MzVmNGIzZGMzOGJiMGQ3ZjhjMTliYjExZDZjYmZkZGRkODkxMTk0ZmVhOGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE3ODUyNWEzNzhlM2VmNmVjZWMxNGExZjg1NjlmYmMzMGFhMzg5YjFkNGI1NzA0Y2M5YjM2NzRmNWIwNDljYjIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_3abd56f1efd24f16b37b77fa17e7c311",
+      "statement": "OPS expense rights derive at save-time from live tables with no link-row syncing: the write is granted when the ops user holds a manual user↔shipment link (admin user form) OR an active truck_ops_assignments row whose truck hauls the lot on any non-canceled trip (auto-link via trucks, owner ruling 2026-09-20). Unassigning the truck removes the right on lots with no saved expenses yet.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/expense-owner-scope.service.ts#L12-L34",
+          "version": "repo-lines-v1:sha256:8982dba9618ea6920526450b135c214b84761e5a44e14bb5a3b681c3c629df5c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMzFkNzZhYmYzZDNjYTU3ZTJmZWYwOTY4MjJmZGIwMDMzOThkODFiMmQ2MWRjOTkxM2UzNjU4YTlhYWIyMjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmMjNjMzliYzFlYjE2Y2U2NzU5NGY3ZDNhNDJlODFkOGU3YWJhMDVmYjBjMDk5ZDAxYzZkOGRiOTE0NDllNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMyNjRhOTBkZTY1YTdlNTllZTk2YmYwNzk0M2M3OGYwYzdlYTM1YzFiNDVhNGJlNGRkZjkyMmQxYzNkNjI0YmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1OTcwNjRlMjFlZjQ1OTFiY2U0YzFkNDRlYzAyODk0ZDQzM2YwNDY3MTViNjA0MDZjODlkOWJkOThiNjlhODkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a6045778713b4adca0cdf0f6f31d700b",
+      "statement": "The ops settlement sheet enforces display-key hygiene and export-format honesty: the settlement panel renders the business key (Số Bill/Booking) or '—' and never an internal lot id, and the export endpoint returns 400 with a clear message for unsupported formats instead of silently serving xlsx (xlsx remains the supported format; A4 print is the PRD's paper path).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/ops-settlement-export.service.ts",
+          "version": "repo-file-v1:sha256:0d96dd2f85abf4349eac6f03dc3d9f8cb7b77966a35ebe3e43ffe523c1c2630e"
+        },
+        {
+          "resource": "repo://frontend/src/features/ops/OpsSettlementsPanel.tsx",
+          "version": "repo-file-v1:sha256:b7653ad4301945c0d39121cf4b8da91358a9898dc299d90e7b2dddfcb553a45f"
+        }
+      ]
+    },
+    {
+      "id": "claim_04d2cf05025048dfbb178abc88ac35ca",
+      "statement": "FCL freight freezes anchor on the dispatching fulfillment's own container (type + appointment at dispatch, superseding the shipment's first-container heuristic), so FCL lots freeze freight even when shipments.route_id is null; ad-hoc (Lệnh chạy ngoài) lots are exempt and routeless derivations stay silent — no invented rates.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/freight-rate-snapshot-lifecycle.service.ts#L106-L124",
+          "version": "repo-lines-v1:sha256:c261efa49f31d4b34a7aea4c9eb3fb0540362722c6e4dbdd781f32759a27e719:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNGI4MDJjY2I3YWY3OWY3ZDVhNjE5NTQxOTBlNjRhNGM4NzdlZjAyMmQxZmEzY2ZjZTc0MjlhM2IwNDEwNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzAzZTQzMTJmYjI0ZjVjMjE5OTEyNzJmYmY5ZWM5OGRmNzgwNjc4YzZlZWUyZTMyMzNlMzJiOTdkMDgwZTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyZDU2OGViZTM5N2RmM2FmZTZkYTlkODk0Njc4Mzg2YmE4MGRiNWZlNDc3ODE0MzBiZDRiYTQ1Yzg5ODVmMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3NTFjZjhmYmZlYzIyZDNlZmQ2MDg2MDRiOWEyMGRiZDE2ZmVjMDc2ZjVjODk0ZmE1NDkzNTIxNDFlZmMzMGYifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T13:43:19.777Z"
+    "at": "2026-09-21T04:49:12.152Z"
   }
 }

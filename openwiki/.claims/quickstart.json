@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:564c4dd2ce370976adacb9e8a54772048337956b4d63d985afbe9ae6fe34a5fe",
+  "pageVersion": "sha256:6b40b9fbe8200996b184285d974eb06770febc537ef8bdefec5700c9b3cab613",
   "claims": [
     {
       "id": "claim_59b73370491448eb9843052fc1370da7",
@@ -14,11 +14,11 @@
     },
     {
       "id": "claim_14e741d458ff4cafaf99e40c1a47b7ac",
-      "statement": "Test accounts resolve per environment via testplan/testaccounts.txt with shared staging password Abc123; demo mode is permanently disabled.",
+      "statement": "Test accounts resolve per environment via testplan/testaccounts.txt with shared password Abc123; local dev holds TWO DB modes — dev-seed (the 13 demo users, default after make dev + make seed) and make stgdb (prod-mirror named staff with the Abc123 reset re-run after every sync) — and the QA harness walks the role list when a login misses. Demo mode is permanently disabled.",
       "evidence": [
         {
           "resource": "repo://testplan/testaccounts.txt",
-          "version": "repo-file-v1:sha256:6e7ac442a6af4658f5105ee734655d983ef06fed25434af963553e324e989a85"
+          "version": "repo-file-v1:sha256:5d14ce7dbe8d2618abfaee727cc5484d8b454fc48caf4b569bb54721e3668212"
         }
       ]
     },
@@ -81,6 +81,6 @@
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T10:45:13.890Z"
+    "at": "2026-09-21T04:49:12.152Z"
   }
 }

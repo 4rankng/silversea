@@ -18,10 +18,10 @@ sources:
     resource: repo://shared/package.json
   - id: openwiki-source-2321476aab68e6b1ce6c7ba0
     resource: repo://testplan/testaccounts.txt
-generated: { by: "claude-code", at: "2026-09-19T20:52:17.505Z" }
+generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T10:45:13.890Z
+    at: 2026-09-21T04:49:12.152Z
 ---
 
 # Quickstart
@@ -44,7 +44,7 @@ make dev            # db + redis + backend (:3002) + frontend (:7175); waits on 
 | Redis | local | 6391 |
 | Adminer | local | 8083 |
 
-Staging: https://vantai.tingting.vip — accounts resolve per role via `testaccounts.txt` (shared password `Abc123`). **Demo mode is permanently disabled** in `frontend/src/config/index.ts`; the frontend always talks to the real API.
+Staging: https://vantai.tingting.vip — accounts resolve per role via `testaccounts.txt` (shared password `Abc123`; local dev holds TWO DB modes — dev-seed demo users by default after `make dev` + `make seed`, or the named prod-mirror staff after `make stgdb` with the Abc123 reset re-run — and the QA harness walks the role list when a login misses). **Demo mode is permanently disabled** in `frontend/src/config/index.ts`; the frontend always talks to the real API.
 
 ## Tests and checks
 

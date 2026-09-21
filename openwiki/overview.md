@@ -26,10 +26,10 @@ sources:
     resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "claude-code", at: "2026-09-20T06:47:25.307Z" }
+generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-20T06:47:25.307Z
+    at: 2026-09-21T04:49:12.152Z
 ---
 
 # SilverSea System Overview
@@ -59,7 +59,7 @@ Modules: CUS (chứng từ) creates shipments (FCL/LCL, ad-hoc `Lệnh chạy ng
 
 ## Current dispatch and shipment behavior
 
-The main tree as of commit `280f0bc8` (origin/prod, 2026-09-20) carries the following waves, all now live in the same shipping branch — see [Freight Pricing and Billing Rules](domain/freight-pricing-and-billing-rules.md) for the money-math contracts:
+The main tree as of commit `3103ecc7` (origin/prod, 2026-09-21) carries the following waves, all now live in the same shipping branch — see [Freight Pricing and Billing Rules](domain/freight-pricing-and-billing-rules.md) for the money-math contracts:
 
 - **External-carrier staff close.** When the carrier does not run the driver app, dispatch or CUS confirm completion from the detail-plan row; `taskStatus` flips to `COMPLETED` and the same `transitionTripStatus` machinery that powers driver close posts revenue/AP/AR and writes the ledger snapshot. Surfaced through `completeDispatchExternalTrip` in `dispatchPlanningClient.ts` and `trip-external-close.service.ts`.
 - **Multi-day allocation breakdown.** Carrier allocation in the master plan groups demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validates against the per-day demand, and saves through a partial-save endpoint that echoes the persisted row back to the grid. Long operational notes truncate with a `MasterPlanNoteModal` popup so dense rows stay readable.
