@@ -329,11 +329,7 @@ export default function ForwarderExpenseTypesConfigPage() {
         columns={[
           {
             header: 'Nhóm',
-            render: (item) => {
-              const group = expenseFeeGroupOf(item.category);
-              const tone = group === 'LIFT' || group === 'DROP' ? 'var(--brand)' : 'var(--fg-2)';
-              return <span style={{ fontWeight: 600, color: tone }}>{EXPENSE_FEE_GROUP_LABELS[group]}</span>;
-            },
+            render: (item) => <span style={{ fontWeight: 600, color: expenseFeeGroupOf(item.category) === 'OTHER' ? 'var(--fg-2)' : 'var(--brand)' }}>{EXPENSE_FEE_GROUP_LABELS[expenseFeeGroupOf(item.category)]}</span>,
           },
           {
             header: 'Mã',
