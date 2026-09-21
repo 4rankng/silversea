@@ -367,6 +367,9 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   feeNormCode: varchar('fee_norm_code', { length: 50 }),
   // VND amount — integer, no decimals (matches tripExpenses.buyAmount convention).
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  // Card 20260921_14: the DRIVER's original figure, kept for comparison when
+  // the accountant adjusts the payable amount. Backfilled = amount.
+  driverEnteredAmount: numeric('driver_entered_amount', { precision: 15, scale: 0 }),
   // The date the cost was incurred (driver-reported). Distinct from createdAt.
   occurredAt: date('occurred_at').notNull(),
   note: text('note'),
@@ -398,4 +401,30 @@ export const driverFeeNorms = pgTable('driver_fee_norms', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('driver_fee_norms_status_idx').on(table.status),
+]);
+
+// Card 20260921_18 — THEO DÕI HÓA ĐƠN KẾT HỢP: one row per combined invoice
+// against a container trip. supplierPayment is mirrored into trip_expenses
+// (Chi phí khác / "Chi phí hóa đơn") and kept in sync via expense_id.
+export const invoiceTracking = pgTable('invoice_tracking', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  tripId: integer('trip_id').notNull(),
+  expenseId: integer('expense_id'),
+  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
+  invoiceAmount: numeric('invoice_amount', { precision: 15, scale: 0 }).notNull(),
+  supplierPayment: numeric('supplier_payment', { precision: 15, scale: 0 }).notNull(),
+  taxCode: varchar('tax_code', { length: 20 }),
+  supplierName: varchar('supplier_name', { length: 200 }),
+  comNote: varchar('com_note', { length: 200 }),
+  invoiceSentAt: date('invoice_sent_at'),
+  note: text('note'),
+  progress: varchar('progress', { length: 20 }).notNull().default('CHUA_GUI'),
+  expenseDate: date('expense_date').notNull().defaultNow(),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('invoice_tracking_shipment_id_idx').on(table.shipmentId),
+  index('invoice_tracking_trip_id_idx').on(table.tripId),
 ]);

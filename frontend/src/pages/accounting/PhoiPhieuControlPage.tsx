@@ -4,6 +4,7 @@ import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiP
 import { formatCurrency } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
+import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 
 const TRIP_STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -31,6 +32,7 @@ export default function PhoiPhieuControlPage() {
   const [issuing, setIssuing] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [chiHoTripId, setChiHoTripId] = useState<number | null>(null);
+  const [tienDuongTripId, setTienDuongTripId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const rowsQuery = useQuery({
@@ -155,6 +157,13 @@ export default function PhoiPhieuControlPage() {
           </tbody>
         </table>
       </div>
+      {tienDuongTripId != null && (
+        <PhoiPhieuTienDuongDialog
+          tripId={tienDuongTripId}
+          onClose={() => setTienDuongTripId(null)}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] })}
+        />
+      )}
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}

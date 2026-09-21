@@ -413,3 +413,65 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
   });
   return { ok: true };
 }
+
+// ── Card 20260921_14: the accountant tiền-đường detail dialog ───────────────
+
+export interface PhoiPhieuTienDuongRow {
+  sourceId: number;
+  costType: string;
+  feeName: string | null;
+  driverEnteredAmount: number | null;
+  amount: number;
+  confirmed: boolean;
+  driverName: string | null;
+  occurredAt: string | null;
+}
+
+export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
+  tripId: number; tripCode: string | null;
+  rows: PhoiPhieuTienDuongRow[]; totals: { total: number; confirmed: number };
+}> {
+  const [trip] = await db.select({ tripId: s.trips.id, tripCode: s.trips.tripCode })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến.');
+  const rows = await db.select({
+    id: s.driverIncidentalCosts.id,
+    costType: s.driverIncidentalCosts.costType,
+    feeName: s.driverIncidentalCosts.feeName,
+    driverEnteredAmount: s.driverIncidentalCosts.driverEnteredAmount,
+    amount: s.driverIncidentalCosts.amount,
+    occurredAt: s.driverIncidentalCosts.occurredAt,
+    driverName: s.drivers.name,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+  })
+    .from(s.driverIncidentalCosts)
+    .leftJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
+    .leftJoin(s.expenseAccountingSources, and(
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
+      eq(s.expenseAccountingSources.sourceId, s.driverIncidentalCosts.id),
+      eq(s.expenseAccountingSources.status, 'RECORDED'),
+    ))
+    .where(eq(s.driverIncidentalCosts.tripId, tripId))
+    .orderBy(asc(s.driverIncidentalCosts.id));
+  void s.trips;
+  const feeRows: PhoiPhieuTienDuongRow[] = rows.map((row) => ({
+    sourceId: row.id,
+    costType: row.costType,
+    feeName: row.feeName,
+    driverEnteredAmount: row.driverEnteredAmount == null ? null : Number(row.driverEnteredAmount),
+    amount: Number(row.amount ?? 0),
+    confirmed: row.confirmedAt != null,
+    driverName: row.driverName,
+    occurredAt: row.occurredAt,
+  }));
+  const confirmedRows = feeRows.filter((row) => row.confirmed);
+  return {
+    tripId,
+    tripCode: trip.tripCode,
+    rows: feeRows,
+    totals: {
+      total: feeRows.reduce((sum, row) => sum + row.amount, 0),
+      confirmed: confirmedRows.reduce((sum, row) => sum + row.amount, 0),
+    },
+  };
+}

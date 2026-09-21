@@ -106,3 +106,27 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, reason:
     headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
   });
 }
+
+export interface PhoiPhieuTienDuongRow {
+  sourceId: number;
+  costType: string;
+  feeName: string | null;
+  driverEnteredAmount: number | null;
+  amount: number;
+  confirmed: boolean;
+  driverName: string | null;
+  occurredAt: string | null;
+}
+
+export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
+  tripId: number; tripCode: string | null;
+  rows: PhoiPhieuTienDuongRow[]; totals: { total: number; confirmed: number };
+}> {
+  return api.get(`/expense-accounting/phoi-phieu/${tripId}/tien-duong`);
+}
+
+export async function confirmPhoiPhieuTienDuong(tripId: number, sourceId: number, expectedVersion: number, idempotencyKey?: string): Promise<unknown> {
+  return api.post('/expense-accounting/confirm', {
+    entries: [{ sourceKind: 'DRIVER', sourceId, expectedVersion }],
+  }, { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } });
+}

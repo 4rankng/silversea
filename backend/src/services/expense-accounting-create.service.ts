@@ -28,6 +28,7 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
       const [entry] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id,
         costType: input.driverCostType ?? 'OTHER',
         payerKind: companyPaid ? 'COMPANY' : 'USER', costGroup: input.costGroup, feeName: input.feeName, amount: String(input.amount),
+        driverEnteredAmount: String(input.amount),
         customerChargeAmount: String(input.customerChargeAmount), occurredAt: input.expenseDate,
         invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: input.note, recoveryNote: input.recoveryNote,
         recordedBy: actor.userId,

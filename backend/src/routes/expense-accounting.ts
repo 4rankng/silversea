@@ -1,5 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -41,6 +41,11 @@ router.get('/phoi-phieu/stk', asyncHandler(async (_req, res) => {
 router.get('/phoi-phieu/:tripId/chi-ho', asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   res.json(await getPhoiPhieuChiHo(tripId));
+}));
+
+router.get('/phoi-phieu/:tripId/tien-duong', asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  res.json(await getPhoiPhieuTienDuong(tripId));
 }));
 
 router.put('/phoi-phieu/:tripId/phoi-meta', asyncHandler(async (req, res) => {

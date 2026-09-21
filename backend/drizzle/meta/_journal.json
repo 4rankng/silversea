@@ -772,6 +772,13 @@
       "when": 1790016906041,
       "tag": "20260922033500_card13_phoi_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1790019351751,
+      "tag": "20260922034000_card14_driver_entered_amount",
+      "breakpoints": true
     }
   ]
 }

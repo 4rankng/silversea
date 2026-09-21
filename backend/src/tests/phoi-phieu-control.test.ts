@@ -144,3 +144,44 @@ describe('card 20260921_13 — chi-ho detail dialog', () => {
     );
   });
 });
+
+describe('card 20260921_14 — tien duong detail dialog', () => {
+  test('driver rows, totals, confirm inclusion, and original-amount retention', async () => {
+    const { getPhoiPhieuTienDuong } = await import('../services/phoi-phieu-control.service');
+    const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
+    const fixture = await mkBoardFixture();
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Tài xế C14 ${suffix}`, userId: accountantId, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
+      amount: '300000', driverEnteredAmount: '300000', occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+      feeName: 'Tiền đường QA', amount: 300000, customerChargeAmount: 0, expenseDate: '2026-09-22',
+      payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: accountantId });
+    track(s.expenseAccountingSources, source.id);
+
+    const before = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(before.rows.length, 1);
+    assert.equal(before.totals.total, 300000);
+    assert.equal(before.totals.confirmed, 0, 'unconfirmed never counts toward the payable');
+    assert.equal(before.rows[0]!.driverEnteredAmount, 300000, 'the driver original is visible');
+
+    const actor = { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never;
+    await confirmAccountingExpenses(db as never, actor, [{ sourceKind: 'DRIVER', sourceId: cost.id, expectedVersion: source.version }]);
+    const after = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(after.rows[0]!.confirmed, true);
+    assert.equal(after.totals.confirmed, 300000, 'confirmed joins the payable total');
+
+    // The accountant adjusts the payable amount — the driver's original stays.
+    await db.update(s.driverIncidentalCosts).set({ amount: '350000' }).where(eq(s.driverIncidentalCosts.id, cost.id));
+    const adjusted = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(adjusted.rows[0]!.amount, 350000);
+    assert.equal(adjusted.rows[0]!.driverEnteredAmount, 300000, 'the driver original is retained for comparison');
+  });
+});

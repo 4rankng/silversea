@@ -377,6 +377,7 @@ async function insertDriverIncidentalCostTx(
     expenseTypeCode: normClass ? null : (input.expenseTypeCode ?? null),
     feeNormCode: input.feeNormCode ?? null,
     amount: String(input.amount),
+    driverEnteredAmount: String(input.amount),
     occurredAt: input.occurredAt,
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,
