@@ -58,6 +58,8 @@ export function OpsExpenseHistory() {
 
   const items = data?.items ?? [];
 
+  const hasEditableRow = items.some((row: OpsExpenseRow) => isEditableExpense(row));
+
   return (
     <section className="ops-wallet__section" aria-label="Lịch sử chi phí">
       <header className="ops-wallet__section-head">
@@ -78,6 +80,8 @@ export function OpsExpenseHistory() {
       </header>
 
       <div className="ops-wallet__scroll">
+        {/* Card 20260921_26: the actions column renders only when some row
+                     is editable — an always-present empty column read as a rendering bug. */}
         <table className="tt-table ops-wallet__table">
           <thead>
             <tr>
@@ -88,7 +92,7 @@ export function OpsExpenseHistory() {
               <th>Số tiền</th>
               <th>Chứng từ</th>
               <th>Trạng thái</th>
-              <th aria-label="Thao tác" />
+              {hasEditableRow && <th aria-label="Thao tác" />}
             </tr>
           </thead>
           <tbody>
@@ -118,6 +122,7 @@ export function OpsExpenseHistory() {
                     <span className="ops-reject-reason" title={row.rejectionReason}> — {row.rejectionReason}</span>
                   )}
                 </td>
+                {hasEditableRow && (
                 <td className="ops-row-actions" aria-label="Thao tác">
                   {isEditableExpense(row) && (
                     <button
@@ -144,10 +149,11 @@ export function OpsExpenseHistory() {
                     </button>
                   )}
                 </td>
+                )}
               </tr>
             ))}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={8} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
+              <tr><td colSpan={hasEditableRow ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
             )}
           </tbody>
         </table>
