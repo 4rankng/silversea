@@ -389,6 +389,7 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
   code: string;
   name: string;
   requiresInvoice: boolean | null;
+  category: string | null;
 }>> {
   return db
     .select({
@@ -396,6 +397,7 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
       code: s.forwarderExpenseTypes.code,
       name: s.forwarderExpenseTypes.name,
       requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+      category: s.forwarderExpenseTypes.category,
     })
     .from(s.forwarderExpenseTypes)
     .where(and(

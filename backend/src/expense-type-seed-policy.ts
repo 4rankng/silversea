@@ -11,6 +11,19 @@ export const INVOICE_REQUIRED_EXPENSE_TYPE_CODES = new Set([
   'WEIGHING',
   'INFRASTRUCTURE',
   'INSPECTION',
+  // Card 20260921_4 — the customer's chi-hộ fee list: all invoice-bearing.
+  'LIFT_EMPTY',
+  'LIFT_CARGO',
+  'LOWER_EMPTY',
+  'LOWER_CARGO',
+  'YARD_STORAGE',
+  'CONTAINER_DEMURRAGE',
+  'FEE_EXTENSION',
+  'FEE_CLEANING',
+  'FEE_SCANNING',
+  'FEE_STEVEDORING',
+  'FEE_LABOR',
+  'FEE_WAREHOUSE',
 ]);
 
 export const NO_INVOICE_EXPENSE_TYPE_CODES = new Set([

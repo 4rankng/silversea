@@ -506,6 +506,22 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa', category: ExpenseTypeCategory.HQGS },
   INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa', category: ExpenseTypeCategory.HQGS },
   OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác', category: ExpenseTypeCategory.KHAC },
+  // Card 20260921_4 — the customer's chi-hộ fee list ("các chi phí.pdf" §1),
+  // seeded as DATA (fee names live in the catalog, never in code). All are
+  // invoice-bearing chi-hộ fees (seed policy pins requiresInvoice), and
+  // invoice-bearing types default the customer charge to the amount.
+  LIFT_EMPTY:     { name: 'Phí nâng vỏ',                 defaultMarkup: false, billingLabel: 'Phí nâng vỏ', category: ExpenseTypeCategory.LIFT },
+  LIFT_CARGO:     { name: 'Phí nâng hàng',               defaultMarkup: false, billingLabel: 'Phí nâng hàng', category: ExpenseTypeCategory.LIFT },
+  LOWER_EMPTY:    { name: 'Phí hạ vỏ',                   defaultMarkup: false, billingLabel: 'Phí hạ vỏ', category: ExpenseTypeCategory.DROP },
+  LOWER_CARGO:    { name: 'Phí hạ hàng',                 defaultMarkup: false, billingLabel: 'Phí hạ hàng', category: ExpenseTypeCategory.DROP },
+  YARD_STORAGE:   { name: 'Phí lưu bãi',                 defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.DROP },
+  CONTAINER_DEMURRAGE: { name: 'Phí lưu vỏ',             defaultMarkup: false, billingLabel: 'Phí lưu vỏ', category: ExpenseTypeCategory.DROP },
+  FEE_EXTENSION:  { name: 'Phí gia hạn',                 defaultMarkup: false, billingLabel: 'Phí gia hạn', category: ExpenseTypeCategory.KHAC },
+  FEE_CLEANING:   { name: 'Phí vệ sinh',                 defaultMarkup: false, billingLabel: 'Phí vệ sinh', category: ExpenseTypeCategory.KHAC },
+  FEE_SCANNING:   { name: 'Phí soi chiếu',               defaultMarkup: false, billingLabel: 'Phí soi chiếu', category: ExpenseTypeCategory.KHAC },
+  FEE_STEVEDORING: { name: 'Phí bốc xếp',                defaultMarkup: false, billingLabel: 'Phí bốc xếp', category: ExpenseTypeCategory.KHAC },
+  FEE_LABOR:      { name: 'Phí công nhân',               defaultMarkup: false, billingLabel: 'Phí công nhân', category: ExpenseTypeCategory.KHAC },
+  FEE_WAREHOUSE:  { name: 'Phí lưu kho',                 defaultMarkup: false, billingLabel: 'Phí lưu kho', category: ExpenseTypeCategory.KHAC },
   // Card _2: dispatcher-entered zone surcharge — the structural kind the 2.3
   // ladder reads (payee ruling (i): carrier-paid costs via ops intake).
   ZONE_SURCHARGE: { name: 'Phí nâng/hạ theo vùng',        defaultMarkup: false, billingLabel: 'Phí nâng/hạ theo vùng', category: ExpenseTypeCategory.PHAT_SINH },
@@ -517,6 +533,22 @@ export const NO_INVOICE_EVIDENCE_TYPES = [
   'ONSITE_PHOTO',
   'SIGNED_CONFIRMATION',
 ] as const;
+
+/** Card 20260921_4 — the customer's three chi-hộ fee families, derived from
+ *  the settlement category (never the name, which is rename-proof data):
+ *  LIFT → Nâng, DROP → Hạ, everything else → Phí khác (the catch-all). */
+export const EXPENSE_FEE_GROUP_LABELS = {
+  LIFT: 'Nâng',
+  DROP: 'Hạ',
+  OTHER: 'Phí khác',
+} as const;
+export type ExpenseFeeGroup = keyof typeof EXPENSE_FEE_GROUP_LABELS;
+
+export function expenseFeeGroupOf(category: string | null | undefined): ExpenseFeeGroup {
+  if (category === 'LIFT') return 'LIFT';
+  if (category === 'DROP') return 'DROP';
+  return 'OTHER';
+}
 
 export type NoInvoiceEvidenceType = typeof NO_INVOICE_EVIDENCE_TYPES[number];
 

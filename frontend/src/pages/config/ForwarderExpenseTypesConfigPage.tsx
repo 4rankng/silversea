@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import {
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  EXPENSE_FEE_GROUP_LABELS,
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
   NO_INVOICE_POLICY_DEFAULTS,
+  expenseFeeGroupOf,
 } from '@tingting/shared';
 import { Loader2, Save, Trash2 } from 'lucide-react';
 import { Field } from '../../components/config/Field';
@@ -325,6 +327,14 @@ export default function ForwarderExpenseTypesConfigPage() {
         emptyTitle="Chưa có loại chi phí"
         emptyHint="Thêm các loại chi phí giao nhận để nhân viên ghi nhận khi phát sinh."
         columns={[
+          {
+            header: 'Nhóm',
+            render: (item) => {
+              const group = expenseFeeGroupOf(item.category);
+              const tone = group === 'LIFT' || group === 'DROP' ? 'var(--brand)' : 'var(--fg-2)';
+              return <span style={{ fontWeight: 600, color: tone }}>{EXPENSE_FEE_GROUP_LABELS[group]}</span>;
+            },
+          },
           {
             header: 'Mã',
             render: (item) => <span style={{ fontFamily: 'var(--font-data)', fontWeight: 600, color: 'var(--fg-1)' }}>{item.code}</span>,
