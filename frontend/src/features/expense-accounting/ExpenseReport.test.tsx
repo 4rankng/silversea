@@ -20,7 +20,7 @@ it('FIX-WS-13: clicked report money opens the exact source contribution at the s
   expect(screen.getByRole('dialog', { name: 'Đã thanh toán · Khách A' })).toHaveTextContent('100.000');
   expect(screen.getByRole('dialog')).toHaveTextContent('Giao nhận—');
   expect(screen.getByRole('dialog')).toHaveTextContent('Nâng container');
-  expect(screen.getByRole('dialog')).toHaveTextContent('16/9/2026');
+  expect(screen.getByRole('dialog')).toHaveTextContent('16/09/2026');
   expect(screen.getByRole('link', { name: 'BL-2' })).toHaveAttribute('href', '/shipments/2');
   expect(api.report).toHaveBeenCalledWith(expect.objectContaining({ direction: 'IN', asOfDate: '2026-09-15' }));
   fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
