@@ -26,6 +26,7 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Lương & Chấm công', '/salary'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
@@ -67,6 +68,7 @@ describe('getNavItems', () => {
     ]],
     [Role.ACCOUNTANT, [
       ['Tổng Quan Kế Toán', '/accounting'],
+      ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
@@ -97,6 +99,7 @@ describe('getNavItems', () => {
       ['Tổng quan lô hàng', '/shipments'],
       ['Chi tiết lô hàng', '/shipments-detail'],
       ['Chi phí - Quyết toán', '/shipments-debit'],
+      ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
@@ -169,7 +172,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
+      '/accounting', '/accounting/invoice-tracking', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
@@ -257,7 +260,7 @@ describe('getNavItems', () => {
 
   it('shows CUS only the document-ops and catalog items without the recoverable-costs capability', () => {
     const items = getNavItems(Role.CUS);
-    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'customers', 'config-routes', 'config-fuel-price-periods']);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'invoice-tracking', 'customers', 'config-routes', 'config-fuel-price-periods']);
     expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 

@@ -46,6 +46,8 @@ import ocrRoutes from './routes/ocr';
 import mapsRoutes from './routes/maps';
 import notificationRoutes from './routes/notifications';
 import opsRoutes from './routes/ops';
+import accountingRoutes from './routes/accounting';
+import accountingDepositRoutes from './routes/accounting-deposit';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
@@ -181,6 +183,8 @@ app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), f
 // the router (OPS portal routes / ADMIN·MANAGER·ACCOUNTANT approvals /
 // ADMIN-only truck assignment), so no Casbin resource is introduced here.
 app.use('/api/ops', authMiddleware, opsRoutes);
+app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingRoutes);
+app.use('/api/accounting/deposits', authMiddleware, casbinAuthz('accounting'), accountingDepositRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
 app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);

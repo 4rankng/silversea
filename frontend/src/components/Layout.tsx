@@ -14,6 +14,7 @@ import {
   Compass,
   Layers,
   FileText,
+  FileSpreadsheet,
   Store,
   Package,
   CalendarDays,
@@ -113,6 +114,9 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — kế toán + quản trị write,
+        // CUS read-only on the same page.
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -197,6 +201,10 @@ export function getNavItems(
         // Tổng Quan Kế Toán (Accounting Dashboard) - first item, per spec
         { key: 'accounting', label: 'Tổng Quan Kế Toán', path: routes.accounting, icon: Calculator, section: undefined },
 
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — same read-only-for-CUS
+        // page as the accountant entry; writes stay server-gated.
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
+
         // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
@@ -261,6 +269,9 @@ export function getNavItems(
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
         { key: 'shipment-containers', label: 'Chi tiết lô hàng', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
         { key: 'shipment-debit', label: 'Chi phí - Quyết toán', path: routes.shipmentDebit, icon: Calculator, section: 'document-ops' as SectionName },
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — read-only for this role;
+        // the page hides editors and the server rejects writes (403).
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'reconciliation' as SectionName },
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [

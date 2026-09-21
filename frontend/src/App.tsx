@@ -122,6 +122,7 @@ const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
 const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuControlPage'));
+const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
@@ -282,6 +283,13 @@ export function AppRoutes() {
           <Route path="/accounting/expenses" element={financeReaderOnly(page(<ExpenseAccountingPage />))} />
           <Route path="/accounting/phoi-phieu" element={financeReaderOnly(page(<PhoiPhieuControlPage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
+          {/* Invoice tracking (card 20260921_18): kế toán full CRUD, CUS reaches
+              the page read-only — the page-internal canWrite mirrors the server's
+              requireRoles gate on writes. */}
+          <Route
+            path="/accounting/invoice-tracking"
+            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
+          />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />

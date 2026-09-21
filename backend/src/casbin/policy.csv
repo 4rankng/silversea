@@ -77,6 +77,17 @@ p, CUSTOMER, customer_portal, read
 p, CUSTOMER, customer_portal, write
 p, CUS, shipments, read
 p, CUS, shipments, write
+
+// Card 20260921_18 — the combined-invoice tracker lives on its own
+// /api/accounting mount: office staff manage it, CUS reads it read-only;
+// the route requireRoles keeps every write office-staff-only.
+p, ACCOUNTANT, accounting, read
+p, ACCOUNTANT, accounting, write
+p, ACCOUNTANT, accounting, delete
+p, MANAGER, accounting, read
+p, MANAGER, accounting, write
+p, MANAGER, accounting, delete
+p, CUS, accounting, read
 p, CUS, customer_portal, read
 // Wave 0 shipments RBAC — operator-side access to the shipment entity.
 // ADMIN is wildcard (line 1). MANAGER gets full CRUD; ACCOUNTANT gets read

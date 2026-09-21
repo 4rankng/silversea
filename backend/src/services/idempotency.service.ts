@@ -117,6 +117,9 @@ export const IDEMPOTENCY_ENDPOINTS = {
   // Ops field-operations portal (OpsVanHanh): financial cash commands with
   // durable response replays.
   OPS_EXPENSE_CREATE: 'ops.expenses.create',
+  INVOICE_TRACKING_CREATE: 'accounting.invoice-tracking.create',
+  INVOICE_TRACKING_UPDATE: 'accounting.invoice-tracking.update',
+  INVOICE_TRACKING_DELETE: 'accounting.invoice-tracking.delete',
   OPS_EXPENSE_UPDATE: 'ops.expenses.update',
   OPS_EXPENSE_DELETE: 'ops.expenses.delete',
   OPS_EXPENSE_APPROVE: 'ops.expenses.approve',

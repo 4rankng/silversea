@@ -1,0 +1,144 @@
+/* Card 20260921_18 — invoice tracking page styles. House tokens, house density. */
+
+.invoice-tracking-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 40px;
+}
+
+.invoice-tracking-page__intro {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-body-size, 14px);
+}
+
+.invoice-tracking-period {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 12px;
+}
+
+.invoice-tracking-period__fields {
+  display: flex;
+  gap: 8px 12px;
+}
+
+.invoice-tracking-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.invoice-tracking-totals__tile {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-1, transparent);
+}
+
+.invoice-tracking-totals__tile span {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+.invoice-tracking-totals__tile strong {
+  font-size: var(--text-body-size, 14px);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-tracking-alert {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger, #dc2626);
+  border-radius: 8px;
+  color: var(--danger, #dc2626);
+}
+
+.invoice-tracking-table .ivt-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.invoice-tracking-table .ivt-stack__primary {
+  font-weight: var(--fw-semibold, 600);
+}
+
+.invoice-tracking-table .ivt-stack__sub {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+.invoice-tracking-progress {
+  min-width: 96px;
+}
+
+.invoice-tracking-actions {
+  white-space: nowrap;
+}
+
+/* Modal form */
+
+.invoice-tracking-form {
+  display: grid;
+  gap: 12px;
+}
+
+.invoice-tracking-lot-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.ivt-lot-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ivt-lot-results li + li {
+  border-top: 1px solid var(--line);
+}
+
+.ivt-lot-results button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ivt-lot-results button:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+}
+
+.invoice-tracking-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.ivt-hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+.ivt-hint--error {
+  color: var(--danger, #dc2626);
+}
+
+.invoice-tracking-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
