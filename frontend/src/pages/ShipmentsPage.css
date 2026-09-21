@@ -747,6 +747,14 @@
 .cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-quick-edit-modal__field--full { grid-column: 1 / -1; }
+/* Card 20260921_3: the documents modal manages N tờ khai — one row pairs the
+   number input with its luồng select and a remove affordance; add/remove only
+   mutate the draft until Lưu thay đổi. */
+.cus-quick-edit-modal__declarations { grid-column: 1 / -1; display: grid; gap: 8px; }
+.cus-quick-edit-modal__declaration-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.cus-quick-edit-modal__declaration-row > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
+.cus-quick-edit-modal__declaration-remove { margin-bottom: 1px; }
+.cus-quick-edit-modal__declaration-add { justify-self: start; }
 .cus-quick-edit-modal__readonly {
   box-sizing: border-box;
   width: 100%;

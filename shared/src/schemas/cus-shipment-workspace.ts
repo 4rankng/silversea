@@ -349,6 +349,11 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
       id: z.number().int().positive(),
       declarationNumber: z.string().nullable(),
       channel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable(),
+      // Whole-row PUT contract: the modal resends these verbatim so the
+      // endpoint's unconditional set never wipes existing metadata.
+      issuedAt: z.string().datetime().nullable(),
+      scope: z.enum(['SINGLE', 'SHARED']).nullable(),
+      note: z.string().nullable(),
     }).strict()).optional(),
   }).strict(),
   fieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,

@@ -20,6 +20,19 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Card 20260921_3: declaration rows are lot metadata the CUS workboard
+  // manages — the documents modal removes a row via DELETE
+  // /:id/declarations/:declarationId. The route's own requireRoles keeps the
+  // intake-mutation role set; this casbin bridge stays scoped to exactly
+  // that path so general shipment delete stays closed.
+  if (
+    resource === 'shipments'
+    && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)
+    && req.method === 'DELETE'
+    && /^\/\d+\/declarations\/\d+$/.test(req.path)
+  ) {
+    return true;
+  }
   // The shipment-create screen is shared by CUS and Dispatchers. Permit only
   // creation of the missing route they need; all other config writes and all
   // route updates/deletes remain governed by the normal config policy.

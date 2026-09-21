@@ -73,6 +73,7 @@ export {
 export {
   attachShipmentDocument,
   upsertShipmentDeclaration,
+  deleteShipmentDeclaration,
   checkExpiredDocuments,
   getDispatchReadiness,
   replaceShipmentDocument,

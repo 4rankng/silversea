@@ -34,6 +34,7 @@ const routeIds: number[] = [];
 const declarationIds: number[] = [];
 const userIds: number[] = [];
 const lockIds: number[] = [];
+const documentIds: number[] = [];
 let cusId = 0;
 let cusToken = '';
 let server: http.Server;
@@ -101,6 +102,8 @@ after(async () => {
   try {
     await db.delete(s.debitNoteLots).where(inArray(s.debitNoteLots.shipmentId, shipmentIds));
     await db.delete(s.shipmentCostLocks).where(inArray(s.shipmentCostLocks.shipmentId, shipmentIds));
+    await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds));
+    if (documentIds.length > 0) await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
     await db.delete(s.shipmentDeclarations).where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds));
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
     await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
@@ -163,5 +166,60 @@ describe('card 20260919_5 — declaration-level customs channel', () => {
     const detail = await getShipmentDebitDetail(shipmentId);
     const parsed = shipmentDebitDetailSchema.parse(detail);
     assert.equal(parsed.customsChannel, 'YELLOW', 'the wire must carry the declared channel (wired by owner)');
+  });
+
+  test('DELETE removes one row of the lot; a foreign or repeated id reads 404', async () => {
+    const shipmentId = await mkCustomerShipment('delete');
+    const first = await api('POST', `/${shipmentId}/declarations`, { declarationNumber: 'TMX-DEL-1' });
+    const second = await api('POST', `/${shipmentId}/declarations`, { declarationNumber: 'TMX-DEL-2' });
+    assert.equal(first.status, 201);
+    assert.equal(second.status, 201);
+    const firstId = (first.data as { id: number }).id;
+    const secondId = (second.data as { id: number }).id;
+
+    const removed = await api('DELETE', `/${shipmentId}/declarations/${firstId}`);
+    assert.equal(removed.status, 200, `delete must succeed — got ${removed.status}`);
+    const rows = await db.select().from(s.shipmentDeclarations)
+      .where(eq(s.shipmentDeclarations.shipmentId, shipmentId));
+    assert.deepEqual(rows.map((row) => row.id), [secondId], 'only the untouched sibling remains');
+
+    const foreign = await api('DELETE', `/${shipmentId}/declarations/${firstId}`);
+    assert.equal(foreign.status, 404, 're-deleting the same id must 404');
+    const otherShipment = await mkCustomerShipment('delete-other');
+    const wrong = await api('DELETE', `/${otherShipment}/declarations/${secondId}`);
+    assert.equal(wrong.status, 404, 'a declaration of another lot must not delete');
+  });
+
+  test('DELETE is blocked while the accounting lock holds', async () => {
+    const shipmentId = await mkCustomerShipment('delete-locked');
+    const created = await api('POST', `/${shipmentId}/declarations`, { declarationNumber: 'TMX-LOCK-1' });
+    const declarationId = (created.data as { id: number }).id;
+    const [document] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customerIds[customerIds.length - 1],
+      entityName: `Chan ${suffix}`,
+      rangeFrom: '2026-09-01',
+      rangeTo: '2026-09-30',
+      totalInclVat: '1000000',
+      debitNoteStatus: 'SENT',
+      issuedAt: new Date(),
+    }).returning();
+    documentIds.push(document.id);
+    const [lock] = await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId,
+      billingDocumentId: document.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: new Date().toISOString() },
+      shipmentVersionAtLock: 1,
+      reason: 'delete-gate test',
+      activatedBy: cusId,
+    }).returning();
+    lockIds.push(lock.id);
+    const blocked = await api('DELETE', `/${shipmentId}/declarations/${declarationId}`);
+    assert.equal(blocked.status, 409, `accounting lock must block delete — got ${blocked.status}`);
+    const rows = await db.select().from(s.shipmentDeclarations)
+      .where(eq(s.shipmentDeclarations.shipmentId, shipmentId));
+    assert.equal(rows.length, 1, 'the locked row must survive');
   });
 });

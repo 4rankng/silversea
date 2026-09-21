@@ -57,6 +57,10 @@ export function CusShipmentRow({
   onStartQuickEdit, onOpenAction, onOpenDetail,
 }: CusShipmentRowProps) {
   const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
+  // Card 20260921_3: the Chứng từ cell shows EVERY tờ khai of the lot, joined
+  // exactly like the XLSX debit export; older wire payloads fall back to the
+  // single number.
+  const declarationNumbers = item.declarationNumbers ?? (item.declarationNumber ? [item.declarationNumber] : []);
   const primarySignal = derivePrimaryShipmentSignal(item, ['schedule']);
   const PrimarySignalIcon = primarySignal?.icon;
   const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
@@ -115,7 +119,7 @@ export function CusShipmentRow({
       <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
         <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-          <span className={item.declarationNumber ? undefined : 'cus-empty'}>{item.declarationNumber || 'Chưa có tờ khai'}</span>
+          <span className={declarationNumbers.length > 0 ? undefined : 'cus-empty'}>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : 'Chưa có tờ khai'}</span>
         </span></button>
       </td>
       <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">

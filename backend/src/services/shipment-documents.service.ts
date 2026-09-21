@@ -141,6 +141,36 @@ export async function upsertShipmentDeclaration(
   return runInTx(transaction, execute);
 }
 
+/** Card 20260921_3: remove one declaration row of a lot. Same intake gates as
+ * create/update — dispatcher-intake status rule + accounting lock — and the
+ * row must belong to the shipment or it reads 404. */
+export async function deleteShipmentDeclaration(
+  shipmentId: number,
+  declarationId: number,
+  actor?: AuthUser,
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
+    const [existingShipment] = await tx.select()
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
+    const [deleted] = await tx.delete(s.shipmentDeclarations)
+      .where(and(
+        eq(s.shipmentDeclarations.id, declarationId),
+        eq(s.shipmentDeclarations.shipmentId, shipmentId),
+      ))
+      .returning();
+    if (!deleted) throw new ApiError(404, 'Không tìm thấy tờ khai cần xóa');
+    return deleted;
+  };
+  return runInTx(transaction, execute);
+}
+
 // ─── M3.2: expired document check + document replacement ────────────────────
 
 /**

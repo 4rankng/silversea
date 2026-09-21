@@ -68,6 +68,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_DOCUMENT_REPLACE: 'shipments.documents.replace',
   SHIPMENT_DECLARATION_CREATE: 'shipments.declarations.create',
   SHIPMENT_DECLARATION_UPDATE: 'shipments.declarations.update',
+  SHIPMENT_DECLARATION_DELETE: 'shipments.declarations.delete',
   SHIPMENT_CONTAINERS_RECONCILE: 'shipments.containers.reconcile',
   SHIPMENT_CHANGE_REQUEST_REVIEW: 'shipments.change-requests.review',
   SHIPMENT_SUBMIT_FOR_DISPATCH: 'shipments.submit-for-dispatch',

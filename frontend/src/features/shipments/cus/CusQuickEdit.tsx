@@ -1,9 +1,10 @@
 import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
+import { Plus, X } from 'lucide-react';
 import { TimeInput } from '../../../design-system/forms/TimeInput';
 import { BufferedUuiDateInput, UuiSelectField } from '../../../design-system';
-import { vehicleReadinessLabel, type ShipmentQuickEditDraft } from './cusUtils';
+import { vehicleReadinessLabel, type QuickEditDeclarationRow, type ShipmentQuickEditDraft } from './cusUtils';
 
 export function ShipmentQuickEditFields({
   draft,
@@ -21,6 +22,18 @@ export function ShipmentQuickEditFields({
   const update = (patch: Partial<ShipmentQuickEditDraft>) => onChange({ ...draft, ...patch });
   const documentDirection = draft.tradeDirection || item.direction || '';
 
+  // Card 20260921_3: each tờ khai row edits its own number + luồng; add/remove
+  // happen in the draft only — nothing persists until Lưu thay đổi.
+  const updateDeclarationRow = (index: number, patch: Partial<QuickEditDeclarationRow>) => {
+    update({ declarations: draft.declarations.map((row, i) => i === index ? { ...row, ...patch } : row) });
+  };
+  const addDeclarationRow = () => {
+    update({ declarations: [...draft.declarations, { id: null, declarationNumber: '', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }] });
+  };
+  const removeDeclarationRow = (index: number) => {
+    update({ declarations: draft.declarations.filter((_, i) => i !== index) });
+  };
+
   return (
     <div className="cus-quick-edit-modal__fields" data-edit-field={draft.field}>
       {draft.field === 'identity' && <>
@@ -31,13 +44,28 @@ export function ShipmentQuickEditFields({
         {documentDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.blNumber.mode === 'READ_ONLY'} title={item.fieldAccess.blNumber.reason} /></label>}
         {documentDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.bookingRef.mode === 'READ_ONLY'} title={item.fieldAccess.bookingRef.reason} /></label>}
         {!documentDirection && <p className="cus-quick-edit-modal__help">Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking.</p>}
-        <label><span>Số tờ khai</span><input value={draft.declarationNumber} onChange={(event) => update({ declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} /></label>
-        <label><span>Luồng hải quan</span><select value={draft.declarationChannel} onChange={(event) => update({ declarationChannel: event.target.value as ShipmentQuickEditDraft['declarationChannel'] })} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason}>
-          <option value="">— Chưa có —</option>
-          <option value="RED">Luồng đỏ</option>
-          <option value="YELLOW">Luồng vàng</option>
-          <option value="GREEN">Luồng xanh</option>
-        </select></label>
+        <div className="cus-quick-edit-modal__declarations">
+          {draft.declarations.map((row, index) => (
+            <div className="cus-quick-edit-modal__declaration-row" key={row.id ?? `new-${index}`}>
+              <label className="cus-quick-edit-modal__declaration-number"><span>Số tờ khai</span>
+                <input value={row.declarationNumber} onChange={(event) => updateDeclarationRow(index, { declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} />
+              </label>
+              <label className="cus-quick-edit-modal__declaration-channel"><span>Luồng hải quan</span>
+                <select value={row.declarationChannel} onChange={(event) => updateDeclarationRow(index, { declarationChannel: event.target.value as QuickEditDeclarationRow['declarationChannel'] })} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason}>
+                  <option value="">— Chưa có —</option>
+                  <option value="RED">Luồng đỏ</option>
+                  <option value="YELLOW">Luồng vàng</option>
+                  <option value="GREEN">Luồng xanh</option>
+                </select>
+              </label>
+              <button type="button" className="btn btn--secondary btn--sm cus-quick-edit-modal__declaration-remove" onClick={() => removeDeclarationRow(index)} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} aria-label={`Xóa tờ khai ${row.declarationNumber.trim() || 'trống'}`}>
+                <X size={14} aria-hidden="true" />
+                <span className="sr-only">Xóa tờ khai</span>
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn btn--secondary btn--sm cus-quick-edit-modal__declaration-add" onClick={addDeclarationRow} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'}>+ Thêm tờ khai</button>
+        </div>
         <p className="cus-quick-edit-modal__help">{documentDirection === 'IMPORT' ? 'Hàng Nhập chỉ dùng Số Bill.' : documentDirection === 'EXPORT' ? 'Hàng Xuất chỉ dùng Số Booking.' : 'Số Bill và Số Booking không thể cùng thuộc một lô hàng.'} Tờ khai đã có sẽ được cập nhật số mới.</p>
       </>}
       {draft.field === 'classification' && <>

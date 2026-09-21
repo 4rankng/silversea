@@ -220,6 +220,8 @@ function buildListItem(
   const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
   const recoveryFacts = support.recoveryFactsByShipment.get(row.shipment.id) ?? [];
   const declaration = support.declarationByShipment.get(row.shipment.id) ?? null;
+  // Card 20260921_3: the full id-asc declaration list rides each row.
+  const declarations = support.declarationsByShipment.get(row.shipment.id) ?? [];
   const totalCost = sumMoney(trips.map((trip) => trip.totalCost));
   const bucket = deriveCusBucket(row.shipment.status, activeLock != null);
   const hasPendingRecovery = recoveryFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
@@ -331,6 +333,11 @@ function buildListItem(
     effectiveFactoryNames,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
     declarationNumber: declaration?.declarationNumber ?? null,
+    // Card 20260921_3: every non-empty number, id-asc — the Chứng từ column
+    // joins these exactly like the XLSX debit export does.
+    declarationNumbers: declarations
+      .map((item) => trimOrNull(item.declarationNumber))
+      .filter((value): value is string => value != null),
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     // A lot overview may summarize multiple FCL routes, but individual
     // container rows retain the exact route that drives dispatch.
@@ -389,6 +396,15 @@ function buildListItem(
       declarationScope: declaration?.scope ?? null,
       declarationNote: trimOrNull(declaration?.note),
       declarationChannel: declaration?.channel ?? null,
+      // Full id-asc list for the documents quick-edit (card 20260921_3).
+      declarations: declarations.map((item) => ({
+        id: item.id,
+        declarationNumber: trimOrNull(item.declarationNumber),
+        channel: item.channel,
+        issuedAt: item.issuedAt?.toISOString() ?? null,
+        scope: item.scope,
+        note: trimOrNull(item.note),
+      })),
     },
     fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
     operational,

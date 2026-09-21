@@ -18,6 +18,7 @@ import {
   getShipmentDetail,
   attachShipmentDocument,
   upsertShipmentDeclaration,
+  deleteShipmentDeclaration,
   replaceShipmentDocument,
   batchUpsertShipmentContainers,
 } from '../../services/shipment.service';
@@ -220,6 +221,38 @@ documentsRoutes.put(
         }, user, tx);
         return {
           body: declaration,
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+// ─── DELETE /:id/declarations/:declarationId — remove one tờ khai (card 20260921_3) ──
+documentsRoutes.delete(
+  '/:id/declarations/:declarationId',
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const declarationId = parseInt(req.params.declarationId as string, 10);
+    if (!Number.isInteger(declarationId) || declarationId <= 0) {
+      res.status(400).json({ error: 'ID tờ khai không hợp lệ' });
+      return;
+    }
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_DELETE,
+      { shipmentId, declarationId },
+      async (tx) => {
+        const shipment = await getShipment(shipmentId, tx);
+        const deleted = await deleteShipmentDeclaration(shipmentId, declarationId, user, tx);
+        return {
+          body: deleted,
           status: 200,
           auditEntityId: shipment.id,
           auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",

@@ -130,6 +130,18 @@ export function displayNote(note: string | null | undefined): string {
   return sentence.replace(/(^\p{L})|([.!?]\s+\p{L})/gu, (match) => match.toLocaleUpperCase('vi'));
 }
 
+/** One editable tờ khai row of the documents quick-edit (card 20260921_3).
+ * Existing rows PUT the whole row, so passthrough metadata rides along. */
+export interface QuickEditDeclarationRow {
+  id: number | null;
+  declarationNumber: string;
+  // Luồng hải quan (card _5) — assigned by Customs per tờ khai; '' = unset.
+  declarationChannel: '' | 'RED' | 'YELLOW' | 'GREEN';
+  declarationIssuedAt: string | null;
+  declarationScope: 'SINGLE' | 'SHARED' | null;
+  declarationNote: string | null;
+}
+
 export interface ShipmentQuickEditDraft {
   shipmentId: number;
   field: 'identity' | 'documents' | 'classification' | 'cargo' | 'schedule' | 'notes';
@@ -140,16 +152,11 @@ export interface ShipmentQuickEditDraft {
   factoryName: string;
   blNumber: string;
   bookingRef: string;
-  declarationNumber: string;
-  // Luồng hải quan (card _5) — assigned by Customs per tờ khai, so it rides
-  // the declaration row; '' = unset. One lot shows one channel everywhere.
-  declarationChannel: '' | 'RED' | 'YELLOW' | 'GREEN';
-  // Existing declaration identity — needed because the PUT endpoint replaces
-  // the whole row, so the modal must resend issuedAt/scope/note verbatim.
-  declarationId: number | null;
-  declarationIssuedAt: string | null;
-  declarationScope: 'SINGLE' | 'SHARED' | null;
-  declarationNote: string | null;
+  declarations: QuickEditDeclarationRow[];
+  // Stored row ids the modal was seeded with (card 20260921_3): the save
+  // deletes ONLY these when absent from the draft, so a declaration another
+  // user added mid-edit is never destroyed by a stale modal.
+  declarationSeedIds: number[];
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   shippingLineName: string;
   packageCount: string;

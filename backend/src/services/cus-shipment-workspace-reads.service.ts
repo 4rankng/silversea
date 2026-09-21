@@ -214,6 +214,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     return {
       containersByShipment: new Map<number, ContainerRow[]>(),
       declarationByShipment: new Map<number, DeclarationRow>(),
+      declarationsByShipment: new Map<number, DeclarationRow[]>(),
       locksByShipment: new Map<number, LockRow>(),
       debitNotesByShipment: new Map<number, DebitNoteRow>(),
       custodyByShipment: new Map<number, CustodyRow>(),
@@ -455,6 +456,19 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }
   }
 
+  // Card 20260921_3: every declaration row of the lot, id-asc, so the
+  // documents quick-edit and the Chứng từ column see the FULL list (the
+  // primary map above keeps its newest-numbered pick for existing fields).
+  const declarationsByShipment = new Map<number, DeclarationRow[]>();
+  for (const row of declarationRows) {
+    const bucket = declarationsByShipment.get(row.shipmentId) ?? [];
+    bucket.push(row as DeclarationRow);
+    declarationsByShipment.set(row.shipmentId, bucket);
+  }
+  for (const bucket of declarationsByShipment.values()) {
+    bucket.sort((a, b) => a.id - b.id);
+  }
+
   const locksByShipment = new Map<number, LockRow>();
   for (const row of lockRows) locksByShipment.set(row.shipmentId, row);
 
@@ -559,6 +573,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   return {
     containersByShipment,
     declarationByShipment,
+    declarationsByShipment,
     locksByShipment,
     debitNotesByShipment,
     custodyByShipment,

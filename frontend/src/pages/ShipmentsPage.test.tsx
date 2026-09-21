@@ -88,6 +88,7 @@ const row: ShipmentCusWorkspaceListItem = {
     packageCount: null, packageType: null, cargoWeightKg: '25000', cargoVolumeCbm: '52.5', customsCutoffAt: '2026-08-11T08:00:00.000Z',
     closingAt: null, plannedReturnAt: '2026-08-12T10:00:00.000Z', customerNotes: 'Giao buổi sáng', operationalNotes: 'Ưu tiên cổng số 2',
     declarationId: 9, declarationIssuedAt: null, declarationScope: 'SINGLE', declarationNote: null,
+    declarations: [{ id: 9, declarationNumber: 'TK-54321', channel: null, issuedAt: null, scope: 'SINGLE', note: null }],
   },
   fieldAccess: {
     customerId: directAccess, factoryName: directAccess, routeId: directAccess, deliveryLocation: directAccess,
@@ -800,7 +801,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const noDeclaration: ShipmentCusWorkspaceListItem = {
       ...row,
       declarationNumber: null,
-      raw: { ...row.raw, declarationNumber: null, declarationId: null, declarationScope: null },
+      raw: { ...row.raw, declarationNumber: null, declarationId: null, declarationScope: null, declarations: [] },
     };
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
@@ -812,6 +813,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '+ Thêm tờ khai' }));
     fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-NEW-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
@@ -824,6 +826,23 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     }));
     expect(apiPut).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'));
     expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+  });
+
+  it('joins every declaration number in the Chứng từ cell, XLSX-style', async () => {
+    const multiDeclaration: ShipmentCusWorkspaceListItem = {
+      ...row,
+      declarationNumbers: ['TK-54321', 'TK-77777'],
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([multiDeclaration]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    const cell = screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' });
+    expect(cell.textContent).toContain('TK-54321, TK-77777');
   });
 
   it('saves only the declaration when bill and booking are read-only', async () => {

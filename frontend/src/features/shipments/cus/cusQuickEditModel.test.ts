@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import {
-  buildQuickEditDeclarationBody,
   buildQuickEditDraft,
   buildQuickEditPayload,
+  diffQuickEditDeclarations,
   factoryDetailPath,
   isQuickEditUnchanged,
   quickEditAccessKeys,
@@ -32,8 +32,18 @@ function makeItem(overrides: Record<string, unknown> & { raw?: Record<string, un
       declarationNumber: 'TK789',
       declarationId: 11,
       declarationIssuedAt: '2026-08-31T02:00:00.000Z' as string | null,
-      declarationScope: 'IMPORT' as string | null,
+      declarationScope: 'SINGLE' as string | null,
       declarationNote: 'ghi-chu-to-khai' as string | null,
+      declarations: [
+        {
+          id: 11,
+          declarationNumber: 'TK789',
+          channel: null,
+          issuedAt: '2026-08-31T02:00:00.000Z',
+          scope: 'SINGLE',
+          note: 'ghi-chu-to-khai',
+        },
+      ] as unknown as Array<{ id: number; declarationNumber: string | null; channel: 'RED' | 'YELLOW' | 'GREEN' | null; issuedAt: string | null; scope: 'SINGLE' | 'SHARED' | null; note: string | null }>,
       tradeDirection: 'EXPORT',
       shippingLineName: 'Hãng Tàu X',
       packageCount: 12,
@@ -86,7 +96,7 @@ describe('buildQuickEditDraft', () => {
     expect(draft.packageCount).toBe('12');
     expect(draft.cargoWeightKg).toBe('1200');
     expect(draft.time).toBe(scheduleTime(item));
-    expect(draft.declarationId).toBe(11);
+    expect(draft.declarations.map((row) => row.id)).toEqual([11]);
   });
 
   it('blanks numeric seed when the row carries null', () => {
@@ -103,11 +113,14 @@ describe('isQuickEditUnchanged', () => {
     expect(isQuickEditUnchanged(draftFrom(item, 'identity', { factoryName: 'Factory B' }), item)).toBe(false);
   });
 
-  it('documents: declaration ignored for diff when READ_ONLY', () => {
+  it('documents: declaration list diff ignored when READ_ONLY', () => {
     const item = makeItem();
-    expect(isQuickEditUnchanged(draftFrom(item, 'documents', { declarationNumber: 'CHANGED' }), item)).toBe(false);
+    const withNewRow = draftFrom(item, 'documents');
+    withNewRow.declarations = [...withNewRow.declarations, { id: null, declarationNumber: 'TK-NEW', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    expect(isQuickEditUnchanged(withNewRow, item)).toBe(false);
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
-    expect(isQuickEditUnchanged(draftFrom(locked, 'documents', { declarationNumber: 'CHANGED' }), locked)).toBe(true);
+    expect(isQuickEditUnchanged(draftFrom(locked, 'documents', {}), locked)).toBe(true);
+    expect(isQuickEditUnchanged(withNewRow, locked)).toBe(true);
   });
 
   it('cargo: numeric-string equality includes blanked nulls', () => {
@@ -234,52 +247,120 @@ describe('buildQuickEditPayload', () => {
 });
 
 describe('declaration upsert rules', () => {
-  it('flags a change only for documents mode with write access and a diverging number', () => {
+  it('flags a change only for documents mode with write access and a diverging list', () => {
     const item = makeItem();
-    expect(quickEditDeclarationChanged(draftFrom(item, 'documents', { declarationNumber: 'TK000' }), item)).toBe(true);
+    const changed = draftFrom(item, 'documents');
+    changed.declarations[0].declarationNumber = 'TK000';
+    expect(quickEditDeclarationChanged(changed, item)).toBe(true);
     expect(quickEditDeclarationChanged(draftFrom(item, 'documents'), item)).toBe(false);
-    expect(quickEditDeclarationChanged(draftFrom(item, 'cargo', { declarationNumber: 'TK000' }), item)).toBe(false);
+    expect(quickEditDeclarationChanged(draftFrom(item, 'cargo'), item)).toBe(false);
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'x' } } });
-    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents', { declarationNumber: 'TK000' }), locked)).toBe(false);
+    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents'), locked)).toBe(false);
   });
 
   it('resends issuedAt/scope/note verbatim and nulls an emptied number', () => {
-    const draft = draftFrom(makeItem(), 'documents', { declarationNumber: '   ' });
-    expect(buildQuickEditDeclarationBody(draft)).toEqual({
-      declarationNumber: null,
-      // Card _5: the body always states the channel — null = cleared, never
-      // an accidental keep.
-      channel: null,
-      issuedAt: '2026-08-31T02:00:00.000Z',
-      scope: 'IMPORT',
-      note: 'ghi-chu-to-khai',
-    });
+    const draft = draftFrom(makeItem(), 'documents');
+    draft.declarations[0].declarationNumber = '   ';
+    const diff = diffQuickEditDeclarations(draft, makeItem());
+    expect(diff.updates).toEqual([{
+      id: 11,
+      body: {
+        declarationNumber: null,
+        // Card _5: the body always states the channel — null = cleared, never
+        // an accidental keep.
+        channel: null,
+        issuedAt: '2026-08-31T02:00:00.000Z',
+        scope: 'SINGLE',
+        note: 'ghi-chu-to-khai',
+      },
+    }]);
+    expect(diff.deletes).toEqual([]);
+    expect(diff.creates).toEqual([]);
   });
 });
 
-describe('declaration channel (card _5)', () => {
-  it('seeds the draft with the row channel', () => {
-    const channeled = makeItem({ raw: { declarationChannel: 'YELLOW' } });
-    expect(draftFrom(channeled, 'documents').declarationChannel).toBe('YELLOW');
-    expect(draftFrom(makeItem(), 'documents').declarationChannel).toBe('');
+describe('declaration channel (card _5, row-level)', () => {
+  it('seeds each draft row with its stored channel', () => {
+    const channeled = makeItem({ raw: { declarations: [{ id: 11, declarationNumber: 'TK789', channel: 'YELLOW', issuedAt: null, scope: 'SINGLE', note: null }] } });
+    expect(draftFrom(channeled, 'documents').declarations[0].declarationChannel).toBe('YELLOW');
+    expect(draftFrom(makeItem(), 'documents').declarations[0].declarationChannel).toBe('');
   });
 
-  it('fires the declaration save for a channel-only change', () => {
+  it('fires the declaration save for a channel-only change on an existing row', () => {
     const base = makeItem();
-    expect(quickEditDeclarationChanged(draftFrom(base, 'documents', { declarationChannel: 'RED' }), base)).toBe(true);
-    expect(isQuickEditUnchanged(draftFrom(base, 'documents', { declarationChannel: 'RED' }), base)).toBe(false);
-    // Same channel (both unset) stays unchanged — the PUT never fires.
+    const red = draftFrom(base, 'documents');
+    red.declarations[0].declarationChannel = 'RED';
+    expect(quickEditDeclarationChanged(red, base)).toBe(true);
+    expect(isQuickEditUnchanged(red, base)).toBe(false);
+    // Untouched rows stay unchanged — the PUT never fires.
     expect(isQuickEditUnchanged(draftFrom(base, 'documents'), base)).toBe(true);
   });
 
-  it('carries the channel in the upsert body, unset as null', () => {
+  it('carries the channel in the update body, unset as null', () => {
     const base = makeItem();
-    expect(buildQuickEditDeclarationBody(draftFrom(base, 'documents', { declarationChannel: 'GREEN' })).channel).toBe('GREEN');
-    expect(buildQuickEditDeclarationBody(draftFrom(base, 'documents')).channel).toBeNull();
+    const green = draftFrom(base, 'documents');
+    green.declarations[0].declarationChannel = 'GREEN';
+    const diff = diffQuickEditDeclarations(green, base);
+    expect(diff.updates).toHaveLength(1);
+    expect(diff.updates[0].body.channel).toBe('GREEN');
+    expect(diffQuickEditDeclarations(draftFrom(base, 'documents'), base).updates[0]?.body.channel ?? null).toBeNull();
   });
 
   it('keeps a READ_ONLY declaration number gating the channel too', () => {
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
-    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents', { declarationChannel: 'RED' }), locked)).toBe(false);
+    const red = draftFrom(locked, 'documents');
+    red.declarations[0].declarationChannel = 'RED';
+    expect(quickEditDeclarationChanged(red, locked)).toBe(false);
+  });
+});
+
+describe('multi-row diff (card 20260921_3)', () => {
+  it('creates a POST only for a new row carrying a number or channel', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations.push({ id: null, declarationNumber: 'TK-2', declarationChannel: 'YELLOW', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    draft.declarations.push({ id: null, declarationNumber: '', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.creates).toEqual([{
+      declarationNumber: 'TK-2',
+      channel: 'YELLOW',
+      issuedAt: null,
+      scope: undefined,
+      note: null,
+    }]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.deletes).toEqual([]);
+  });
+
+  it('deletes stored rows removed in the draft, after updates and before creates semantically', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations = [];
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.deletes).toEqual([11]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
+  });
+
+  it('ignores stale ids for writes but still deletes seed rows absent from the draft', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations = [{ id: 999, declarationNumber: 'GHOST', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    const diff = diffQuickEditDeclarations(draft, item);
+    // Ghost 999 produces no write; seed row 11 was removed in the modal, so
+    // it deletes. A row ADDED concurrently (never seeded) can never delete.
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
+    expect(diff.deletes).toEqual([11]);
+  });
+
+  it('never deletes a declaration added concurrently after the modal opened', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    item.raw = { ...item.raw, declarations: [...(item.raw.declarations ?? []), { id: 12, declarationNumber: 'TK-CONCURRENT', channel: null, issuedAt: null, scope: 'SINGLE', note: null }] };
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.deletes).toEqual([]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
   });
 });

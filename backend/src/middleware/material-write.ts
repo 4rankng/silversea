@@ -263,6 +263,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DOCUMENT_REPLACE, pattern: /^\/api\/shipments\/[^/]+\/documents\/[^/]+\/replace$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_CREATE, pattern: /^\/api\/shipments\/[^/]+\/declarations$/ },
   { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_UPDATE, pattern: /^\/api\/shipments\/[^/]+\/declarations\/[^/]+$/ },
+  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_DELETE, pattern: /^\/api\/shipments\/[^/]+\/declarations\/[^/]+$/ },
   { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CONTAINERS_RECONCILE, pattern: /^\/api\/shipments\/[^/]+\/containers$/ },
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE, pattern: /^\/api\/shipments\/[^/]+$/ },
   { method: 'POST', endpoint: 'portal.shipments.customer-events.acknowledge', pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/acknowledge$/ },
