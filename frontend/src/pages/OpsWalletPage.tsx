@@ -10,6 +10,7 @@ import { formatVnd } from '../features/ops/opsStatus';
 import './OpsWalletPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
+import { formatDate } from '../lib/format';
 
 const ADVANCE_STATUS_COLORS: Record<string, string> = {
   DRAFT: 'var(--ink-muted)', RECORDED: 'var(--ok, #16a34a)', VOIDED: 'var(--err, #dc2626)',
@@ -87,7 +88,7 @@ export default function OpsWalletPage() {
               <tbody>
                 {advanceItems.map((row) => (
                   <tr key={row.id} className={`ops-wallet__row ops-wallet__row--advance${row.status === 'DRAFT' ? ' ops-wallet__row--draft' : ''}`}>
-                    <td data-label="Ngày">{new Date(row.createdAt).toLocaleDateString('vi-VN')}</td>
+                    <td data-label="Ngày">{formatDate(row.createdAt)}</td>
                     <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
                     <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
                     <td className="ops-wallet__advance-status" data-label="Trạng thái">

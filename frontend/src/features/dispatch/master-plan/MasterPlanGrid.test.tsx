@@ -204,13 +204,13 @@ describe('MasterPlanGrid', () => {
     // The API carries a Vietnam business date and the formatter fixes the
     // time to ICT, so this remains stable in a UTC CI runner and in a browser
     // opened from another timezone.
-    // Each container appointment is a two-row block: "HH:mm d/m/yyyy" leads
-    // and the "factory · containers" line indents beneath it.
-    expect(screen.getByText('11:00 24/8/2026')).toBeTruthy();
-    expect(screen.getByText('11:00 25/8/2026')).toBeTruthy();
+    // Each container appointment is a two-row block: the canonical padded
+    // "HH:mm DD/MM/YYYY" leads and "factory · containers" indents beneath.
+    expect(screen.getByText('11:00 24/08/2026')).toBeTruthy();
+    expect(screen.getByText('11:00 25/08/2026')).toBeTruthy();
     expect(screen.getAllByText('Sunrise · 1 x 40DC')).toHaveLength(2);
     // The "Giờ:" label is gone; only the HH:mm value leads each block.
-    const scheduleCell = screen.getByText('11:00 24/8/2026').closest('td');
+    const scheduleCell = screen.getByText('11:00 24/08/2026').closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
     expect(within(scheduleCell!).getAllByText('Sunrise · 1 x 40DC').length).toBe(2);
@@ -224,11 +224,11 @@ describe('MasterPlanGrid', () => {
       plannedReturnAt: null,
     });
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
-    // Host-TZ-independent: the seed 08:00 UTC maps to 8H, 15H (ICT), or 16H
-    // in the repository's Asia/Singapore agent environment.
-    const cell = screen.getByText('20/08/2026').closest('td');
-    const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
-    expect(hourLine.textContent).toMatch(/^(8H|15H|16H)$/);
+    // Host-TZ-independent: 08:00 UTC is 15:00 on the Vietnam calendar. The
+    // cell shows the delivery date line plus the full canonical instant —
+    // no hour-only fragments.
+    expect(screen.getByText('20/08/2026')).toBeTruthy();
+    expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
   });
 
   it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {

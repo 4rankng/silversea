@@ -13,6 +13,7 @@ import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { formatDate } from '../../lib/format';
 /**
  * "Chi phí Ops" tab in the advance workspace (OpsVanHanh §5.4): accounting
  * reviews field cash expenses (photos first) and closes settlement batches.
@@ -102,7 +103,7 @@ export function OpsAccountantTab() {
                 <tr key={item.id}>
                   <td className="ops-money">{item.code}</td>
                   <td>{item.opsUserName ?? item.opsUserId}</td>
-                  <td>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td>{formatDate(item.createdAt)}</td>
                   <td className="ops-money">{formatVnd(item.totalAmount)}</td>
                   <td className="ops-row-actions">
                     <button type="button" className="btn-secondary" onClick={() => setSheetFor(item.id)}>Xem</button>

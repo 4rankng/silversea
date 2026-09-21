@@ -7,6 +7,7 @@ import { NumberField } from '../../design-system/forms/NumberField';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { formatDate } from '../../lib/format';
 /** Records a request only; the wallet changes when an actual funded advance is recorded. */
 export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
   const createAdvance = useCreateOpsAdvanceRequest();
@@ -47,7 +48,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
               min={1} max={999_999_999_999_999} step={1} required error={amountError} disabled={createAdvance.isPending} />
             <label>
               Ngày
-              <input readOnly value={new Date().toLocaleDateString('vi-VN')} />
+              <input readOnly value={formatDate(new Date().toISOString())} />
             </label>
           </div>
           <label className="ops-form-note">

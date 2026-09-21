@@ -9,6 +9,7 @@ import { useCustomerPortalScope } from './CustomerPortalScope';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
+import { formatDate } from '../../lib/format';
 
 function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf', customerId?: number | null) {
   const query = new URLSearchParams();
@@ -207,7 +208,7 @@ export default function PortalStatementPage() {
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.id}>
-                          <td data-label="Ngày">{new Date(row.timestamp).toLocaleDateString('vi-VN')}</td>
+                          <td data-label="Ngày">{formatDate(row.timestamp)}</td>
                           <td data-label="Nội dung">{row.note || row.tripCode || row.txnType}</td>
                           <td data-label="Ghi nợ" className="portal-table__number">{Number(row.debit ?? 0).toLocaleString('vi-VN')} ₫</td>
                           <td data-label="Thanh toán" className="portal-table__number">{Number(row.credit ?? 0).toLocaleString('vi-VN')} ₫</td>

@@ -8,7 +8,7 @@ import {
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
-import { formatISODate } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate } from '../../../lib/format';
 import {
   isNoteLong,
   MasterPlanNoteModal,
@@ -29,31 +29,23 @@ interface MasterPlanGridProps {
   onUpdateNotes?: OperationalNoteSave;
 }
 
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
-}
-
-/** Time-of-day line for col 1 — derived from the cutoff timestamp when present. */
-function formatHour(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return '—';
-  return `${new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hour12: false }).format(date)}H`;
-}
-
-/** Schedule blocks: one per container appointment — the ICT "HH:mm d/m/yyyy"
- *  row leads and the "factory · containers" line indents beneath it. No
- *  per-container appointments → lot-level date + hour fallback. */
+/** Schedule blocks: one per container appointment — the ICT line leads in the
+ *  canonical padded shape and the "factory · containers" line indents beneath
+ *  it. No per-container appointments → ONE canonical lot-level datetime line
+ *  (card 20260921_23: no more dateless "15H" fragments). */
 type ScheduleBlock = { head: string | null; sub: string | null };
 
 function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
   if (!item.appointmentGroups?.length) {
-    const hour = formatHour(item.plannedReturnAt ?? item.closingAt);
+    // Lot-level fallback: the delivery date plus the close/return instant —
+    // both in canonical shapes, never an hour-only fragment (card 20260921_23).
+    const fallbackInstant = item.plannedReturnAt ?? item.closingAt;
+    const instantLine = fallbackInstant ? formatDateTimeShort(fallbackInstant) : null;
     const dateLine = item.expectedDeliveryDate ? formatISODate(item.expectedDeliveryDate) : null;
-    return dateLine || hour !== '—' ? [{ head: dateLine, sub: hour !== '—' ? hour : null }] : [];
+    const blocks: ScheduleBlock[] = [];
+    if (dateLine) blocks.push({ head: dateLine, sub: null });
+    if (instantLine && instantLine !== '—') blocks.push({ head: instantLine, sub: null });
+    return blocks;
   }
   const groups = scheduleDate
     ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
@@ -279,7 +271,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   )}
                   {item.customsCutoffAt && (
                     <div className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
-                      Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
+                      Hạn hoàn tất hải quan: {formatDateTimeShort(item.customsCutoffAt)}
                     </div>
                   )}
                 </td>

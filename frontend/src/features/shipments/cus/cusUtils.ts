@@ -12,7 +12,7 @@ import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
-import { formatDateTimeShort } from '../../../lib/format';
+import { formatISODate, formatDateTimeShort } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
@@ -70,10 +70,11 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 }
 
 /**
- * One display line per per-container appointment group:
- * "09:00 25/08/2026 · Sunrise · 1x40HC" — the time, date, effective factory
- * (SILVER L1), and container-type mix of every container sharing that
- * (local date, factory) group in the lot.
+ * One display line per per-container appointment group, in the canonical
+ * datetime shape (card 20260921_23): "09:00 25/08/2026 · Sunrise · 1x40HC" —
+ * padded time-first 24h + padded date, the effective factory (SILVER L1),
+ * and container-type mix of every container sharing that (local date,
+ * factory) group in the lot.
  */
 export function formatAppointmentGroupLine(at: string, localDate?: string): string {
   const date = new Date(at);
@@ -87,8 +88,8 @@ export function formatAppointmentGroupLine(at: string, localDate?: string): stri
   const time = `${vietnamParts.find((part) => part.type === 'hour')?.value ?? '—'}:${vietnamParts.find((part) => part.type === 'minute')?.value ?? '—'}`;
   const [year, month, day] = (localDate ?? '').split('-');
   const formattedLocalDate = year && month && day
-    ? `${Number(day)}/${Number(month)}/${year}`
-    : new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+    ? `${day}/${month}/${year}`
+    : formatISODate(at);
   return `${time} ${formattedLocalDate}`;
 }
 

@@ -19,6 +19,7 @@ import {
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
 import { buildIdempotencyKey } from '../../lib/idempotency';
+import { formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
 
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
@@ -51,15 +52,6 @@ function endpointFor(role: Role, customerId: number | null | undefined, state: t
   if (role === 'operations') return `/forwarder/me/work-inbox?${query}`;
   if (role === 'driver') return `/driver/me/work-inbox?${query}`;
   return withCustomerScope(`/portal/work-inbox?${query}`, customerId ?? null);
-}
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function statusLabel(item: WorkInboxItemBase) {
@@ -414,7 +406,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                           : item.advisories.length > 0 ? <span className="role-work-inbox__advisory">{item.advisories[0].label}</span>
                             : <span className="role-work-inbox__muted">Không có</span>}
                       </td>
-                      <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatTime(item.freshnessAt)}</time></td>
+                      <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatDateTimeShort(item.freshnessAt)}</time></td>
                       <td data-label="Hành động" className="role-work-inbox__action">
                         {orderExchangeAction && operationsItem ? (
                           <button type="button" className="role-work-inbox__button is-primary" disabled={respondingItemId === item.id} onClick={() => void sendOrderExchange(operationsItem)}>{operationsItem.orderExchangeState === 'PENDING' ? 'Bắt đầu đổi lệnh' : 'Xác nhận đã đổi lệnh'}</button>

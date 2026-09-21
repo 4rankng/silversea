@@ -51,31 +51,43 @@ export function moneyParts(amount: number, compact: boolean): MoneyParts {
   return { num: fmt(amount), unit: '₫', format: fmt };
 }
 
+/** THE canonical table-cell date (card 20260921_23): "DD/MM/YYYY" padded,
+ * Vietnam wall-clock. Replaces the unpadded vi-VN locale output ("20/9/2026")
+ * so date-only cells match the datetime contract everywhere. */
 export function formatDate(d: string | null): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return '—';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')}/${get('year')}`;
 }
 
 /**
- * Compact date-time for table cells, TIME FIRST on a 24h clock:
- * "HH:mm d/M/yy" e.g. "17:30 19/8/26" (combined date+time display contract,
- * frontend/docs/design-system.md). Pinned to Vietnam wall-clock
- * (Asia/Ho_Chi_Minh) on ANY host, and built from formatToParts so the
- * time-first order is explicit — toLocaleString order varies by engine
- * (Node renders vi-VN time-first; Chrome renders date-first), which a hard
- * format requirement cannot depend on. Invalid input renders as "—" (the raw
- * string is never echoed back).
+ * THE canonical table-cell datetime (card 20260921_23): "HH:mm DD/MM/YYYY"
+ * — time-first 24h, leading zeros, 4-digit year, pinned to Vietnam
+ * wall-clock (Asia/Ho_Chi_Minh) on ANY host. Supersedes the compact d/M/yy
+ * shape of the 2026-09-09 contract (frontend/docs/design-system.md): the
+ * operator's 2026-09-21 report showed d/M/yy reading as ambiguous across
+ * screens. Built from formatToParts so the order is explicit — locale order
+ * varies by engine. Invalid input renders as "—" (the raw string is never
+ * echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
   // Naive draft values ("YYYY-MM-DDTHH:mm" — the editor draft wire shape,
   // Vietnam wall-clock by convention: localDateTimeToIso appends +07:00 when
   // persisting) must not ride the host timezone: a GMT+8 host parses them as
-  // local and shows 13:30 as 12:30. Render by string surgery, same compact
+  // local and shows 13:30 as 12:30. Render by string surgery, same canonical
   // shape — host-independent like the instant path below.
   if (!/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
     const draft = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-    if (draft) return `${draft[4]}:${draft[5]} ${Number(draft[3])}/${Number(draft[2])}/${draft[1].slice(2)}`;
+    if (draft) return `${draft[4]}:${draft[5]} ${draft[3]}/${draft[2]}/${draft[1]}`;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
@@ -84,14 +96,12 @@ export function formatDateTimeShort(value: string | null | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    day: 'numeric',
-    month: 'numeric',
-    year: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
-  // Number() strips the engine's leading zeros ("08" → 8) so the compact
-  // d/M/yy shape is deterministic across Node and browsers.
-  return `${get('hour')}:${get('minute')} ${Number(get('day'))}/${Number(get('month'))}/${get('year')}`;
+  return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`;
 }
 
 /**

@@ -14,6 +14,7 @@ import { formatVnd } from './opsStatus';
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
+import { formatDate } from '../../lib/format';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   DRAFT: { label: 'Bản nháp cần hoàn tất', color: 'var(--warn, #d97706)' },
   RECORDED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },
@@ -75,7 +76,7 @@ export function OpsSettlementsPanel() {
               return (
                 <tr key={item.id} className="ops-wallet__row">
                   <td className="ops-money" data-label="Mã phiếu">{item.code}</td>
-                  <td data-label="Ngày lập">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td data-label="Ngày lập">{formatDate(item.createdAt)}</td>
                   <td className="ops-money" data-label="Tổng">{formatVnd(item.totalAmount)}</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="ops-row-actions ops-wallet__wide">
@@ -145,7 +146,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
   return (
     <div className="ops-settlement-sheet">
       <h3>PHIẾU QUYẾT TOÁN {meta.code}</h3>
-      <p>Người lập: {meta.opsName ?? '—'} · Ngày: {new Date(meta.createdAt).toLocaleDateString('vi-VN')}</p>
+      <p>Người lập: {meta.opsName ?? '—'} · Ngày: {formatDate(meta.createdAt)}</p>
       {meta.note && <p>Ghi chú: {meta.note}</p>}
       {grouping.groups.map((group) => (
         <section key={group.shipmentId}>
