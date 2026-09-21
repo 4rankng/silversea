@@ -15,6 +15,7 @@ import { createExpenseReconciliation, recordFundedOpsAdvance, refundExpenseRecon
 import { getExpenseReconciliation, getExpenseVoucher, listExpenseReconciliations, listExpenseVouchers } from '../services/expense-accounting-reads.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
+import { listFundBook } from '../services/treasury-fund-book.service';
 
 const router = Router();
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -38,6 +39,13 @@ router.post('/reconciliations/:id/release', asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result.result);
 }));
 router.get('/vouchers', asyncHandler(async (req, res) => res.json({ items: await listExpenseVouchers(getUser(req)) })));
+// Card 20260921_9 phase 1 — the per-source sổ quỹ: finance-only read of one
+// fund source's append-only book (COMPANY = TK công ty ACB | TM = Tiền mặt).
+router.get('/fund-book', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const source = parse(z.enum(['COMPANY', 'TM']), req.query.source);
+  res.json(await listFundBook(source));
+}));
 router.post('/vouchers', asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);
   const command = await prepareExpenseCashCommand(actor, input);
