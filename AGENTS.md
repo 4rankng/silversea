@@ -84,7 +84,7 @@ A task is done **only when all** are true:
 
 ## UI verification contract (anti-lying rule)
 
-Applies to every bug fix or feature with a user-visible surface, in local dev (`http://localhost:7174`) or staging (`https://vantai.tingting.vip/`).
+Applies to every bug fix or feature with a user-visible surface, in local dev (`http://localhost:7175`) or staging (`https://vantai.tingting.vip/`).
 
 ### The claim ladder — never skip a rung, always state which rung you are on
 
@@ -166,9 +166,9 @@ Structured knowledge graph in `.ua/` — committed to git, shared across agents.
 
 - **Backend architecture:** [`docs/backend-architecture.md`](docs/backend-architecture.md) — layering rules, naming, god-file split, add-an-entity path; enforced by `backend/src/tests/unit/arch-layering.test.ts`.
 - **Context engineering:** [`docs/context-engineering/playbook.md`](docs/context-engineering/playbook.md)
-- Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3001` · Frontend `:7174` · Adminer `:8083`
+- Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3002` · Frontend `:7175` · Adminer `:8083`
 - First-time setup: `make setup`
-- Backend health: http://localhost:3001/api/health
+- Backend health: http://localhost:3002/api/health
 - Drizzle ORM only — **no raw SQL**. Financial precision via `round2dp()` / `computeTripTotals()`.
 
 ## Accounts & credentials

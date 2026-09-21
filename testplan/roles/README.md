@@ -41,11 +41,11 @@ identical so duplicating it gains nothing.
 
 | Environment | URL                          | Backend                       | When to use                          |
 |-------------|------------------------------|-------------------------------|--------------------------------------|
-| local dev   | http://localhost:7174        | http://localhost:3001         | Per-PR QA, fix-loop, e2e screenshot runs |
+| local dev   | http://localhost:7175        | http://localhost:3002         | Per-PR QA, fix-loop, e2e screenshot runs |
 | staging     | https://vantai.tingting.vip  | (same droplet)                | Final acceptance, regression sweep   |
 
-`make dev` brings up Postgres (`:5441`), Redis (`:6391`), backend (`:3001`),
-frontend (`:7174`) and Adminer (`:8083`). First-run: `make setup`.
+`make dev` brings up Postgres (`:5441`), Redis (`:6391`), backend (`:3002`),
+frontend (`:7175`) and Adminer (`:8083`). First-run: `make setup`.
 
 ## 3. Accounts and credentials
 

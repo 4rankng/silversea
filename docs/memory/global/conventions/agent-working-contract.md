@@ -104,8 +104,8 @@ Structured knowledge graph in `.ua/`, committed to git. Keep current — part of
 
 ## Dev quick reference
 
-- Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3001` · Frontend `:7174` · Adminer `:8083`. First-time: `make setup`. Backend health: `http://localhost:3001/api/health`.
-- Demo/local accounts (password `Abc123`): admin(ADMIN), giamdoc(MANAGER), cus(CLERK), ketoan(ACCOUNTANT), laixe(DRIVER), giaonhan(FORWARDER), thu/pho/quyet(DRIVER). Local: http://localhost:7174.
+- Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3002` · Frontend `:7175` · Adminer `:8083`. First-time: `make setup`. Backend health: `http://localhost:3002/api/health`.
+- Demo/local accounts (password `Abc123`): admin(ADMIN), giamdoc(MANAGER), cus(CLERK), ketoan(ACCOUNTANT), laixe(DRIVER), giaonhan(FORWARDER), thu/pho/quyet(DRIVER). Local: http://localhost:7175.
 - Staging accounts (password `Abc123`): admin, giamdoc, ketoan, laixe, giaonhan(FORWARDER), khachhang(CUSTOMER). Staging: https://vantai.tingting.vip/.
 - Deploy mechanics + prod rules: [[testing-and-deploy-environments]].
 

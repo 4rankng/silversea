@@ -7,24 +7,30 @@
 # never leak into staging logins.
 
 local:
-  baseUrl: http://localhost:7174
-  api: http://localhost:3001/api
+  baseUrl: http://localhost:7175
+  api: http://localhost:3002/api
   password: Abc123
-  # Local dev is a mirror of staging (`make stgdb`). Same users, same roles,
-  # same passwords. The demo seed accounts (giamdoc, cus, dieuvan, etc.) are
-  # only available after running `make seed` — they do NOT exist by default
-  # after a staging sync.
+  # This checkout's real port contract lives in the Makefile (compose target
+  # dev): frontend :7175 · backend :3002. Local dev DB has TWO modes — role
+  # lists below are ordered so the first entry(s) match the CURRENT default
+  # (dev-seed), and the QA harness/smoke walk the list when a login misses:
+  #   (a) dev-seed (default after `make dev` + `make seed`): the 13 demo
+  #       users from backend/src/seed.ts (see demoUsers section below).
+  #   (b) `make stgdb` (prod-mirror): the named staff (Mã NV in parens).
+  #       Re-run the Abc123 password reset after every sync (rule at top).
   users:
     ADMIN:       admin, phuongnt (NV001), namnv (NV002)
-    ACCOUNTANT:  hoapt (NV009), liennt (NV010), lydp (NV011),
+    MANAGER:     giamdoc
+    ACCOUNTANT:  ketoan, hoapt (NV009), liennt (NV010), lydp (NV011),
                  vanntt (NV012), myvtt (NV013), ngocntm (NV014)
-    CUS:         thanhdc (NV018), tiepvv (NV019), anhdtv (NV020),
+    CUS:         cus, thanhdc (NV018), tiepvv (NV019), anhdtv (NV020),
                  huyenntt (NV021), anhntn (NV022)
-    DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
-    OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
+    DISPATCHER:  dieuvan, dungnv (NV015), bacdk (NV016), huongnt (NV017)
+    OPS:         giaonhan, hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
-    DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
-                 (no Mã NV); every one logs in with username + Abc123
+    DRIVER:      laixe, thu, pho, quyet, bqhuong, btdung, vvtrung, tvtham
+                 (the four dev-seed drivers exist only on dev-seed; the rest
+                 are from the 38 named staging drivers — no Mã NV)
 
 staging:
   baseUrl: https://vantai.tingting.vip

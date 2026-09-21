@@ -111,8 +111,8 @@ status index, architecture docs, or an accepted plan.
 
 ## Development endpoints
 
-- Frontend: `http://localhost:7174`
-- Backend health: `http://localhost:3001/api/health`
+- Frontend: `http://localhost:7175`
+- Backend health: `http://localhost:3002/api/health`
 - Postgres: `localhost:5441`
 - Redis: `localhost:6391`
 - Adminer: `http://localhost:8083`

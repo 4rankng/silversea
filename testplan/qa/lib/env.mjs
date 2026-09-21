@@ -34,8 +34,13 @@ export function parseAccountsTxt(txt) {
 }
 
 export async function loadEnv() {
-  const baseUrl = process.env.STAGING_URL || process.env.BASE_URL || 'http://localhost:7174';
-  const api = process.env.STAGING_API || process.env.API_URL || `${baseUrl.replace(/\/$/, '')}/api`;
+  const baseUrl = process.env.STAGING_URL || process.env.BASE_URL || 'http://localhost:7175';
+  // With no URL overrides, the local default follows the Makefile contract:
+  // frontend :7175, backend :3002 (two ports, unlike staging's single origin).
+  const api = process.env.STAGING_API || process.env.API_URL
+    || (process.env.STAGING_URL || process.env.BASE_URL
+      ? `${baseUrl.replace(/\/$/, '')}/api`
+      : 'http://localhost:3002/api');
   const password = process.env.PASSWORD || 'Abc123';
 
   let accounts = { local: {}, staging: {} };
@@ -58,6 +63,13 @@ export async function loadEnv() {
     userFor(role) {
       const list = accounts[env]?.[role];
       return list?.[0] || null;
+    },
+    // Ordered candidates for a role. The local DB has two modes — dev-seed
+    // (demo users) or `make stgdb` (prod-mirror) — so no single first entry
+    // is always present. Callers that can probe a login (smoke.mjs,
+    // harness createSession) walk this list; userFor stays the first one.
+    candidatesFor(role) {
+      return accounts[env]?.[role] ?? [];
     },
   };
 }

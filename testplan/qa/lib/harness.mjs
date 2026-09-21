@@ -36,19 +36,33 @@ async function shot(page, evidenceDir, name) {
  * pre-injected into localStorage (puppeteer-spa-auth pattern).
  */
 export async function createSession({ env, role, evidenceDir, runId }) {
-  const username = process.env[`QA_USER_${role}`] || env.accounts[env.env]?.[role]?.[0];
-  if (!username) {
+  // Resolve the login by walking the role's candidate list: the local DB may
+  // be in either mode (dev-seed demo users or make stgdb prod-mirror), so the
+  // first testaccounts entry is not always present. QA_USER_<ROLE> override
+  // still wins and is tried alone.
+  const override = process.env[`QA_USER_${role}`];
+  const candidates = override ? [override] : env.candidatesFor(role).filter((u) => /^[a-z][a-z0-9-]+$/i.test(u));
+  if (candidates.length === 0) {
     throw new Error(`no username for role ${role} in env ${env.env}; check testplan/testaccounts.txt`);
   }
 
   // Get token via API (fast, no DOM interaction)
-  const r = await fetch(`${env.api}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: username, password: env.password }),
-  });
-  if (!r.ok) throw new Error(`login ${username} failed: ${r.status} ${await r.text()}`);
-  const { token, user } = await r.json();
+  let token; let user; let username = null;
+  for (const candidate of candidates) {
+    const r = await fetch(`${env.api}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: candidate, password: env.password }),
+    });
+    if (r.ok) {
+      ({ token, user } = await r.json());
+      username = candidate;
+      break;
+    }
+  }
+  if (!username) {
+    throw new Error(`login for role ${role} failed: all ${candidates.length} candidate(s) refused (${candidates.join(', ')})`);
+  }
 
   const browser = await puppeteer.launch({
     headless: 'shell',
