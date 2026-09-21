@@ -119,6 +119,27 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(row.querySelector('.ops-orders__expense')).toHaveTextContent('Khai chi phí');
   });
 
+  it('labels the pin button with a business key when the lot has no shipment code', async () => {
+    const data = makeItems();
+    // Bulk lots carry shipment_code = null; Bill/Booking is the business key
+    // the row itself displays, so the pin must speak in the same identity.
+    data.items[0].shipmentCode = null;
+    data.items[1].shipmentCode = null;
+    data.items[1].billRef = null;
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) return Promise.resolve(data);
+      if (url.startsWith('/ops/expense-types')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+
+    const codedRow = (await screen.findByText('BL-001')).closest('tr')!;
+    expect(codedRow.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim BL-001');
+    // Both keys absent: the label still names its object, never ends bare.
+    const orphanRow = (await screen.findByText('Khách B')).closest('tr')!;
+    expect(orphanRow.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim lô');
+  });
+
   it('keeps the narrow records flat and removes the forced horizontal table floor', () => {
     expect(pageStyles).not.toMatch(/min-width:\s*960px/);
     expect(pageStyles).toContain('@container (max-width: 900px)');

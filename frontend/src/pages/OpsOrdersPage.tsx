@@ -100,6 +100,9 @@ export default function OpsOrdersPage() {
           <tbody>
             {items.map((order) => {
               const status = shipmentStatusText(order.status);
+              // A11y identity for the pin: shipment code when present, the row's
+              // Bill/Booking business key otherwise — the label never ends bare.
+              const pinKey = order.shipmentCode ?? order.billRef ?? 'lô';
               return (
                 <tr key={order.id} className={`ops-orders__row${order.pinned ? ' is-pinned' : ''}`}>
                   <td className="col-pin">
@@ -108,7 +111,7 @@ export default function OpsOrdersPage() {
                       className={`ops-pin${order.pinned ? ' is-on' : ''}`}
                       onClick={() => handleTogglePin(order)}
                       aria-pressed={order.pinned}
-                      aria-label={order.pinned ? `Bỏ ghim ${order.shipmentCode ?? ''}` : `Ghim ${order.shipmentCode ?? ''}`}
+                      aria-label={order.pinned ? `Bỏ ghim ${pinKey}` : `Ghim ${pinKey}`}
                     >
                       {order.pinned ? <Pin size={15} /> : <PinOff size={15} />}
                     </button>
