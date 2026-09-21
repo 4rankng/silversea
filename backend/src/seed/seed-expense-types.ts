@@ -9,6 +9,16 @@ import {
 import { expenseTypeSeedPolicy } from '../expense-type-seed-policy';
 import { normalizeSeedText } from './seed-identity';
 
+/** Card 20260922 QA data ruling — display-label disambiguation only (codes
+ *  are identifiers and stay put): the customer's table lists Lưu bãi under
+ *  BOTH the Nâng and Hạ families, so the two rows get distinct labels. The
+ *  normalization fires only when the live name differs (idempotent) and is
+ *  the sanctioned exception to fill-only for these two labels. */
+const RULED_LABELS: Readonly<Record<string, string>> = {
+  YARD_STORAGE_LIFT: 'Lưu bãi (lúc nâng)',
+  YARD_STORAGE: 'Lưu bãi (lúc hạ)',
+};
+
 /** Card 20260922_1 — the fill-only forwarder expense-type catalog seed,
  *  extracted verbatim from the demo seed so a CUT can run it (the make-demo
  *  seed step) without demo data. FILLS, never overwrites: a missing code
@@ -18,12 +28,14 @@ import { normalizeSeedText } from './seed-identity';
  *  — are never written; soft-deleted rows stay deleted (an admin's deletion
  *  is admin data). QA's hand-seeded staging rows are recognized as existing
  *  by the normalized-code match. */
-export async function seedForwarderExpenseTypes(): Promise<{ inserted: number; backfilled: number }> {
+export async function seedForwarderExpenseTypes(): Promise<{ inserted: number; backfilled: number; normalized: number }> {
   let inserted = 0;
   let backfilled = 0;
+  let normalized = 0;
   const existing = await db.select({
     id: schema.forwarderExpenseTypes.id,
     code: schema.forwarderExpenseTypes.code,
+    name: schema.forwarderExpenseTypes.name,
     category: schema.forwarderExpenseTypes.category,
     deletedAt: schema.forwarderExpenseTypes.deletedAt,
   }).from(schema.forwarderExpenseTypes);
@@ -58,5 +70,14 @@ export async function seedForwarderExpenseTypes(): Promise<{ inserted: number; b
         .where(eq(schema.forwarderExpenseTypes.id, hit.id));
     }
   }
-  return { inserted, backfilled };
+  for (const [code, ruledLabel] of Object.entries(RULED_LABELS)) {
+    const hit = byCode.get(normalizeSeedText(code));
+    if (hit && hit.deletedAt == null && hit.name !== ruledLabel) {
+      await db.update(schema.forwarderExpenseTypes)
+        .set({ name: ruledLabel, updatedAt: new Date() })
+        .where(eq(schema.forwarderExpenseTypes.id, hit.id));
+      normalized += 1;
+    }
+  }
+  return { inserted, backfilled, normalized };
 }

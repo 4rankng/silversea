@@ -10,7 +10,7 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -50,6 +50,21 @@ describe('card 20260922_1 — cut seed rides fill-only', () => {
     assert.equal(afterEdit.requiresInvoice, true, 'invoice-required flag intact');
     await db.update(s.forwarderExpenseTypes).set({ name: captured.name })
       .where(eq(s.forwarderExpenseTypes.code, EDIT_TYPE_CODE));
+  });
+
+  test('ruled labels: Lưu bãi disambiguated per family, idempotent (QA ruling 2026-09-22)', async () => {
+    const run = await seedForwarderExpenseTypes();
+    assert.ok(run.normalized <= 2, 'at most the two ruled rows normalize per run');
+    const rows = await db.select({ code: s.forwarderExpenseTypes.code, name: s.forwarderExpenseTypes.name })
+      .from(s.forwarderExpenseTypes)
+      .where(inArray(s.forwarderExpenseTypes.code, ['YARD_STORAGE', 'YARD_STORAGE_LIFT']));
+    assert.equal(rows.length, 2);
+    for (const row of rows) {
+      const ruled = row.code === 'YARD_STORAGE' ? 'Lưu bãi (lúc hạ)' : 'Lưu bãi (lúc nâng)';
+      assert.equal(row.name, ruled, `${row.code} carries the ruled label`);
+    }
+    const rerun = await seedForwarderExpenseTypes();
+    assert.equal(rerun.normalized, 0, 'normalization is idempotent');
   });
 
   test('after one fill, every default catalog code and the full norms ladder exists', async () => {
