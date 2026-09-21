@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createPhoiPhieuVoucher, getPhoiPhieuReport, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, getPhoiPhieuReport, listPhoiPhieuRows, listPhoiPhieuStk, listPhoiPhieuTruckAssignments, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
@@ -25,8 +25,91 @@ interface Filters {
   dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
 }
 
+/** Card 20260921_8 — vehicle → kế toán phơi phiếu assignments: one vehicle
+ *  belongs to exactly one accountant; the unassigned bucket stays visible so
+ *  nothing is missed. Saves go through the version-guarded reassignment API. */
+function PhoiPhieuTruckAssignments() {
+  const queryClient = useQueryClient();
+  const boardQuery = useQuery({
+    queryKey: ['phoi-phieu-truck-assignments'],
+    queryFn: listPhoiPhieuTruckAssignments,
+  });
+  const [message, setMessage] = useState<string | null>(null);
+  const assignments = boardQuery.data?.assignments ?? [];
+  const unassigned = boardQuery.data?.unassignedTrucks ?? [];
+  const accountants = boardQuery.data?.accountants ?? [];
+
+  const saveMutation = useMutation({
+    mutationFn: (input: { truckId: number; accountantId: number | null; expectedVersion: number }) =>
+      assignPhoiPhieuTruckAccountant(input.truckId, { accountantId: input.accountantId, expectedVersion: input.expectedVersion }),
+    onSuccess: () => {
+      setMessage(null);
+      void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-truck-assignments'] });
+    },
+    onError: (error: Error) => setMessage(error.message),
+  });
+
+  return (
+    <details style={{ margin: '16px 0' }}>
+      <summary style={{ cursor: 'pointer', fontSize: 'var(--text-body-size)' }}>Phân công xe cho kế toán phơi phiếu</summary>
+      {message && <p role="alert">{message}</p>}
+      <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)', margin: '8px 0' }}>
+        <caption>Xe đã phân công</caption>
+        <thead><tr><th>Biển số</th><th>Kế toán phụ trách</th><th aria-label="Lưu" /></tr></thead>
+        <tbody>
+          {assignments.map((row) => (
+            <AssignmentRow key={row.truckId} row={row} accountants={accountants} onSave={saveMutation.mutate} />
+          ))}
+          {assignments.length === 0 && <tr><td colSpan={3}>Chưa có xe nào được phân công.</td></tr>}
+        </tbody>
+      </table>
+      <p style={{ fontSize: 'var(--text-caption-size)' }}>
+        <strong>Xe chưa phân công:</strong>{' '}
+        {unassigned.length === 0
+          ? 'không còn'
+          : unassigned.map((truck) => truck.plate).join(', ')}
+      </p>
+    </details>
+  );
+}
+
+function AssignmentRow({ row, accountants, onSave }: {
+  row: { truckId: number; plate: string; accountantId: number | null; version: number };
+  accountants: Array<{ id: number; fullName: string | null }>;
+  onSave: (input: { truckId: number; accountantId: number | null; expectedVersion: number }) => void;
+}) {
+  const [picked, setPicked] = useState<string>(row.accountantId == null ? '' : String(row.accountantId));
+  return (
+    <tr>
+      <td>{row.plate}</td>
+      <td>
+        <select
+          aria-label={`Kế toán phụ trách ${row.plate}`}
+          value={picked}
+          onChange={(event) => setPicked(event.target.value)}
+          style={{ minWidth: 160 }}
+        >
+          <option value="">— Chưa gán —</option>
+          {accountants.map((accountant) => (
+            <option key={accountant.id} value={String(accountant.id)}>{accountant.fullName ?? `Kế toán #${accountant.id}`}</option>
+          ))}
+        </select>
+      </td>
+      <td>
+        <button
+          type="button"
+          onClick={() => onSave({ truckId: row.truckId, accountantId: picked === '' ? null : Number(picked), expectedVersion: row.version })}
+        >
+          Lưu
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 export default function PhoiPhieuControlPage() {
   const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped' });
+  const [reportScope, setReportScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
@@ -168,9 +251,24 @@ export default function PhoiPhieuControlPage() {
       )}
       <div style={{ margin: '16px 0' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo tháng</h2>
-        <PhoiPhieuReportTable kind="THU" dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
-        <PhoiPhieuReportTable kind="TRA" dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
+          <label style={{ fontSize: 'var(--text-caption-size)' }}>Phạm vi: </label>
+          <select
+            aria-label="Phạm vi báo cáo"
+            value={reportScope}
+            onChange={(event) => setReportScope(event.target.value as typeof reportScope)}
+            style={{ padding: '4px 8px' }}
+          >
+            <option value="">Mặc định (của tôi với kế toán)</option>
+            <option value="SELF">Của tôi</option>
+            <option value="ALL">Tất cả</option>
+            <option value="UNASSIGNED">Chưa gán</option>
+          </select>
+        </div>
+        <PhoiPhieuReportTable kind="THU" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
+        <PhoiPhieuReportTable kind="TRA" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
       </div>
+      <PhoiPhieuTruckAssignments />
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}

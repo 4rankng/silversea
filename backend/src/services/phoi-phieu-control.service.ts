@@ -668,6 +668,7 @@ export async function getPhoiPhieuReport(query: {
 export async function listPhoiPhieuTruckAssignments(): Promise<{
   assignments: Array<{ truckId: number; plate: string; accountantId: number | null; accountantName: string | null; version: number }>;
   unassignedTrucks: Array<{ truckId: number; plate: string }>;
+  accountants: Array<{ id: number; fullName: string | null }>;
 }> {
   const assignments = await db.select({
     truckId: s.truckAccountantAssignments.truckId,
@@ -691,5 +692,9 @@ export async function listPhoiPhieuTruckAssignments(): Promise<{
     : await db.select({ truckId: s.trucks.id, plate: s.trucks.licensePlate })
         .from(s.trucks)
         .where(eq(s.trucks.status, 'ACTIVE')).orderBy(asc(s.trucks.licensePlate));
-  return { assignments, unassignedTrucks };
+  const accountants = await db.select({ id: s.users.id, fullName: s.users.fullName })
+    .from(s.users)
+    .where(and(eq(s.users.role, 'ACCOUNTANT'), isNull(s.users.deletedAt)))
+    .orderBy(asc(s.users.fullName));
+  return { assignments, unassignedTrucks, accountants };
 }

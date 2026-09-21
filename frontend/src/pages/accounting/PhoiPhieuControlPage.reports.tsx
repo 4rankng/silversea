@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { getPhoiPhieuReport } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
 
-export function PhoiPhieuReportTable({ kind, dateFrom, dateTo }: {
+export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
   kind: 'THU' | 'TRA'; dateFrom: string; dateTo: string;
+  /** Card 20260921_8: omitted = server default (accountant → self). */
+  scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
 }) {
   const report = useQuery({
-    queryKey: ['phoi-phieu-report', kind, dateFrom, dateTo],
-    queryFn: () => getPhoiPhieuReport(kind, { dateFrom, dateTo }),
+    queryKey: ['phoi-phieu-report', kind, dateFrom, dateTo, scope],
+    queryFn: () => getPhoiPhieuReport(kind, { dateFrom, dateTo, scope }),
   });
   const rows = report.data?.rows ?? [];
   const grand = report.data?.grand;

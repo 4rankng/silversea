@@ -150,11 +150,37 @@ export interface PhoiPhieuReportRow {
 
 export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
   dateFrom?: string; dateTo?: string;
+  scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
 }): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
   const query = new URLSearchParams({ kind });
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
+  if (params.scope) query.set('scope', params.scope);
   return api.get(`/expense-accounting/phoi-phieu/report?${query.toString()}`);
+}
+
+// Card 20260921_8 — vehicle → kế toán assignment board data + reassignment.
+export interface PhoiPhieuTruckAssignment {
+  truckId: number;
+  plate: string;
+  accountantId: number | null;
+  accountantName: string | null;
+  version: number;
+}
+export interface PhoiPhieuTruckAssignmentBoard {
+  assignments: PhoiPhieuTruckAssignment[];
+  unassignedTrucks: Array<{ truckId: number; plate: string }>;
+  accountants: Array<{ id: number; fullName: string | null }>;
+}
+
+export async function listPhoiPhieuTruckAssignments(): Promise<PhoiPhieuTruckAssignmentBoard> {
+  return api.get('/expense-accounting/phoi-phieu/truck-assignments');
+}
+
+export async function assignPhoiPhieuTruckAccountant(truckId: number, body: {
+  accountantId: number | null; expectedVersion: number;
+}): Promise<unknown> {
+  return api.put(`/expense-accounting/phoi-phieu/trucks/${truckId}/accountant`, body);
 }
 
 export async function correctPhoiPhieuRow(tripId: number, sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
