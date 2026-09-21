@@ -26,6 +26,13 @@ export const debitDetailFreightRowSchema = z.object({
   contractFreightTotal: nullableMoney,
   psActual: nullableMoney,
   psActualNote: z.string().nullable(),
+  /** Card _62 — Bảng 2.3 per-container payables: Cước trả = the container's
+   *  trip carrier cost (trip_carrier_info.external_freight_cost), Phí Phát
+   *  sinh = the container's PHAT_SINH-categorized ops rows. Optional-nullable
+   *  per the file convention so producer/template upgrades land
+   *  independently; null = chưa xác định, never 0. */
+  payableFreight: nullableMoney.optional(),
+  phatSinhFee: nullableMoney.optional(),
   /** Card 20260919_35 — labels frozen at lock time, resolved from the
    *  snapshot; null = unlocked lot or old lock (render falls back live). */
   liftSiteLabel: z.string().nullable().optional(),

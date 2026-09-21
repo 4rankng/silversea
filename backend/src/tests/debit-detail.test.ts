@@ -405,6 +405,11 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       name: 'Phí hải quan ACC',
       category: 'HQGS',
     }).returning({ id: s.forwarderExpenseTypes.id });
+    const [phatSinhType] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `ACC-PS-${suffix}`,
+      name: 'Phí phát sinh ACC',
+      category: 'PHAT_SINH',
+    }).returning({ id: s.forwarderExpenseTypes.id });
     const [opsRow] = await db.insert(s.opsExpenseEntries).values({
       shipmentId: shipment.id,
       shipmentContainerId: container.id,
@@ -413,6 +418,18 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       paidById: adminId,
       paidAt: '2026-10-01',
     }).returning({ id: s.opsExpenseEntries.id });
+    const [psOpsRow] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      expenseTypeCode: `ACC-PS-${suffix}`,
+      amount: '90000',
+      paidById: adminId,
+      paidAt: '2026-10-01',
+    }).returning({ id: s.opsExpenseEntries.id });
+    const [carrierInfo] = await db.insert(s.tripCarrierInfo).values({
+      tripId: trip.id,
+      externalFreightCost: '8000000',
+    }).returning({ id: s.tripCarrierInfo.id });
     const [tripLink] = await db.insert(s.tripContainers).values({
       tripId: trip.id,
       sourceShipmentId: shipment.id,
@@ -435,6 +452,8 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       assert.equal(row!.contractFreightTotal, 2800000, 'the snapshot freight+surcharge total rides the explicit wire name');
       assert.equal(row!.psActual, 500000);
       assert.equal(row!.customsFee, 300000, 'container-scoped HQGS ops rows produce the auto customs column');
+      assert.equal(row!.payableFreight, 8000000, "Bảng 2.3 Cước trả = the trip's carrier-side freight");
+      assert.equal(row!.phatSinhFee, 90000, 'container-scoped PHAT_SINH ops rows produce the phat-sinh column');
       assert.ok(!('freight' in row!), 'legacy field name is gone from the wire');
       assert.ok(!('surcharge' in row!), 'legacy field name is gone from the wire');
       assert.ok(!('total' in row!), 'the bare total word is gone from the wire');
@@ -446,7 +465,10 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
     } finally {
       await db.delete(s.tripContainers).where(eq(s.tripContainers.id, tripLink.id));
       await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, opsRow.id));
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, psOpsRow.id));
+      await db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.id, carrierInfo.id));
       await db.delete(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, hqgsType.id));
+      await db.delete(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, phatSinhType.id));
       await db.delete(s.freightRateSnapshots).where(eq(s.freightRateSnapshots.id, snapshot.id));
       await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
     }

@@ -302,8 +302,9 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
   );
 }
 
-/** Bảng 2.3 — per-container payables, read-only for the CUS. Amount columns
- * wait on their Ops-side producers: unknown stays "Chưa xác định", never 0. */
+/** Bảng 2.3 — per-container payables, read-only for the CUS. Money columns
+ * read the wire's per-container fields (card _62): null stays "Chưa xác
+ * định", never 0; the note column renders the container's freight note. */
 export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
   return (
     <table className="csc-debit-table csc-debit-table--payables">
@@ -323,11 +324,11 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
         {detail.freightRows.map((row) => (
           <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
             <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
-            <td>Chưa xác định</td>
+            <td>{money(row.payableFreight)}</td>
             <td>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</td>
-            <td>Chưa xác định</td>
-            <td>Chưa xác định</td>
-            <td>Chưa xác định</td>
+            <td>{money(row.customsFee)}</td>
+            <td>{money(row.phatSinhFee)}</td>
+            <td>{row.psActualNote ?? '—'}</td>
           </tr>
         ))}
       </tbody>

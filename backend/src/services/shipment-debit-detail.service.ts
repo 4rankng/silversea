@@ -143,7 +143,11 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     })
       .from(s.freightRateSnapshots)
       .leftJoin(s.pricingTables, eq(s.pricingTables.id, s.freightRateSnapshots.pricingTableId))
-      .where(eq(s.freightRateSnapshots.shipmentId, shipmentId));
+      .where(eq(s.freightRateSnapshots.shipmentId, shipmentId))
+      .orderBy(s.freightRateSnapshots.id);
+    // Last write wins per trip grain: ascending id order makes the surviving
+    // map entry the max-id row — the same "latest snapshot" the summary's L1
+    // sums, so Lớp 1 and Lớp 2 cannot disagree by row order.
     for (const snapshot of snapshots) {
       if (snapshot.tripId != null) freightByTrip.set(snapshot.tripId, snapshot);
     }
@@ -168,6 +172,21 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     expensesByTrip.set(expense.tripId, bucket);
   }
 
+  // Card _62 — Bảng 2.3 "Cước trả" per container: the trip's carrier-side
+  // freight (trip_carrier_info), distinct from the 2.1 pricing snapshot.
+  const carrierCostByTrip = new Map<number, number | null>();
+  if (tripIds.length > 0) {
+    const carrierRows = await db.select({
+      tripId: s.tripCarrierInfo.tripId,
+      cost: s.tripCarrierInfo.externalFreightCost,
+    })
+      .from(s.tripCarrierInfo)
+      .where(inArray(s.tripCarrierInfo.tripId, tripIds));
+    for (const row of carrierRows) {
+      carrierCostByTrip.set(row.tripId, row.cost == null ? null : Number(row.cost));
+    }
+  }
+
   // Bảng 2.1's auto customs column: container-scoped ops rows classified
   // HQGS via the explicit category column (never name matching).
   const opsRows = await db.select({
@@ -179,12 +198,16 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
   const hqgsByContainer = new Map<number, number>();
+  const phatSinhByContainer = new Map<number, number>();
   const containersWithOps = new Set<number>();
   for (const opsRow of opsRows) {
     if (opsRow.containerId == null) continue;
     containersWithOps.add(opsRow.containerId);
     if (opsRow.category === ExpenseTypeCategory.HQGS) {
       hqgsByContainer.set(opsRow.containerId, (hqgsByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
+    }
+    if (opsRow.category === ExpenseTypeCategory.PHAT_SINH) {
+      phatSinhByContainer.set(opsRow.containerId, (phatSinhByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
     }
   }
 
@@ -225,6 +248,13 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
       fuelSurcharge: snapshot?.surcharge != null ? Number(snapshot.surcharge) : null,
       customsFee: container.id != null && containersWithOps.has(container.id)
         ? (hqgsByContainer.get(container.id) ?? 0)
+        : null,
+      // Bảng 2.3 per-container payables (card _62): a container with ops rows
+      // reads a known 0 for its empty buckets; a container with none stays
+      // null = Chưa xác định (mirrors customsFee's semantics).
+      payableFreight: tripId != null && carrierCostByTrip.has(tripId) ? carrierCostByTrip.get(tripId) ?? null : null,
+      phatSinhFee: container.id != null && containersWithOps.has(container.id)
+        ? (phatSinhByContainer.get(container.id) ?? 0)
         : null,
       contractFreightTotal: snapshot?.total != null ? Number(snapshot.total) : null,
       liftSiteLabel: frozenLabels?.lift ?? null,
