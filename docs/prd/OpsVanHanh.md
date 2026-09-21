@@ -63,6 +63,8 @@ Khi mở **Khai báo chi phí**, sản phẩm giữ ngữ cảnh lô và không 
 
 Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản ánh vào quỹ liên quan. Không chuyển sang chờ duyệt. Nội dung còn đang nhập chưa được tính là khoản đã ghi.
 
+Phạm vi khai chi phí của Ops là các lô do xe Ops phụ trách chở theo phân công xe, cộng các lô được gán trực tiếp; thu hồi phân công xe chỉ thu hồi quyền trên những lô Ops chưa có khoản chi nào đã lưu tại đó.
+
 Chi phí nâng/hạ do Ops khai dùng số tiền thực chi, không tự áp giá từ bảng định mức nâng/hạ. Quy tắc này không thay đổi cách tính cước hoặc chi phí lái xe ở phân hệ khác.
 
 ## 4. Theo dõi xe phụ trách

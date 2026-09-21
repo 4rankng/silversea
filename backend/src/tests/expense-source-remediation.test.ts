@@ -12,7 +12,7 @@ import { upsertExpenseAccountingSource, hydrateExpenseAccountingSource } from '.
 import { confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
 import { createOpsExpense, updateOpsExpense, deleteOpsExpense } from '../services/ops-expenses.service';
-import { assertExpenseOwnerWriteScope } from '../services/expense-owner-scope.service';
+import { assertExpenseOwnerWriteScope, assertOpsExpenseAssignment } from '../services/expense-owner-scope.service';
 import { updateTripExpense, deleteTripExpenseGuarded } from '../services/forwarder.service';
 import { insertTripComposite, getTripCompositeInTx, upsertTripFinancialState } from '../services/trip-composite.service';
 
@@ -51,10 +51,13 @@ async function trip(tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) {
 test('FIX17-S01 revoked OPS writes and evidence scope fail; finance remains available', async () => fixture(async (tx, ctx) => {
   const source = await ops(tx, ctx);
   const actor = { userId: ctx.user.id, role: Role.OPS };
-  await assert.rejects(createOpsExpense(ctx.user.id, { shipmentId: ctx.shipment.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx), /phân công/);
-  await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, reason: 'Sửa sai', expectedVersion: source.version }, tx), /phân công/);
-  await assert.rejects(deleteOpsExpense(ctx.user.id, source.sourceId, tx), /phân công/);
-  await assert.rejects(assertExpenseOwnerWriteScope(tx, actor, source), /phân công/);
+  // The lot already carries the ops's own saved expense, so the truck-assignment
+  // gate keeps the right here even with no live assignment — revocation only
+  // removes lots never expensed. The blocked case moves to a fresh lot.
+  await assertOpsExpenseAssignment(tx, ctx.user.id, ctx.shipment.id);
+  const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
+  await assert.rejects(createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx), /Quản trị viên/);
+  await assert.rejects(assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id }), /Quản trị viên/);
   await tx.insert(s.userShipmentLinks).values({ userId: ctx.user.id, shipmentId: ctx.shipment.id });
   await assertExpenseOwnerWriteScope(tx, actor, source);
   await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
