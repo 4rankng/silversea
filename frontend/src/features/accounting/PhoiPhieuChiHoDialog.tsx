@@ -5,6 +5,7 @@ import {
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow,
 } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
+import { useConfirm } from '../../components/UI';
 
 interface Props {
   tripId: number;
@@ -22,6 +23,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const [linked, setLinked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { confirm, dialog } = useConfirm();
 
   const rows = detail.data?.rows ?? [];
   const totals = useMemo(() => {
@@ -100,6 +102,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   }
 
   async function removeRow(row: PhoiPhieuFeeRow) {
+    const ok = await confirm(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { variant: 'danger', confirmLabel: 'Xóa' });
+    if (!ok) return;
     setSaving(true);
     setError('');
     try {
@@ -171,6 +175,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
           </>
         )}
       </div>
+    </div>
+      {dialog}
     </div>
   );
 }

@@ -5,7 +5,7 @@
  *  The consolidated phiếu reuses createExpenseVoucher: one call posts ONE
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
-import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -14,6 +14,7 @@ import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { createExpenseVoucher, getExpenseCashTotals } from './expense-accounting-voucher.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { expenseVndSchema, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
 
@@ -66,7 +67,7 @@ export async function listPhoiPhieuRows(query: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
   sortBy?: 'grouped' | 'date';
 }): Promise<PhoiPhieuRow[]> {
-  const tripConditions: SQL[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
+  const tripConditions: (SQL | undefined)[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
   if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
@@ -437,6 +438,7 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
       .where(and(eq(s.expenseAccountingSources.id, sourceId),
         eq(s.expenseAccountingSources.sourceKind, 'OPS'))).limit(1).for('update');
     if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ OPS.');
+    await assertShipmentAccountingUnlocked(tx, source.shipmentId);
     if (source.shipmentId !== null) {
       const [linked] = await tx.select({ id: s.trips.id }).from(s.trips)
         .where(and(eq(s.trips.id, tripId), eq(s.trips.shipmentId, source.shipmentId))).limit(1);
@@ -542,10 +544,37 @@ function bucketByCategory(category: string | null | undefined): 'nang' | 'ha' | 
 
 export async function getPhoiPhieuReport(query: {
   kind: 'THU' | 'TRA'; dateFrom?: string; dateTo?: string;
+  /** Card 20260921_8 — per-accountant scope. A staff id filters to trips
+   *  whose truck's ACTIVE assignment names them; explicit null = unassigned
+   *  only; includeUnassigned adds the unassigned bucket beside an id.
+   *  Absent = no filtering (existing callers byte-compatible). */
+  accountantId?: number | null; includeUnassigned?: boolean;
 }): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
-  const tripConditions: SQL[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
+  const tripConditions: (SQL | undefined)[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
   if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
+  if (query.accountantId !== undefined) {
+    const allAssignedTruckIds = (await db.select({ truckId: s.truckAccountantAssignments.truckId })
+      .from(s.truckAccountantAssignments)
+      .where(isNull(s.truckAccountantAssignments.endedAt))).map((row) => row.truckId);
+    const unassignedTruckFilter = or(
+      isNull(s.trips.truckId),
+      notInArray(s.trips.truckId, allAssignedTruckIds.length ? allAssignedTruckIds : [0]),
+    );
+    if (query.accountantId === null) {
+      tripConditions.push(unassignedTruckFilter);
+    } else {
+      const myTruckIds = (await db.select({ truckId: s.truckAccountantAssignments.truckId })
+        .from(s.truckAccountantAssignments)
+        .where(and(
+          eq(s.truckAccountantAssignments.accountantId, query.accountantId),
+          isNull(s.truckAccountantAssignments.endedAt),
+        ))).map((row) => row.truckId);
+      tripConditions.push(query.includeUnassigned
+        ? or(inArray(s.trips.truckId, myTruckIds.length ? myTruckIds : [0]), unassignedTruckFilter)
+        : inArray(s.trips.truckId, myTruckIds.length ? myTruckIds : [0]));
+    }
+  }
 
   const tripIds = (await db.select({ id: s.trips.id })
     .from(s.trips).where(and(...tripConditions))).map((row) => row.id);
@@ -627,4 +656,36 @@ export async function getPhoiPhieuReport(query: {
     daThuTra: acc.daThuTra + row.daThuTra, conLai: acc.conLai + row.conLai, ghiChu: null,
   }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null });
   return { rows, grand };
+}
+
+/** Card 20260921_8 — the assignment board data: ACTIVE truck assignments with
+ *  the accountant resolved, plus the distinct UNASSIGNED bucket (ACTIVE
+ *  trucks with no active assignment) so nothing is missed. */
+export async function listPhoiPhieuTruckAssignments(): Promise<{
+  assignments: Array<{ truckId: number; plate: string; accountantId: number | null; accountantName: string | null; version: number }>;
+  unassignedTrucks: Array<{ truckId: number; plate: string }>;
+}> {
+  const assignments = await db.select({
+    truckId: s.truckAccountantAssignments.truckId,
+    plate: s.trucks.licensePlate,
+    accountantId: s.truckAccountantAssignments.accountantId,
+    accountantName: s.users.fullName,
+    version: s.truckAccountantAssignments.version,
+  }).from(s.truckAccountantAssignments)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.truckAccountantAssignments.truckId))
+    .leftJoin(s.users, eq(s.users.id, s.truckAccountantAssignments.accountantId))
+    .where(isNull(s.truckAccountantAssignments.endedAt))
+    .orderBy(asc(s.trucks.licensePlate));
+  const assignedIds = assignments.map((row) => row.truckId);
+  const unassignedTrucks = assignedIds.length
+    ? await db.select({ truckId: s.trucks.id, plate: s.trucks.licensePlate })
+        .from(s.trucks)
+        .where(and(
+          eq(s.trucks.status, 'ACTIVE'),
+          notInArray(s.trucks.id, assignedIds),
+        )).orderBy(asc(s.trucks.licensePlate))
+    : await db.select({ truckId: s.trucks.id, plate: s.trucks.licensePlate })
+        .from(s.trucks)
+        .where(eq(s.trucks.status, 'ACTIVE')).orderBy(asc(s.trucks.licensePlate));
+  return { assignments, unassignedTrucks };
 }
