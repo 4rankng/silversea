@@ -62,17 +62,17 @@ export async function getShipmentDebitSummary(query: {
   if (lots.length === 0) return { items: [], total: 0 };
   const lotIds = lots.map((lot) => lot.id);
 
-  // Auto freight: per-trip snapshots summed per lot; absent = unknown.
-  // A canceled leg never hauls, so its snapshot freight drops out of L1
-  // (the helper's active-trip scope, matching Lớp 2). Shipment-issue
-  // freezes carry no trip and still count — Lớp 2 cannot render them
-  // (documented exception), so L1 stays the superset there by design.
-  // Snapshots are INSERT-only (supersede), so only each trip grain's LATEST
-  // row (max id per shipment + trip_id, NULL-safe) may enter the sum —
-  // summing every row multiplies the freight by the supersede count.
-  const freightRows = await db.select({
+  // Auto freight: snapshots are INSERT-only (supersede), so a superseded
+  // freeze counts in NO total. The freight anchor semantics: per-trip freezes
+  // are the lot's additive legs (matching Bảng 2.1's per-trip rows), and the
+  // dispatch freeze supersedes the pre-dispatch intake freeze (trip-NULL
+  // whole-lot approximation) — a lot with any active trip freeze reads only
+  // its trips' latest rows, while an intake-only lot still counts once.
+  // Canceled legs never haul and drop out (active-trip scope, matching Lớp 2).
+  const grainRows = await db.select({
     shipmentId: s.freightRateSnapshots.shipmentId,
-    total: sql<string>`coalesce(sum(${s.freightRateSnapshots.totalAmount}), 0)::text`,
+    tripId: s.freightRateSnapshots.tripId,
+    totalAmount: s.freightRateSnapshots.totalAmount,
   }).from(s.freightRateSnapshots)
     .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
     .where(and(
@@ -86,9 +86,26 @@ export async function getShipmentDebitSummary(query: {
         where latest.shipment_id = ${s.freightRateSnapshots.shipmentId}
           and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
       )`,
-    ))
-    .groupBy(s.freightRateSnapshots.shipmentId);
-  const freightByLot = new Map(freightRows.map((row) => [row.shipmentId, toNumber(row.total)]));
+    ));
+  const freightByLot = new Map<number, number>();
+  const tripLegFreight = new Map<number, number>();
+  const intakeFreight = new Map<number, number>();
+  for (const row of grainRows) {
+    const lot = row.shipmentId;
+    if (lot == null) continue;
+    if (row.tripId != null) {
+      tripLegFreight.set(lot, (tripLegFreight.get(lot) ?? 0) + toNumber(row.totalAmount));
+    } else {
+      // The latest-per-grain filter leaves at most one trip-NULL row per lot.
+      intakeFreight.set(lot, toNumber(row.totalAmount));
+    }
+  }
+  for (const lot of lotIds) {
+    const legs = tripLegFreight.get(lot);
+    const intake = intakeFreight.get(lot);
+    const freight = legs !== undefined ? legs : intake;
+    if (freight !== undefined) freightByLot.set(lot, freight);
+  }
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).
   const chiHoRows = await db.select({

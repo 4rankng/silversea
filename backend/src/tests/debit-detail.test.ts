@@ -576,10 +576,11 @@ describe('20260919 freight scope parity: canceled legs leave L1 like they leave 
       const summary = await getShipmentDebitSummary({ customerId: lot.customer.id, lockStatus: 'ALL' });
       const l1 = summary.items.find((row) => row.shipmentId === lot.shipment.id);
       // A canceled leg never hauls, so its freight never reaches L1. The
-      // shipment-issue freeze is a different class: issued freight still
-      // counts even though Lớp 2 cannot render it (known gap, documented
-      // exception).
-      assert.equal(String(l1?.freightAuto), '450000', 'L1 counts live 400k + shipment-issue 50k, never the canceled 999k');
+      // dispatch freeze of the live leg SUPERSEDES the shipment-issue (trip-
+      // NULL) freeze of the same freight anchor — L1 reads the live leg once
+      // and now matches Lớp 2 exactly (the intake-only lot remains the only
+      // L1-superset case: Lớp 2 cannot render a trip-NULL row).
+      assert.equal(String(l1?.freightAuto), '400000', 'L1 counts the live leg 400k (supersede of the 50k intake freeze), never the canceled 999k');
 
       const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
       assert.equal(detail.status, 200, JSON.stringify(detail.body).slice(0, 200));

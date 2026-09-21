@@ -30,11 +30,23 @@ async function mkRoute(name: string) {
   const [row] = await db.insert(s.routes).values({ name }).returning();
   return track(s.routes, row);
 }
-async function mkTrip(shipmentId: number, customerId: number, routeId: number) {
+async function mkTrip(shipmentId: number, customerId: number, routeId: number, fulfillmentId?: number) {
   const [row] = await db.insert(s.trips).values({
     shipmentId, customerId, routeId, status: 'CREATED', departureDate: '2026-09-20',
+    ...(fulfillmentId != null ? { fulfillmentId } : {}),
   }).returning();
   return track(s.trips, row);
+}
+async function mkFulfillment(shipmentId: number, version: number) {
+  const [row] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
+    sourceShipmentVersion: version,
+    siteSnapshot: {},
+  }).returning();
+  return track(s.shipmentFulfillments, row);
 }
 async function mkExpense(tripId: number, buy: string, sell = '0', expenseType = 'PHI_CHI_HO') {
   const [row] = await db.insert(s.tripExpenses).values({
@@ -97,7 +109,7 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     assert.equal(itemA.chiHoTotal, '250000');
     assert.equal(itemB.chiHoTotal, '0', 'a trip with no expenses is a known zero');
   });
-  test('L1 freight sums only the latest snapshot per trip grain — supersede must not multiply', async () => {
+  test('L1 counts the latest freeze per freight anchor — superseded freezes count in no total', async () => {
     const customer = await mkCustomer(`Debit Supersede ${suffix}`);
     const route = await mkRoute(`Debit supersede route ${suffix}`);
     // Trip grain: three freezes of the SAME trip (date change + dispatch
@@ -107,20 +119,34 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     await mkFreight(lotA.id, tripA.id, '4791480');
     await mkFreight(lotA.id, tripA.id, '4791480');
     await mkFreight(lotA.id, tripA.id, '4791480');
-    // Mixed grains: a shipment-issue freeze (no trip) plus a superseded pair
-    // of trip snapshots — the null-trip freeze counts once, the trip grain
-    // contributes only its latest row.
+    // Standard lot (QA lot-199 shape): the intake freeze (no trip yet) plus
+    // the dispatch freeze of the same freight anchor — the dispatch freeze
+    // SUPERSEDES the intake freeze, so L1 reads it once, not the sum.
     const lotB = await mkLot(customer.id, '2026-09-26');
     const tripB = await mkTrip(lotB.id, customer.id, route.id);
-    await mkFreight(lotB.id, null as unknown as number, '1000');
-    await mkFreight(lotB.id, tripB.id, '400');
-    await mkFreight(lotB.id, tripB.id, '500');
+    await mkFreight(lotB.id, null as unknown as number, '4157496');
+    await mkFreight(lotB.id, tripB.id, '4157496');
+    // Intake-only lot (not dispatched yet): the single freeze still counts.
+    const lotC = await mkLot(customer.id, '2026-09-27');
+    await mkFreight(lotC.id, null as unknown as number, '1000');
+    // Multi-trip lot: per-trip freezes are separate legs — both latest rows sum.
+    const lotD = await mkLot(customer.id, '2026-09-28');
+    const tripD1 = await mkTrip(lotD.id, customer.id, route.id);
+    const fulfillmentD2 = await mkFulfillment(lotD.id, lotD.version);
+    const tripD2 = await mkTrip(lotD.id, customer.id, route.id, fulfillmentD2.id);
+    await mkFreight(lotD.id, tripD1.id, '3000');
+    await mkFreight(lotD.id, tripD1.id, '3100');
+    await mkFreight(lotD.id, tripD2.id, '500');
 
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const itemA = result.items.find((row) => row.shipmentId === lotA.id)!;
     assert.equal(itemA.freightAuto, '4791480', 'three freezes of one trip must read the latest once');
     const itemB = result.items.find((row) => row.shipmentId === lotB.id)!;
-    assert.equal(itemB.freightAuto, '1500', 'null-trip freeze (1000) + latest trip snapshot (500)');
+    assert.equal(itemB.freightAuto, '4157496', 'dispatch freeze supersedes the intake freeze of the same anchor');
+    const itemC = result.items.find((row) => row.shipmentId === lotC.id)!;
+    assert.equal(itemC.freightAuto, '1000', 'intake-only lot still counts once');
+    const itemD = result.items.find((row) => row.shipmentId === lotD.id)!;
+    assert.equal(itemD.freightAuto, '3600', 'per-trip freezes are additive legs (3100 + 500)');
   });
   test('the delivery-date range filters on expected delivery date', async () => {
     const customer = await mkCustomer(`Debit D ${suffix}`);
