@@ -174,9 +174,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
             </div>
           </>
         )}
+        {dialog}
       </div>
-    </div>
-      {dialog}
     </div>
   );
 }
