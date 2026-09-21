@@ -58,7 +58,7 @@ export function OpsAccountantTab() {
                   <td>{row.shipmentCode ?? '—'}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
-                  <td className="ops-money">{formatVnd(row.amount)}</td>
+                  <td className="ops-money">{formatVnd(row.amount)} ₫</td>
                   <td>{row.paidByName ?? '—'}</td>
                   <td>
                     <button
@@ -104,7 +104,7 @@ export function OpsAccountantTab() {
                   <td className="ops-money">{item.code}</td>
                   <td>{item.opsUserName ?? item.opsUserId}</td>
                   <td>{formatDate(item.createdAt)}</td>
-                  <td className="ops-money">{formatVnd(item.totalAmount)}</td>
+                  <td className="ops-money">{formatVnd(item.totalAmount)} ₫</td>
                   <td className="ops-row-actions">
                     <button type="button" className="btn-secondary" onClick={() => setSheetFor(item.id)}>Xem</button>
 

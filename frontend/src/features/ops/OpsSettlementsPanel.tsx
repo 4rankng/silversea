@@ -77,7 +77,7 @@ export function OpsSettlementsPanel() {
                 <tr key={item.id} className="ops-wallet__row">
                   <td className="ops-money" data-label="Mã phiếu">{item.code}</td>
                   <td data-label="Ngày lập">{formatDate(item.createdAt)}</td>
-                  <td className="ops-money" data-label="Tổng">{formatVnd(item.totalAmount)}</td>
+                  <td className="ops-money" data-label="Tổng">{formatVnd(item.totalAmount)} ₫</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="ops-row-actions ops-wallet__wide">
                     <button type="button" className="btn-secondary" onClick={() => setDetailId(item.id)}>
@@ -168,12 +168,12 @@ export function OpsSettlementSheet({ grouping, meta }: {
                     <tr key={index}>
                       <td>{item.containerNumber ?? 'Phí chung lô'}</td>
                       <td>{item.expenseTypeName ?? ''}</td>
-                      <td className="ops-money">{formatVnd(item.amount)}</td>
+                      <td className="ops-money">{formatVnd(item.amount)} ₫</td>
                     </tr>
                   ))}
                   <tr className="ops-settlement-sheet__subtotal">
                     <td colSpan={2}>Tổng {basketKey === 'withInvoice' ? 'có hóa đơn' : 'không hóa đơn'}</td>
-                    <td className="ops-money">{formatVnd(basket.total)}</td>
+                    <td className="ops-money">{formatVnd(basket.total)} ₫</td>
                   </tr>
                 </tbody>
               </table>

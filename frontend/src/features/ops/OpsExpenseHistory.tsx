@@ -102,7 +102,7 @@ export function OpsExpenseHistory() {
                 <td data-label="Mã lô">{row.shipmentCode ?? '—'}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
-                <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)}</td>
+                <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
                 <td data-label="Chứng từ">
                   <button
                     type="button"
