@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatISODate, formatMoney, formatDateTimeShort, formatCardTimeShort } from './format';
+import { formatISODate, formatMoney, formatDateTimeShort } from './format';
 
 describe('formatMoney', () => {
   it('formats integers with vi-VN grouping and no symbol', () => {
@@ -58,21 +58,3 @@ describe('formatDateTimeShort', () => {
   });
 });
 
-describe('formatCardTimeShort', () => {
-  it('pins the journey-card time to Vietnam wall-clock regardless of device timezone', () => {
-    // 02:05Z = 09:05 VN — a device in UTC+8 must NOT show 10:05.
-    expect(formatCardTimeShort('2026-09-07T02:05:00Z')).toBe('09:05 - 07/09');
-  });
-  it('rolls the date at the VN midnight boundary', () => {
-    // 17:30Z on Sep 6 = 00:30 VN on Sep 7 — the date follows the hour.
-    expect(formatCardTimeShort('2026-09-06T17:30:00Z')).toBe('00:30 - 07/09');
-  });
-  it('keeps the compact zero-padded no-year shape', () => {
-    expect(formatCardTimeShort('2026-01-02T03:04:00Z')).toMatch(/^\d{2}:\d{2} - \d{2}\/\d{2}$/);
-  });
-  it('renders an em dash for empty or invalid input', () => {
-    expect(formatCardTimeShort(null)).toBe('—');
-    expect(formatCardTimeShort('')).toBe('—');
-    expect(formatCardTimeShort('garbage')).toBe('—');
-  });
-});

@@ -6,7 +6,7 @@ import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
-import { formatCardTimeShort } from '../lib/format';
+import { formatDateTimeShort } from '../lib/format';
 import { Tabs } from '../design-system/Tabs';
 import { driverLocationLabels } from '../features/driver/driver-display';
 import './DriverTripsPage.css';
@@ -113,7 +113,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
-          {card.scheduledAt ? formatCardTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
+          {card.scheduledAt ? formatDateTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
         </span>
       </div>
 

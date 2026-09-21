@@ -104,27 +104,6 @@ export function formatDateTimeShort(value: string | null | undefined): string {
   return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`;
 }
 
-/**
- * Card-compact VN-pinned time: "HH:mm - dd/MM" (no year — journey-card
- * density). Same Asia/Ho_Chi_Minh pin as formatDateTimeShort so the board
- * card and the trip detail can never disagree on the same event timestamp,
- * whatever timezone the driver's device runs.
- */
-export function formatCardTimeShort(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    day: '2-digit',
-    month: '2-digit',
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
-  return `${get('hour')}:${get('minute')} - ${get('day')}/${get('month')}`;
-}
 
 /**
  * Zero-padded dd/mm/yyyy. For date-only strings ("YYYY-MM-DD"), reads
