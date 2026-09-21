@@ -362,6 +362,9 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   // forwarder_expense_types.code, same convention as ops_expense_entries).
   // null = legacy/enum-only entry keeps the pre-card heuristic.
   expenseTypeCode: varchar('expense_type_code', { length: 50 }),
+  // Card 20260921_7: the fee norm (driver_fee_norms.code) the driver picked —
+  // pins the entry to the road bucket, never receivable. null = not norm-driven.
+  feeNormCode: varchar('fee_norm_code', { length: 50 }),
   // VND amount — integer, no decimals (matches tripExpenses.buyAmount convention).
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   // The date the cost was incurred (driver-reported). Distinct from createdAt.
@@ -376,4 +379,23 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
 }, (table) => [
   index('driver_incidental_costs_trip_idx').on(table.tripId, table.occurredAt),
   index('driver_incidental_costs_driver_idx').on(table.driverId),
+]);
+
+/** Card 20260921_7 — driver road/allowance fee norms (định mức) as CONFIG
+ *  DATA. Seeds carry the amounts the customer spec fixed; entries pick a norm
+ *  code and the server applies its costType/costGroup (always DRIVER_ROAD —
+ *  road fees never bill the customer). Amounts here are the DEFAULT the FE
+ *  pre-fills; the driver may override the actual amount per AC3. */
+export const driverFeeNorms = pgTable('driver_fee_norms', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  label: varchar('label', { length: 120 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  costType: varchar('cost_type', { length: 30 }).notNull(),
+  costGroup: varchar('cost_group', { length: 20 }).notNull().default('DRIVER_ROAD'),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('driver_fee_norms_status_idx').on(table.status),
 ]);

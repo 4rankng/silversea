@@ -17,6 +17,7 @@ import {
   TripStatus,
   type DriverIncidentalCostType,
   type DriverIncidentalCostInput,
+  type ExpenseCostGroup,
 } from '@tingting/shared';
 import { upsertExpenseAccountingSource } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
@@ -314,12 +315,17 @@ async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null },
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null; feeNormCode?: string | null },
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
   const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim() ? input.amount : 0;
+  // Classification source is exclusive: a fee norm (road bucket) and a lot-cost
+  // catalog ref can never both drive one entry.
+  if (input.feeNormCode && input.expenseTypeCode) {
+    throw new ApiError(400, 'Chỉ chọn một nguồn phân loại: định mức hoặc loại phí trong danh mục.');
+  }
   // Card 20260921_6: when the entry carries a catalog ref, invoiced-vs-no-invoice
   // is DATA (requiresInvoice) — invoiced types must carry an invoice number and
   // charge the customer; no-invoice types never charge, whatever the driver
@@ -342,6 +348,23 @@ async function insertDriverIncidentalCostTx(
   if (invoicedClass && !input.invoiceNumber?.trim()) {
     throw new ApiError(400, 'Phí có hóa đơn phải kèm số hóa đơn.');
   }
+  // Card 20260921_7: a fee norm (định mức) pins the entry to the road bucket —
+  // the norm's costType/costGroup apply, the entry never charges the customer
+  // (AC1), and the amount stays the driver-reported actual (the norm amount is
+  // the FE pre-fill default, overridable per AC3). Mutually exclusive with the
+  // lot-cost catalog ref by contract.
+  const [feeNorm] = input.feeNormCode
+    ? await tx.select().from(s.driverFeeNorms)
+        .where(and(
+          eq(s.driverFeeNorms.code, input.feeNormCode),
+          eq(s.driverFeeNorms.status, 'ACTIVE'),
+        ))
+        .limit(1)
+    : [];
+  if (input.feeNormCode && !feeNorm) {
+    throw new ApiError(400, `Định mức "${input.feeNormCode}" không tồn tại hoặc đã ngừng hiệu lực.`);
+  }
+  const normClass = feeNorm != null;
   if (input.receiptStorageKey) {
     const [photo] = await tx.select({ id: s.tripPhotos.id }).from(s.tripPhotos).where(and(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
@@ -350,19 +373,20 @@ async function insertDriverIncidentalCostTx(
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
     tripId,
     driverId,
-    costType: input.costType,
-    expenseTypeCode: input.expenseTypeCode ?? null,
+    costType: normClass ? (feeNorm!.costType as DriverIncidentalCostType) : input.costType,
+    expenseTypeCode: normClass ? null : (input.expenseTypeCode ?? null),
+    feeNormCode: input.feeNormCode ?? null,
     amount: String(input.amount),
     occurredAt: input.occurredAt,
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,
     recordedBy,
     payerKind: input.payerKind ?? 'USER',
-    costGroup: group,
-    feeName: catalogType ? catalogType.name : (input.feeName ?? input.costType),
-    customerChargeAmount: String(invoicedClass ? input.amount : (catalogType ? 0 : customerChargeAmount)),
-    invoiceNumber: invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null),
-    invoiceDate: catalogType && !invoicedClass ? null : (input.invoiceDate || null),
+    costGroup: normClass ? (feeNorm!.costGroup as ExpenseCostGroup) : group,
+    feeName: normClass ? feeNorm!.label : (catalogType ? catalogType.name : (input.feeName ?? input.costType)),
+    customerChargeAmount: String(normClass ? 0 : (invoicedClass ? input.amount : (catalogType ? 0 : customerChargeAmount))),
+    invoiceNumber: normClass ? null : (invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null)),
+    invoiceDate: normClass ? null : (catalogType && !invoicedClass ? null : (input.invoiceDate || null)),
     photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],
   }).returning();
   const [trip] = await tx.select({ shipmentId: s.trips.shipmentId, customerId: s.trips.customerId, truckId: s.trips.truckId }).from(s.trips).where(eq(s.trips.id, tripId));
@@ -374,7 +398,7 @@ async function insertDriverIncidentalCostTx(
     return row as DriverIncidentalCost;
   }
   const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: row.id, shipmentId: trip.shipmentId,
-    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: row.expenseTypeCode ?? input.costType, costGroup: group,
+    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: row.expenseTypeCode ?? input.costType, costGroup: row.costGroup,
     feeName: row.feeName ?? input.costType, amount: Number(row.amount),
     customerChargeAmount: Number(row.customerChargeAmount),
     expenseDate: input.occurredAt, invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
@@ -391,6 +415,14 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
   return row as DriverIncidentalCost;
 }
 
+/** Card 20260921_7: ACTIVE fee norms for the driver cost-form auto-fill. */
+export async function listActiveDriverFeeNorms() {
+  return db.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount })
+    .from(s.driverFeeNorms)
+    .where(eq(s.driverFeeNorms.status, 'ACTIVE'))
+    .orderBy(asc(s.driverFeeNorms.code));
+}
+
 /**
  * Record a driver incidental cost. Server-side idempotent: same key + same
  * body → 201 first / 200 replay (no duplicate); same key + different body →
@@ -399,7 +431,7 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
 export async function recordIncidentalCost(
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null },
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null; feeNormCode?: string | null },
   recordedBy: number,
   idempotencyKey: string | undefined,
 ): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {

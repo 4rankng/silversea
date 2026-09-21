@@ -744,6 +744,20 @@
       "when": 1790004094143,
       "tag": "20260921231000_card6_driver_fee_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1790006609767,
+      "tag": "20260922001000_card7_driver_fee_norms",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1790006751286,
+      "tag": "20260922001500_card7_fee_norm_code_column",
+      "breakpoints": true
     }
   ]
 }

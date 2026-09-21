@@ -250,6 +250,10 @@ Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và s
 
 Lái xe nhập chi phí vào lô hàng theo **loại phí** chọn từ danh mục dùng chung (cùng danh mục với chi phí Ops); thêm loại phí mới là dữ liệu, không cần sửa phần mềm. Loại **có hóa đơn** (nâng, hạ, vệ sinh, lưu bãi, lưu kho) phải kèm số hóa đơn ngay khi nhập; sau khi kế toán tích xác nhận trên phôi phiếu (đối chiếu) thì khoản tự động vào phải thu khách hàng kèm số hóa đơn — trước khi đối chiếu, khoản chưa vào phải thu. Loại **không hóa đơn** (chi công nhân tại kho, hàn cont, cân lốp, đảo vỏ, đóng/trả 2 điểm, đảo hàng, phí xe nâng hạ đăng khoa) không bao giờ vào phải thu khách hàng; sau khi kế toán đối chiếu, khoản vào mục phí khác dùng tính doanh thu xe và được thanh toán cho lái xe. Mỗi khoản là một dòng riêng có thể thêm/xóa.
 
+### 9.5 Tiền đi đường và định mức phí lái xe
+
+Tiền đi đường của lái xe không bao giờ vào phải thu khách hàng; khoản chỉ nằm trong danh mục tiền đi đường để kế toán phôi phiếu thanh toán với lái xe và tính doanh thu xe theo tháng. Các định mức được cấu hình sẵn dạng **dữ liệu cấu hình** và tự điền khi lái xe chọn đúng loại phí: nâng/hạ tại Lạch Huyện, TIL, Hateco 50.000đ; trả đêm 100.000đ; quay đầu 100.000đ; quá tải 200.000đ; đảo chuyển ICD/Đăng Khoa 200.000đ; chạy hàng chủ nhật 200.000đ; lưu ca 200.000đ; cont 45'HC/cont lạnh 200.000đ. Định mức sửa được, không hard-code; lái xe vẫn sửa được số tiền khi thực tế khác định mức. Tiền vé cầu đường: lái xe nhập được, kế toán phôi phiếu sửa được số tiền trước khi thanh toán. Phí sửa chữa dọc đường (sửa đèn, vá lốp…) nhập được kèm ghi nhận có phiếu thu viết tay. Định mức tiền đường theo từng tuyến đường để trống — khách hàng sẽ bổ sung sau.
+
 ## 10. Tài liệu liên quan
 
 - [Quy trình O2C](QuyTrinhO2C.md).

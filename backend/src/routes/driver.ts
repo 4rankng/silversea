@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getUser } from '../middleware/auth';
+import { requireRoles } from '../middleware/casbin';
 import {
   assertTripOwnedByDriver,
   completeOwnedFulfillmentTrip,
@@ -23,6 +24,7 @@ import {
   syncDriverFulfillmentStartSideEffects,
   listDriverProgress,
   recordIncidentalCost,
+  listActiveDriverFeeNorms,
   listIncidentalCosts,
   updateDriverTripCostSubmissionNote,
   getDriverPayslipPeriods,
@@ -53,6 +55,7 @@ import {
   driverCostSubmissionNoteSchema,
   driverProgressSchema,
   DriverProgressEventType,
+  Role,
   TripPodFileType,
   tripContainerSealBatchSchema,
   validatedTripContainerSchema, validatedTripContainerPatchSchema, normalizeContainerNumber,
@@ -594,6 +597,12 @@ router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Res
   res.json({ items });
 }));
 
+// Card 20260921_7 — fee norms (định mức) for the driver cost-form auto-fill.
+// CONFIG DATA: amounts are defaults, the driver may override the actual.
+router.get('/fee-norms', requireRoles(Role.DRIVER, Role.OPS, Role.ADMIN, Role.MANAGER), asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ items: await listActiveDriverFeeNorms() });
+}));
+
 // M8.4 slice 3 — driver incidental costs (per-diem, lift fee, parking, toll,
 // fuel, other). Idempotent create (Idempotency-Key header) so the offline-
 // queue replay doesn't duplicate. COMPLETED trips reject (costs affect financials).
@@ -604,6 +613,7 @@ router.post('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request,
   // shared schema keeps the offline-driver-app contract intact.
   const parsed = driverIncidentalCostSchema.extend({
     expenseTypeCode: z.string().trim().max(50).nullable().optional(),
+    feeNormCode: z.string().trim().max(50).nullable().optional(),
   }).safeParse(req.body);
   if (!parsed.success) {
     throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));

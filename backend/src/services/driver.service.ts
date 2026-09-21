@@ -991,6 +991,7 @@ export type { DriverPayslipPeriod } from './driver-payslip.service';
 export {
   completeOwnedFulfillmentTrip,
   getCompletionEvidenceStatus,
+  listActiveDriverFeeNorms,
   listIncidentalCosts,
   recordIncidentalCost,
   syncDriverFulfillmentStartSideEffects,
