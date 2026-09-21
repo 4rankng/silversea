@@ -11,6 +11,7 @@ export interface PhoiPhieuRow {
   routeName: string | null;
   containerNumber: string | null;
   containerTypeLabel: string | null;
+  cargoWeightKg: number | null;
   liftSite: string | null;
   dropSite: string | null;
   plateNumber: string | null;

@@ -140,7 +140,7 @@ export default function PhoiPhieuControlPage() {
                 <td><input type="checkbox" aria-label={`Chọn ${row.tripCode ?? row.tripId}`} disabled={!canSelect(row)} checked={selected.has(row.tripId)} onChange={() => toggleRow(row)} /></td>
                 <td>{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
                 <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
-                <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small></td>
+                <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
                 <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
                 <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
                 <td>
