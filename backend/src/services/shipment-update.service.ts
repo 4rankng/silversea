@@ -48,14 +48,18 @@ export async function updateShipment(
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     // Product ruling 2026-09-20 ("both notes can be edit"): a notes-only
-    // update by CUS/ADMIN/DISPATCHER skips the intake-status gate and the
-    // accounting lock — the two note fields stay writable on locked lots.
-    // Every other field combination keeps both guards. The pessimistic row
-    // lock from the select above keeps the version bump race-free either way.
+    // update by CUS/ADMIN/DISPATCHER skips the accounting lock — the two note
+    // fields stay writable on locked lots. Every other field combination
+    // keeps the lock. The pessimistic row lock from the select above keeps
+    // the version bump race-free either way.
+    //
+    // The dispatcher stage gate is role-scope, not payload-scope: a
+    // dispatcher only mutates intake-stage lots even when the payload is
+    // notes-only. The gate no-ops for other roles.
+    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     const notesOnly = isNotesOnlyShipmentUpdate(input)
       && (actor?.role === Role.CUS || actor?.role === Role.ADMIN || actor?.role === Role.DISPATCHER);
     if (!notesOnly) {
-      assertDispatcherCanMutateShipmentIntake(actor, existing.status);
       await assertShipmentAccountingUnlocked(tx, id);
     }
     // Master refs carry no DB FKs — validate only the refs this input

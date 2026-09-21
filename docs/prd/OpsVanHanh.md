@@ -65,6 +65,8 @@ Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản á
 
 Phạm vi khai chi phí của Ops là các lô do xe Ops phụ trách chở theo phân công xe, cộng các lô được gán trực tiếp; thu hồi phân công xe chỉ thu hồi quyền trên những lô Ops chưa có khoản chi nào đã lưu tại đó.
 
+Ghi chú của CUS/quản trị/điều vận được tách khỏi khóa kế toán để sửa được trên lô đã khóa; việc này KHÔNG mở guard giai đoạn tiếp nhận của điều vận — điều vận vẫn chỉ sửa được lô ở giai đoạn tiếp nhận kể cả khi chỉ sửa ghi chú.
+
 Chi phí nâng/hạ do Ops khai dùng số tiền thực chi, không tự áp giá từ bảng định mức nâng/hạ. Quy tắc này không thay đổi cách tính cước hoặc chi phí lái xe ở phân hệ khác.
 
 ## 4. Theo dõi xe phụ trách
