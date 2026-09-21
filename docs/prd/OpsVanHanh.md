@@ -105,6 +105,7 @@ Một yêu cầu ứng cũ chưa có chứng cứ giao tiền không được t�
 - Thiếu hoặc khó đọc biên lai không làm tiền tự quay lại ví. Sửa sai số tiền hoặc hủy một khoản ghi nhầm phải có lý do và lịch sử trước/sau.
 - Số dư âm hiển thị đúng số và các khoản tạo ra nó. Không tự kết luận Ops nhận quá nhiều tiền ứng hoặc tự bỏ tiền túi khi không có thông tin chứng minh.
 - Người dùng phân biệt được số đã ghi với khoản đang lưu. Khi chưa biết thao tác đã thành công hay chưa, sản phẩm nói rõ và giúp xác định kết quả trước khi người dùng nhập lại.
+- **Sổ quỹ tách hai nguồn** (chốt 21/09, ship 22/09): mỗi phiếu thu/chi gắn đúng một nguồn quỹ — TK công ty (ACB) hoặc Tiền mặt; sổ của từng nguồn đọc được riêng (số dư đầu, thu, chi, tồn), tài khoản chưa gắn nguồn được đếm riêng và không lẫn vào sổ nguồn nào.
 
 Các thông tin **Số dư**, **Tiền nhận**, **Đã chi**, **Đã hoàn trả** phải dễ đọc, nhưng không chiếm gần hết màn hình. Lịch sử giao dịch và hành động thường dùng xuất hiện sớm trên điện thoại và máy tính bảng.
 
@@ -231,6 +232,8 @@ Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và s
 
 **Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần. Giới hạn trả thêm dựa trên chi phí và khoản ứng đã chọn trong đúng đợt. Tiền ứng chưa phân bổ hoặc dư tiền của đợt khác không tự bù trừ hoặc làm mất khả năng thanh toán đợt này; cùng khoản ứng không được sử dụng lần hai.
 
+**Bảng kiểm chi phí Ops (ship 22/09):** kế toán xem các khoản Ops đã nhập trên một bảng duy nhất, lọc theo khoảng ngày, nhân viên thanh toán và tiến độ; tích xác nhận từng dòng hoặc tích tất cả — ngày và người xác nhận được ghi lại; chỉ khoản đã xác nhận mới được tính về sau. **Báo cáo tổng hợp hoàn ứng tháng** theo nhân viên: tiền ĐNTT (chỉ đếm khoản đã xác nhận) − tạm ứng còn giữ = **còn phải hoàn ứng**, kèm nhãn chiều số rõ ràng — dương "Công ty thanh toán hoàn ứng", âm "Công ty yêu cầu nhân viên hoàn trả tạm ứng", không hiện số âm trần trụi. Phiếu chi/thu tạm ứng lập từ đúng báo cáo này qua engine phiếu quỹ hiện có; sau khi phiếu post, sổ quỹ và báo cáo hội tụ về một số. **Bảng điều khiển phôi phiếu** gom phiếu thu/chi theo chuyến (gom dòng cùng xe liền nhau); **Theo dõi hóa đơn kết hợp** quản lý số hóa đơn, số tiền hóa đơn và tiền trả nhà cung cấp theo lô — CUS xem chỉ-đọc.
+
 ### 9.3 Tiêu chí nghiệm thu bổ sung
 
 | Mã | Tình huống và kết quả cần đạt |
@@ -253,6 +256,10 @@ Lái xe nhập chi phí vào lô hàng theo **loại phí** chọn từ danh m�
 ### 9.5 Tiền đi đường và định mức phí lái xe
 
 Tiền đi đường của lái xe không bao giờ vào phải thu khách hàng; khoản chỉ nằm trong danh mục tiền đi đường để kế toán phôi phiếu thanh toán với lái xe và tính doanh thu xe theo tháng. Các định mức được cấu hình sẵn dạng **dữ liệu cấu hình** và tự điền khi lái xe chọn đúng loại phí: nâng/hạ tại Lạch Huyện, TIL, Hateco 50.000đ; trả đêm 100.000đ; quay đầu 100.000đ; quá tải 200.000đ; đảo chuyển ICD/Đăng Khoa 200.000đ; chạy hàng chủ nhật 200.000đ; lưu ca 200.000đ; cont 45'HC/cont lạnh 200.000đ. Định mức sửa được, không hard-code; lái xe vẫn sửa được số tiền khi thực tế khác định mức. Tiền vé cầu đường: lái xe nhập được, kế toán phôi phiếu sửa được số tiền trước khi thanh toán. Phí sửa chữa dọc đường (sửa đèn, vá lốp…) nhập được kèm ghi nhận có phiếu thu viết tay. Định mức tiền đường theo từng tuyến đường để trống — khách hàng sẽ bổ sung sau.
+
+### 9.6 Theo dõi hoàn cược container
+
+Lô nào khách khai "có cược" (kèm số tiền dự kiến, có thể bỏ trống) thì tự vào **bảng theo dõi hoàn cược**: khách hàng, hãng tàu, số Bill, số tiền cược — kế toán tự điền tay được khi khách bỏ trống. Ngày nộp công văn do kế toán điền (lịch hoặc gõ tay dd/mm/yy); **ngày dự kiến hoàn cược mặc định = ngày nộp CV + 14 ngày**, vẫn sửa được cho hãng tàu hoàn lâu hơn. Trạng thái mặc định "chưa hoàn cược"; tick "đã hoàn cược" ghi nhận đã thu và đổ tiền về quỹ công ty (ACB) qua engine kho quỹ hiện có — mỗi dòng post đúng một bút toán, tick lại bị chặn. Mặc định sắp xếp: lô chưa hoàn cược lên đầu, theo ngày xa nhất → gần nhất; lọc theo khoảng ngày và trạng thái; **Tổng** thể hiện tổng tiền cược theo bộ lọc. Hai cảnh báo chạy song song: lô quá 7 ngày chưa có ngày nộp công văn (kèm số lượng lô) và tổng "Chưa hoàn cược số tiền: … — Vui lòng kiểm tra lại!". Mọi dòng hiển thị theo Số Bill + tên khách/hãng tàu, không bao giờ hiện mã nội bộ.
 
 ## 10. Tài liệu liên quan
 

@@ -4,6 +4,15 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-22 — Chi phí theo lô: danh mục dữ liệu, sổ quỹ hai nguồn, phôi phiếu, hoàn ứng, hoàn cược
+
+- **Danh mục phí là dữ liệu, phân loại lái xe theo danh mục dùng chung** (`OpsVanHanh.md` §9.1, §9.4): danh mục phí chi hộ và định mức tiền đường nạp theo cấu hình (fill-only — không ghi đè sửa tay của người dùng), tên phí và mức tiền là dữ liệu; lái xe chọn loại phí từ danh mục dùng chung, lớp có-hóa-đơn/không-hóa-đơn do máy chủ quyết từ cờ của danh mục; dòng có hóa đơn phải kèm số hóa đơn và thu khách sau khi kế toán đối chiếu, dòng không hóa đơn không bao giờ thu khách.
+- **Định mức tiền đường nạp trong bước seed của lần dựng** (`OpsVanHanh.md` §9.5): môi trường mới có đủ danh mục + định mức ngay sau khi dựng; chạy lại không nhân đôi, không ghi đè; nhãn "Lưu bãi" tách theo họ nâng/hạ ("Lúc nâng"/"Lúc hạ") theo chốt của khách.
+- **Sổ quỹ tách hai nguồn và đọc theo nguồn** (`OpsVanHanh.md` §5.2): mỗi phiếu thu/chi gắn đúng một nguồn quỹ (TK công ty ACB hoặc Tiền mặt); sổ theo từng nguồn đọc được riêng, tài khoản chưa gắn nguồn được đếm riêng, không lẫn vào sổ nào.
+- **Bảng kiểm chi phí Ops và báo cáo hoàn ứng tháng** (`OpsVanHanh.md` §9.2): kế toán tích xác nhận từng dòng hoặc tích tất cả, ghi ngày và người xác nhận; báo cáo tổng hợp hoàn ứng theo nhân viên: tiền ĐNTT (chỉ đếm khoản đã xác nhận) − tạm ứng còn giữ = còn phải hoàn ứng, kèm nhãn chiều số (công ty thanh toán hoàn ứng / công ty thu lại), không hiện số âm trần trụi.
+- **Bảng điều khiển phôi phiếu và theo dõi hóa đơn kết hợp** (`OpsVanHanh.md` §9.2): kế toán quản lý phiếu thu/chi theo chuyến trên một bảng điều khiển, gom dòng cùng xe liền nhau; theo dõi số hóa đơn, số tiền hóa đơn và tiền trả nhà cung cấp theo lô, CUS xem chỉ-đọc.
+- **Theo dõi hoàn cược container** (`OpsVanHanh.md` §9.6): lô khách khai "có cược" tự vào bảng theo dõi; kế toán điền ngày nộp công văn (dd/mm/yy hoặc lịch), ngày dự kiến hoàn cược mặc định +14 ngày và vẫn sửa được; tick "đã hoàn cược" ghi nhận đã thu và đổ tiền về quỹ công ty (ACB) qua engine kho quỹ hiện có; hai cảnh báo chạy song song (lô quá 7 ngày chưa có ngày nộp công văn; tổng tiền chưa hoàn cược).
+
 ## 2026-09-21 — Quyền chi phí Ops theo xe, guard giai đoạn, Lớp 1 đọc bản chốt mới nhất
 
 - **Quyền khai chi phí của Ops sinh từ gán xe (auto-link theo xe)** (`OpsVanHanh.md` §3.3): chủ sản phẩm chốt — Ops được gán đầu xe (phân công xe–Ops) tự có quyền lưu chi phí trên các lô do xe đó chở; gán tay từng lô qua form người dùng (Admin) vẫn hoạt động song song; thu hồi gán xe làm mất quyền trên các lô chưa có khoản chi đã lưu. Trước đó cổng `user_shipment_links` chỉ có writer gán tay nên Ops thật không thể lưu chi phí.
