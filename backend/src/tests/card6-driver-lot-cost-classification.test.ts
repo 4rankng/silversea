@@ -148,12 +148,14 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
       invoiceNumber: 'card6-HD-legacy', invoiceDate: TODAY,
     }, user.id, `card6-key-${suffix}-legacy-1`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withInvoice.cost.id)); });
-    assert.equal(withInvoice.cost.customerChargeAmount, '60000');
+    const [withInvoiceRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withInvoice.cost.id));
+    assert.equal(withInvoiceRow.customerChargeAmount, '60000');
     const withoutInvoice = await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.TOLL, amount: 40000, occurredAt: TODAY,
     }, user.id, `card6-key-${suffix}-legacy-2`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withoutInvoice.cost.id)); });
-    assert.equal(withoutInvoice.cost.customerChargeAmount, '0');
+    const [withoutInvoiceRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withoutInvoice.cost.id));
+    assert.equal(withoutInvoiceRow.customerChargeAmount, '0');
   });
 
   test('pre-confirm: no receivable projection; after accountant confirm it carries charge + invoice (AC2/AC5)', async () => {
