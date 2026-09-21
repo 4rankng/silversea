@@ -123,6 +123,7 @@ const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCat
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
 const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuControlPage'));
 const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
+const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
@@ -289,6 +290,10 @@ export function AppRoutes() {
           <Route
             path="/accounting/invoice-tracking"
             element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
+          />
+          <Route
+            path="/accounting/deposit-tracker"
+            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <Navigate to={homeRedirect} replace />}
           />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />

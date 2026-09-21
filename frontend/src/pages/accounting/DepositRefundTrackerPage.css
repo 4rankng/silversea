@@ -1,0 +1,20 @@
+.deposit-tracker-page { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+.deposit-tracker-filters { display: flex; flex-wrap: wrap; gap: var(--space-3, 12px); align-items: end; }
+.deposit-tracker-warnings { border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.deposit-tracker-warnings__item { display: flex; gap: 6px; align-items: center; margin: 0; color: var(--color-warning-text, #92400e); }
+.deposit-tracker-totals__tile { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; padding: 10px 14px; width: fit-content; }
+.deposit-tracker-totals__tile strong { font-size: 1.05rem; }
+.deposit-tracker-table th, .deposit-tracker-table td { padding: 8px 10px; text-align: left; vertical-align: middle; }
+.deposit-tracker-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.deposit-tracker-table .bill { font-weight: 600; }
+.deposit-tracker-table .note { max-width: 220px; overflow-wrap: anywhere; }
+.deposit-tracker-table .actions { display: flex; gap: 6px; white-space: nowrap; }
+.deposit-status { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; }
+.deposit-status--pending { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning-text, #92400e); }
+.deposit-status--done { background: var(--color-success-bg, #dcfce7); color: var(--color-success-text, #166534); }
+.deposit-tracker-form { display: flex; flex-direction: column; gap: 10px; min-width: 280px; }
+.deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted, #64748b); }
+.deposit-tracker-table tr.is-refunded { opacity: 0.72; }
+@media (max-width: 900px) {
+  .deposit-tracker-filters { align-items: stretch; flex-direction: column; }
+}

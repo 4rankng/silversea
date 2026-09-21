@@ -15,6 +15,7 @@ import {
   Layers,
   FileText,
   FileSpreadsheet,
+  Coins,
   Store,
   Package,
   CalendarDays,
@@ -117,6 +118,7 @@ export function getNavItems(
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — kế toán + quản trị write,
         // CUS read-only on the same page.
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -204,6 +206,7 @@ export function getNavItems(
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — same read-only-for-CUS
         // page as the accountant entry; writes stay server-gated.
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
 
         // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
         ...(hasCapability('treasury.read') ? [
@@ -272,6 +275,7 @@ export function getNavItems(
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — read-only for this role;
         // the page hides editors and the server rejects writes (403).
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'reconciliation' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'reconciliation' as SectionName },
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [
