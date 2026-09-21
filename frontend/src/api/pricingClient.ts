@@ -13,6 +13,9 @@ export interface FuelPricePeriodRow {
   /** Engine-owned window end; never edited in the UI. */
   effectiveTo: string | null;
   sourceNote: string | null;
+  /** Entrant attribution (audit): id + resolved name; null on legacy rows. */
+  createdBy?: number | null;
+  createdByName?: string | null;
 }
 
 export interface FreightRateTermRow {

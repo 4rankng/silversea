@@ -91,7 +91,7 @@ export default function FuelPricePeriodsConfigPage() {
         title="Giá dầu theo kỳ"
         description="Giá dầu Petrolimex công bố theo kỳ — nhập một bản ghi mỗi lần công bố giá mới"
         endpoint={CONFIG.FUEL_PRICE_PERIODS}
-        colSpan={3}
+        colSpan={4}
         pageSlug="fuel-price-periods"
         emptyTitle="Chưa có kỳ giá dầu"
         emptyHint="Nhập kỳ giá đầu tiên để động cơ cước tự động có dữ liệu đối chiếu."
@@ -100,6 +100,7 @@ export default function FuelPricePeriodsConfigPage() {
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveFrom) },
           { header: 'Giá dầu (đ/lít)', render: r => fmtPrice(r.unitPrice) },
           { header: 'Ghi chú', render: r => r.sourceNote || '—' },
+          { header: 'Người nhập', render: r => r.createdByName || 'Không xác định' },
         ]}
         renderForm={p => (
           <FuelPricePeriodForm

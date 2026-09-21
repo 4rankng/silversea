@@ -683,8 +683,31 @@ router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, {
 // market-data entry by "Kế toán/CUS" (a governed flow would reject the CUS
 // maker — GOVERNANCE_CREATE is financial-trio only); the heavier contract
 // surfaces (rate terms, norms) below stay governed.
+// Fuel-price list enrichment: the audit contract ("ai nhập 28.000đ từ 19/9?")
+// needs the entrant's NAME on the wire — raw ids never render as UI text.
+// Mounted before the factory so the GET serves the joined name while the
+// factory keeps handling writes.
+router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Response) => {
+  const rows = await db.select({
+    id: s.fuelPricePeriods.id,
+    unitPrice: s.fuelPricePeriods.unitPrice,
+    effectiveFrom: s.fuelPricePeriods.effectiveFrom,
+    effectiveTo: s.fuelPricePeriods.effectiveTo,
+    sourceNote: s.fuelPricePeriods.sourceNote,
+    createdBy: s.fuelPricePeriods.createdBy,
+    createdByName: sql<string | null>`coalesce(${s.users.fullName}, ${s.users.username})`,
+  })
+    .from(s.fuelPricePeriods)
+    .leftJoin(s.users, eq(s.users.id, s.fuelPricePeriods.createdBy))
+    .orderBy(s.fuelPricePeriods.effectiveFrom);
+  res.json({ items: rows, total: rows.length, page: 1, pageSize: Math.max(rows.length, 1) });
+}));
+
 router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
   orderByField: 'effectiveFrom',
+  // The factory stamps the idempotency record, not the entity row — the fuel
+  // entry must remember WHO entered it (audit attribution, card _57).
+  beforeCreate: async (data, req) => ({ ...data, createdBy: getUser(req).userId }),
 }));
 
 // Freight rate terms — one contract block per customer × route. The pct/abs

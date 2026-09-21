@@ -226,6 +226,30 @@ describe('fuel price periods config CRUD', () => {
     assert.ok(dates.includes(fuelDates[0]), 'chronological list includes the entry');
   });
 
+  test('fuel entries record the entrant and the list names them (audit attribution)', async () => {
+    const created = await api('POST', '/fuel-price-periods', accountantId, {
+      unitPrice: 28000,
+      effectiveFrom: fuelDates[3],
+      sourceNote: 'Ai nhập 28.000đ từ 19/9 — audit attribution',
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    createdFuelPeriodIds.push((created.body as { id: number }).id);
+    assert.equal((created.body as { createdBy: number }).createdBy, accountantId,
+      'the entrant id must ride the created row');
+
+    const list = await api('GET', '/fuel-price-periods', accountantId);
+    assert.equal(list.status, 200);
+    const items = (list.body as { items: Array<{ id: number; createdBy: number | null; createdByName: string | null }> }).items;
+    const row = items.find((item) => item.id === (created.body as { id: number }).id);
+    assert.ok(row, 'new row appears in the list');
+    assert.equal(row!.createdBy, accountantId);
+    assert.ok(row!.createdByName, 'list carries the entrant name for attribution');
+    // Legacy rows (created by seed/pre-fix writes) expose no invented author:
+    // the client renders them as "Không xác định".
+    const legacy = items.find((item) => item.createdBy == null);
+    if (legacy) assert.equal(legacy.createdByName, null);
+  });
+
   test('CUS may enter fuel prices (docx §5-1 route-scoped); DISPATCHER may not', async () => {
     const cusEntry = await api('POST', '/fuel-price-periods', cusId, {
       unitPrice: 21900,
