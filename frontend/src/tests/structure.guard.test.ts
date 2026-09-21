@@ -40,6 +40,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // tag-pool/trip-detail polish client. Reviewed as a contract change.
   'src/api/driverClient.ts': 691,
   'src/api/keys.ts': 562,
+  // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
+  // combined-invoice tracking page landed over the ceiling without a
+  // baseline; refrozen here to unblock cut #24. Split candidate.
+  'src/pages/AccountingInvoiceTrackingPage.tsx': 460,
   // Added as baseline 414 (was new-file capped): 2026-09-21 card 20260921_2 -
   // the CUS detail hook gains addContainer/removeContainer row mutations
   // beside the existing per-mode edit sessions. A future split should
