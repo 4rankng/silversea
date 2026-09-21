@@ -16,6 +16,10 @@ import {
   validateContainerNumber,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
+  type ShipmentCusContainerAddInput,
+  type ShipmentCusContainerAddResult,
+  type ShipmentCusContainerRemoveInput,
+  type ShipmentCusContainerRemoveResult,
 } from '@tingting/shared';
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
@@ -26,10 +30,11 @@ import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
-import { ensureShipmentFulfillmentsInTx, operationalSiteSnapshot } from './shipment-fulfillment.service';
+import { createFulfillmentForAddedContainer, ensureShipmentFulfillmentsInTx, operationalSiteSnapshot } from './shipment-fulfillment.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertContainerSetValid } from './shipment-containers.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 
@@ -757,4 +762,228 @@ export async function updateCusShipmentContainerLine(args: {
     await cacheInvalidate('catalogs:bootstrap');
   }
   return outcome;
+}
+
+
+// ─── Card 20260921_2: add / remove a container row after intake ────────────
+//
+// The locked business contract: CUS mutates the container set until dispatch;
+// a container on a non-CANCELED trip blocks ITS OWN row (never the whole lot)
+// with the same message vocabulary the row editor uses; schedule follows the
+// container — a new row is a new row awaiting its appointment, a removed row
+// loses its appointment with it; no re-confirmation step, no new audit.
+
+/** Guard block shared by both commands: role gate → accounting lock →
+ *  terminal status → optimistic version, on a row-locked shipment. Legacy
+ *  null cargoMode repairs to FCL (a container-scoped write is unambiguously
+ *  FCL), mirroring the line-update path. Returns the locked row. */
+async function lockShipmentForContainerSetWrite(tx: Tx, shipmentId: number, expectedVersion: number) {
+  const shipment = await assertShipmentAccountingUnlocked(tx, shipmentId);
+  if (canonicalShipmentStatus(shipment.status) === 'COMPLETED' || canonicalShipmentStatus(shipment.status) === 'CANCELED') {
+    throw new ApiError(409, 'Lô hàng đã kết thúc, không thể thay đổi dòng container.');
+  }
+  if (shipment.version !== expectedVersion) {
+    throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi đổi dòng container.');
+  }
+  if (shipment.cargoMode == null) {
+    await tx.update(s.shipments).set({ cargoMode: 'FCL' })
+      .where(eq(s.shipments.id, shipment.id));
+    shipment.cargoMode = 'FCL';
+  }
+  return shipment;
+}
+
+/** The container's active (non-canceled) trip, if any — the per-ROW removal
+ *  guard. Tripped rows never delete; free rows always do. */
+async function findActiveTripForContainer(tx: Tx, containerId: number) {
+  const [trip] = await tx.select({
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+  }).from(s.trips)
+    .innerJoin(s.shipmentFulfillments, and(
+      eq(s.shipmentFulfillments.id, s.trips.fulfillmentId),
+      eq(s.shipmentFulfillments.shipmentContainerId, containerId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .where(and(
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
+    .limit(1)
+    .for('update');
+  return trip ?? null;
+}
+
+/** Recompute the lot's expected delivery date from every container's
+ *  appointment (earliest Vietnam business day wins) and flip
+ *  PENDING_DATE → READY_FOR_DISPATCH when FCL and every row is dated.
+ *  Returns the post-write shipment version. */
+async function projectShipmentScheduleAndVersion(tx: Tx, shipmentId: number, actorId: number): Promise<number> {
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(eq(s.shipments.id, shipmentId))
+    .limit(1);
+  const appointments = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
+    .from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
+  const appointmentDates = appointments.map((row) => row.appointment);
+  const derivedDate = deriveTransportDateFromContainerAppointments(appointmentDates);
+  const allDated = appointmentDates.length > 0 && appointmentDates.every((appointment) => appointment != null);
+  const canonicalStatus = canonicalShipmentStatus(shipment!.status);
+  const becomesReady = shipment!.cargoMode === CARGO_MODE.FCL
+    && derivedDate != null
+    && allDated
+    && canonicalStatus === 'PENDING_DATE';
+  const [updated] = await tx.update(s.shipments).set({
+    expectedDeliveryDate: derivedDate,
+    ...(becomesReady ? { status: ShipmentStatus.READY_FOR_DISPATCH } : {}),
+    version: shipment!.version + 1,
+    updatedAt: new Date(),
+    updatedBy: actorId,
+  }).where(and(
+    eq(s.shipments.id, shipmentId),
+    eq(s.shipments.version, shipment!.version),
+  )).returning({ version: s.shipments.version });
+  if (!updated) {
+    throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.');
+  }
+  if (becomesReady) {
+    await tx.insert(s.shipmentStatusHistory).values({
+      shipmentId,
+      fromStatus: ShipmentStatus.PENDING_DATE,
+      toStatus: ShipmentStatus.READY_FOR_DISPATCH,
+      reason: 'Đã cập nhật danh sách container và sẵn sàng điều xe.',
+      changedBy: actorId,
+    });
+    const [fresh] = await tx.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipmentId))
+      .limit(1);
+    await ensureReadyShipmentHandoff(tx, fresh!, actorId);
+  }
+  return updated.version;
+}
+
+export async function addCusShipmentContainer(args: {
+  shipmentId: number;
+  input: ShipmentCusContainerAddInput;
+  actor: AuthUser;
+  transaction?: Tx;
+}): Promise<ShipmentCusContainerAddResult> {
+  requireWorkspaceWriter(args.actor);
+  const execute = async (tx: Tx) => {
+    const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
+
+    // The merged desired set validates exactly like the reconcile: ISO 6346
+    // format, no in-lot duplicate, placeholder rows allowed.
+    const existingRows = await tx.select({ containerNumber: s.shipmentContainers.containerNumber })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
+    const requestedNumber = args.input.containerNumber.trim();
+    assertContainerSetValid([...existingRows, { containerNumber: requestedNumber }]);
+
+    const [inserted] = await tx.insert(s.shipmentContainers).values({
+      shipmentId: args.shipmentId,
+      containerNumber: requestedNumber,
+      containerTypeId: args.input.containerTypeId ?? null,
+      cargoWeightKg: args.input.cargoWeightKg ?? null,
+      cargoVolumeCbm: args.input.cargoVolumeCbm ?? null,
+      routeId: args.input.routeId ?? null,
+      pickupPortId: args.input.liftSiteId ?? null,
+      dropoffPortId: args.input.dropoffSiteId ?? null,
+      operationalSiteId: args.input.operationalSiteId ?? null,
+      customerAppointmentAt: args.input.customerAppointmentAt ? new Date(args.input.customerAppointmentAt) : null,
+      createdBy: args.actor.userId,
+      updatedAt: new Date(),
+    }).returning({ id: s.shipmentContainers.id });
+
+    // Decompose the new row into its own fulfillment so dispatch sees it
+    // without waiting for a re-decompose trigger. Narrow helper: ensure()
+    // requires the active set to already equal the container list and cannot
+    // extend a partial set.
+    await createFulfillmentForAddedContainer(tx, args.shipmentId, inserted!.id, args.actor.userId);
+
+    const shipmentVersion = await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
+    await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
+    void shipment;
+
+    const detail = await buildWorkspaceDetail(await loadShipmentRow(args.shipmentId, args.actor, tx), args.actor, tx);
+    const line = detail.containers.find((item) => item.id === inserted!.id);
+    if (!line) throw new ApiError(500, 'Không thể tải lại dòng container vừa thêm.');
+    return { line };
+  };
+  return runInTx(args.transaction, execute);
+}
+
+export async function removeCusShipmentContainer(args: {
+  shipmentId: number;
+  containerId: number;
+  input: ShipmentCusContainerRemoveInput;
+  actor: AuthUser;
+  transaction?: Tx;
+}): Promise<ShipmentCusContainerRemoveResult> {
+  requireWorkspaceWriter(args.actor);
+  const execute = async (tx: Tx) => {
+    const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
+
+    const [container] = await tx.select({ id: s.shipmentContainers.id, containerNumber: s.shipmentContainers.containerNumber })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.id, args.containerId),
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+      ))
+      .limit(1)
+      .for('update');
+    if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+
+    if (shipment.cargoMode === CARGO_MODE.FCL) {
+      const [{ total }] = await tx.select({ total: sql<number>`count(*)::int` })
+        .from(s.shipmentContainers)
+        .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
+      if (total <= 1) {
+        throw new ApiError(409, 'Lô hàng phải có ít nhất một container.');
+      }
+      // BE second-eyes F1: a READY lot must not lose its last dated row —
+      // the line-edit path guards the same invariant with this message.
+      if (canonicalShipmentStatus(shipment.status) === 'READY_FOR_DISPATCH') {
+        const remainingRows = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
+          .from(s.shipmentContainers)
+          .where(and(
+            eq(s.shipmentContainers.shipmentId, args.shipmentId),
+            ne(s.shipmentContainers.id, args.containerId),
+          ));
+        if (remainingRows.every((row) => row.appointment == null)) {
+          throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+        }
+      }
+    }
+
+    // Per-ROW guard: the trip of THIS container blocks only this row. The
+    // message mirrors the row editor's so users see one consistent contract.
+    const trip = await findActiveTripForContainer(tx, args.containerId);
+    if (trip) {
+      const tripLabel = trip.tripCode || '—';
+      throw new ApiError(409, `Container đã gắn chuyến xe (${tripLabel}). Hủy hoặc thay thế lệnh điều xe trước khi xóa dòng.`);
+    }
+
+    // Cancel the row's own fulfillment (never the neighbors'), then drop the
+    // row — the same hard-delete the reconcile uses for removed rows.
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: args.actor.userId,
+      cancellationReason: 'Container được CUS xóa khỏi lô hàng sau khi nhập.',
+      cancellationDisposition: 'NOT_REQUIRED',
+      version: sql`${s.shipmentFulfillments.version} + 1`,
+      updatedAt: new Date(),
+    }).where(and(
+      eq(s.shipmentFulfillments.shipmentContainerId, args.containerId),
+      eq(s.shipmentFulfillments.shipmentId, args.shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+    await tx.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, args.containerId));
+
+    const shipmentVersion = await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
+    await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
+
+    return { removedId: args.containerId, shipmentVersion };
+  };
+  return runInTx(args.transaction, execute);
 }

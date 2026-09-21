@@ -13,6 +13,8 @@ import {
   shipmentCusWorkspaceQuerySchema,
   shipmentCusContainerQuerySchema,
   shipmentCusContainerLineUpdateSchema,
+  shipmentCusContainerAddSchema,
+  shipmentCusContainerRemoveSchema,
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
   shipmentCusLockSchema,
@@ -23,6 +25,8 @@ import {
   listCusShipmentContainers,
   listCusShipmentWorkspace,
   updateCusShipmentContainerLine,
+  addCusShipmentContainer,
+  removeCusShipmentContainer,
 } from '../../services/cus-shipment-workspace.service';
 import {
   activateShipmentAccountingLock,
@@ -94,6 +98,73 @@ cusWorkspaceRoutes.post(
       { shipmentId, containerId, data: parsed.data },
       async (tx) => {
         const outcome = await updateCusShipmentContainerLine({
+          shipmentId,
+          containerId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+cusWorkspaceRoutes.post(
+  '/cus-workspace/:id/containers',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusContainerAddSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_ADD,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await addCusShipmentContainer({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+cusWorkspaceRoutes.post(
+  '/cus-workspace/:id/containers/:containerId/remove',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const containerId = Number.parseInt(req.params.containerId as string, 10);
+    if (!Number.isInteger(containerId) || containerId <= 0) {
+      throw new ApiError(400, 'ID container không hợp lệ');
+    }
+    const parsed = shipmentCusContainerRemoveSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_REMOVE,
+      { shipmentId, containerId, data: parsed.data },
+      async (tx) => {
+        const outcome = await removeCusShipmentContainer({
           shipmentId,
           containerId,
           input: parsed.data,

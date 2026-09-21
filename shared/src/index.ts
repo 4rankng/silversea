@@ -189,6 +189,10 @@ export {
   shipmentCusReopenRequestSchema,
   shipmentCusContainerLineUpdateSchema,
   shipmentCusContainerLineUpdateResultSchema,
+  shipmentCusContainerAddSchema,
+  shipmentCusContainerAddResultSchema,
+  shipmentCusContainerRemoveSchema,
+  shipmentCusContainerRemoveResultSchema,
   shipmentRecoveryRecordSchema,
   shipmentRecoveryRecordResultSchema,
 } from './schemas/cus-shipment-workspace';
@@ -222,6 +226,10 @@ export type {
   ShipmentCusReopenRequestInput,
   ShipmentCusContainerLineUpdateInput,
   ShipmentCusContainerLineUpdateResult,
+  ShipmentCusContainerAddInput,
+  ShipmentCusContainerAddResult,
+  ShipmentCusContainerRemoveInput,
+  ShipmentCusContainerRemoveResult,
   ShipmentRecoveryRecordInput,
   ShipmentRecoveryRecordResult,
 } from './schemas/cus-shipment-workspace';

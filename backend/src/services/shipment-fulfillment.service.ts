@@ -314,6 +314,45 @@ async function loadContainerSiteSnapshots(
 }
 
 /**
+ * Card 20260921_2: decompose ONE newly added container row into its own
+ * fulfillment — the narrow counterpart of ensureShipmentFulfillmentsInTx for
+ * a set EXTENSION (ensure requires the active set to already equal the
+ * container list, so it cannot extend a partial set). Caller holds the
+ * shipment lock within its own transaction.
+ */
+export async function createFulfillmentForAddedContainer(
+  tx: Tx,
+  shipmentId: number,
+  containerId: number,
+  actorId: number,
+): Promise<FulfillmentRow> {
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  if (shipment.cargoMode !== CARGO_MODE.FCL) {
+    throw new ApiError(409, 'Chỉ lô hàng nguyên container mới thêm được dòng container.');
+  }
+  const [container] = await tx.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.id, containerId))
+    .limit(1);
+  if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+  const containerSnapshots = await loadContainerSiteSnapshots(tx, shipment, [container]);
+  const [row] = await tx.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    shipmentContainerId: container.id,
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: containerSnapshots.get(container.id) ?? await loadSiteSnapshot(tx, shipment),
+    dispatchClassification: shipment.isCombined ? 'COMBINED' : 'SINGLE',
+    createdBy: actorId,
+  }).returning();
+  return row;
+}
+
+/**
  * Deterministically decompose a shipment into its independently dispatchable
  * units. Application-owned advisory locking serializes different idempotency
  * keys before the canonical active-row lookup.
