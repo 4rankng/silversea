@@ -206,12 +206,11 @@
   font-size: var(--text-caption-size);
 }
 
-/* Suppliers catalog pages via the design-system Pagination component; pin
-   it to the table's bottom edge like the other worksheet footers. */
+/* Suppliers catalog pages via the design-system Pagination component. The
+   pager stays IN FLOW after the table (card 20260921_22 surface sweep): a
+   sticky bottom pin floated it mid-list at rest over the rows. */
 .dispatch-catalogs .ds-pagination {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
   margin: 0;
   padding: 12px;
   border-top: 1px solid var(--border-1);

@@ -216,17 +216,15 @@
   text-align: right;
 }
 
+/* The pager stays IN FLOW after the table (card 20260921_22 surface sweep):
+   a sticky bottom pin on this unbounded workspace floats the bar mid-list at
+   rest, covering rows the operator thinks are the last. List-end flow leaves
+   every row visible. */
 .suppliers-page__workspace > .ds-pagination {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
   margin: 0;
-  /* Seal the .app-body 32px bottom-padding strip (card _38). */
-  margin-bottom: -32px;
-  padding: 12px;
-  padding-bottom: calc(12px + 32px);
+  padding: 12px 0 0;
   border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
-  background: var(--surface, #fff);
 }
 
 @media (max-width: 767px) {
