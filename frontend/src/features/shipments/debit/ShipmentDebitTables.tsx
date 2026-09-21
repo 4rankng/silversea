@@ -331,7 +331,25 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
             <td>{row.psActualNote ?? '—'}</td>
           </tr>
         ))}
+        {payablesCommonRow(detail.payables)}
       </tbody>
     </table>
+  );
+}
+
+/** Card _62 — the "Phí chung lô" row: container-NULL ops fees bucketed the
+ *  same way as the container rows, so the sheet conserves. Hidden when the
+ *  lot has no chung-lô rows (both sums null). */
+function payablesCommonRow(payables: ShipmentDebitDetail['payables']) {
+  if (payables.hqgsCommonFee == null && payables.phatSinhCommonFee == null) return null;
+  return (
+    <tr className="csc-debit-table__common-row">
+      <td>Phí chung lô</td>
+      <td>—</td>
+      <td>—</td>
+      <td>{money(payables.hqgsCommonFee)}</td>
+      <td>{money(payables.phatSinhCommonFee)}</td>
+      <td>—</td>
+    </tr>
   );
 }

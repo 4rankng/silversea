@@ -32,6 +32,9 @@ export interface DebitDetailPayables {
   externalFreightCost: number | null;
   hqgsFee: number | null;
   phatSinhFee: number | null;
+  /** Card _62 — container-NULL ops rows (phí chung lô). */
+  hqgsCommonFee: number | null;
+  phatSinhCommonFee: number | null;
   unclassifiedFee: number | null;
   opsExpenseTotal: number | null;
   payableTotal: number | null;
@@ -200,8 +203,20 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   const hqgsByContainer = new Map<number, number>();
   const phatSinhByContainer = new Map<number, number>();
   const containersWithOps = new Set<number>();
+  // Card _62: container-NULL ops rows (phí chung lô) bucketed separately so
+  // the Bảng 2.3 common-fee row conserves: Σ container rows + common = lot.
+  let hqgsCommonFee: number | null = null;
+  let phatSinhCommonFee: number | null = null;
   for (const opsRow of opsRows) {
-    if (opsRow.containerId == null) continue;
+    if (opsRow.containerId == null) {
+      if (opsRow.category === ExpenseTypeCategory.HQGS) {
+        hqgsCommonFee = (hqgsCommonFee ?? 0) + Number(opsRow.amount);
+      }
+      if (opsRow.category === ExpenseTypeCategory.PHAT_SINH) {
+        phatSinhCommonFee = (phatSinhCommonFee ?? 0) + Number(opsRow.amount);
+      }
+      continue;
+    }
     containersWithOps.add(opsRow.containerId);
     if (opsRow.category === ExpenseTypeCategory.HQGS) {
       hqgsByContainer.set(opsRow.containerId, (hqgsByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
@@ -334,8 +349,8 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     .limit(1);
   const breakdown = await computeLotPayablesBreakdown(shipmentId);
   const payables: DebitDetailPayables = activeLock
-    ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot) }
-    : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown };
+    ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot), hqgsCommonFee, phatSinhCommonFee }
+    : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown, hqgsCommonFee, phatSinhCommonFee };
 
   // Frozen lots (card _35 family): the snapshot captured the zone surcharge
   // at lock time — renames/config changes after the lock never rewrite it.

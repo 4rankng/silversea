@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PayablesTable } from './ShipmentDebitTables';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
-const detail = (rowOver: Record<string, unknown> = {}): ShipmentDebitDetail => ({
+const detail = (rowOver: Record<string, unknown> = {}, payablesOver: Record<string, unknown> = {}): ShipmentDebitDetail => ({
   freightRows: [{
     containerNumber: 'QATU1234569',
     containerTypeLabel: "20'DC",
@@ -18,7 +18,7 @@ const detail = (rowOver: Record<string, unknown> = {}): ShipmentDebitDetail => (
     ...rowOver,
   }],
   chiHoRows: [],
-  payables: { chiHoTotal: null },
+  payables: { chiHoTotal: null, ...payablesOver },
   thuKhachTotal: null,
 });
 
@@ -45,6 +45,17 @@ describe('PayablesTable (Bảng 2.3) reads the wire', () => {
       phatSinhFee: null,
     })} />);
     const row = screen.getByText('QATU1234569').closest('tr');
+    expect(row?.textContent).toContain('Chưa xác định');
+  });
+
+  it('renders the chung-lô common row with the container-NULL ops fees', () => {
+    render(<PayablesTable detail={detail({
+      customsFee: null,
+      payableFreight: null,
+      phatSinhFee: null,
+    }, { hqgsCommonFee: 250000 })} />);
+    const row = screen.getByText('Phí chung lô').closest('tr');
+    expect(row?.textContent).toContain('250.000');
     expect(row?.textContent).toContain('Chưa xác định');
   });
 });

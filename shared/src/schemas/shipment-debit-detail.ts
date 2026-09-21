@@ -79,6 +79,11 @@ export const shipmentDebitDetailSchema = z.object({
     externalFreightCost: nullableMoney.optional(),
     hqgsFee: nullableMoney.optional(),
     phatSinhFee: nullableMoney.optional(),
+    /** Card _62 — container-NULL ops rows (phí chung lô) bucketed like the
+     *  container rows, so the sheet conserves: Σ rows + common = lot total.
+     *  Null = no chung-lô rows exist. */
+    hqgsCommonFee: nullableMoney.optional(),
+    phatSinhCommonFee: nullableMoney.optional(),
     unclassifiedFee: nullableMoney.optional(),
     opsExpenseTotal: nullableMoney.optional(),
     payableTotal: nullableMoney.optional(),
