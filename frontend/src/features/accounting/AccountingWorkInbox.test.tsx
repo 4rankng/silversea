@@ -62,7 +62,7 @@ function renderInbox() {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <AccountingWorkInbox transportViewHref="/accounting?view=transport" />
+        <AccountingWorkInbox />
       </MemoryRouter>
     </QueryClientProvider>,
   );

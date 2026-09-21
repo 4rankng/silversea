@@ -44,7 +44,7 @@ export function AccountingWorkspaceRoot() {
   return (
     <div className="accounting-page" data-testid="accounting-workspace">
       <PageHeader title={viewMeta.title} description={viewMeta.description} />
-      <nav className="accounting-work-inbox__shortcuts" aria-label="Chi phí và hoàn ứng"><Link to="/accounting/expenses?view=ops">Chi phí OPS / hoàn ứng</Link><Link to="/accounting/expenses?view=work">Phơi phiếu / tiền đường</Link><Link to="/accounting/expenses?view=records">Hóa đơn / cược container</Link></nav>
+      <nav className="accounting-work-inbox__shortcuts" aria-label="Nghiệp vụ kế toán"><Link to="/accounting/expenses?view=ops">Chi phí OPS / hoàn ứng</Link><Link to="/accounting/expenses?view=work">Phơi phiếu / tiền đường</Link><Link to="/accounting/expenses?view=records">Hóa đơn / cược container</Link><Link to="/debt">Giấy báo nợ</Link><Link to="/payables">Phải trả</Link><Link to="/accounting/fuel-evidence">Chứng từ nhiên liệu</Link></nav>
 
       {state.activeView !== 'work' && <section className="accounting-period" aria-labelledby="accounting-period-title">
         <div>
@@ -95,7 +95,7 @@ export function AccountingWorkspaceRoot() {
       )}
 
       {state.activeView === 'work' ? (
-        <AccountingWorkInbox transportViewHref={viewHref('transport')} />
+        <AccountingWorkInbox />
       ) : state.activeView === 'overview' ? (
         <AccountingOverview
           to={state.to}

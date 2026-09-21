@@ -111,15 +111,9 @@ function InboxLane({
   );
 }
 
-export function AccountingWorkInbox({ transportViewHref }: { transportViewHref: string }) {
+export function AccountingWorkInbox() {
   return (
     <section className="accounting-work-inbox" aria-label="Hàng đợi sẵn sàng tài chính">
-      <nav className="accounting-work-inbox__shortcuts" aria-label="Đi đến nghiệp vụ kế toán">
-        <Link to={transportViewHref}>Đối chiếu vận tải</Link>
-        <Link to="/debt">Giấy báo nợ</Link>
-        <Link to="/payables">Phải trả</Link>
-        <Link to="/accounting/fuel-evidence">Chứng từ nhiên liệu</Link>
-      </nav>
       <p className="accounting-work-inbox__batch-note">Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải sau khi máy chủ xác nhận các dòng sẵn sàng và cùng một khách hàng.</p>
       <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Đã đủ POD, chi phí, quyết toán và ảnh chụp lợi nhuận." />
       <InboxLane view="WAITING" title="Đang bị chặn" description="Mở đúng nghiệp vụ đang giữ hồ sơ để hoàn thiện điều kiện." />
