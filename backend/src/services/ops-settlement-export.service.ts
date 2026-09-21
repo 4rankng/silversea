@@ -34,14 +34,14 @@ export async function exportOpsSettlementXlsx(
 
   const title = sheet.addRow([`ĐỀ NGHỊ THANH TOÁN ${settlement.code}`]);
   title.font = { bold: true, size: 13 };
-  sheet.addRow([`Người lập: ${settlement.opsUserName ?? settlement.opsUserId}`]);
+  sheet.addRow([`Người lập: ${settlement.opsUserName ?? '—'}`]);
   sheet.addRow([`Ngày lập: ${new Date(settlement.createdAt).toLocaleDateString('vi-VN')}`]);
   if (settlement.note) sheet.addRow([`Ghi chú: ${settlement.note}`]);
   sheet.addRow([]);
 
   for (const group of grouping.groups) {
     const header = sheet.addRow([
-      `Lô ${group.shipmentCode ?? group.shipmentId}`,
+      `Lô ${group.shipmentCode ?? group.billRef ?? '—'}`,
       group.customerName ?? '',
       `Bill/Booking: ${group.billRef ?? '—'}`,
     ]);
