@@ -512,6 +512,7 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   // invoice-bearing types default the customer charge to the amount.
   LIFT_EMPTY:     { name: 'Phí nâng vỏ',                 defaultMarkup: false, billingLabel: 'Phí nâng vỏ', category: ExpenseTypeCategory.LIFT },
   LIFT_CARGO:     { name: 'Phí nâng hàng',               defaultMarkup: false, billingLabel: 'Phí nâng hàng', category: ExpenseTypeCategory.LIFT },
+  YARD_STORAGE_LIFT: { name: 'Phí lưu bãi',              defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.LIFT },
   LOWER_EMPTY:    { name: 'Phí hạ vỏ',                   defaultMarkup: false, billingLabel: 'Phí hạ vỏ', category: ExpenseTypeCategory.DROP },
   LOWER_CARGO:    { name: 'Phí hạ hàng',                 defaultMarkup: false, billingLabel: 'Phí hạ hàng', category: ExpenseTypeCategory.DROP },
   YARD_STORAGE:   { name: 'Phí lưu bãi',                 defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.DROP },

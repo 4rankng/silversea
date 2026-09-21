@@ -30,6 +30,9 @@ export interface CreateOpsExpenseInput {
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
   recoveryNote?: string | null;
+  /** Card 20260921_5 — the Thực-thu side of the no-invoice pair. Invoice
+   *  rows ignore it (charge = amount invariant). */
+  customerChargeAmount?: string | number | null;
 }
 type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
   version?: number; costGroup?: ExpenseCostGroup | null; feeName?: string | null; invoiceNumber?: string | null;
@@ -175,10 +178,16 @@ export async function createOpsExpense(
     ? input.expenseTypeCode === 'LIFTING' ? 'INVOICED_LIFT' : input.expenseTypeCode === 'LOWERING' ? 'INVOICED_DROP' : 'INVOICED_OTHER'
     : 'OPS_REGULAR');
   if (!['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL'].includes(costGroup)) throw new ApiError(400, 'Nhóm chi phí Ops không hợp lệ.');
+  // Card 20260921_5 — the no-invoice pair's Thực-thu side. Invoice rows keep
+  // charge = amount; no-invoice rows take the caller's override (0 default).
+  const isInvoiceGroup = costGroup.startsWith('INVOICED_');
+  const customerCharge = isInvoiceGroup
+    ? Number(entry.amount)
+    : (input.customerChargeAmount == null || input.customerChargeAmount === '' ? 0 : Number(input.customerChargeAmount));
   const source = await upsertExpenseAccountingSource(transaction, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,
     expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName ?? entry.expenseTypeCode,
-    amount: Number(entry.amount), customerChargeAmount: costGroup.startsWith('INVOICED_') ? Number(entry.amount) : 0,
+    amount: Number(entry.amount), customerChargeAmount: customerCharge,
     expenseDate: entry.paidAt, payerKind: 'USER', payerUserId: userId, payableEntityType: 'FORWARDER', payableEntityId: userId,
     recordedById: userId, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: entry.note,
     recoveryNote: input.recoveryNote, photoStorageKeys: input.photoStorageKeys });
@@ -192,6 +201,7 @@ export async function updateOpsExpense(
   patch: Partial<Pick<CreateOpsExpenseInput,
     'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
     shipmentContainerId?: number | null;
+    customerChargeAmount?: string | number | null;
     expectedVersion?: number;
     reason?: string;
   },
@@ -249,10 +259,18 @@ export async function updateOpsExpense(
     throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái (đã lập phiếu). Tải lại và thử lại.');
   }
   if (source) {
+    // Card 20260921_5 — the patch may set the Thực-thu side on no-invoice
+    // rows; invoice rows keep charge = the (updated) amount.
+    const effectiveGroup = patch.costGroup ?? source.costGroup;
+    const chargeIsInvariant = typeof effectiveGroup === 'string' && effectiveGroup.startsWith('INVOICED_');
+    const nextCharge = chargeIsInvariant
+      ? Number(updated.amount)
+      : (patch.customerChargeAmount === undefined ? source.customerChargeAmount
+        : patch.customerChargeAmount == null || patch.customerChargeAmount === '' ? 0 : Number(patch.customerChargeAmount));
     const after = await upsertExpenseAccountingSource(transaction, { ...source, sourceKind: 'OPS', sourceId: expenseId,
-      amount: Number(updated.amount), customerChargeAmount: source.customerChargeAmount == null ? null : Number(source.customerChargeAmount),
+      amount: Number(updated.amount), customerChargeAmount: nextCharge == null ? null : Number(nextCharge),
       expenseDate: updated.paidAt, expenseTypeCode: updated.expenseTypeCode, shipmentContainerId: updated.shipmentContainerId,
-      costGroup: patch.costGroup ?? source.costGroup, feeName: patch.feeName ?? source.feeName,
+      costGroup: effectiveGroup, feeName: patch.feeName ?? source.feeName,
       invoiceNumber: patch.invoiceNumber === undefined ? source.invoiceNumber : patch.invoiceNumber,
       invoiceDate: patch.invoiceDate === undefined ? source.invoiceDate : patch.invoiceDate,
       recoveryNote: patch.recoveryNote === undefined ? source.recoveryNote : patch.recoveryNote, note: updated.note });

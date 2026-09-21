@@ -11,6 +11,9 @@ export interface OpsExpenseFinancialDraft {
   invoiceNumber: string;
   invoiceDate: string;
   recoveryNote: string;
+  /** Card 20260921_5 — Thực-thu side of the no-invoice pair (display text;
+   *  parsed server-side). Empty = not collected from the customer. */
+  customerChargeAmount: string;
 }
 
 export const OPS_COST_GROUP_OPTIONS = [
@@ -35,6 +38,7 @@ export function useOpsExpenseFinancialDraft(initial?: Partial<OpsExpenseFinancia
     invoiceNumber: initial?.invoiceNumber ?? '',
     invoiceDate: initial?.invoiceDate ?? '',
     recoveryNote: initial?.recoveryNote ?? '',
+    customerChargeAmount: initial?.customerChargeAmount ?? '',
   });
 }
 
@@ -46,6 +50,7 @@ export function opsFinancialPayload(draft: OpsExpenseFinancialDraft) {
     invoiceNumber: invoiced ? draft.invoiceNumber.trim() || null : null,
     invoiceDate: invoiced ? draft.invoiceDate || null : null,
     recoveryNote: draft.recoveryNote.trim() || null,
+    customerChargeAmount: invoiced ? undefined : (draft.customerChargeAmount.trim() === '' ? undefined : draft.customerChargeAmount.trim()),
   };
 }
 
@@ -72,10 +77,14 @@ export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = 
         <DateField controlSize="sm" label="Ngày hóa đơn" value={value.invoiceDate} disabled={disabled}
           onChange={(invoiceDate) => patch({ invoiceDate })} />
       </>}
+      {!invoiced && <TextField controlSize="sm" label="Thực thu (thu khách)" value={value.customerChargeAmount} disabled={disabled}
+        onChange={(event) => patch({ customerChargeAmount: event.target.value })} inputMode="decimal"
+        placeholder="Để trống nếu chưa thu khách"
+        helpText="Thực chi là số tiền thật đã chi; Thực thu là số sẽ thu của khách — hai số độc lập." />}
     </div>
     <ExpenseNameSuggestions group={value.costGroup} disabled={disabled} onChoose={feeName => patch({ feeName })} />
     <p className="ops-form-photos__hint">
-      {invoiced ? `Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.` : 'Khoản không hóa đơn: CUS / kế toán xác định số thu khách theo thỏa thuận.'}
+      {invoiced ? `Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.` : 'Cặp Thực chi / Thực thu độc lập: thu thêm khách chỉ khi đã thỏa thuận.'}
       {' '}Ghi chi phí không có nghĩa khách đã trả tiền.
     </p>
     <TextField controlSize="sm" label="Ghi chú thu khách" value={value.recoveryNote} disabled={disabled}

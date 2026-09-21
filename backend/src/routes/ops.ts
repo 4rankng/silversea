@@ -134,6 +134,9 @@ const expenseCreateSchema = z.object({
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
+  // Card 20260921_5 — the Thực-thu side of the no-invoice pair. Invoice
+  // rows keep the charge=amount invariant regardless of any override.
+  customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
   shipmentId: z.number().int().positive(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50),
@@ -149,6 +152,7 @@ const expensePatchSchema = z.object({
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
+  customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
   shipmentContainerId: z.number().int().positive().nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),
