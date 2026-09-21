@@ -129,7 +129,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
     <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
-          <h2>Sửa khoản chi · {entry.shipmentCode ?? entry.shipmentId}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
+          <h2>Sửa khoản chi · {entry.shipmentCode ?? '—'}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
           <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">

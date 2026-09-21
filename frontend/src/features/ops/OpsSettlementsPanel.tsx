@@ -149,7 +149,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
       {meta.note && <p>Ghi chú: {meta.note}</p>}
       {grouping.groups.map((group) => (
         <section key={group.shipmentId}>
-          <h4>Lô {group.shipmentCode ?? group.shipmentId} — {group.customerName ?? ''} · {group.billRef ?? '—'}</h4>
+          <h4>Lô {group.shipmentCode ?? group.billRef ?? '—'} — {group.customerName ?? ''} · {group.billRef ?? '—'}</h4>
           {(['withInvoice', 'withoutInvoice'] as const).map((basketKey) => {
             const basket = group[basketKey];
             if (basket.items.length === 0) return null;
