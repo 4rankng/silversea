@@ -119,6 +119,14 @@ async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_
   });
   tripIds.push(trip.id);
 
+  // §7.2 issue readiness (card _30): the original document counts as received
+  // only with BOTH the receiver and the actual received date on the trip —
+  // mirror the POD-recovery step the real flow performs after acceptance.
+  await db.update(s.trips).set({
+    podRecoveredAt: new Date('2026-07-15T10:00:00.000Z'),
+    podRecoveredBy: actors[0]?.id ?? null,
+  }).where(eq(s.trips.id, trip.id));
+
   const [posting] = await db.insert(s.tripFinancialPostings).values({
     tripId: trip.id,
     version: 1,
