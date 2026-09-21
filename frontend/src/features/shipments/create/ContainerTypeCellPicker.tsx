@@ -28,6 +28,11 @@ interface ContainerTypeCellPickerProps {
  * phép chọn dropdown". Before this cell existed, the Loại container column
  * was the only catalog dropdown in the create-shipment form without a way
  * to extend the catalog inline.
+ *
+ * `openOnType` (2026-09-21): gõ vào ô (kể cả ngay sau khi Tab sang từ ô SỐ
+ * CONTAINER) mở menu gợi ý luôn — menuTrigger 'input' thay vì 'manual' vốn
+ * không bao giờ mở menu khi gõ. Không dùng `searchable` (focus-trigger)
+ * vì menu bật cả khi chỉ Tab ngang qua, che các ô khác.
  */
 export function ContainerTypeCellPicker({ value, onChange, options, fieldId, saving, error }: ContainerTypeCellPickerProps) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -50,6 +55,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           label="Loại container"
           hideLabel
           required
+          openOnType
           value={value}
           onChange={onChange}
           options={mergedOptions.map((item) => ({ value: String(item.id), label: item.code }))}

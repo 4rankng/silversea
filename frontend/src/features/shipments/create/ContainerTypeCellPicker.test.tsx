@@ -36,4 +36,37 @@ describe('ContainerTypeCellPicker — commit pin (20260918_11)', () => {
     fireEvent.keyDown(combo, { key: 'Enter' });
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('20'));
   });
+
+  it('typing right after keyboard focus opens the suggestions and filters (20260921_1)', async () => {
+    const onChange = vi.fn();
+    render(
+      <ContainerTypeCellPicker value="" onChange={onChange} options={OPTIONS} fieldId="probe-type-tab" saving={false} />,
+    );
+
+    const combo = screen.getByRole('combobox', { name: 'Loại container' });
+    // Tab-in lands focus; the very first typed character must surface the
+    // suggestion list (no mouse click in this flow). Real .focus() (not the
+    // synthetic event) so document.activeElement actually moves — RAC's
+    // menu-trigger machinery checks it.
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '4' } });
+
+    expect(await screen.findByRole('option', { name: '40HC' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: '20DC' })).toBeNull();
+  });
+
+  it('ArrowDown + Enter commits after the menu was opened by typing', async () => {
+    const onChange = vi.fn();
+    render(
+      <ContainerTypeCellPicker value="" onChange={onChange} options={OPTIONS} fieldId="probe-type-tab-kbd" saving={false} />,
+    );
+
+    const combo = screen.getByRole('combobox', { name: 'Loại container' });
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '4' } });
+    await screen.findByRole('option', { name: '40HC' });
+    fireEvent.keyDown(combo, { key: 'ArrowDown' });
+    fireEvent.keyDown(combo, { key: 'Enter' });
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('40'));
+  });
 });

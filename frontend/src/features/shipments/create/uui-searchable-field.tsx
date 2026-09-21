@@ -54,6 +54,15 @@ interface USearchableFieldProps {
    */
   popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
   /**
+   * Open the suggestion menu when the user TYPES into the field
+   * (menuTrigger "input") instead of only on click/arrow keys. Unlike
+   * `searchable` (focus trigger) the menu stays closed while the user merely
+   * tabs through or clicks elsewhere — typing is the open signal, which is
+   * what table cells want (20260921_1: gõ sau khi Tab sang ô LOẠI CONTAINER
+   * không hiện gợi ý).
+   */
+  openOnType?: boolean;
+  /**
    * "Create from typed text" footer option rendered at the end of the
    * listbox. It always matches the filter (its search text carries the typed
    * value) and selection hands the typed text to the caller instead of
@@ -80,6 +89,7 @@ export function USearchableField({
   shortcut,
   allowsCustomValue,
   searchable,
+  openOnType,
   onCustomValue,
   hideLabel,
   popoverPlacement,
@@ -125,7 +135,7 @@ export function USearchableField({
         // option list and can type to filter immediately) — the default
         // `manual` + `openOnPress` combo only opens on keyboard, which made
         // the field feel like a closed select.
-        menuTrigger={searchable ? 'focus' : 'manual'}
+        menuTrigger={searchable ? 'focus' : openOnType ? 'input' : 'manual'}
         openOnPress
         selectedKey={searchable && allowsCustomValue ? chosenKey : (value || null)}
         popoverPlacement={popoverPlacement}
