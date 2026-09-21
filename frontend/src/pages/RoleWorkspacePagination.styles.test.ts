@@ -16,8 +16,12 @@ describe('role workspace pagination', () => {
   it('keeps dispatcher pagination in normal flow when the plan becomes cards', () => {
     const css = readPageCss('DispatchPlanPage.css');
 
-    expect(css).toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
-    expect(css).toMatch(/@media \(max-width:\s*1100px\)[\s\S]*?\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/);
+    // Card 20260921_22: the sticky desktop pin floated the bar mid-list at
+    // rest, covering 13-14 of 20 rows — the pager is now in flow at EVERY
+    // width (the cards-mode static rule folded into the base block), which
+    // subsumes the old desktop-sticky/static-cards split this test pinned.
+    expect(css).toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/);
+    expect(css).not.toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
   });
 
   it('keeps the CUS worksheet toolbar on one self-sizing filter rail that reflows through the grid', () => {
