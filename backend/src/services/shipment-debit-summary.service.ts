@@ -206,17 +206,21 @@ export async function getShipmentDebitSummary(query: {
     .groupBy(s.shipmentContainers.shipmentId);
   const psByLot = new Map(psRows.map((row) => [row.shipmentId, { known: row.known > 0, total: toNumber(row.total) }]));
 
-  const hqgsRows = await db.select({
+  // Receivable side of ops rows (card _56): only the NEGOTIATED customer
+  // charge (customer_charge_amount) joins TỔNG PHẢI THU KHÁCH — never the
+  // cost amount (PRD AC-CP-OPS-02/03: the two sides are independent). Rows
+  // with an un-entered charge (null) stay unknown and contribute nothing.
+  const opsChargeRows = await db.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
-    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::text`,
+    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.customerChargeAmount}), 0)::text`,
+    known: sql<number>`count(${s.opsExpenseEntries.customerChargeAmount})::int`,
   }).from(s.opsExpenseEntries)
-    .innerJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(and(
-      inArray(s.opsExpenseEntries.shipmentId, lotIds),
-      eq(s.forwarderExpenseTypes.category, 'HQGS'),
-    ))
+    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds))
     .groupBy(s.opsExpenseEntries.shipmentId);
-  const hqgsByLot = new Map(hqgsRows.map((row) => [row.shipmentId, toNumber(row.total)]));
+  const opsChargeByLot = new Map(opsChargeRows.map((row) => [row.shipmentId, {
+    known: row.known > 0,
+    total: toNumber(row.total),
+  }]));
 
   /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
    *  before this landing) read null — Chưa xác định, never a fabricated 0. */
@@ -238,7 +242,7 @@ export async function getShipmentDebitSummary(query: {
     const hasAnyRevenue = revenue != null
       || freightByLot.has(lot.id)
       || (ps?.known ?? false)
-      || hqgsByLot.has(lot.id);
+      || (opsChargeByLot.get(lot.id)?.known ?? false);
     const receivableValue = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
       : hasAnyRevenue
@@ -246,7 +250,7 @@ export async function getShipmentDebitSummary(query: {
           + (revenue?.derived ?? 0)
           + (freightByLot.get(lot.id) ?? 0)
           + (ps?.known ? ps.total : 0)
-          + (hqgsByLot.get(lot.id) ?? 0)
+          + (opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : 0)
         : null;
     const carrier = carrierByLot.get(lot.id);
     const ops = opsByLot.get(lot.id);

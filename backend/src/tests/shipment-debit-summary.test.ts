@@ -211,6 +211,38 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const claimRows = await db.select().from(s.debitNoteLots).where(eq(s.debitNoteLots.documentId, note.id));
     for (const claim of claimRows) track(s.debitNoteLots, claim);
   });
+  test('ops cost joins payables, only the negotiated customer charge joins the debit', async () => {
+    const customer = await mkCustomer(`Debit ops charge ${suffix}`);
+    const route = await mkRoute(`Debit ops charge route ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-30');
+    const trip = await mkTrip(lot.id, customer.id, route.id);
+    await mkFreight(lot.id, trip.id, '4791480');
+    const [hqgsType] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `HQGS-RX-${suffix}`,
+      name: 'HQGS receivable regression',
+      category: 'HQGS',
+    }).returning({ id: s.forwarderExpenseTypes.id });
+    track(s.forwarderExpenseTypes, hqgsType);
+    const [opsZero] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: lot.id,
+      expenseTypeCode: `HQGS-RX-${suffix}`,
+      amount: '250000',
+      paidById: 0,
+      paidAt: '2026-09-30',
+    }).returning();
+    track(s.opsExpenseEntries, opsZero);
+
+    const afterZero = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(afterZero.items.find((row) => row.shipmentId === lot.id)!.receivableTotal, '4791480',
+      'a zero-charge ops cost never joins the customer debit (PRD AC-CP-OPS-02/03)');
+
+    // The accountant enters a negotiated charge: the debit moves by exactly
+    // that number, exactly once.
+    await db.update(s.opsExpenseEntries).set({ customerChargeAmount: '150000' }).where(eq(s.opsExpenseEntries.id, opsZero.id));
+    const afterCharge = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(afterCharge.items.find((row) => row.shipmentId === lot.id)!.receivableTotal, '4941480',
+      'the negotiated charge joins the debit exactly once');
+  });
   test('doc worked example: 2.1 + 2.2 roll up to exactly 13.100.000 and 5.500.000', async () => {
     const customer = await mkCustomer(`Debit docmath ${suffix}`);
     const route = await mkRoute(`Debit docmath route ${suffix}`);
