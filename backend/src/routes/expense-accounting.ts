@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { expenseAccountingCreateSchema, expenseAccountingUpdateSchema, expenseConfirmSchema, expenseDateSchema, expenseListQuerySchema, EXPENSE_SOURCE_KINDS } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
+import { requireRoles } from '../middleware/casbin';
+import { Role } from '@tingting/shared';
 import { throwValidation } from '../lib/validation';
 import { assignTruckAccountant, confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
@@ -30,16 +32,18 @@ const phoiPhieuQuerySchema = z.object({
   sortBy: z.enum(['grouped', 'date']).optional(),
 });
 
-router.get('/phoi-phieu/rows', asyncHandler(async (req, res) => {
+const PHOI_PHIEU_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
+
+router.get('/phoi-phieu/rows', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const query = parse(phoiPhieuQuerySchema, req.query);
   res.json({ items: await listPhoiPhieuRows(query) });
 }));
 
-router.get('/phoi-phieu/stk', asyncHandler(async (_req, res) => {
+router.get('/phoi-phieu/stk', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (_req, res) => {
   res.json({ items: await listPhoiPhieuStk() });
 }));
 
-router.get('/phoi-phieu/report', asyncHandler(async (req, res) => {
+router.get('/phoi-phieu/report', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const query = parse(z.object({
     kind: z.enum(['THU', 'TRA']),
     dateFrom: z.string().date().optional(),
@@ -48,17 +52,17 @@ router.get('/phoi-phieu/report', asyncHandler(async (req, res) => {
   res.json(await getPhoiPhieuReport(query));
 }));
 
-router.get('/phoi-phieu/:tripId/chi-ho', asyncHandler(async (req, res) => {
+router.get('/phoi-phieu/:tripId/chi-ho', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   res.json(await getPhoiPhieuChiHo(tripId));
 }));
 
-router.get('/phoi-phieu/:tripId/tien-duong', asyncHandler(async (req, res) => {
+router.get('/phoi-phieu/:tripId/tien-duong', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   res.json(await getPhoiPhieuTienDuong(tripId));
 }));
 
-router.put('/phoi-phieu/:tripId/phoi-meta', asyncHandler(async (req, res) => {
+router.put('/phoi-phieu/:tripId/phoi-meta', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const input = parse(z.object({
     ngayLayPhoi: z.string().date().nullable().optional(),
@@ -68,7 +72,7 @@ router.put('/phoi-phieu/:tripId/phoi-meta', asyncHandler(async (req, res) => {
   res.json(await updatePhoiPhieuMeta(tripId, input));
 }));
 
-router.delete('/phoi-phieu/:tripId/rows/:sourceId', asyncHandler(async (req, res) => {
+router.delete('/phoi-phieu/:tripId/rows/:sourceId', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const sourceId = parse(idSchema, req.params.sourceId);
   const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
@@ -76,7 +80,7 @@ router.delete('/phoi-phieu/:tripId/rows/:sourceId', asyncHandler(async (req, res
   res.json(await voidPhoiPhieuRow(tripId, sourceId, getUser(req), reason));
 }));
 
-router.post('/phoi-phieu/vouchers', asyncHandler(async (req, res) => {
+router.post('/phoi-phieu/vouchers', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const input = parse(z.object({
     tripIds: z.array(z.number().int().positive()).min(1),

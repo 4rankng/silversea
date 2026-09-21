@@ -56,6 +56,8 @@ export async function listPhoiPhieuStk(): Promise<{ items: Array<{ id: number; c
 }
 
 export interface PhoiPhieuFeeRow {
+  /** The OPS EXPENSE entry id — the id space every mutation route keys on. */
+  entryId: number;
   sourceId: number;
   version: number;
   feeName: string | null;
@@ -153,4 +155,10 @@ export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
   return api.get(`/expense-accounting/phoi-phieu/report?${query.toString()}`);
+}
+
+export async function correctPhoiPhieuRow(tripId: number, sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
+  return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, { tripId, ...body } as Record<string, unknown>, {
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  });
 }

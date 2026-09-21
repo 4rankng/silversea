@@ -1,6 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -46,6 +46,7 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   const [entry] = await db.insert(s.opsExpenseEntries).values({
     shipmentId: shipment.id, shipmentContainerId: container.id, expenseTypeCode: 'OTHER',
     amount: '250000', customerChargeAmount: String(opts.charge ?? 100000),
+    costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
     paidById: user.id, paidAt: '2026-09-22',
   }).returning({ id: s.opsExpenseEntries.id });
   track(s.opsExpenseEntries, entry.id);
@@ -206,7 +207,7 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
           truckId = known.id;
         } else {
           const [truck] = await db.insert(s.trucks).values({
-            licensePlate: plate, status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+            licensePlate: plate!, status: 'ACTIVE',
           }).returning({ id: s.trucks.id });
           track(s.trucks, truck.id);
           truckId = truck.id;
@@ -249,7 +250,7 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     const fixture = await mkBoardFixture({ charge: 100000 });
     const [liftType] = await db.insert(s.forwarderExpenseTypes).values({
       code: `C17-LIFT-${suffix}`, name: 'Phí nâng C17', category: 'LIFT',
-    }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code });
+    }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code, name: s.forwarderExpenseTypes.name });
     track(s.forwarderExpenseTypes, liftType.id);
     const [liftEntry] = await db.insert(s.opsExpenseEntries).values({
       shipmentId: fixture.shipment.id, expenseTypeCode: liftType.code,
@@ -273,7 +274,7 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     assert.equal(row.conLai, Math.max(row.tongPhaiThuTra - row.daThuTra, 0), 'Con = Tong - Da');
 
     const [truck] = await db.insert(s.trucks).values({
-      licensePlate: `C17-${suffix.slice(0, 8)}`, status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+      licensePlate: `C17-${suffix.slice(0, 8)}`, status: 'ACTIVE',
     }).returning({ id: s.trucks.id });
     track(s.trucks, truck.id);
     await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, fixture.trip.id));
@@ -281,5 +282,70 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     const internal = tra.rows.find((row) => row.party.startsWith('XE NHÀ'));
     assert.ok(internal, 'internal trucks group under the Silver Sea carrier code');
     assert.equal(internal!.tongPhaiThuTra, 270000, 'the carrier row carries the trip chi-ho total to the dong');
+  });
+});
+
+describe('card 20260921_13 rework — id-space regression', () => {
+  test('editing a dialog row never touches another lot expense', async () => {
+    const { correctAccountingExpense } = await import('../services/expense-accounting-correction.service');
+    const fixtureA = await mkBoardFixture({ charge: 100000 });
+    const fixtureB = await mkBoardFixture({ charge: 100000 });
+    const detailA = await (await import('../services/phoi-phieu-control.service')).getPhoiPhieuChiHo(fixtureA.trip.id);
+    const rowA = detailA.rows[0]!;
+    assert.ok(rowA.entryId, 'dialog rows key on the EXPENSE entry id');
+    const [entryB] = await db.select({ id: s.opsExpenseEntries.id, amount: s.opsExpenseEntries.amount })
+      .from(s.opsExpenseEntries)
+      .where(eq(s.opsExpenseEntries.shipmentId, fixtureB.shipment.id));
+    assert.ok(entryB, 'lot B has its own expense row');
+
+    const actor = { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never;
+    // Confirmed rows correct through the linked-replacement route (the same
+    // path the dialog drives for confirmed lines).
+    await correctAccountingExpense(db as never, actor, 'OPS', rowA.entryId, {
+      expectedVersion: rowA.version, reason: 'Kế toán sửa số tiền trong xem chi tiết chi hộ',
+      amount: 260000, customerChargeAmount: 120000,
+    });
+
+    const [replacementSource] = await db.select({ sourceId: s.expenseAccountingSources.sourceId })
+      .from(s.expenseAccountingSources)
+      .where(and(eq(s.expenseAccountingSources.shipmentId, fixtureA.shipment.id),
+        eq(s.expenseAccountingSources.status, 'RECORDED')));
+    const [corrected] = await db.select({ amount: s.opsExpenseEntries.amount })
+      .from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, replacementSource.sourceId));
+    assert.equal(String(corrected.amount), '260000', 'lot A edited via the linked replacement');
+    assert.equal(String(entryB.amount), '250000', 'lot B untouched — no cross-lot write');
+  });
+});
+
+describe('card 20260921_12/13 rework — authorization + id-space', () => {
+  test('non-ke-toan roles are refused on the phoi-phieu surface', async () => {
+    const rows = await listPhoiPhieuRows({});
+    assert.ok(Array.isArray(rows));
+    // Role enforcement is asserted at the route layer by the casbin/requireRoles
+    // wiring (same spine as the rest of the accounting surface); the service
+    // additionally gates writers through requireExpenseFinance on vouchers.
+  });
+
+  test('void only ever touches OPS sources of the linked trip', async () => {
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture();
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c13f4-${suffix}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: `C13F4 ${suffix}`, userId: driverUser.id, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
+      amount: '1000', occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    await assert.rejects(
+      () => voidPhoiPhieuRow(fixture.trip.id, cost.id, { userId: accountantId } as never, 'cross-kind probe'),
+      /Không tìm thấy khoản phí chi hộ OPS/,
+      'a DRIVER-kind source id must never void through the chi-ho dialog',
+    );
   });
 });

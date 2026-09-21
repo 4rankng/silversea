@@ -139,7 +139,7 @@ export default function PhoiPhieuControlPage() {
           <tbody>
             {rows.map((row) => (
               <tr key={row.tripId}>
-                <td><input type="checkbox" aria-label={`Chọn ${row.tripCode ?? row.tripId}`} disabled={!canSelect(row)} checked={selected.has(row.tripId)} onChange={() => toggleRow(row)} /></td>
+                <td><input type="checkbox" aria-label={`Chọn chuyến ${row.tripCode ?? ''} container ${row.containerNumber ?? ''}`} disabled={!canSelect(row)} checked={selected.has(row.tripId)} onChange={() => toggleRow(row)} /></td>
                 <td>{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
                 <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
                 <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
@@ -149,7 +149,7 @@ export default function PhoiPhieuControlPage() {
                   Phải thu: {money(row.chiHoThu)}<br />Phải trả: {money(row.chiHoTra)}
                   <button type="button" className="btn-secondary btn--sm" onClick={() => setChiHoTripId(row.tripId)}>Xem chi tiết</button>
                 </td>
-                <td>{money(row.tienDuong)}<button type="button" className="btn-secondary btn--sm" disabled title="Hành lang xem chi tiết sẽ mở ở thẻ kế tiếp">Xem chi tiết</button></td>
+                <td>{money(row.tienDuong)}<button type="button" className="btn-secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button></td>
                 <td>{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
                 <td>{row.departureDate ?? '—'}</td>
                 <td>{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>

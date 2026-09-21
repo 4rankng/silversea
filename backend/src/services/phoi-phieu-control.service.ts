@@ -5,7 +5,7 @@
  *  The consolidated phiếu reuses createExpenseVoucher: one call posts ONE
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
-import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -140,6 +140,22 @@ export async function listPhoiPhieuRows(query: {
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
     .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
       eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'OPS')));
+  // Card 20260921_14 rework: the parent Tien-duong cell sums CONFIRMED
+  // driver-entered costs for the trip — the same spine the detail dialog reads.
+  const confirmedRoad = await db.select({
+    tripId: s.expenseAccountingSources.tripId,
+    amount: s.driverIncidentalCosts.amount,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds),
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+      isNotNull(s.expenseAccountingSources.confirmedAt)));
+  const confirmedRoadByTrip = new Map<number, number>();
+  for (const row of confirmedRoad) {
+    if (row.tripId == null) continue;
+    confirmedRoadByTrip.set(row.tripId, (confirmedRoadByTrip.get(row.tripId) ?? 0) + Number(row.amount));
+  }
   const dispatchNotes = await loadDispatchExpenseNotes(shipmentIds);
   const shipDispatchNotes = dispatchNotes;
 
@@ -196,7 +212,9 @@ export async function listPhoiPhieuRows(query: {
       tripStatus: row.tripStatus,
       chiHoTra,
       chiHoThu,
-      tienDuong: row.tienDuong == null ? null : Number(row.tienDuong),
+      tienDuong: confirmedRoadByTrip.has(row.tripId)
+        ? confirmedRoadByTrip.get(row.tripId) ?? 0
+        : row.tienDuong == null ? null : Number(row.tienDuong),
       cusDispatchNotes,
       driverNote: noteByTrip.get(row.tripId) ?? row.tripNotes ?? null,
       confirmable: openSources.length > 0,
@@ -257,6 +275,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
     const groups = new Map<number, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<number, number>();
     let skipped = 0;
+    const seenSourceIds = new Set<number>();
     for (const trip of tripRows) {
       const shipmentId = trip.shipmentId as number;
       const customerId = customerIdByShipment.get(shipmentId);
@@ -265,6 +284,11 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
       if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
       const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
+        if (seenSourceIds.has(source.id)) {
+          skipped += 1;
+          continue;
+        }
+        seenSourceIds.add(source.id);
         const cash = await getExpenseCashTotals(tx, source.id);
         const chargeSide = Number(source.entryCharge ?? 0);
         const costSide = Number(source.entryAmount) - Number(source.allocatedAdvanceAmount ?? 0);
@@ -281,7 +305,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
       totalsByGroup.set(customerId, (totalsByGroup.get(customerId) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
     }
     let grandTotal = 0;
-    let voucherCount = 0;
+    const issued: Array<{ id: number; code: string; total: number }> = [];
     for (const [customerId, entries] of groups) {
       const voucher = await createExpenseVoucher(tx, args.actor, {
         direction: args.direction,
@@ -291,12 +315,12 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
         entries,
       });
       grandTotal += totalsByGroup.get(customerId) ?? 0;
-      voucherCount += 1;
+      issued.push({ id: voucher.id, code: voucher.code, total: totalsByGroup.get(customerId) ?? 0 });
     }
-    if (voucherCount === 0) {
+    if (issued.length === 0) {
       throw new ApiError(409, 'Các dòng đã chọn không còn khoản mở để lập phiếu.');
     }
-    return { voucherId: groups.size, code: `${voucherCount} phiếu`, total: grandTotal, entries: voucherCount };
+    return { voucherId: issued[0]!.id, code: issued.map((voucher) => voucher.code).join(', '), total: grandTotal, entries: issued.length, issued };
   });
 }
 
@@ -310,6 +334,8 @@ export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: stri
 // ── Card 20260921_13: the accountant chi-ho detail dialog ──────────────────
 
 export interface PhoiPhieuFeeRow {
+  /** The OPS EXPENSE entry id — the id space every mutation route keys on. */
+  entryId: number;
   sourceId: number;
   version: number;
   feeName: string | null;
@@ -335,6 +361,7 @@ export async function getPhoiPhieuChiHo(tripId: number): Promise<{
   const [state] = await db.select({ taken: s.tripFinancialState.phoiTakenDate, status: s.tripFinancialState.phoiTakeStatus })
     .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1);
   const rows = await db.select({
+    entryId: s.opsExpenseEntries.id,
     sourceId: s.expenseAccountingSources.id,
     feeName: s.opsExpenseEntries.feeName,
     invoiceNumber: s.opsExpenseEntries.invoiceNumber,
@@ -352,6 +379,7 @@ export async function getPhoiPhieuChiHo(tripId: number): Promise<{
       eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')))
     .orderBy(asc(s.expenseAccountingSources.id));
   const feeRows: PhoiPhieuFeeRow[] = rows.map((row, index) => ({
+    entryId: row.entryId,
     sourceId: row.sourceId,
     version: row.version,
     feeName: row.feeName,
@@ -406,8 +434,9 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
 export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: AuthUser, reason: string) {
   await db.transaction(async (tx) => {
     const [source] = await tx.select().from(s.expenseAccountingSources)
-      .where(eq(s.expenseAccountingSources.id, sourceId)).limit(1).for('update');
-    if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí.');
+      .where(and(eq(s.expenseAccountingSources.id, sourceId),
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'))).limit(1).for('update');
+    if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ OPS.');
     if (source.shipmentId !== null) {
       const [linked] = await tx.select({ id: s.trips.id }).from(s.trips)
         .where(and(eq(s.trips.id, tripId), eq(s.trips.shipmentId, source.shipmentId))).limit(1);
@@ -588,7 +617,7 @@ export async function getPhoiPhieuReport(query: {
 
   const rows: PhoiPhieuReportRow[] = [...groups.entries()].map(([party, bucket]) => {
     const tong = bucket.tienNang + bucket.tienHa + bucket.psKhac;
-    const conLai = Math.max(tong - bucket.da, 0);
+    const conLai = tong - bucket.da;
     return { party, tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
       tongPhaiThuTra: tong, daThuTra: Math.min(bucket.da, tong), conLai, ghiChu: bucket.ghiChu };
   }).sort((a, b) => b.tongPhaiThuTra - a.tongPhaiThuTra);

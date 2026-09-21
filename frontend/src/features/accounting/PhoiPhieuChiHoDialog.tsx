@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  createPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
+  correctPhoiPhieuRow, createPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow,
 } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
@@ -26,7 +26,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const rows = detail.data?.rows ?? [];
   const totals = useMemo(() => {
     const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
-      const edit = edits[row.sourceId];
+      const edit = edits[row.entryId];
       const value = edit ? Number(edit[key] ?? 0) : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
       return Number.isFinite(value) ? value : 0;
     };
@@ -38,8 +38,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
 
   function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: string) {
     setEdits((current) => {
-      const next = { ...current, [row.sourceId]: { ...current[row.sourceId] } };
-      const target = next[row.sourceId] ?? { thu: String(row.amountThu ?? ''), tra: String(row.amountTra ?? '') };
+      const next = { ...current, [row.entryId]: { ...current[row.entryId] } };
+      const target = next[row.entryId] ?? { thu: String(row.amountThu ?? ''), tra: String(row.amountTra ?? '') };
       target[key] = value;
       if (linked) target[key === 'thu' ? 'tra' : 'thu'] = value;
       next[row.sourceId] = target;
@@ -52,16 +52,21 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     setError('');
     try {
       for (const row of rows) {
-        const edit = edits[row.sourceId];
+        const edit = edits[row.entryId];
         if (!edit) continue;
         const thu = edit.thu === '' ? null : Number(edit.thu);
         const tra = edit.tra === '' ? null : Number(edit.tra);
         if (Number(edit.thu ?? NaN) === Number(row.amountThu ?? NaN) && Number(edit.tra ?? NaN) === Number(row.amountTra ?? NaN)) continue;
-        await updatePhoiPhieuRowAmounts(tripId, row.sourceId, {
+        const payload = {
           expectedVersion: row.version, reason: 'Kế toán sửa số tiền trong xem chi tiết chi hộ',
           ...(Number.isFinite(thu ?? NaN) ? { customerChargeAmount: thu! } : {}),
           ...(Number.isFinite(tra ?? NaN) ? { amount: tra! } : {}),
-        });
+        };
+        if (row.confirmed) {
+          await correctPhoiPhieuRow(tripId, row.entryId, payload);
+        } else {
+          await updatePhoiPhieuRowAmounts(tripId, row.entryId, payload);
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-chi-ho', tripId] });
       onSaved();
@@ -137,8 +142,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
                       <td>{index + 1}</td>
                       <td>{row.feeName ?? '—'}</td>
                       <td>{row.invoiceNumber ?? '—'}</td>
-                      <td><input aria-label={`Số tiền thu dòng ${index + 1}`} value={edit?.thu ?? String(row.amountThu ?? '')} onChange={(e) => setEdit(row, 'thu', e.target.value)} inputMode="numeric" /></td>
-                      <td><input aria-label={`Số tiền trả dòng ${index + 1}`} value={edit?.tra ?? String(row.amountTra ?? '')} onChange={(e) => setEdit(row, 'tra', e.target.value)} inputMode="numeric" /></td>
+                      <td><input aria-label={`Số tiền thu dòng ${index + 1}`} value={edits[row.entryId]?.thu ?? String(row.amountThu ?? '')} onChange={(e) => setEdit(row, 'thu', e.target.value)} inputMode="numeric" /></td>
+                      <td><input aria-label={`Số tiền trả dòng ${index + 1}`} value={edits[row.entryId]?.tra ?? String(row.amountTra ?? '')} onChange={(e) => setEdit(row, 'tra', e.target.value)} inputMode="numeric" /></td>
                       <td>{row.payerName ?? '—'}</td>
                       <td><button type="button" className="btn-secondary btn--sm" disabled={saving || !row.confirmed} title={row.confirmed ? undefined : 'Khoản chưa đối chiếu — chỉ khoản đã đối chiếu mới xóa được tại đây'} onClick={() => void removeRow(row)}>Xóa</button></td>
                     </tr>
