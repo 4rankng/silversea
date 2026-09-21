@@ -1,4 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -18,6 +19,37 @@ import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } fr
 import expenseAccountingCashRoutes from './expense-accounting-cash';
 
 const router = Router();
+
+// ── Card 20260921_12: Bảng kiểm soát phơi phiếu / tiền đường ────────────────
+
+const phoiPhieuQuerySchema = z.object({
+  dateFrom: z.string().date().optional(),
+  dateTo: z.string().date().optional(),
+  status: z.string().max(20).optional(),
+  search: z.string().trim().max(64).optional(),
+});
+
+router.get('/phoi-phieu/rows', asyncHandler(async (req, res) => {
+  const query = parse(phoiPhieuQuerySchema, req.query);
+  res.json({ items: await listPhoiPhieuRows(query) });
+}));
+
+router.get('/phoi-phieu/stk', asyncHandler(async (_req, res) => {
+  res.json({ items: await listPhoiPhieuStk() });
+}));
+
+router.post('/phoi-phieu/vouchers', asyncHandler(async (req, res) => {
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  const input = parse(z.object({
+    tripIds: z.array(z.number().int().positive()).min(1),
+    direction: z.enum(['IN', 'OUT']),
+    treasuryAccountId: z.number().int().positive(),
+    physicalReference: z.string().trim().max(120).optional(),
+  }).strict(), req.body);
+  const voucher = await createPhoiPhieuVoucher({ ...input, actor: getUser(req) });
+  res.status(201).json(voucher);
+}));
+
 router.use(expenseAccountingCashRoutes);
 function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.output<T> {
   const result = schema.safeParse(value);
