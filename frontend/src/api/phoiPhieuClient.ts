@@ -102,8 +102,9 @@ export async function createPhoiPhieuRow(tripId: number, body: Record<string, un
 }
 
 export async function voidPhoiPhieuRow(tripId: number, sourceId: number, reason: string, idempotencyKey?: string): Promise<{ ok: true }> {
-  return api.delete(`/expense-accounting/phoi-phieu/${tripId}/rows/${sourceId}`, { reason }, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  return api.delete(`/expense-accounting/phoi-phieu/${tripId}/rows/${sourceId}`, {
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    body: JSON.stringify({ reason }),
   });
 }
 
