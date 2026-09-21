@@ -207,8 +207,10 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   // the Bảng 2.3 common-fee row conserves: Σ container rows + common = lot.
   let hqgsCommonFee: number | null = null;
   let phatSinhCommonFee: number | null = null;
+  let hasCommonRows = false;
   for (const opsRow of opsRows) {
     if (opsRow.containerId == null) {
+      hasCommonRows = true;
       if (opsRow.category === ExpenseTypeCategory.HQGS) {
         hqgsCommonFee = (hqgsCommonFee ?? 0) + Number(opsRow.amount);
       }
@@ -348,9 +350,15 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     ))
     .limit(1);
   const breakdown = await computeLotPayablesBreakdown(shipmentId);
+  // Card _62: with chung-lô rows present, an EMPTY bucket reads a known 0
+  // (the same convention as the lot-level breakdown); no chung-lô rows at
+  // all stays null = the common row hides.
+  const commonBuckets = hasCommonRows
+    ? { hqgsCommonFee: hqgsCommonFee ?? 0, phatSinhCommonFee: phatSinhCommonFee ?? 0 }
+    : { hqgsCommonFee, phatSinhCommonFee };
   const payables: DebitDetailPayables = activeLock
-    ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot), hqgsCommonFee, phatSinhCommonFee }
-    : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown, hqgsCommonFee, phatSinhCommonFee };
+    ? { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...payablesFromSnapshot(activeLock.snapshot), ...commonBuckets }
+    : { chiHoTotal: hasChiHoData ? chiHoTotal : null, ...breakdown, ...commonBuckets };
 
   // Frozen lots (card _35 family): the snapshot captured the zone surcharge
   // at lock time — renames/config changes after the lock never rewrite it.
