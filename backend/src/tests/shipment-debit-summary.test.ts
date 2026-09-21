@@ -97,6 +97,31 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     assert.equal(itemA.chiHoTotal, '250000');
     assert.equal(itemB.chiHoTotal, '0', 'a trip with no expenses is a known zero');
   });
+  test('L1 freight sums only the latest snapshot per trip grain — supersede must not multiply', async () => {
+    const customer = await mkCustomer(`Debit Supersede ${suffix}`);
+    const route = await mkRoute(`Debit supersede route ${suffix}`);
+    // Trip grain: three freezes of the SAME trip (date change + dispatch
+    // supersede) must total the latest row once, not 3×.
+    const lotA = await mkLot(customer.id, '2026-09-25');
+    const tripA = await mkTrip(lotA.id, customer.id, route.id);
+    await mkFreight(lotA.id, tripA.id, '4791480');
+    await mkFreight(lotA.id, tripA.id, '4791480');
+    await mkFreight(lotA.id, tripA.id, '4791480');
+    // Mixed grains: a shipment-issue freeze (no trip) plus a superseded pair
+    // of trip snapshots — the null-trip freeze counts once, the trip grain
+    // contributes only its latest row.
+    const lotB = await mkLot(customer.id, '2026-09-26');
+    const tripB = await mkTrip(lotB.id, customer.id, route.id);
+    await mkFreight(lotB.id, null as unknown as number, '1000');
+    await mkFreight(lotB.id, tripB.id, '400');
+    await mkFreight(lotB.id, tripB.id, '500');
+
+    const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const itemA = result.items.find((row) => row.shipmentId === lotA.id)!;
+    assert.equal(itemA.freightAuto, '4791480', 'three freezes of one trip must read the latest once');
+    const itemB = result.items.find((row) => row.shipmentId === lotB.id)!;
+    assert.equal(itemB.freightAuto, '1500', 'null-trip freeze (1000) + latest trip snapshot (500)');
+  });
   test('the delivery-date range filters on expected delivery date', async () => {
     const customer = await mkCustomer(`Debit D ${suffix}`);
     await mkLot(customer.id, '2026-09-01');

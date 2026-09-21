@@ -67,6 +67,9 @@ export async function getShipmentDebitSummary(query: {
   // (the helper's active-trip scope, matching Lớp 2). Shipment-issue
   // freezes carry no trip and still count — Lớp 2 cannot render them
   // (documented exception), so L1 stays the superset there by design.
+  // Snapshots are INSERT-only (supersede), so only each trip grain's LATEST
+  // row (max id per shipment + trip_id, NULL-safe) may enter the sum —
+  // summing every row multiplies the freight by the supersede count.
   const freightRows = await db.select({
     shipmentId: s.freightRateSnapshots.shipmentId,
     total: sql<string>`coalesce(sum(${s.freightRateSnapshots.totalAmount}), 0)::text`,
@@ -78,6 +81,11 @@ export async function getShipmentDebitSummary(query: {
         isNull(s.freightRateSnapshots.tripId),
         and(...activeTripConditions()),
       ),
+      sql`(${s.freightRateSnapshots.id}) = (
+        select max(latest.id) from ${s.freightRateSnapshots} latest
+        where latest.shipment_id = ${s.freightRateSnapshots.shipmentId}
+          and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
+      )`,
     ))
     .groupBy(s.freightRateSnapshots.shipmentId);
   const freightByLot = new Map(freightRows.map((row) => [row.shipmentId, toNumber(row.total)]));
