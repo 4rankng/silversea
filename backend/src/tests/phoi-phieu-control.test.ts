@@ -160,8 +160,9 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
     }).returning({ id: s.driverIncidentalCosts.id });
     track(s.driverIncidentalCosts, cost.id);
     const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
     const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
-      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
       feeName: 'Tiền đường QA', amount: 300000, customerChargeAmount: 0, expenseDate: '2026-09-22',
       payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: accountantId });
     track(s.expenseAccountingSources, source.id);
