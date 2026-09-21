@@ -308,3 +308,25 @@ tables present.
   cursor, bookkeeping-only, effects shipped long ago; left as-is per the
   standing user directive — no prod UPDATEs without explicit
   re-authorization).
+
+## 12. 2026-09-21 window #5 execution record (ops + pricing/debit corrections wave)
+
+- Trigger: explicit user go-ahead ("Deploy to prod now" + "complete all pending
+  items, test properly in staging before deploy") — both conditions met: board
+  13/13 QA_PASSED, every fix staging-rung on cuts #15-#18.
+- Ships: _54 (ops expense auto-link via trucks), _55 (export format honesty),
+  _56 (receivable zero-charge fix), _57 (fuel-period creator attribution),
+  _58/_59 (pin aria + env-contract docs), _60 (FCL freight lock anchor),
+  _61 rework (L1 per-anchor supersede rollup), _62 (Bảng 2.3 real values +
+  ops→debit bridge), _63 (SECURITY: dispatcher intake guard restored over the
+  notes-only path — prod carried the bypass since last night), _64 (settlement
+  panel id-leak), _65 (q15 fixture adjudication), _66 (XLSX export id-leak).
+- Backup FIRST: /root/prod-backup-20260921-133200.sql.gz (1,083,093 bytes,
+  gzip -t OK, complete-marker verified).
+- Journal re-read: 106 entries, idx 105 = 1789853402000 unchanged → migrate
+  no-op. Preflight PASS by inspection (cursor = idx 105, old_rows 0, row93
+  realigned, hash intact).
+- Deploy: `make deploy` exit 0 at b8634b51; public HTTP check passed.
+- Postverify: schema probes 9/9 PASS, /api/health ok, buildHash = b8634b51.
+  When-list FAIL = the SAME documented restamp-era finding (§8) — unchanged
+  scope, no action per standing directive.
