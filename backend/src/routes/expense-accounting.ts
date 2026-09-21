@@ -1,5 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -36,6 +36,29 @@ router.get('/phoi-phieu/rows', asyncHandler(async (req, res) => {
 
 router.get('/phoi-phieu/stk', asyncHandler(async (_req, res) => {
   res.json({ items: await listPhoiPhieuStk() });
+}));
+
+router.get('/phoi-phieu/:tripId/chi-ho', asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  res.json(await getPhoiPhieuChiHo(tripId));
+}));
+
+router.put('/phoi-phieu/:tripId/phoi-meta', asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  const input = parse(z.object({
+    ngayLayPhoi: z.string().date().nullable().optional(),
+    trangThaiLay: z.string().trim().max(30).nullable().optional(),
+  }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  res.json(await updatePhoiPhieuMeta(tripId, input));
+}));
+
+router.delete('/phoi-phieu/:tripId/rows/:sourceId', asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  const sourceId = parse(idSchema, req.params.sourceId);
+  const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  res.json(await voidPhoiPhieuRow(tripId, sourceId, getUser(req), reason));
 }));
 
 router.post('/phoi-phieu/vouchers', asyncHandler(async (req, res) => {

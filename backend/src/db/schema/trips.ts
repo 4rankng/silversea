@@ -141,6 +141,9 @@ export const tripFinancialState = pgTable('trip_financial_state', {
   fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
   fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
   totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
+  // Card 20260921_13 — accountant chi-ho dialog: phôi take-over metadata.
+  phoiTakenDate: date('phoi_taken_date'),
+  phoiTakeStatus: varchar('phoi_take_status', { length: 30 }),
   tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
   reconciledTollCost: numeric('reconciled_toll_cost', { precision: 15, scale: 0 }),
   reconciledExtraCost: numeric('reconciled_extra_cost', { precision: 15, scale: 0 }).default('0'),
@@ -270,6 +273,9 @@ export const tripsComposite = pgView('trips_composite', {
   fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
   fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull(),
   totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
+  // Card 20260921_13 — accountant chi-ho dialog: phôi take-over metadata.
+  phoiTakenDate: date('phoi_taken_date'),
+  phoiTakeStatus: varchar('phoi_take_status', { length: 30 }),
   tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
   reconciledTollCost: numeric('reconciled_toll_cost', { precision: 15, scale: 0 }),
   reconciledExtraCost: numeric('reconciled_extra_cost', { precision: 15, scale: 0 }).default('0'),

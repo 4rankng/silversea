@@ -121,3 +121,26 @@ describe('card 20260921_12 — phoi phieu control board', () => {
     await disconnectRedis();
   });
 });
+
+describe('card 20260921_13 — chi-ho detail dialog', () => {
+  test('rows, totals, and meta round-trip; void keeps history', async () => {
+    const { getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    const detail = await getPhoiPhieuChiHo(fixture.trip.id);
+    assert.equal(detail.rows.length, 1);
+    assert.equal(detail.totals.tra, 250000);
+    assert.equal(detail.totals.thu, 100000);
+    assert.equal(detail.rows[0]!.payerName != null || detail.rows[0]!.payerUserId != null, true);
+
+    await updatePhoiPhieuMeta(fixture.trip.id, { ngayLayPhoi: '2026-09-23', trangThaiLay: 'Đã lấy' });
+    const after = await getPhoiPhieuChiHo(fixture.trip.id);
+    assert.equal(after.ngayLayPhoi, '2026-09-23');
+    assert.equal(after.trangThaiLay, 'Đã lấy');
+
+    await assert.rejects(
+      () => voidPhoiPhieuRow(fixture.trip.id, fixture.source.id, { userId: accountantId } as never, 'dư thừa'),
+      /đối chiếu/,
+      'confirmed rows are corrected, never voided',
+    );
+  });
+});

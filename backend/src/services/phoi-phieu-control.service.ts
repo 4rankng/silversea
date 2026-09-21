@@ -294,3 +294,122 @@ export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: stri
     .where(and(eq(s.treasuryAccounts.status, 'ACTIVE'), eq(s.treasuryAccounts.type, 'CASH')))
     .orderBy(asc(s.treasuryAccounts.code));
 }
+
+// ── Card 20260921_13: the accountant chi-ho detail dialog ──────────────────
+
+export interface PhoiPhieuFeeRow {
+  sourceId: number;
+  version: number;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  amountTra: number;
+  amountThu: number | null;
+  payerName: string | null;
+  payerUserId: number | null;
+  confirmed: boolean;
+}
+
+export async function getPhoiPhieuChiHo(tripId: number): Promise<{
+  tripId: number; tripCode: string | null; shipmentId: number;
+  ngayLayPhoi: string | null; trangThaiLay: string | null;
+  rows: PhoiPhieuFeeRow[]; totals: { thu: number; tra: number };
+}> {
+  const [trip] = await db.select({
+    tripId: s.trips.id,
+    tripCode: s.trips.tripCode,
+    shipmentId: s.trips.shipmentId,
+  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip || trip.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chuyến.');
+  const [state] = await db.select({ taken: s.tripFinancialState.phoiTakenDate, status: s.tripFinancialState.phoiTakeStatus })
+    .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1);
+  const rows = await db.select({
+    sourceId: s.expenseAccountingSources.id,
+    feeName: s.opsExpenseEntries.feeName,
+    invoiceNumber: s.opsExpenseEntries.invoiceNumber,
+    amountTra: s.opsExpenseEntries.amount,
+    amountThu: s.opsExpenseEntries.customerChargeAmount,
+    paidById: s.opsExpenseEntries.paidById,
+    payerName: s.users.fullName,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+    version: s.expenseAccountingSources.version,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+    .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+    .where(and(eq(s.expenseAccountingSources.shipmentId, trip.shipmentId),
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')))
+    .orderBy(asc(s.expenseAccountingSources.id));
+  const feeRows: PhoiPhieuFeeRow[] = rows.map((row, index) => ({
+    sourceId: row.sourceId,
+    version: row.version,
+    feeName: row.feeName,
+    invoiceNumber: row.invoiceNumber,
+    amountTra: Number(row.amountTra ?? 0),
+    amountThu: row.amountThu == null ? null : Number(row.amountThu),
+    payerName: row.payerName,
+    payerUserId: row.paidById,
+    confirmed: row.confirmedAt != null,
+    ...({} as Record<string, never>),
+    ordinal: index + 1,
+  } as PhoiPhieuFeeRow & { ordinal: number }));
+  return {
+    tripId, tripCode: trip.tripCode, shipmentId: trip.shipmentId,
+    ngayLayPhoi: state?.taken ?? null,
+    trangThaiLay: state?.status ?? null,
+    rows: feeRows,
+    totals: {
+      thu: feeRows.reduce((sum, row) => sum + (row.amountThu ?? 0), 0),
+      tra: feeRows.reduce((sum, row) => sum + row.amountTra, 0),
+    },
+  };
+}
+
+export async function updatePhoiPhieuMeta(tripId: number, input: {
+  ngayLayPhoi?: string | null; trangThaiLay?: string | null;
+}): Promise<{ ok: true }> {
+  await db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: s.tripFinancialState.id })
+      .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1).for('update');
+    if (existing) {
+      await tx.update(s.tripFinancialState).set({
+        ...(input.ngayLayPhoi !== undefined ? { phoiTakenDate: input.ngayLayPhoi || null } : {}),
+        ...(input.trangThaiLay !== undefined ? { phoiTakeStatus: input.trangThaiLay } : {}),
+        updatedAt: new Date(),
+      }).where(eq(s.tripFinancialState.id, existing.id));
+      return;
+    }
+    const [trip] = await tx.select({ shipmentId: s.trips.shipmentId }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    await tx.insert(s.tripFinancialState).values({
+      tripId,
+      ...(input.ngayLayPhoi ? { phoiTakenDate: input.ngayLayPhoi } : {}),
+      ...(input.trangThaiLay ? { phoiTakeStatus: input.trangThaiLay } : {}),
+    });
+    void trip;
+  });
+  return { ok: true };
+}
+
+/** Remove a fee row from the dialog: VOID the source (history kept — the
+ *  accounting rule) and void the entry, never a hard delete. */
+export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: AuthUser, reason: string) {
+  await db.transaction(async (tx) => {
+    const [source] = await tx.select().from(s.expenseAccountingSources)
+      .where(eq(s.expenseAccountingSources.id, sourceId)).limit(1).for('update');
+    if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí.');
+    if (source.shipmentId !== null) {
+      const [linked] = await tx.select({ id: s.trips.id }).from(s.trips)
+        .where(and(eq(s.trips.id, tripId), eq(s.trips.shipmentId, source.shipmentId))).limit(1);
+      if (!linked) throw new ApiError(404, 'Khoản phí không thuộc chuyến này.');
+    }
+    if (source.confirmedAt) throw new ApiError(409, 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa.');
+    await tx.update(s.expenseAccountingSources).set({ status: 'VOIDED', updatedAt: new Date() })
+      .where(eq(s.expenseAccountingSources.id, sourceId));
+    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
+      .where(eq(s.opsExpenseEntries.id, source.sourceId));
+    await tx.insert(s.auditLogs).values({
+      userId: actor.userId, entityType: 'expense_accounting_source', entityId: sourceId,
+      message: 'VOID phoi-phieu fee row', payload: { reason, tripId },
+    });
+  });
+  return { ok: true };
+}

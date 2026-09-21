@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
+import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 
 const TRIP_STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -29,6 +30,7 @@ export default function PhoiPhieuControlPage() {
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
   const [issuing, setIssuing] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [chiHoTripId, setChiHoTripId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const rowsQuery = useQuery({
@@ -141,7 +143,7 @@ export default function PhoiPhieuControlPage() {
                 <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
                 <td>
                   Phải thu: {money(row.chiHoThu)}<br />Phải trả: {money(row.chiHoTra)}
-                  <button type="button" className="btn-secondary btn--sm" disabled title="Hành lang xem chi tiết sẽ mở ở thẻ kế tiếp">Xem chi tiết</button>
+                  <button type="button" className="btn-secondary btn--sm" onClick={() => setChiHoTripId(row.tripId)}>Xem chi tiết</button>
                 </td>
                 <td>{money(row.tienDuong)}<button type="button" className="btn-secondary btn--sm" disabled title="Hành lang xem chi tiết sẽ mở ở thẻ kế tiếp">Xem chi tiết</button></td>
                 <td>{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
@@ -153,6 +155,13 @@ export default function PhoiPhieuControlPage() {
           </tbody>
         </table>
       </div>
+      {chiHoTripId != null && (
+        <PhoiPhieuChiHoDialog
+          tripId={chiHoTripId}
+          onClose={() => setChiHoTripId(null)}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] })}
+        />
+      )}
     </div>
   );
 }

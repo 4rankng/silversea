@@ -51,3 +51,58 @@ export async function createPhoiPhieuVoucher(body: {
 export async function listPhoiPhieuStk(): Promise<{ items: Array<{ id: number; code: string; name: string }> }> {
   return api.get('/expense-accounting/phoi-phieu/stk');
 }
+
+export interface PhoiPhieuFeeRow {
+  sourceId: number;
+  version: number;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  amountTra: number;
+  amountThu: number | null;
+  payerName: string | null;
+  payerUserId: number | null;
+  confirmed: boolean;
+}
+
+export interface PhoiPhieuChiHoDetail {
+  tripId: number;
+  tripCode: string | null;
+  shipmentId: number;
+  ngayLayPhoi: string | null;
+  trangThaiLay: string | null;
+  rows: PhoiPhieuFeeRow[];
+  totals: { thu: number; tra: number };
+}
+
+export async function getPhoiPhieuChiHo(tripId: number): Promise<PhoiPhieuChiHoDetail> {
+  return api.get(`/expense-accounting/phoi-phieu/${tripId}/chi-ho`);
+}
+
+export async function updatePhoiPhieuMeta(tripId: number, body: {
+  ngayLayPhoi?: string | null; trangThaiLay?: string | null;
+}, idempotencyKey?: string): Promise<{ ok: true }> {
+  return api.put(`/expense-accounting/phoi-phieu/${tripId}/phoi-meta`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  });
+}
+
+export async function updatePhoiPhieuRowAmounts(tripId: number, sourceId: number, body: {
+  expectedVersion: number; reason: string; amount?: number; customerChargeAmount?: number;
+  payerUserId?: number | null;
+}, idempotencyKey?: string): Promise<unknown> {
+  return api.post(`/expense-accounting/entries/OPS/${sourceId}/update`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  });
+}
+
+export async function createPhoiPhieuRow(tripId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
+  return api.post('/expense-accounting/entries', { tripId, ...body } as Record<string, unknown>, {
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  });
+}
+
+export async function voidPhoiPhieuRow(tripId: number, sourceId: number, reason: string, idempotencyKey?: string): Promise<{ ok: true }> {
+  return api.delete(`/expense-accounting/phoi-phieu/${tripId}/rows/${sourceId}`, { reason }, {
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+  });
+}
