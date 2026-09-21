@@ -600,7 +600,11 @@ router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Res
 router.post('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
-  const parsed = driverIncidentalCostSchema.safeParse(req.body);
+  // Card 20260921_6: the catalog ref rides the same payload; extending the
+  // shared schema keeps the offline-driver-app contract intact.
+  const parsed = driverIncidentalCostSchema.extend({
+    expenseTypeCode: z.string().trim().max(50).nullable().optional(),
+  }).safeParse(req.body);
   if (!parsed.success) {
     throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
   }

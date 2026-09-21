@@ -314,12 +314,34 @@ async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput,
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null },
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
   const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim() ? input.amount : 0;
+  // Card 20260921_6: when the entry carries a catalog ref, invoiced-vs-no-invoice
+  // is DATA (requiresInvoice) — invoiced types must carry an invoice number and
+  // charge the customer; no-invoice types never charge, whatever the driver
+  // typed. Entries without a catalog ref keep the heuristic above unchanged
+  // (legacy enum-only entries and the offline app queue).
+  const [catalogType] = input.expenseTypeCode
+    ? await tx.select({ name: s.forwarderExpenseTypes.name, requiresInvoice: s.forwarderExpenseTypes.requiresInvoice })
+        .from(s.forwarderExpenseTypes)
+        .where(and(
+          eq(s.forwarderExpenseTypes.code, input.expenseTypeCode),
+          eq(s.forwarderExpenseTypes.status, 'ACTIVE'),
+          isNull(s.forwarderExpenseTypes.deletedAt),
+        ))
+        .limit(1)
+    : [];
+  if (input.expenseTypeCode && !catalogType) {
+    throw new ApiError(400, `Loại phí "${input.expenseTypeCode}" không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí trong danh sách.`);
+  }
+  const invoicedClass = catalogType?.requiresInvoice === true;
+  if (invoicedClass && !input.invoiceNumber?.trim()) {
+    throw new ApiError(400, 'Phí có hóa đơn phải kèm số hóa đơn.');
+  }
   if (input.receiptStorageKey) {
     const [photo] = await tx.select({ id: s.tripPhotos.id }).from(s.tripPhotos).where(and(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
@@ -329,6 +351,7 @@ async function insertDriverIncidentalCostTx(
     tripId,
     driverId,
     costType: input.costType,
+    expenseTypeCode: input.expenseTypeCode ?? null,
     amount: String(input.amount),
     occurredAt: input.occurredAt,
     note: input.note ?? null,
@@ -336,10 +359,10 @@ async function insertDriverIncidentalCostTx(
     recordedBy,
     payerKind: input.payerKind ?? 'USER',
     costGroup: group,
-    feeName: input.feeName ?? input.costType,
-    customerChargeAmount: String(customerChargeAmount),
-    invoiceNumber: input.invoiceNumber?.trim() || null,
-    invoiceDate: input.invoiceDate || null,
+    feeName: catalogType ? catalogType.name : (input.feeName ?? input.costType),
+    customerChargeAmount: String(invoicedClass ? input.amount : (catalogType ? 0 : customerChargeAmount)),
+    invoiceNumber: invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null),
+    invoiceDate: catalogType && !invoicedClass ? null : (input.invoiceDate || null),
     photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],
   }).returning();
   const [trip] = await tx.select({ shipmentId: s.trips.shipmentId, customerId: s.trips.customerId, truckId: s.trips.truckId }).from(s.trips).where(eq(s.trips.id, tripId));
@@ -351,10 +374,10 @@ async function insertDriverIncidentalCostTx(
     return row as DriverIncidentalCost;
   }
   const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: row.id, shipmentId: trip.shipmentId,
-    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: input.costType, costGroup: group,
-    feeName: input.feeName ?? input.costType, amount: input.amount,
-    customerChargeAmount,
-    expenseDate: input.occurredAt, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: row.expenseTypeCode ?? input.costType, costGroup: group,
+    feeName: row.feeName ?? input.costType, amount: Number(row.amount),
+    customerChargeAmount: Number(row.customerChargeAmount),
+    expenseDate: input.occurredAt, invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
     payerKind: input.payerKind ?? 'USER', payerUserId: input.payerKind === 'COMPANY' ? null : recordedBy, payableEntityType: input.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: input.payerKind === 'COMPANY' ? null : driverId,
     recordedById: recordedBy, note: input.note, photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [] });
   const [saved] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, row.id));
@@ -376,7 +399,7 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
 export async function recordIncidentalCost(
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput,
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null },
   recordedBy: number,
   idempotencyKey: string | undefined,
 ): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {

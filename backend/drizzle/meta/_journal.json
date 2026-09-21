@@ -737,6 +737,13 @@
       "idx": 105,
       "when": 1789853402000,
       "tag": "20260919163645_port_zone_surcharges"
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1790004094143,
+      "tag": "20260921231000_card6_driver_fee_catalog",
+      "breakpoints": true
     }
   ]
 }

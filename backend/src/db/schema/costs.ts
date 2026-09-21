@@ -358,6 +358,10 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   driverId: integer('driver_id')
     .notNull(),
   costType: driverIncidentalCostTypeEnum('cost_type').notNull(),
+  // Card 20260921_6: the catalog row the driver picked (app-level FK →
+  // forwarder_expense_types.code, same convention as ops_expense_entries).
+  // null = legacy/enum-only entry keeps the pre-card heuristic.
+  expenseTypeCode: varchar('expense_type_code', { length: 50 }),
   // VND amount — integer, no decimals (matches tripExpenses.buyAmount convention).
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   // The date the cost was incurred (driver-reported). Distinct from createdAt.

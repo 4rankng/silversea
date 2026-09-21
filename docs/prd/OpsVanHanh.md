@@ -246,6 +246,10 @@ Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và s
 | AC-CP-OPS-09 | Hai đợt cùng nhân viên không dùng trùng một khoản chi hoặc toàn bộ một lần ứng; lọc ngày/đợt/nhân viên và xuất báo cáo cho cùng tổng. |
 | AC-CP-OPS-10 | Sửa thực chi/thu khách khi được phép cần lý do và giữ lịch sử; khoản đã phát hành, thanh toán hoặc khóa kỳ được điều chỉnh có liên kết, không sửa đè số cũ. |
 
+### 9.4 Chi phí lái xe vào lô hàng
+
+Lái xe nhập chi phí vào lô hàng theo **loại phí** chọn từ danh mục dùng chung (cùng danh mục với chi phí Ops); thêm loại phí mới là dữ liệu, không cần sửa phần mềm. Loại **có hóa đơn** (nâng, hạ, vệ sinh, lưu bãi, lưu kho) phải kèm số hóa đơn ngay khi nhập; sau khi kế toán tích xác nhận trên phôi phiếu (đối chiếu) thì khoản tự động vào phải thu khách hàng kèm số hóa đơn — trước khi đối chiếu, khoản chưa vào phải thu. Loại **không hóa đơn** (chi công nhân tại kho, hàn cont, cân lốp, đảo vỏ, đóng/trả 2 điểm, đảo hàng, phí xe nâng hạ đăng khoa) không bao giờ vào phải thu khách hàng; sau khi kế toán đối chiếu, khoản vào mục phí khác dùng tính doanh thu xe và được thanh toán cho lái xe. Mỗi khoản là một dòng riêng có thể thêm/xóa.
+
 ## 10. Tài liệu liên quan
 
 - [Quy trình O2C](QuyTrinhO2C.md).
