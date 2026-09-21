@@ -315,6 +315,17 @@ router.get('/settlements/:id', OPS_ONLY, asyncHandler(async (req: Request, res: 
   res.json(detail);
 }));
 
+/**
+ * Export contract (OpsVanHanh §5.4 + PRD L129): Excel only — the A4 print
+ * path is the frontend's In view. An explicit unsupported format must 400
+ * instead of silently receiving the spreadsheet.
+ */
+function parseExportFormat(value: unknown): 'xlsx' | undefined {
+  if (value === undefined || value === '') return undefined;
+  if (typeof value === 'string' && (value === 'xlsx' || value === 'xls')) return 'xlsx';
+  throw new ApiError(400, `Định dạng xuất không hỗ trợ: ${typeof value === 'string' ? `"${value}"` : 'tham số lặp'}. Chỉ hỗ trợ Excel (xlsx).`);
+}
+
 async function sendOpsSettlementXlsx(
   res: Response,
   settlementId: number,
@@ -328,6 +339,7 @@ async function sendOpsSettlementXlsx(
 
 router.get('/settlements/:id/export', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
+  parseExportFormat(req.query.format);
   const detail = await getOpsSettlementDetail(parseId(req.params.id));
   if (detail.settlement.opsUserId !== user.userId) {
     throw new ApiError(404, 'Không tìm thấy đề nghị thanh toán.');
@@ -336,6 +348,7 @@ router.get('/settlements/:id/export', OPS_ONLY, asyncHandler(async (req: Request
 }));
 
 router.get('/admin/settlements/:id/export', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
+  parseExportFormat(req.query.format);
   await sendOpsSettlementXlsx(res, parseId(req.params.id));
 }));
 

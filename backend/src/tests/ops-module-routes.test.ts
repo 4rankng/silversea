@@ -666,3 +666,36 @@ describe('legacy incomplete Ops settlement recovery', () => {
     assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken })).status, 409);
   });
 });
+
+test('settlement export rejects unsupported formats instead of silently serving xlsx', async () => {
+  const [batch] = await db.insert(s.opsSettlements).values({ code: `EX-${Date.now().toString(36)}`, opsUserId: opsUser.id, status: 'RECORDED', totalAmount: '1000' }).returning();
+  createdSettlementIds.push(batch.id);
+
+  async function exportResponse(path: string, token: string) {
+    const response = await fetch(`${baseUrl}/api/ops${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    return { status: response.status, contentType: response.headers.get('content-type') ?? '', body: await response.text() };
+  }
+
+  // The contract lie: an explicit unsupported format must not receive the xlsx.
+  const pdf = await exportResponse(`/settlements/${batch.id}/export?format=pdf`, opsToken);
+  assert.equal(pdf.status, 400);
+  assert.match(pdf.body, /Định dạng xuất không hỗ trợ/);
+
+  const upper = await exportResponse(`/settlements/${batch.id}/export?format=PDF`, opsToken);
+  assert.equal(upper.status, 400, 'format is case-sensitive');
+
+  const repeated = await exportResponse(`/settlements/${batch.id}/export?format=pdf&format=xlsx`, opsToken);
+  assert.equal(repeated.status, 400, 'repeated format params are rejected, not first-wins');
+
+  // Excel keeps working: no param, xlsx and the casual xls alias.
+  for (const qs of ['', '?format=xlsx', '?format=xls']) {
+    const ok = await exportResponse(`/settlements/${batch.id}/export${qs}`, opsToken);
+    assert.equal(ok.status, 200, `expected 200 for "${qs || 'no param'}"`);
+    assert.match(ok.contentType, /spreadsheetml/);
+  }
+
+  // The accountant mirror route keeps the same contract.
+  const adminPdf = await exportResponse(`/admin/settlements/${batch.id}/export?format=pdf`, accountantToken);
+  assert.equal(adminPdf.status, 400);
+  assert.match(adminPdf.body, /Định dạng xuất không hỗ trợ/);
+});
