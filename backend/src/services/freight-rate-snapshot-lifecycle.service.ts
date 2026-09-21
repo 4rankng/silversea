@@ -21,7 +21,7 @@
 // MANUAL row flags the shipment for accountant manual entry.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { localDateInBusinessZone } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {
@@ -146,7 +146,37 @@ export async function lockShipmentFreightRate(
   // gồm cước do khách báo và phí chi hộ (spec §4). Đây là bản chất của loại
   // lô, không phải cơ chế bỏ qua kiểm tra cước phí.
   if (shipment.isAdHoc) return null;
-  if (shipment.customerId == null || shipment.routeId == null) return null;
+  if (shipment.customerId == null) return null;
+
+  // Route source: FCL lots carry the route on containers (the CUS create form
+  // keeps shipments.route_id null for FCL), LCL keeps it on the shipment. The
+  // lock resolves the route from the anchor container (dispatch passes the
+  // fulfillment's container) or the first routed container, so container-level
+  // routing freezes exactly like lot-level routing. A lot with no route
+  // anywhere still stays silent.
+  let routeId = shipment.routeId;
+  if (routeId == null && args.shipmentContainerId != null) {
+    const [anchored] = await tx.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        eq(s.shipmentContainers.id, args.shipmentContainerId),
+      ))
+      .limit(1);
+    routeId = anchored?.routeId ?? null;
+  }
+  if (routeId == null) {
+    const [routed] = await tx.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        isNotNull(s.shipmentContainers.routeId),
+      ))
+      .orderBy(s.shipmentContainers.id)
+      .limit(1);
+    routeId = routed?.routeId ?? null;
+  }
+  if (routeId == null) return null;
 
   // Derive the rate key: explicit override (dispatch) beats the anchor
   // container's class, which beats the shipment's first typed container.
@@ -185,7 +215,7 @@ export async function lockShipmentFreightRate(
 
   const resolved = await resolveFreightRateWithManualFallback({
     customerId: shipment.customerId,
-    routeId: shipment.routeId,
+    routeId,
     vehicleSizeClassCode: rateKey,
     transportDate,
   });

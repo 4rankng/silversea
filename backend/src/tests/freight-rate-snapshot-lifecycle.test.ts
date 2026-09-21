@@ -44,6 +44,7 @@ import { updateCusShipmentContainerLine } from '../services/cus-shipment-workspa
 import { getShipmentDetail } from '../services/shipment-detail-reads.service';
 import {
   getShipmentFreightRateView,
+  lockShipmentFreightRate,
   resolveFreightRateWithManualFallback,
 } from '../services/freight-rate-snapshot-lifecycle.service';
 
@@ -357,9 +358,84 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     assert.match(view.latest!.formula, /3900000 × \(1 \+ 2(\.00)?%\)/);
   });
 
+  test('FCL with container-level route locks AUTO (route sourced from the routed container)', async () => {
+    // The CUS create form sends FCL routes at container level, so
+    // shipments.route_id stays null on the real flow — the lock must source
+    // the route from the routed container instead of bailing, or FCL lots
+    // never freeze a rate ("đóng băng tại Ngày vận chuyển" never happens).
+    const shipment = await mkShipment({ customerId: customerA, routeId: null });
+    await batchUpsertShipmentContainers(shipment.id, adminId, [{
+      containerTypeId: containerType40Id,
+      customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
+      routeId: routeA,
+    }]);
+
+    const view = await getShipmentFreightRateView(shipment.id);
+    assert.ok(view.latest, 'container-routed FCL must lock a snapshot at intake');
+    createdSnapshotIds.push(view.latest!.id);
+    assert.equal(view.latest!.source, 'AUTO');
+    assert.equal(view.latest!.freightAmount, FREIGHT);
+    assert.equal(view.latest!.totalAmount, TOTAL_D10);
+    assert.ok(view.latest!.rateTermsId > 0, 'rateTermsId trace must be populated');
+    assert.ok(view.latest!.pricingTableId > 0, 'pricingTableId trace must be populated');
+    assert.ok(view.latest!.fuelNormId > 0, 'fuelNormId trace must be populated');
+    assert.ok(view.latest!.fuelPricePeriodId > 0, 'fuelPricePeriodId trace must be populated');
+    assert.equal(view.latest!.billedKm, 260);
+    assert.equal(view.latest!.liters, 91);
+  });
+
+  test('anchor container wins on multi-route FCL lots (per-container/per-trip lock)', async () => {
+    // Mixed-route lots lock each container's own route: the anchor container
+    // (dispatch passes the fulfillment's container) decides the engine's
+    // route input, so a second container on another route prices by that
+    // route's terms — never by the first container's.
+    const customerB = await mkCustomer('MixedRoute');
+    const routeB = await mkRoute('MixedRoute');
+    await mkTerms(customerB.id, routeB.id);
+    await mkPricingTable(customerB.id, routeB.id, 'CONT40', '2000000');
+    // The intake lock prices by the FIRST routed container (routeA), so this
+    // customer also needs terms + a price row for that pair to resolve AUTO.
+    await mkTerms(customerB.id, routeA);
+    await mkPricingTable(customerB.id, routeA, 'CONT40', '3900000');
+    const shipment = await mkShipment({ customerId: customerB.id, routeId: null });
+    const containers = await batchUpsertShipmentContainers(shipment.id, adminId, [
+      { containerTypeId: containerType40Id, routeId: routeA, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
+      { containerTypeId: containerType40Id, routeId: routeB.id, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
+    ]);
+    const anchorB = containers[1].id;
+
+    const viewBefore = await getShipmentFreightRateView(shipment.id);
+    assert.ok(viewBefore.latest, 'intake locks using the first routed container');
+    createdSnapshotIds.push(viewBefore.latest!.id);
+    assert.equal(viewBefore.latest!.totalAmount, TOTAL_D10, 'first routed container (routeA) prices the intake lock');
+
+    await db.transaction(async tx => {
+      await lockShipmentFreightRate(tx, { shipmentId: shipment.id, shipmentContainerId: anchorB });
+    });
+
+    const viewAfter = await getShipmentFreightRateView(shipment.id);
+    assert.equal(viewAfter.snapshotCount, 2, 'anchor lock supersedes via INSERT');
+    createdSnapshotIds.push(viewAfter.latest!.id);
+    // freight round(2,000,000 × 1.02) = 2,040,000 + surcharge 354,664
+    assert.equal(viewAfter.latest!.totalAmount, 2_394_664, 'anchor container (routeB) must price the lock');
+  });
+
+  test('no route on shipment nor containers stays silent (no snapshot, engine untouched)', async () => {
+    const shipment = await mkShipment({ customerId: customerA, routeId: null });
+    await batchUpsertShipmentContainers(shipment.id, adminId, [{
+      containerTypeId: containerType40Id,
+      customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
+      // no routeId — nothing to price by
+    }]);
+
+    const view = await getShipmentFreightRateView(shipment.id);
+    assert.equal(view.latest, null, 'routeless FCL still writes nothing');
+    assert.equal(view.snapshotCount, 0);
+  });
+
   test('shipment detail exposes the latest snapshot read-only view', async () => {
     const detail = await getShipmentDetail(autoShipmentId);
-    assert.ok(detail.freightRate?.latest, 'detail must carry freightRate.latest');
+    assert.ok(detail.freightRate?.latest, 'detail flows must carry freightRate.latest');
     assert.equal(detail.freightRate!.latest!.totalAmount, TOTAL_D10);
     assert.equal(detail.freightRate!.snapshotCount, 1);
   });
