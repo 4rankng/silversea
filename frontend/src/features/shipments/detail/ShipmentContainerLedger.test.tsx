@@ -428,7 +428,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view } = renderLedgerWithRow(row);
 
-    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
+    const toggle = screen.getByRole('button', { name: /^Thiếu / });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Số container')).toBeNull();
     // Key dispatch blockers render without expanding anything: the schedule
@@ -447,7 +447,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view, onStartEdit } = renderLedgerWithRow(row);
 
-    fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Thiếu / }));
     fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
     expect(onStartEdit).toHaveBeenCalledWith(row, 'container', expect.stringContaining('shipment-detail-missing-CONTAINER_NUMBER-'));
     fireEvent.click(screen.getByRole('button', { name: 'Biển số xe' }));

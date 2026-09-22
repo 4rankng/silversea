@@ -27,13 +27,13 @@ function renderSummary(overrides: Partial<Parameters<typeof ShipmentMissingField
 }
 
 function expand() {
-  fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Thiếu 3 thông tin/ }));
 }
 
 describe('ShipmentMissingFieldsSummary', () => {
   it('collapses to one count line — no field labels render until expanded', () => {
     renderSummary();
-    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
+    const toggle = screen.getByRole('button', { name: /^Thiếu 3 thông tin/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Số container')).toBeNull();
     expect(screen.queryByText('Tờ khai')).toBeNull();
@@ -43,7 +43,7 @@ describe('ShipmentMissingFieldsSummary', () => {
   it('expands to every missing field; the count equals the rendered list', () => {
     renderSummary();
     expand();
-    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
+    const toggle = screen.getByRole('button', { name: /^Thiếu 3 thông tin/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     // aria-controls points at the rendered list's id.
     const list = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
@@ -100,11 +100,19 @@ describe('ShipmentMissingFieldsSummary', () => {
     expect(screen.getByRole('button', { name: 'Biển số xe' })).toBeDisabled();
   });
 
+  it('names the missing field when there is exactly one (card 20260922_24)', () => {
+    renderSummary({ missingFields: [{ code: 'TRANSPORT_DATE', label: 'Ngày vận chuyển' }] });
+    // A bare "Thiếu dữ liệu" contradicted rows that were otherwise complete and
+    // never said what was missing; the single-field case must name it.
+    expect(screen.getByRole('button', { name: /^Thiếu Ngày vận chuyển/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Thiếu dữ liệu/ })).toBeNull();
+  });
+
   it('toggles closed again — the row returns to the compact single line', () => {
     renderSummary();
     expand();
-    fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Thiếu 3 thông tin/ }));
     expect(screen.queryByText('Số container')).toBeNull();
-    expect(screen.getByRole('button', { name: /Thiếu dữ liệu/ }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('button', { name: /^Thiếu 3 thông tin/ }).getAttribute('aria-expanded')).toBe('false');
   });
 });

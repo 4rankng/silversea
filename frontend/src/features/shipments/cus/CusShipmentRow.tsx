@@ -197,10 +197,12 @@ export function CusShipmentRow({
               <span
                 className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}
                 title={primarySignal.label}
-                role="img"
-                aria-label={primarySignal.label}
               >
                 <PrimarySignalIcon size={13} aria-hidden="true" />
+                {/* Card 20260922_24: this marker used to be icon-only, so it
+                    rendered a second, unexplained truck right next to the
+                    WorkflowBadge's truck. It now carries its own visible label. */}
+                <span className="cus-attention-label__text">{primarySignal.label}</span>
               </span>
             )}
           </div>

@@ -585,7 +585,10 @@
 .cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
 /* Empty-value placeholders recede below populated metadata so "no data yet"
    stays distinguishable from short data when scanning a dense grid. */
-.cus-multiline-cell .cus-empty { color: var(--ink-4); }
+/* Card 20260922_25: --ink-4 (#BABDC3) measured 1.88:1 on white — the "why is
+   this cell empty" strings were effectively invisible. --ink-3 (#5F6872) is the
+   app's shared muted token and measures 5.66:1, still clearly secondary. */
+.cus-multiline-cell .cus-empty { color: var(--ink-3); }
 .cus-multiline-cell .cus-customer-name {
   font-size: var(--ops-table-supporting-size);
   line-height: var(--ops-table-supporting-line-height);
@@ -863,6 +866,9 @@
 .cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
 .cus-attention-label--info { color: var(--info, #2563eb); }
+/* Card 20260922_24: the attention marker now carries its own visible label
+   (icon-only markers rendered an unexplained duplicate icon). */
+.cus-attention-label__text { font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
 .cus-dashboard-detail {
   min-height: 34px;
   color: var(--accent-ink) !important;
