@@ -73,11 +73,13 @@
 - **No-truncation doctrine.** Never clip a column value (`overflow: hidden` clipping is banned). Long text wraps by
   default (`overflow-wrap`); single-token values (codes, plates, tax codes, phones) instead EXPAND — `white-space:
   nowrap` with no clip, so the column sizes to content (composes with card 20260922_22's auto layout). A hover tooltip
-  with the full text or a card layout is the fallback for values that cannot wrap. Horizontal scroll is reserved for
-  token tables (card 20260922_23 pattern). **The only truncation allowed in a table is an intentional short badge
-  adjacent to `sr-only` text** — every other clipped cell value is a defect.
-  *Source:* nepocorp report F5 (2026-09-22); default rule per data table + exception clause = card 20260922_37
-  (swept 2026-09-22).
+  with the full text or a card layout is the fallback for values that cannot wrap without wrecking density — e.g. the
+  2-line note preview (card 20260915_35 user ruling; full note in `title` + drawer). Horizontal scroll is reserved for
+  token tables (card 20260922_23 pattern). `text-overflow: ellipsis` on data cells is banned outright; the only
+  exception is an intentional short badge adjacent to `sr-only` text (card 20260922_37).
+  *Source:* nepocorp report F5 (2026-09-22); default rule per data table + short-badge exception = card 20260922_37
+  (swept 2026-09-22); fallback-clause reconciliation 2026-09-22 (same-day — the first wording contradicted the
+  fallback sentence it lived next to).
 - **Status/action columns keep a fixed width at every viewport.** ~150–170px at ALL widths, desktop included; one
   full-text action max per row; destructive actions are icon-only with `aria-label`.
   *Source:* 2026-09-18 operator ruling (CusShipmentRow rework); sweep card 20260922_21.
@@ -210,3 +212,4 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 |---|---|
 | 2026-09-22 | Law book created (card 20260922_34, nepocorp F2). Seeded with every standing ruling 09-16 → 09-22. |
 | 2026-09-22 | No-truncation sweep (card 20260922_37): table data cells wrap or expand, never clip; §4 short-badge exception clause made explicit; regression pin `table-no-truncation.styles.test.ts`. |
+| 2026-09-22 | §4 reconciliation (same-day): the short-badge exception governs `text-overflow: ellipsis` specifically; the tooltip/card fallback (note preview, card 20260915_35) stands as written. |
