@@ -27,6 +27,18 @@ export function ExpenseBoard({ view, filters, catalog, setPage, onEdit, onWork, 
   function select(entry: ExpenseAccountingEntry, checked: boolean) {
     setSelection(current => { const next = new Map(current); if (checked) next.set(expenseKey(entry), entry); else next.delete(expenseKey(entry)); return next; });
   }
+  /** Header "Chọn tất cả" (card 20260922_7). Check adds every selectable row
+   *  displayed on this page (a cross-page pick from "Chọn tất cả N kết quả"
+   *  survives); uncheck clears the selection wholesale — the same end state as
+   *  "Bỏ chọn (N)" and AC2 "Tất cả các dòng được bỏ chọn". */
+  function selectPageAll(checked: boolean) {
+    setSelection(current => {
+      if (!checked) return new Map();
+      const next = new Map(current);
+      for (const entry of rows) if (entry.status === 'RECORDED') next.set(expenseKey(entry), entry);
+      return next;
+    });
+  }
   async function selectAll() {
     setSelecting(true); setError('');
     try {
@@ -67,7 +79,7 @@ export function ExpenseBoard({ view, filters, catalog, setPage, onEdit, onWork, 
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {query.isError ? <p role="alert">Không tải được dữ liệu. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void query.refetch()}>Thử lại</button></p>
       : query.isPending ? <p role="status">Đang tải…</p> : !query.data?.total ? <p className="expense-accounting-empty">Không có kết quả phù hợp. Thử đổi khoảng ngày hoặc bộ lọc.</p>
-        : <div aria-busy={query.isFetching}>{view === 'ops' ? <ExpenseRegisterRows rows={rows} selected={new Set(selection.keys())} selectable canViewPayments onOpen={onEdit} onSelect={select} /> : <ExpenseWorkRows rows={work.data?.items ?? []} onOpen={onWork} />}</div>}
+        : <div aria-busy={query.isFetching}>{view === 'ops' ? <ExpenseRegisterRows rows={rows} selected={new Set(selection.keys())} selectable canViewPayments onOpen={onEdit} onSelect={select} onSelectAll={selectPageAll} /> : <ExpenseWorkRows rows={work.data?.items ?? []} onOpen={onWork} />}</div>}
     <Pagination page={filters.page} totalPages={Math.ceil((query.data?.total ?? 0) / filters.limit)} totalItems={query.data?.total} pageSize={filters.limit} disabled={busy} onChange={page => { setSelection(new Map()); setPage(page); }} />
   </section>;
 }

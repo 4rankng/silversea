@@ -176,6 +176,11 @@ describe('AccountingWorkspacePage', () => {
     expect(amounts.every((amount) => !/\d\s*(?:tr|tỷ|M|B)\b/.test(amount))).toBe(true);
   });
 
+  it('routes the Phơi phiếu / tiền đường shortcut to the dedicated control page (20260922_5)', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: 'Phơi phiếu / tiền đường' }).getAttribute('href')).toBe('/accounting/phoi-phieu');
+  });
+
   it('keeps the workspace usable when one authority fails', async () => {
     getMock.mockRejectedValueOnce(new Error('receivables unavailable'));
     renderPage('/?view=overview');
@@ -183,6 +188,10 @@ describe('AccountingWorkspacePage', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('Một phần số liệu chưa tải được');
   });
 
+  // 2026-09-22 fix-forward (kanban run, card 20260922_5 landing): this body runs
+  // ~4.3s in jsdom (three UUI listbox popover round-trips) and blew the 5s
+  // default whenever the machine carried concurrent lane load. Timeout raised;
+  // assertions untouched.
   it('opens the bounded transport register inside the dedicated workspace', async () => {
     renderPage('/?view=transport');
 
@@ -212,5 +221,5 @@ describe('AccountingWorkspacePage', () => {
     fireEvent.click(popoverTrigger(/Khách hàng/));
     fireEvent.click(await screen.findByRole('option', { name: 'Silver Sea' }));
     await waitFor(() => expect(getMock).toHaveBeenCalledWith(expect.stringContaining('customerId=5')));
-  });
+  }, 20_000);
 });

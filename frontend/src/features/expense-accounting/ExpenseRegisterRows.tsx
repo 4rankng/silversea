@@ -4,16 +4,37 @@ import { formatDate } from '../../lib/format';
 import { businessKey } from './business-key';
 import { expenseKey, expenseMoney } from './expense-accounting-model';
 
-export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onOpen, canViewPayments }: {
+export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onSelectAll, onOpen, canViewPayments }: {
   rows: ExpenseAccountingEntry[];
   selected: Set<string>;
   selectable: boolean;
   canViewPayments: boolean;
   onSelect: (entry: ExpenseAccountingEntry, checked: boolean) => void;
+  /**
+   * Header "Chọn tất cả" (card 20260922_7): toggle every selectable row
+   * currently displayed. Absent = the host keeps the plain "Chọn" header
+   * (opt-in so the work drawer and the shipment panel stay as they were).
+   */
+  onSelectAll?: (checked: boolean) => void;
   onOpen: (entry: ExpenseAccountingEntry) => void;
 }) {
+  // "All" means the selectable rows only — the same predicate the per-row
+  // checkbox uses for `disabled` and the ops board uses for "Chọn trang này".
+  const selectableRows = rows.filter(entry => entry.status === 'RECORDED');
+  const selectedSelectable = selectableRows.filter(entry => selected.has(expenseKey(entry))).length;
+  const allSelected = selectableRows.length > 0 && selectedSelectable === selectableRows.length;
+  const someSelected = selectedSelectable > 0 && !allSelected;
   return <div className="expense-register-table-wrap"><table className="expense-register-table">
-    <thead><tr>{selectable && <th scope="col">Chọn</th>}<th scope="col">Lô / công việc</th><th scope="col">Xe / người chi</th><th scope="col">Khoản chi</th><th scope="col">Thực chi</th><th scope="col">Thực thu</th>
+    <thead><tr>{selectable && <th scope="col">{onSelectAll ? <>
+      <input
+        type="checkbox"
+        aria-label="Chọn tất cả"
+        title="Chọn tất cả"
+        checked={allSelected}
+        ref={(node) => { if (node) node.indeterminate = someSelected; }}
+        onChange={(event) => onSelectAll(event.target.checked)}
+      />{' '}Chọn
+    </> : 'Chọn'}</th>}<th scope="col">Lô / công việc</th><th scope="col">Xe / người chi</th><th scope="col">Khoản chi</th><th scope="col">Thực chi</th><th scope="col">Thực thu</th>
       {canViewPayments && <><th scope="col">Còn phải thu</th><th scope="col">Còn phải trả</th></>}<th scope="col">Đối chiếu</th></tr></thead>
     <tbody>{rows.map(entry => <tr key={expenseKey(entry)}>
       {selectable && <td className="expense-register-select"><input type="checkbox" aria-label={`Chọn ${entry.feeName} · ${businessKey(entry.shipmentCode) ?? entry.customerName}`} checked={selected.has(expenseKey(entry))} disabled={entry.status !== 'RECORDED'} onChange={(event) => onSelect(entry, event.target.checked)} /></td>}
