@@ -2,7 +2,7 @@
 
 **Updated:** 2026-09-22 ~15:00 (+08)
 **Controller:** UI/UX sweep session (4 roles: chứng từ · điều vận · lái xe · OPS)
-**Status:** Complete — sweep + tickets delivered; fixes not started
+**Status:** Complete (sweep + tickets) — pushed and **deployed to prod** 2026-09-22 15:06 (+08), EXIT=0
 
 ## Goal
 
@@ -60,6 +60,26 @@ observed statically; Safari/Firefox; < 360px; 2560px; print; keyboard/screen-rea
   lint/tsc/test/build are unaffected. Pre-commit hook ran clean on both commits.
 - Commits: `cf285f5d`, `43d6ed6b` on `prod` (local; **not pushed** — repo rule keeps remotes
   untouched without instruction).
+
+## Push + prod deploy (user-authorised 2026-09-22)
+
+- Pushed: origin/prod = `5b4a8733` (0 commits behind, tree clean).
+- Pre-deploy gates run and green: prod DB census (113 tracking rows, cursor = journal idx 112,
+  the two new migrations idx 113/114 unapplied and idempotent, no tracking divergence);
+  composition check (all 8 DEV_COMPLETED cards' landings in HEAD — 5 by sha, card `_5`/`_6`/`_7`
+  by subject `b58dca61`+`41295af0`, `fca7be71`, `371c3d30`); deploy delta = 36 commits
+  (12 fix / 4 feat / 13 test / …) since prod build `c9eb7756`.
+- `make deploy` log: `qa/2026-09-22_prod-deploy_deploy.log` (full output + `EXIT=0`). Result: prod
+  `buildHash=5b4a8733`; DB backup `.db-backups/db-20260922T070547Z.dump` (1.69 MB) taken before
+  migrate; `[✓] migrations applied successfully`; prod tracking cursor advanced idx 112 → 114 (max);
+  `shipment_rate_adjustment_requests` + its index exist; `treasury_accounts.fund_code IS NULL` = 0;
+  `asset guard OK`; backend health ok (2nd attempt), frontend HTTP 200.
+- Post-deploy prod smoke: `/` → `/login` renders ("Chào mừng trở lại" + 2 inputs + Đăng nhập), no
+  asset errors; screenshot `qa/2026-09-22_prod-deploy_prod-login/prod-login-1440.png`.
+  **Prod UI not driven past login — no prod credentials in `testplan/testaccounts.txt`.**
+- Staging re-verified for card `20260922_21`: build `357b9ac7` now renders the `Thao tác` column
+  at 89px with a 1-line header and working buttons (64×30 / 40×30, real click opened the confirm
+  dialog). Card stays in TODO for the 1024–1200px band + the missing guard test.
 
 ## Blocker or next step
 
