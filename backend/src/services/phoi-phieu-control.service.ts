@@ -603,7 +603,18 @@ export async function getPhoiPhieuReport(query: {
     .from(s.expenseAccountingSources)
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds),
+    .where(and(
+      // In-trip rows scope by the trip window; NULL-trip rows (correct-route
+      // linked-replacement leaves trip_id null) scope by the expense's own
+      // business date so a correction can never drop money from the report.
+      or(
+        inArray(s.expenseAccountingSources.tripId, tripIds),
+        and(
+          isNull(s.expenseAccountingSources.tripId),
+          query.dateFrom ? gte(s.opsExpenseEntries.paidAt, query.dateFrom) : undefined,
+          query.dateTo ? lte(s.opsExpenseEntries.paidAt, query.dateTo) : undefined,
+        ),
+      ),
       eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
 
   // Party attribution.
