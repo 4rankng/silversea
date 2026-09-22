@@ -55,7 +55,20 @@
   max-width: 480px;
 }
 
+/* Width discipline (case QA-2026-09-22-01, operator 2026-09-22): bar children
+   are content-sized — flex-basis sized, shrinkable, never growing. The
+   nepocorp reference encodes it as `flex: 0 1 280px` on its search; a growing
+   child (the date root's w-full chain) stretches to the full row and forces
+   one-control-per-row stacking. Date fields sit at content width (168px,
+   149px floor kept = the /dispatch parity width). */
+.list-filter-bar > *:not(.filter-bar__spacer) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .list-filter-bar [data-input-wrapper] {
+  flex: 0 0 auto;
+  width: 168px;
   min-width: 149px;
 }
 

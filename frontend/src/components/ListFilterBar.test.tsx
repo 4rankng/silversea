@@ -15,7 +15,11 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     expect(bar).toMatch(/flex-wrap:\s*wrap;/);
     expect(bar).toMatch(/align-items:\s*end;/);
     // One gap rhythm — a wrapped second row aligns exactly like the first.
-    expect(bar).toMatch(/gap:\s*8px;/);
+    // Nepocorp reference rhythm after case QA-2026-09-22-02: 12px row gap,
+    // 24px column gap, flat chrome (the old 8px uniform + border-block bands
+    // read as unfinished scaffolding — operator 2026-09-22).
+    expect(bar).toMatch(/gap:\s*12px 24px;/);
+    expect(bar).not.toMatch(/border-block/);
     // No floating controls: wrap goes through the flex row only
     // (fix family 20260919_48 / 20260920_34 — the ragged-float defects).
     expect(filterBarCss).not.toMatch(/float\s*:/);
@@ -57,6 +61,12 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     expect(componentCss).toMatch(/\.list-filter-bar \.ds-uui-select\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*180px;/);
     // Quick filters stay one wrapping group.
     expect(componentCss).toMatch(/\.list-filter-bar__quick\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
+  });
+  it('never grows a bar child — content-sized controls (case QA-2026-09-22-01)', () => {
+    // The operator-reported stacking defect: the date root flex-grew to the
+    // full row (1145px for DD/MM/YYYY) and forced one-control-per-row wrap.
+    expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:\s*0 1 auto;/);
+    expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*flex:\s*0 0 auto;[^}]*width:\s*168px;/);
   });
 });
 
