@@ -80,7 +80,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // gain the runAt iso field (coalesced time source) so the grid can sort and
   // render minutes off one timestamp. Reviewed as a contract change; a future
   // split should restore a smaller ceiling.
-  'src/api/dispatchPlanningClient.ts': 441,
+  // Bumped 441 → 444: 2026-09-22 card 20260922_32 — the detail-plan filter
+  // interface gains the dateFrom/dateTo range fields (wire half of the
+  // month-scope feature). Reviewed as a contract change.
+  'src/api/dispatchPlanningClient.ts': 444,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -193,7 +196,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // fulfillment id so the surviving cell auto-opens the editor.
   // Bumped 518 → 521: 2026-09-16 landing 2a5dd222 — customer-sort state on
   // the detailed-plan hook; refreeze owed by the growing lane (BE1).
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 521,
+  // Bumped 521 → 532: 2026-09-22 card 20260922_32 — the topbar month scope
+  // wiring (initial range seeding + change effect) on the detailed-plan
+  // hook. Reviewed as a contract change; a future split (extract the filter
+  // state machine) should restore a smaller ceiling.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 532,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
