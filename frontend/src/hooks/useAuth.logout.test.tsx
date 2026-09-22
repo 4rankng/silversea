@@ -399,6 +399,10 @@ describe('AuthProvider logout', () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }))
+      // Card 20260922_82: the post-swap me-refetch now REACHES the server
+      // (bootstrap no longer self-evicts a locally-expired token); the
+      // server's 401 is what evicts it.
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }))
       .mockImplementation(() => Promise.reject(new Error('unexpected fetch')));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -417,12 +421,20 @@ describe('AuthProvider logout', () => {
     });
     // jwt.verify would reject the expired token before the logout route, so
     // sending it can only produce a pointless 401.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Two /auth/me calls have fired by now (bootstrap + the post-swap
+    // me-refetch — card 20260922_82 server-verdict bootstrap); the intent
+    // pin is that ZERO of them hit /auth/logout.
+    const revocations = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/logout'));
+    expect(revocations).toHaveLength(0);
     expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     expect(localStorage.getItem('token')).toBeNull();
   });
 
   it('clears protected query data before a different user becomes authenticated', async () => {
+    // Card 20260922_82: reset the module token cache so a stale token from a
+    // previous test cannot trigger a bootstrap /auth/me against this test's
+    // response queue (pre-fix the stale token silently self-evicted).
+    api.clearToken();
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
       token: VALID_TEST_JWT,
       user: {

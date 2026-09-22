@@ -95,11 +95,14 @@ export function isTokenExpired(token: string): boolean {
 
 async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
   const token = getToken();
-  if (!token || isTokenExpired(token)) {
-    if (token) clearTokenIfCurrent(token);
-    return null;
-  }
+  if (!token) return null;
   try {
+    // Full-load bootstrap trusts the SERVER verdict, never a local decode:
+    // a client clock ahead of the server (or any decode hiccup) must not
+    // evict a token the server still honors (card 20260922_82 — cold-boot
+    // logout deleted a server-valid token before any network call). Real
+    // expiry stays enforced by the server's 401/403 below, at every API
+    // boundary.
     return normalizeAuthUser(await api.get<AuthUserWire>('/auth/me', { signal }));
   } catch (err) {
     // Only clear credentials on genuine auth failures (401/403 = invalid,
