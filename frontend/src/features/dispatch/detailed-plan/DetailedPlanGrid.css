@@ -1029,24 +1029,20 @@
 }
 
 /* Classification column (Phân loại): every saved value uses one neutral,
-   regular-weight tag. The text itself carries the category, not decoration. */
+   regular-weight tag. Card 20260922_27: a VALUE renders as plain text —
+   the rounded border read as a button and contradicted the workboard text
+   convention; there is exactly one definition of this rule now. */
 .detailed-plan-grid__classification {
-  display: inline-block;
-  vertical-align: middle;
+  display: inline;
   font-family: inherit;
   font-size: var(--ops-table-supporting-size);
   font-weight: 400;
-  color: var(--text-secondary, #475467);
-  border: 1px solid var(--border-subtle, #eaecf0);
-  border-radius: 9999px;
-  padding: 2px 10px;
+  color: var(--text-secondary, #475567);
   line-height: var(--ops-table-supporting-line-height);
-  white-space: nowrap;
 }
 
 .detailed-plan-grid__classification--unclassified {
   color: var(--text-tertiary, #667085);
-  border-style: dashed;
 }
 
 /* ─── Lạch Huyện zone toggle (filter drawer) ───────────────────────────── */

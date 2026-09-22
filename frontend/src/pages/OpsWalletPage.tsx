@@ -19,6 +19,16 @@ const ADVANCE_STATUS_COLORS: Record<string, string> = {
   REJECTED: 'var(--err, #dc2626)',
 };
 
+// Green means "money received". A recorded request with no cash delivered
+// yet is still an outstanding payment (card 20260922_27) — amber, not the
+// success token.
+function advanceStatusColor(row: { status: string; fundedAmount?: number | null }): string {
+  if (['RECORDED', 'APPROVED'].includes(row.status) && Number(row.fundedAmount ?? 0) <= 0) {
+    return 'var(--warn, #d97706)';
+  }
+  return ADVANCE_STATUS_COLORS[row.status] ?? 'inherit';
+}
+
 // Requests are recorded directly; cash receipt is shown independently of status.
 const ADVANCE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Chưa ghi sổ', RECORDED: 'Đã ghi nhận', VOIDED: 'Đã hủy',
@@ -94,7 +104,7 @@ export default function OpsWalletPage() {
                     <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
                     <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
                     <td className="ops-wallet__advance-status" data-label="Trạng thái">
-                      <span style={{ color: ADVANCE_STATUS_COLORS[row.status] ?? 'inherit', fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
+                      <span style={{ color: advanceStatusColor(row), fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
                         {['RECORDED', 'APPROVED'].includes(row.status) ? Number(row.fundedAmount ?? 0) > 0 ? `Đã nhận ${formatVnd(row.fundedAmount!)} ₫` : 'Chưa giao tiền' : ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
                       <AdvanceDraftActions request={row} />

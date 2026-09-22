@@ -221,14 +221,23 @@
 .role-work-inbox__facts dt { color: var(--fg-3); font-size: var(--text-label-size); }
 .role-work-inbox__facts dd { overflow: hidden; margin: 1px 0 0; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Card 20260922_27: status label uses the house text+dot convention instead
+   of a pill background — the dot takes the state's semantic color. */
 .role-work-inbox__badge {
   display: inline-flex;
-  border-radius: 999px;
-  background: var(--bg-3);
-  padding: 3px 7px;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;
+}
+.role-work-inbox__badge::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .role-work-inbox__badge.is-action { color: var(--danger); }
