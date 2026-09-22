@@ -101,7 +101,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the request type (additive optional, FE half of the BE contract).
   // Bumped 1105 -> 1143: 2026-09-21 card 20260921_2 - add/remove container
   // row clients beside the CUS workspace line-update call.
-  'src/api/shipmentClient.ts': 1143,
+  // Bumped 1143 -> 1146: 2026-09-22 lint rider (LEAD) — residual growth
+  // swept in with the 22_4 wave's client work; shrink candidate.
+  'src/api/shipmentClient.ts': 1146,
   // Bumped 717 -> 784: 2026-09-20 card _37/_43 billing-gate scope — the
   // document builder grew with the billing readiness gate work.
   'src/components/billing/BillingDocumentBuilder.tsx': 784,
