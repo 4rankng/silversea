@@ -192,10 +192,34 @@ export default function AccountingDebitClosePage() {
       </div>
       {boardQuery.isError && <p role="alert">Không tải được bảng tổng hợp. Vui lòng thử lại.</p>}
       <div className="shipment-container-ledger" role="region" aria-label="Bảng Kế hoạch điều động tổng hợp" tabIndex={0} style={{ overflowX: 'auto' }}>
-        {/* 18 columns cannot squeeze below readable width — floor the table
-            and let the wrapper scroll horizontally (hard-gate fix: at 1440
-            the auto layout collapsed cells into overlapping text). */}
-        <table className="tt-table" style={{ minWidth: 2600 }}>
+        {/* 18 columns cannot squeeze below readable width — fixed layout with
+            EXPLICIT column shares (colgroup), so every header wraps inside
+            its own cell instead of overflowing into its neighbor (the auto
+            layout starved the money columns to their nowrap data width,
+            colliding the PHẢI THU/PHẢI TRẢ sub-headers at every desktop
+            width — QA FAILED 2026-09-22). Shares sum to 2640; the wrapper
+            scrolls horizontally below that. */}
+        <table className="tt-table" style={{ tableLayout: 'fixed', width: 2640 }}>
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col style={{ width: 96 }} />
+            <col style={{ width: 230 }} />
+            <col style={{ width: 200 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 152 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 110 }} />
+            <col style={{ width: 150 }} />
+          </colgroup>
           <caption>KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP — thu/trả theo lô (cước vận chuyển)</caption>
           <thead>
             <tr>
@@ -211,16 +235,16 @@ export default function AccountingDebitClosePage() {
               <th rowSpan={2} scope="col">Đối soát</th>
             </tr>
             <tr>
-              <th scope="col">Cước thu (tự động)</th>
-              <th scope="col">Lạch Huyện (tự động)</th>
-              <th scope="col">Phụ ps (tự động)</th>
-              <th scope="col">Phát sinh (cus)</th>
-              <th scope="col">Tổng thu</th>
-              <th scope="col">Cước trả ĐV</th>
-              <th scope="col">Lạch Huyện ĐV</th>
-              <th scope="col">Phát sinh ĐV</th>
-              <th scope="col">Tổng 1</th>
-              <th scope="col">Phí RU (tự động)</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Cước thu (tự động)</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Lạch Huyện (tự động)</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Phụ ps (tự động)</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Phát sinh (cus)</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Tổng thu</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Cước trả ĐV</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Lạch Huyện ĐV</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Phát sinh ĐV</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Tổng 1</th>
+              <th scope="col" style={{ whiteSpace: 'normal' }}>Phí RU (tự động)</th>
             </tr>
           </thead>
           <tbody>
