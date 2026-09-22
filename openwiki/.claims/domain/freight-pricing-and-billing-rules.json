@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:89caf6b61d14c0e803bc88b8617dc76fa492e4c43271cc613fda112ffa792c98",
+  "pageVersion": "sha256:4a6f6c7f1c6f6120ca3afdf8679b62ea633d4ac4fa849f01dedae1682f0ba522",
   "claims": [
     {
       "id": "claim_a14c0582dfff450fb754f048a152128f",
@@ -111,10 +111,72 @@
           "version": "repo-lines-v1:sha256:25098edab13436fc0fb0ebd41feea03a6a66ff48428e8f3771d9b432bb2c079a:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTA1YWRhMzY5NWIwYzhjZjUzZTFmZDdkYWJjYmM3NzBiZmM0OTlhNjQxNDYwMzg0OGI3OGZjYTlhMWFjODM1NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZlMTU0MjNiM2EyZDczNGYwNTI2NWY3ZTZlZTFhN2NiNzZkMWYwMjFkMGJhNTMyYWRjMWVkOGFkNDc1ZjAwZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjMxNjBiZmQyMDliZGFjZWRjOTkzODNhMGRiOTAyMjcyNzNmZjNmZmRhODUyZDIyYzQwZTgyM2Q5YTRmNjljNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2JjNjMxN2FiYTBjNTdiOGNiOTQ3ZjgwNzdlYTljZjgwMDljYmJiZTVmYzY5YmFhODMwYjlmMDJhYzRmNzU1MiJ9"
         }
       ]
+    },
+    {
+      "id": "claim_0d4d26fa714d47119e667ac8a774b85d",
+      "statement": "Every treasury movement belongs to exactly one fund source: treasury_accounts.fund_code is COMPANY (TK công ty – ngân hàng ACB) or TM (Tiền mặt); the per-source sổ quỹ aggregates every ACTIVE account of the source (opening balance plus POSTED movements) and never mixes sources.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/treasury-fund-book.service.ts",
+          "version": "repo-file-v1:sha256:4b530cfac17b1a412f7cff05b07c75041a19c6748ae3e52b6ccee014615b3374"
+        }
+      ]
+    },
+    {
+      "id": "claim_31cf2c0c094f43fbadbf4cc97c0e305a",
+      "statement": "Lồng ghép (merge history), operator ruling 2026-09-22: the legacy single-ledger history joined the ACB stream by a one-time classification flip (fund_code NULL → COMPANY on legacy accounts); movement rows were never rewritten (append-only preserved byte-identical, proven in the suite), old entries appear in the COMPANY book immediately with running totals continuous, and the TM stream starts at activation with no imported history.",
+      "evidence": [
+        {
+          "resource": "repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql",
+          "version": "repo-file-v1:sha256:5e4bf4ad9811572fb3dd669eb0bfba521d830652b848b1d82870b11d3c3d6be6"
+        },
+        {
+          "resource": "repo://backend/src/tests/card9-fund-history-merge.test.ts",
+          "version": "repo-file-v1:sha256:f2f6b32e9d137aa5414472fb592f29dfdc99c1725e4c117cc91880cf61b78ec7"
+        }
+      ]
+    },
+    {
+      "id": "claim_bff62954a2c0413cb09180140754ac0c",
+      "statement": "Marking a container deposit refunded posts one IN movement to the ACTIVE COMPANY (ACB) account through the treasury engine, guarded against double posting by the movement id stamped on the tracker row.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/deposit-refund-tracker.service.ts",
+          "version": "repo-file-v1:sha256:ad92d7269cfcc30f9e8a1c19afda30118ca9f6fba9b8bffef56bf4b45abe4516"
+        }
+      ]
+    },
+    {
+      "id": "claim_7370dec65b724c38b9da7b4e7c748bca",
+      "statement": "Chot-debit rate adjustments are confirmation columns, not an approval queue (user ruling on card 20260921_21, 2026-09-21): one live PENDING request per lot; PENDING blocks debit export with 409 'Lô <code> đang chờ đối soát cước' on both issuance paths; kế toán confirms per row or tick-all; withdraw re-opens the lot and re-shows any earlier confirmed state; cost-locked lots reject new requests; confirm/withdraw never change rates.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/core.routes.ts",
+          "version": "repo-file-v1:sha256:22b48996fca5bcbd0a73088e631447cae038a46b0593ec5487610c30c60badb8"
+        },
+        {
+          "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
+          "version": "repo-file-v1:sha256:fffea224d54c21c01e5d93cd6011b6277a9938cce221b85746116e0be85a97e1"
+        }
+      ]
+    },
+    {
+      "id": "claim_6bb6125448f943ee8963df3138c53039",
+      "statement": "Ten financial-write mutations require an Idempotency-Key and replay their first outcome: three chot-debit rate-adjustment commands, three deposit-tracker commands, four phoi-phieu commands. The material-write registry rejects out-of-registry writes, the wrapper refuses keyless requests with 400, and each mutation commits atomically with its idempotency record.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/middleware/material-write.ts",
+          "version": "repo-file-v1:sha256:bfbfa0f146bdd81a8df37ddad3e42e2d89ccf59a053b8ded451659799866f1f0"
+        },
+        {
+          "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
+          "version": "repo-file-v1:sha256:fffea224d54c21c01e5d93cd6011b6277a9938cce221b85746116e0be85a97e1"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-21T23:41:16.831Z"
+    "at": "2026-09-22T09:33:28.570Z"
   }
 }

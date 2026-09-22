@@ -4,14 +4,28 @@ title: "Freight Pricing and Billing Rules"
 description: "SilverSea's money-math contracts: how the fuel surcharge is computed and when it is blocked, how zero differs from a missing source on screen, what must be true before a bảng kê (debit note) issues, and why no internal approval hop exists."
 tags: [pricing, fuel-surcharge, billing, debit-note, display-contracts]
 sources:
+  - id: openwiki-source-7d078f7ea54e3537b5202b19
+    resource: repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql
   - id: openwiki-source-908be3a6f6197a3e04f3eba1
     resource: repo://backend/src/db/schema/pricing.ts
+  - id: openwiki-source-e9e879d7129d1316457b3c7b
+    resource: repo://backend/src/middleware/material-write.ts
+  - id: openwiki-source-22287984c48f175c9111b39c
+    resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-6ee9d82604a0a878f2bd4f58
     resource: repo://backend/src/seed/seed-demo-freight-pricing.ts
+  - id: openwiki-source-b3ce971443b0973d86aae282
+    resource: repo://backend/src/services/accounting-debit-close.service.ts
   - id: openwiki-source-10e4db2d245bc653bfb84cab
     resource: repo://backend/src/services/billing-document-governance.service.ts
+  - id: openwiki-source-f182525155ebdf45eaa76a0b
+    resource: repo://backend/src/services/deposit-refund-tracker.service.ts
   - id: openwiki-source-a3a0a1921d5309133aa9d113
     resource: repo://backend/src/services/freight-pricing-engine.service.ts
+  - id: openwiki-source-4f38a86b10ebec9affe678df
+    resource: repo://backend/src/services/treasury-fund-book.service.ts
+  - id: openwiki-source-64f15c4bf2dabd7241f4d7ec
+    resource: repo://backend/src/tests/card9-fund-history-merge.test.ts
   - id: openwiki-source-8038dca02791074513aa5725
     resource: repo://BACKLOG.md
   - id: openwiki-source-7c110e1f554a6edd95993c36
@@ -26,10 +40,10 @@ sources:
     resource: repo://frontend/src/pages/finance-derived.ts
   - id: openwiki-source-b2fbadbe08a5df4d9cfca2ed
     resource: repo://shared/src/calculations/fuelSurcharge.ts
-generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
+generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T23:41:16.831Z
+    at: 2026-09-22T09:33:28.570Z
 ---
 
 # Freight Pricing and Billing Rules
@@ -69,3 +83,19 @@ All internal approval workflows were removed by product ruling (2026-09-15): fin
 - **Phai-thu / phai-tra reports** (phoi-phieu spine): THU groups by customer, TRA groups by carrier — external carriers keep their name, internal Silver Sea trucks fold under one carrier code. Buckets (nâng / hạ / PS khác) derive from the fee's structural category. Đã thu/trả = treasury cash actually allocated to the source; Còn = Tổng − Đã; over-pay shows an explicit "Đã thu/trả vượt — cần hoàn lại phần chênh" annotation instead of hiding the difference.
 - **Confirm-gated driver payables:** a driver-entered tiền-đường line joins the payable total only after the accountant's per-item confirm tick; unconfirmed lines never ride a consolidated phiếu chi.
 - **No-invoice fees carry a separate Thực chi / Thực thu pair** (`amount` vs `customer_charge_amount`): chi-ho declarations take both numbers independently; charged no-invoice fees surface on the dispatch plan as "Thu khách: <fee name>" — name only, amounts stay out of the dispatch projection.
+
+## Two-source fund ledger and the Lồng ghép merge (2026-09-22)
+
+- **Every treasury movement belongs to exactly one fund source**: `treasury_accounts.fund_code` is `COMPANY` (TK công ty – ngân hàng ACB) or `TM` (Tiền mặt). The per-source sổ quỹ (fund book) aggregates every ACTIVE account of that source — opening balance plus POSTED movements — and never mixes sources.
+- **Lồng ghép (merge history), operator ruling 2026-09-22**: the legacy single-ledger history joins the ACB stream by a one-time classification flip (`fund_code` NULL → `COMPANY` on legacy accounts). Movement rows are never rewritten — the append-only ledger keeps them byte-identical — while old entries appear in the COMPANY book immediately with running totals continuous from day one. The TM (cash) stream starts at activation with no imported history.
+- **Deposit refunds post to the ACB stream**: marking a container deposit refunded writes one IN movement against the ACTIVE COMPANY account through the standing treasury engine, guarded against double posting by the movement id on the tracker row (`deposit-refund-tracker.service.ts`).
+
+## Chot-debit rate adjustment (confirmation columns) and the debit-export gate
+
+- **"Duyệt" means đối soát, not approval** (user ruling on card 20260921_21, 2026-09-21): the accounting chot-debit board treats a rate adjustment as a confirmation column — kế toán ticks a lot row and sends "gửi yêu cầu điều chỉnh cước"; there is no approval queue and confirm/withdraw never change any rate.
+- **One live pending request per lot.** While a lot's request is PENDING, that lot cannot be exported to debit — both debit-note issuance paths refuse with 409 "Lô <code> đang chờ đối soát cước". Kế toán clears the gate by confirming (per row or tick-all); withdrawing a request re-opens the lot and any earlier confirmed state shows again; a cost-locked lot is frozen and rejects new requests outright.
+- **Honest money display**: a missing input (Phí RU rate, carrier cost, ops total) renders "Chưa xác định" — never a fabricated 0 — and lợi nhuận stays unknown until every component is known (tổng thu − tổng 1 − phí RU, with tổng 1 excluding phí RU).
+
+## Financial-write idempotency boundary (2026-09-22)
+
+- **Ten financial-write mutations require an Idempotency-Key** and replay their first outcome on retry: the three chot-debit rate-adjustment commands, the three deposit-tracker commands, and the four phoi-phieu commands (phiếu lập, row void, phôi take-over metadata, truck-accountant assignment). The middleware registry rejects an out-of-registry write, the wrapper refuses a keyless request with 400, and each mutation commits together with its idempotency record so a retried submission can never apply twice.

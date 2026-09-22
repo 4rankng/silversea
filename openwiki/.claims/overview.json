@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5c95e4fde33932bd9045908e623d6413a95af6d530b607a38501e0167d3549e7",
+  "pageVersion": "sha256:539f2730875e1995bf83536559593b9b9d3b6e06e58ab2dd8b28350d4df4856c",
   "claims": [
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
@@ -56,7 +56,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts",
-          "version": "repo-file-v1:sha256:678fad8e95397e1bcb6a967de5dec00a18568bc43962560c6aadd7b025797b2d"
+          "version": "repo-file-v1:sha256:7158d2a07ecda35b42617be601b0e8f57ab7427b1fe730633d883ebaf68c78f7"
         },
         {
           "resource": "repo://backend/src/services/dispatch-task-tags.service.ts",
@@ -74,21 +74,49 @@
       "evidence": [
         {
           "resource": "repo://backend/src/routes/shipments/core.routes.ts",
-          "version": "repo-file-v1:sha256:346bbbbd63a83d135a2c50e5dcd4153a4dd61efc30007a83a29421ec6545ca03"
+          "version": "repo-file-v1:sha256:22b48996fca5bcbd0a73088e631447cae038a46b0593ec5487610c30c60badb8"
         },
         {
           "resource": "repo://frontend/src/pages/ShipmentDebitPage.tsx",
-          "version": "repo-file-v1:sha256:f511b0553ff1304d64706afbb99a5ac80987f3205bda1d5d48491f1486cfbb6e"
+          "version": "repo-file-v1:sha256:76f8048e4e3a75b50465a5fff4a1cbb1dc696893134486112f298a585d94928e"
         },
         {
           "resource": "repo://shared/src/constants/api-paths.ts",
           "version": "repo-file-v1:sha256:e64996d167d42e719147192638c7e4390653cd304e0058e224281364b9743ad1"
         }
       ]
+    },
+    {
+      "id": "claim_6f313dc403794228a1a49382e895fb9e",
+      "statement": "Kế toán chốt debit board (/accounting/chot-debit, accountant/admin; 2026-09-22): the per-lot KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP view with the fixed thu/trả column ladder, excel-style filters on customer and nhà xe, and a confirmation-column rate-adjustment flow where a pending request blocks that lot's debit export until kế toán confirms.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/accounting-debit.ts",
+          "version": "repo-file-v1:sha256:90659c7a4733e97cd965ba885979963060b5e4779a38e5dd1bf8b98b493f366d"
+        },
+        {
+          "resource": "repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx",
+          "version": "repo-file-v1:sha256:f2e8fb852395b26d34a1fe66370443eb417cca703f50378c8e04c00d72a36d49"
+        }
+      ]
+    },
+    {
+      "id": "claim_2e99ff17315d4bd4a300cbf981e7e6a0",
+      "statement": "Two-source fund ledger (2026-09-22): sổ quỹ splits into TK công ty (ACB, COMPANY) and Tiền mặt (TM) streams; the operator's Lồng ghép ruling merged the legacy single-ledger history into the ACB stream (old entries visible immediately, running balances continuous) while cash starts at activation.",
+      "evidence": [
+        {
+          "resource": "repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql",
+          "version": "repo-file-v1:sha256:5e4bf4ad9811572fb3dd669eb0bfba521d830652b848b1d82870b11d3c3d6be6"
+        },
+        {
+          "resource": "repo://backend/src/services/treasury-fund-book.service.ts",
+          "version": "repo-file-v1:sha256:4b530cfac17b1a412f7cff05b07c75041a19c6748ae3e52b6ccee014615b3374"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-21T23:41:16.831Z"
+    "at": "2026-09-22T09:33:28.570Z"
   }
 }

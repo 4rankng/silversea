@@ -1,18 +1,22 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-20 post-cut-14 state of origin/prod (7aedcfed): billing-issue readiness gate, fuel-preview MANUAL reasons, the zero-vs-missing display contract, the two-row 12-column filter grid, icon-only action columns, in-dropdown row creation, three-role workboard quick-edit (CUS/ADMIN/DISPATCHER), and both note fields editable under the accounting lock."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-22 state of origin/prod (8b26f5a9): the accounting chot-debit board (KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP) with confirmation-column rate adjustments gating debit export, the ten financial-write mutations behind the runIdempotent boundary with mandatory Idempotency-Key, the two-source fund ledger merge, plus the earlier cut-14 contracts (billing readiness gate, two-row filter grid, in-dropdown row creation)."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T23:41:16.831Z
+    at: 2026-09-22T09:33:28.570Z
 sources:
   - id: openwiki-source-140d3d74c1896e4779866932
     resource: repo://backend/drizzle/0000_flexible-baseline.sql
   - id: openwiki-source-9a7277933ab0110af5cb7cbe
     resource: repo://backend/package.json
+  - id: openwiki-source-1cda30f997a04679f2c9e592
+    resource: repo://backend/src/db/schema/financial.ts
   - id: openwiki-source-e9e879d7129d1316457b3c7b
     resource: repo://backend/src/middleware/material-write.ts
+  - id: openwiki-source-21e4d97ecfcc42ea0d65f739
+    resource: repo://backend/src/routes/accounting-debit.ts
   - id: openwiki-source-22287984c48f175c9111b39c
     resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-7633dc761224043313afe6c1
@@ -21,6 +25,8 @@ sources:
     resource: repo://backend/src/routes/trips/status.ts
   - id: openwiki-source-6ee9d82604a0a878f2bd4f58
     resource: repo://backend/src/seed/seed-demo-freight-pricing.ts
+  - id: openwiki-source-b3ce971443b0973d86aae282
+    resource: repo://backend/src/services/accounting-debit-close.service.ts
   - id: openwiki-source-a08d0826dadf2aa659264512
     resource: repo://backend/src/services/aging.service.ts
   - id: openwiki-source-10e4db2d245bc653bfb84cab
@@ -37,6 +43,8 @@ sources:
     resource: repo://backend/src/services/freight-pricing-engine.service.ts
   - id: openwiki-source-9c806678d597d282966e49e6
     resource: repo://backend/src/services/freight-rate-snapshot-lifecycle.service.ts
+  - id: openwiki-source-c07f430318fa5af6fcb6c616
+    resource: repo://backend/src/services/idempotency.service.ts
   - id: openwiki-source-200cd3cf936b00d433e49423
     resource: repo://backend/src/services/ops-settlement-export.service.ts
   - id: openwiki-source-3aa37080f2fc30dc35478ecb
@@ -127,7 +135,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
+generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
 ---
 
 # Architecture and Codebase Map
@@ -206,7 +214,7 @@ The settlement surface gives the CUS role one consolidated view of a customer's 
 - **Two-row 12-column filter grid (2026-09-20 owner spec, card _36 — supersedes the earlier one-row ruling):** the shipments-detail filter bar is a fixed 12-track grid — row 1: search span-4, from 2, to 2, customer 4; row 2: direction 3, dispatch 3, info 2, connected date-preset segmented group 2, ghost reset 2 right-aligned. All controls share the owner-spec 36px geometry (`--uui-control-h: 36px` scoped to the bar), labelless rail slots stay bottom-flush via `align-items: end`, and adding a filter never needs a track edit (`display: contents` groups are layout-invisible; `frontend/src/pages/ShipmentContainersPage.css:40-75`).
 - **Zero-vs-missing display contract (2026-09-20, cards _27/_31):** absent sources render "—" and computed zeros render "0", enforced at the derive layer: `finance-derived.ts` seeds report-backed cells with `?? null` (formatter renders "—") while keeps `?? 0` ONLY inside sums over defined arrays (arithmetic zero); `marginPct`/`yoyPct` return "—" on null inputs (`frontend/src/pages/finance-derived.ts:17-73`).
 - **Trips 15T missing-price chip (2026-09-20, card _32):** a trips-list row whose truck class is 15T and whose revenue is missing renders "—" plus a right-aligned in-cell chip "Thiếu giá 15T" (tooltip: the base price is missing, never displayed as 0); the predicate keys on `trucks.vehicleClass` added to the trips-list payload (`frontend/src/features/trips/tripColumns.tsx:451`, `backend/src/services/trip-queries.service.ts`).
-- **Row-cell creation lives in the combobox (2026-09-20, card _26):** the create-page goods table carries no in-cell buttons — route, port, and container-type creation happens by typing in the cell combobox, which offers a create option that opens the prefilled dialog (`initialName`/`initialCode`); `ShipmentCreateWorkspace` ratcheted 1123→1130 for the listbox wiring (`frontend/src/features/shipments/create/uui-searchable-field.tsx`, `frontend/src/tests/structure.guard.test.ts:231-234`).
+- **Row-cell creation lives in the combobox (2026-09-20, card _26):** the create-page goods table carries no in-cell buttons — route, port, and container-type creation happens by typing in the cell combobox, which offers a create option that opens the prefilled dialog (`initialName`/`initialCode`); `ShipmentCreateWorkspace` ratcheted 1123→1130 for the listbox wiring and 1130→1160 on 2026-09-22 when the cược-container intake tick landed (`frontend/src/features/shipments/create/uui-searchable-field.tsx`, `frontend/src/tests/structure.guard.test.ts`).
 
 ## Pricing and fuel surcharge
 
@@ -236,7 +244,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - **RBAC** is enforced at the route boundary through Casbin; accountants are excluded from operational writes even when the underlying service supports them. The dispatch plan routes strip the dispatcher from `isCombined`, the external-trip close routes guard the dispatcher/CUS/ADMIN/MANAGER roles, and the note composer route mirrors the read mask on the plan.
 - **No internal approval routing.** The former internal approval workflows (approval requests, gate tables, and their FE queues) were removed by product ruling (2026-09-15): finance/ops writes post directly under role checks and audit events instead of an internal approval hop.
 - **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically. Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
-- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in. The 2026-09-20 customers overhaul added `customers.bulk-notify` and `customers.bulk-status` (lock/unlock) as registry entries with Idempotency-Key + in-transaction audit (`backend/src/middleware/material-write.ts:86-87`).
+- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in. The 2026-09-20 customers overhaul added `customers.bulk-notify` and `customers.bulk-status` (lock/unlock) as registry entries with Idempotency-Key + in-transaction audit. The 2026-09-22 governance rider added ten financial-write rules — three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu endpoints — all wrapped in `runIdempotent` with mandatory `Idempotency-Key` (`backend/src/middleware/material-write.ts`).
 - **Single empty-state primitive (2026-09-20, card _41):** the app has exactly one EmptyState (the design-system primitive, with compact cards/rows/list preview variants); the parallel `.empty-state` chrome and the dead shared component were consolidated away, and the float animation carries a `prefers-reduced-motion` guard (`frontend/src/design-system/EmptyState.tsx`, `frontend/src/components/UI.css`).
 - **License-expiry risk flags (2026-09-20, card _44):** the fleet driver catalog renders a pure state function over the license expiry date — overdue rows get an oxblood icon+label ("Quá hạn N ngày"), ≤30-day rows bronze ("Còn N ngày"), long-dated/missing rows stay bare — so a compliance-risk field never renders as plain data (`frontend/src/features/dispatch/catalogs/FleetDriversView.tsx:26-40`).
 - **Local date formatters** live in `lib/format`; the structure guard bans bespoke formatters outside an allowlist and names every documented exception.
@@ -244,7 +252,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 ## Mechanical gates and enforcement
 
 - The pre-commit hook typechecks the touched project and runs the frontend structure guard so a tree that does not typecheck or a file past its frozen ceiling cannot reach the commit boundary. Bypass is `git commit --no-verify` with a stated reason in the commit body.
-- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines, and the 2026-09-20 wave added two dated bumps in the same style (ShipmentCreateWorkspace 1123→1130 for card _26, tripColumns 513→524 for the 15T chip) — all documented in `structure.guard.test.ts`.
+- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines, the 2026-09-20 wave added two dated bumps in the same style (ShipmentCreateWorkspace 1123→1130 for card _26, tripColumns 513→524 for the 15T chip), and 2026-09-22 added the untitled-ui combobox baseline and ShipmentCreateWorkspace 1130→1160 — all documented in `structure.guard.test.ts`.
 - The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback app-wide: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration. **Documented exception (2026-09-20):** the debit settlement money tables ship tabular-nums (QA-passed on the worked-numbers alignment) and are exempt from the scan. The allocation summary, schedule editor, and ledger rows honor the ban.
 - The QA gate table in `AGENTS.md` is mandatory for every change; a touched gate is not optional. Shared contract, Drizzle schema, financial-calculation, and RBAC changes require the full set including the e2e runner. Testplan ships a reusable harness (`testplan/qa/scripts/run-all.mjs`, `run-case.mjs`, `smoke.mjs`, `lib/{env,harness,selectors}.mjs`) and stores evidence under `testplan/qa/evidence/<date>_<scope>/`; the root `qa/` directory remains the cross-project evidence sink per `AGENTS.md`.
 
@@ -261,5 +269,12 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - **The chi-ho / tiền-đường detail dialogs key on the OPS EXPENSE entry id end-to-end** — the same id space the update/correction routes use; a previous source-id keyed draft let edits cross lots (QA-caught, regression-pinned). Confirmed rows correct through the linked-replacement route; unconfirmed rows update directly; void = VOIDED status with history kept and refuses confirmed rows or accounting-locked lots. Tiền-đường rows keep `driver_entered_amount` beside the accountant's adjusted amount.
 - **No-invoice fees carry a separate Thực chi / Thực thu pair** (`amount` vs `customerChargeAmount` — never one shared number); charged no-invoice fees surface on the dispatch plan as "Thu khách: <fee name>" with amounts kept out of the dispatch projection.
 - **New material-write routes must be declared in `middleware/material-write.ts`** — an undeclared route 500s inside the idempotency envelope's audit persist ("Material write audit context is incomplete"), not at the route.
+
+## Accounting chot-debit wave (2026-09-22): confirmation-column rate adjustments and the financial-write idempotency boundary
+
+- **KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP board** (`frontend/src/pages/accounting/AccountingDebitClosePage.tsx`, `backend/src/routes/accounting-debit.ts`, service `backend/src/services/accounting-debit-close.service.ts`): a per-lot accounting view with the fixed thu/trả column ladder (explicit colgroup shares; sub-headers wrap — the tt-table base keeps `thead th { white-space: nowrap }`, so long labels need wrap overrides or they overflow-paint neighbors), excel-style filters on exactly two columns, and a per-lot rate-adjustment confirmation flow.
+- **Confirmation columns, not an approval queue** (user ruling on card 20260921_21, 2026-09-21): ticking a lot and sending "gửi yêu cầu điều chỉnh cước" creates ONE live PENDING request per lot (transactional INSERT..WHERE NOT EXISTS on `shipment_rate_adjustment_requests`; no partial unique index). While PENDING, both debit issuance routes (per-lot POST /:id/debit-note and consolidated POST /debit-notes) return 409 naming the lot in business language ("đang chờ đối soát cước"). Kế toán confirms per row or tick-all (guarded UPDATE), withdraw unmasks an earlier CONFIRMED state, and cost-locked lots reject new requests.
+- **Financial-write idempotency boundary**: ten financial-write mutations — three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu — run inside `runIdempotent` with tx threaded so the mutation and its idempotency record commit atomically; `runIdempotent` throws 400 "Idempotency-Key là bắt buộc" when the header is absent, and the material-write middleware registry inventories all ten endpoint rules (`backend/src/middleware/material-write.ts`). The frontend clients send `Idempotency-Key` (UUID) on every one.
+- **Phí RU** reads `pricing_tables` with `rate_key='RU'` (DATA — Chưa xác định until the customer populates rates); Lạch Huyện cells read ops `ZONE_SURCHARGE` rows by expense-type code; lợi nhuận = Tổng thu − Tổng 1 − Phí RU with Tổng 1 excluding RU.
 
 ## Related pages

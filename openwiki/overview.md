@@ -6,18 +6,26 @@ tags: [overview, product, o2c, dispatch, ops]
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
+  - id: openwiki-source-7d078f7ea54e3537b5202b19
+    resource: repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql
+  - id: openwiki-source-21e4d97ecfcc42ea0d65f739
+    resource: repo://backend/src/routes/accounting-debit.ts
   - id: openwiki-source-22287984c48f175c9111b39c
     resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-7633dc761224043313afe6c1
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
+  - id: openwiki-source-4f38a86b10ebec9affe678df
+    resource: repo://backend/src/services/treasury-fund-book.service.ts
   - id: openwiki-source-0c106052b3286e779bed85e7
     resource: repo://docker-compose.dev.yml
   - id: openwiki-source-0047c2597980e18b4470c62d
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-f2f111426b499e3847bd2369
     resource: repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx
+  - id: openwiki-source-228b2bfa1b61b16f0a31e924
+    resource: repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx
   - id: openwiki-source-b393e30a884bdab2b871670a
     resource: repo://frontend/src/pages/ShipmentDebitPage.tsx
   - id: openwiki-source-012f2c78e3b1446dfc35803f
@@ -26,10 +34,10 @@ sources:
     resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
+generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T23:41:16.831Z
+    at: 2026-09-22T09:33:28.570Z
 ---
 
 # SilverSea System Overview
@@ -75,6 +83,9 @@ The main tree as of commit `3103ecc7` (origin/prod, 2026-09-21) carries the foll
 ## Removed features — do not treat as current
 
 GPS/telemetry tracking and the AI-assistant feature were removed entirely (2026-09-06, incl. dead tables and UI); telemetry revisit is moot. The `PENDING_EXPENSE_APPROVAL` status and maker-checker flow were retired 2026-09-05. The generated wiki will not resurrect them on refresh.
+
+- **Kế toán chốt debit board** (`/accounting/chot-debit`, accountant/admin; 2026-09-22): the per-lot KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP view — the fixed thu/trả column ladder (cước thu/tự động, Lạch Huyện, phụ phí, phát sinh, tổng, phí RU, lợi nhuận), excel-style filters on customer and nhà xe, and a confirmation-column rate-adjustment flow where a pending request blocks that lot's debit export until kế toán confirms (the card's chot-debit Debit-tab slice stays parked on the customer's complete spec).
+- **Two-source fund ledger** (2026-09-22): sổ quỹ splits into TK công ty (ACB, `COMPANY`) and Tiền mặt (`TM`) streams; the operator's Lồng ghép ruling merged the legacy single-ledger history into the ACB stream (old entries visible immediately, running balances continuous) while cash starts at activation.
 
 ## Where to go next
 

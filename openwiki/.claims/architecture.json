@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5f5680dd0e4219a56736e6fc1b0a3e72cb6c8867d251f5a30b855f97a641e155",
+  "pageVersion": "sha256:1a1ca1a8c2bb75811a17300cdbb0c12078757418b362912f955ac367cdd8cc13",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:63289abe1c73b8b71678bf451dc7db89cfefc7c66aa267c020d096faf05b060d"
+          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
         }
       ]
     },
@@ -66,7 +66,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts",
-          "version": "repo-file-v1:sha256:678fad8e95397e1bcb6a967de5dec00a18568bc43962560c6aadd7b025797b2d"
+          "version": "repo-file-v1:sha256:7158d2a07ecda35b42617be601b0e8f57ab7427b1fe730633d883ebaf68c78f7"
         },
         {
           "resource": "repo://backend/src/tests/dispatch-detail-plan.test.ts",
@@ -74,7 +74,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/index.ts",
-          "version": "repo-file-v1:sha256:7150d3862a87af1f1e601922a6419d6de0d714bdf7b5667a9f2dcff38eb2cc17"
+          "version": "repo-file-v1:sha256:7ff42ba93b10eaa3443de648e36d0d2b696c8fc9af02bd92c2b2e45056cee02a"
         }
       ]
     },
@@ -98,7 +98,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:63289abe1c73b8b71678bf451dc7db89cfefc7c66aa267c020d096faf05b060d"
+          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -144,7 +144,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-          "version": "repo-file-v1:sha256:db576f647a7d4015c253632e8221db914482880097574eda30cf92b01516354a"
+          "version": "repo-file-v1:sha256:ab1c441c68f27d74272194061347dc72d15dda22a17a79d7e98056027d257fcb"
         },
         {
           "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts",
@@ -162,7 +162,7 @@
         },
         {
           "resource": "repo://backend/src/services/dispatch-planning-detail-plan.service.ts",
-          "version": "repo-file-v1:sha256:b1b495f76972c8462aba6150cc1410d82c21a3c8544b5f76335d34156e989aa9"
+          "version": "repo-file-v1:sha256:09f13fb6302885f30b0cb00ca08de0c5fe34016fb05896785e75340f90906c0d"
         },
         {
           "resource": "repo://backend/src/services/trip-external-close.service.ts",
@@ -184,7 +184,7 @@
         },
         {
           "resource": "repo://frontend/src/features/dispatch/master-plan/allocationDayHelpers.ts",
-          "version": "repo-file-v1:sha256:9c80a50c8f96c39ea70a477071bb2b6e5f7daae36c79aa7bb8db1793f34fa38d"
+          "version": "repo-file-v1:sha256:717f2652cd3a3c41deb9d074ab56dc988c3effc1f9f3c53c0b29928fa6785255"
         }
       ]
     },
@@ -246,7 +246,7 @@
         },
         {
           "resource": "repo://backend/src/routes/shipments/core.routes.ts",
-          "version": "repo-file-v1:sha256:346bbbbd63a83d135a2c50e5dcd4153a4dd61efc30007a83a29421ec6545ca03"
+          "version": "repo-file-v1:sha256:22b48996fca5bcbd0a73088e631447cae038a46b0593ec5487610c30c60badb8"
         }
       ]
     },
@@ -324,7 +324,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
-          "version": "repo-file-v1:sha256:0c149052712cf5d6a8ca5c03502b49cd680cc5f25be310ba3136141885a7de62"
+          "version": "repo-file-v1:sha256:92aeb4d09287c3b60985b514cd7c2f5aa8985c5041f1b0f38e56cc1345e88c6c"
         }
       ]
     },
@@ -388,7 +388,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
-          "version": "repo-file-v1:sha256:0c149052712cf5d6a8ca5c03502b49cd680cc5f25be310ba3136141885a7de62"
+          "version": "repo-file-v1:sha256:92aeb4d09287c3b60985b514cd7c2f5aa8985c5041f1b0f38e56cc1345e88c6c"
         }
       ]
     },
@@ -418,15 +418,15 @@
     },
     {
       "id": "claim_421d3e27c2af4a1fbf078cc5b9a703a2",
-      "statement": "The create-page goods table has no in-cell add buttons: route, port, and container-type creation happens by typing in the cell combobox, which offers a create option opening the prefilled create dialog (initialName/initialCode), with ShipmentCreateWorkspace ratcheted to 1130 lines for the listbox wiring.",
+      "statement": "The create-page goods table has no in-cell add buttons: route, port, and container-type creation happens by typing in the cell combobox, which offers a create option opening the prefilled create dialog (initialName/initialCode). ShipmentCreateWorkspace carried a 1130-line ratchet for the listbox wiring, bumped 1130→1160 on 2026-09-22 when the cược-container intake tick landed (structure.guard.test.ts).",
       "evidence": [
         {
           "resource": "repo://frontend/src/features/shipments/create/uui-searchable-field.tsx",
-          "version": "repo-file-v1:sha256:1778fe5be5933b22bae6ebbf9835ecea9d6c521ac8e71b280911b2e6507bcf77"
+          "version": "repo-file-v1:sha256:f4fdfc52b47dbdd4f660db30d9285f4dbc47355137cea80dee68ccae7f55a234"
         },
         {
-          "resource": "repo://frontend/src/tests/structure.guard.test.ts#L231-L234",
-          "version": "repo-lines-v1:sha256:a61d45a84eb216f2099e67c65816f08911753f74dfca8a791732afe4472f0990:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmQ0YzAwNzRlNTAxZTBhMWNjM2ExNDI4OWQzZDI0MzRiMWVkYzA0MGVlMTRiODExZjI3ZmNjNGFmYWM2NDk1MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZWIwNTMyYTJiNjI3OTQ5NTdiMjIyMWI5NDhjZDA0ZmQ1YTk2YTQyZDczNTEzMDgzOTFhYzhkNDYxYmQ4NzQ2NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGM4MTJlNDQ4MWYxYzg3OThhNzE5OWJmYmFhZjZjNGE0OGZlMzg3MmUxZTYwN2VkZGQ2YzZkNjQxZTEyNjg1ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDA1NGJiZTdiZDczOWE3NTUyNDc1YzBiNGMwMTQxNzM1NWY2ODg0M2YxYjFlZjIxYzE5MzNiMmRlODdiM2RlMCJ9"
+          "resource": "repo://frontend/src/tests/structure.guard.test.ts",
+          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
         }
       ]
     },
@@ -519,10 +519,62 @@
           "version": "repo-lines-v1:sha256:c261efa49f31d4b34a7aea4c9eb3fb0540362722c6e4dbdd781f32759a27e719:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNGI4MDJjY2I3YWY3OWY3ZDVhNjE5NTQxOTBlNjRhNGM4NzdlZjAyMmQxZmEzY2ZjZTc0MjlhM2IwNDEwNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzAzZTQzMTJmYjI0ZjVjMjE5OTEyNzJmYmY5ZWM5OGRmNzgwNjc4YzZlZWUyZTMyMzNlMzJiOTdkMDgwZTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyZDU2OGViZTM5N2RmM2FmZTZkYTlkODk0Njc4Mzg2YmE4MGRiNWZlNDc3ODE0MzBiZDRiYTQ1Yzg5ODVmMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3NTFjZjhmYmZlYzIyZDNlZmQ2MDg2MDRiOWEyMGRiZDE2ZmVjMDc2ZjVjODk0ZmE1NDkzNTIxNDFlZmMzMGYifQ"
         }
       ]
+    },
+    {
+      "id": "claim_99b936b0b99e46d098e14394b286982f",
+      "statement": "GET /api/accounting/debit-board returns the per-lot accounting board (date-range query, fixed thu/trả column ladder, per-lot rate-adjustment state); the three POST /debit-board/rate-adjustments[/confirm|/withdraw] mutations run inside runIdempotent with office roles (ADMIN/MANAGER/ACCOUNTANT).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/accounting-debit.ts",
+          "version": "repo-file-v1:sha256:23bfe81a2554837613b1ef61b3519444e16040c838ce1ff7a9358ead8676bb5e"
+        }
+      ]
+    },
+    {
+      "id": "claim_da3753c22577423fbefb60cd40a3654b",
+      "statement": "shipment_rate_adjustment_requests holds one live PENDING request per lot, enforced transactionally (INSERT..WHERE NOT EXISTS — deliberately not a partial unique index); confirm/withdraw are guarded UPDATEs on PENDING rows.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/db/schema/financial.ts",
+          "version": "repo-file-v1:sha256:b361a333aaa19ff76040de0d490d843f8f569177cdfcf86651bc4da383a39cf1"
+        },
+        {
+          "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
+          "version": "repo-file-v1:sha256:913995f7298486960190d9d8aaacede7a1cf5f813f6802c61086a18aa2be30ad"
+        }
+      ]
+    },
+    {
+      "id": "claim_e8252a9975154e43b34a2740bbae114f",
+      "statement": "A live PENDING rate-adjustment request blocks debit export: both issuance routes (per-lot POST /:id/debit-note and consolidated POST /debit-notes) 409 naming the lot ('đang chờ đối soát cước'); the guard fires before the cost-lock check.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/core.routes.ts",
+          "version": "repo-file-v1:sha256:22b48996fca5bcbd0a73088e631447cae038a46b0593ec5487610c30c60badb8"
+        },
+        {
+          "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
+          "version": "repo-file-v1:sha256:913995f7298486960190d9d8aaacede7a1cf5f813f6802c61086a18aa2be30ad"
+        }
+      ]
+    },
+    {
+      "id": "claim_015094227a8741ec902813d0a9d0abbc",
+      "statement": "Ten financial-write mutations run through runIdempotent (three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu); the wrapper throws 400 when the Idempotency-Key header is absent, the material-write middleware inventories all ten endpoint rules, and tx threading makes each mutation commit atomically with its idempotency record.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/middleware/material-write.ts",
+          "version": "repo-file-v1:sha256:bfbfa0f146bdd81a8df37ddad3e42e2d89ccf59a053b8ded451659799866f1f0"
+        },
+        {
+          "resource": "repo://backend/src/services/idempotency.service.ts",
+          "version": "repo-file-v1:sha256:9111844efd0499ab61467cb6eb61be869081e5ef9f867df06fab68cbcacd6a39"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-21T23:41:16.831Z"
+    "at": "2026-09-22T09:33:28.570Z"
   }
 }
