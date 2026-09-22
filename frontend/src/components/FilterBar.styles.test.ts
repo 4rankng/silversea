@@ -18,4 +18,13 @@ describe('shared filter bar styling', () => {
     expect(filterBar).not.toMatch(/border-radius\s*:/);
     expect(filterBar).not.toMatch(/border:\s*1px/);
   });
+
+  it('keeps count badges rectangular — the §1 pill ban pins this file (card _48)', () => {
+    // Review round 20260922_38 nit T2: the quick-filter count badge was a
+    // 999px pill. The fix (0d51e334) made it a small-radius rectangle; this
+    // pin keeps it that way.
+    expect(css).not.toContain('999px');
+    const count = css.match(/\.filter-pill__count\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(count).toContain('border-radius: 4px');
+  });
 });
