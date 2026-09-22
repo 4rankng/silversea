@@ -48,6 +48,7 @@ import notificationRoutes from './routes/notifications';
 import opsRoutes from './routes/ops';
 import accountingRoutes from './routes/accounting';
 import accountingDepositRoutes from './routes/accounting-deposit';
+import accountingDebitRoutes from './routes/accounting-debit';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
@@ -185,6 +186,9 @@ app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), f
 app.use('/api/ops', authMiddleware, opsRoutes);
 app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingRoutes);
 app.use('/api/accounting/deposits', authMiddleware, casbinAuthz('accounting'), accountingDepositRoutes);
+// Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (chot-debit CORE); mounted
+// adjacent to its siblings so the /api/accounting prefix cannot shadow it.
+app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingDebitRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
 app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);

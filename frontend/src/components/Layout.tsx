@@ -119,6 +119,11 @@ export function getNavItems(
         // CUS read-only on the same page.
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
         { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — the dedicated
+        // control page built by card 20260921_12; discoverability only, the
+        // route and its financeReader gate already existed.
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -207,6 +212,9 @@ export function getNavItems(
         // page as the accountant entry; writes stay server-gated.
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
         { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — ADMIN+ACCOUNTANT only.
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
 
         // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
         ...(hasCapability('treasury.read') ? [

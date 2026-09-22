@@ -786,6 +786,13 @@
       "when": 1790022965741,
       "tag": "20260922043000_card19_deposit_refund_trackers",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1790041113449,
+      "tag": "20260922013200_card21_shipment_debit_adjustments",
+      "breakpoints": true
     }
   ]
 }

@@ -122,6 +122,7 @@ const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
 const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuControlPage'));
+const AccountingDebitClosePage = lazy(() => import('./pages/accounting/AccountingDebitClosePage'));
 const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
 const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
@@ -283,6 +284,7 @@ export function AppRoutes() {
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
           <Route path="/accounting/expenses" element={financeReaderOnly(page(<ExpenseAccountingPage />))} />
           <Route path="/accounting/phoi-phieu" element={financeReaderOnly(page(<PhoiPhieuControlPage />))} />
+          <Route path="/accounting/chot-debit" element={officeStaffOnly(page(<AccountingDebitClosePage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           {/* Invoice tracking (card 20260921_18): kế toán full CRUD, CUS reaches
               the page read-only — the page-internal canWrite mirrors the server's

@@ -46,6 +46,7 @@ import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.s
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
 import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -618,6 +619,9 @@ coreRoutes.post(
       shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô đã khóa.').max(200),
     }).safeParse(req.body ?? {});
     if (!parsed.success) throwValidation(parsed.error);
+    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
+    // cannot be exported to debit — 409 naming the lot (business language).
+    await assertNoPendingRateAdjustment(parsed.data.shipmentIds);
     const doc = await createConsolidatedDebitNote({ shipmentIds: parsed.data.shipmentIds, actor: getUser(req) });
     res.status(201).json({ id: doc.id });
   }),
@@ -994,6 +998,9 @@ coreRoutes.post(
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
     const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xuất Debit Note.');
+    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
+    // cannot be exported to debit — 409 naming the lot (business language).
+    await assertNoPendingRateAdjustment([shipmentId]);
     const doc = await createDebitNoteFromCostLock({ shipmentId, actor: getUser(req), idempotencyKey });
     res.status(201).json({ id: doc.id });
   }),

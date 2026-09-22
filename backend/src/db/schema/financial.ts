@@ -804,3 +804,29 @@ export const shipmentCostAdjustments = pgTable('shipment_cost_adjustments', {
   adjustedAt: timestamp('adjusted_at', { withTimezone: true }).notNull().defaultNow(),
   idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull().unique(),
 });
+
+// ─── Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP: rate-adjustment requests ──
+// Kế toán ticks a lot row and sends "gửi yêu cầu điều chỉnh cước": while a
+// PENDING request exists the lot cannot be exported to debit (per-lot
+// issuance and the consolidated run both 409 naming the lot). Per the card's
+// 2026-09-21 user ruling "duyệt" is a CONFIRMATION column, not an approval
+// queue: kế toán confirms per row or tick-all; the requester can withdraw
+// before confirmation; after confirmation the lot may be re-requested until
+// its cost lock freezes it.
+export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_requests', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('PENDING'),
+  ghiChu: text('ghi_chu'),
+  requestedBy: integer('requested_by').notNull(),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  confirmedBy: integer('confirmed_by'),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+}, (table) => [
+  // Lookup index for the debit-export guard. At-most-one-PENDING-per-lot is
+  // enforced TRANSACTIONALLY in the create path — deliberately NOT a partial
+  // unique index (drizzle-kit mangles partial-index predicates when
+  // applying; 2026-09-19 _32 war story).
+  index('shipment_rate_adjustment_requests_shipment_idx').on(table.shipmentId),
+]);
