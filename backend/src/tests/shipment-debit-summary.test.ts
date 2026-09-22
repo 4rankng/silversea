@@ -65,6 +65,29 @@ async function mkFreight(shipmentId: number, tripId: number, total: string) {
 }
 
 describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
+  test('shows each saved declaration once in stable order without leaking other lots', async () => {
+    const customer = await mkCustomer(`Debit declarations ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-22');
+    const emptyLot = await mkLot(customer.id, '2026-09-22');
+    const otherCustomer = await mkCustomer(`Debit unrelated declarations ${suffix}`);
+    const otherLot = await mkLot(otherCustomer.id, '2026-09-22');
+    for (const [shipmentId, declarationNumber] of [
+      [lot.id, ' TK-FIRST '], [lot.id, 'TK-SECOND'], [lot.id, 'TK-FIRST'],
+      [lot.id, '  '], [emptyLot.id, null], [otherLot.id, 'TK-UNRELATED'],
+    ] as const) {
+      const [row] = await db.insert(s.shipmentDeclarations).values({ shipmentId, declarationNumber }).returning();
+      await track(s.shipmentDeclarations, row);
+    }
+
+    const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(result.total, 2);
+    const item = result.items.find((row) => row.shipmentId === lot.id)!;
+    assert.equal(item.customsNumber, 'TK-FIRST, TK-SECOND');
+    assert.equal(item.receivableTotal, null);
+    assert.equal(item.payableTotal, null);
+    assert.equal(result.items.find((row) => row.shipmentId === emptyLot.id)!.customsNumber, null);
+  });
+
   test('rolls up freight, chi hộ, receivable and profit for one lot', async () => {
     const customer = await mkCustomer(`Debit A ${suffix}`);
     const lot = await mkLot(customer.id, '2026-09-25');
@@ -391,8 +414,8 @@ describe('debit services compile-safe for the dist build (no extensionless dynam
   test('lock and rollup services use static local imports only', async () => {
     const { readFileSync } = await import('node:fs');
     const sources = [
-      '/Volumes/LexarSSD/projects/silversea-prod/backend/src/services/shipment-cost-lock.service.ts',
-      '/Volumes/LexarSSD/projects/silversea-prod/backend/src/services/shipment-debit-summary.service.ts',
+      new URL('../services/shipment-cost-lock.service.ts', import.meta.url),
+      new URL('../services/shipment-debit-summary.service.ts', import.meta.url),
     ];
     for (const path of sources) {
       const text = readFileSync(path, 'utf8');

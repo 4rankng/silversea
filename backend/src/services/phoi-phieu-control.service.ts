@@ -14,6 +14,7 @@ import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { createExpenseVoucher, getExpenseCashTotals } from './expense-accounting-voucher.service';
+import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { expenseVndSchema, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
@@ -458,10 +459,16 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
       .where(eq(s.expenseAccountingSources.id, sourceId));
     await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
       .where(eq(s.opsExpenseEntries.id, source.sourceId));
+    if (source.linkedTripExpenseId) {
+      await tx.update(s.tripExpenses).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
+        .where(eq(s.tripExpenses.id, source.linkedTripExpenseId));
+      await propagateRecordedExpense(tx, { expenseId: source.linkedTripExpenseId });
+    }
     await tx.insert(s.auditLogs).values({
       userId: actor.userId, entityType: 'expense_accounting_source', entityId: sourceId,
       message: 'VOID phoi-phieu fee row', payload: { reason, tripId },
     });
+    return { ok: true };
   };
   return outer ? run(outer) : db.transaction(run);
 }
@@ -470,6 +477,7 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
 
 export interface PhoiPhieuTienDuongRow {
   sourceId: number;
+  version: number;
   costType: string;
   feeName: string | null;
   driverEnteredAmount: number | null;
@@ -495,6 +503,7 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
     occurredAt: s.driverIncidentalCosts.occurredAt,
     driverName: s.drivers.name,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
+    version: s.expenseAccountingSources.version,
   })
     .from(s.driverIncidentalCosts)
     .leftJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
@@ -508,6 +517,7 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
   void s.trips;
   const feeRows: PhoiPhieuTienDuongRow[] = rows.map((row) => ({
     sourceId: row.id,
+    version: row.version ?? 1,
     costType: row.costType,
     feeName: row.feeName,
     driverEnteredAmount: row.driverEnteredAmount == null ? null : Number(row.driverEnteredAmount),

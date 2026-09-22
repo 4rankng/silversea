@@ -16,7 +16,7 @@ import { ApiError } from '../errors';
  * only CANCELED never hauled), or (3) the ops's own saved (non-voided) expense
  * on the lot — a revoked ops keeps managing money they already declared.
  */
-export async function assertOpsExpenseAssignment(tx: Tx, userId: number, shipmentId: number) {
+export async function assertOpsExpenseAssignment(tx: Pick<Tx, 'select'>, userId: number, shipmentId: number) {
   const [linked] = await tx.select({ id: s.userShipmentLinks.id }).from(s.userShipmentLinks)
     .innerJoin(s.shipments, eq(s.shipments.id, s.userShipmentLinks.shipmentId))
     .where(and(eq(s.userShipmentLinks.userId, userId), eq(s.userShipmentLinks.shipmentId, shipmentId), isNull(s.shipments.deletedAt)))

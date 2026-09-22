@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { PayablesTable } from './ShipmentDebitTables';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { ChiHoTable, FreightTable, PayablesTable, buildDelta, buildDraft } from './ShipmentDebitTables';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
 const detail = (rowOver: Record<string, unknown> = {}, payablesOver: Record<string, unknown> = {}): ShipmentDebitDetail => ({
@@ -58,4 +58,43 @@ describe('PayablesTable (Bảng 2.3) reads the wire', () => {
     expect(row?.textContent).toContain('250.000');
     expect(row?.textContent).toContain('Chưa xác định');
   });
+});
+
+describe('FreightTable customer HQGS charge is independent of payable cost', () => {
+  it.each([150000, 0])('uses the negotiated charge %s and keeps the payable cost', (charge) => {
+    const value = detail({ customsCustomerCharge: charge, psActual: 50000 });
+    render(<><FreightTable detail={value} draft={buildDraft(value)} frozen setFreight={() => {}} /><PayablesTable detail={value} /></>);
+    const revenue = screen.getByRole('table', { name: 'Bảng 2.1 — Cước vận tải' });
+    const payable = screen.getByRole('table', { name: 'Bảng 2.3 — Phí Phải trả (chỉ xem)' });
+    const cells = revenue.querySelectorAll('tbody tr td');
+    expect(cells[4]).toHaveTextContent(charge === 0 ? '0' : '150.000');
+    expect(cells[6]).toHaveTextContent(charge === 0 ? '4.550.000' : '4.700.000');
+    expect(payable).toHaveTextContent('250.000');
+    expect(revenue).not.toHaveTextContent('250.000');
+  });
+
+  it('does not replace an absent customer-charge field with company cost', () => {
+    const value = detail({ freightCharge: null, fuelSurcharge: null });
+    render(<FreightTable detail={value} draft={buildDraft(value)} frozen setFreight={() => {}} />);
+    const cells = screen.getByRole('table').querySelectorAll('tbody tr td');
+    expect(cells[4]).toHaveTextContent('—');
+    expect(cells[6]).toHaveTextContent('Chưa xác định');
+  });
+});
+
+it('keeps canonical fee copies read-only and drops their stale draft changes, preserving manual fees', () => {
+  const value = detail();
+  value.chiHoRows = [{ tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null, items: [],
+    otherFees: [{ id: 1, name: 'Canonical fee', amount: 100, thuKhach: 120, readOnly: true }, { id: 2, name: 'Manual fee', amount: 200 }],
+    carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' }];
+  const draft = buildDraft(value), change = vi.fn(), remove = vi.fn();
+  render(<ChiHoTable detail={value} draft={draft} frozen={false} setFeeAmount={change} removeFee={remove} addFee={() => {}} setAddedFee={() => {}} />);
+  expect(screen.getByRole('textbox', { name: /Số tiền chi hộ phí khác Canonical fee/ })).toBeDisabled();
+  const button = screen.getByRole('button', { name: 'Xóa phí khác Canonical fee' });
+  expect(button).toBeDisabled(); fireEvent.click(button); expect(remove).not.toHaveBeenCalled();
+  expect(screen.getByText(/Điều chỉnh tại nguồn chi phí kế toán/)).toBeInTheDocument();
+  const manual = screen.getByRole('textbox', { name: /Số tiền chi hộ phí khác Manual fee/ });
+  expect(manual).toBeEnabled(); fireEvent.change(manual, { target: { value: '300' } }); expect(change).toHaveBeenCalledWith(2, '300');
+  draft.feeAmounts = { 1: '999', 2: '300' }; draft.removedFeeIds = [1, 2];
+  expect(buildDelta(value, draft)).toMatchObject({ edits: [{ expenseId: 2, buyAmount: 300 }], removeExpenseIds: [2] });
 });

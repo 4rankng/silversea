@@ -73,7 +73,7 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
         'Lái xe',
         'Nhân viên vận hành',
         'Khách hàng',
-        'CUS',  # Canonical ROLE_LABELS[Role.CUS]; still assert every role.
+        'Chứng từ',  # Canonical ROLE_LABELS[Role.CUS]; still assert every role.
         'Điều vận',
     ]
     found = all(any(role in label for label in pill_labels) for role in expected_roles)

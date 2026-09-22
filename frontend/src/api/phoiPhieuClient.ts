@@ -47,7 +47,7 @@ export async function createPhoiPhieuVoucher(body: {
   physicalReference?: string;
 }, idempotencyKey?: string): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
   return api.post('/expense-accounting/phoi-phieu/vouchers', body, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    idempotencyKey,
   });
 }
 
@@ -87,7 +87,7 @@ export async function updatePhoiPhieuMeta(tripId: number, body: {
   ngayLayPhoi?: string | null; trangThaiLay?: string | null;
 }, idempotencyKey?: string): Promise<{ ok: true }> {
   return api.put(`/expense-accounting/phoi-phieu/${tripId}/phoi-meta`, body, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    idempotencyKey,
   });
 }
 
@@ -96,25 +96,26 @@ export async function updatePhoiPhieuRowAmounts(tripId: number, sourceId: number
   payerUserId?: number | null;
 }, idempotencyKey?: string): Promise<unknown> {
   return api.post(`/expense-accounting/entries/OPS/${sourceId}/update`, body, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    idempotencyKey,
   });
 }
 
 export async function createPhoiPhieuRow(tripId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
   return api.post('/expense-accounting/entries', { tripId, ...body } as Record<string, unknown>, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    idempotencyKey,
   });
 }
 
 export async function voidPhoiPhieuRow(tripId: number, sourceId: number, reason: string, idempotencyKey?: string): Promise<{ ok: true }> {
   return api.delete(`/expense-accounting/phoi-phieu/${tripId}/rows/${sourceId}`, {
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    headers: { 'Content-Type': 'application/json' }, idempotencyKey,
     body: JSON.stringify({ reason }),
   });
 }
 
 export interface PhoiPhieuTienDuongRow {
   sourceId: number;
+  version: number;
   costType: string;
   feeName: string | null;
   driverEnteredAmount: number | null;
@@ -134,7 +135,7 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
 export async function confirmPhoiPhieuTienDuong(tripId: number, sourceId: number, expectedVersion: number, idempotencyKey?: string): Promise<unknown> {
   return api.post('/expense-accounting/confirm', {
     entries: [{ sourceKind: 'DRIVER', sourceId, expectedVersion }],
-  }, { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } });
+  }, { idempotencyKey });
 }
 
 export interface PhoiPhieuReportRow {
@@ -179,14 +180,14 @@ export async function listPhoiPhieuTruckAssignments(): Promise<PhoiPhieuTruckAss
 
 export async function assignPhoiPhieuTruckAccountant(truckId: number, body: {
   accountantId: number | null; expectedVersion: number;
-}): Promise<unknown> {
+}, idempotencyKey?: string): Promise<unknown> {
   return api.put(`/expense-accounting/phoi-phieu/trucks/${truckId}/accountant`, body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    idempotencyKey,
   });
 }
 
 export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
   return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, body, {
-    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
+    idempotencyKey,
   });
 }

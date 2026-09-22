@@ -3,6 +3,7 @@ import { useOpsFleet } from '../hooks/useOpsQueries';
 import './OpsFleetTrackingPage.css';
 import { Btn } from '../components/UI';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
+import { formatDateTimeShort } from '../lib/format';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   CREATED: { label: 'Chờ nhận lệnh', color: 'var(--info, #2563eb)' },
@@ -21,15 +22,6 @@ const PROGRESS_LABELS: Record<string, string> = {
   LOADING_OR_RETURNING: 'đang đóng/trả hàng',
   DELIVERED: 'đã giao',
 };
-
-function timeLabel(iso: string | null): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-}
 
 /**
  * Theo dõi phương tiện (OpsVanHanh §4): read-only — mọi thao tác ghi đều
@@ -88,7 +80,7 @@ export default function OpsFleetTrackingPage() {
                       ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>
                       : <span className="ops-fleet__idle">Đang rảnh</span>}
                   </td>
-                  <td data-label="Cập nhật">{timeLabel(truck.updatedAt)}</td>
+                  <td data-label="Cập nhật">{formatDateTimeShort(truck.updatedAt)}</td>
                 </tr>
               );
             })}

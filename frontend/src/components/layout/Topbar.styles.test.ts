@@ -7,6 +7,13 @@ const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive
 const entranceHook = readFileSync(resolve(process.cwd(), 'src/hooks/useTopbarEntrance.ts'), 'utf8');
 
 describe('topbar visibility contract', () => {
+  it('lets a long driver identity shrink without overlapping the month control', () => {
+    expect(topbarCss).toMatch(/\.topbar__left-driver\s*\{[^}]*flex:\s*1 1 auto;/);
+    expect(topbarCss).toMatch(/\.topbar__welcome \.name\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
+    const source = readFileSync(resolve(process.cwd(), 'src/components/layout/Topbar.tsx'), 'utf8');
+    expect(source).toContain('className="name" title={name ?? undefined}');
+  });
+
   it('keeps the layout shell visible before optional entrance animation runs', () => {
     expect(topbarCss).toMatch(/\.topbar\s*\{[\s\S]*?opacity:\s*1;/);
     expect(entranceHook).toContain('utils.set(root, { opacity: 1, translateY: 0 });');

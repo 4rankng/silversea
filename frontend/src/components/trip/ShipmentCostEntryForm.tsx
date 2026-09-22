@@ -5,10 +5,11 @@ import { driverClient } from '../../api/driverClient';
 import { NumberField, DateField, TextField, UuiSelectField, Tabs } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
-import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption } from '../../features/driver/driver-expense-options';
+import { driverExpenseOption } from '../../features/driver/driver-expense-options';
 import { useDriverExpenseEntry } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
+import { DriverExpenseCorrection } from './DriverExpenseCorrection';
 
 export interface ShipmentCostEntryFormProps {
   tripId: number;
@@ -20,7 +21,7 @@ export interface ShipmentCostEntryFormProps {
 export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissionNote = null, readOnly = false }: ShipmentCostEntryFormProps) {
   const state = useDriverExpenseEntry(tripId, readOnly);
   const disabled = readOnly || state.busy || state.uploading;
-  const selected = driverExpenseOption(state.draft.option);
+  const selected = driverExpenseOption(state.draft.option, state.options);
   const [sectionNote, setSectionNote] = useState(costSubmissionNote ?? '');
   const [savedNote, setSavedNote] = useState(costSubmissionNote ?? '');
   const [noteSaving, setNoteSaving] = useState(false);
@@ -53,16 +54,19 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
           <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}</div>
           {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
           <DriverSavedExpenseProofs expenseId={entry.id} />
+          {!readOnly && <DriverExpenseCorrection expenseId={entry.id} onSaved={state.refresh} />}
         </div>
       </li>)}</ul>}
 
     {state.open && <form className="shipment-cost-entry__form" onSubmit={(event) => void state.save(event)}>
-      <Tabs ariaLabel="Nhóm chi phí lái xe" value={selected.group} onChange={(group) => state.chooseOption(DRIVER_EXPENSE_OPTIONS.find(option => option.group === group)!.code)}
+      <Tabs ariaLabel="Nhóm chi phí lái xe" value={selected.group} onChange={(group) => state.chooseOption(state.options.find(option => option.group === group)!.code)}
         tabs={[{ id: 'DRIVER_SHIPMENT', label: 'Chi phí lô hàng' }, { id: 'DRIVER_ROAD', label: 'Tiền đường' }]} />
+      {state.norms.isError && <div role="alert" className="shipment-cost-entry__banner--error">Không tải được định mức tiền đường. Bạn vẫn có thể nhập khoản thực chi bằng các loại phí chung. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void state.norms.refetch()}>Thử tải lại định mức</button></div>}
+      {state.norms.isPending && <p role="status">Đang tải định mức tiền đường…</p>}
       {state.error && <div className="shipment-cost-entry__banner--error" role="alert">{state.error}</div>}
       <div className="shipment-cost-entry__fields">
         <UuiSelectField label="Loại chi phí" value={state.draft.option} disabled={disabled} onChange={(event) => state.chooseOption(event.target.value)}
-          options={DRIVER_EXPENSE_OPTIONS.filter(option => option.group === selected.group).map(option => ({ value: option.code, label: option.label }))} />
+          options={state.options.filter(option => option.group === selected.group).map(option => ({ value: option.code, label: option.label }))} />
         <TextField controlSize="sm" label="Tên khoản chi" value={state.draft.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => state.patch({ feeName: event.target.value })} />
         <NumberField controlSize="sm" label="Thực chi (VND)" value={state.draft.amount} onChange={(amount) => state.patch({ amount })} min={1} step={1} max={999_999_999_999_999} required disabled={disabled}
           helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />

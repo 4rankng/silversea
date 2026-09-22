@@ -569,9 +569,11 @@ export const driverClient = {
     return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
   },
 
+  getFeeNorms: () => api.get<{ items: Array<{ code: string; label: string; amount: string | number }> }>('/driver/me/fee-norms'),
+
   createIncidentalCost: async (
     tripId: number,
-    body: { payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
+    body: { feeNormCode?: string; payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
     idempotencyKey: string,
   ) => {
     return api.post<{

@@ -87,6 +87,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   serviceFile: string;
   marker: string;
 }>([
+  ['config/customers.routes.ts|POST|/bulk-notify', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/customers-screen.service.ts'),
+    marker: "endpoint: 'customers.bulk-notify'",
+  }],
+  ['config/customers.routes.ts|POST|/bulk-status', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/customers-screen.service.ts'),
+    marker: "endpoint: 'customers.bulk-status'",
+  }],
   ['config/master-data-import.routes.ts|POST|/:id/apply', {
     serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
     marker: 'endpoint: MASTER_IMPORT_APPLY_ENDPOINT',

@@ -1,8 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
 import { businessDateISO } from '../../lib/format';
-import { driverExpenseOption } from './driver-expense-options';
+import { driverExpenseOption, driverExpenseOptions } from './driver-expense-options';
 
 export interface DriverExpenseDraft {
   option: string; payerKind: 'USER' | 'COMPANY'; amount: number | ''; occurredAt: string; note: string;
@@ -13,6 +14,8 @@ const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', payerKind: 'USER
 type Entry = Awaited<ReturnType<typeof driverClient.listIncidentalCosts>>[number];
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
+  const norms = useQuery({ queryKey: ['driver', 'fee-norms'], queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
+  const options = driverExpenseOptions(norms.data?.items ?? []);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
 
   const patch = (next: Partial<DriverExpenseDraft>) => setDraft(current => ({ ...current, ...next }));
   function chooseOption(code: string) {
-    const option = driverExpenseOption(code);
+    const option = driverExpenseOption(code, options);
     setDraft(current => ({ ...current, option: code, feeName: option.label, amount: option.amount ?? '', invoiceNumber: '', invoiceDate: '' }));
   }
   function cancel() {
@@ -65,8 +68,9 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     if (draft.amount === '' || !Number.isSafeInteger(draft.amount) || draft.amount <= 0 || draft.amount > 999_999_999_999_999) {
       setError('Nhập số tiền nguyên dương hợp lệ.'); return;
     }
-    const option = driverExpenseOption(draft.option);
-    const body = { payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
+    const option = options.find(item => item.code === draft.option);
+    if (!option) { setError('Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.'); return; }
+    const body = { ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}), payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
       amount: draft.amount, occurredAt: draft.occurredAt, note: draft.note.trim() || undefined,
       invoiceNumber: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceNumber.trim() || undefined : undefined,
       invoiceDate: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceDate || undefined : undefined,
@@ -81,5 +85,5 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa xác định được kết quả lưu. Thử lại cùng nội dung để tra đúng yêu cầu.'); }
     finally { operation.current = false; setBusy(false); }
   }
-  return { entries, loading, loadError, refresh, draft, patch, chooseOption, open, setOpen, busy, uploading, pendingFile, discardPendingFile: () => setPendingFile(null), error, cancel, upload, save };
+  return { options, norms, entries, loading, loadError, refresh, draft, patch, chooseOption, open, setOpen, busy, uploading, pendingFile, discardPendingFile: () => setPendingFile(null), error, cancel, upload, save };
 }

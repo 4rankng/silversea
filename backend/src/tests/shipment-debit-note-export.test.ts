@@ -205,6 +205,73 @@ describe('20260918_19 Xuất Debit Note từ snapshot khóa lô', () => {
   });
 });
 
+describe('SIS22-ACC-011 frozen customer debt is conserved when issuing', () => {
+  const cases = [
+    { name: 'negotiated charges replace company cost', snapshot: { freightAuto: '1000000', chiHoTotal: '200000', receivableTotal: '1500000' }, expected: 1500000 },
+    { name: 'zero customer charge never reuses company cost', snapshot: { freightAuto: '1000000', chiHoTotal: '200000', receivableTotal: 0 }, expected: 0 },
+    { name: 'discount below freight stays nonnegative', snapshot: { freightAuto: '1000000', chiHoTotal: '200000', receivableTotal: '900000' }, expected: 900000 },
+    { name: 'only customer charges are known', snapshot: { freightAuto: null, chiHoTotal: '250000', receivableTotal: '150000' }, expected: 150000 },
+    { name: 'whole-VND rounding conserves header and lines', snapshot: { freightAuto: '1000000.4', chiHoTotal: '200000', receivableTotal: '1500000.6' }, expected: 1500001 },
+    { name: 'legacy missing customer-debt key preserves frozen components', snapshot: { freightAuto: '1000000', chiHoTotal: '200000' }, expected: 1200000 },
+  ];
+  for (const mode of ['single', 'batch'] as const) {
+    for (const scenario of cases) {
+      test(`${mode}: ${scenario.name}`, async () => {
+        const lot = await mkLockedLot();
+        await lockLot(lot.id, accountantId);
+        await db.update(s.shipmentCostLocks).set({ costSnapshot: scenario.snapshot })
+          .where(eq(s.shipmentCostLocks.shipmentId, lot.id));
+        const endpoint = mode === 'single' ? `/api/shipments/${lot.id}/debit-note` : '/api/shipments/debit-notes';
+        const payload = mode === 'single' ? {} : { shipmentIds: [lot.id] };
+        const key = `sis22-${mode}-${suffix}-${lot.id}`;
+        const issued = await api('POST', endpoint, accountantId, payload, key);
+        assert.equal(issued.status, 201, JSON.stringify(issued.body));
+        const docId = Number(issued.body.id);
+        docIds.push(docId);
+        const readDocument = async () => {
+          const [doc] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, docId));
+          const lines = await db.select().from(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, docId));
+          return { doc, lines };
+        };
+        const initial = await readDocument();
+        assert.equal(Number(initial.doc.totalInclVat), scenario.expected);
+        assert.equal(Number(initial.doc.totalGross), scenario.expected);
+        assert.equal(Number(initial.doc.totalNet), scenario.expected);
+        assert.equal(Number(initial.doc.totalTax), 0);
+        assert.equal(initial.doc.createdBy, accountantId);
+        assert.equal(initial.lines.reduce((total, line) => total + Number(line.grossAmount), 0), scenario.expected);
+        for (const line of initial.lines) {
+          assert.equal(Number(line.netAmount), Number(line.grossAmount));
+          assert.equal(Number(line.taxAmount), 0);
+          assert.equal(line.vatTreatment, 'EXEMPT');
+          assert.equal(Number(line.vatRate), 0);
+          assert.ok(Number(line.grossAmount) >= 0);
+        }
+        // A later source/snapshot change cannot rewrite an issued note on retry.
+        await db.update(s.shipmentCostLocks).set({ costSnapshot: { receivableTotal: '9999999' } })
+          .where(eq(s.shipmentCostLocks.shipmentId, lot.id));
+        const replay = await api('POST', endpoint, accountantId, payload, key);
+        assert.equal(replay.status, 201, JSON.stringify(replay.body));
+        assert.equal(replay.body.id, docId);
+        assert.deepEqual(await readDocument(), initial);
+      });
+    }
+    test(`${mode}: explicit unknown customer debt cannot silently become company cost`, async () => {
+      const lot = await mkLockedLot();
+      await lockLot(lot.id, accountantId);
+      await db.update(s.shipmentCostLocks).set({ costSnapshot: { freightAuto: '1000000', chiHoTotal: '200000', receivableTotal: null } })
+        .where(eq(s.shipmentCostLocks.shipmentId, lot.id));
+      const result = await api('POST', mode === 'single' ? `/api/shipments/${lot.id}/debit-note` : '/api/shipments/debit-notes',
+        accountantId, mode === 'single' ? {} : { shipmentIds: [lot.id] });
+      if (result.status === 201) docIds.push(Number(result.body.id));
+      assert.equal(result.status, 409, JSON.stringify(result.body));
+      assert.match(String(result.body.error), /chưa xác định/i);
+      const claims = await db.select().from(s.debitNoteLots).where(eq(s.debitNoteLots.shipmentId, lot.id));
+      assert.equal(claims.length, 0, 'denied issue leaves no customer claim');
+    });
+  }
+});
+
 describe('the issuing CUS downloads the Debit Note file', () => {
   test('issue then export returns the xlsx for CUS on the shipments mount', async () => {
     const shipment = await mkLockedLot();

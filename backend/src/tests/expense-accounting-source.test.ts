@@ -25,6 +25,17 @@ async function fixture(run: (tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) => 
   try { await db.transaction(async tx => { await run(tx, await setup(tx)); throw rollback; }); }
   catch (error) { if (error !== rollback) throw error; }
 }
+// Presence in the companywide result is independent of which page owns a date.
+async function listAllExpenseEntries(actor: Parameters<typeof listExpenseAccountingEntries>[0], tx: Tx) {
+  const first = await listExpenseAccountingEntries(actor, { page: 1, limit: 100 }, tx);
+  const items = [...first.items];
+  for (let page = 2; (page - 1) * first.limit < first.total; page += 1) {
+    const next = await listExpenseAccountingEntries(actor, { page, limit: first.limit }, tx);
+    items.push(...next.items);
+  }
+  assert.equal(items.length, first.total, 'all companywide result pages were traversed');
+  return items;
+}
 async function setup(tx: Tx) {
   const key = crypto.randomUUID();
   const [user] = await tx.insert(s.users).values({ username: key, passwordHash: 'fixture', role: Role.OPS }).returning();
@@ -95,8 +106,8 @@ test('CUS retains companywide active shipment access but cannot read deleted lot
   const source = await ops(tx, ctx);
   const cus = { userId: ctx.accountant.id, role: Role.CUS };
   const customer = { userId: ctx.accountant.id, role: Role.CUSTOMER };
-  const active = await listExpenseAccountingEntries(cus, { page: 1, limit: 100 }, tx);
-  assert.ok(active.items.some(row => row.sourceId === source.sourceId && row.sourceKind === 'OPS'), 'CUS sees a lot created by another staff member');
+  const active = await listAllExpenseEntries(cus, tx);
+  assert.ok(active.some(row => row.sourceId === source.sourceId && row.sourceKind === 'OPS'), 'CUS sees a lot created by another staff member');
   assert.equal((await getExpenseAccountingEntry(cus, 'OPS', source.sourceId, tx)).shipmentId, ctx.shipment.id);
   const storageKey = `accounting-expense-photos/${source.id}/scope-fixture.jpg`;
   await tx.insert(s.expenseAccountingEvidence).values({ expenseAccountingSourceId: source.id, storageKey, uploadedById: ctx.accountant.id });
@@ -107,8 +118,8 @@ test('CUS retains companywide active shipment access but cannot read deleted lot
   assert.equal((await authorizeExpensePhoto(storageKey, customer, tx)).allow, false);
 
   await tx.update(s.shipments).set({ deletedAt: new Date() }).where(eq(s.shipments.id, ctx.shipment.id));
-  const deleted = await listExpenseAccountingEntries(cus, { page: 1, limit: 100 }, tx);
-  assert.equal(deleted.items.some(row => row.sourceId === source.sourceId && row.sourceKind === 'OPS'), false);
+  const deleted = await listAllExpenseEntries(cus, tx);
+  assert.equal(deleted.some(row => row.sourceId === source.sourceId && row.sourceKind === 'OPS'), false);
   await assert.rejects(listExpenseAccountingEntries(cus, { shipmentId: ctx.shipment.id, page: 1, limit: 100 }, tx), /Không tìm thấy lô hàng/);
   await assert.rejects(listExpenseAccountingEntries(cus, { shipmentId: 2_147_483_647, page: 1, limit: 100 }, tx), /Không tìm thấy lô hàng/);
   await assert.rejects(getExpenseAccountingEntry(cus, 'OPS', source.sourceId, tx), /Không tìm thấy khoản chi/);
@@ -177,8 +188,8 @@ test('an unrelated missing or deleted shipment source cannot poison valid expens
   await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'OPS', sourceId: 2_145_999_998, shipmentId: deletedShipment.id });
   const list = await listExpenseAccountingEntries(ctx.actor, { page: 1, limit: 100, shipmentId: ctx.shipment.id }, tx);
   assert.equal(list.items.length, 1); assert.equal(list.items[0].sourceId, valid.sourceId);
-  const all = await listExpenseAccountingEntries(ctx.actor, { page: 1, limit: 100 }, tx);
-  assert.ok(all.items.some(row => row.sourceKind === 'OPS' && row.sourceId === valid.sourceId));
+  const all = await listAllExpenseEntries(ctx.actor, tx);
+  assert.ok(all.some(row => row.sourceKind === 'OPS' && row.sourceId === valid.sourceId));
   assert.equal((await getExpenseAccountingEntry(ctx.actor, 'OPS', valid.sourceId, tx)).sourceId, valid.sourceId);
   await assert.rejects(getExpenseAccountingEntry(ctx.actor, 'OPS', 2_145_999_999, tx), /Không tìm thấy khoản chi/);
 }));

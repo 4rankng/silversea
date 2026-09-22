@@ -13,6 +13,7 @@
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { ExpenseTypeCategory } from '@tingting/shared';
 import { db } from '../db';
+import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import * as s from '../db/schema';
 
 export interface LotPayablesBreakdown {
@@ -49,7 +50,7 @@ export async function computeLotPayablesBreakdown(shipmentId: number): Promise<L
   })
     .from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
+    .where(and(eq(s.opsExpenseEntries.shipmentId, shipmentId), liveDebitOpsExpense()));
   const withRows = rows.length > 0;
   const bucketTotal = (predicate: (category: string | null) => boolean): number =>
     rows.reduce((sum, row) => {

@@ -21,7 +21,12 @@ describe('forwarder expense type seed invoice policy', () => {
       assert.equal(policy.substituteEvidenceAllowed, false, `${code} must not accept substitute evidence`);
       assert.ok(OPS_EXPENSE_TYPE_DEFAULTS[code], `${code} must exist in the shared defaults catalog`);
     }
-    assert.equal(INVOICE_REQUIRED_EXPENSE_TYPE_CODES.size, 5, 'exactly the five ruled codes');
+    assert.deepEqual([...INVOICE_REQUIRED_EXPENSE_TYPE_CODES].sort(), [
+      'LIFTING', 'LOWERING', 'WEIGHING', 'INFRASTRUCTURE', 'INSPECTION',
+      'LIFT_EMPTY', 'LIFT_CARGO', 'YARD_STORAGE_LIFT', 'LOWER_EMPTY', 'LOWER_CARGO',
+      'YARD_STORAGE', 'CONTAINER_DEMURRAGE', 'FEE_EXTENSION', 'FEE_CLEANING',
+      'FEE_SCANNING', 'FEE_STEVEDORING', 'FEE_LABOR', 'FEE_WAREHOUSE',
+    ].sort(), 'exact invoice-bearing catalog, including the customer chi-hộ list');
   });
 
   test('the no-invoice class keeps substitute evidence; every other code stays untouched', () => {

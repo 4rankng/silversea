@@ -4,7 +4,7 @@ import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm';
-import { Role, EXPENSE_COST_GROUP_LABELS, DRIVER_EXPENSE_SUGGESTIONS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp,
+import { Role, EXPENSE_COST_GROUP_LABELS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp,
   type ExpenseAccountingEntry, type ExpenseAccountingList, type ExpenseListQuery, type ExpenseSourceKind,
   type ExpenseReconciliation, type ExpenseVoucher, type TruckAccountantAssignment } from '@tingting/shared';
 import { db } from '../db';
@@ -369,7 +369,9 @@ export async function getExpenseAccountingReport(actor: Actor, query: ExpenseLis
 
 export async function getExpenseAccountingCatalog(actor: Actor, tx?: Tx) {
   requireRead(actor); const executor = tx ?? db;
-  const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: DRIVER_EXPENSE_SUGGESTIONS, opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
+  const norms = await executor.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount }).from(s.driverFeeNorms)
+    .where(eq(s.driverFeeNorms.status, 'ACTIVE')).orderBy(asc(s.driverFeeNorms.code));
+  const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: norms.map(norm => ({ ...norm, amount: Number(norm.amount) })), opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
   if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [] };
   const [treasuryAccounts, people, truckAssignments, advances] = await Promise.all([
     executor.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE')).orderBy(asc(s.treasuryAccounts.name)),

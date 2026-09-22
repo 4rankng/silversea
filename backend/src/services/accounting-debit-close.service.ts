@@ -25,6 +25,7 @@ import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import type { Tx } from './trip-shared';
+import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -414,8 +415,8 @@ export async function getAccountingDebitBoard(query: {
 // existing editing surfaces. Roles enforced at the route level (office set).
 
 /** P2: a lot with an ACTIVE cost lock is frozen — no new requests. */
-async function findActiveCostLock(shipmentId: number, conn: typeof db | Tx) {
-  const [lock] = await conn.select({ id: s.shipmentCostLocks.id })
+async function findActiveCostLock(tx: Tx, shipmentId: number) {
+  const [lock] = await tx.select({ id: s.shipmentCostLocks.id })
     .from(s.shipmentCostLocks)
     .where(and(
       eq(s.shipmentCostLocks.shipmentId, shipmentId),
@@ -428,41 +429,37 @@ export async function createRateAdjustmentRequests(input: {
   shipmentIds: number[];
   ghiChu?: string;
   userId: number;
-}, conn: typeof db | Tx = db): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
-  const requested: number[] = [];
-  const alreadyPending: number[] = [];
-  const locked: number[] = [];
-  for (const shipmentId of input.shipmentIds) {
-    const lock = await findActiveCostLock(shipmentId, conn);
-    if (lock) { locked.push(shipmentId); continue; }
-    // INSERT..SELECT WHERE NOT EXISTS — atomic guard replacing the partial
-    // unique index (P5). Runs inside the caller's tx when provided (the
-    // runIdempotent boundary), so the idempotency record and the request
-    // row commit or roll back together.
-    await conn.execute(sql`insert into ${s.shipmentRateAdjustmentRequests} ("shipment_id", "ghi_chu", "requested_by")
-      select ${shipmentId}, ${input.ghiChu ?? null}, ${input.userId}
-      where not exists (
-        select 1 from ${s.shipmentRateAdjustmentRequests}
-        where "shipment_id" = ${shipmentId} and status = 'PENDING' and withdrawn_at is null
-      )`);
-    const [live] = await conn.select({ id: s.shipmentRateAdjustmentRequests.id })
-      .from(s.shipmentRateAdjustmentRequests)
-      .where(and(
-        eq(s.shipmentRateAdjustmentRequests.shipmentId, shipmentId),
-        eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'),
-        isNull(s.shipmentRateAdjustmentRequests.withdrawnAt),
-      ));
-    if (live) requested.push(shipmentId);
-    else alreadyPending.push(shipmentId);
-  }
-  return { requested, alreadyPending, locked };
+}, transaction?: Tx): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
+  const execute = async (tx: Tx) => {
+    const shipmentIds = [...new Set(input.shipmentIds)].sort((a, b) => a - b);
+    await lockApplicationOwnedUniquenessSet(tx, shipmentIds.map((id) => ({ scope: 'shipment-rate-adjustment', parts: [id] })));
+    const requested: number[] = [];
+    const alreadyPending: number[] = [];
+    const locked: number[] = [];
+    for (const shipmentId of shipmentIds) {
+      const [shipment] = await tx.select({ id: s.shipments.id }).from(s.shipments)
+        .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt))).limit(1);
+      if (!shipment) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+      if (await findActiveCostLock(tx, shipmentId)) { locked.push(shipmentId); continue; }
+      const [live] = await tx.select({ id: s.shipmentRateAdjustmentRequests.id })
+        .from(s.shipmentRateAdjustmentRequests)
+        .where(and(eq(s.shipmentRateAdjustmentRequests.shipmentId, shipmentId),
+          eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)))
+        .limit(1);
+      if (live) { alreadyPending.push(shipmentId); continue; }
+      await tx.insert(s.shipmentRateAdjustmentRequests).values({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
+      requested.push(shipmentId);
+    }
+    return { requested, alreadyPending, locked };
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function confirmRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}, conn: typeof db | Tx = db): Promise<{ confirmed: number }> {
-  const updated = await conn.update(s.shipmentRateAdjustmentRequests)
+}, transaction?: Tx): Promise<{ confirmed: number }> {
+  const updated = await (transaction ?? db).update(s.shipmentRateAdjustmentRequests)
     .set({ status: 'CONFIRMED', confirmedBy: input.userId, confirmedAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),
@@ -476,8 +473,8 @@ export async function confirmRateAdjustmentRequests(input: {
 export async function withdrawRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}, conn: typeof db | Tx = db): Promise<{ withdrawn: number }> {
-  const updated = await conn.update(s.shipmentRateAdjustmentRequests)
+}, transaction?: Tx): Promise<{ withdrawn: number }> {
+  const updated = await (transaction ?? db).update(s.shipmentRateAdjustmentRequests)
     .set({ withdrawnAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),

@@ -193,10 +193,12 @@
 .shipment-debit-row__identity > * {
   display: block;
   width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-/* The chip wraps at its hyphens inside a squeezed identity cell instead of
-   painting over the next column (fixed table layout lets content overflow). */
+/* Business keys may contain long unbroken segments. Keep them inside their
+   fixed-layout cell even when the table is viewed on a narrow screen. */
 .shipment-debit-row__code {
   justify-self: start;
   font-weight: 600;
@@ -207,7 +209,7 @@
   border-radius: 6px;
   padding: 1px 6px;
   white-space: normal;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
 }
 
 .shipment-debit-row__customer {
@@ -236,9 +238,7 @@
   display: block;
   width: fit-content;
   max-width: 100%;
-  /* Bill/booking keys carry hyphens: they wrap at those break points inside
-     the 140px column instead of painting past the cell edge. */
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
 }
 
 /* 9.6px inherited small rendered the metadata unreadable — the label sits

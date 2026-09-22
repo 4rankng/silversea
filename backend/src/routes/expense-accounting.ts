@@ -15,7 +15,6 @@ import { assignTruckAccountant, confirmAccountingExpenses, updateAccountingExpen
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
 import { listExpenseAccountingWork } from '../services/expense-accounting-work.service';
-import { db } from '../db';
 import { listPhoiPhieuTruckAssignments } from '../services/phoi-phieu-control.service';
 import { exportExpenseAccountingReport } from '../services/expense-accounting-export.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
@@ -79,6 +78,7 @@ router.put('/phoi-phieu/trucks/:truckId/accountant', requireRoles(...PHOI_PHIEU_
     accountantId: z.number().int().positive().nullable(),
     expectedVersion: z.number().int().min(0),
   }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_TRUCK_ASSIGN,
     idempotencyKey: getRequestIdempotencyKey(req),
@@ -109,6 +109,7 @@ router.put('/phoi-phieu/:tripId/phoi-meta', requireRoles(...PHOI_PHIEU_ROLES), a
     trangThaiLay: z.string().trim().max(30).nullable().optional(),
   }).strict(), req.body);
   const user = getUser(req);
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_PHOI_META,
     idempotencyKey: getRequestIdempotencyKey(req),
@@ -125,6 +126,7 @@ router.delete('/phoi-phieu/:tripId/rows/:sourceId', requireRoles(...PHOI_PHIEU_R
   const sourceId = parse(idSchema, req.params.sourceId);
   const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
   const user = getUser(req);
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_ROW_VOID,
     idempotencyKey: getRequestIdempotencyKey(req),
@@ -144,6 +146,7 @@ router.post('/phoi-phieu/vouchers', requireRoles(...PHOI_PHIEU_ROLES), asyncHand
     treasuryAccountId: z.number().int().positive(),
     physicalReference: z.string().trim().max(120).optional(),
   }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_VOUCHER,
     idempotencyKey: getRequestIdempotencyKey(req),

@@ -1197,11 +1197,12 @@ export const sealTypeSchema = z.object({
  *  create; only label/sortOrder/isActive are editable. */
 export const dispatchZoneSchema = z.object({
   code: z.string().trim()
-    .regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Mã khu vực phải là chữ hoa/snake (VD: LACH_HUYEN)'),
+    .regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Mã khu vực phải là chữ hoa/snake (VD: ZONE_A)'),
   label: z.string().trim().min(1, 'Tên khu vực không được để trống').max(100),
   sortOrder: z.number().int().min(0).max(9999).default(0),
   isActive: z.boolean().default(true),
   isDefault: z.boolean().default(false),
+  showPortFacet: z.boolean().default(true),
 });
 
 /** Update payload: `code` is stripped (immutable after create — the route
@@ -1651,7 +1652,7 @@ const createShipmentBaseSchema = z.object({
    *  by recordDepositFromIntake inside the create tx (no shipment columns). */
   hasDeposit: z.boolean().optional().default(false),
   depositAmount: z.coerce.number().int('Tiền cược dự kiến phải là số nguyên (đồng)')
-    .min(0, 'Tiền cược dự kiến không được âm').optional().nullable(),
+    .min(0, 'Tiền cược dự kiến không được âm').pipe(expenseVndSchema).optional().nullable(),
 });
 
 function validateShipmentAdHocIdentity(

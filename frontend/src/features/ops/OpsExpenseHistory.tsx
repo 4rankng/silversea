@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { ExpenseProofs } from '../expense-accounting/ExpenseProofs';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import {
   useOpsWalletExpenses,
@@ -11,6 +11,7 @@ import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
+import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
@@ -51,10 +52,24 @@ export function OpsExpenseHistory() {
   const [status, setStatus] = useState<OpsExpenseStatus | undefined>(undefined);
   const { data, isLoading, isError, refetch } = useOpsWalletExpenses(status);
   const deleteExpense = useDeleteOpsExpense();
+  const { toast } = useToast();
+  const deleteLock = useRef(false);
+  const [deleting, setDeleting] = useState(false);
   const { confirm, dialog } = useConfirm();
   const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
+
+  async function handleDelete(row: OpsExpenseRow) {
+    if (deleteLock.current) return;
+    deleteLock.current = true; setDeleting(true);
+    try {
+      if (await confirm(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`, { variant: 'danger', confirmLabel: 'Xóa' })) {
+        await deleteExpense.mutateAsync(row.id);
+      }
+    } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
+    finally { deleteLock.current = false; setDeleting(false); }
+  }
 
   const items = data?.items ?? [];
 
@@ -140,10 +155,8 @@ export function OpsExpenseHistory() {
                       type="button"
                       className="btn-secondary ops-danger"
                       aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.id}`}
-                      onClick={() => void confirm(
-                        `Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`,
-                        { variant: 'danger', confirmLabel: 'Xóa' },
-                      ).then((ok) => (ok ? deleteExpense.mutateAsync(row.id) : undefined)).catch(() => undefined)}
+                      disabled={deleting}
+                      onClick={() => void handleDelete(row)}
                     >
                       <Trash2 size={13} />
                     </button>

@@ -45,6 +45,14 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     expect(screen.getByText(/T-0010 · SS-100/)).toBeInTheDocument();
     expect(screen.getByText('Đang vận chuyển (đang đóng/trả hàng)')).toBeInTheDocument();
     expect(screen.getByText('Đang rảnh')).toBeInTheDocument();
+    expect(screen.getByText('08:02 07/09/2026')).toBeInTheDocument();
+  });
+
+  it('renders a placeholder for an invalid update timestamp', async () => {
+    apiGet.mockResolvedValue({ items: [{ truckId: 1, licensePlate: 'QA-INVALID', updatedAt: 'invalid' }] });
+    renderPage();
+    const row = (await screen.findByText('QA-INVALID')).closest('tr')!;
+    expect(row.querySelector('[data-label="Cập nhật"]')).toHaveTextContent('—');
   });
 
   it('is read-only: no write affordances, and shows the empty state', async () => {

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverIncidentalCostType } from '@tingting/shared';
 
-const api = vi.hoisted(() => ({ listIncidentalCosts: vi.fn(), createIncidentalCost: vi.fn(), uploadReceiptPhoto: vi.fn(), updateCostSubmissionNote: vi.fn() }));
+const api = vi.hoisted(() => ({ listIncidentalCosts: vi.fn(), createIncidentalCost: vi.fn(), uploadReceiptPhoto: vi.fn(), updateCostSubmissionNote: vi.fn(), getFeeNorms: vi.fn() }));
 vi.mock('../../api/driverClient', () => ({ driverClient: api }));
 import { ShipmentCostEntryForm } from './ShipmentCostEntryForm';
 
@@ -21,6 +21,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.listIncidentalCosts.mockResolvedValue([]);
+    api.getFeeNorms.mockResolvedValue({ items: [{ code: 'NIGHT_RETURN', label: 'Trả đêm', amount: '100000' }, { code: 'OVERLOAD', label: 'Chạy quá tải', amount: '200000' }, { code: 'SHIFT', label: 'Lưu ca', amount: '200000' }] });
     api.createIncidentalCost.mockResolvedValue(entry);
     api.updateCostSubmissionNote.mockResolvedValue({});
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
@@ -83,7 +84,28 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Công ty đã trả' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
     await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ payerKind: 'COMPANY', costType: 'ROAD_ALLOWANCE', feeName: 'Lưu ca', amount: 200000 });
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ payerKind: 'COMPANY', costType: 'OTHER', feeNormCode: 'SHIFT', feeName: 'Lưu ca', amount: 200000 });
+  });
+
+  it('uses a configured custom fee and amount while preserving its authoritative code', async () => {
+    api.getFeeNorms.mockResolvedValue({ items: [{ code: 'CUSTOM_HARBOR', label: 'Phụ cấp bãi kiểm thử mới', amount: '73000' }] });
+    setup(); await open(); fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' })); await choose('Phụ cấp bãi kiểm thử mới');
+    expect(screen.getByLabelText(/Thực chi/)).toHaveValue(73000);
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '75000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 75000, costGroup: 'DRIVER_ROAD' });
+  });
+
+  it('keeps manual entry available and exposes retry when norms fail to load', async () => {
+    api.getFeeNorms.mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ items: [] });
+    setup(); await open(); expect(await screen.findByText(/Không tải được định mức tiền đường/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại định mức' }));
+    await waitFor(() => expect(api.getFeeNorms).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCost.mock.calls[0][1]).not.toHaveProperty('feeNormCode');
   });
 
   it('retries the same failed save with the same key and retained input', async () => {

@@ -593,7 +593,7 @@ export async function loadShipmentListSummaries(
   return summaries;
 }
 
-// ─── Dispatch master-plan facets (Lạch Huyện) ──────────────────────────────────
+// ─── Dispatch master-plan facets ──────────────────────────────────
 
 /**
  * EXISTS-style facet predicates for the master-plan list. Matching happens on
@@ -1018,7 +1018,7 @@ export interface ListShipmentsOptions {
   deliveryDateTo?: string;
   /** Dispatch master-plan filter: derived carrier-allocation coverage. */
   allocationStatus?: AllocationStatus;
-  /** Dispatch master-plan filter (Lạch Huyện): OR-within pickup/dropoff port ids
+  /** Dispatch master-plan filter: OR-within pickup/dropoff port ids
    *  matched against active fulfillments' containers. */
   portIds?: number[];
   /** Dispatch master-plan filter: OR-within carrier keys (OWN / EXTERNAL:<id> /
@@ -1119,7 +1119,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       )`,
     )!);
   }
-  // Dispatch master-plan Lạch Huyện facets: OR within each dimension, AND
+  // Dispatch master-plan facets: OR within each dimension, AND
   // across dimensions. Correlated EXISTS keeps multi-container shipments to one
   // row and totals exact.
   const portFacet = buildDispatchPortFacetPredicate(options.portIds ?? []);

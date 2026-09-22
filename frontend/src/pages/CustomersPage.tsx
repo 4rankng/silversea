@@ -9,7 +9,7 @@ import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, FilterPill, StatusPill, Modal, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
@@ -343,6 +343,8 @@ export default function CustomersPage() {
   const [colsOpen, setColsOpen] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openCustomerDrawer = (id: number) => { setDrawerId(id); setDrawerOpen(true); };
   // Bulk-notify dialog state (BE bulk-notify endpoint, Idempotency-Key safe).
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [notifyTitle, setNotifyTitle] = useState('');
@@ -762,8 +764,12 @@ export default function CustomersPage() {
               {filtered.map((c, index) => (
                   <tr key={c.id} role="button" tabIndex={0}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => setDrawerId(c.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawerId(c.id); } }}
+                    onClick={() => openCustomerDrawer(c.id)}
+                    onKeyDown={e => {
+                      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault(); openCustomerDrawer(c.id);
+                      }
+                    }}
                   >
                     <td data-label="Chọn" style={{ width: 36 }} onClick={(e) => e.stopPropagation()}>
                       <input
@@ -888,23 +894,14 @@ export default function CustomersPage() {
         </div>
       </Modal>
 
-      {/* Card _37: row slide-over drawer — contacts + debt summary from the
-          loaded ledger; payment/logistics history sections await BE endpoints
-          (flagged to the lead, nothing stubbed). */}
+      {/* Retain the selected customer while the shared drawer closes so it can
+          animate out and restore keyboard focus to the row. */}
       {drawerId != null && (() => {
         const c = filtered.find(x => x.id === drawerId) ?? customers.find(x => x.id === drawerId);
         if (!c) return null;
         const debt = debtMap.get(c.id) ?? 0;
         return (
-          <>
-            <div className="customers-drawer-backdrop" onClick={() => setDrawerId(null)} />
-            <aside className="customers-drawer" role="dialog" aria-label={`Chi tiết ${c.shortName || c.name}`}>
-              <div className="customers-drawer__head">
-                <strong>{c.shortName || c.name}</strong>
-                <button className="btn btn--ghost btn--sm" aria-label="Đóng chi tiết" onClick={() => setDrawerId(null)}>
-                  <X size={14} />
-                </button>
-              </div>
+          <Drawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={`Chi tiết ${c.shortName || c.name}`}>
               <div className="customers-drawer__body">
                 <dl className="customers-drawer__section">
                   <dt>Trạng thái</dt>
@@ -941,8 +938,7 @@ export default function CustomersPage() {
                 </button>
                 <CustomerDrawerHistories customerId={c.id} />
               </div>
-            </aside>
-          </>
+          </Drawer>
         );
       })()}
     </div>

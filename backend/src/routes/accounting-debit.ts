@@ -1,9 +1,5 @@
-// Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (accounting chốt-debit CORE).
-// Office reads + adjustment request/confirm/withdraw. Every write reaches the
-// durable idempotency boundary (runIdempotent): the create is INSERT..WHERE
-// NOT EXISTS-guarded (one live PENDING per lot), confirm/withdraw only move
-// PENDING rows (guarded UPDATE, returning counts) — replays return the first
-// outcome instead of re-applying.
+// Adjustment results and writes share the deployed idempotency transaction;
+// per-lot service locks serialize competing requests.
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
@@ -14,6 +10,7 @@ import { ApiError } from '../errors';
 import { requireRoles } from '../middleware/casbin';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { requireShipmentIdempotencyKey } from './shipments/shipment-shared';
 import {
   getAccountingDebitBoard,
   createRateAdjustmentRequests,
@@ -49,6 +46,7 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments', OFFICE_ROLES, asyncH
   const user = getUser(req);
   const parsed = adjustmentRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST,
     idempotencyKey: getRequestIdempotencyKey(req),
@@ -68,6 +66,7 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', OFFICE_ROLES
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM,
     idempotencyKey: getRequestIdempotencyKey(req),
@@ -83,6 +82,7 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', OFFICE_ROLE
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW,
     idempotencyKey: getRequestIdempotencyKey(req),

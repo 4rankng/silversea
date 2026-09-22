@@ -25,7 +25,7 @@ import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePric
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExpensePanel';
 import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
-import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
+import { formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
 import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';

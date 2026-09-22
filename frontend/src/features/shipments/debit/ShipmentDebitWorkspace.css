@@ -107,6 +107,25 @@
   margin-bottom: 4px;
 }
 
+.csc-debit-otherfee--managed {
+  flex-wrap: wrap;
+}
+
+.csc-debit-otherfee--managed .csc-debit-item__name,
+.csc-debit-otherfee__source {
+  flex: 0 0 100%;
+  white-space: normal;
+}
+
+.csc-debit-otherfee--managed .csc-debit-input {
+  flex: 1 1 72px;
+  width: auto;
+}
+
+.csc-debit-otherfee--managed button {
+  flex: 0 0 24px;
+}
+
 /* The sell side reads from the wire — a muted readout beside the editable
    chi-hộ input so the two numbers never blur into one. */
 .csc-debit-otherfee__sell {

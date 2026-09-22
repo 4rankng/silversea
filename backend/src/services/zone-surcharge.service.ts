@@ -4,6 +4,7 @@
 // it without an import cycle.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db';
+import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import * as s from '../db/schema';
 
 export const ZONE_SURCHARGE_KIND = 'zone_lift_drop_surcharge';
@@ -29,6 +30,7 @@ export async function resolveLotZoneSurcharge(
     .where(and(
       eq(s.opsExpenseEntries.shipmentId, shipmentId),
       eq(s.opsExpenseEntries.expenseTypeCode, ZONE_SURCHARGE_EXPENSE_TYPE),
+      liveDebitOpsExpense(),
     ));
   if (overrideRows.length > 0) {
     const total = overrideRows.reduce((sum, row) => sum + Number(row.amount), 0);

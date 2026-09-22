@@ -225,20 +225,20 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       return trip.id;
     };
 
-    const truckA = `30K-111.${suffix.slice(0, 2)}`;
-    const truckB = `30K-222.${suffix.slice(0, 2)}`;
+    const truckA = `QA-A-${suffix.slice(-8)}`;
+    const truckB = `QA-B-${suffix.slice(-8)}`;
     const a1 = await mk(truckA, '2026-09-20');
     const b1 = await mk(truckB, '2026-09-21');
     const a2 = await mk(truckA, '2026-09-22');
     void b1;
 
-    const grouped = await listPhoiPhieuRows({ search: 'C16 customer' });
+    const grouped = await listPhoiPhieuRows({ search: `C16 customer ${suffix}` });
     const plates = grouped.map((row) => row.plateNumber);
     const aIndexes = plates.map((plate, index) => (plate === truckA ? index : -1)).filter((index) => index >= 0);
     assert.equal(aIndexes.length, 2);
     assert.equal(aIndexes[1]! - aIndexes[0]!, 1, 'paired trips of one truck land adjacent in grouped mode');
 
-    const byDate = await listPhoiPhieuRows({ search: 'C16 customer', sortBy: 'date' });
+    const byDate = await listPhoiPhieuRows({ search: `C16 customer ${suffix}`, sortBy: 'date' });
     const datePlates = byDate.map((row) => row.plateNumber);
     assert.equal(datePlates[0], truckA, 'the explicit date sort wins over the truck grouping');
   });
@@ -266,22 +266,25 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     track(s.expenseAccountingSources, liftSource.id);
 
     const thu = await getPhoiPhieuReport({ kind: 'THU' });
-    const row = thu.rows.find((row) => row.party.includes('C16 customer') || row.party.includes('C12 customer'));
+    const [customer] = await db.select({ name: s.customers.name }).from(s.customers).where(eq(s.customers.id, custRow.customerId!));
+    const row = thu.rows.find((row) => row.party === customer.name);
     assert.ok(row, 'a customer row exists');
     assert.equal(row.tienNang, 20000, 'LIFT-category fees bucket to tien nang');
     assert.equal(row.psKhac, 250000, 'the OTHER-catalog base fee lands in PS khac');
     assert.equal(row.tongPhaiThuTra, row.tienNang + row.tienHa + row.psKhac, 'Tong = nang + ha + PS khac');
     assert.equal(row.conLai, Math.max(row.tongPhaiThuTra - row.daThuTra, 0), 'Con = Tong - Da');
 
+    const previousTra = await getPhoiPhieuReport({ kind: 'TRA' });
+    const previousInternal = previousTra.rows.find((row) => row.party.startsWith('XE NHÀ'))?.tongPhaiThuTra ?? 0;
     const [truck] = await db.insert(s.trucks).values({
-      licensePlate: `C17-${suffix.slice(0, 8)}`, status: 'ACTIVE',
+      licensePlate: `QA-C17-${suffix.slice(-8)}`, status: 'ACTIVE',
     }).returning({ id: s.trucks.id });
     track(s.trucks, truck.id);
     await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, fixture.trip.id));
     const tra = await getPhoiPhieuReport({ kind: 'TRA' });
     const internal = tra.rows.find((row) => row.party.startsWith('XE NHÀ'));
     assert.ok(internal, 'internal trucks group under the Silver Sea carrier code');
-    assert.equal(internal!.tongPhaiThuTra, 270000, 'the carrier row carries the trip chi-ho total to the dong');
+    assert.equal(internal!.tongPhaiThuTra - previousInternal, 270000, 'linking this trip adds its chi-ho total to the company carrier exactly once');
   });
 });
 
@@ -402,32 +405,33 @@ describe('card 20260922_2 rework — over-pay report honesty + voucher id space'
 
   test('board voucher resolves entries on the native OPS id space', async () => {
     const fixture = await mkBoardFixture({ charge: 100000 });
-    // Deliberately diverge the two id spaces: extra native entries push the
-    // OPS sequence ahead, then a second (entry, source) pair is created so
-    // native id > source-row id — the exact QA probe shape (source 15,
-    // native 14 inverted).
-    for (let i = 0; i < 2; i += 1) {
-      const [dummy] = await db.insert(s.opsExpenseEntries).values({
+    // Use both database sequences so repeated runs cannot leave an explicit
+    // native ID in the path of a later nextval. Separate tables may allocate
+    // equal numbers; consume another source ID before exercising the boundary.
+    const { entry2, source2 } = await db.transaction(async (tx) => {
+      const [entry] = await tx.insert(s.opsExpenseEntries).values({
         shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '1000',
-        customerChargeAmount: '0', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
+        customerChargeAmount: '100000', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
         paidById: accountantId, paidAt: '2026-09-22',
       }).returning({ id: s.opsExpenseEntries.id });
-      track(s.opsExpenseEntries, dummy.id);
-    }
-    const [entry2] = await db.insert(s.opsExpenseEntries).values({
-      shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '1000',
-      customerChargeAmount: '100000', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
-      paidById: accountantId, paidAt: '2026-09-22',
-    }).returning({ id: s.opsExpenseEntries.id });
+      const sourceInput: typeof s.expenseAccountingSources.$inferInsert = {
+        sourceKind: 'OPS', sourceId: entry.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id,
+        confirmedAt: new Date(), version: 1,
+      };
+      let [source] = await tx.insert(s.expenseAccountingSources).values(sourceInput)
+        .returning({ id: s.expenseAccountingSources.id });
+      if (source.id === entry.id) {
+        await tx.delete(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+        [source] = await tx.insert(s.expenseAccountingSources).values(sourceInput)
+          .returning({ id: s.expenseAccountingSources.id });
+      }
+      return { entry2: entry, source2: source };
+    });
     track(s.opsExpenseEntries, entry2.id);
-    const [source2] = await db.insert(s.expenseAccountingSources).values({
-      sourceKind: 'OPS', sourceId: entry2.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id,
-      confirmedAt: new Date(), version: 1,
-    }).returning({ id: s.expenseAccountingSources.id });
     track(s.expenseAccountingSources, source2.id);
     const [src] = await db.select({ id: s.expenseAccountingSources.id, sourceId: s.expenseAccountingSources.sourceId })
       .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source2.id));
-    assert.ok(src.sourceId > src.id, 'fixture guarantees native id > source-row id (id spaces diverged)');
+    assert.notEqual(src.sourceId, src.id, 'fixture guarantees distinct native and source-row IDs');
 
     const result = await createPhoiPhieuVoucher({
       tripIds: [fixture.trip.id], direction: 'IN',

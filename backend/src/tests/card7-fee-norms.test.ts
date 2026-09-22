@@ -17,11 +17,12 @@ import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 
-import { db } from '../db';
+import { db, client } from '../db';
 import * as s from '../db/schema';
 import { recordIncidentalCost, listActiveDriverFeeNorms } from '../services/driver.service';
+import { getExpenseAccountingCatalog } from '../services/expense-accounting-reads.service';
 import { ApiError } from '../errors';
-import { DriverIncidentalCostType } from '@tingting/shared';
+import { DriverIncidentalCostType, Role } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -80,7 +81,10 @@ describe('card 20260921_7 - driver fee norms', () => {
       costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE',
       amount: 50000, occurredAt: TODAY, invoiceNumber: 'card7-HD-must-drop', invoiceDate: TODAY,
     }, user.id, `card7-key-${suffix}-norm`);
-    track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
+    track(async () => {
+      await db.delete(s.expenseAccountingSources).where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.sourceId, cost.id)));
+      await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    });
     assert.equal(cost.costType, 'LIFT_DROP_ZONE');
     const [entryRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
     assert.equal(entryRow.costGroup, 'DRIVER_ROAD');
@@ -101,7 +105,10 @@ describe('card 20260921_7 - driver fee norms', () => {
       costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE',
       amount: 120000, occurredAt: TODAY,
     }, user.id, `card7-key-${suffix}-override`);
-    track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
+    track(async () => {
+      await db.delete(s.expenseAccountingSources).where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.sourceId, cost.id)));
+      await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    });
     assert.equal(String(cost.amount), '120000');
     const [entryRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
     assert.equal(entryRow.customerChargeAmount, '0');
@@ -139,6 +146,17 @@ describe('card 20260921_7 - guards', () => {
     );
   });
 
+  test('accounting suggestions use active configured labels and numeric amounts', async () => {
+    const code = `custom-${suffix}`.slice(0, 50);
+    const [norm] = await db.insert(s.driverFeeNorms).values({ code, label: 'Phụ cấp bãi cấu hình mới', amount: '73000', costType: 'OTHER', costGroup: 'DRIVER_ROAD', status: 'ACTIVE' }).returning();
+    track(async () => { await db.delete(s.driverFeeNorms).where(eq(s.driverFeeNorms.id, norm.id)); });
+    const active = await getExpenseAccountingCatalog({ userId: 1, role: Role.DRIVER });
+    assert.deepEqual(active.driverCostSuggestions.find(item => item.code === code), { code, label: 'Phụ cấp bãi cấu hình mới', amount: 73000 });
+    await db.update(s.driverFeeNorms).set({ status: 'INACTIVE' }).where(eq(s.driverFeeNorms.id, norm.id));
+    const inactive = await getExpenseAccountingCatalog({ userId: 1, role: Role.DRIVER });
+    assert.equal(inactive.driverCostSuggestions.some(item => item.code === code), false);
+  });
+
   test('list fn returns the ACTIVE norms for the FE auto-fill (AC2)', async () => {
     const items = await listActiveDriverFeeNorms();
     assert.ok(items.length >= 8, `expected at least 8 ACTIVE norms, got ${items.length}`);
@@ -146,4 +164,14 @@ describe('card 20260921_7 - guards', () => {
     assert.ok(lift, 'LIFT_DROP_ALLOWANCE must be listed');
     assert.equal(lift.amount, '50000');
   });
+});
+
+after(async () => {
+  try {
+    const errors: unknown[] = [];
+    for (const remove of cleanup) {
+      try { await remove(); } catch (error) { errors.push(error); }
+    }
+    if (errors.length) throw new AggregateError(errors, 'Fee norm fixture cleanup failed');
+  } finally { await client.end(); }
 });

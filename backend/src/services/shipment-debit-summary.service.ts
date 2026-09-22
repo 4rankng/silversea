@@ -11,6 +11,7 @@
 import { aliasedTable, and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
+import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import { ApiError } from '../errors';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
 import { activeTripConditions } from './active-trip-scope';
@@ -61,6 +62,21 @@ export async function getShipmentDebitSummary(query: {
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0 };
   const lotIds = lots.map((lot) => lot.id);
+
+  const declarations = await db.select({
+    shipmentId: s.shipmentDeclarations.shipmentId,
+    number: s.shipmentDeclarations.declarationNumber,
+  }).from(s.shipmentDeclarations)
+    .where(inArray(s.shipmentDeclarations.shipmentId, lotIds))
+    .orderBy(s.shipmentDeclarations.id);
+  const declarationNumbersByLot = new Map<number, Set<string>>();
+  for (const declaration of declarations) {
+    const number = declaration.number?.trim();
+    if (!number) continue;
+    const numbers = declarationNumbersByLot.get(declaration.shipmentId) ?? new Set<string>();
+    numbers.add(number);
+    declarationNumbersByLot.set(declaration.shipmentId, numbers);
+  }
 
   // Auto freight: snapshots are INSERT-only (supersede), so a superseded
   // freeze counts in NO total. The freight anchor semantics: per-trip freezes
@@ -114,6 +130,7 @@ export async function getShipmentDebitSummary(query: {
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
+      liveDebitTripExpense(),
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
@@ -160,6 +177,8 @@ export async function getShipmentDebitSummary(query: {
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
+      liveDebitTripExpense(),
+      standaloneDebitTripRevenue(),
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
@@ -206,7 +225,7 @@ export async function getShipmentDebitSummary(query: {
     total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::text`,
     cnt: sql<number>`count(*)::int`,
   }).from(s.opsExpenseEntries)
-    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds))
+    .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()))
     .groupBy(s.opsExpenseEntries.shipmentId);
   const opsByLot = new Map(opsRows.map((row) => [row.shipmentId, {
     known: row.cnt > 0,
@@ -232,7 +251,7 @@ export async function getShipmentDebitSummary(query: {
     total: sql<string>`coalesce(sum(${s.opsExpenseEntries.customerChargeAmount}), 0)::text`,
     known: sql<number>`count(${s.opsExpenseEntries.customerChargeAmount})::int`,
   }).from(s.opsExpenseEntries)
-    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds))
+    .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()))
     .groupBy(s.opsExpenseEntries.shipmentId);
   const opsChargeByLot = new Map(opsChargeRows.map((row) => [row.shipmentId, {
     known: row.known > 0,
@@ -288,7 +307,7 @@ export async function getShipmentDebitSummary(query: {
       factoryName: lot.factoryName ?? null,
       factoryAddress: lot.factoryAddress,
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
-      customsNumber: null,
+      customsNumber: [...(declarationNumbersByLot.get(lot.id) ?? [])].join(', ') || null,
       documentsSummary: null,
       freightAuto: freightAuto == null ? null : String(freightAuto),
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,

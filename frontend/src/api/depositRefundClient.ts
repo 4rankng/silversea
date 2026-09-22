@@ -45,21 +45,16 @@ export async function createDepositTracker(body: {
   billNumber: string; customerName: string; carrierName: string; depositAmount: number | string;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
 }): Promise<DepositTrackerRow> {
-  return api.post<DepositTrackerRow>('/accounting/deposits', body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+  return api.post<DepositTrackerRow>('/accounting/deposits', body);
 }
 
 export async function updateDepositTrackerDates(id: number, body: {
-  cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
+  cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
 }): Promise<DepositTrackerRow> {
-  return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+  return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body);
 }
 
-export async function markDepositRefunded(id: number): Promise<DepositTrackerRow> {
-  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`, {}, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+export async function markDepositRefunded(id: number, expectedDepositAmount?: number): Promise<DepositTrackerRow> {
+  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`,
+    expectedDepositAmount === undefined ? {} : { expectedDepositAmount });
 }

@@ -9,7 +9,7 @@
 // the row total here is derived from components — never a wire pass-through.
 // Port-fee columns render the interim '—' in both tables (port-names ruling:
 // no place-named identifiers, config-sourced heading pending its producer);
-// customsFee renders '—' until its Ops-side producer lands.
+// Customer charges and actual OPS costs remain separate on their own wires.
 import { AlertTriangle, Paperclip } from 'lucide-react';
 import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
 import { formatMoney } from '../../../lib/format';
@@ -71,8 +71,11 @@ export const deltaIsEmpty = (delta: ShipmentDebitEditsBody): boolean =>
 
 export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): ShipmentDebitEditsBody => {
   const edits: NonNullable<ShipmentDebitEditsBody['edits']> = [];
+  const readOnlyIds = new Set<number>();
   for (const row of detail.chiHoRows) {
+    for (const item of row.items) if (item.readOnly) readOnlyIds.add(item.id);
     for (const fee of row.otherFees) {
+      if (fee.readOnly) { readOnlyIds.add(fee.id); continue; }
       const raw = draft.feeAmounts[fee.id];
       if (raw == null) continue;
       const amount = num(raw);
@@ -98,7 +101,7 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
   return {
     edits,
     addOtherFees: draft.addedFees.filter((fee) => fee.name.trim() !== '').map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount) })),
-    removeExpenseIds: draft.removedFeeIds,
+    removeExpenseIds: draft.removedFeeIds.filter(id => !readOnlyIds.has(id)),
     freightEdits,
   };
 };
@@ -128,15 +131,15 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
       <tbody>
         {detail.freightRows.map((row) => {
           const cells = row.containerNumber == null ? { psActual: '', note: '' } : (draft.freight[row.containerNumber] ?? { psActual: '', note: '' });
-          const known = row.freightCharge != null || row.fuelSurcharge != null || row.customsFee != null;
-          const derivedTotal = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.customsFee ?? 0) + num(cells.psActual || '0');
+          const known = row.freightCharge != null || row.fuelSurcharge != null || row.customsCustomerCharge != null;
+          const derivedTotal = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.customsCustomerCharge ?? 0) + num(cells.psActual || '0');
           return (
             <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
               <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small>{(row.liftSiteLabel || row.dropSiteLabel) && <small className="csc-debit-channel">Nâng: {row.liftSiteLabel ?? '—'} · Hạ: {row.dropSiteLabel ?? '—'}</small>}</td>
               <td>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</td>
               <td>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</td>
               <td>—</td>
-              <td>{row.customsFee == null ? '—' : formatMoney(row.customsFee)}{detail.customsChannel && <small className="csc-debit-channel">{CHANNEL_LABELS[detail.customsChannel]}</small>}</td>
+              <td>{row.customsCustomerCharge == null ? '—' : formatMoney(row.customsCustomerCharge)}{detail.customsChannel && <small className="csc-debit-channel">{CHANNEL_LABELS[detail.customsChannel]}</small>}</td>
               <td>
                 <input
                   className="csc-debit-input"
@@ -217,17 +220,18 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
               <td>
                 {otherItems.map(roItem)}
                 {row.otherFees.map((fee) => (
-                  <div className="csc-debit-otherfee" key={fee.id}>
+                  <div className={`csc-debit-otherfee${fee.readOnly ? ' csc-debit-otherfee--managed' : ''}`} key={fee.id}>
                     <span className="csc-debit-item__name">{fee.name}</span>
                     <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
                     <input
                       className="csc-debit-input csc-debit-input--amount"
                       aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
                       value={draft.feeAmounts[fee.id] ?? ''}
-                      disabled={frozen}
+                      disabled={frozen || fee.readOnly === true}
                       onChange={(event) => setFeeAmount(fee.id, event.target.value)}
                     />
-                    <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
+                    <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
+                    {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
                   </div>
                 ))}
                 {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (

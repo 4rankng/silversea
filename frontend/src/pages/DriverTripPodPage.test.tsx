@@ -359,7 +359,7 @@ describe('DriverTripPodPage', () => {
     expect(await screen.findByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Hủy|Ở lại/ }));
     expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
-    expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull());
     await act(async () => props.onPendingChange?.(false));
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
     expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull();

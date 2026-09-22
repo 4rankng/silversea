@@ -415,6 +415,7 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       shipmentContainerId: container.id,
       expenseTypeCode: `ACC-HQGS-${suffix}`,
       amount: '300000',
+      customerChargeAmount: '150000',
       paidById: adminId,
       paidAt: '2026-10-01',
     }).returning({ id: s.opsExpenseEntries.id });
@@ -423,6 +424,7 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       shipmentContainerId: container.id,
       expenseTypeCode: `ACC-PS-${suffix}`,
       amount: '90000',
+      customerChargeAmount: '60000',
       paidById: adminId,
       paidAt: '2026-10-01',
     }).returning({ id: s.opsExpenseEntries.id });
@@ -452,6 +454,9 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       assert.equal(row!.contractFreightTotal, 2800000, 'the snapshot freight+surcharge total rides the explicit wire name');
       assert.equal(row!.psActual, 500000);
       assert.equal(row!.customsFee, 300000, 'container-scoped HQGS ops rows produce the auto customs column');
+      assert.equal(row!.customsCustomerCharge, 150000, 'the shared schema preserves the separate customer-charge wire');
+      const rawFreight = (body.freightRows as Array<Record<string, unknown>>).find((r) => r.containerNumber === `ACC-${suffix}`)!;
+      assert.equal(rawFreight.customsCustomerCharge, 150000, 'SIS22-ACC-012: revenue uses negotiated HQGS charge, excluding payable cost and other fee categories');
       assert.equal(row!.payableFreight, 8000000, "Bảng 2.3 Cước trả = the trip's carrier-side freight");
       assert.equal(row!.phatSinhFee, 90000, 'container-scoped PHAT_SINH ops rows produce the phat-sinh column');
       assert.ok(!('freight' in row!), 'legacy field name is gone from the wire');
@@ -462,6 +467,16 @@ describe('20260919 card _7 acceptance — producer output parses against the sha
       for (const key of ['chiHoTotal', 'externalFreightCost', 'hqgsFee', 'phatSinhFee', 'unclassifiedFee', 'opsExpenseTotal', 'payableTotal']) {
         assert.ok(key in rawPayables, `payables carries ${key} on the raw wire`);
       }
+      await db.update(s.opsExpenseEntries).set({ customerChargeAmount: '0' }).where(eq(s.opsExpenseEntries.id, opsRow.id));
+      const zeroResponse = await api('GET', `/api/shipments/${shipment.id}/debit-detail`, accountantId);
+      const zeroRow = (zeroResponse.body.freightRows as Array<Record<string, unknown>>).find((r) => r.containerNumber === `ACC-${suffix}`)!;
+      assert.equal(zeroRow.customsCustomerCharge, 0, 'an explicit zero never falls back to payable cost');
+      assert.equal(zeroRow.customsFee, 300000, 'changing recovery leaves the payable unchanged');
+      await db.update(s.opsExpenseEntries).set({ expenseTypeCode: `ACC-HQGS-${suffix}` }).where(eq(s.opsExpenseEntries.id, psOpsRow.id));
+      const combinedResponse = await api('GET', `/api/shipments/${shipment.id}/debit-detail`, accountantId);
+      const combinedRow = (combinedResponse.body.freightRows as Array<Record<string, unknown>>).find((r) => r.containerNumber === `ACC-${suffix}`)!;
+      assert.equal(combinedRow.customsCustomerCharge, 60000, 'multiple HQGS entries sum each customer charge once');
+      assert.equal(combinedRow.customsFee, 390000, 'the same entries independently conserve payable spending');
     } finally {
       await db.delete(s.tripContainers).where(eq(s.tripContainers.id, tripLink.id));
       await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, opsRow.id));

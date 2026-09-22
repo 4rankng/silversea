@@ -20,6 +20,10 @@ export const debitDetailFreightRowSchema = z.object({
   freightCharge: nullableMoney,
   fuelSurcharge: nullableMoney,
   customsFee: nullableMoney,
+  /** Negotiated HQGS customer charge for Bảng 2.1. customsFee remains the
+   * actual OPS cost for Bảng 2.3; never use it as a receivable fallback.
+   * Absent older producers and null mean unknown; zero is an explicit charge. */
+  customsCustomerCharge: nullableMoney.optional(),
   /** BE snapshot freight+surcharge total. Distinct from any FE-derived row
    *  sum — two quantities share the bare word "total", so the wire names
    *  the snapshot quantity explicitly. */
@@ -47,6 +51,8 @@ export const debitDetailExpenseItemSchema = z.object({
   thuKhach: nullableMoney,
   note: z.string().nullable(),
   invoiceNumber: z.string().nullable(),
+  /** Linked copies are corrected through their canonical accounting source. */
+  readOnly: z.boolean().optional(),
 });
 
 export const debitDetailChiHoRowSchema = z.object({
@@ -62,6 +68,7 @@ export const debitDetailChiHoRowSchema = z.object({
      *  buy/chi hộ side) so thu-vs-trả reconciles per component. null =
      *  chưa nhập → '—', never a silent 0. */
     thuKhach: nullableMoney.optional(),
+    readOnly: z.boolean().optional(),
   })),
   carrierDetention: nullableMoney,
   repairAdvance: nullableMoney,

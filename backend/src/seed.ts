@@ -576,8 +576,8 @@ export async function seed() {
   // exists, ADMIN owns its label/order/status — a re-run must never revert
   // operator edits.
   const dispatchZoneSeeds = [
-    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
-    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, showPortFacet: false },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, showPortFacet: false },
   ];
   let zoneInsertCount = 0;
   for (const zone of dispatchZoneSeeds) {

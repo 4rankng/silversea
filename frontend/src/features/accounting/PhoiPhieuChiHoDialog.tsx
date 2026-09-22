@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  correctPhoiPhieuRow, createPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
+  correctPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow,
 } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 
 interface Props {
   tripId: number;
@@ -24,6 +26,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const [linked, setLinked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [adding, setAdding] = useState(false);
+  const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
   const { confirm, dialog } = useConfirm();
 
   const rows = detail.data?.rows ?? [];
@@ -41,12 +45,10 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
 
   function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: string) {
     setEdits((current) => {
-      const next = { ...current, [row.entryId]: { ...current[row.entryId] } };
-      const target = next[row.entryId] ?? { thu: String(row.amountThu ?? ''), tra: String(row.amountTra ?? '') };
+      const target = { ...(current[row.entryId] ?? { thu: String(row.amountThu ?? ''), tra: String(row.amountTra ?? '') }) };
       target[key] = value;
       if (linked) target[key === 'thu' ? 'tra' : 'thu'] = value;
-      next[row.sourceId] = target;
-      return next;
+      return { ...current, [row.entryId]: target };
     });
   }
 
@@ -81,27 +83,6 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     }
   }
 
-  async function addRow() {
-    setSaving(true);
-    setError('');
-    try {
-      await createPhoiPhieuRow(tripId, {
-        expenseTypeCode: 'OTHER',
-        amount: 1000,
-        customerChargeAmount: 1000,
-        expenseDate: new Date().toISOString().slice(0, 10),
-        costGroup: 'OPS_INCIDENTAL',
-        feeName: 'Khoản phí mới',
-        payerKind: 'USER',
-      });
-      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
-    } catch (addError) {
-      setError(addError instanceof Error ? addError.message : 'Không thêm được dòng.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function removeRow(row: PhoiPhieuFeeRow) {
     const ok = await confirm(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { variant: 'danger', confirmLabel: 'Xóa' });
     if (!ok) return;
@@ -125,7 +106,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Chi tiết chi hộ" className="ops-modal" style={{ maxWidth: 720 }}>
+    <><div role="dialog" aria-modal="true" aria-label="Chi tiết chi hộ" className="ops-modal" style={{ maxWidth: 720 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết chi hộ {detail.data?.tripCode ?? ''}</h2>
         <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
@@ -149,7 +130,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
                       <td><input aria-label={`Số tiền thu dòng ${index + 1}`} value={edits[row.entryId]?.thu ?? String(row.amountThu ?? '')} onChange={(e) => setEdit(row, 'thu', e.target.value)} inputMode="numeric" /></td>
                       <td><input aria-label={`Số tiền trả dòng ${index + 1}`} value={edits[row.entryId]?.tra ?? String(row.amountTra ?? '')} onChange={(e) => setEdit(row, 'tra', e.target.value)} inputMode="numeric" /></td>
                       <td>{row.payerName ?? '—'}</td>
-                      <td><button type="button" className="btn-secondary btn--sm" disabled={saving || !row.confirmed} title={row.confirmed ? undefined : 'Khoản chưa đối chiếu — chỉ khoản đã đối chiếu mới xóa được tại đây'} onClick={() => void removeRow(row)}>Xóa</button></td>
+                      <td><button type="button" className="btn btn--secondary btn--sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</button></td>
                     </tr>
                   );
                 })}
@@ -159,13 +140,6 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
                   <td><strong>{formatCurrency(totals.tra)}</strong></td>
                   <td colSpan={2} />
                 </tr>
-                {totals.thu > totals.tra && totals.tra > 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ color: 'var(--warn, #d97706)' }}>
-                      Đã thu/trả vượt — cần hoàn lại phần chênh ({formatCurrency(totals.thu - totals.tra)})
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
@@ -175,14 +149,22 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
             <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
               <label>Ngày lấy phơi <input type="date" defaultValue={detail.data.ngayLayPhoi ?? ''} onChange={(e) => void saveMeta(e.target.value, detail.data?.trangThaiLay ?? '')} /></label>
               <label>Trạng thái lấy <input defaultValue={detail.data.trangThaiLay ?? ''} onBlur={(e) => void saveMeta(detail.data?.ngayLayPhoi ?? '', e.target.value)} /></label>
-              <button type="button" className="btn-secondary btn--sm" disabled={saving} onClick={() => void addRow()}>＋ Thêm dòng</button>
-              <button type="button" className="btn-primary btn--sm" disabled={saving} onClick={() => void saveAll()}>Lưu</button>
-              <button type="button" className="btn-secondary btn--sm" disabled={saving} onClick={onClose}>Hủy</button>
+              <button type="button" className="btn btn--secondary btn--sm" disabled={saving || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</button>
+              <button type="button" className="btn btn--primary btn--sm" disabled={saving} onClick={() => void saveAll()}>Lưu</button>
+              <button type="button" className="btn btn--secondary btn--sm" disabled={saving} onClick={onClose}>Hủy</button>
             </div>
           </>
         )}
         {dialog}
+        {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
+        {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
       </div>
     </div>
+    {adding && catalog.data && <ExpenseCreateDrawer
+      work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
+      catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
+      onClose={() => setAdding(false)}
+      onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) }); onSaved(); }}
+    />}</>
   );
 }

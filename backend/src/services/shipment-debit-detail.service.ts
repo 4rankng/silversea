@@ -11,6 +11,7 @@
 //        debit-locked rejects edits with the _19 lock message.
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
+import { liveDebitOpsExpense, liveDebitTripExpense } from './live-debit-expense-scope';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -21,6 +22,18 @@ import { activeTripConditions } from './active-trip-scope';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
+import type { Tx } from './trip-shared';
+
+const MANAGED_PROJECTION_KINDS = ['OPS', 'DRIVER', 'INVOICE'] as const;
+const MANAGED_PROJECTION_MESSAGE = 'Khoản chi này được quản lý tại nguồn chi phí kế toán. Vui lòng điều chỉnh tại nguồn, không sửa hoặc xóa bản liên kết.';
+
+async function assertDebitExpenseEditable(tx: Tx, expenseId: number) {
+  const [source] = await tx.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
+    .where(and(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId),
+      inArray(s.expenseAccountingSources.sourceKind, [...MANAGED_PROJECTION_KINDS])))
+    .limit(1).for('update');
+  if (source) throw new ApiError(409, MANAGED_PROJECTION_MESSAGE);
+}
 
 /** Chi hộ rows group O2C §7.1 evidence: READY = POD recovered on the trip. */
 function opsDocsStatusOf(trip: { podRecoveredAt: Date | null }): 'READY' | 'PENDING' {
@@ -165,9 +178,12 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     sellAmount: s.tripExpenses.sellAmount,
     note: s.tripExpenses.recoveryNote,
     invoiceNumber: s.tripExpenses.invoiceNumber,
+    readOnly: sql<boolean>`${s.expenseAccountingSources.id} is not null`,
   })
     .from(s.tripExpenses)
-    .where(inArray(s.tripExpenses.tripId, tripIds));
+    .leftJoin(s.expenseAccountingSources, and(eq(s.expenseAccountingSources.linkedTripExpenseId, s.tripExpenses.id),
+      inArray(s.expenseAccountingSources.sourceKind, [...MANAGED_PROJECTION_KINDS])))
+    .where(and(inArray(s.tripExpenses.tripId, tripIds), liveDebitTripExpense()));
   const expensesByTrip = new Map<number, typeof expenses>();
   for (const expense of expenses) {
     const bucket = expensesByTrip.get(expense.tripId) ?? [];
@@ -190,17 +206,19 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     }
   }
 
-  // Bảng 2.1's auto customs column: container-scoped ops rows classified
-  // HQGS via the explicit category column (never name matching).
+  // Container-scoped HQGS: agreed customer charge feeds Bảng 2.1, actual
+  // OPS spending feeds Bảng 2.3. Classify by category, never name matching.
   const opsRows = await db.select({
     containerId: s.opsExpenseEntries.shipmentContainerId,
     category: s.forwarderExpenseTypes.category,
     amount: s.opsExpenseEntries.amount,
+    customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
   })
     .from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
+    .where(and(eq(s.opsExpenseEntries.shipmentId, shipmentId), liveDebitOpsExpense()));
   const hqgsByContainer = new Map<number, number>();
+  const hqgsChargeByContainer = new Map<number, number>();
   const phatSinhByContainer = new Map<number, number>();
   const containersWithOps = new Set<number>();
   // Card _62: container-NULL ops rows (phí chung lô) bucketed separately so
@@ -222,6 +240,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     containersWithOps.add(opsRow.containerId);
     if (opsRow.category === ExpenseTypeCategory.HQGS) {
       hqgsByContainer.set(opsRow.containerId, (hqgsByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
+      hqgsChargeByContainer.set(opsRow.containerId, (hqgsChargeByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.customerChargeAmount));
     }
     if (opsRow.category === ExpenseTypeCategory.PHAT_SINH) {
       phatSinhByContainer.set(opsRow.containerId, (phatSinhByContainer.get(opsRow.containerId) ?? 0) + Number(opsRow.amount));
@@ -245,6 +264,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         id: expense.id,
         name: expense.feeName ?? 'Phí khác',
         amount: Number(expense.buyAmount),
+        readOnly: expense.readOnly,
         // Card _2 (2b): the SELL side rides beside the buy side — null when
         // not entered (default 0 = chưa nhập → '—', never a silent 0).
         thuKhach: expense.sellAmount == null || Number(expense.sellAmount) === 0
@@ -265,6 +285,9 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
       fuelSurcharge: snapshot?.surcharge != null ? Number(snapshot.surcharge) : null,
       customsFee: container.id != null && containersWithOps.has(container.id)
         ? (hqgsByContainer.get(container.id) ?? 0)
+        : null,
+      customsCustomerCharge: container.id != null && containersWithOps.has(container.id)
+        ? (hqgsChargeByContainer.get(container.id) ?? 0)
         : null,
       // Bảng 2.3 per-container payables (card _62): a container with ops rows
       // reads a known 0 for its empty buckets; a container with none stays
@@ -294,6 +317,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         // Bảng 2.2 (fidelity card): the invoice number renders italic under
         // the fee amount — "HD: 00123". Null = no invoice on the source row.
         invoiceNumber: expense.invoiceNumber,
+        readOnly: expense.readOnly,
       })),
       otherFees,
       // No dedicated detention/repair expense types exist yet — the OTHER
@@ -489,6 +513,7 @@ export async function saveDebitEdits(input: {
         if (!expense || !tripIds.has(expense.tripId)) {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
         }
+        await assertDebitExpenseEditable(tx, expense.id);
         // Ruling 2026-09-19: the customer figure is CUS-typed only on Phí
         // khác rows — invoiced/pass-through rows recharge from the expense-
         // type rule (cost pass-through today) and stay read-only here.
@@ -534,6 +559,7 @@ export async function saveDebitEdits(input: {
         if (!expense || !tripIds.has(expense.tripId)) {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
         }
+        await assertDebitExpenseEditable(tx, expense.id);
         await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
       }
       return { id: input.shipmentId };

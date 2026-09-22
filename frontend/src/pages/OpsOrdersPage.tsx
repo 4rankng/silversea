@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Pin, PinOff, Plus, Search } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
@@ -9,6 +9,7 @@ import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { DateInput } from '../design-system/forms/DateInput';
 import { formatDate } from '../lib/format';
+import { useToast } from '../components/shared/Toast';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -27,13 +28,19 @@ export default function OpsOrdersPage() {
 
   const { data, isLoading, isError, refetch } = useOpsOrders(date, search || undefined);
   const togglePin = useToggleShipmentPin();
+  const { toast } = useToast();
+  const pinSavingRef = useRef(false);
+  const [pendingPinId, setPendingPinId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const items = useMemo(() => data?.items ?? [], [data]);
 
   /** Optimistic pin: flip + float the row to the top immediately; the server
    * refetch on settle reconciles (PRD §3.2). */
-  function handleTogglePin(order: OpsOrderItem) {
+  async function handleTogglePin(order: OpsOrderItem) {
+    if (pinSavingRef.current) return;
+    pinSavingRef.current = true;
+    setPendingPinId(order.id);
     const cacheKey = opsKeys.orders(date, search || undefined);
     const current = queryClient.getQueryData<{ date: string; items: OpsOrderItem[] }>(cacheKey);
     if (current && order.pinned) {
@@ -50,7 +57,15 @@ export default function OpsOrdersPage() {
         items: [updated, ...current.items.filter((item) => item.id !== order.id)],
       });
     }
-    void togglePin.mutateAsync({ shipmentId: order.id, pinned: !order.pinned }).catch(() => undefined);
+    try {
+      await togglePin.mutateAsync({ shipmentId: order.id, pinned: !order.pinned });
+    } catch (error) {
+      if (current) queryClient.setQueryData(cacheKey, current);
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được ghim. Vui lòng thử lại.' });
+    } finally {
+      pinSavingRef.current = false;
+      setPendingPinId(null);
+    }
   }
 
   return (
@@ -109,7 +124,9 @@ export default function OpsOrdersPage() {
                     <button
                       type="button"
                       className={`ops-pin${order.pinned ? ' is-on' : ''}`}
-                      onClick={() => handleTogglePin(order)}
+                      onClick={() => void handleTogglePin(order)}
+                      disabled={pendingPinId !== null}
+                      aria-busy={pendingPinId === order.id}
                       aria-pressed={order.pinned}
                       aria-label={order.pinned ? `Bỏ ghim ${pinKey}` : `Ghim ${pinKey}`}
                     >

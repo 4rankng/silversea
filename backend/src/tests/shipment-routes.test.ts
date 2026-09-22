@@ -354,6 +354,7 @@ before(async () => {
 });
 
 after(async () => {
+  let cleanupFailed = false;
   // Wrap cleanup in a single transaction with reverse-FK ordering. The
   // dispatch path creates trips that fan out into audit_logs, notifications,
   // salary_day records, etc. — many of which have FKs back to users / trips.
@@ -364,6 +365,16 @@ after(async () => {
   // (the pool's checked-out connections don't release until TX end).
   try {
     await db.transaction(async (tx) => {
+      if (createdShipmentIds.length > 0) {
+        await tx.delete(s.shipmentAccountingLocks)
+          .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
+      }
+      // Claims restrict trip deletion, so release this run's document claims
+      // before removing its trips or financial postings.
+      if (createdBillingDocumentIds.length > 0) {
+        await tx.delete(s.billingDocumentTripClaims)
+          .where(inArray(s.billingDocumentTripClaims.documentId, createdBillingDocumentIds));
+      }
       if (createdTripIds.length > 0) {
         const postingRows = await tx.select({ id: s.tripFinancialPostings.id })
           .from(s.tripFinancialPostings)
@@ -409,8 +420,6 @@ after(async () => {
       if (createdBillingDocumentIds.length > 0) {
         await tx.delete(s.billingDocumentRecoverableClaims)
           .where(inArray(s.billingDocumentRecoverableClaims.documentId, createdBillingDocumentIds));
-        await tx.delete(s.billingDocumentTripClaims)
-          .where(inArray(s.billingDocumentTripClaims.documentId, createdBillingDocumentIds));
         await tx.delete(s.billingDocumentLines)
           .where(inArray(s.billingDocumentLines.documentId, createdBillingDocumentIds));
         await tx.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdBillingDocumentIds));
@@ -420,8 +429,6 @@ after(async () => {
           .where(inArray(s.shipmentRecoveryFacts.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentDocumentCustodyFacts)
           .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, createdShipmentIds));
-        await tx.delete(s.shipmentAccountingLocks)
-          .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentFinanceActions)
           .where(inArray(s.shipmentFinanceActions.shipmentId, createdShipmentIds));
         await tx.delete(s.notifications).where(and(
@@ -488,9 +495,8 @@ after(async () => {
       }
     });
   } catch (err) {
-    // Cleanup is best-effort — a leftover FK from an interrupted prior run
-    // shouldn't fail this test run. Log and continue so the suite can exit.
-    console.warn('[shipment-routes.test] cleanup partial:', (err as Error).message);
+    cleanupFailed = true;
+    console.warn('[shipment-routes.test] cleanup partial:', (err as Error).message, (err as Error).cause);
   }
 
   // Users must be deleted AFTER the main transaction because audit_logs /
@@ -506,6 +512,7 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } catch (err) {
+    cleanupFailed = true;
     console.warn('[shipment-routes.test] user cleanup partial:', (err as Error).message);
   }
 
@@ -518,7 +525,7 @@ after(async () => {
   // weakening any assertion. Server is closed first so the port is released.
   server.closeAllConnections();
   server.close();
-  process.exit(0);
+  process.exit(cleanupFailed ? 1 : 0);
 });
 
 // Helper: create a shipment via the service (bypassing HTTP) for setup of
@@ -1511,6 +1518,7 @@ describe('POST /', () => {
 describe('GET /cus-workspace', () => {
   test('returns derived CUS rows and accepts full or suffix search incl. separators', async () => {
     const fullBookingRef = `BOOK${suffix.replace(/-/g, '')}Ab12X`.slice(0, 50);
+    const declarationNumber = `TK-${suffix}-9zX4`;
     const shipment = await mkShipmentViaService({
       bookingRef: fullBookingRef,
       expectedDeliveryDate: '2026-08-11',
@@ -1523,7 +1531,7 @@ describe('GET /cus-workspace', () => {
       method: 'POST',
       token: adminToken,
       body: {
-        declarationNumber: 'TK-9zX4',
+        declarationNumber,
         issuedAt: '2026-08-11T09:00:00.000Z',
         scope: 'SHARED',
       },
@@ -1533,9 +1541,9 @@ describe('GET /cus-workspace', () => {
     // 2026-09-09 customer report: pasting the full Bill/Booking, container,
     // or declaration number must work too — a full value ends with itself,
     // so the suffix ILIKE covers both. Keep the 4-char suffix probes.
-    // 2026-09-10: references with separators must validate too — 'TK-9zX4'
-    // is this fixture's dashed declaration number, pasted whole.
-    for (const validSuffix of ['aB12x', '9Zx4', fullBookingRef, 'TK-9zX4']) {
+    // 2026-09-10: references with separators must validate too; keep the
+    // unique dashed declaration number and its case-insensitive suffix.
+    for (const validSuffix of ['aB12x', '9Zx4', fullBookingRef, declarationNumber]) {
       const ok = await testFetch(`/cus-workspace?searchSuffix=${validSuffix}&page=1&limit=20`, { token: adminToken });
       assert.equal(ok.status, 200);
       const row = ok.data.items.find((item: { id: number }) => item.id === shipment.id);
@@ -1788,7 +1796,7 @@ describe('GET /cus-workspace', () => {
       customerId: scopedCustomer.id,
       responsibleUnitId: clerkBusinessUnitId,
       shipmentCode: `BULK-${suffix}-${index}`.slice(0, 50),
-      bookingRef: `BULK-BOOK-${index}`.slice(0, 50),
+      bookingRef: `BULK-BOOK-${suffix}-${index}`.slice(0, 50),
       status: ShipmentStatus.PENDING_DATE,
       expectedDeliveryDate: '2026-08-11',
       createdBy: adminUserId,
@@ -2857,17 +2865,19 @@ describe('PUT /:id', () => {
 
   test('409 on stale version', async () => {
     const shipment = await mkShipmentViaService();
-    // First update bumps to version+1.
-    await testFetch(`/${shipment.id}`, {
+    // Assert setup succeeded before exercising a stale version.
+    const firstUpdate = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: adminToken,
-      body: { version: shipment.version, bookingRef: 'first' },
+      body: { version: shipment.version, bookingRef: `FIRST-${suffix}` },
     });
+    assert.equal(firstUpdate.status, 200, JSON.stringify(firstUpdate.data));
+    assert.equal(firstUpdate.data.version, shipment.version + 1);
     // Second update with the stale version → 409.
     const r = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: adminToken,
-      body: { version: shipment.version, bookingRef: 'stale' },
+      body: { version: shipment.version, bookingRef: `STALE-${suffix}` },
     });
     assert.equal(r.status, 409);
   });
@@ -3047,14 +3057,14 @@ describe('PUT /:id', () => {
         expectedVersion: shipment.version,
         pickupLocation: 'Bãi mới',
         deliveryLocation: 'Kho mới',
-        blNumber: 'BL-Q17-MATRIX',
+        blNumber: `BL-Q17-MATRIX-${suffix}`,
       },
     });
     assert.equal(r.status, 200);
     assert.equal(r.data.changeMode, 'DIRECT');
     assert.equal(r.data.pickupLocation, 'Bãi mới');
     assert.equal(r.data.deliveryLocation, 'Kho mới');
-    assert.equal(r.data.blNumber, 'BL-Q17-MATRIX');
+    assert.equal(r.data.blNumber, `BL-Q17-MATRIX-${suffix}`);
   });
 
   test('CLERK post-dispatch shipment operations fields apply directly', async () => {
@@ -3661,26 +3671,26 @@ describe('shipment declarations', () => {
       method: 'POST',
       token: clerkToken,
       body: {
-        declarationNumber: 'TK-001',
+        declarationNumber: `TK-001-${suffix}`,
         issuedAt: '2026-07-27T09:00:00.000Z',
         scope: 'SHARED',
         note: 'Khai chung',
       },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.data.declarationNumber, 'TK-001');
+    assert.equal(created.data.declarationNumber, `TK-001-${suffix}`);
 
     const updated = await testFetch(`/${shipment.id}/declarations/${created.data.id}`, {
       method: 'PUT',
       token: clerkToken,
       body: {
-        declarationNumber: 'TK-001A',
+        declarationNumber: `TK-001A-${suffix}`,
         issuedAt: '2026-07-27T10:00:00.000Z',
         scope: 'SINGLE',
       },
     });
     assert.equal(updated.status, 200);
-    assert.equal(updated.data.declarationNumber, 'TK-001A');
+    assert.equal(updated.data.declarationNumber, `TK-001A-${suffix}`);
     assert.equal(updated.data.scope, 'SINGLE');
   });
 
@@ -3713,7 +3723,7 @@ describe('Q17 explicit dossier subtype matrix', () => {
       method: 'POST',
       token: clerkToken,
       body: {
-        declarationNumber: 'TK-Q17',
+        declarationNumber: `TK-Q17-${suffix}`,
         issuedAt: '2026-07-28T09:15:00.000Z',
         scope: 'SHARED',
         note: 'Khai mở',
@@ -3725,14 +3735,14 @@ describe('Q17 explicit dossier subtype matrix', () => {
       method: 'PUT',
       token: clerkToken,
       body: {
-        declarationNumber: 'TK-Q17-UPDATED',
+        declarationNumber: `TK-Q17-UPDATED-${suffix}`,
         issuedAt: '2026-07-28T10:30:00.000Z',
         scope: 'SINGLE',
         note: 'Khai cập nhật',
       },
     });
     assert.equal(declarationUpdate.status, 200);
-    assert.equal(declarationUpdate.data.declarationNumber, 'TK-Q17-UPDATED');
+    assert.equal(declarationUpdate.data.declarationNumber, `TK-Q17-UPDATED-${suffix}`);
     assert.equal(declarationUpdate.data.scope, 'SINGLE');
   });
 });

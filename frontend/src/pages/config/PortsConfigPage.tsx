@@ -16,6 +16,7 @@ interface DispatchZoneRow extends DispatchZoneOption {
   isActive: boolean;
   /** Exactly one zone should carry the default presence pin (BE-enforced). */
   isDefault?: boolean;
+  showPortFacet?: boolean;
 }
 
 type ZoneChoice = string;
@@ -113,6 +114,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(item?.isActive ?? true);
   const [isDefault, setIsDefault] = useState(item?.isDefault ?? false);
+  const [showPortFacet, setShowPortFacet] = useState(item?.showPortFacet ?? true);
 
   return (
     <InlineForm colSpan={4}>
@@ -122,7 +124,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
             className="input"
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="Ví dụ: LACH_HUYEN"
+            placeholder="Ví dụ: ZONE_A"
             disabled={!!item}
             autoFocus={!item}
           />
@@ -134,7 +136,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
             className="input"
             required pattern={'.*\\S.*'} value={label}
             onChange={e => setLabel(e.target.value)}
-            placeholder="Lạch Huyện"
+            placeholder="Tên khu vực điều phối"
             autoFocus={!!item}
           />
         </Field>
@@ -178,6 +180,10 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
           onChange={(e) => setIsActive(e.target.value === 'ACTIVE')}
         />
       </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="checkbox" checked={showPortFacet} disabled={saving} onChange={event => setShowPortFacet(event.target.checked)} />
+        <span>Hiện bộ lọc cảng ở kế hoạch tổng quát</span>
+      </label>
       <FormActions
         saving={saving}
         isedit={!!item}
@@ -187,8 +193,8 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         onsave={() => {
           if (!label.trim()) return;
           onsave(item
-            ? { label: label.trim(), sortOrder, isActive, isDefault }
-            : { code: code.trim(), label: label.trim(), sortOrder, isActive, isDefault });
+            ? { label: label.trim(), sortOrder, isActive, isDefault, showPortFacet }
+            : { code: code.trim(), label: label.trim(), sortOrder, isActive, isDefault, showPortFacet });
         }}
       />
     </InlineForm>
@@ -248,13 +254,13 @@ export default function PortsConfigPage() {
     {user?.role === Role.ADMIN && (
     <CrudTable<DispatchZoneRow>
       title="Khu vực điều phối"
-      description="Taxonomy cụm cảng — thêm cụm mới (VD: Ninh Bình) tại đây, cảng được gán vào khu vực ở bảng trên"
+      description="Quản lý khu vực điều phối và bộ lọc cảng. Gán cảng vào khu vực ở bảng trên."
       endpoint="/dispatch-zones" colSpan={4}
       pageSlug="dispatch-zones"
       showDelete={false}
       sortFn={(a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, 'vi')}
       emptyTitle="Chưa có khu vực nào"
-      emptyHint="Thêm khu vực điều phối đầu tiên (VD: Lạch Huyện)."
+      emptyHint="Thêm khu vực điều phối đầu tiên."
       columns={[
         { header: 'Mã', render: (z) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{z.code}</span> },
         { header: 'Tên khu vực', render: (z) => <span>{z.label}</span> },

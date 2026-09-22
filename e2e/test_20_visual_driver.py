@@ -298,7 +298,10 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
     # TC-3050: No horizontal overflow (mobile)
     page.goto(f"{BASE_URL}/my-trips")
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    # Reload defaults to Lệnh mới; the accepted fixture now belongs to Đã nhận.
+    page.locator("button:has-text('Đã nhận')").click()
+    typography_card = page.locator(".driver-journey-card").filter(has_text=fixture["trip"]["tripCode"])
+    typography_card.wait_for(state="visible", timeout=15000)
     overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     if overflow:
         results.pass_("TC-3050", "No horizontal overflow (390px)")
@@ -306,9 +309,9 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
         results.fail("TC-3050", "Horizontal overflow on mobile")
 
     # Approved compact scale: body/data/controls 12px, captions 11px.
-    typography = page.evaluate("""() => ({
+    typography = typography_card.evaluate("""card => ({
         body: parseFloat(getComputedStyle(document.body).fontSize),
-        useful: [...document.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
+        useful: [...card.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
             .filter(el => el.getBoundingClientRect().height > 0)
             .map(el => parseFloat(getComputedStyle(el).fontSize))
     })""")

@@ -16,18 +16,8 @@ export const OPS_EXPENSE_SUGGESTIONS: ReadonlyArray<{ group: ExpenseCostGroup; n
   { group: 'INVOICED_DROP', names: ['Hạ vỏ', 'Hạ hàng', 'Lưu vỏ', 'Lưu bãi hạ'] },
   { group: 'INVOICED_OTHER', names: ['Hạ tầng công nghệ', 'Gia hạn', 'Vệ sinh', 'Soi chiếu', 'Kiểm hóa', 'Bốc xếp', 'Công nhân', 'Cơ sở hạ tầng', 'Lưu kho'] },
   { group: 'OPS_REGULAR', names: ['Làm hàng luồng xanh', 'Làm hàng luồng vàng', 'Làm hàng luồng đỏ', 'Chọn vỏ', 'Chi hải quan'] },
-  { group: 'OPS_INCIDENTAL', names: ['Sửa tờ khai', 'Ship Lạch Huyện', 'Chi công nhân', 'Ngoài giờ', 'Nợ phơi', 'Xe nâng', 'Kẹp chì hải quan', 'Bóc tem nguy hiểm'] },
+  { group: 'OPS_INCIDENTAL', names: ['Sửa tờ khai', 'Vận chuyển phát sinh', 'Chi công nhân', 'Ngoài giờ', 'Nợ phơi', 'Xe nâng', 'Kẹp chì hải quan', 'Bóc tem nguy hiểm'] },
 ];
-export const DRIVER_EXPENSE_SUGGESTIONS = [
-  { code: 'LIFT_DROP_ALLOWANCE', label: 'Phụ cấp nâng/hạ Lạch Huyện, TIL, Hateco', amount: 50000 },
-  { code: 'NIGHT_RETURN', label: 'Trả đêm', amount: 100000 },
-  { code: 'TURNAROUND', label: 'Chạy hàng quay đầu', amount: 100000 },
-  { code: 'OVERLOAD', label: 'Chạy quá tải', amount: 200000 },
-  { code: 'ICD_RELOCATION', label: 'Đảo chuyển ICD/Đăng Khoa', amount: 200000 },
-  { code: 'SUNDAY', label: 'Chạy chủ nhật', amount: 200000 },
-  { code: 'SHIFT', label: 'Lưu ca', amount: 200000 },
-  { code: 'SPECIAL_CONTAINER', label: 'Container 45HC / lạnh', amount: 200000 },
-] as const;
 export const expenseVndSchema = z.number().finite().int().min(0).max(999_999_999_999_999);
 export const expenseDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
   const date = new Date(`${value}T00:00:00Z`);

@@ -227,19 +227,10 @@ function portZoneFacetLabel(zoneLabel: string): string {
   return /^cảng/iu.test(zoneLabel.normalize('NFC')) ? zoneLabel : `Cảng ${zoneLabel}`;
 }
 
-// Awaiting customer confirmation: these two broad zone facets belong on the
-// detail screen instead of the master-plan filter toolbar. Match the rendered
-// label so equivalent Unicode forms from the database stay hidden together.
-const TEMPORARILY_HIDDEN_PORT_ZONE_FACETS = new Set(['Cảng Lạch Huyện', 'Cảng Hải Phòng']);
-
-function isTemporarilyHiddenPortZoneFacet(zoneLabel: string): boolean {
-  return TEMPORARILY_HIDDEN_PORT_ZONE_FACETS.has(portZoneFacetLabel(zoneLabel).normalize('NFC'));
-}
-
 /** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
  *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
-  const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  const [zones, setZones] = useState<Array<{ code: string; label: string; showPortFacet?: boolean }>>([]);
   const [zonesError, setZonesError] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const drawerContentRef = useRef<HTMLDivElement>(null);
@@ -288,7 +279,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
     return () => { cancelled = true; };
   }, []);
 
-  const visibleZones = zones.filter((zone) => !isTemporarilyHiddenPortZoneFacet(zone.label));
+  const visibleZones = zones.filter((zone) => zone.showPortFacet !== false);
 
   return (
     <>

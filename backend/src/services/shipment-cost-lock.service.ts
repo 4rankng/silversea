@@ -17,6 +17,8 @@ import { lockApplicationOwnedUniquenessSet } from './application-owned-uniquenes
 import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { getLotDeclaredChannel } from './shipment-documents.service';
+import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
+import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -302,19 +304,8 @@ export async function createDebitNoteFromCostLock(
       await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection([lot]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
-      const lineRows: Array<{
-        lineType: string;
-        typeLabel: string;
-        baseAmount: string;
-      }> = [];
-      const freight = snapshot.freightAuto;
-      if (typeof freight === 'string' && freight !== '' && freight !== '0') {
-        lineRows.push({ lineType: 'FREIGHT', typeLabel: 'Cước vận tải (auto)', baseAmount: freight });
-      }
-      const chiHo = snapshot.chiHoTotal;
-      if (typeof chiHo === 'string' && chiHo !== '' && chiHo !== '0') {
-        lineRows.push({ lineType: 'SERVICE_FEE', typeLabel: 'Tổng chi hộ', baseAmount: chiHo });
-      }
+      const lineRows = buildFrozenShipmentDebitLines(snapshot, lot.shipmentCode ?? String(input.shipmentId));
+      const totals = documentVatTotals(lineRows);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
         entityType: 'CUSTOMER',
@@ -324,6 +315,9 @@ export async function createDebitNoteFromCostLock(
         rangeTo,
         issuedAt: new Date(),
         debitNoteStatus: 'SENT',
+        totalInclVat: String(totals.gross), totalNet: String(totals.net),
+        totalTax: String(totals.tax), totalGross: String(totals.gross),
+        vatTreatmentVersion: VAT_TREATMENT_VERSION, createdBy: input.actor.userId,
       }).returning({ id: s.billingDocuments.id });
       if (lineRows.length > 0) {
         await tx.insert(s.billingDocumentLines).values(lineRows.map((line, index) => ({
@@ -332,9 +326,11 @@ export async function createDebitNoteFromCostLock(
           sourceId: null,
           lineType: line.lineType,
           typeLabel: line.typeLabel,
-          description: `${line.typeLabel} — lô ${lot.shipmentCode ?? input.shipmentId} (chốt từ snapshot khóa lô)`,
-          baseAmount: line.baseAmount,
-          grossAmount: line.baseAmount,
+          description: line.description,
+          baseAmount: String(line.baseAmount), netAmount: String(line.netAmount),
+          taxAmount: String(line.taxAmount), grossAmount: String(line.grossAmount),
+          vatTreatment: line.vatTreatment, vatRate: String(line.vatRate),
+          vatTreatmentVersion: line.vatTreatmentVersion, sortOrder: index,
         })));
       }
       await tx.insert(s.debitNoteLots).values([{
@@ -399,6 +395,13 @@ export async function createConsolidatedDebitNote(
     create: async (tx) => {
       await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection(lots);
+      const lineRows = lots.flatMap((lot) => {
+        const lockRow = lockRows.find((row) => row.shipmentId === lot.id);
+        return buildFrozenShipmentDebitLines(
+          (lockRow?.snapshot ?? {}) as Record<string, unknown>, lot.shipmentCode ?? String(lot.id),
+        );
+      });
+      const totals = documentVatTotals(lineRows);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
         entityType: 'CUSTOMER',
@@ -408,33 +411,22 @@ export async function createConsolidatedDebitNote(
         rangeTo,
         issuedAt: new Date(),
         debitNoteStatus: 'SENT',
+        totalInclVat: String(totals.gross), totalNet: String(totals.net),
+        totalTax: String(totals.tax), totalGross: String(totals.gross),
+        vatTreatmentVersion: VAT_TREATMENT_VERSION, createdBy: input.actor.userId,
       }).returning({ id: s.billingDocuments.id });
-      // Lines = the union of the lots' frozen snapshot values, grouped per
-      // lot so the customer sees the breakdown.
-      const lineRows = lots.flatMap((lot) => {
-        const lockRow = lockRows.find((row) => row.shipmentId === lot.id);
-        const snapshot = (lockRow?.snapshot ?? {}) as Record<string, unknown>;
-        const lotLines: Array<{ lineType: string; typeLabel: string; baseAmount: string }> = [];
-        const freight = snapshot.freightAuto;
-        if (typeof freight === 'string' && freight !== '' && freight !== '0') {
-          lotLines.push({ lineType: 'FREIGHT', typeLabel: 'Cước vận tải (auto)', baseAmount: freight });
-        }
-        const chiHo = snapshot.chiHoTotal;
-        if (typeof chiHo === 'string' && chiHo !== '' && chiHo !== '0') {
-          lotLines.push({ lineType: 'SERVICE_FEE', typeLabel: 'Tổng chi hộ', baseAmount: chiHo });
-        }
-        return lotLines.map((line) => ({ ...line, lotCode: lot.shipmentCode ?? String(lot.id) }));
-      });
       if (lineRows.length > 0) {
-        await tx.insert(s.billingDocumentLines).values(lineRows.map((line) => ({
+        await tx.insert(s.billingDocumentLines).values(lineRows.map((line, index) => ({
           documentId: doc.id,
           sourceType: 'ADHOC' as const,
           sourceId: null,
           lineType: line.lineType,
           typeLabel: line.typeLabel,
-          description: `${line.typeLabel} — lô ${line.lotCode} (chốt từ snapshot khóa lô)`,
-          baseAmount: line.baseAmount,
-          grossAmount: line.baseAmount,
+          description: line.description,
+          baseAmount: String(line.baseAmount), netAmount: String(line.netAmount),
+          taxAmount: String(line.taxAmount), grossAmount: String(line.grossAmount),
+          vatTreatment: line.vatTreatment, vatRate: String(line.vatRate),
+          vatTreatmentVersion: line.vatTreatmentVersion, sortOrder: index,
         })));
       }
       await tx.insert(s.debitNoteLots).values(shipmentIds.map((lotId) => ({

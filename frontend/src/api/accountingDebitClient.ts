@@ -53,19 +53,13 @@ export async function sendRateAdjustmentRequests(body: {
   shipmentIds: number[];
   ghiChu?: string;
 }): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
-  return api.post('/accounting/debit-board/rate-adjustments', body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+  return api.post('/accounting/debit-board/rate-adjustments', body);
 }
 
 export async function confirmRateAdjustments(requestIds: number[]): Promise<{ confirmed: number }> {
-  return api.post('/accounting/debit-board/rate-adjustments/confirm', { requestIds }, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+  return api.post('/accounting/debit-board/rate-adjustments/confirm', { requestIds });
 }
 
 export async function withdrawRateAdjustments(requestIds: number[]): Promise<{ withdrawn: number }> {
-  return api.post('/accounting/debit-board/rate-adjustments/withdraw', { requestIds }, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
+  return api.post('/accounting/debit-board/rate-adjustments/withdraw', { requestIds });
 }

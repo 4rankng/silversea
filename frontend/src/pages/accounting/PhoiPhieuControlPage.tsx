@@ -187,7 +187,7 @@ export default function PhoiPhieuControlPage() {
           options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} wrapperClassName="phoi-phieu-filter" />
         <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
           options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} wrapperClassName="phoi-phieu-filter" />
-        <button type="button" className="btn-primary" disabled={issuing || selected.size === 0} onClick={() => void issueVoucher()}>
+        <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} onClick={() => void issueVoucher()}>
           {issuing ? 'Đang lập…' : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selected.size} dòng)`}
         </button>
       </div>
@@ -220,9 +220,9 @@ export default function PhoiPhieuControlPage() {
                 <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
                 <td>
                   Phải thu: {money(row.chiHoThu)}<br />Phải trả: {money(row.chiHoTra)}
-                  <button type="button" className="btn-secondary btn--sm" onClick={() => setChiHoTripId(row.tripId)}>Xem chi tiết</button>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setChiHoTripId(row.tripId)}>Xem chi tiết</button>
                 </td>
-                <td>{money(row.tienDuong)}<button type="button" className="btn-secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button></td>
+                <td>{money(row.tienDuong)}<button type="button" className="btn btn--secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button></td>
                 <td>{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
                 <td>{formatDate(row.departureDate)}</td>
                 <td>{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>

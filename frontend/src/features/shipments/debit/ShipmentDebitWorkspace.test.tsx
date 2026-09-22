@@ -84,6 +84,64 @@ beforeEach(() => {
 });
 
 describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
+  it('replays the same added-fee command after its committed response is lost', async () => {
+    getDetail.mockResolvedValue(detail());
+    const committed = new Map<string, unknown>();
+    saveEdits.mockImplementation(async (_id, body, key) => {
+      if (!committed.has(key)) committed.set(key, body.addOtherFees);
+      if (saveEdits.mock.calls.length === 1) throw new Error('Response lost after commit');
+    });
+    const { onSaved } = renderWorkspace();
+    await screen.findByText('Bảng 2.1 — Cước vận tải');
+    fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
+    fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
+    fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await screen.findByText('Không lưu được — thử lại.');
+    expect((screen.getByLabelText('Tên phí mới CONT-001') as HTMLInputElement).value).toBe('Phí rửa container');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(saveEdits).toHaveBeenCalledTimes(2);
+    expect(saveEdits.mock.calls[1][2]).toBe(saveEdits.mock.calls[0][2]);
+    expect(committed.size).toBe(1);
+    expect([...committed.values()]).toEqual([[{ tripId: 601, name: 'Phí rửa container', amount: 150000 }]]);
+  });
+
+  it('starts a new command after a changed draft or a successful save', async () => {
+    getDetail.mockResolvedValue(detail());
+    saveEdits.mockRejectedValueOnce(new Error('Temporary outage'));
+    const { onSaved } = renderWorkspace();
+    const input = await screen.findByLabelText('PS thực tế CONT-001');
+    fireEvent.change(input, { target: { value: '100000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await screen.findByText('Không lưu được — thử lại.');
+    fireEvent.change(input, { target: { value: '125000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(saveEdits.mock.calls[1][2]).not.toBe(saveEdits.mock.calls[0][2]);
+    expect(saveEdits.mock.calls[1][1].freightEdits[0].psActual).toBe(125000);
+    fireEvent.change(input, { target: { value: '125000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(2));
+    expect(saveEdits.mock.calls[2][2]).not.toBe(saveEdits.mock.calls[1][2]);
+  });
+
+  it('serializes a pending save and freezes its inputs', async () => {
+    getDetail.mockResolvedValue(detail());
+    let finish!: () => void;
+    saveEdits.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const { onSaved } = renderWorkspace();
+    const input = await screen.findByLabelText('PS thực tế CONT-001');
+    fireEvent.change(input, { target: { value: '100000' } });
+    const saveButton = screen.getByRole('button', { name: 'Lưu điều chỉnh' });
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(saveEdits).toHaveBeenCalledTimes(1));
+    expect((input as HTMLInputElement).disabled).toBe(true);
+    finish();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  });
+
   it('renders Bảng 2.1 with the drawing column contract keyed by container', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();

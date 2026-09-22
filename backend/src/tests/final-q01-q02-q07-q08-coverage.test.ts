@@ -19,7 +19,7 @@ import configRoutes from '../routes/config';
 import financialRoutes from '../routes/financial';
 import { appSettingsRouter } from '../routes/app-settings';
 import { disconnectRedis } from '../lib/redis';
-import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import { getAppSettings } from '../services/app-settings.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
@@ -40,11 +40,12 @@ let scopedCustomerId = 0;
 let server: http.Server;
 let baseUrl = '';
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+const policyKeys = ['credit.warning_threshold_default', 'credit.tier_one_amount_cap', 'salary.payroll_business_unit_id'];
+let originalPolicyRows: Array<typeof s.appSettings.$inferSelect> = [];
 // The test seeds its own ACTIVE business unit (criterion 5, 20260917_10): the
 // environment's stored salary.payroll_business_unit_id may be an orphan the
 // validator rejects, so every settings write here substitutes this id. The
-// after() restore also substitutes it — restoring the captured orphan verbatim
-// would fail validation and leave the run's values behind.
+// teardown restores the exact original rows before deleting this test unit.
 let seededBusinessUnitId: number;
 let seededPayrollDriverRowId: number;
 
@@ -196,6 +197,7 @@ async function mkLedgerRow(customerId: number, debit: number) {
 before(async () => {
   await initEnforcer();
   originalSettings = await getAppSettings();
+  originalPolicyRows = await db.select().from(s.appSettings).where(inArray(s.appSettings.key, policyKeys)).orderBy(s.appSettings.key);
   // Criterion 5 (20260917_10): never round-trip the environment's stored
   // payroll-unit reference — it may be an orphan. Seed a valid ACTIVE unit
   // and write that id in every settings mutation below.
@@ -252,23 +254,18 @@ before(async () => {
 });
 
 after(async () => {
-  // Restoring the captured settings can legitimately fail (the Q01 red is
-  // rooted in an orphaned salary.payroll_business_unit_id in the environment).
-  // The teardown must survive that: an open HTTP server handle wedges the
-  // whole in-process tsx run, and a throw here used to skip server.close
-  // entirely (20260917_17).
+  // Fixture restoration must not validate or rewrite the caller's policy.
+  // Persisting our temporary payroll unit here then deleting it poisons every
+  // later suite. Restore exact rows (including absence) before owned cleanup.
+  let restoreFailure: unknown;
   try {
-    await saveAppSettings({
-      ...originalSettings,
-      // Restoring the captured orphan verbatim fails validation (20260917_10);
-      // the seeded ACTIVE unit is the closest writable approximation and
-      // leaves the environment with a VALID payroll-unit reference instead of
-      // the orphan id 354. Lead's criterion-3 policy decision still governs
-      // any broader orphan cleanup.
-      salaryPayrollBusinessUnitId: seededBusinessUnitId,
+    await db.transaction(async (tx) => {
+      await tx.delete(s.appSettings).where(inArray(s.appSettings.key, policyKeys));
+      if (originalPolicyRows.length) await tx.insert(s.appSettings).values(originalPolicyRows);
     });
+    assert.deepEqual(await db.select().from(s.appSettings).where(inArray(s.appSettings.key, policyKeys)).orderBy(s.appSettings.key), originalPolicyRows);
   } catch (error) {
-    console.error('[final-q01-coverage] settings restore failed in after():', error);
+    restoreFailure = error;
   }
   try {
     server.closeAllConnections();
@@ -326,6 +323,7 @@ after(async () => {
     // ending it here kills the database for every file that runs after this
     // one (20260917_17). The process teardown reclaims the sockets.
   }
+  if (restoreFailure) throw restoreFailure;
 });
 
 describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {

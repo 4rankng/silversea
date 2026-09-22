@@ -389,7 +389,7 @@ describe('2026-09-19 ruling — the lock freezes the 2.3 composition', () => {
     const payablesBefore = (before.body as { payables: Record<string, unknown> }).payables;
     assert.deepEqual(
       Object.keys(payablesBefore).sort(),
-      ['chiHoTotal', 'externalFreightCost', 'hqgsFee', 'opsExpenseTotal', 'payableTotal', 'phatSinhFee', 'unclassifiedFee'],
+      ['chiHoTotal', 'externalFreightCost', 'hqgsCommonFee', 'hqgsFee', 'opsExpenseTotal', 'payableTotal', 'phatSinhCommonFee', 'phatSinhFee', 'unclassifiedFee'],
       'structural keys only — no place-named field exists on the wire (freeze ruling)',
     );
     assert.equal(payablesBefore['externalFreightCost'], 600000);

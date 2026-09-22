@@ -11,7 +11,7 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { homeForRole, routes } from './lib/routes';
-import { canReadShipmentRoutes } from './lib/role-access';
+import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
 import { getModernRole } from './lib/role-helpers';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
@@ -217,6 +217,9 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
+  const shipmentDebitReaderOnly = (el: ReactElement) => (
+    canReadShipmentDebitRoutes(currentRole) ? el : <Navigate to={homeRedirect} replace />
+  );
   const financeReaderOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
@@ -319,7 +322,7 @@ export function AppRoutes() {
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
-          <Route path="/shipments-debit" element={shipmentReaderOnly(page(<ShipmentDebitPage />))} />
+          <Route path="/shipments-debit" element={shipmentDebitReaderOnly(page(<ShipmentDebitPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />

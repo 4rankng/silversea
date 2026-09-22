@@ -5,12 +5,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
+  listShipmentEventsMock: vi.fn(),
 }));
 
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDetail: getShipmentDetailMock,
+}));
+
+vi.mock('../api/customerServiceFinanceClient', () => ({
+  customerServiceFinanceClient: { listShipmentEvents: listShipmentEventsMock },
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -89,6 +94,32 @@ describe('ShipmentDetailPage', () => {
   beforeEach(() => {
     getShipmentDetailMock.mockReset();
     getShipmentDetailMock.mockResolvedValue(detail);
+    listShipmentEventsMock.mockResolvedValue({ items: [] });
+  });
+
+  it('uses padded Vietnam business datetimes in details and lock metadata', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      shipment: { ...detail.shipment, createdAt: '2026-09-01T18:04:59.000Z' },
+    });
+    listShipmentEventsMock.mockResolvedValue({ items: [{
+      id: 21, eventType: 'DOCUMENT_UPDATE', title: 'Đã cập nhật chứng từ',
+      message: 'Đã nhận tờ khai', occurredAt: '2026-09-01T18:05:59.000Z', version: 1,
+    }] });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('01:04 02/09/2026')).toBeTruthy();
+    expect(await screen.findByText('01:05 02/09/2026')).toBeTruthy();
+    expect(screen.getByText(/Khóa lô do CUS/).textContent).toContain('09:00 11/08/2026');
+    expect(screen.getByText('Cut-off hải quan').nextElementSibling?.textContent).toBe('—');
   });
 
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {

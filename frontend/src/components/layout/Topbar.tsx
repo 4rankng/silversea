@@ -147,7 +147,7 @@ function DriverIdentity({ name }: { name: string | null }) {
   return (
     <div className="topbar__welcome">
       <div className="topbar__welcome-idline">
-        <span className="name">{name}</span>
+        <span className="name" title={name ?? undefined}>{name}</span>
         {vehicle?.truckPlate && (
           <span className="topbar__plate" title="Biển số xe đang điều phối">
             <Truck size={12} aria-hidden="true" />

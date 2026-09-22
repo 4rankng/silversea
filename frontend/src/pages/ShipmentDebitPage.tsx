@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { canManageShipmentDebit } from '../lib/role-access';
 import { useQuery } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { tripClient } from '../api/tripClient';
@@ -47,9 +49,10 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
  *  wire field — null stays "Chưa xác định", never derived, never 0. */
 function DebitLotRow({
-  row, expanded, onToggle, onSaved, selected, onSelect,
+  row, expanded, onToggle, onSaved, selected, onSelect, canManage,
 }: {
   row: ShipmentDebitLotRow;
+  canManage: boolean;
   expanded: boolean;
   onToggle: () => void;
   onSaved: () => void;
@@ -65,10 +68,10 @@ function DebitLotRow({
       className="shipment-debit-row"
       data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
       data-selected={selected || undefined}
-      onClick={() => { if (row.lockStatus === 'LOCKED') onSelect(row.shipmentId, !selected); }}
+      onClick={() => { if (canManage && row.lockStatus === 'LOCKED') onSelect(row.shipmentId, !selected); }}
     >
       <td className="shipment-debit-row__lead">
-        <button
+        {canManage ? <button
           type="button"
           className="shipment-debit-row__expand-button"
           aria-expanded={expanded}
@@ -76,7 +79,7 @@ function DebitLotRow({
           onClick={(event) => { event.stopPropagation(); onToggle(); }}
         >
           {expanded ? '−' : '+'}
-        </button>
+        </button> : <span aria-label="Chỉ xem tổng hợp">—</span>}
       </td>
       <td className="shipment-debit-row__identity">
         <span className="shipment-debit-row__code">{lotLabel}</span>
@@ -99,7 +102,7 @@ function DebitLotRow({
           : <span className="shipment-debit-row__lock shipment-debit-row__lock--open"><Unlock size={13} aria-hidden="true" />Đang mở</span>}
       </td>
     </tr>
-      {expanded && (
+      {canManage && expanded && (
         <tr className="shipment-debit-expand">
           <td colSpan={9}>
             <ShipmentDebitWorkspace shipmentId={row.shipmentId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
@@ -111,6 +114,8 @@ function DebitLotRow({
 }
 
 export function ShipmentDebitPage() {
+  const { user } = useAuth();
+  const canManage = canManageShipmentDebit(user?.role);
   const [params, setSearchParams] = useQueuedSearchParams();
   const updateParam = (key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -138,7 +143,7 @@ export function ShipmentDebitPage() {
     const ids = items
       .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
       .map((row) => row.shipmentId);
-    if (ids.length === 0 || issuing) return;
+    if (!canManage || ids.length === 0 || issuing) return;
     setIssuing(true);
     try {
       const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
@@ -213,6 +218,7 @@ export function ShipmentDebitPage() {
     <div className="shipment-debit-page data-workspace">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi phí - Quyết toán' }]} />
       <PageHeader title="Chi phí - Quyết toán" iconName="cargo" description="Tổng hợp doanh thu - chi phí theo lô để quyết toán với khách hàng." />
+      {!canManage && <Alert variant="info">Chế độ chỉ xem tổng hợp. Tài khoản này không có quyền mở chi tiết hoặc xuất Debit Note.</Alert>}
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
@@ -242,13 +248,13 @@ export function ShipmentDebitPage() {
               options={LOCK_FILTERS}
               onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
             />
-            {/* Disabled until at least one LOCKED lot is ticked — and with the
-                brand fill stripped while disabled (page CSS) so it can never
-                read as the live action with nothing selected (card
-                20260922_31). */}
-            <UUIButton size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
+            {/* Hidden without manage rights; disabled until at least one LOCKED
+                lot is ticked — and with the brand fill stripped while disabled
+                (page CSS) so it can never read as the live action with nothing
+                selected (card 20260922_31). */}
+            {canManage && <UUIButton size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
               Xuất Debit Note
-            </UUIButton>
+            </UUIButton>}
           </div>
         </div>
         {customerId === '' ? (
@@ -262,7 +268,7 @@ export function ShipmentDebitPage() {
             <table className="shipment-debit-table">
               <thead>
                 <tr>
-                  <th scope="col" className="shipment-debit-col--lead"><span className="sr-only">Chọn và mở rộng</span></th>
+                  <th scope="col" className="shipment-debit-col--lead"><span className="sr-only">{canManage ? 'Chọn và mở rộng' : 'Chỉ xem'}</span></th>
                   <th scope="col" className="shipment-debit-col--text">THÔNG TIN LÔ HÀNG</th>
                   <th scope="col" className="shipment-debit-col--docs">Chứng từ</th>
                   <th scope="col" className="shipment-debit-col--money shipment-debit-col--freight">CƯỚC VẬN TẢI (Auto)</th>
@@ -278,7 +284,8 @@ export function ShipmentDebitPage() {
                   <DebitLotRow
                     key={row.shipmentId}
                     row={row}
-                    expanded={expandedId === row.shipmentId}
+                    canManage={canManage}
+                    expanded={canManage && expandedId === row.shipmentId}
                     onToggle={() => toggleExpandedLot(row.shipmentId)}
                     onSaved={() => summary.refetch()}
                     selected={selectedIds.has(row.shipmentId)}

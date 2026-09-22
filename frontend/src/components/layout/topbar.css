@@ -56,7 +56,7 @@
 .topbar__left-driver {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -73,7 +73,9 @@
   font-weight: var(--fw-bold);
   color: var(--ink);
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Name on top, plate chip as a subtitle below it — a fixed two-line stack
@@ -82,6 +84,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  max-width: 100%;
   gap: 3px;
   min-width: 0;
 }

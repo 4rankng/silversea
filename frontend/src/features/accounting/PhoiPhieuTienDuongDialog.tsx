@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
@@ -19,6 +19,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   });
   const [confirming, setConfirming] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const confirmLock = useRef(false);
 
   const rows = detail.data?.rows ?? [];
   const totals = detail.data?.totals;
@@ -32,16 +33,18 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   );
 
   async function tickConfirm(row: (typeof rows)[number]) {
+    if (confirmLock.current || detail.isFetching) return;
+    confirmLock.current = true;
     setConfirming(row.sourceId);
     setError('');
     try {
-      await confirmPhoiPhieuTienDuong(tripId, row.sourceId, 1);
+      await confirmPhoiPhieuTienDuong(tripId, row.sourceId, row.version);
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) });
       onSaved();
     } catch (confirmError) {
       setError(confirmError instanceof Error ? confirmError.message : 'Không xác nhận được khoản.');
     } finally {
-      setConfirming(row.sourceId === null ? null : row.sourceId);
+      confirmLock.current = false;
       setConfirming(null);
     }
   }
@@ -54,33 +57,34 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
       </header>
       <div className="ops-modal__body">
         {detail.isLoading && <p>Đang tải…</p>}
-        {error && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error}</p>}
+        {(error || detail.isError) && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error || detail.error?.message} <button type="button" className="btn btn--secondary btn--sm" disabled={confirming !== null || detail.isFetching} onClick={() => void detail.refetch().then(result => { if (!result.isError) setError(''); })}>Tải lại khoản chi</button></p>}
         {detail.data && (
           <>
             <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)' }}>
               <thead><tr>
-                <th>STT</th><th>Khoản lái xe nhập</th><th>Ngày</th><th>Lái xe</th><th>Láixe nhập (đ)</th><th>Kế toán duyệt</th>
+                <th>STT</th><th>Khoản lái xe nhập</th><th>Ngày</th><th>Lái xe</th><th>Lái xe nhập ban đầu (đ)</th><th>Thực chi hiện tại (đ)</th><th>Kế toán duyệt</th>
               </tr></thead>
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={row.sourceId}>
                     <td>{index + 1}</td>
-                    <td>{DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] ?? row.feeName ?? row.costType}</td>
+                    <td>{row.feeName || DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] || row.costType}</td>
                     <td>{row.occurredAt ?? '—'}</td>
                     <td>{row.driverName ?? '—'}</td>
                     <td>{formatCurrency(row.driverEnteredAmount ?? row.amount)}</td>
+                    <td>{formatCurrency(row.amount)}</td>
                     <td>
                       {row.confirmed
                         ? <span style={{ color: 'var(--ok, #16a34a)', fontWeight: 600 }}>Đã duyệt</span>
-                        : <button type="button" className="btn-primary btn--sm" disabled={confirming === row.sourceId} onClick={() => void tickConfirm(row)}>Tích duyệt</button>}
+                        : <button type="button" className="btn btn--primary btn--sm" disabled={confirming !== null || detail.isFetching} onClick={() => void tickConfirm(row)}>Tích duyệt</button>}
                     </td>
                   </tr>
                 ))}
                 <tr>
                   <td colSpan={4}><strong>TỔNG CỘNG</strong></td>
+                  <td />
                   <td><strong>{totalMoney}</strong></td>
                   <td><strong>{confirmedMoney}</strong></td>
-                  <td />
                 </tr>
               </tbody>
             </table>

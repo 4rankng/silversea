@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adjustShipmentCost,
@@ -31,6 +31,8 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   const [justLocked, setJustLocked] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustReason, setAdjustReason] = useState('');
+  const saveAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const saveInFlight = useRef(false);
 
   const setFreight = (containerNumber: string, patch: Partial<{ psActual: string; note: string }>) => {
     setDraft((current) => {
@@ -52,17 +54,31 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   };
 
   const save = useMutation({
-    mutationFn: () => {
-      const body = detail.data ? buildDelta(detail.data, draft) : {};
-      return saveShipmentDebitEdits(shipmentId, body, crypto.randomUUID());
-    },
+    mutationFn: ({ body, key }: { body: ReturnType<typeof buildDelta>; key: string }) =>
+      saveShipmentDebitEdits(shipmentId, body, key),
     onSuccess: async () => {
+      saveAttempt.current = null;
       setDraft(DRAFT_EMPTY);
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
       onSaved();
     },
+    onSettled: () => { saveInFlight.current = false; },
   });
+
+  function saveDraft() {
+    if (saveInFlight.current || !detail.data) return;
+    const body = buildDelta(detail.data, draft);
+    if (deltaIsEmpty(body)) return;
+    const signature = JSON.stringify([shipmentId, body]);
+    // A missing response may follow a committed write. Replaying an unchanged
+    // command must reuse its key, especially when it adds new expense rows.
+    if (saveAttempt.current?.signature !== signature) {
+      saveAttempt.current = { signature, key: crypto.randomUUID() };
+    }
+    saveInFlight.current = true;
+    save.mutate({ body, key: saveAttempt.current.key });
+  }
 
   const auth = useAuth();
   const role = auth?.user?.role;
@@ -120,7 +136,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
       )}
       {!frozen && delta && !deltaIsEmpty(delta) && (
         <div className="csc-debit-savebar">
-          <button type="button" disabled={save.isPending} onClick={() => save.mutate()}>
+          <button type="button" disabled={save.isPending} onClick={saveDraft}>
             {save.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}
           </button>
           {save.isSuccess && <span className="csc-debit-saved" role="status">Đã lưu</span>}

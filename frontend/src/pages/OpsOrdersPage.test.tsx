@@ -62,6 +62,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    apiPut.mockReset();
     apiUpload.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/orders')) return Promise.resolve(makeItems());
@@ -193,6 +194,31 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => {
       expect(apiPut).toHaveBeenCalledWith('/ops/orders/shipment-pins/22', { pinned: true });
     });
+  });
+
+  it('reports a failed pin, restores the saved state, and allows an explicit retry', async () => {
+    apiPut.mockRejectedValueOnce(new Error('Mất kết nối khi lưu ghim'));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ghim SS-A' }));
+    expect(await screen.findByText('Mất kết nối khi lưu ghim')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ghim SS-A' })).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Ghim SS-A' })).toHaveAttribute('aria-pressed', 'false');
+    apiPut.mockReturnValueOnce(new Promise(() => {}));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghim SS-A' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: 'Bỏ ghim SS-A' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('sends one pin update while the previous action is pending', async () => {
+    apiPut.mockReturnValue(new Promise(() => {}));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ghim SS-A' }));
+    const pending = await screen.findByRole('button', { name: 'Bỏ ghim SS-A' });
+    expect(pending).toBeDisabled();
+    expect(pending).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(pending);
+    fireEvent.click(screen.getByRole('button', { name: 'Ghim SS-B' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
   });
 
   it('opens the expense form with the lô context auto-filled', async () => {

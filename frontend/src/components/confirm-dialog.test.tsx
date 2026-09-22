@@ -1,8 +1,30 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ConfirmDialog } from './confirm-dialog';
+import { ConfirmDialog, useConfirm } from './confirm-dialog';
+
+function ConfirmHarness({ onResult }: { onResult: (value: boolean) => void }) {
+  const { confirm, dialog } = useConfirm();
+  return <><button onClick={async () => onResult(await confirm('Lưu chính sách?', { confirmLabel: 'Lưu' }))}>Mở xác nhận</button>{dialog}</>;
+}
 
 describe('confirmation keyboard actions', () => {
+  it('restores focus after Escape, Cancel and Confirm and resolves each reopened prompt once', async () => {
+    const onResult = vi.fn();
+    render(<ConfirmHarness onResult={onResult} />);
+    const trigger = screen.getByRole('button', { name: 'Mở xác nhận' });
+    for (const [index, action] of ['Escape', 'Hủy', 'Lưu'].entries()) {
+      trigger.focus();
+      fireEvent.click(trigger);
+      await screen.findByRole('dialog');
+      if (action === 'Escape') fireEvent.keyDown(window, { key: 'Escape' });
+      else fireEvent.click(screen.getByRole('button', { name: action }));
+      await waitFor(() => expect(trigger).toHaveFocus());
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(onResult).toHaveBeenCalledTimes(index + 1);
+      expect(onResult).toHaveBeenLastCalledWith(action === 'Lưu');
+    }
+  });
+
   it('activates Cancel with Enter without also confirming the destructive action', async () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();

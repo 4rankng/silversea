@@ -27,3 +27,20 @@ it('sends explicit toll treatment independently of the edited fee name and prese
   expect(create.mock.calls[0][0]).toMatchObject({ tripId: 10, costGroup: 'DRIVER_ROAD', driverCostType: 'TOLL', expenseTypeCode: 'TOLL', feeName: 'Vé qua trạm', amount: 80000, customerChargeAmount: 0, payerKind: 'COMPANY' });
   expect(create.mock.calls[1][1]).toBe(create.mock.calls[0][1]);
 });
+it('OPS context requires a selected configured payer and preserves separate cost and charge', async () => {
+  const onClose = vi.fn(); const onSaved = vi.fn();
+  const opsCatalog = { ...catalog, expenseTypes: [{ code: 'OTHER', name: 'Configured fee' }], opsUsers: [{ id: 15, name: 'Assigned OPS' }], staff: [{ id: 16, name: 'Driver' }] };
+  render(<QueryClientProvider client={new QueryClient()}><ExpenseCreateDrawer work={work} catalog={opsCatalog} initialGroup="OPS_INCIDENTAL" entryScope="OPS" onClose={onClose} onSaved={onSaved} /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: /Loại phí/ })); fireEvent.click(await screen.findByRole('option', { name: 'Configured fee' }));
+  fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '1000' } });
+  fireEvent.change(screen.getByLabelText(/Thực thu/), { target: { value: '7000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu khoản chi' }));
+  expect(create).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: /Người thực chi/ }));
+  expect(screen.queryByRole('option', { name: 'Driver' })).not.toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('option', { name: 'Assigned OPS' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu khoản chi' }));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(create.mock.calls[0][0]).toMatchObject({ tripId: 10, costGroup: 'OPS_INCIDENTAL', expenseTypeCode: 'OTHER', amount: 1000, customerChargeAmount: 7000, payerKind: 'USER', payerUserId: 15 });
+  expect(onSaved).toHaveBeenCalledTimes(1); expect(onClose).toHaveBeenCalledTimes(1);
+});

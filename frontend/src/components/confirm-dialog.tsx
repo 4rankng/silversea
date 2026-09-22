@@ -76,15 +76,21 @@ interface ConfirmOptions {
 }
 
 interface ConfirmState extends ConfirmOptions {
+  isOpen: boolean;
   message: string;
   resolve: (value: boolean) => void;
 }
 
 export function useConfirm() {
   const [state, setState] = useState<ConfirmState | null>(null);
-  const confirm = (message: string, options?: ConfirmOptions): Promise<boolean> => new Promise((resolve) => setState({ message, resolve, ...options }));
-  const handleConfirm = () => { state?.resolve(true); setState(null); };
-  const handleCancel = () => { state?.resolve(false); setState(null); };
-  const dialog = state ? <ConfirmDialog isOpen message={state.message} confirmLabel={state.confirmLabel} cancelLabel={state.cancelLabel} variant={state.variant} onConfirm={handleConfirm} onCancel={handleCancel} /> : null;
+  const confirm = (message: string, options?: ConfirmOptions): Promise<boolean> => new Promise((resolve) => setState({ message, resolve, ...options, isOpen: true }));
+  const settle = (value: boolean) => {
+    if (!state?.isOpen) return;
+    state.resolve(value);
+    setState({ ...state, isOpen: false });
+  };
+  // Let the shared overlay finish closing and restore its trigger's focus.
+  // Retain the message/options so they do not disappear during the exit.
+  const dialog = state ? <ConfirmDialog isOpen={state.isOpen} message={state.message} confirmLabel={state.confirmLabel} cancelLabel={state.cancelLabel} variant={state.variant} onConfirm={() => settle(true)} onCancel={() => settle(false)} /> : null;
   return { confirm, dialog };
 }

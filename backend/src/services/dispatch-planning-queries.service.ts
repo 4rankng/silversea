@@ -463,11 +463,11 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
 }
 
 /**
- * Set-based Lạch Huyện D-1/D+1 own-truck suggestions for the fleet picker.
+ * Set-based zone D-1/D+1 own-truck suggestions for the fleet picker.
  *
  * For an authorized target fulfillment on date D (shipment expected delivery
- * date, Asia/Ho_Chi_Minh): a truck whose planned work includes an LH dropoff
- * on D-1 gets `D-1_DROP`; an LH pickup on D+1 gets `D+1_PICKUP`. Evidence
+ * date, Asia/Ho_Chi_Minh): a truck whose planned work includes a same-zone dropoff
+ * on D-1 gets `D-1_DROP`; a same-zone pickup on D+1 gets `D+1_PICKUP`. Evidence
  * comes from active planned fulfillments (non-canceled, non-deleted) joined to
  * zoned ports via containers, matched to owned trucks by normalized plate —
  * the fulfillment stores a plate snapshot, not a truck id. Prefer the live
@@ -529,7 +529,7 @@ export async function buildZoneTruckSuggestions(tx: Tx, args: {
   const evidence = await tx.select({
     truckId: s.trucks.id,
     plateNumber: s.trucks.licensePlate,
-    // Whether the JOINED LH port is the container's dropoff (vs pickup) —
+    // Whether the joined zone port is the container's dropoff (vs pickup) —
     // with an OR port join this distinguishes which side matched.
     isDropoff: sql<boolean>`(${s.shipmentContainers.dropoffPortId} = ${s.ports.id})`,
     workDate: workDateSql,
@@ -571,9 +571,9 @@ export async function buildZoneTruckSuggestions(tx: Tx, args: {
   for (const row of evidence) {
     const workDay = String(row.workDate).slice(0, 10);
     let reason: 'D-1_DROP' | 'D+1_PICKUP' | null = null;
-    // Dropoff at LH on D-1 → the truck is near LH the day before.
+    // Dropoff in the zone on D-1 → the truck is nearby the day before.
     if (row.isDropoff && workDay === dayBefore) reason = 'D-1_DROP';
-    // Pickup from LH on D+1 → the truck must be at LH the day after.
+    // Pickup in the zone on D+1 → the truck must be there the day after.
     if (!row.isDropoff && workDay === dayAfter) reason = 'D+1_PICKUP';
     if (reason == null) continue;
     // Search applies to suggestions too — plate must match the typed query.

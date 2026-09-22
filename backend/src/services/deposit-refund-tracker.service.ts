@@ -2,9 +2,8 @@ import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';
-import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { ApiError } from '../errors';
-import { expenseDateSchema, TxnType } from '@tingting/shared';
+import { expenseDateSchema, expenseVndSchema, TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
@@ -34,7 +33,7 @@ function addDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** The ACTIVE COMPANY (ACB) treasury account — the deposit refunds land here.
+/** The active configured company treasury account receives deposit refunds.
  *  None configured → loud 409: money never posts to a guessed account. */
 async function resolveCompanyAccount(tx: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]) {
   const [account] = await tx.select().from(s.treasuryAccounts)
@@ -44,7 +43,7 @@ async function resolveCompanyAccount(tx: typeof db | Parameters<Parameters<typeo
     ))
     .orderBy(asc(s.treasuryAccounts.id))
     .limit(1);
-  if (!account) throw new ApiError(409, 'Chưa có tài khoản quỹ công ty (ACB) đang hoạt động — không thể ghi nhận thu hoàn cược.');
+  if (!account) throw new ApiError(409, 'Chưa có tài khoản quỹ công ty đang hoạt động — không thể ghi nhận thu hoàn cược.');
   return account;
 }
 
@@ -105,7 +104,7 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
 }, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
   const amount = Number(input.depositAmount);
-  if (!Number.isSafeInteger(amount) || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
+  if (!expenseVndSchema.safeParse(amount).success || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
   const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : (cvDate ? addDays(cvDate, 14) : null);
   const [row] = await conn.insert(s.depositRefundTrackers).values({
@@ -124,25 +123,33 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
 /** KT fills/edits the CV date; the expected refund date defaults to CV + 14
  *  days server-side and stays editable afterwards. */
 export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: number, input: {
-  cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
-}, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+  cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
+}, conn?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
-  const [row] = await conn.select().from(s.depositRefundTrackers)
-    .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1);
-  if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
-  if (row.status === 'DA_HOAN_CUOC') throw new ApiError(409, 'Dòng đã hoàn cược — không thể sửa ngày.');
-  const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : row.cvSubmittedDate;
-  const nextExpected = input.expectedRefundDate
-    ? normalizeDepositDate(input.expectedRefundDate)
-    : (input.cvSubmittedDate && row.expectedRefundDate == null ? addDays(normalizeDepositDate(input.cvSubmittedDate), 14) : row.expectedRefundDate);
-  await conn.update(s.depositRefundTrackers).set({
-    cvSubmittedDate: cvDate,
-    expectedRefundDate: nextExpected,
-    note: input.note !== undefined ? (input.note?.trim() || null) : row.note,
-    updatedAt: new Date(),
-  }).where(eq(s.depositRefundTrackers.id, trackerId));
-  const [fresh] = await conn.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
-  return fresh!;
+  const update = async (tx: Tx) => {
+    const [row] = await tx.select().from(s.depositRefundTrackers)
+      .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1).for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
+    if (row.status === 'DA_HOAN_CUOC') throw new ApiError(409, 'Dòng đã hoàn cược — không thể chỉnh sửa.');
+    const amount = input.depositAmount === undefined ? Number(row.depositAmount) : Number(input.depositAmount);
+    if (input.depositAmount !== undefined && (!expenseVndSchema.safeParse(amount).success || amount <= 0)) {
+      throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
+    }
+    const cvDate = input.cvSubmittedDate === undefined ? row.cvSubmittedDate
+      : input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
+    const defaultExpected = cvDate ? addDays(cvDate, 14) : null;
+    const nextExpected = input.expectedRefundDate === undefined ? row.expectedRefundDate ?? defaultExpected
+      : input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : defaultExpected;
+    const [fresh] = await tx.update(s.depositRefundTrackers).set({
+      depositAmount: String(amount),
+      cvSubmittedDate: cvDate,
+      expectedRefundDate: nextExpected,
+      note: input.note !== undefined ? (input.note?.trim() || null) : row.note,
+      updatedAt: new Date(),
+    }).where(eq(s.depositRefundTrackers.id, trackerId)).returning();
+    return fresh!;
+  };
+  return conn ? update(conn) : db.transaction(update);
 }
 
 /** Auto-create from the intake tick ("có cược"): the tracker row lands with
@@ -152,16 +159,17 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
 export async function recordDepositFromIntake(input: {
   shipmentId: number; customerName: string; carrierName: string; billNumber: string; expectedAmount?: number | string | null;
 }, conn: typeof db | Tx = db): Promise<void> {
+  const amount = Number(input.expectedAmount ?? 0);
+  if (!expenseVndSchema.safeParse(amount).success) throw new ApiError(400, 'Tiền cược dự kiến không hợp lệ.');
   const [existing] = await conn.select({ id: s.depositRefundTrackers.id })
     .from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.shipmentId, input.shipmentId)).limit(1);
   if (existing) return;
-  const amount = Number(input.expectedAmount ?? 0);
   const [row] = await conn.insert(s.depositRefundTrackers).values({
     shipmentId: input.shipmentId,
     billNumber: input.billNumber.trim(),
     customerName: input.customerName.trim(),
     carrierName: input.carrierName.trim(),
-    depositAmount: String(Number.isSafeInteger(amount) && amount > 0 ? amount : 0),
+    depositAmount: String(amount),
   }).returning();
   if (Number(row.depositAmount) === 0) {
     await conn.update(s.depositRefundTrackers).set({ depositAmount: '0' }).where(eq(s.depositRefundTrackers.id, row.id));
@@ -169,17 +177,23 @@ export async function recordDepositFromIntake(input: {
 }
 
 /** The ĐÃ-hoan-cuoc tick: one tx — re-checks the status, posts the collection
- *  into the COMPANY (ACB) fund through the standing treasury engine (ledger
+ *  into the configured company fund through the standing treasury engine (ledger
  *  entry + one IN movement, exactly-linked sources), stamps the row. Re-tick
  *  is rejected loudly; the movement id guards double posts across lanes. */
-export async function markDepositRefunded(actor: ExpenseActor, trackerId: number, outer?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+export async function markDepositRefunded(actor: ExpenseActor, trackerId: number, conn?: Tx, expectedDepositAmount?: number): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
-  const run = async (tx: Tx) => {
+  if (expectedDepositAmount !== undefined && (!expenseVndSchema.safeParse(expectedDepositAmount).success || expectedDepositAmount <= 0)) {
+    throw new ApiError(400, 'Số tiền xác nhận hoàn cược phải là số nguyên dương.');
+  }
+  const refund = async (tx: Tx) => {
     const [row] = await tx.select().from(s.depositRefundTrackers)
       .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1).for('update');
     if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
     if (row.status === 'DA_HOAN_CUOC' || row.refundPostedMovementId != null) {
       throw new ApiError(409, 'Dòng này đã ghi nhận hoàn cược — không thể tích lại.');
+    }
+    if (expectedDepositAmount !== undefined && Number(row.depositAmount) !== expectedDepositAmount) {
+      throw new ApiError(409, 'Số tiền cược đã thay đổi. Tải lại và xác nhận số tiền mới.');
     }
     if (Number(row.depositAmount) <= 0) throw new ApiError(409, 'Chưa có số tiền cược — điền số tiền trước khi ghi nhận đã hoàn cược.');
     const account = await resolveCompanyAccount(tx);
@@ -214,5 +228,5 @@ export async function markDepositRefunded(actor: ExpenseActor, trackerId: number
     const [fresh] = await tx.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
     return fresh!;
   };
-  return outer ? run(outer) : db.transaction(run);
+  return conn ? refund(conn) : db.transaction(refund);
 }

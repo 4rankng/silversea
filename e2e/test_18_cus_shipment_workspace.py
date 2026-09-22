@@ -611,7 +611,7 @@ def main() -> bool:
             # the 5-state vocabulary; AWAITING_VEHICLE is the new "no vehicle
             # on the line yet" state, the closest equivalent to UNASSIGNED.
             status_field = page.locator(".shipments-detail-filter").filter(
-                has=page.get_by_text("Trạng thái", exact=True),
+                has=page.get_by_text("Trạng thái điều xe", exact=True),
             ).first
             status_trigger = status_field.locator("button, [data-rac][role='group']").first
             with page.expect_response(

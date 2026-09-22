@@ -82,12 +82,12 @@ describe('MasterPlanFilters', () => {
     expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.master-plan-filters__facet-trigger\s*\{[\s\S]*?height:\s*var\(--control-mobile-h\);/);
   });
 
-  it('temporarily hides the Lạch Huyện and Hải Phòng port facets while preserving other zones', async () => {
+  it('uses configured visibility for legacy port facets while preserving other zones', async () => {
     vi.mocked(configClient.getDispatchZones).mockResolvedValue({
       items: [
-        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
-        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
-        { code: 'HAI_PHONG_NFD', label: NFD_PORT_LABEL, sortOrder: 30 },
+        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, showPortFacet: false },
+        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, showPortFacet: false },
+        { code: 'HAI_PHONG_NFD', label: NFD_PORT_LABEL, sortOrder: 30, showPortFacet: false },
         { code: 'QUANG_NINH', label: 'Quảng Ninh', sortOrder: 40 },
       ],
     });
@@ -111,4 +111,25 @@ describe('MasterPlanFilters', () => {
     expect(within(drawer).queryByRole('button', { name: 'Cảng Hải Phòng' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: NFD_PORT_LABEL })).toBeNull();
   });
+  it('keeps custom hidden zones hidden after renaming and shows a legacy label when configured', async () => {
+    const items = [
+      { code: 'ZONE_HIDDEN', label: 'Khu vực kiểm thử', sortOrder: 10, showPortFacet: false },
+      { code: 'ZONE_VISIBLE', label: 'Lạch Huyện', sortOrder: 20, showPortFacet: true },
+      { code: 'ZONE_DEFAULT', label: 'Mới', sortOrder: 30 },
+    ];
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items });
+    const first = render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cảng Mới' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cảng Khu vực kiểm thử' })).toBeNull();
+    first.unmount();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: items.map(zone => zone.code === 'ZONE_HIDDEN' ? { ...zone, label: 'Đã đổi tên' } : zone) });
+    render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
+    const drawer = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+    expect(within(drawer).queryByRole('button', { name: 'Cảng Đã đổi tên' })).toBeNull();
+    expect(within(drawer).getByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
+  });
+
 });

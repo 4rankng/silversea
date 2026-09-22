@@ -26,15 +26,15 @@ export async function listInvoiceTracking(from: string, to: string): Promise<Inv
   return api.get<InvoiceTrackingListResponse>(`/accounting/invoice-tracking?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 }
 
-export async function createInvoiceTracking(body: InvoiceTrackingCreateInput): Promise<InvoiceTrackingRow> {
+export async function createInvoiceTracking(body: InvoiceTrackingCreateInput, idempotencyKey: string = crypto.randomUUID()): Promise<InvoiceTrackingRow> {
   return api.post<InvoiceTrackingRow>('/accounting/invoice-tracking', body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
 
-export async function updateInvoiceTracking(id: number, body: InvoiceTrackingPatchInput): Promise<InvoiceTrackingRow> {
+export async function updateInvoiceTracking(id: number, body: InvoiceTrackingPatchInput, idempotencyKey: string = crypto.randomUUID()): Promise<InvoiceTrackingRow> {
   return api.patch<InvoiceTrackingRow>(`/accounting/invoice-tracking/${id}`, body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
 

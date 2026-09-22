@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getBootstrap, listSummary, getDetail, createBatch, exportFile } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listSummary: vi.fn(), getDetail: vi.fn(), createBatch: vi.fn(), exportFile: vi.fn() }));
+const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
 vi.mock('../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../api/shipmentClient')>(),
@@ -55,6 +57,8 @@ const row = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
 });
 
 beforeEach(() => {
+  authRole.value = 'CUS';
+  sessionStorage.clear();
   getBootstrap.mockReset();
   listSummary.mockReset();
   getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }] });
@@ -67,6 +71,21 @@ beforeEach(() => {
 });
 
 describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
+  it('keeps manager summaries read-only even with a restored expanded lot', async () => {
+    authRole.value = 'MANAGER';
+    listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
+    sessionStorage.setItem('shipment-debit.expanded-lot', '101');
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    expect(screen.getByText(/Chế độ chỉ xem tổng hợp/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Mở chi tiết|Đóng chi tiết/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xuất Debit Note' })).toBeNull();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    expect(getDetail).not.toHaveBeenCalled();
+    expect(createBatch).not.toHaveBeenCalled();
+    sessionStorage.removeItem('shipment-debit.expanded-lot');
+  });
+
   it('requires the customer pick before any list fetch happens', async () => {
     const { container } = renderPage();
     expect(await screen.findByText('Chưa chọn khách hàng')).toBeTruthy();

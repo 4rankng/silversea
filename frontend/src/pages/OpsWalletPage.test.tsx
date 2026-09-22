@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
 import OpsWalletPage from './OpsWalletPage';
 
-const { apiGet, apiPost, apiPatch } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPatch: vi.fn() }));
+const { apiGet, apiPost, apiPatch, apiDelete } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPatch: vi.fn(), apiDelete: vi.fn() }));
 vi.mock('../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/api')>(),
-  api: { get: apiGet, post: apiPost, patch: apiPatch, delete: vi.fn(), upload: vi.fn() },
+  api: { get: apiGet, post: apiPost, patch: apiPatch, delete: apiDelete, upload: vi.fn() },
 }));
 
 function renderPage() {
@@ -38,6 +38,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     apiGet.mockReset();
     apiPost.mockReset();
     apiPatch.mockReset();
+    apiDelete.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/wallet/summary')) {
         return Promise.resolve({
@@ -52,12 +53,50 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     });
   });
 
+  it('explains a failed removal and preserves the expense for retry', async () => {
+    apiDelete.mockRejectedValueOnce(new Error('Không thể kết nối để xóa khoản chi'));
+    renderPage(); fireEvent.click(await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xóa' }));
+    expect(await screen.findByText('Không thể kết nối để xóa khoản chi')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xóa khoản chi SS-1' })).toBeEnabled());
+    expect(apiDelete).toHaveBeenCalledOnce();
+    expect(screen.getByText('Cân xe')).toBeInTheDocument();
+  });
+
+  it('prevents overlapping removal requests while deletion is pending', async () => {
+    apiDelete.mockReturnValue(new Promise(() => {})); renderPage();
+    const remove = await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' });
+    fireEvent.click(remove); fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xóa' }));
+    await waitFor(() => expect(apiDelete).toHaveBeenCalledOnce());
+    expect(remove).toBeDisabled(); fireEvent.click(remove); expect(apiDelete).toHaveBeenCalledOnce();
+  });
+
   it('distinguishes recorded expense money from the server-computed balance', async () => {
     renderPage();
     expect(await screen.findByText(/1\.560\.000/)).toBeInTheDocument();
     expect(screen.getByText('Chi phí đã ghi nhận')).toBeInTheDocument();
     expect(screen.getByText('350.000 ₫')).toBeInTheDocument();
     expect(screen.getAllByText('Đã trả lại').length).toBeGreaterThan(0);
+  });
+
+  it('card 20260922_27: a recorded request with no cash delivered is amber, not success-green', async () => {
+    const original = apiGet.getMockImplementation()!;
+    apiGet.mockImplementation((url: string) => url.startsWith('/ops/wallet/advance-requests')
+      ? Promise.resolve({ items: [
+        { id: 10, amount: '1000000', fundedAmount: 0, reason: 'pending money', status: 'RECORDED', createdAt: '2026-09-17' },
+        { id: 11, amount: '500000', fundedAmount: 500000, reason: 'received money', status: 'RECORDED', createdAt: '2026-09-17' },
+      ] }) : original(url));
+    renderPage();
+    const labels = await screen.findAllByText('Chưa giao tiền');
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      const style = (label as HTMLElement).closest('span')?.getAttribute('style') ?? '';
+      expect(style).toContain('--warn');
+      expect(style).not.toContain('--success');
+    }
+    // The green token stays reserved for money actually received.
+    const received = screen.getAllByText(/Đã nhận/).length;
+    expect(received).toBeGreaterThan(0);
   });
 
   it('distinguishes an unfunded request from actual cash received', async () => {

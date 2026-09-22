@@ -9,6 +9,7 @@ import {
 } from '../../api/accountingDebitClient';
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
+import { PageHeader } from '../../components/UI';
 
 const money = (value: string | null) => {
   if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>Chưa xác định</span>;
@@ -23,15 +24,15 @@ function DebitFilterDropdown({ label, values, selected, onChange }: {
   onChange: (next: Set<string>) => void;
 }) {
   return (
-    <details style={{ position: 'relative', display: 'inline-block' }}>
-      <summary style={{ cursor: 'pointer', fontSize: 'var(--text-caption-size)', listStyle: 'none' }}>
+    <details style={{ position: 'relative', display: 'inline-block', width: 260, maxWidth: '100%' }}>
+      <summary className="btn btn--secondary" style={{ cursor: 'pointer', fontSize: 'var(--text-caption-size)', listStyle: 'none', width: '100%' }}>
         {label}
         {selected.size > 0 ? ` (${selected.size})` : ''} ▾
       </summary>
       <div style={{
-        position: 'absolute', zIndex: 30, background: 'var(--surface, #fff)',
+        position: 'absolute', insetInline: 0, zIndex: 30, background: 'var(--surface, #fff)',
         border: '1px solid var(--border, #e2e8f0)', borderRadius: 8, padding: '8px 10px',
-        minWidth: 200, maxHeight: 260, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        maxHeight: 260, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
       }}>
         {values.length === 0 && <span style={{ fontSize: 'var(--text-caption-size)' }}>Không có dữ liệu</span>}
         {values.map((value) => (
@@ -49,7 +50,7 @@ function DebitFilterDropdown({ label, values, selected, onChange }: {
           </label>
         ))}
         {selected.size > 0 && (
-          <button type="button" className="btn-secondary btn--sm" style={{ marginTop: 6 }} onClick={() => onChange(new Set())}>
+          <button type="button" className="btn btn--secondary btn--sm" style={{ marginTop: 6 }} onClick={() => onChange(new Set())}>
             Xóa lọc
           </button>
         )}
@@ -159,10 +160,10 @@ export default function AccountingDebitClosePage() {
 
   return (
     <div className="page-shell">
-      <h1>Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP</h1>
+      <PageHeader title="Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP" />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end', margin: '12px 0' }}>
-        <label>Từ ngày <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
-        <label>Đến ngày <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
+        <label style={{ display: 'grid', gap: 4 }}>Từ ngày <input className="input" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
+        <label style={{ display: 'grid', gap: 4 }}>Đến ngày <input className="input" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
         <DebitFilterDropdown
           label="Lọc khách hàng (Thông tin lô hàng)"
           values={customerValues}
@@ -175,12 +176,12 @@ export default function AccountingDebitClosePage() {
           selected={truckFilter}
           onChange={(next) => { setTruckFilter(next); setSelected(new Set()); }}
         />
-        <button type="button" className="btn-primary" disabled={selected.size === 0 || sendMutation.isPending} onClick={() => void sendRequest()}>
+        <button type="button" className="btn btn--primary" disabled={selected.size === 0 || sendMutation.isPending} onClick={() => void sendRequest()}>
           {sendMutation.isPending ? 'Đang gửi…' : `Gửi yêu cầu điều chỉnh cước (${selected.size} dòng)`}
         </button>
         <button
           type="button"
-          className="btn-secondary"
+          className="btn btn--secondary"
           disabled={visiblePendingCount === 0 || confirmMutation.isPending}
           onClick={() => confirmMutation.mutate(pendingIds)}
         >
@@ -285,8 +286,8 @@ export default function AccountingDebitClosePage() {
                 <td>
                   {row.adjustment.status === 'PENDING' && (
                     <>
-                      <button type="button" className="btn-secondary btn--sm" onClick={() => confirmMutation.mutate([row.adjustment.requestId!])}>Xác nhận</button>
-                      <button type="button" className="btn-secondary btn--sm" onClick={() => withdrawMutation.mutate([row.adjustment.requestId!])}>Rút</button>
+                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => confirmMutation.mutate([row.adjustment.requestId!])}>Xác nhận</button>
+                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => withdrawMutation.mutate([row.adjustment.requestId!])}>Rút</button>
                     </>
                   )}
                   {row.adjustment.status === 'CONFIRMED' && <small>Đã đối soát</small>}

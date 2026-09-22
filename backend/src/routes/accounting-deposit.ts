@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { expenseVndSchema } from '@tingting/shared';
 import { getUser } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { throwValidation } from '../lib/validation';
-import { ApiError } from '../errors';
+import { parseId } from './utils/parse-id';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import {
@@ -40,8 +41,8 @@ router.post('/', asyncHandler(async (req, res) => {
     customerName: z.string().trim().min(1).max(255),
     carrierName: z.string().trim().min(1).max(255),
     depositAmount: z.union([z.number(), z.string()]),
-    cvSubmittedDate: dateInput.optional(),
-    expectedRefundDate: dateInput.optional(),
+    cvSubmittedDate: dateInput.nullable().optional(),
+    expectedRefundDate: dateInput.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({
@@ -57,12 +58,12 @@ router.post('/', asyncHandler(async (req, res) => {
 
 router.patch('/:id/dates', asyncHandler(async (req, res) => {
   const user = getUser(req);
-  const trackerId = Number.parseInt(req.params.id as string, 10);
-  if (!Number.isInteger(trackerId) || trackerId <= 0) throw new ApiError(400, 'ID dòng không hợp lệ');
+  const trackerId = parseId(req.params.id as string, 'ID dòng');
   const input = parse(z.object({
     cvSubmittedDate: dateInput.nullable().optional(),
     expectedRefundDate: dateInput.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
+    depositAmount: z.union([z.number(), z.string()]).optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES,
@@ -77,15 +78,17 @@ router.patch('/:id/dates', asyncHandler(async (req, res) => {
 
 router.post('/:id/refund', asyncHandler(async (req, res) => {
   const user = getUser(req);
-  const trackerId = Number.parseInt(req.params.id as string, 10);
-  if (!Number.isInteger(trackerId) || trackerId <= 0) throw new ApiError(400, 'ID dòng không hợp lệ');
+  const trackerId = parseId(req.params.id as string, 'ID dòng');
+  // Legacy clients send an empty body (or only _requestId). Preserve that
+  // payload identity; current clients bind approval to the displayed amount.
+  const input = parse(z.object({ expectedDepositAmount: expenseVndSchema.positive().optional() }), req.body ?? {});
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND,
     idempotencyKey: getRequestIdempotencyKey(req),
-    payload: { trackerId, userId: user.userId },
+    payload: { trackerId, ...input, userId: user.userId },
     createdBy: user.userId,
     responseStatusCode: 200,
-    create: (tx) => markDepositRefunded(user, trackerId, tx),
+    create: (tx) => markDepositRefunded(user, trackerId, tx, input.expectedDepositAmount),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

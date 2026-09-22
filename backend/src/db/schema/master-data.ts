@@ -375,6 +375,7 @@ export const dispatchZones = pgTable('dispatch_zones', {
   label: varchar('label', { length: 100 }).notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
+  showPortFacet: boolean('show_port_facet').notNull().default(true),
   // Config flag for "which zone do new lots default to" — the FE must read
   // this, never a hardcoded zone code. Exactly one row may carry it.
   isDefault: boolean('is_default').notNull().default(false),

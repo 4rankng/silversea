@@ -7,8 +7,13 @@ import { businessDateISO } from '../../lib/format';
 import { useExpenseMutations } from './useExpenseAccounting';
 import { ExpenseNameSuggestions } from './ExpenseNameSuggestions';
 import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption } from '../driver/driver-expense-options';
+import './ExpenseAccounting.css';
 
-export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OTHER', onClose }: { work: ExpenseWorkRow; initialGroup?: ExpenseCostGroup; catalog: ExpenseAccountingCatalog; onClose: () => void }) {
+export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OTHER', entryScope, onClose, onSaved }: {
+  work: Pick<ExpenseWorkRow, 'tripId' | 'shipmentCode' | 'containerNumber'>;
+  initialGroup?: ExpenseCostGroup; entryScope?: 'OPS'; catalog: ExpenseAccountingCatalog;
+  onClose: () => void; onSaved?: () => void;
+}) {
   const formId = useId();
   const { create } = useExpenseMutations();
   const lock = useRef(false);
@@ -22,7 +27,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
   const [charge, setCharge] = useState<number | ''>(initialGroup === 'DRIVER_ROAD' ? 0 : '');
   const [equal, setEqual] = useState(false);
   const [date, setDate] = useState(businessDateISO);
-  const [payerKind, setPayerKind] = useState<'COMPANY' | 'USER' | 'SUPPLIER'>('COMPANY');
+  const [payerKind, setPayerKind] = useState<'COMPANY' | 'USER' | 'SUPPLIER'>(entryScope === 'OPS' ? 'USER' : 'COMPANY');
   const [payer, setPayer] = useState('');
   const [supplier, setSupplier] = useState('');
   const [invoice, setInvoice] = useState('');
@@ -44,7 +49,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
     const payload = JSON.stringify(parsed.data);
     if (request.current?.payload !== payload) request.current = { payload, key: crypto.randomUUID() };
     lock.current = true; setError('');
-    try { await create.mutateAsync({ body: parsed.data, key: request.current.key }); onClose(); }
+    try { await create.mutateAsync({ body: parsed.data, key: request.current.key }); onSaved?.(); onClose(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa rõ kết quả lưu. Giữ nguyên nội dung và thử lại.'); }
     finally { lock.current = false; }
   }
@@ -53,7 +58,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
     <form id={formId} onSubmit={(event) => void save(event)} className="expense-accounting-form">
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
       <div className="expense-accounting-fields">
-        <UuiSelectField label="Nhóm chi phí" value={group} disabled={busy} onChange={event => { const next = event.target.value as ExpenseCostGroup; setGroup(next); setType(''); setDriverOption(''); if (next === 'DRIVER_ROAD') { setCharge(0); setEqual(false); } }} options={Object.entries(EXPENSE_COST_GROUP_LABELS).map(([value, label]) => ({ value, label }))} />
+        <UuiSelectField label="Nhóm chi phí" value={group} disabled={busy} onChange={event => { const next = event.target.value as ExpenseCostGroup; setGroup(next); setType(''); setDriverOption(''); if (next === 'DRIVER_ROAD') { setCharge(0); setEqual(false); } }} options={Object.entries(EXPENSE_COST_GROUP_LABELS).filter(([value]) => entryScope !== 'OPS' || value.startsWith('OPS_')).map(([value, label]) => ({ value, label }))} />
         {driverGroup ? <UuiSelectField label="Loại chi phí lái xe" required value={driverOption} disabled={busy} onChange={event => { const choice = driverExpenseOption(event.target.value); setDriverOption(choice.code); setType(choice.type); setName(choice.label); if (amount === '' && choice.amount !== undefined) setAmount(choice.amount); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === group).map(item => ({ value: item.code, label: item.label }))]} /> : <UuiSelectField label="Loại phí" required value={type} disabled={busy} onChange={event => { setType(event.target.value); if (!name) setName(catalog.expenseTypes.find(item => item.code === event.target.value)?.name ?? ''); }} options={[{ value: '', label: 'Chọn loại phí' }, ...catalog.expenseTypes.map(item => ({ value: item.code, label: item.name }))]} />}
         <NumberField controlSize="sm" label="Thực chi (VND)" required value={amount} disabled={busy} min={1} step={1} onChange={next => { setAmount(next); if (equal) setCharge(next); }} />
         <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={charge} disabled={busy || equal || group === 'DRIVER_ROAD'} min={0} step={1} onChange={setCharge} />
@@ -63,8 +68,8 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
       <ExpenseNameSuggestions group={group} disabled={busy} onChoose={setName} />
       <div className="expense-accounting-fields">
         <DateField controlSize="sm" label="Ngày chi" value={date} required disabled={busy} onChange={setDate} />
-        <UuiSelectField label="Bên thực chi" value={payerKind} disabled={busy} onChange={event => setPayerKind(event.target.value as typeof payerKind)} options={[{ value: 'COMPANY', label: 'Công ty trả trực tiếp' }, { value: 'USER', label: 'Nhân viên chi' }, { value: 'SUPPLIER', label: 'Nhà cung cấp' }]} />
-        {payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={payer} disabled={busy} required onChange={event => setPayer(event.target.value)} options={[{ value: '', label: 'Chọn nhân viên' }, ...catalog.staff.map(item => ({ value: String(item.id), label: item.name }))]} />}
+        <UuiSelectField label="Bên thực chi" value={payerKind} disabled={busy || entryScope === 'OPS'} onChange={event => setPayerKind(event.target.value as typeof payerKind)} options={[{ value: 'COMPANY', label: 'Công ty trả trực tiếp' }, { value: 'USER', label: 'Nhân viên chi' }, { value: 'SUPPLIER', label: 'Nhà cung cấp' }]} />
+        {payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={payer} disabled={busy} required onChange={event => setPayer(event.target.value)} options={[{ value: '', label: 'Chọn nhân viên' }, ...(entryScope === 'OPS' ? catalog.opsUsers : catalog.staff).map(item => ({ value: String(item.id), label: item.name }))]} />}
         {payerKind === 'SUPPLIER' && <UuiSelectField label="Nhà cung cấp" value={supplier} disabled={busy} required onChange={event => setSupplier(event.target.value)} options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...catalog.suppliers.map(item => ({ value: String(item.id), label: item.name }))]} />}
         <TextField controlSize="sm" label="Số hóa đơn" value={invoice} maxLength={100} disabled={busy} onChange={event => setInvoice(event.target.value)} />
         <DateField controlSize="sm" label="Ngày hóa đơn" value={invoiceDate} disabled={busy} onChange={setInvoiceDate} />
