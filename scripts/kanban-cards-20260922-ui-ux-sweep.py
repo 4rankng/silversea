@@ -116,9 +116,9 @@ CARDS = [
              '`/fleet/drivers`: 7/10 cột "—"; header "MÃ TÀI XẾ" bẻ 2 dòng; KPI hiển thị "71người"'),
         ],
         facts=[
-            '`probe/desktop/cus__config-customers.json`: 2886 ô dữ liệu / **222 ô trống**; cột `Hạn Thanh Toán Chi hộ (Ngày)` rộng 105.7px mà **222/222 dòng trống**; các cột `Địa chỉ` (66.6px), `Mã KH` (63px), `MST` (79.8px) đều chỉ 1–2 dòng có dữ liệu.',
-            '`probe/desktop/cus__config-routes.json`: **4 cột chết** — `Mã Tuyến` 114.4px, `Điểm đóng/trả` 194.5px, `Vé cầu đường` 103px, `Ghi chú` 125.8px, tất cả **185/185 dòng trống**.',
-            '`probe/desktop/dieuvan__fleet-drivers.json`: `Hạn bằng lái` 103.2px và `Hình thức lương` 121px đều **71/71 dòng trống**; `probe/desktop/dieuvan__fleet-vehicles.json`: `Nhà xe` 118.4px **19/19 trống**.',
+            'Bộ đo DOM trên `/config/customers` ở 1440px: 2886 ô dữ liệu / **222 ô trống**; cột `Hạn Thanh Toán Chi hộ (Ngày)` rộng 105.7px mà **222/222 dòng trống**; các cột `Địa chỉ` (66.6px), `Mã KH` (63px), `MST` (79.8px) đều chỉ 1–2 dòng có dữ liệu.',
+            'Bộ đo DOM trên `/config/routes` ở 1440px: **4 cột chết** — `Mã Tuyến` 114.4px, `Điểm đóng/trả` 194.5px, `Vé cầu đường` 103px, `Ghi chú` 125.8px, tất cả **185/185 dòng trống**.',
+            'Bộ đo DOM trên `/fleet/drivers` ở 1440px: `Hạn bằng lái` 103.2px và `Hình thức lương` 121px đều **71/71 dòng trống**; Bộ đo DOM trên `/fleet/vehicles` ở 1440px: `Nhà xe` 118.4px **19/19 trống**.',
             '`/shipments` (danh sách lô hàng của CUS) cũng vậy: `Chứng từ` 171.6px (20/20 trống), `Phân loại & hãng tàu` 103px, `Lịch trình & điều xe` 228.8px, `Ghi chú` 160.2px — **664px trên tổng 1272px (52%) bề rộng bảng dành cho cột không có dữ liệu**, trong khi tên khách hàng phải bẻ 3 dòng.',
             'Ảnh `/config/routes` cho thấy tiêu đề trang "Tuyến đường & Cự ly" trong khi sidebar và topbar gọi là "Tuyến đường" — ba tên cho một màn.',
         ],
@@ -156,10 +156,10 @@ CARDS = [
              '`/config/customers`: MST và SĐT bị bẻ giữa số ở cột 80px'),
         ],
         facts=[
-            'Đo DOM 1440px (`probe/desktop/cus__invoice-tracking.json`): mỗi `th` đúng 98px; chữ tràn khỏi ô: `Thông tin lô hàng` **+49.6px**, `Nhà cung cấp hđ` **+38.2px**, `Thông tin hđ` +12.3px, `Ngày gửi hđ` +4.1px, `Chênh lệch` +2.3px.',
+            'Số đo DOM ở 1440px (bộ đo tự động chạy trong trang, kèm ảnh trong card): mỗi `th` đúng 98px; chữ tràn khỏi ô: `Thông tin lô hàng` **+49.6px**, `Nhà cung cấp hđ` **+38.2px**, `Thông tin hđ` +12.3px, `Ngày gửi hđ` +4.1px, `Chênh lệch` +2.3px.',
             'Cặp header đè nhau (đo bằng `Range.getClientRects`): `Thông tin lô hàng` ↔ `Cont` chồng **35.5×14px**; `Nhà cung cấp hđ` ↔ `Thông tin hđ` chồng **26.2×14px**.',
             'Token bị bẻ giữa dòng (cùng probe): `21/09/2026` → `21/09/202|6`; `QATU1234569` → `QATU1234|569`; `SHP-2609-00020` → `SHP-|2609-` + `2609-|00020`; `HD-C18-01` bị bẻ; `12.000.000 đ` tách đơn vị sang dòng khác. Ô dùng `overflow-wrap: anywhere` + `th` không `overflow: hidden`.',
-            'Mobile 390px (`probe/mobile/cus__invoice-tracking.json`): bảng chỉ có khung cuộn ngang 374px cho 13 cột ⇒ mỗi ô rộng **24.9–36.9px**; `verticalCharWrap` = 8 phần tử — `21/09/2026` bẻ 4 dòng (21/ | 09/ | 202 | 6), `SHP-2609-00020` bẻ 5 dòng, tên khách hàng cao **231px** xếp dọc từng ký tự.',
+            'Số đo DOM ở mobile 390px: bảng chỉ có khung cuộn ngang 374px cho 13 cột ⇒ mỗi ô rộng **24.9–36.9px**; `verticalCharWrap` = 8 phần tử — `21/09/2026` bẻ 4 dòng (21/ | 09/ | 202 | 6), `SHP-2609-00020` bẻ 5 dòng, tên khách hàng cao **231px** xếp dọc từng ký tự.',
             'Số cột 13 = 100%/13 ≈ 7.7% mỗi cột, không có `colgroup` theo nội dung và **không có chế độ card cho mobile** (các bảng khác như `/config/customers`, `/shipments-detail` đều chuyển sang card ở < 1101px).',
             'Test hiện có không phủ: các ô không đặt `overflow: hidden` nên bộ đo "chữ bị cắt" (`scrollWidth > clientWidth`) trả 0 — phải đo bằng `Range.getClientRects` mới thấy (đã bổ sung vào harness sweep).',
         ],
@@ -231,9 +231,10 @@ CARDS = [
              '`/shipments`: "Chưa có Bill/Book", "Chưa có tờ khai", "Chưa có hãng tàu" là vệt xám rất nhạt (1.88:1)'),
         ],
         facts=[
-            'Probe DOM `probe/desktop/cus__shipments.json` → `lowContrast`: `span.cus-empty "Chưa có nhà máy"` ratio **1.88**, `strong.cus-empty "Chưa có Bill/Book"` 1.88, `span.cus-empty "Chưa có tờ khai"` 1.88, `span.cus-classification__shipping-line.cus-empty "Chưa có hãng tàu"` 1.88, `span.cus-empty "Chưa có tuyến đường"` 1.88 (ngưỡng cần 4.5).',
+            'Bộ đo DOM trên `/shipments` ở 1440px, hạng mục tương phản: `span.cus-empty "Chưa có nhà máy"` ratio **1.88**, `strong.cus-empty "Chưa có Bill/Book"` 1.88, `span.cus-empty "Chưa có tờ khai"` 1.88, `span.cus-classification__shipping-line.cus-empty "Chưa có hãng tàu"` 1.88, `span.cus-empty "Chưa có tuyến đường"` 1.88 (ngưỡng cần 4.5).',
             'Cùng lớp màu xuất hiện trên `/shipments-detail`, `/shipments-debit`, `/recoverable-costs`.',
             'Ngoài ra `div.kpi__meta.kpi__meta--up "Đang quản lý"` = 3.01:1 trên `/config/customers`.',
+            '`/ops/wallet` (vai trò OPS): 8 phần tử dùng màu xanh `rgb(22, 163, 74)` trên nền trắng ⇒ **3.3:1** trong khi cần 4.5:1 — gồm số tiền 18px "2.335.800 ₫" và các nhãn 12px "Đã nhận …", "Đã ghi nhận", "Đã quyết toán", "Chưa giao tiền".',
         ],
         ac=[
             'Mọi chữ hiển thị (kể cả trạng thái trống, nhãn phụ, ghi chú KPI) đạt tối thiểu 4.5:1 với nền của nó; chữ ≥ 18.66px đậm hoặc ≥ 24px đạt ≥ 3:1.',
@@ -242,6 +243,7 @@ CARDS = [
         ],
         verify=[
             'Local: `cus`/Abc123 → `/shipments` → dòng có ô trống: hiện tại chữ "Chưa có Bill/Book" gần như không đọc được.',
+            'Local: `giaonhan`/Abc123 → `/ops/wallet` → các nhãn "Đã nhận …" và ô "Chi phí đã ghi nhận" màu xanh nhạt trên nền trắng (3.3:1).',
             'Sau khi sửa: đọc rõ các dòng đó trên nền trắng, và trên nền dòng hover/xám vẫn đạt ≥ 4.5:1.',
         ],
     ),
@@ -249,7 +251,7 @@ CARDS = [
         num='26',
         slug='sap-xep-khong-co-chi-bao-doc-duoc',
         case_id='TC-UI-07',
-        title='Không có chỉ báo sắp xếp đọc được: ký tự "⇅" tí hon dính vào nhãn, có cột có cột không',
+        title='Nút sắp xếp của bảng chỉ cao 14.8px và chỉ báo sắp xếp không đọc được (ký tự "⇅" tí hon dính vào nhãn)',
         status='MỞ — phát hiện qua QA UI/UX sweep 2026-09-22 (local HEAD, 1440px)',
         source=f'Phiên QA UI/UX 4 vai trò, case **TC-UI-07** (`{SPEC}`). Màn: `/config/routes`, `/config/customers`, `/fleet/drivers`, `/fleet/vehicles`, `/dispatch-detail`.',
         desc=[
@@ -264,10 +266,12 @@ CARDS = [
         ],
         facts=[
             'Ảnh phóng 250% `/dispatch-detail`: nhãn "THỜI GIAN & LỊCH TRÌNH" + `⇅` ở dòng thứ hai; "NÂNG HÀNG"/"TRẢ HÀNG" không có ký tự nào.',
-            'Component: `SortHeader` (dùng chung) render ký tự sắp xếp trong cùng dòng chữ của `th`.',
+            'Vùng bấm: mọi `button.table-sort-button` trong header chỉ cao **14.8px** (rộng 42–156px) — đo trên `/config/routes`, `/config/customers`, `/fleet/drivers`, `/fleet/vehicles`, `/suppliers`, `/shipments`, `/shipments-detail`. WCAG 2.2 “Target Size (Minimum)” AA yêu cầu ≥ 24×24px.',
+            'Component: `SortHeader` (dùng chung, `table-sort-button`) render ký tự sắp xếp trong cùng dòng chữ của `th`; cùng một component lặp ở mọi bảng sắp xếp được.',
             'Bảng `th` dùng `overflow-wrap: anywhere; white-space: normal` nên nhãn dài bẻ dòng và đẩy ký tự xuống.',
         ],
         ac=[
+            'Vùng bấm của nút sắp xếp ≥ 24×24px (mục tiêu ≥ 32px theo quy ước desktop của ứng dụng) và vẫn giữ mật độ header hiện tại — sửa ở `SortHeader`, áp cho mọi bảng.',
             'Chỉ báo sắp xếp là icon ≥ 12px nằm **cùng dòng nhãn** (không rơi xuống dòng dưới khi nhãn bẻ 2 dòng), có trạng thái rõ: chưa sắp xếp / tăng dần / giảm dần.',
             'Cột không sắp xếp được không hiện chỉ báo; toàn bộ header sắp xếp được phải là `button` với `aria-sort` đúng (đã có `aria-sort` thì giữ).',
             'Header band không được cao quá 2 dòng với mọi nhãn hiện có (xem card `20260922_22`).',
@@ -297,7 +301,8 @@ CARDS = [
              '`/ops/wallet`: "Chi phí đã ghi nhận" màu xanh — chi phí bị tô màu của trạng thái thành công'),
         ],
         facts=[
-            '`/ops/wallet` đo DOM: ba ô KPI cùng một khối có viền; ô 3 (chi phí) mang class biến thể success nên chữ xanh, hai ô kia chữ đen.',
+            '`/ops/wallet` đo DOM: ba ô KPI cùng một khối có viền; ô 3 (chi phí) mang class biến thể success nên chữ xanh `rgb(22,163,74)` (tương phản 3.3:1 — dưới ngưỡng 4.5:1) trong khi hai ô kia chữ đen.',
+            'Cùng token xanh đó còn dùng cho các nhãn trạng thái trong bảng `/ops/wallet`: "Đã nhận 3.500.000 ₫", "Đã ghi nhận", "Đã quyết toán", "Chưa giao tiền" — trong đó "Chưa giao tiền" là trạng thái *chưa* hoàn tất nhưng vẫn tô xanh.',
             '`/ops/orders`: giá trị thiếu được render thành chip có nền (`Chưa có tuyến đường`), trong khi `/shipments-detail` render giá trị thiếu bằng chữ mờ — hai quy ước cho cùng một khái niệm.',
             '`/my-orders` ô `Trạng thái` = pill nền xám + chữ đỏ đậm; bảng cùng trang ở màn khác dùng chữ + chấm màu.',
         ],
@@ -361,8 +366,8 @@ CARDS = [
         facts=[
             'Nav: `frontend/src/components/Layout.tsx` (case CUS) khai báo `deposit-tracker` → `/accounting/deposit-tracker` **không kèm điều kiện capability**.',
             'Route guard: `frontend/src/App.tsx` → `/accounting/deposit-tracker` chỉ cho `isAdmin || MANAGER || ACCOUNTANT`.',
-            'Bằng chứng chạy: probe `probe/desktop/cus__deposit-tracker.json` → `landed: "/shipments"` (yêu cầu `/accounting/deposit-tracker`).',
-            'Mục `recoverable-costs` thì đúng: nav ẩn khi thiếu capability `recoverable_costs.read`, và probe cũng cho `landed: "/shipments"` khi vào thẳng URL.',
+            'Bằng chứng chạy: mở thẳng `/accounting/deposit-tracker` bằng tài khoản CUS thì URL sau khi app ổn định là `/shipments`.',
+            'Mục `recoverable-costs` thì đúng: nav ẩn khi thiếu capability `recoverable_costs.read` (vào thẳng URL cũng bị đưa về `/shipments`).',
         ],
         ac=[
             'Mọi mục trong sidebar phải mở được với vai trò đang đăng nhập: hoặc cấp quyền đọc `/accounting/deposit-tracker` cho CUS, hoặc ẩn mục khỏi nav CUS — không để cả hai.',

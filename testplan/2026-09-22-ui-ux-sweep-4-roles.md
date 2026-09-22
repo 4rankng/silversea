@@ -15,7 +15,7 @@ Sweep **toàn bộ màn hình mà 4 vai trò nhìn thấy** (theo `frontend/src/
 2. ảnh chụp toàn bộ nội dung (khi khung ứng dụng cao hơn viewport) — chỉ để đọc nội dung, không dùng để kết luận bố cục;
 3. **đo DOM tự động**: phần tử bị cắt ở mép khung cuộn, chữ bị cắt trong ô, **token bị bẻ giữa dòng** (đo bằng `Range.getClientRects`), header tràn khỏi ô / header đè nhau, cột chết (rộng > 100px mà mọi dòng đều trống), kích thước vùng bấm, tương phản màu, phần tử bị che (hit-test `elementFromPoint`), lỗi console/network.
 
-Màn đã phủ (32 màn/lượt × 3 bề rộng):
+Màn đã phủ (**29 màn** × 3 bề rộng):
 
 | Vai trò | Màn |
 |---|---|
@@ -42,7 +42,7 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 | `TC-UI-04` | 23 | `/accounting/invoice-tracking` (+ customers, fleet, ledger) ở 1440px **và 390px** | Desktop: header tràn +49.6px/+38.2px đè lên nhãn bên cạnh; token bị bẻ (`QATU1234\|569`, `SHP-\|2609-\|00020`, `21/09/202\|6`, MST `0107654\|321`). Mobile 390: mỗi ô chỉ 24.9–36.9px ⇒ **mọi giá trị xếp dọc từng ký tự** (tên khách hàng cao 231px) | Không header nào tràn/đè; không token nào bị bẻ; mobile chuyển sang card hoặc cuộn ngang với cột ≥ 88px |
 | `TC-UI-05` | 24 | `/shipments-detail`, `/shipments` mobile | `Chờ phân xe` hiện ở 2 cột cùng dòng; badge chung "Thiếu dữ liệu" cả khi dòng đã điều xe/hoàn thành; icon xe tải lặp 2 lần | Một khái niệm một chỗ hiện; cảnh báo nêu đúng trường thiếu; không icon lặp |
 | `TC-UI-06` | 25 | `/shipments`, `/shipments-detail`, `/shipments-debit` | Chữ trạng thái trống tương phản **1.88:1** (cần ≥ 4.5:1) | Mọi chữ đạt ≥ 4.5:1 |
-| `TC-UI-07` | 26 | `/config/routes`, `/fleet/*`, `/dispatch-detail` | Chỉ báo sắp xếp là ký tự `⇅` ~10px lệch dòng, có cột có cột không | Icon ≥ 12px cùng dòng nhãn + trạng thái tăng/giảm rõ |
+| `TC-UI-07` | 26 | `/config/routes`, `/config/customers`, `/fleet/*`, `/suppliers`, `/shipments*`, `/dispatch-detail` | Nút sắp xếp trong header chỉ cao **14.8px**; chỉ báo là ký tự `⇅` ~10px lệch dòng, có cột có cột không | Vùng bấm ≥ 24×24px; icon ≥ 12px cùng dòng nhãn + trạng thái tăng/giảm rõ |
 | `TC-UI-08` | 27 | `/dispatch-detail`, `/ops/orders`, `/ops/wallet`, `/my-orders` | Pill cho cả giá trị trống/phân loại; KPI "Chi phí đã ghi nhận" tô xanh success | Pill chỉ cho trạng thái; màu đúng ngữ nghĩa |
 | `TC-UI-09` | 28 | `/fleet/drivers`, `/fleet/vehicles`, `/suppliers` | `71người`, `19xe`, `14NCC` — số dính đơn vị | Có khoảng cách số ↔ đơn vị |
 | `TC-UI-10` | 29 | sidebar CUS → `/accounting/deposit-tracker` | Mục nav hiện nhưng CUS bị đá về `/shipments` (`landed=/shipments`) | Nav và route guard cùng nguồn quyền |
@@ -63,9 +63,9 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 
 `qa/2026-09-22_ui-ux-sweep-4roles/screens/{desktop,wide,mobile}/` — mỗi màn có ảnh viewport; màn có nội dung dài hơn khung cuộn có thêm ảnh `.full.png`.
 
-- `desktop` 1440×900: 44 ảnh · `wide` 1920×1080: 42 ảnh · `mobile` 390×844: 42 ảnh.
+- `desktop` 1440×900: 44 ảnh (29 ảnh viewport + 15 ảnh toàn nội dung) · `wide` 1920×1080: 42 ảnh (29+13) · `mobile` 390×844: 47 ảnh (29+18) — tổng 133 ảnh, 87 ảnh viewport.
 - Trạng thái đã chụp: có dữ liệu (CUS/DISPATCHER/OPS) và trạng thái trống (DRIVER hôm nay không có lệnh). **Chưa chụp**: trạng thái lỗi API, trạng thái đang tải (skeleton), hộp thoại đang mở.
-- Lỗi console/network: **0** trên toàn bộ 128 lượt chụp. `reqFail=1` mỗi màn là `GET /api/auth/me` bị huỷ khi điều hướng sang màn kế — không phải lỗi ứng dụng.
+- Lỗi console/network: **0** trên toàn bộ 87 lượt chụp viewport. `reqFail=1` mỗi màn là `GET /api/auth/me` bị huỷ khi điều hướng sang màn kế — không phải lỗi ứng dụng.
 
 ---
 
@@ -77,3 +77,5 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 - nội dung trong `<details>` đã đóng (khung cao 0) → cùng cách lọc.
 
 Số liệu dùng trong các card là số **sau khi lọc**, và mọi kết luận vẫn được đối chiếu bằng ảnh chụp (một ảnh mâu thuẫn với kết luận ⇒ card FAIL).
+
+Dương tính giả **còn lại**: chỉ số `clippedByViewport` trên mobile (47–48 phần tử) là **drawer sidebar nằm ngoài màn** — đã kiểm bằng danh sách phần tử (đều là nav/link của sidebar) và bằng việc màn lái xe, vốn không có sidebar, trả `0`. Chỉ số này không được dùng trong bất kỳ kết luận nào; bộ lọc hit-test đã bổ sung cho lần chạy sau. Tương tự, `overlappingText` = 9 trên `/ops/wallet` mobile là các cặp `th`/`td` của bảng desktop còn trong DOM nhưng không hiển thị ở mobile — ảnh chụp mobile của màn này sạch, nên **không** được ghi thành lỗi (đối chiếu ảnh trước khi kết luận).
