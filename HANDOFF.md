@@ -1,68 +1,70 @@
 # Current Development Handoff
 
-## Active delivery — QA of the two Kanban TODO specs (Ops screens + freight auto-pricing), 20 September 2026
+**Updated:** 2026-09-22 ~15:00 (+08)
+**Controller:** UI/UX sweep session (4 roles: chứng từ · điều vận · lái xe · OPS)
+**Status:** Complete — sweep + tickets delivered; fixes not started
 
-Controller: agent session, 2026-09-20 ~22:30 (+08). Branch `prod`, HEAD `b1d23b63`.
-Working tree carries **only** this QA's new files (untracked): `testplan/2026-09-20-ops-pricing-docx-qa.md`,
-`qa/2026-09-20_ops-pricing-docx-qa/` (+ `qa/scripts/local-ops-pricing-docx-20260920.mjs`,
-`qa/scripts/local-pin-aria-20260920.mjs`), `scripts/kanban-cards-20260920-ops-pricing.py`.
-**No application code was changed** — this was a verification + ticketing pass.
+## Goal
 
-**Scope:** QA `2026.9.6_Man_hinh_ops.docx` and `Phương án tính cước tự động.docx` (Kanban-PROD/TODO)
-against local dev (`http://localhost:7175`, API `:3002` — this checkout's Makefile ports, NOT the
-`:7174/:3001` in AGENTS.md), accounts from `testplan/testaccounts.txt` (password `Abc123`).
+Full visual UI/UX sweep of every screen reachable by the four non-office roles (CUS `cus`,
+DISPATCHER `dieuvan`, DRIVER `laixe`, OPS `giaonhan`) on local dev, plus the two staging
+checks the user's screenshot pointed at — and a Kanban-PROD ticket per defect class found.
 
-**Business flow exercised end-to-end (UI DRIVEN):** CUS creates FCL lot (`shipment 298`
-`SHP-2609-00020`, Bill `QATEST-IMP-20260920`, LONG MINH, NEWEB, cont `QATU1234569` 20'DC) →
-dispatcher allocates carrier, assigns vehicle, issues order (`trip 195` `TRP-202609-0001`, truck
-`15E-016.26`, driver `Phạm Văn Hùng`) → driver accepts (`ORDER_RECEIVED`) → OPS sees the live trip on
-`/ops/fleet-tracking` and declares an incidental expense (250.000đ "Ship Lạch Huyện") → accountant
-debit workspace.
+## Scope
 
-**QA fixture mutations made on the local DB (no cleanup needed per user):** added trailer
-`RM-15E-016.26` (20FT) + attached to `trucks id=6`; closed stale seed trips on truck 6;
-`user_shipment_links` for user 7 → lots 37/96/256/298; `truck_ops_assignments` truck 6 → user 7;
-created OPS user `qaops2` (id 54); created `fuel_price_periods id=5` (28.000 @ 2026-09-19);
-override `debit_note_overrides id=1` on snapshot 5.
+Included:
+- 29 screens × 3 viewports (1440 / 1920 / 390) captured + DOM-measured; screenshots and probe
+  JSON in `qa/2026-09-22_ui-ux-sweep-4roles/` (gitignored), digest in
+  `qa/2026-09-22_ui-ux-sweep_probe-digest.log`.
+- 12 cards written to `Kanban-PROD/TODO/`: `20260922_20` … `20260922_31`.
+- Test cases `TC-UI-01` … `TC-UI-12` in `testplan/2026-09-22-ui-ux-sweep-4-roles.md` (committed).
+- Staging verification of two findings against build `bf6e659a` (CUS `thanhdc`).
 
-**Defects found (all ticketed in Kanban-PROD/TODO as `20260920_52…58`):**
-- 52 / TC-OPS-BUG-01 — OPS expense save 403: `user_shipment_links` has no runtime writer from
-  dispatch/truck assignment; the button is offered on every row. (UI DRIVEN)
-- 53 / TC-CUOC-BUG-01 — FCL lots never lock freight: `shipments.route_id` stays null for FCL
-  (route lives on the container) and `lockShipmentFreightRate` bails on null route. (DB/API VERIFIED)
-- 54 / TC-CUOC-BUG-02 — L1 "CƯỚC VẬN TẢI (AUTO)" sums **all** snapshots → 3 × 4.791.480 =
-  14.374.440 vs correct 4.791.480 in L2. (UI DRIVEN)
-- 55 / TC-CUOC-BUG-03 — Bảng 2.3 payables hard-code "Chưa xác định"; OPS expenses never reach the
-  debit workspace although the API returns `hqgsFee: 250000`. (UI DRIVEN)
-- 56 / TC-CUOC-BUG-04 — receivable adds OPS expense amounts regardless of `customer_charge_amount = 0`.
-- 57 / TC-CUOC-BUG-05 — `fuel_price_periods.created_by` null (no audit attribution).
-- 58 / TC-OPS-BUG-02 — pin button `aria-label = "Ghim "` when the lot has no shipment code.
+Out of scope (not covered, per the report): write flows (create/dispatch/expense/POD) were only
+observed statically; Safari/Firefox; < 360px; 2560px; print; keyboard/screen-reader pass.
 
-**Verified PASS (docx requirements):** OPS list/date/search, personal pin + F5 persistence + isolation,
-expense auto-fill and save, wallet cards/history/smart tag, advance `RECORDED` without cash,
-settlement 2 baskets + XLSX export (7.166 bytes), fleet read-only live status, freight formula
-(3.978.000 + 813.480 = 4.791.480; km×2, liters 83.2), threshold ratchet (%5 → keeps old period),
-XOR threshold 400, fuel period 201/409/403, override reason 400 + OPS 403 + accountant 200 with
-contract freight preserved, non-retroactivity of frozen snapshots, both config UIs.
+## Decisions and sources
 
-**QA gates:** no project files touched → typecheck/test suites not affected. `pnpm lint` (root) is
-**red on HEAD independently of this pass**: 1 pre-existing error
-`backend/src/tests/debit-detail-business-keys.test.ts:21` `prefer-const` (`let actorId` → `const`),
-from commit `5f40ab7c`; 21 pre-existing warnings. Log: `qa/2026-09-20_ops-pricing-docx-qa/lint.log`.
-Left untouched (unrelated file, user's call).
+- **The user's screenshot is a deploy gap, not new code.** `Thao tác` = 0px reproduces on staging
+  and is already fixed at HEAD by `8e21fbdf`; staging build `bf6e659a` (08:55) predates it
+  (12:34). Card `20260922_21` therefore asks for a staging cut + regression, not a re-fix.
+- Objective numbers only after false-positive filtering (hit-tested occlusion for off-canvas
+  drawer/collapsed `<details>`, sr-only exclusion). Two probe artifacts (`overlappingText` on
+  `/ops/wallet` mobile, mobile `clippedByViewport`) were verified against screenshots and
+  **not** turned into findings — documented in `testplan/2026-09-22-ui-ux-sweep-4-roles.md` §4.
+- Measurement harness: `qa/scripts/ui-sweep-4roles-20260922.mjs` (+ digest script). `qa/scripts/*`
+  is gitignored, so the harness survives only in this checkout.
 
-**Not covered:** mobile 390/820 viewports, roles beyond the six used, staging, receipt-photo upload
-and accountant reconciliation board, Excel parity 48/48 (source workbook absent).
+## Task-owned files
 
-**Next step:** lead triages cards 52–58; #54/#56 are money-correctness and should be first, and any
-fix must re-run the case IDs in `testplan/2026-09-20-ops-pricing-docx-qa.md` §2. `.ua` graph refresh
-still owned by the post-commit hook (graph was already stale at session start).
+- `testplan/2026-09-22-ui-ux-sweep-4-roles.md` (committed `cf285f5d`, updated `43d6ed6b`)
+- `scripts/kanban-cards-20260922-ui-ux-sweep.py` (committed, regenerates all 12 cards)
+- `testplan/qa/evidence/2026-09-22_ui-ux-sweep-4roles/{REPORT.md,NOTES.md}` (gitignored)
+- `qa/2026-09-22_ui-ux-sweep-4roles/**` (gitignored)
+- Board: `Kanban-PROD/TODO/20260922_20` … `_31`
 
-## Lead reconciliation note (2026-09-21 morning)
+## Preserved concurrent changes
 
-Ticket ids renumbered to keep board ids stable: this pass's `20260920_52` (OPS
-403) was merged into the in-flight `20260920_54-ops-expense-save-gate-unreachable`
-(owner ruling recorded: auto-link via trucks); `20260920_53`→`_60`,
-`20260920_54`→`_61`, `20260920_55`→`_62` (id collisions with closed/in-flight
-cards). `20260920_56`–`_59` keep their ids. Evidence paths (qa/, gitignored) and
-case ids (TC-OPS-BUG-01, TC-CUOC-BUG-01..05) unchanged.
+- `frontend/src/pages/accounting/DepositRefundTrackerPage.css` was modified by another lane at
+  session start and had landed before my commit — untouched by this pass.
+- `Kanban-PROD/TODO/20260922_8-chiho-dialog-edit-key-collision.docx` appeared mid-session from
+  another lane; my cards were renumbered `8…19 → 20…31` to avoid the id collision.
+- No application code was changed by this pass.
+
+## QA
+
+- Sweep run (screenshots + probes): `qa/2026-09-22_ui-ux-sweep_driver.log` — 0 console errors,
+  0 page errors, 0 failed app requests across 87 viewport captures.
+- Probe digest (desktop/wide/mobile): `qa/2026-09-22_ui-ux-sweep_probe-digest.log`.
+- Repo gates: **not run** — no project file was modified (only `.md` + a `.py` generator), so
+  lint/tsc/test/build are unaffected. Pre-commit hook ran clean on both commits.
+- Commits: `cf285f5d`, `43d6ed6b` on `prod` (local; **not pushed** — repo rule keeps remotes
+  untouched without instruction).
+
+## Blocker or next step
+
+Lead triage of the 12 TODO cards. Priority order for the fixing lanes:
+`20260922_23` (broken table headers/tokens, desktop **and** mobile) → `20260922_21` (staging cut
+so the user stops seeing the 0px column) → `20260922_20` (pagination covering rows) →
+`20260922_22` / `_24` → the rest. Any fix must re-run its `TC-UI-*` case on local **and** on the
+next staging build.

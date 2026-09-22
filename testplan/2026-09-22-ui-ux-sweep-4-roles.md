@@ -78,4 +78,8 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 
 Số liệu dùng trong các card là số **sau khi lọc**, và mọi kết luận vẫn được đối chiếu bằng ảnh chụp (một ảnh mâu thuẫn với kết luận ⇒ card FAIL).
 
-Dương tính giả **còn lại**: chỉ số `clippedByViewport` trên mobile (47–48 phần tử) là **drawer sidebar nằm ngoài màn** — đã kiểm bằng danh sách phần tử (đều là nav/link của sidebar) và bằng việc màn lái xe, vốn không có sidebar, trả `0`. Chỉ số này không được dùng trong bất kỳ kết luận nào; bộ lọc hit-test đã bổ sung cho lần chạy sau. Tương tự, `overlappingText` = 9 trên `/ops/wallet` mobile là các cặp `th`/`td` của bảng desktop còn trong DOM nhưng không hiển thị ở mobile — ảnh chụp mobile của màn này sạch, nên **không** được ghi thành lỗi (đối chiếu ảnh trước khi kết luận).
+Dương tính giả đã gặp và xử lý:
+
+- `clippedByViewport` trên mobile từng báo 47–48 phần tử — đó là **drawer sidebar nằm ngoài màn**; sau khi thêm bộ lọc hit-test, lần chạy lại mobile trả **0**. Số liệu trong `probe/mobile/` là số sau lọc.
+- `overlappingText` = 9 trên `/ops/wallet` mobile là các cặp `th`/`td` của bảng desktop còn trong DOM nhưng không hiển thị ở mobile — ảnh chụp mobile của màn này sạch, nên **không** được ghi thành lỗi (đối chiếu ảnh trước khi kết luận).
+- Chữ `sr-only` (1×1px) bị loại khỏi mọi phép đo “chữ bị cắt”.
