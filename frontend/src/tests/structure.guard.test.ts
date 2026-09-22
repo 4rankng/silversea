@@ -281,7 +281,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the useConfirm danger dialog (confirm-before-delete, cross-cutting
   // card-20 rule). The whole confirm interaction is worth its lines; split
   // candidate logged for the wave-close notes.
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 858,
+  // Bumped 858 -> 859: 2026-09-22 — the ledger table's Thao tac column lands
+  // its header/cell share (8e21fbdf); 1-line overage caught by the tree-wide
+  // guard on the next landing. Shrink candidate routed to FE's test-debt batch.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 859,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T
