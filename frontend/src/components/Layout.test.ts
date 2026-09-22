@@ -27,6 +27,9 @@ describe('getNavItems', () => {
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
+      ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
+      ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
+      ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Lương & Chấm công', '/salary'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
@@ -69,6 +72,9 @@ describe('getNavItems', () => {
     [Role.ACCOUNTANT, [
       ['Tổng Quan Kế Toán', '/accounting'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
+      ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
+      ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
+      ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
@@ -100,6 +106,7 @@ describe('getNavItems', () => {
       ['Chi tiết lô hàng', '/shipments-detail'],
       ['Chi phí - Quyết toán', '/shipments-debit'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
+      ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
@@ -172,7 +179,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
@@ -225,6 +232,26 @@ describe('getNavItems', () => {
     expect(items.some((item) => item.key === 'audit-logs' && item.path === '/audit-logs')).toBe(true);
   });
 
+  it('exposes the phoi-phieu control page to ACCOUNTANT and ADMIN only (20260922_5)', () => {
+    for (const role of [Role.ADMIN, Role.ACCOUNTANT]) {
+      expect(getNavItems(role).find((item) => item.key === 'phoi-phieu'), role)
+        .toEqual(expect.objectContaining({ label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu' }));
+    }
+    for (const role of [Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
+      expect(getNavItems(role).some((item) => item.key === 'phoi-phieu'), role).toBe(false);
+    }
+  });
+
+  it('exposes the chot-debit board to ACCOUNTANT and ADMIN only (20260921_21)', () => {
+    for (const role of [Role.ADMIN, Role.ACCOUNTANT]) {
+      expect(getNavItems(role).find((item) => item.key === 'chot-debit'), role)
+        .toEqual(expect.objectContaining({ label: 'Kế toán chốt debit', path: '/accounting/chot-debit' }));
+    }
+    for (const role of [Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
+      expect(getNavItems(role).some((item) => item.key === 'chot-debit'), role).toBe(false);
+    }
+  });
+
   it('does not advertise internal approval workflows in role navigation', () => {
     for (const role of Object.values(Role)) {
       expect(getNavSections(role).some(section => /phê duyệt/i.test(section.label)), role).toBe(false);
@@ -260,7 +287,7 @@ describe('getNavItems', () => {
 
   it('shows CUS only the document-ops and catalog items without the recoverable-costs capability', () => {
     const items = getNavItems(Role.CUS);
-    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'invoice-tracking', 'customers', 'config-routes', 'config-fuel-price-periods']);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'invoice-tracking', 'deposit-tracker', 'customers', 'config-routes', 'config-fuel-price-periods']);
     expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 
