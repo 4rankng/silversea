@@ -1,0 +1,11 @@
+-- Card 20260921_9 phase 2 — operator ruling 2026-09-22 "Lồng ghép (merge
+-- history)": the existing single-ledger history joins the ACB (COMPANY)
+-- stream. treasury_movements is append-only and every movement already
+-- attaches to exactly one account, so the import is a one-time
+-- CLASSIFICATION flip on legacy accounts — no movement row is touched
+-- (byte-for-byte), and the phase-1 fund book aggregates every ACTIVE
+-- account of the source, so legacy accounts + their POSTED movements appear
+-- in the COMPANY book immediately with continuous running totals. TM starts
+-- at activation: no unclassified account maps to TM. Idempotent: the WHERE
+-- makes re-runs a no-op. Journal + .sql land together (no `when` edits).
+UPDATE treasury_accounts SET fund_code = 'COMPANY' WHERE fund_code IS NULL;
