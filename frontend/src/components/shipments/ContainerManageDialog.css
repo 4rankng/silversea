@@ -1,0 +1,151 @@
+/* Card 20260922_41 — "Quản lý container" dialog styling. House law:
+   compact density (12px data / 11px labels), text-only data cells (no pill
+   statuses), icon-only destructive action with aria-label, wrapping values
+   (never clip), floating overlay surfaces on --surface. */
+
+.cus-container-manage {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cus-container-manage__notice {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+}
+
+.cus-container-manage__error {
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.cus-container-manage__table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--ops-table-supporting-size);
+}
+
+/* One pinned share per column, summing to 100% — table-layout: fixed only
+   measures auto columns from the first row. */
+.cus-container-manage__col--stt { width: 7%; }
+.cus-container-manage__col--number { width: 21%; }
+.cus-container-manage__col--type { width: 13%; }
+.cus-container-manage__col--weight { width: 15%; }
+.cus-container-manage__col--schedule { width: 18%; }
+.cus-container-manage__col--dispatch { width: 18%; }
+.cus-container-manage__col--actions { width: 8%; }
+
+.cus-container-manage__table thead th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-container-manage__table tbody > tr > th,
+.cus-container-manage__table tbody > tr > td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: var(--fw-regular);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-container-manage__table tbody > tr:last-child > * { border-bottom: 0; }
+.cus-container-manage__table tbody > tr:hover > * { background: var(--surface-2); }
+
+.cus-container-manage__code {
+  font-family: var(--font-data);
+  letter-spacing: .01em;
+}
+
+.cus-container-manage__cell--actions { text-align: center; }
+
+/* Destructive row action: icon-only with aria-label (law §4). */
+.cus-container-manage__remove {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--danger-text);
+  cursor: pointer;
+}
+
+.cus-container-manage__remove:hover:not(:disabled) { background: var(--danger-soft, var(--surface-2)); }
+.cus-container-manage__remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cus-container-manage__remove:disabled { color: var(--ink-3); cursor: default; }
+
+.cus-container-manage__add-toggle { justify-self: start; }
+
+/* Quick-add: horizontal across the dialog width (law §5 — a form never forces
+   vertical scrolling on a wide screen). */
+.cus-container-manage__quick-add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cus-container-manage__quick-add > label,
+.cus-container-manage__field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.cus-container-manage__quick-add > label > span {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-container-manage__quick-add input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-default-h, 36px);
+  padding: 5px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--ink);
+  font-size: var(--control-field-font-size, var(--text-caption-size));
+}
+
+.cus-container-manage__quick-add input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-container-manage__quick-add-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

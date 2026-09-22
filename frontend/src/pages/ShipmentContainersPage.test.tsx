@@ -132,10 +132,13 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       'Phân xe',
       'Ghi chú',
       'Trạng thái',
-      // Card 20260922_3: the actions column renders whenever the row can
-      // mutate (add/remove container wired) — previously invisible (0px col).
-      'Thao tác',
     ]);
+    // Card 20260922_41: add/remove left the container level entirely (the
+    // ＋Thêm/Xóa Thao tác column is gone; composition lives in the lot-level
+    // "Quản lý container" dialog on /shipments). Eight business groups only.
+    expect(screen.queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Thêm container/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Xóa container/ })).toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell
     const awaitingRow = screen.getByText('CONT-001').closest('tr');
@@ -170,7 +173,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
     // Missing-data summary stays compact: the full list collapses behind a
     // count disclosure; expanding reveals jump-to-editor items in list order.
-    const warningToggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
+    // Card 20260922_24: the bare "Thiếu dữ liệu" label is gone — the toggle
+    // names the missing set ("Thiếu N thông tin" / "Thiếu <field>").
+    const warningToggle = screen.getByRole('button', { name: /Thiếu \d+ thông tin/ });
     const rowWarning = warningToggle.closest<HTMLElement>('.shipment-container-ledger__row-warning');
     expect(rowWarning).toBeTruthy();
     if (!rowWarning) throw new Error('Expected the missing-fields warning wrapper');
@@ -362,12 +367,13 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
-    // The same-day vehicle urgency badge now reads 'Chờ phân xe' like the
-    // dispatch chip — select by the badge's own class to disambiguate.
-    const pendingVehicleCell = (await screen.findByText('Chờ phân xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
+    // Card 20260922_24: the vehicle cell no longer repeats the dispatch state
+    // as a badge (one concept, one place) — the amber CELL tint is the
+    // attention cue and the line names exactly what is missing.
+    const pendingVehicleCell = (await screen.findByText('Chưa phân nhà xe')).closest('td');
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
-    expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
+    expect(within(pendingVehicleCell!).queryByText('Chờ phân xe')).toBeNull();
     expect(within(pendingVehicleCell!).getByRole('button', { name: /^Chỉnh sửa phân xe CONT-002/ })).toBeEnabled();
     // "Chưa gán biển số" is a status label, not an action: it renders as a
     // badge span with no button chrome of its own.

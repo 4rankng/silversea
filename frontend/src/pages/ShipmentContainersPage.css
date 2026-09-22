@@ -104,52 +104,25 @@
    first row, so a later row's longer content (e.g. a full container number)
    silently wraps mid-token instead of claiming its fair share. Shares below
    are sized to each column's real content, not split evenly — documents and
-   container each carry two stacked code lines, route needs room for long
-   place names (see note below), and status only ever holds a short one/two
-   -word badge so it gets the smallest share instead of matching its wide
-   sr-only-adjacent siblings. */
-.shipment-container-ledger__col--customer { width: 10%; }
-.shipment-container-ledger__col--documents { width: 13%; }
-.shipment-container-ledger__col--container { width: 11%; }
+   container each carry two stacked code lines, route holds long place names,
+   and status only ever holds a short one/two-word badge plus the
+   missing-fields warning. Card 20260922_41 removed the Thao tác column
+   (lot-level add/remove moved to the /shipments "Quản lý container" dialog);
+   its 7% redistributed across the eight business columns below. */
+.shipment-container-ledger__col--customer { width: 11%; }
+.shipment-container-ledger__col--documents { width: 14%; }
+.shipment-container-ledger__col--container { width: 12%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
-   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
-   table-layout: fixed, the column shrinks below the longest unbreakable
-   token and the cell's overflow:hidden clips the trailing characters — keep
-   this share generous even though sample data rarely fills it. */
-.shipment-container-ledger__col--route { width: 16%; }
-.shipment-container-ledger__col--schedule { width: 11%; }
-.shipment-container-ledger__col--vehicle { width: 10%; }
+   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ") — the
+   widest place-name column, so it keeps the largest share. */
+.shipment-container-ledger__col--route { width: 17%; }
+.shipment-container-ledger__col--schedule { width: 12%; }
+.shipment-container-ledger__col--vehicle { width: 12%; }
 .shipment-container-ledger__col--notes { width: 11%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
 .shipment-container-ledger__col--status { width: 11%; }
-/* Card 20260922_3 rework: the actions column had no col rule while the other
-   eight summed to 100%, so table-layout: fixed collapsed it to 0px from
-   ~1366px up — Thao tác buttons painted clipped and real taps never landed
-   (elementFromPoint fell through to the scroller). 7% keeps every icon
-   button inside the tap target at 1440/1680. */
-.shipment-container-ledger__col--actions { width: 7%; }
-/* Card 20260922_21: between 1101px (where `table-layout: fixed` starts) and
-   ~1365px the actions column fell to 71–89px and the "＋ Thêm" label wrapped
-   into a three-line vertical stack (measured 47×57 at 1100px). In that band the
-   actions column takes 9% — the two points come from `notes`, the column that
-   is empty on most rows — so the shares still sum to 100% and both buttons stay
-   on one line. The base 7% is untouched for ≥1366px where it measures ≥ 88px. */
-@media (min-width: 1101px) and (max-width: 1365px) {
-  .shipment-container-ledger__col--notes { width: 9%; }
-  .shipment-container-ledger__col--actions { width: 9%; }
-}
-/* 761-1100px is desktop layout on auto sizing (card mode starts at 760px), so
-   the 7% share still squeezed the actions cell to 71px there. The percentage
-   keeps the rhythm and an explicit min-width — honoured under auto layout —
-   guarantees the buttons their room. */
-@media (min-width: 761px) and (max-width: 1100px) {
-  .shipment-container-ledger__col--notes { width: 9%; }
-  .shipment-container-ledger__col--actions { width: 9%; }
-  .shipment-container-ledger tbody > tr > *:last-child { min-width: 88px; }
-  .shipment-container-ledger thead th:last-child { min-width: 88px; }
-}
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -160,7 +133,7 @@
    (header case/tracking come from the shared table base, as on /shipments). */
 .shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; overflow-wrap: anywhere; white-space: normal; }
 .shipment-container-ledger tbody > tr > th,
-.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
 .shipment-container-ledger tbody > tr:last-child > * { border-bottom: 0; }
 .shipment-container-ledger tbody > tr:hover > * { background: var(--surface-2); }
@@ -438,7 +411,7 @@
   .shipment-container-ledger tbody > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; border-bottom: 1px solid var(--line-2); }
   .shipment-container-ledger tbody > tr:last-child { border-bottom: 0; }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
@@ -506,7 +479,7 @@
   .shipments-detail-workspace .summary-rail { margin: 10px 0 0; }
   .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 6px solid var(--surface-2); }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }

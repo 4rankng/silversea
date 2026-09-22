@@ -11,6 +11,8 @@ import {
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { ContainerManageDialog } from '../components/shipments/ContainerManageDialog';
+import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
@@ -69,6 +71,7 @@ export default function ShipmentsPage() {
 
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
+  const [managedShipment, setManagedShipment] = useState<ShipmentCusWorkspaceListItem | null>(null); // 20260922_41 lot container dialog
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   const filtersRef = useRef<WorkboardToolbarHandle>(null);
@@ -338,7 +341,12 @@ export default function ShipmentsPage() {
                       editing={quickEditDraft?.shipmentId === item.id}
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}
-                      onStartQuickEdit={(item, field) => item.cargoMode === 'FCL' && field === 'identity' ? navigate(factoryDetailPath(item)) : startQuickEdit(item, field)}
+                      onStartQuickEdit={(item, field) => {
+                        // 20260922_41 grain split: FCL cargo cell = the lot's container dialog (no navigation, no cargo popup); FCL identity keeps the per-container factory workspace; all else keeps its quick-edit.
+                        if (item.cargoMode === 'FCL' && field === 'identity') return navigate(factoryDetailPath(item));
+                        if (item.cargoMode === 'FCL' && field === 'cargo') return setManagedShipment(item);
+                        startQuickEdit(item, field);
+                      }}
                       onOpenAction={actions.openAction}
                       onOpenDetail={openShipmentDetail}
                     />
@@ -473,36 +481,10 @@ export default function ShipmentsPage() {
         <p>Có thay đổi container chưa lưu. Hãy lưu dữ liệu hoặc xác nhận bỏ thay đổi trước khi đóng.</p>
       </Modal>
 
-      <Modal
-        isOpen={Boolean(actions.actionItem && actions.actionMode)}
-        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Điều chỉnh lô hàng'}
-        onClose={actions.closeAction}
-        onConfirm={() => void actions.submitAction()}
-        footer={(
-          <>
-            <button type="button" className="btn btn--ghost" onClick={actions.closeAction} disabled={actions.submitting}>Hủy</button>
-            <button type="button" className="btn btn--primary" onClick={() => void actions.submitAction()} disabled={actions.submitting || !actions.reason.trim()}>
-              {actions.submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Gửi điều chỉnh'}
-            </button>
-          </>
-        )}
-      >
-        {actions.actionMode === 'confirm' ? (
-          <p>Xác nhận này chụp lại phiên bản Debit Note, chuyến xe và chi phí hiện hành. Nếu nguồn thay đổi, xác nhận sẽ hết hiệu lực.</p>
-        ) : actions.actionMode === 'lock' ? (
-          <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Chỉ người có quyền mở khóa mới có thể mở lại dữ liệu.</p>
-        ) : actions.actionMode === 'delete' ? (
-          <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu. Thao tác không thể hoàn tác.</p>
-        ) : (
-          <p>Ghi rõ lý do điều chỉnh.</p>
-        )}
-        <label className="cus-action-reason">
-          <span>{actions.actionMode === 'confirm' ? 'Lý do xác nhận' : actions.actionMode === 'lock' ? 'Lý do khóa' : actions.actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>
-          <textarea value={actions.reason} onChange={(event) => actions.setReason(event.target.value)} rows={4} maxLength={500} required autoFocus />
-          <small>{actions.reason.length}/500 ký tự</small>
-        </label>
-      </Modal>
+      <ShipmentActionModal actions={actions} />
+
+      {/* 20260922_41: onChanged keeps the row summary (2x40HC · 5.000 kg) in step with the new composition immediately, dialog stays open. */}
+      <ContainerManageDialog shipment={managedShipment} onClose={() => setManagedShipment(null)} onChanged={() => { if (managedShipment) ws.invalidateDetail(managedShipment.id); void loadList(); }} />
     </div>
   );
 }

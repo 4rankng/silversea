@@ -212,6 +212,36 @@ const detail = {
   },
 };
 
+// Card 20260922_41 dialog fixtures: line 10 is attached to a live dispatch
+// trip (delete blocked — the 409 guard's client-side presentation), line 13
+// is free (deletable).
+const manageDetail = {
+  ...detail,
+  containers: [
+    { ...detail.containers[0], tripId: 5, tripStatus: 'CREATED', dispatchStatus: 'CREATED' },
+    {
+      ...detail.containers[0],
+      id: 13,
+      ordinal: 2,
+      containerNumber: 'MSKU7654321',
+      containerTypeId: 3,
+      containerTypeLabel: '20DC',
+      dispatchStatus: 'AWAITING_VEHICLE',
+      tripId: null,
+      tripStatus: null,
+      customerAppointmentAt: null,
+      raw: { containerNumber: 'MSKU7654321', containerTypeId: 3, cargoWeightKg: '3000.00', cargoVolumeCbm: null },
+    },
+  ],
+  selectors: {
+    ...detail.selectors,
+    containerTypes: [
+      { id: 2, code: '40HC', name: 'Container 40HC', label: '40HC · Container 40HC' },
+      { id: 3, code: '20DC', name: 'Container 20DC', label: '20DC · Container 20DC' },
+    ],
+  },
+};
+
 function listResponse(items = [row]) {
   return {
     page: 1,
@@ -1077,6 +1107,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
+    // Card 20260922_41: the FCL cargo cell opens the lot's "Quản lý container"
+    // dialog (composition at lot level) — the lot-cargo quick-edit lives on
+    // for LCL only (non-goal), so its save contract is pinned on an LCL row.
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô phân loại và hãng tàu BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
@@ -1091,6 +1125,115 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3, packageCount: 24,
     })));
+  });
+
+  it('opens the lot container dialog from the FCL cargo cell without navigating (card 20260922_41)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(manageDetail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+    expect(await within(dialog).findByText('MSKU1234567')).toBeTruthy();
+    expect(screen.queryByTestId('container-detail-page')).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull();
+    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    // The composition summary string survives verbatim — never "Số cont: N".
+    expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
+    expect(within(masterRow()).getByText('25.000 kg')).toBeTruthy();
+  });
+
+  it('adds a container from the dialog and refreshes the row summary immediately (card 20260922_41)', async () => {
+    let containers = manageDetail.containers.slice(0, 1);
+    let listSummary = '2x40HC';
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', containerSummary: listSummary }]))
+    ));
+    apiPost.mockImplementation(() => {
+      containers = manageDetail.containers;
+      listSummary = '2x40HC + 1x20DC';
+      return Promise.resolve({ line: manageDetail.containers[1] });
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '+ Thêm container' }));
+    fireEvent.change(within(dialog).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Loại container/ }));
+    fireEvent.click(await screen.findByRole('option', { name: '20DC · Container 20DC' }));
+    fireEvent.change(within(dialog).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
+    fireEvent.change(within(dialog).getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-13' } });
+    fireEvent.change(within(dialog).getByLabelText('Giờ đóng/trả'), { target: { value: '09:30' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu dòng mới' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers',
+      expect.objectContaining({
+        expectedShipmentVersion: 3,
+        containerNumber: 'MSKU7654321',
+        containerTypeId: 3,
+        cargoWeightKg: '3000',
+        customerAppointmentAt: expect.stringContaining('2026-08-13T09:30'),
+      }),
+      { headers: { 'Idempotency-Key': expect.any(String) } },
+    ));
+    // The row summary reflects the new composition immediately (dialog open).
+    expect(await within(masterRow()).findByText('1x20DC')).toBeTruthy();
+    expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
+    expect(await within(dialog).findByText('MSKU7654321')).toBeTruthy();
+  });
+
+  it('removes an unattached container from the dialog (card 20260922_41)', async () => {
+    let containers = manageDetail.containers;
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
+    ));
+    apiPost.mockImplementation(() => {
+      containers = manageDetail.containers.slice(0, 1);
+      return Promise.resolve({ removedId: 13, shipmentVersion: 4 });
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa container MSKU7654321' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers/13/remove',
+      { expectedShipmentVersion: 3 },
+      { headers: { 'Idempotency-Key': expect.any(String) } },
+    ));
+    await waitFor(() => expect(within(dialog).queryByText('MSKU7654321')).toBeNull());
+  });
+
+  it('blocks delete with the exact trip tooltip on a trip-attached container (card 20260922_41)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(manageDetail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
+    ));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+
+    const blocked = within(dialog).getByRole('button', { name: 'Xóa container MSKU1234567' });
+    expect(blocked).toBeDisabled();
+    expect(blocked).toHaveAttribute('title', 'Không thể xóa container đã gắn chuyến xe');
+    const free = within(dialog).getByRole('button', { name: 'Xóa container MSKU7654321' });
+    expect(free).toBeEnabled();
+    expect(free).not.toHaveAttribute('title');
+
+    fireEvent.click(blocked);
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {

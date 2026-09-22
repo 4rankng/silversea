@@ -113,7 +113,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*white-space:\s*normal;/);
     expect(css).not.toMatch(/\.shipment-container-ledger table\s*\{[^}]*min-width:\s*980px;/);
-    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow:\s*hidden;/);
+    // 20260922_37 no-truncation doctrine: data cells wrap, never clip — the
+    // old `overflow: hidden` cut trailing characters of long place names.
+    expect(css).not.toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow:\s*hidden/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow-wrap:\s*anywhere;/);
     // The shared Table.css base sets an unscoped `tbody td { white-space: nowrap }`
     // that beats inheritance from wrappers — stacked body cells must re-declare
     // wrapping on themselves or long text ("· Hãng tàu …") spills past fixed columns.
@@ -127,13 +130,13 @@ describe('shipment detail workboard styling', () => {
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
     // The multiline status cell (badge + missing-fields warning) keeps 11%;
-    // notes gave 1% and the ladder gives 7% to the actions column (card
-    // 20260922_3: without its own col rule the fixed layout collapsed the
-    // Thao tác column to 0px at ≥1366 and the Xóa/Thêm buttons were
-    // unreachable). The nine shares must still sum to 100%.
+    // notes keeps 11%. Card 20260922_41 removed the Thao tác column (lot-level
+    // add/remove moved to the /shipments "Quản lý container" dialog) and its
+    // 7% redistributed across the eight business columns — the shares must
+    // still sum to 100% and no actions column may come back.
     expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*11%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*11%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
+    expect(css).not.toContain('.shipment-container-ledger__col--actions');
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
@@ -168,7 +171,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
     // Card-collapse modes must reset the desktop 72px floor (workboard pattern:
-    // auto + 76px floor) — a definite height under overflow: hidden clips cells.
+    // auto + 76px floor) — grid-display cells treat a definite height as a cap.
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
@@ -287,24 +290,20 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 
-  it('card 20260922_21: the colgroup always shares exactly 100% and the narrow band keeps the actions column usable', () => {
+  it('card 20260922_41: the eight business columns share exactly 100% (Thao tác column removed)', () => {
     const width = (cls: string) => {
       const m = css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`));
       expect(m, `missing width for col--${cls}`).toBeTruthy();
       return Number(m![1]);
     };
-    // The 09-22 regression: eight columns pinned 100% and the ninth had no rule,
-    // so table-layout:fixed collapsed the actions column to 0px from ~1366px up.
-    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
+    // Card 20260922_21 pinned the ninth (actions) share because a missing rule
+    // collapsed it to 0px under table-layout:fixed. Card 20260922_41 removed
+    // the Thao tác column entirely (lot-level add/remove moved to the
+    // /shipments "Quản lý container" dialog), so the eight business columns
+    // carry the whole table at every fixed-layout width — no narrow band is
+    // left re-pointing shares to keep "＋ Thêm" on one line.
+    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
-    // The 1101-1365 band re-points notes+actions; the pair must keep the base
-    // total so no other column's share drifts, and actions must stay >= 9%
-    // (>= 88px at the band's table widths) so "＋ Thêm" cannot wrap vertically.
-    const band = css.match(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{([\s\S]*?)\n\}/);
-    expect(band).toBeTruthy();
-    const bandNotes = Number(/col--notes\s*\{\s*width:\s*([\d.]+)%/.exec(band![1])![1]);
-    const bandActions = Number(/col--actions\s*\{\s*width:\s*([\d.]+)%/.exec(band![1])![1]);
-    expect(bandNotes + bandActions).toBe(width('notes') + width('actions'));
-    expect(bandActions).toBeGreaterThanOrEqual(9);
+    expect(css).not.toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--/);
   });
 });

@@ -499,7 +499,7 @@
      the 44px inline triggers preserve their touch targets. */
   height: 72px;
   padding: 10px;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: var(--surface);
@@ -567,9 +567,10 @@
 .cus-multiline-cell strong,
 .cus-multiline-cell span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Document identifiers must remain readable at desktop column widths too. */
@@ -635,11 +636,8 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-/* white-space:normal on the flex row above does not inherit past the more
-   specific `.cus-multiline-cell span` rule, which still targets these two
-   children directly and forces nowrap+ellipsis on them — clipping "38.000
-   kg" and "Cont"/"Lẻ" even though the row exists specifically to avoid that
-   (see comment above). Override each child explicitly. */
+/* Explicit wrap contract for the two metric children (20260922_37): values
+   wrap, never clip — pinned on these selectors by the page test suite. */
 .cus-multiline-cell .cus-cargo-summary__weight,
 .cus-multiline-cell .cus-classification__shipping-line {
   grid-area: shipping-line;
@@ -647,6 +645,17 @@
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* Card 20260922_41: the FCL cargo summary block is the click target of the
+   "Quản lý container" dialog (lot-level composition). Light hover affordance:
+   dashed underline on the summary lines. FCL rows are exactly the rows whose
+   "Lịch trình & điều xe" cell renders the read-only trigger (CusShipmentRow
+   contract) — reused as the row-mode marker so this sheet needs no change in
+   the shared row module. */
+.cus-dashboard-row:has(td[data-label='Lịch trình & điều xe'] .cus-inline-trigger--readonly) td[data-label='Tổng quan hàng hóa'] .cus-inline-trigger:not(:disabled):hover .cus-cargo-summary__containers {
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
 }
 
 .cus-multiline-cell.cus-classification {
