@@ -5,7 +5,7 @@ description: "System-level map of SilverSea's backend, frontend, shared contract
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T04:49:12.152Z
+    at: 2026-09-21T23:41:16.831Z
 sources:
   - id: openwiki-source-140d3d74c1896e4779866932
     resource: repo://backend/drizzle/0000_flexible-baseline.sql
@@ -127,7 +127,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
+generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
 ---
 
 # Architecture and Codebase Map
@@ -253,3 +253,13 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - [Overview](overview.md) — SilverSea at a glance, ports, removed features.
 - [Quickstart](quickstart.md) — first-run setup, scripts entry points, validation commands.
 - `AGENTS.md` — repo contracts, role table, QA gate table, knowledge-base notes.
+
+## Chi-phi wave (2026-09-21/22): fee catalog as data, per-row cost surfaces, phoi-phieu control
+
+- **The chi-hộ fee catalog is config data, never code.** The customer's fee list seeds into `forwarder_expense_types` via `OPS_EXPENSE_TYPE_DEFAULTS` (`shared/src/constants/index.ts`) with the fill-only seed (`backend/src/seed.ts`); invoice policy per code lives in `backend/src/expense-type-seed-policy.ts`. The three customer families (Nâng / Hạ / Phí khác) derive from the structural `category` column through `expenseFeeGroupOf` — a fee rename never regroups a fee. Both "Lưu bãi" variants exist per owner ruling (customer lists it under both groups).
+- **The phoi-phieu control surface** (`backend/src/services/phoi-phieu-control.service.ts`, routes in `backend/src/routes/expense-accounting.ts`, board at `/accounting/phoi-phieu`) is per-trip: chi-ho sums read `expense_accounting_sources` joined to `ops_expense_entries` — the same rows the consolidated phiếu consumes, so board totals match to the đồng by construction. The consolidated phiếu reuses `createExpenseVoucher` (one treasury movement per phiếu, POSTED, quỹ auto-adjust); the fan-out is per customer (the engine is one-counterparty-per-voucher) keyed for the later fund-kind dimension. All eight routes sit behind `requireRoles(ADMIN/MANAGER/ACCOUNTANT)`.
+- **The chi-ho / tiền-đường detail dialogs key on the OPS EXPENSE entry id end-to-end** — the same id space the update/correction routes use; a previous source-id keyed draft let edits cross lots (QA-caught, regression-pinned). Confirmed rows correct through the linked-replacement route; unconfirmed rows update directly; void = VOIDED status with history kept and refuses confirmed rows or accounting-locked lots. Tiền-đường rows keep `driver_entered_amount` beside the accountant's adjusted amount.
+- **No-invoice fees carry a separate Thực chi / Thực thu pair** (`amount` vs `customerChargeAmount` — never one shared number); charged no-invoice fees surface on the dispatch plan as "Thu khách: <fee name>" with amounts kept out of the dispatch projection.
+- **New material-write routes must be declared in `middleware/material-write.ts`** — an undeclared route 500s inside the idempotency envelope's audit persist ("Material write audit context is incomplete"), not at the route.
+
+## Related pages

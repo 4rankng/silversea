@@ -26,10 +26,10 @@ sources:
     resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
+generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T04:49:12.152Z
+    at: 2026-09-21T23:41:16.831Z
 ---
 
 # SilverSea System Overview
@@ -82,3 +82,9 @@ GPS/telemetry tracking and the AI-assistant feature were removed entirely (2026-
 - [Quickstart](quickstart.md) — first-run setup, scripts entry points, validation commands.
 - `AGENTS.md` — repo contracts, roles table, QA gates.
 - `testplan/` — role-based regression flows; `testaccounts.txt` for per-environment accounts.
+
+## Chi-phi wave (2026-09-21/22) — surfaces added or refreshed
+
+- **Ops fee catalog** (`/config/forwarder-expense-types`): the customer's chi-hộ fee list seeded as data — 12 invoice-bearing fee types in three families (Nâng / Hạ / Phí khác) derived from the structural category; admin CRUD adds/edits/deprecates rows.
+- **Phoi-phieu control board** (`/accounting/phoi-phieu`, accountant): per-trip rows with the customer's full column set, filters, checkbox selection → consolidated phiếu thu/chi per customer against a chosen STK; Chi hộ / Tiền đường detail dialogs with accountant edit/confirm; monthly Phải thu / Phải trả report tabs.
+- **Debit reconciliation** (`/shipments-debit`): Lớp 1 receivable now counts only the negotiated customer charge; Lớp 2 gained the Phí chung lô row for lot-level ops fees.

@@ -18,10 +18,10 @@ sources:
     resource: repo://shared/package.json
   - id: openwiki-source-2321476aab68e6b1ce6c7ba0
     resource: repo://testplan/testaccounts.txt
-generated: { by: "claude-code", at: "2026-09-21T04:49:12.152Z" }
+generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-21T04:49:12.152Z
+    at: 2026-09-21T23:41:16.831Z
 ---
 
 # Quickstart
@@ -86,3 +86,9 @@ A versioned pre-commit hook (`scripts/githooks/pre-commit`, wired by `git config
 - [Architecture](architecture.md) — codebase map, financial-precision contract, structure ratchet, mechanical gates.
 - `AGENTS.md` — repo contracts, QA gates, roles table.
 - `testplan/` — role-based flows; `testaccounts.txt` for accounts.
+
+## Chi-phi wave (2026-09-21/22) — notes
+
+- The isolated backend test runner (`TZ=UTC node backend/scripts/test-isolated.mjs --filter <substr>`) builds a throwaway template DB per run: it applies every drizzle journal migration, so a journal entry whose migration `.sql` file is not tracked breaks every fresh checkout with a silent migrate exit — census `git ls-files backend/drizzle/*.sql` against `ls backend/drizzle/*.sql` first.
+- The accountant phoi-phieu surface needs its routes declared in `middleware/material-write.ts`; an undeclared route 500s on the audit context, not 404s.
+- Seed changes (fee catalog, fee norms) ride the cut's seed step; the seed is fill-only, so admin edits on live rows always win.

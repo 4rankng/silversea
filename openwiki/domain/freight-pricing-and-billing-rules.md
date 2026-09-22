@@ -3,9 +3,6 @@ type: Domain rules
 title: "Freight Pricing and Billing Rules"
 description: "SilverSea's money-math contracts: how the fuel surcharge is computed and when it is blocked, how zero differs from a missing source on screen, what must be true before a bảng kê (debit note) issues, and why no internal approval hop exists."
 tags: [pricing, fuel-surcharge, billing, debit-note, display-contracts]
-verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-20T06:47:25.307Z
 sources:
   - id: openwiki-source-908be3a6f6197a3e04f3eba1
     resource: repo://backend/src/db/schema/pricing.ts
@@ -29,7 +26,10 @@ sources:
     resource: repo://frontend/src/pages/finance-derived.ts
   - id: openwiki-source-b2fbadbe08a5df4d9cfca2ed
     resource: repo://shared/src/calculations/fuelSurcharge.ts
-generated: { by: "claude-code", at: "2026-09-20T06:47:25.307Z" }
+generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-21T23:41:16.831Z
 ---
 
 # Freight Pricing and Billing Rules
@@ -61,3 +61,11 @@ The only sanctioned manual price entry is the accountant's negotiated final pric
 ## No internal approval hop
 
 All internal approval workflows were removed by product ruling (2026-09-15): finance/ops writes execute directly under role checks with audit events instead of an approval request/queue step. Docs carry the ban explicitly (no offline queues, no auto-resend, no pseudo-approval states); the 2026-09-20 audit purged the last approval-language remnants from BACKLOG and the PRD corpus, and the issue-path gate above is the enforcement that replaced process gates for issuance readiness.
+
+## Chi-phi wave additions (2026-09-21/22)
+
+- **Receivable = the negotiated customer-charge side only.** `TỔNG PHẢI THU KHÁCH` sums `customer_charge_amount` (the entered/negotiated charge), never the ops cost amount; rows with an un-entered charge stay unknown and never fabricate revenue, and a later-entered charge joins the debit exactly once (`shipment-debit-summary.service.ts`).
+- **Tiền đường** = `trip_financial_state.total_road_allowance` plus the trip's CONFIRMED driver-entered cost lines; the parent board cell sums confirmed items from the same rows the detail dialog reads.
+- **Phai-thu / phai-tra reports** (phoi-phieu spine): THU groups by customer, TRA groups by carrier — external carriers keep their name, internal Silver Sea trucks fold under one carrier code. Buckets (nâng / hạ / PS khác) derive from the fee's structural category. Đã thu/trả = treasury cash actually allocated to the source; Còn = Tổng − Đã; over-pay shows an explicit "Đã thu/trả vượt — cần hoàn lại phần chênh" annotation instead of hiding the difference.
+- **Confirm-gated driver payables:** a driver-entered tiền-đường line joins the payable total only after the accountant's per-item confirm tick; unconfirmed lines never ride a consolidated phiếu chi.
+- **No-invoice fees carry a separate Thực chi / Thực thu pair** (`amount` vs `customer_charge_amount`): chi-ho declarations take both numbers independently; charged no-invoice fees surface on the dispatch plan as "Thu khách: <fee name>" — name only, amounts stay out of the dispatch projection.
