@@ -93,6 +93,18 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'expense-accounting.update', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/update$/ },
   { method: 'POST', endpoint: 'expense-accounting.confirm', pattern: /^\/api\/expense-accounting\/confirm$/ },
   { method: 'POST', endpoint: 'expense-accounting.assign', pattern: /^\/api\/expense-accounting\/assignments$/ },
+  // Card 20260921_21/19/8+13 governance rider: the ten financial-write
+  // routes wrapped in runIdempotent (see the accounting routes).
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/confirm$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/withdraw$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_CREATE, pattern: /^\/api\/accounting\/deposits$/ },
+  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES, pattern: /^\/api\/accounting\/deposits\/[^/]+\/dates$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND, pattern: /^\/api\/accounting\/deposits\/[^/]+\/refund$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_VOUCHER, pattern: /^\/api\/expense-accounting\/phoi-phieu\/vouchers$/ },
+  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_ROW_VOID, pattern: /^\/api\/expense-accounting\/phoi-phieu\/[^/]+\/rows\/[^/]+$/ },
+  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_PHOI_META, pattern: /^\/api\/expense-accounting\/phoi-phieu\/[^/]+\/phoi-meta$/ },
+  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_TRUCK_ASSIGN, pattern: /^\/api\/expense-accounting\/phoi-phieu\/trucks\/[^/]+\/accountant$/ },
   { method: 'POST', endpoint: 'expenses.ops-reimburse',
     canonicalAliases: [IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR, IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT],
     pattern: /^\/api\/expense-accounting\/vouchers$/ },

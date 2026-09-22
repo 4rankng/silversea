@@ -180,7 +180,9 @@ export async function listPhoiPhieuTruckAssignments(): Promise<PhoiPhieuTruckAss
 export async function assignPhoiPhieuTruckAccountant(truckId: number, body: {
   accountantId: number | null; expectedVersion: number;
 }): Promise<unknown> {
-  return api.put(`/expense-accounting/phoi-phieu/trucks/${truckId}/accountant`, body);
+  return api.put(`/expense-accounting/phoi-phieu/trucks/${truckId}/accountant`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }
 
 export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {

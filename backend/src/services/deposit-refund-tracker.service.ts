@@ -102,13 +102,13 @@ function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>)
 export async function createDepositTracker(actor: ExpenseActor, input: {
   shipmentId?: number | null; billNumber: string; customerName: string; carrierName: string;
   depositAmount: number | string; cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
-}): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+}, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
   const amount = Number(input.depositAmount);
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
   const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : (cvDate ? addDays(cvDate, 14) : null);
-  const [row] = await db.insert(s.depositRefundTrackers).values({
+  const [row] = await conn.insert(s.depositRefundTrackers).values({
     shipmentId: input.shipmentId ?? null,
     billNumber: input.billNumber.trim(),
     customerName: input.customerName.trim(),
@@ -125,9 +125,9 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
  *  days server-side and stays editable afterwards. */
 export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: number, input: {
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
-}): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+}, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
-  const [row] = await db.select().from(s.depositRefundTrackers)
+  const [row] = await conn.select().from(s.depositRefundTrackers)
     .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1);
   if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
   if (row.status === 'DA_HOAN_CUOC') throw new ApiError(409, 'Dòng đã hoàn cược — không thể sửa ngày.');
@@ -135,13 +135,13 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
   const nextExpected = input.expectedRefundDate
     ? normalizeDepositDate(input.expectedRefundDate)
     : (input.cvSubmittedDate && row.expectedRefundDate == null ? addDays(normalizeDepositDate(input.cvSubmittedDate), 14) : row.expectedRefundDate);
-  await db.update(s.depositRefundTrackers).set({
+  await conn.update(s.depositRefundTrackers).set({
     cvSubmittedDate: cvDate,
     expectedRefundDate: nextExpected,
     note: input.note !== undefined ? (input.note?.trim() || null) : row.note,
     updatedAt: new Date(),
   }).where(eq(s.depositRefundTrackers.id, trackerId));
-  const [fresh] = await db.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
+  const [fresh] = await conn.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
   return fresh!;
 }
 
@@ -172,9 +172,9 @@ export async function recordDepositFromIntake(input: {
  *  into the COMPANY (ACB) fund through the standing treasury engine (ledger
  *  entry + one IN movement, exactly-linked sources), stamps the row. Re-tick
  *  is rejected loudly; the movement id guards double posts across lanes. */
-export async function markDepositRefunded(actor: ExpenseActor, trackerId: number): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+export async function markDepositRefunded(actor: ExpenseActor, trackerId: number, outer?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
-  return db.transaction(async (tx) => {
+  const run = async (tx: Tx) => {
     const [row] = await tx.select().from(s.depositRefundTrackers)
       .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1).for('update');
     if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
@@ -213,5 +213,6 @@ export async function markDepositRefunded(actor: ExpenseActor, trackerId: number
     }).where(eq(s.depositRefundTrackers.id, trackerId));
     const [fresh] = await tx.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
     return fresh!;
-  });
+  };
+  return outer ? run(outer) : db.transaction(run);
 }

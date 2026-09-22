@@ -18,6 +18,8 @@ import { listExpenseAccountingWork } from '../services/expense-accounting-work.s
 import { db } from '../db';
 import { listPhoiPhieuTruckAssignments } from '../services/phoi-phieu-control.service';
 import { exportExpenseAccountingReport } from '../services/expense-accounting-export.service';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
 import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } from './shipments/shipment-shared';
 
 import expenseAccountingCashRoutes from './expense-accounting-cash';
@@ -77,10 +79,17 @@ router.put('/phoi-phieu/trucks/:truckId/accountant', requireRoles(...PHOI_PHIEU_
     accountantId: z.number().int().positive().nullable(),
     expectedVersion: z.number().int().min(0),
   }).strict(), req.body);
-  const updated = await db.transaction((tx) => assignTruckAccountant(
-    tx, { userId: user.userId, role: user.role }, truckId, input.accountantId, input.expectedVersion,
-  ));
-  res.json(updated);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_TRUCK_ASSIGN,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { truckId, ...input, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => assignTruckAccountant(
+      tx, { userId: user.userId, role: user.role }, truckId, input.accountantId, input.expectedVersion,
+    ),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 router.get('/phoi-phieu/:tripId/chi-ho', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
@@ -99,28 +108,51 @@ router.put('/phoi-phieu/:tripId/phoi-meta', requireRoles(...PHOI_PHIEU_ROLES), a
     ngayLayPhoi: z.string().date().nullable().optional(),
     trangThaiLay: z.string().trim().max(30).nullable().optional(),
   }).strict(), req.body);
-  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
-  res.json(await updatePhoiPhieuMeta(tripId, input));
+  const user = getUser(req);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_PHOI_META,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { tripId, ...input, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => updatePhoiPhieuMeta(tripId, input, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 router.delete('/phoi-phieu/:tripId/rows/:sourceId', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const sourceId = parse(idSchema, req.params.sourceId);
   const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
-  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
-  res.json(await voidPhoiPhieuRow(tripId, sourceId, getUser(req), reason));
+  const user = getUser(req);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_ROW_VOID,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { tripId, sourceId, reason, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => voidPhoiPhieuRow(tripId, sourceId, user, reason, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 router.post('/phoi-phieu/vouchers', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
-  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  const user = getUser(req);
   const input = parse(z.object({
     tripIds: z.array(z.number().int().positive()).min(1),
     direction: z.enum(['IN', 'OUT']),
     treasuryAccountId: z.number().int().positive(),
     physicalReference: z.string().trim().max(120).optional(),
   }).strict(), req.body);
-  const voucher = await createPhoiPhieuVoucher({ ...input, actor: getUser(req) });
-  res.status(201).json(voucher);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_VOUCHER,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { ...input, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 201,
+    create: (tx) => createPhoiPhieuVoucher({ ...input, actor: user }, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 router.use(expenseAccountingCashRoutes);

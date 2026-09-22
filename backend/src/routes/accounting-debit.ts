@@ -1,8 +1,9 @@
 // Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (accounting chốt-debit CORE).
-// Office reads + adjustment request/confirm/withdraw. The writes are
-// transition-safe WITHOUT Idempotency-Key: create is INSERT..WHERE NOT
-// EXISTS-guarded (one live PENDING per lot), confirm/withdraw only move
-// PENDING rows (guarded UPDATE, returning counts) — replays are no-ops.
+// Office reads + adjustment request/confirm/withdraw. Every write reaches the
+// durable idempotency boundary (runIdempotent): the create is INSERT..WHERE
+// NOT EXISTS-guarded (one live PENDING per lot), confirm/withdraw only move
+// PENDING rows (guarded UPDATE, returning counts) — replays return the first
+// outcome instead of re-applying.
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
@@ -11,6 +12,8 @@ import { getUser } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import { requireRoles } from '../middleware/casbin';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
 import {
   getAccountingDebitBoard,
   createRateAdjustmentRequests,
@@ -46,26 +49,49 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments', OFFICE_ROLES, asyncH
   const user = getUser(req);
   const parsed = adjustmentRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
-  const result = await createRateAdjustmentRequests({
-    shipmentIds: parsed.data.shipmentIds,
-    ghiChu: parsed.data.ghiChu,
-    userId: user.userId,
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { ...parsed.data, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 201,
+    create: (tx) => createRateAdjustmentRequests({
+      shipmentIds: parsed.data.shipmentIds,
+      ghiChu: parsed.data.ghiChu,
+      userId: user.userId,
+    }, tx),
   });
-  res.status(201).json(result);
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
-  res.json(await confirmRateAdjustmentRequests({ requestIds: parsed.data.requestIds, userId: user.userId }));
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { ...parsed.data, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => confirmRateAdjustmentRequests({ requestIds: parsed.data.requestIds, userId: user.userId }, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
-  res.json(await withdrawRateAdjustmentRequests({ requestIds: parsed.data.requestIds, userId: user.userId }));
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { ...parsed.data, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => withdrawRateAdjustmentRequests({ requestIds: parsed.data.requestIds, userId: user.userId }, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 export default accountingDebitRoutes;

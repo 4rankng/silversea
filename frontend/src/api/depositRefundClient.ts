@@ -45,15 +45,21 @@ export async function createDepositTracker(body: {
   billNumber: string; customerName: string; carrierName: string; depositAmount: number | string;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
 }): Promise<DepositTrackerRow> {
-  return api.post<DepositTrackerRow>('/accounting/deposits', body);
+  return api.post<DepositTrackerRow>('/accounting/deposits', body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }
 
 export async function updateDepositTrackerDates(id: number, body: {
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
 }): Promise<DepositTrackerRow> {
-  return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body);
+  return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }
 
 export async function markDepositRefunded(id: number): Promise<DepositTrackerRow> {
-  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`, {});
+  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`, {}, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }

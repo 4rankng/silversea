@@ -24,6 +24,7 @@ import { db } from '../db';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import type { Tx } from './trip-shared';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -413,8 +414,8 @@ export async function getAccountingDebitBoard(query: {
 // existing editing surfaces. Roles enforced at the route level (office set).
 
 /** P2: a lot with an ACTIVE cost lock is frozen — no new requests. */
-async function findActiveCostLock(shipmentId: number) {
-  const [lock] = await db.select({ id: s.shipmentCostLocks.id })
+async function findActiveCostLock(shipmentId: number, conn: typeof db | Tx) {
+  const [lock] = await conn.select({ id: s.shipmentCostLocks.id })
     .from(s.shipmentCostLocks)
     .where(and(
       eq(s.shipmentCostLocks.shipmentId, shipmentId),
@@ -427,25 +428,24 @@ export async function createRateAdjustmentRequests(input: {
   shipmentIds: number[];
   ghiChu?: string;
   userId: number;
-}): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
+}, conn: typeof db | Tx = db): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
   const requested: number[] = [];
   const alreadyPending: number[] = [];
   const locked: number[] = [];
   for (const shipmentId of input.shipmentIds) {
-    const lock = await findActiveCostLock(shipmentId);
+    const lock = await findActiveCostLock(shipmentId, conn);
     if (lock) { locked.push(shipmentId); continue; }
-    await db.transaction(async (tx) => {
-      // INSERT..SELECT WHERE NOT EXISTS — atomic guard replacing the partial
-      // unique index (P5). A transient double-PENDING would be harmless to
-      // the export guard, and the board reads latest-per-lot anyway.
-      await tx.execute(sql`insert into ${s.shipmentRateAdjustmentRequests} ("shipment_id", "ghi_chu", "requested_by")
-        select ${shipmentId}, ${input.ghiChu ?? null}, ${input.userId}
-        where not exists (
-          select 1 from ${s.shipmentRateAdjustmentRequests}
-          where "shipment_id" = ${shipmentId} and status = 'PENDING' and withdrawn_at is null
-        )`);
-    });
-    const [live] = await db.select({ id: s.shipmentRateAdjustmentRequests.id })
+    // INSERT..SELECT WHERE NOT EXISTS — atomic guard replacing the partial
+    // unique index (P5). Runs inside the caller's tx when provided (the
+    // runIdempotent boundary), so the idempotency record and the request
+    // row commit or roll back together.
+    await conn.execute(sql`insert into ${s.shipmentRateAdjustmentRequests} ("shipment_id", "ghi_chu", "requested_by")
+      select ${shipmentId}, ${input.ghiChu ?? null}, ${input.userId}
+      where not exists (
+        select 1 from ${s.shipmentRateAdjustmentRequests}
+        where "shipment_id" = ${shipmentId} and status = 'PENDING' and withdrawn_at is null
+      )`);
+    const [live] = await conn.select({ id: s.shipmentRateAdjustmentRequests.id })
       .from(s.shipmentRateAdjustmentRequests)
       .where(and(
         eq(s.shipmentRateAdjustmentRequests.shipmentId, shipmentId),
@@ -461,8 +461,8 @@ export async function createRateAdjustmentRequests(input: {
 export async function confirmRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}): Promise<{ confirmed: number }> {
-  const updated = await db.update(s.shipmentRateAdjustmentRequests)
+}, conn: typeof db | Tx = db): Promise<{ confirmed: number }> {
+  const updated = await conn.update(s.shipmentRateAdjustmentRequests)
     .set({ status: 'CONFIRMED', confirmedBy: input.userId, confirmedAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),
@@ -476,8 +476,8 @@ export async function confirmRateAdjustmentRequests(input: {
 export async function withdrawRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}): Promise<{ withdrawn: number }> {
-  const updated = await db.update(s.shipmentRateAdjustmentRequests)
+}, conn: typeof db | Tx = db): Promise<{ withdrawn: number }> {
+  const updated = await conn.update(s.shipmentRateAdjustmentRequests)
     .set({ withdrawnAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),

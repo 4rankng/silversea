@@ -143,6 +143,18 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DEBT_OFFSET_CREATE: 'debt-offsets.create',
   DEBT_OFFSET_APPROVE: 'debt-offsets.approve',
   DEBT_OFFSET_CANCEL: 'debt-offsets.cancel',
+  // Card 20260921_21/19/8+13 governance rider: every financial-write route
+  // reaches the durable idempotency boundary — double-submit protection.
+  DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST: 'accounting.debit-board.rate-adjustment.request',
+  DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM: 'accounting.debit-board.rate-adjustment.confirm',
+  DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW: 'accounting.debit-board.rate-adjustment.withdraw',
+  DEPOSIT_TRACKER_CREATE: 'accounting.deposit-tracker.create',
+  DEPOSIT_TRACKER_DATES: 'accounting.deposit-tracker.dates',
+  DEPOSIT_TRACKER_REFUND: 'accounting.deposit-tracker.refund',
+  PHOI_PHIEU_VOUCHER: 'expense-accounting.phoi-phieu.voucher',
+  PHOI_PHIEU_ROW_VOID: 'expense-accounting.phoi-phieu.row-void',
+  PHOI_PHIEU_PHOI_META: 'expense-accounting.phoi-phieu.phoi-meta',
+  PHOI_PHIEU_TRUCK_ASSIGN: 'expense-accounting.phoi-phieu.truck-assign',
   GOVERNANCE_CHECK: 'governance.check',
   GOVERNANCE_APPROVE: 'governance.approve',
   GOVERNANCE_REJECT: 'governance.reject',

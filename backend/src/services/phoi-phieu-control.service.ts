@@ -236,11 +236,11 @@ export interface PhoiPhieuVoucherInput {
 
 /** Consolidated phiếu: one createExpenseVoucher call over every open OPS
  *  source of the selected trips — ONE treasury movement adjusts the quỹ. */
-export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
+export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?: Tx): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
   if (!Array.isArray(args.tripIds) || args.tripIds.length === 0) {
     throw new ApiError(400, 'Chưa chọn dòng nào để lập phiếu.');
   }
-  return db.transaction(async (tx) => {
+  const run = async (tx: Tx) => {
     const tripRows = await tx.select({
       tripId: s.trips.id,
       shipmentId: s.trips.shipmentId,
@@ -330,7 +330,8 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
       throw new ApiError(409, 'Các dòng đã chọn không còn khoản mở để lập phiếu.');
     }
     return { voucherId: issued[0]!.id, code: issued.map((voucher) => voucher.code).join(', '), total: grandTotal, entries: issued.length, issued };
-  });
+  };
+  return outer ? run(outer) : db.transaction(run);
 }
 
 export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: string; name: string }>> {
@@ -415,8 +416,8 @@ export async function getPhoiPhieuChiHo(tripId: number): Promise<{
 
 export async function updatePhoiPhieuMeta(tripId: number, input: {
   ngayLayPhoi?: string | null; trangThaiLay?: string | null;
-}): Promise<{ ok: true }> {
-  await db.transaction(async (tx) => {
+}, outer?: Tx): Promise<{ ok: true }> {
+  const run = async (tx: Tx): Promise<{ ok: true }> => {
     const [existing] = await tx.select({ id: s.tripFinancialState.id })
       .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1).for('update');
     if (existing) {
@@ -425,7 +426,7 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
         ...(input.trangThaiLay !== undefined ? { phoiTakeStatus: input.trangThaiLay } : {}),
         updatedAt: new Date(),
       }).where(eq(s.tripFinancialState.id, existing.id));
-      return;
+      return { ok: true };
     }
     const [trip] = await tx.select({ shipmentId: s.trips.shipmentId }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     await tx.insert(s.tripFinancialState).values({
@@ -434,14 +435,14 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
       ...(input.trangThaiLay ? { phoiTakeStatus: input.trangThaiLay } : {}),
     });
     void trip;
-  });
-  return { ok: true };
+    return { ok: true };
+  };
+  return outer ? run(outer) : db.transaction(run);
 }
-
 /** Remove a fee row from the dialog: VOID the source (history kept — the
  *  accounting rule) and void the entry, never a hard delete. */
-export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: AuthUser, reason: string) {
-  await db.transaction(async (tx) => {
+export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: AuthUser, reason: string, outer?: Tx) {
+  const run = async (tx: Tx) => {
     const [source] = await tx.select().from(s.expenseAccountingSources)
       .where(and(eq(s.expenseAccountingSources.id, sourceId),
         eq(s.expenseAccountingSources.sourceKind, 'OPS'))).limit(1).for('update');
@@ -461,8 +462,8 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
       userId: actor.userId, entityType: 'expense_accounting_source', entityId: sourceId,
       message: 'VOID phoi-phieu fee row', payload: { reason, tripId },
     });
-  });
-  return { ok: true };
+  };
+  return outer ? run(outer) : db.transaction(run);
 }
 
 // ── Card 20260921_14: the accountant tiền-đường detail dialog ───────────────
