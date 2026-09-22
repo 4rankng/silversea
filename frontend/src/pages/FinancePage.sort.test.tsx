@@ -35,10 +35,6 @@ vi.mock('../components/charts/RevenueTrendChart', () => ({
   RevenueTrendChart: () => null,
 }));
 
-vi.mock('../components/shared', () => ({
-  EmptyIllustration: () => null,
-}));
-
 vi.mock('../components/shared/Breadcrumbs', () => ({
   Breadcrumbs: () => null,
 }));

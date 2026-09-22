@@ -2,7 +2,7 @@ import { UserX, Wrench } from 'lucide-react';
 import type { Driver, Truck } from '../utils';
 import type { NormalizedTrip } from '../../../hooks/useTripQueries';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
+import { EmptyState } from '../../../design-system';
 
 interface FleetGridProps {
   trucks: Truck[];
@@ -38,8 +38,7 @@ export function FleetGrid({ trucks, activeTrips, drivers, onTripClick }: FleetGr
   if (trucks.length === 0) {
     return (
       <div className="fleet-empty">
-        <img src={resolveEmptyIllustration('empty-fleet')} alt="" aria-hidden="true" style={{ width: 160, height: 132, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        Không có xe nào trong nhóm này.
+        <EmptyState variant="compact" context="fleet" title="Không có xe nào trong nhóm này." />
       </div>
     );
   }

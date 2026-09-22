@@ -1,5 +1,5 @@
 import type { ReactNode, ComponentType } from 'react';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { resolveEmptyIllustration, type EmptyContext } from '../lib/emptyIllustrations';
 import './EmptyState.css';
 
 /**
@@ -9,6 +9,9 @@ import './EmptyState.css';
  *   - default: icon/illustration + title + description + action (original behavior).
  *   - `preview="cards"|"rows"|"list"`: shows faded placeholder shapes behind the
  *     message so users can visualise what content will look like once added.
+ *
+ * Illustration art always routes through the single typed resolver
+ * (lib/emptyIllustrations): pass a `context` key and this component resolves it.
  *
  * The preview variant is the T1 adoption from the Tailkit MCP audit
  * (a-c-empty-states-05 retokenized to NEPO tokens). See
@@ -20,9 +23,11 @@ export type EmptyStatePreview = 'cards' | 'rows' | 'list';
 export interface EmptyStateProps {
   title: string;
   description?: ReactNode;
-  /** Branded illustration key resolved via lib/emptyIllustrations. */
+  /** Typed empty-state context key resolved via lib/emptyIllustrations (preferred). */
+  context?: EmptyContext;
+  /** Legacy illustration key/path resolved via lib/emptyIllustrations. Prefer `context`. */
   illustration?: string;
-  /** Optional leading icon (lucide-react component). Ignored when `illustration` is set. */
+  /** Optional leading icon (lucide-react component). Ignored when `context`/`illustration` is set. */
   icon?: ComponentType<{ size?: number; className?: string }>;
   action?: ReactNode;
   /** When set, renders faded placeholder previews of upcoming content. */
@@ -43,6 +48,7 @@ export interface EmptyStateProps {
 export function EmptyState({
   title,
   description,
+  context,
   illustration,
   icon: Icon,
   action,
@@ -52,6 +58,7 @@ export function EmptyState({
   role,
   className,
 }: EmptyStateProps) {
+  const art = context ?? illustration;
   const showPreview = Boolean(preview);
   const count = previewCount ?? (preview === 'cards' ? 3 : 4);
   const cls = ['ds-empty-state', showPreview ? `ds-empty-state--with-preview ds-empty-state--preview-${preview}` : '', variant === 'compact' ? 'ds-empty-state--compact' : '', className]
@@ -61,9 +68,9 @@ export function EmptyState({
   return (
     <div className={cls} role={role}>
       <div className="ds-empty-state__message">
-        {illustration ? (
+        {art ? (
           <img
-            src={resolveEmptyIllustration(illustration)}
+            src={resolveEmptyIllustration(art)}
             alt=""
             aria-hidden="true"
             className="ds-empty-state__illustration"

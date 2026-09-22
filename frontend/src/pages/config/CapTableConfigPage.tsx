@@ -70,7 +70,7 @@ export default function CapTableConfigPage() {
       showDelete={false}
       pageSlug="cap-table"
       iconName="equity-ownership"
-      emptyIllustration="empty-pie.svg"
+      emptyContext="pie"
       emptyTitle="Chưa có cổ đông"
       emptyHint="Thêm thông tin vốn góp để hệ thống tự động tính tỷ lệ cổ phần."
       computeActiveIds={computeCapTableActiveIds}

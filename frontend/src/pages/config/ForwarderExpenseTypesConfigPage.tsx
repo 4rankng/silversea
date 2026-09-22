@@ -323,7 +323,7 @@ export default function ForwarderExpenseTypesConfigPage() {
         iconName="forwarder-expense"
         showDelete={false}
         pageSlug="forwarder-expense-types"
-        emptyIllustration="empty-expenses.svg"
+        emptyContext="expenses"
         emptyTitle="Chưa có loại chi phí"
         emptyHint="Thêm các loại chi phí giao nhận để nhân viên ghi nhận khi phát sinh."
         columns={[

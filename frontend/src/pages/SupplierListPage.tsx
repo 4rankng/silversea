@@ -389,7 +389,7 @@ export default function SupplierListPage() {
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--ink-3)' }}>Đang tải…</div>
           ) : filtered.length === 0 ? (
             <EmptyState
-              illustration="/assets/illustrations/empty-clients.svg"
+              context="clients"
               title="Chưa có nhà cung cấp"
               description="Thêm nhà cung cấp đầu tiên để bắt đầu quản lý chi phí."
               action={<button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}><Plus size={14} /> Thêm nhà cung cấp</button>}

@@ -113,3 +113,14 @@ describe('status color contract (card 20260922_35)', () => {
     }
   });
 });
+
+describe('accent-as-text ban (card 20260922_45)', () => {
+  it('DebtDetailPage.css never sets text color to plain --accent', () => {
+    const debtCss = readFileSync(resolve(process.cwd(), 'src/pages/DebtDetailPage.css'), 'utf8');
+    // --accent is graphic-only (law §2): border/background OK, text color
+    // must be --accent-ink / --accent-2 / --success-text. The lookbehind
+    // keeps border-color: var(--accent) legal.
+    const violations = debtCss.match(/(?<![\w-])color:\s*var\(--accent[),]/g) ?? [];
+    expect(violations).toEqual([]);
+  });
+});

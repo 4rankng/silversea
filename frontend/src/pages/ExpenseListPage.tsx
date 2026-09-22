@@ -162,7 +162,7 @@ export default function ExpenseListPage() {
 
   const renderEmptyState = () => (
     <EmptyState
-      illustration="/assets/illustrations/empty-expenses.svg"
+      context="expenses"
       title="Chưa có khoản chi phí nào."
       action={<button className="btn btn--primary" onClick={() => navigate('/expenses/new')}><Plus size={15} /> Thêm phiếu chi</button>}
     />

@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Search, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
-import { SummaryRail } from '../design-system';
+import { EmptyState, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyIllustration } from '../components/shared';
 import {
   CalCell,
   DriverPayoutModal,
@@ -142,10 +141,7 @@ export default function SalaryAttendancePage() {
               );
             })}
             {filteredDrivers.length === 0 && (
-              <div className="salary-empty-inline">
-                <EmptyIllustration name="empty-salary" />
-                <span>Không tìm thấy lái xe</span>
-              </div>
+              <EmptyState variant="compact" context="salary" title="Không tìm thấy lái xe" className="salary-empty-inline" />
             )}
           </div>
         )}
@@ -534,8 +530,7 @@ export default function SalaryAttendancePage() {
           {!selectedDriverId ? (
             <Panel>
               <div className="salary-empty-panel">
-                <EmptyIllustration name="empty-salary" />
-                <p className="salary-attendance__empty-panel-text">Chọn lái xe ở trên để xem lịch chấm công</p>
+                <EmptyState variant="compact" context="salary" title="Chọn lái xe ở trên để xem lịch chấm công" />
               </div>
             </Panel>
           ) : (

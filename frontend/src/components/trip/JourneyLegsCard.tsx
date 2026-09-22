@@ -3,6 +3,7 @@ import './JourneyLegsCard.css';
 import { Plus } from 'lucide-react';
 import { CardSection } from './CardSection';
 import { JourneyLegRow } from './JourneyLegRow';
+import { EmptyState } from '../../../design-system';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 
 interface JourneyLegsCardProps {
@@ -36,19 +37,17 @@ export function JourneyLegsCard({ collapsible, defaultCollapsed, number = 2 }: J
     >
       {legs.length === 0 ? (
         <div className="tc-journey-empty">
-          <div className="tc-journey-empty__illustration" style={{ position: 'relative', border: 'none', background: 'transparent' }}>
-            <img src="/assets/illustrations/empty-routes.svg" alt="" style={{ width: 80, height: 60, objectFit: 'contain' }} />
-          </div>
-          <div className="tc-journey-empty__text">
-            <h4 style={{ margin: '0 0 4px', fontSize: 'var(--text-section-size)', fontWeight: 700, color: 'var(--fg-1)' }}>Chưa có chặng nào</h4>
-            <p style={{ margin: 0, fontSize: 'var(--text-body-size)', color: 'var(--fg-3)' }}>
-              Nhập địa điểm và cự ly (Km) cho từng chặng để tính nhiên liệu theo định mức. Bạn cũng có thể bỏ qua và nhập thủ công.
-            </p>
-          </div>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={addLeg}>
-            <Plus size={14} />
-            Thêm chặng đầu tiên
-          </button>
+          <EmptyState
+            context="routes"
+            title="Chưa có chặng nào"
+            description="Nhập địa điểm và cự ly (Km) cho từng chặng để tính nhiên liệu theo định mức. Bạn cũng có thể bỏ qua và nhập thủ công."
+            action={
+              <button type="button" className="btn btn--secondary btn--sm" onClick={addLeg}>
+                <Plus size={14} />
+                Thêm chặng đầu tiên
+              </button>
+            }
+          />
         </div>
       ) : (
         <>

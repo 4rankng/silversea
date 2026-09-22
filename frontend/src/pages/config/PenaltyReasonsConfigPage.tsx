@@ -459,7 +459,7 @@ export default function PenaltyReasonsConfigPage() {
       ) : filteredItems.length === 0 ? (
         <EmptyState
           variant="compact"
-          illustration="empty-penalties"
+          context="penalty-reasons"
           title="Không tìm thấy lỗi vi phạm"
           description="Thử từ khóa khác hoặc thay đổi bộ lọc."
         />

@@ -8,7 +8,7 @@ import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
 import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
+import { EmptyState } from '../../../design-system';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
@@ -509,20 +509,12 @@ export function PenaltyTable({
           </div>
           {reasons.length === 0 ? (
             <div className="penalty-empty-reasons">
-              <img
-                src={resolveEmptyIllustration('empty-penalty-reasons')}
-                alt=""
-                aria-hidden="true"
-                className="penalty-empty-reasons__img"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              <EmptyState
+                context="penalty-reasons"
+                title="Chưa có phân loại vi phạm"
+                description="Thêm các mức phạt nội quy để hệ thống tự động áp dụng khi lập biên bản kỷ luật."
+                action={<Btn variant="secondary" icon={<Plus size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Thêm nội quy đầu tiên</Btn>}
               />
-              <div className="penalty-empty-reasons__title">Chưa có phân loại vi phạm</div>
-              <div className="penalty-empty-reasons__desc">
-                Thêm các mức phạt nội quy để hệ thống tự động áp dụng khi lập biên bản kỷ luật.
-              </div>
-              <Btn variant="secondary" icon={<Plus size={13} />} onClick={() => navigate('/config/penalty-reasons')}>
-                Thêm nội quy đầu tiên
-              </Btn>
             </div>
           ) : (
           <div className="penalty-vio-type-list">

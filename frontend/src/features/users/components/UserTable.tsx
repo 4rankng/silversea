@@ -9,9 +9,8 @@ import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
-import { Pagination, SummaryRail } from '../../../design-system';
+import { EmptyState, Pagination, SummaryRail } from '../../../design-system';
 import '../../../styles/record-table.css';
 import '../../../styles/operational-table-typography.css';
 
@@ -323,9 +322,7 @@ function DesktopTable({
               <tr>
                 <td colSpan={7} data-label="">
                   <div className="users-empty">
-                    <img src={resolveEmptyIllustration('empty-users')} alt="" aria-hidden="true" className="users-empty__illustration" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <p className="users-empty__title">Không tìm thấy tài khoản</p>
-                    <p className="users-empty__desc">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                    <EmptyState variant="compact" context="users" title="Không tìm thấy tài khoản" description="Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm" />
                   </div>
                 </td>
               </tr>

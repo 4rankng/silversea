@@ -52,7 +52,7 @@ interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   rowStyle?: (item: T, isActive: boolean) => React.CSSProperties | undefined;
   toolbarLeft?: (ctx: { totalItems: number; activeCount: number }) => React.ReactNode;
   backTo?: string;
-  emptyIllustration?: string;
+  emptyContext?: import('../../lib/emptyIllustrations').EmptyContext;
   emptyTitle?: string;
   emptyHint?: string;
   pageSlug?: string;
@@ -63,7 +63,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
   title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
   showDelete = true, onDelete, modalChip, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
-  emptyIllustration = 'empty-config.svg',
+  emptyContext = 'config',
   emptyTitle = 'Chưa có dữ liệu',
   emptyHint,
   pageSlug,
@@ -154,7 +154,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                 <tr className="cfg-empty-row">
                   <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
-                      illustration={`/assets/illustrations/${emptyIllustration}`}
+                      context={emptyContext}
                       title={emptyTitle}
                       description={emptyHint}
                       action={

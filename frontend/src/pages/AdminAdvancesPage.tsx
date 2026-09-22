@@ -14,13 +14,12 @@ import { forwarderClient } from '../api/forwarderClient';
 import { qk } from '../api/keys';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
-import { Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './AdminAdvancesPage.css';
 import '../styles/table-sort.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -392,9 +391,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           </div>
         ) : table.rows.length === 0 ? (
           <div className="adv-empty">
-            <img src={resolveEmptyIllustration('empty-advances')} alt="" aria-hidden="true" style={{ width: 160, height: 132, objectFit: 'contain', marginBottom: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div className="adv-empty-text">Không có yêu cầu tạm ứng nào</div>
-            <div className="adv-empty-hint">Giao nhận có thể gửi yêu cầu từ ứng dụng di động</div>
+            <EmptyState
+              context="advances"
+              title="Không có yêu cầu tạm ứng nào"
+              description="Giao nhận có thể gửi yêu cầu từ ứng dụng di động"
+            />
           </div>
         ) : (
           <>

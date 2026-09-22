@@ -24,11 +24,10 @@ import './PayableListPage.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { Pagination, SearchableSelect, SummaryRail, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, SearchableSelect, SummaryRail, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -526,8 +525,7 @@ export default function PayableListPage() {
               <div className="m-card-list">
                 {payables.length === 0 ? (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <img src={resolveEmptyIllustration('empty-payables')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    Không tìm thấy dữ liệu.
+                    <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu." />
                   </div>
                 ) : (
                   payables.map(d => {
@@ -632,8 +630,7 @@ export default function PayableListPage() {
                       <tr>
                         <td colSpan={7} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <img src={resolveEmptyIllustration('empty-payables')} alt="" aria-hidden="true" style={{ width: 130, height: 108, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                            Không tìm thấy dữ liệu công nợ phải trả.
+                            <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu công nợ phải trả." />
                           </div>
                         </td>
                       </tr>

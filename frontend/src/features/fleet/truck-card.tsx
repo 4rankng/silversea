@@ -1,6 +1,6 @@
 import { useState, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
-import { EmptyIllustration } from "../../components/shared";
+import { EmptyState } from "../../design-system";
 import { Truck, UserCheck, Plus, Pencil, Trash2, X, Loader2, ArrowRight } from "lucide-react";
 import { Panel, StatusPill, Modal, useConfirm } from "../../components/UI";
 import { StatusStrip } from "../../components/shared/StatusStrip";
@@ -241,8 +241,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
               {trucks.length === 0 && (
                 <tr>
                   <td colSpan={5} style={styles.emptyRow}>
-                    <EmptyIllustration name="empty-trucks" width={140} height={116} style={{ margin: "0 auto 8px", display: "block" }} />
-                    <div>Chưa có dữ liệu</div>
+                    <EmptyState variant="compact" context="trucks" title="Chưa có dữ liệu" />
                   </td>
                 </tr>
               )}
@@ -314,8 +313,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
         <div className="m-card-list">
           {trucks.length === 0 && (
             <div style={{ padding: 32, textAlign: "center", color: "var(--fg-3)" }}>
-              <EmptyIllustration name="empty-trucks" width={150} height={124} style={{ margin: "0 auto 8px", display: "block" }} />
-              <div>Chưa có dữ liệu</div>
+              <EmptyState variant="compact" context="trucks" title="Chưa có dữ liệu" />
             </div>
           )}
           {trucks.map((t) => {

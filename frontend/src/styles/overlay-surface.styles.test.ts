@@ -59,14 +59,15 @@ const TSX_SCOPE = [
   'src/components/shared/CommandPalette.tsx', // command palette
   'src/components/shared/Tooltip.tsx', // shared tooltip
   'src/components/layout/MobileAccountSheet.tsx', // mobile bottom sheet
-  'src/components/ui/DropdownMenu/DropdownMenu.tsx', // radix dropdown surface
-  'src/components/ui/Select/Select.tsx', // radix select surface
+  'src/components/UI/DropdownMenu/DropdownMenu.tsx', // radix dropdown surface
+  'src/components/UI/Select/Select.tsx', // radix select surface
   'src/components/untitled-ui/base/select/popover.tsx', // uui select popover
   'src/components/untitled-ui/base/select/multi-select.tsx', // uui multi popover
   'src/components/untitled-ui/application/modals/modal.tsx', // uui modal surface
   'src/features/users/components/UserTable.tsx', // row-action menu
   'src/features/dispatch/components/ReassignDialog.tsx', // reassign dialog
-  'src/pages/SupplierListPage.tsx', // row-action menu
+  'src/pages/SupplierListPage.tsx', // row-action menu (fill landed in a8c84bea mixed-hunk carry)
+  'src/pages/CustomersPage.tsx', // row-action menu (fill carried by lead, landed d142ae3d)
   'src/pages/config/CustomersConfigPage.tsx', // row-action menu
   'src/pages/config/RoutesConfigPage.tsx', // row-action menu
   'src/pages/accounting/AccountingDebitClosePage.tsx', // floating popover
@@ -74,14 +75,16 @@ const TSX_SCOPE = [
 
 // Files with overlay raw-white offenders that this card must NOT edit.
 const EXCLUDED: Array<{ file: string; lane: string; date: string }> = [
-  // Row-action menu `background: '#fff'` ~line 831 — the lead carries the fill
-  // hunk on 20260922_36's behalf (shadow class → card 20260922_50).
-  { file: 'src/pages/CustomersPage.tsx', lane: 'lead lane (carried hunk)', date: '2026-09-22' },
+  // CustomersPage.tsx exclusion retired 2026-09-22: its fill fix (d142ae3d)
+  // landed, so it moved INTO scope (TSX_SCOPE/TSX_SURFACES).
+  // SupplierListPage.tsx exclusion never needed: its fill hunk landed inside
+  // 20260922_36's sweep (a8c84bea, mixed-hunk carry) and the 20260922_40
+  // carrying landing brings the file to full coherence — registered normally.
   // WIP uncommitted ContainerDialog lane churn — scanned only at its landing.
   { file: 'src/pages/ShipmentsPage.tsx', lane: 'ContainerDialog lane', date: '2026-09-22' },
   { file: 'src/pages/ShipmentsPage.css', lane: 'ContainerDialog lane', date: '2026-09-22' },
-  { file: 'src/pages/shipments/ShipmentContainersPage.tsx', lane: 'ContainerDialog lane', date: '2026-09-22' },
-  { file: 'src/pages/shipments/ShipmentContainersPage.css', lane: 'ContainerDialog lane', date: '2026-09-22' },
+  { file: 'src/pages/ShipmentContainersPage.tsx', lane: 'ContainerDialog lane', date: '2026-09-22' },
+  { file: 'src/pages/ShipmentContainersPage.css', lane: 'ContainerDialog lane', date: '2026-09-22' },
 ];
 
 // Floating SURFACES that must carry `background: var(--surface` (plain or with
@@ -100,6 +103,7 @@ const CSS_SURFACES: Array<[string, RegExp]> = [
   ['src/components/shipments/ContainerManageDialog.css', /^\.cus-container-manage__table$/],
   ['src/components/billing/BillingDocumentBuilder.css', /^\.billing-builder__topbar$/],
   ['src/design-system/forms/DateTimePickerPanels.css', /^\.dtp-popover$/],
+  ['src/design-system/forms/DateTimePickerPanels.css', /^\.dtp-time__exact > input$/],
   ['src/design-system/forms/TimePickerSurface.css', /^\.time-picker__popup,\s*\.time-picker__dialog$/],
   ['src/design-system/forms/TimePickerSurface.css', /^\.time-picker__sheet$/],
   ['src/design-system/forms/DatePickerSurface.css', /^\.date-picker__popup$/],
@@ -113,14 +117,16 @@ const CSS_SURFACES: Array<[string, RegExp]> = [
 const TSX_SURFACES: Array<[string, RegExp]> = [
   ['src/components/SearchDropdown.tsx', /background: 'var\(--surface\)'/],
   ['src/components/charts/RevenueTrendChart.tsx', /background: 'var\(--surface\)'/],
-  ['src/components/ui/DropdownMenu/DropdownMenu.tsx', /bg-\[var\(--surface\)\]/],
-  ['src/components/ui/Select/Select.tsx', /bg-\[var\(--surface\)\]/],
+  ['src/components/UI/DropdownMenu/DropdownMenu.tsx', /bg-\[var\(--surface\)\]/],
+  ['src/components/UI/Select/Select.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/base/select/popover.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/base/select/multi-select.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/application/modals/modal.tsx', /bg-\[var\(--surface\)\]/],
-  ['src/features/users/components/UserTable.tsx', /background: 'var\(--surface\)'/],
-  ['src/pages/SupplierListPage.tsx', /background: 'var\(--surface\)'/],
+  ['src/features/users/components/UserTable.tsx', /background: 'var\(-surface\)'/],
+  ['src/pages/SupplierListPage.tsx', /background: 'var\(-surface\)'/],
+  ['src/pages/CustomersPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/config/CustomersConfigPage.tsx', /background: 'var\(--surface\)'/],
+  ['src/pages/SupplierListPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/config/RoutesConfigPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/accounting/AccountingDebitClosePage.tsx', /background: 'var\(--surface/],
 ];

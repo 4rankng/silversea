@@ -263,20 +263,6 @@
   text-align: center;
   padding: 36px 24px;
 }
-.adv-page .adv-empty-icon {
-  color: var(--ink-4);
-  margin: 0 auto 12px;
-}
-.adv-page .adv-empty-text {
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
-  font-weight: var(--fw-medium);
-}
-.adv-page .adv-empty-hint {
-  margin-top: 4px;
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-}
 
 /* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
 .adv-page .adv-cards { display: none; }

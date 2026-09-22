@@ -93,7 +93,7 @@ export default function PricingTablesConfigPage() {
       endpoint="/pricing-tables" colSpan={7}
       pageSlug="pricing-tables"
       iconName="pricing-rate"
-      emptyIllustration="empty-pricing.svg"
+      emptyContext="pricing"
       emptyTitle="Chưa có bảng giá"
       emptyHint="Thêm đơn giá đầu tiên (Khách hàng × Tuyến) để hệ thống áp dụng tự động."
       columns={[

@@ -46,7 +46,7 @@ export default function TrucksConfigPage() {
       endpoint="/trucks" colSpan={4}
       pageSlug="trucks"
       iconName="tractor-head"
-      emptyIllustration="empty-trucks.svg"
+      emptyContext="trucks"
       emptyTitle="Chưa có xe đầu kéo"
       emptyHint="Thêm xe đầu kéo để bắt đầu phân chuyến và theo dõi bảo dưỡng."
       columns={[

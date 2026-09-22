@@ -323,7 +323,7 @@ export default function DriverTripsPage() {
         ) : groupedCardsForTab.length === 0 ? (
           <EmptyState
             className="driver-journey__empty"
-            illustration="empty-trips"
+            context="trips"
             title={activeTab === 'HISTORY' ? `Chưa có chuyến trong tháng ${month}/${year}.` : EMPTY_MESSAGE[activeTab]}
             description={EMPTY_HINT[activeTab]}
             action={

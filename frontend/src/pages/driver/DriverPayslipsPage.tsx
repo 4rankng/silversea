@@ -159,7 +159,7 @@ export default function DriverPayslipsPage() {
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <EmptyState
         variant="compact"
-        illustration="empty-trips"
+        context="trips"
         title="Chưa có kỳ lương nào"
         description="Bảng lương sẽ xuất hiện ở đây khi kế toán chốt kỳ."
       />

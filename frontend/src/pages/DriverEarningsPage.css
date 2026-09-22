@@ -424,12 +424,6 @@
   gap: 8px;
 }
 
-.earnings-penalties-empty img {
-  width: 108px;
-  height: 90px;
-  object-fit: contain;
-}
-
 .earnings-loading {
   padding: 32px;
   text-align: center;

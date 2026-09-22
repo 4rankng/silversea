@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ExternalLink } from 'lucide-react';
-import { EmptyIllustration } from '../components/shared';
+import { EmptyState } from '../design-system';
 import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
@@ -261,25 +261,21 @@ export default function FinancePage() {
                 </div>
               ) : completedTripCount === 0 ? (
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
-                  <EmptyIllustration name="empty-pricing" width={150} height={124} />
-                  <div>
-                    {chartView === 'day'
-                      ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}`
-                      : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
+                  <EmptyState
+                    context="pricing"
+                    title={chartView === 'day' ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}` : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
+                    description="Hoàn thành chuyến để xem xu hướng doanh thu"
+                  />
                 </div>
               ) : !hasChartData ? (
                 /* Completed trips exist but every series bucket is zero — an
                    accurate zero-value explanation, never a no-trip claim. */
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
-                  <EmptyIllustration name="empty-pricing" width={150} height={124} />
-                  <div>
-                    {chartView === 'day'
-                      ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`
-                      : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này</div>
+                  <EmptyState
+                    context="pricing"
+                    title={chartView === 'day' ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0` : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
+                    description="Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này"
+                  />
                 </div>
               ) : (
                 <RevenueTrendChart
@@ -346,9 +342,11 @@ export default function FinancePage() {
               </div>
             ) : (
               <div style={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', gap: 8 }}>
-                <EmptyIllustration name="empty-pie" width={126} height={104} />
-                <div>Chưa có dữ liệu chi phí</div>
-                <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu</div>
+                <EmptyState
+                  context="pie"
+                  title="Chưa có dữ liệu chi phí"
+                  description="Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu"
+                />
               </div>
             )}
           </div>

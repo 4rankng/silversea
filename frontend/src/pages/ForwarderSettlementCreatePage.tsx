@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Check, ArrowLeft, Info, Search, Wallet, Receipt, FileText, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
-import { EmptyIllustration } from '../components/shared';
+import { EmptyState } from '../design-system';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { groupExpensesByType } from '../lib/expense-breakdown';
@@ -219,10 +219,12 @@ export default function ForwarderSettlementCreatePage() {
         {/* ── Step 1: Select advance requests ── */}
         <ForwarderSettlementSection step={1} title="Chọn tạm ứng chưa quyết toán" icon={Wallet} query={requestsQuery}>
             {fundedRequests.length === 0 ? (
-              <div className="fset-empty-inline fset-empty-inline--advance">
-                <EmptyIllustration name="/assets/illustrations/forwarder-approved-advance-v1.png" className="fset-empty-inline__asset" />
-                <span>Chưa có tạm ứng đã nhận đủ tiền và chưa quyết toán.</span>
-              </div>
+              <EmptyState
+                variant="compact"
+                context="forwarder-advance"
+                title="Chưa có tạm ứng đã nhận đủ tiền và chưa quyết toán."
+                className="fset-empty-inline fset-empty-inline--advance"
+              />
             ) : (
               <div className="fset-check-list">
                 <label className="fset-check-all">
@@ -259,10 +261,12 @@ export default function ForwarderSettlementCreatePage() {
         {/* ── Step 2: Select trip expenses ── */}
         <ForwarderSettlementSection step={2} title="Chọn chi phí phát sinh" icon={Receipt} query={expensesQuery}>
             {unlinkedExpenses.length === 0 ? (
-              <div className="fset-empty-inline fset-empty-inline--expense">
-                <EmptyIllustration name="/assets/illustrations/forwarder-unmatched-expense-v1.png" className="fset-empty-inline__asset" />
-                <span>Không có chi phí nào chưa thanh toán. Các chi phí đã nằm trong phiếu khác sẽ không hiện ở đây.</span>
-              </div>
+              <EmptyState
+                variant="compact"
+                context="forwarder-expense"
+                title="Không có chi phí nào chưa thanh toán. Các chi phí đã nằm trong phiếu khác sẽ không hiện ở đây."
+                className="fset-empty-inline fset-empty-inline--expense"
+              />
             ) : (
               <>
                 <div className="fset-expense-toolbar">

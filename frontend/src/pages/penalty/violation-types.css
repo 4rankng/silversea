@@ -126,25 +126,7 @@
   padding: 28px 16px;
 }
 
-.penalty-empty-reasons__img {
-  width: 160px;
-  height: auto;
-  margin-bottom: 4px;
-}
 
-.penalty-empty-reasons__title {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: 0;
-}
-
-.penalty-empty-reasons__desc {
-  font-size: var(--fs-sm);
-  color: var(--ink-3);
-  max-width: 320px;
-  line-height: 1.6;
-}
 
 /* ─── Violation type rows ─── */
 

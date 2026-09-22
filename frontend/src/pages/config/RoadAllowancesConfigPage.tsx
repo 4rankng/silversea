@@ -67,7 +67,7 @@ export default function RoadAllowancesConfigPage() {
       endpoint="/road-allowances" colSpan={5}
       pageSlug="road-allowances"
       iconName="road-allowance"
-      emptyIllustration="empty-routes.svg"
+      emptyContext="routes"
       emptyTitle="Chưa có định mức"
       emptyHint="Thêm tiền đi đường cho từng tuyến để hệ thống tính lương lái xe."
       columns={[

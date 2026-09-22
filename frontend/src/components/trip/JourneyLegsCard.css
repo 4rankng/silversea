@@ -28,28 +28,4 @@
   flex-wrap: wrap;
   gap: 20px;
 }
-.tc-journey-empty__illustration {
-  width: 80px;
-  height: 60px;
-  background: var(--surface);
-  border-radius: var(--r);
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-1);
-  flex-shrink: 0;
-}
-.tc-journey-empty__text {
-  flex: 1;
-  min-width: 200px;
-}
-.tc-journey-empty__title {
-  margin: 0 0 4px;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  color: var(--fg-1);
-}
-.tc-journey-empty__desc {
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--fg-3);
-}
+

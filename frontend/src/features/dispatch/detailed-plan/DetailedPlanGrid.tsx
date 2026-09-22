@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -169,8 +168,7 @@ export function DetailedPlanGrid({
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          illustration="/assets/illustrations/empty-dispatch.svg"
-          icon={Truck}
+          context="dispatch"
           title="Không có dòng kế hoạch nào"
           description="Các container của lô đã phân bổ nhà xe sẽ xuất hiện ở đây."
         />

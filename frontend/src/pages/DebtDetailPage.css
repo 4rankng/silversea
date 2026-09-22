@@ -272,9 +272,9 @@
   color: var(--danger);
 }
 .dd-sum-total--clear {
-  color: var(--accent);
+  color: var(--success-text);
 }
-.dd-sum-total--clear .dd-cur { color: var(--accent); }
+.dd-sum-total--clear .dd-cur { color: var(--success-text); }
 
 .dd-sum-note {
   display: flex;
@@ -1532,7 +1532,7 @@
 }
 .dd-group-toggle:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ─── Transaction Type Pill ─────────────────────────────────────────────────── */

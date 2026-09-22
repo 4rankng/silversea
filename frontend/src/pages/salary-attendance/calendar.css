@@ -125,11 +125,10 @@
   font-size: var(--text-data-size);
 }
 
-.salary-empty-inline img {
-  width: 56px;
-  height: 46px;
-  object-fit: contain;
-  flex-shrink: 0;
+/* Shared <EmptyState> face in the row strip: unwrap its message column so the
+   art stays beside the message. */
+.salary-empty-inline .ds-empty-state__message {
+  display: contents;
 }
 
 .salary-empty-panel {
@@ -140,12 +139,6 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
-}
-
-.salary-empty-panel img {
-  width: 168px;
-  height: 140px;
-  object-fit: contain;
 }
 
 @media (max-width: 640px) {

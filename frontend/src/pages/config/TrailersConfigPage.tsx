@@ -51,7 +51,7 @@ export default function TrailersConfigPage() {
       endpoint="/trailers" colSpan={5}
       pageSlug="trailers"
       iconName="semi-trailer"
-      emptyIllustration="empty-fleet.svg"
+      emptyContext="fleet"
       emptyTitle="Chưa có rơ-moóc"
       emptyHint="Thêm rơ-moóc đầu tiên để bắt đầu phân chuyến."
       columns={[

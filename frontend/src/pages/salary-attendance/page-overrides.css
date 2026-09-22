@@ -31,12 +31,6 @@
   color: var(--fg-3);
 }
 
-/* ── Empty panel text ─────────────────────────────────────────────────── */
-.salary-attendance__empty-panel-text {
-  margin: 0;
-  font-size: var(--text-body-size);
-}
-
 /* ── Calendar updating loader (absolute positioned inside container) ─── */
 .salary-attendance__calendar-updating-loader {
   position: absolute;

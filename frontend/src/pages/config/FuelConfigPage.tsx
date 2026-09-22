@@ -13,7 +13,7 @@ import type { FuelPriceHistory } from '@tingting/shared';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { EmptyState } from '../../design-system';
 
 export default function FuelConfigPage() {
   const queryClient = useQueryClient();
@@ -198,9 +198,7 @@ export default function FuelConfigPage() {
           <div role="alert" className="cfg-form-error">Không tải được lịch sử giá. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void loadHistory()}>Tải lại lịch sử</button></div>
         ) : history.length === 0 ? (
           <div className="cfg-empty" style={{ padding: '24px 16px' }}>
-            <img src={resolveEmptyIllustration('empty-config')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div className="cfg-empty__title">Chưa có lịch sử</div>
-            <div className="cfg-empty__hint">Lịch sử thay đổi giá sẽ hiển thị sau lần lưu đầu tiên.</div>
+            <EmptyState variant="compact" context="config" title="Chưa có lịch sử" description="Lịch sử thay đổi giá sẽ hiển thị sau lần lưu đầu tiên." />
           </div>
         ) : (
           <div className="table-scroll">

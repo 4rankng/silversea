@@ -26,11 +26,6 @@
   gap: 8px;
   padding: 32px 16px;
 }
-.trip-list-page .mobile-empty-state__img {
-  width: 160px;
-  height: 132px;
-  object-fit: contain;
-}
 
 /* ── Footer pagination ────────────────────────────────────────────────── */
 .trip-list-page .table-foot {

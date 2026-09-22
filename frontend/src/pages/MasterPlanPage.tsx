@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Truck } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
 import { updateShipment } from '../api/shipmentClient';
@@ -140,8 +140,7 @@ export default function MasterPlanPage() {
           </div>
         ) : masterPlan.items.length === 0 && !masterPlan.error ? (
           <EmptyState
-            illustration="/assets/illustrations/empty-clients.svg"
-            icon={Truck}
+            context="trucks"
             title="Không có lô hàng nào cần phân xe"
             description="Lô hàng có ngày giao sẽ xuất hiện ở đây."
           />

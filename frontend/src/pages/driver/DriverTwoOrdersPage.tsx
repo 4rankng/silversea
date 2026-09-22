@@ -122,7 +122,7 @@ export default function DriverTwoOrdersPage() {
       <PageHeader title={pageTitle} description={pageDescription} />
       <EmptyState
         variant="compact"
-        illustration="empty-trips"
+        context="trips"
         title="Hôm nay không có lệnh"
         description="Bạn chưa được phân công lệnh nào cho hôm nay."
       />

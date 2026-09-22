@@ -16,7 +16,7 @@ import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-he
 import './AuditLogPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { EmptyState } from '../design-system';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -435,8 +435,7 @@ fontSize: 'var(--text-data-size)',
                   <tr>
                     <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 48px', color: 'var(--ink-3)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                        <img src={resolveEmptyIllustration('empty-audit')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        Không tìm thấy bản ghi nào khớp bộ lọc hiện tại.
+                        <EmptyState variant="compact" context="audit" title="Không tìm thấy bản ghi nào khớp bộ lọc hiện tại." />
                       </div>
                     </td>
                   </tr>

@@ -318,17 +318,34 @@
   color: var(--ink-3);
 }
 
-.fset-empty-inline__asset {
+/* Shared <EmptyState> face inside the grid strip: unwrap its message column so
+   the art|message row and the strip copy survive the migration. */
+.fset-empty-inline.ds-empty-state {
+  text-align: left;
+}
+
+.fset-empty-inline .ds-empty-state__message {
+  display: contents;
+}
+
+.fset-empty-inline.ds-empty-state .ds-empty-state__illustration {
   width: 88px;
   height: 80px;
   object-fit: contain;
 }
 
-.fset-empty-inline--advance .fset-empty-inline__asset {
+.fset-empty-inline.ds-empty-state .ds-empty-state__title {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.fset-empty-inline--advance .ds-empty-state__illustration {
   transform: translateY(1px);
 }
 
-.fset-empty-inline--expense .fset-empty-inline__asset {
+.fset-empty-inline--expense .ds-empty-state__illustration {
   transform: translateY(2px);
 }
 
@@ -943,7 +960,7 @@
     padding: 10px 12px;
   }
 
-  .fset-empty-inline__asset {
+  .fset-empty-inline.ds-empty-state .ds-empty-state__illustration {
     width: 76px;
     height: 68px;
   }

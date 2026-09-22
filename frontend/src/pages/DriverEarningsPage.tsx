@@ -5,7 +5,6 @@ import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicl
 import { useDriverEarningsPeriod } from '../hooks/useDriverEarningsPeriod';
 import { usePageAnimations } from '../hooks/animations';
 import './DriverEarningsPage.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { EmptyState } from '../design-system';
 
 interface PenaltyEntry {
@@ -273,13 +272,7 @@ export default function DriverEarningsPage() {
           </div>
         ) : penalties.length === 0 ? (
           <div className="earnings-penalties-empty">
-            <img
-              src={resolveEmptyIllustration('empty-earnings')}
-              alt=""
-              aria-hidden="true"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <p>Chưa có khoản khấu trừ nào</p>
+            <EmptyState variant="compact" context="earnings" title="Chưa có khoản khấu trừ nào" />
           </div>
         ) : (
           penalties.map((p) => (

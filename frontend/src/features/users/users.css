@@ -271,16 +271,6 @@
   color: var(--ink-3);
 }
 
-.users-empty__illustration {
-  width: 140px;
-  height: 116px;
-  object-fit: contain;
-  margin: 0 auto 16px;
-  display: block;
-  user-select: none;
-  pointer-events: none;
-}
-
 .users-empty__title {
   font-family: var(--font-display);
   font-size: var(--text-section-size);

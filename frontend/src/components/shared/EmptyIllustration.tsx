@@ -1,10 +1,12 @@
 import React from 'react';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { resolveEmptyIllustration, type EmptyContext } from '../../lib/emptyIllustrations';
 
 interface EmptyIllustrationProps {
-  /** Illustration asset name, without path or extension — e.g. "empty-trucks".
-   *  Resolved via resolveEmptyIllustration to one of the four on-brand PNGs. */
-  name: string;
+  /** Typed empty-state context key resolved via lib/emptyIllustrations (preferred). */
+  context?: EmptyContext;
+  /** Legacy illustration key — e.g. "empty-trucks" or a full asset path.
+   *  Prefer `context`; kept for legacy string callers. */
+  name?: string;
   /** Pixel width. Pass together with `height` for inline-sized illustrations. */
   width?: number;
   /** Pixel height. Pass together with `width` for inline-sized illustrations. */
@@ -18,18 +20,19 @@ interface EmptyIllustrationProps {
  * (the surrounding text label carries the meaning) and a self-hiding `onError`,
  * so a missing or broken asset never shows a broken-image icon.
  *
- * Prefer the shared `<EmptyState illustration=… />` for titled panel empties;
- * use this for decorative-only illustrations inside custom layouts such as
- * table cells, dropdowns, and inline banners. When `width`/`height` are omitted,
- * no inline sizing is applied, so a parent CSS class can drive the dimensions.
+ * Prefer the shared `<EmptyState context=… />` for titled empty states; use
+ * this only for decorative-only illustrations inside custom layouts such as
+ * table cells, dropdowns, and inline banners. When `width`/`height` are
+ * omitted, no inline sizing is applied, so a parent CSS class can drive the
+ * dimensions.
  */
-export function EmptyIllustration({ name, width, height, className, style }: EmptyIllustrationProps) {
+export function EmptyIllustration({ context, name, width, height, className, style }: EmptyIllustrationProps) {
   const sizing = width != null || height != null
     ? { width, height, objectFit: 'contain' as const }
     : {};
   return (
     <img
-      src={resolveEmptyIllustration(name)}
+      src={resolveEmptyIllustration(context ?? name)}
       alt=""
       aria-hidden="true"
       className={className}

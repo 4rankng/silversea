@@ -20,7 +20,6 @@ import { TripListHero } from './trip-list-hero';
 import { useArrowKeyScroll } from './trip-list/useArrowKeyScroll';
 import { useTripListAnimations } from './use-trip-list-animations';
 import './TripListPage.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 export default function TripListPage() {
   const rootRef = useTripListAnimations();
@@ -512,7 +511,7 @@ export default function TripListPage() {
                     </Alert>
                   </div>
                 )}
-                <EmptyState illustration="/assets/illustrations/empty-trips.svg" title="Không tìm thấy chuyến đi nào." />
+                <EmptyState context="trips" title="Không tìm thấy chuyến đi nào." />
               </>
             ) : (
               tableInstance.getRowModel().rows.map((row) => (
@@ -541,8 +540,7 @@ export default function TripListPage() {
             <div className="table-empty">Đang tải…</div>
           ) : table.rows.length === 0 ? (
             <div className="table-empty mobile-empty-state">
-              <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" className="mobile-empty-state__img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              Không tìm thấy chuyến đi nào.
+              <EmptyState variant="compact" context="trips" title="Không tìm thấy chuyến đi nào." />
             </div>
           ) : (
             table.rows.map((trip) => {

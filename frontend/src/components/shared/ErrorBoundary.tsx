@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { RotateCw, WifiOff } from 'lucide-react';
-import { EmptyIllustration } from './EmptyIllustration';
+import { EmptyState } from '../../design-system/EmptyState';
 import { isChunkFailureMessage, recoverFromChunkFailure } from '../../lib/chunk-error';
 
 interface Props {
@@ -82,28 +82,24 @@ export class ErrorBoundary extends Component<Props, State> {
       }
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 'var(--space-lg, 16px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
-        }}>
-          <EmptyIllustration name="empty-error" width={156} height={124} />
-          <div>
-            <h3 style={{ fontSize: 'var(--text-section-size)', fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>Đã xảy ra lỗi</h3>
-            <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink-3)' }}>
-              {this.state.error?.message || 'Không thể hiển thị nội dung này.'}
-            </p>
-          </div>
-          <button
-            onClick={this.handleRetry}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 'var(--r-sm, 8px)', border: '1px solid var(--line)',
-              background: 'var(--surface)', cursor: 'pointer', fontSize: 'var(--text-body-size)', fontWeight: 500,
-            }}
-          >
-            <RotateCw size={14} /> Thử lại
-          </button>
-        </div>
+        <EmptyState
+          role="alert"
+          context="error"
+          title="Đã xảy ra lỗi"
+          description={this.state.error?.message || 'Không thể hiển thị nội dung này.'}
+          action={
+            <button
+              onClick={this.handleRetry}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', borderRadius: 'var(--r-sm, 8px)', border: '1px solid var(--line)',
+                background: 'var(--surface)', cursor: 'pointer', fontSize: 'var(--text-body-size)', fontWeight: 500,
+              }}
+            >
+              <RotateCw size={14} /> Thử lại
+            </button>
+          }
+        />
       );
     }
     return this.props.children;

@@ -78,7 +78,7 @@ export default function ExpenseCategoriesConfigPage() {
       colSpan={5}
       pageSlug="expense-categories"
       iconName="expense-category"
-      emptyIllustration="empty-expenses.svg"
+      emptyContext="expenses"
       emptyTitle="Chưa có hạng mục"
       emptyHint="Thêm hạng mục để phân loại chi phí khi ghi nhận."
       columns={[

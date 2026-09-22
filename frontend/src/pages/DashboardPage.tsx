@@ -526,7 +526,7 @@ export default function DashboardPage() {
                       <DsEmptyState
                         title="Chưa có dữ liệu trong kỳ"
                         description="Biểu đồ sẽ xuất hiện khi kỳ này ghi nhận doanh thu hoặc lợi nhuận gộp dương."
-                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        context="revenue-period"
                         className="wf-chart-empty"
                       />
                     </div>
@@ -540,7 +540,7 @@ export default function DashboardPage() {
                       <DsEmptyState
                         title="Chưa đủ dữ liệu lịch sử"
                         description="Biểu đồ doanh thu & lợi nhuận gộp sẽ xuất hiện tại đây sau khi có chuyến đầu tiên trong kỳ."
-                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        context="revenue-period"
                         className="wf-chart-empty"
                       />
                     </div>
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                 <DsEmptyState
                   title="Chưa có chi phí trong tháng"
                   description="Cơ cấu chi phí sẽ xuất hiện sau khi có khoản chi được ghi nhận."
-                  illustration="/assets/illustrations/empty-cost-composition.webp"
+                  context="cost-composition"
                   className="wf-dashboard-empty wf-dashboard-empty--cost"
                 />
               ) : (
@@ -612,7 +612,7 @@ export default function DashboardPage() {
                   <DsEmptyState
                     title="Chưa có dữ liệu xe"
                     description="Biên lợi nhuận sẽ xuất hiện khi có chuyến hoàn tất trong tháng."
-                    illustration="/assets/illustrations/empty-vehicle-profit.webp"
+                    context="vehicle-profit"
                     className="wf-dashboard-empty wf-dashboard-empty--inline"
                   />
                 ) : topTrucks.map((t, i) => (
@@ -639,7 +639,7 @@ export default function DashboardPage() {
                   <DsEmptyState
                     title="Chưa có dữ liệu tuyến"
                     description="Xếp hạng sẽ xuất hiện khi tuyến có lợi nhuận gộp."
-                    illustration="/assets/illustrations/empty-profitable-routes.webp"
+                    context="profitable-routes"
                     className="wf-dashboard-empty wf-dashboard-empty--inline"
                   />
                 ) : topRoutes.map((r, i) => (
