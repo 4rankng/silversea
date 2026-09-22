@@ -37,7 +37,11 @@ describe('selection-state contract', () => {
     expect(read('src/components/layout/bottom-nav.css')).toContain('  .bottom-nav-indicator {');
     expect(read('src/components/layout/bottom-nav.css')).toContain('    background: var(--ink);');
     expect(read('src/pages/trip-list/table.css')).toContain('.trip-list-page .quick-edit-row.selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
-    expect(read('src/pages/clerk/ClerkShipmentCreatePage.css')).toContain('.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }');
+    // Card 20260922_31 converted the cargo option set to the app's connected
+    // segmented treatment: the selected segment is still neutral ink (filled,
+    // never a brand/semantic tint) — the same recipe as the /shipments-detail
+    // date presets.
+    expect(read('src/pages/clerk/ClerkShipmentCreatePage.css')).toContain('.csc-mode input:checked + span { background: var(--ink); color: var(--surface); }');
     expect(read('src/pages/ShipmentContainersPage.css')).toContain('.shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }');
     expect(read('src/design-system/Pagination.css')).toContain('.ds-pagination__btn--active {\n  background: var(--ink);\n  border-color: var(--ink);');
     expect(read('src/design-system/forms/SearchableSelect.css')).toContain('.searchable-select__option--active {\n  color: var(--ink);\n  background: var(--surface-2);');

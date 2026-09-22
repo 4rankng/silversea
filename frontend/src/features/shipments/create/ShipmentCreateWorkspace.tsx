@@ -575,12 +575,13 @@ export function ShipmentCreateWorkspace() {
       <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1, quyết định 2026-09-18) —
-            chip gọn trên header Nhận diện lô: cờ cấp LÔ, thấy ngay không cần
-            cuộn, tiết kiệm chiều dọc. Bật/tắt KHÔNG bao giờ xoá nội dung đã
-            gõ; nó chỉ đổi chế độ khóa/trường. */}
+            cờ cấp LÔ, thấy ngay không cần cuộn. Bật/tắt KHÔNG bao giờ xoá nội
+            dung đã gõ; nó chỉ đổi chế độ khóa/trường. Một quy ước duy nhất cho
+            mọi cờ dữ liệu của form (card 20260922_31): checkbox nội tuyến
+            `csc-flag-checkbox`, không còn hộp viền/chip riêng. */}
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu."
           actions={
-            <label className="csc-adhoc-toggle csc-adhoc-toggle--chip" data-field-id="shipment-is-adhoc">
+            <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
               <input
                 type="checkbox"
                 checked={form.isAdHoc}
@@ -624,7 +625,7 @@ export function ShipmentCreateWorkspace() {
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 
-            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={(form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict) ? <ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} /> : undefined} /></div>
+            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} hint={!form.tradeDirection ? 'Chọn Hình thức xuất nhập khẩu trước' : undefined} error={issueByField.get('shipment-booking-ref')} warning={(form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict) ? <ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} /> : undefined} /></div>
 
             {form.cargoMode === 'FCL' && (
               <div className="csc-identity-grid__shipping-line csc-shipping-line-picker" data-field-id="shipment-shipping-line">
@@ -650,7 +651,7 @@ export function ShipmentCreateWorkspace() {
               intent only: the KT hoàn-cược tracker row is created inside the
               same create transaction (recordDepositFromIntake). */}
           <div className="csc-deposit-row" data-field-id="shipment-deposit">
-            <label className="csc-combined-toggle" data-field-id="shipment-has-deposit">
+            <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
               <input
                 type="checkbox"
                 checked={form.hasDeposit}
@@ -761,7 +762,7 @@ export function ShipmentCreateWorkspace() {
             <fieldset className="csc-mode" aria-required="true"><legend>Loại hàng <span aria-hidden="true">*</span></legend><div>
               {(['FCL', 'LCL'] as CargoMode[]).map((mode) => <label key={mode}><input type="radio" name="cargo-mode" value={mode} checked={form.cargoMode === mode} onChange={() => changeMode(mode)} disabled={Boolean(saving)} /><span className="csc-mode__option">{mode === 'FCL' ? 'Hàng nguyên container (Cont)' : 'Hàng lẻ'}</span></label>)}
             </div></fieldset>
-            <label className="csc-combined-toggle">
+            <label className="csc-flag-checkbox">
               <input
                 type="checkbox"
                 checked={form.isCombined}

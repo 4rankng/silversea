@@ -93,6 +93,27 @@
   min-width: 180px;
 }
 
+/* Card 20260922_31: with nothing selected the export action dropped to 50%
+   opacity on its brand fill, so it still read as the live primary CTA at a
+   glance. While disabled it now drops the brand fill entirely — neutral
+   surface + muted ink — so "no lot selected yet" is unmistakable. */
+.shipment-debit-toolbar button:disabled {
+  background: var(--surface-2);
+  color: var(--fg-3);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* The empty face adopts the shared illustrated treatment (/shipments,
+   /shipments-detail): a bare title+description block never reads as the
+   design-system empty state. */
+.shipment-debit-workspace > .ds-empty-state .ds-empty-state__illustration {
+  width: min(220px, 80vw);
+  height: 150px;
+  opacity: 1;
+}
+
 .shipment-debit-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-1);

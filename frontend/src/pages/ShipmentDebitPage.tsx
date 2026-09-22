@@ -242,17 +242,21 @@ export function ShipmentDebitPage() {
               options={LOCK_FILTERS}
               onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
             />
+            {/* Disabled until at least one LOCKED lot is ticked — and with the
+                brand fill stripped while disabled (page CSS) so it can never
+                read as the live action with nothing selected (card
+                20260922_31). */}
             <UUIButton size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
               Xuất Debit Note
             </UUIButton>
           </div>
         </div>
         {customerId === '' ? (
-          <EmptyState title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
+          <EmptyState illustration="finance" title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
         ) : summary.isPending ? (
           <Skeleton height={320} />
         ) : items.length === 0 && !summary.isError ? (
-          <EmptyState title="Không có lô nào" description="Không có lô nào khớp bộ lọc hiện tại." />
+          <EmptyState illustration="finance" title="Không có lô nào" description="Không có lô nào khớp bộ lọc hiện tại." />
         ) : (
           <div className="shipment-debit-table-wrap">
             <table className="shipment-debit-table">

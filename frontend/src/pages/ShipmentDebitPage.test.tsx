@@ -68,8 +68,17 @@ beforeEach(() => {
 
 describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
   it('requires the customer pick before any list fetch happens', async () => {
-    renderPage();
+    const { container } = renderPage();
     expect(await screen.findByText('Chưa chọn khách hàng')).toBeTruthy();
+    // Card 20260922_31: the empty face is the shared design-system EmptyState
+    // (illustration included) — never a hand-rolled two-line block — and the
+    // primary export action is disabled while nothing is selected.
+    const emptyState = container.querySelector('.ds-empty-state');
+    expect(emptyState).not.toBeNull();
+    expect(emptyState?.querySelector('.ds-empty-state__title')?.textContent).toBe('Chưa chọn khách hàng');
+    expect(emptyState?.querySelector<HTMLImageElement>('.ds-empty-state__illustration')?.src)
+      .toContain('/assets/illustrations/empty-4.png');
+    expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true);
     expect(listSummary).not.toHaveBeenCalled();
     // Picking the customer fires the summary fetch with the numeric id.
     fireEvent.click(await screen.findByRole('combobox', { name: 'Khách hàng' }));

@@ -107,18 +107,23 @@ describe('shipment create responsive layout', () => {
     expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
   });
 
-  it('styles only cargo option labels as radio cards, not the required marker', () => {
+  it('renders the cargo option set as the app segmented control, not pill-shaped blocks', () => {
     expect(source).toContain('className="csc-mode__option"');
-    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*38px;/);
+    // Card 20260922_31: the grouped option set wears the app's normal
+    // connected segmented treatment — one shared border around the group,
+    // compact segments, no per-option box.
+    expect(css).toMatch(/\.csc-mode > div\s*\{[^}]*display:\s*inline-flex;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*8px;/);
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*44px;/);
-    expect(css).toMatch(/\.csc-mode__option::before\s*\{[^}]*border-radius:\s*50%;/);
+    // The old faux-radio dot and the 8px option boxes are gone for good.
+    expect(css).not.toMatch(/\.csc-mode__option::before/);
+    expect(css).not.toMatch(/\.csc-mode > div\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
     expect(css).not.toMatch(/\.csc-mode\s+span(?:\s*\{|::before)/);
   });
 
-  it('uses a neutral ink selected state for cargo mode', () => {
-    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*background:\s*var\(--surface\);[^}]*color:\s*var\(--fg-2\);/);
-    expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*border-color:\s*var\(--ink\);[^}]*background:\s*var\(--surface\);[^}]*box-shadow:\s*inset 3px 0 0 var\(--ink\);/);
-    expect(css).toMatch(/\.csc-mode input:checked \+ span::before\s*\{[^}]*border-color:\s*var\(--ink\);[^}]*background:\s*var\(--ink\);/);
+  it('uses the app ink-fill selected segment for cargo mode', () => {
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*background:\s*transparent;[^}]*color:\s*var\(--fg-2\);/);
+    expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*background:\s*var\(--ink\);[^}]*color:\s*var\(--surface\);/);
     expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*(?:accent-soft|brand-subtle)/);
   });
 
@@ -126,9 +131,15 @@ describe('shipment create responsive layout', () => {
     expect(source).toContain('className="csc-cargo-choice-grid"');
     expect(css).toMatch(/\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(280px,\s*1fr\);[^}]*align-items:\s*end;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*900px\)[\s\S]*?\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-    expect(css).toMatch(/\.csc-combined-toggle\s*\{[^}]*min-height:\s*38px;[^}]*padding:\s*7px 10px;/);
+    // ONE data-flag treatment (card 20260922_31): all three flags share the
+    // plain inline checkbox class — the bordered chip and the bordered
+    // combined box are retired from both the markup and the sheet.
+    expect(source.match(/className="csc-flag-checkbox"/g)).toHaveLength(3);
+    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*background:\s*none;/);
+    expect(css).not.toContain('.csc-combined-toggle');
+    expect(css).not.toContain('.csc-adhoc-toggle');
     expect(source).not.toContain('Điều vận có thể ghép chuyến hoặc xe kẹp.');
-    expect(source).not.toMatch(/className="csc-combined-toggle"[\s\S]*?<small>/);
+    expect(source).not.toMatch(/className="csc-flag-checkbox"[\s\S]*?<small>/);
   });
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
@@ -178,8 +189,8 @@ describe('shipment create responsive layout', () => {
     expect(containerEditorSource).toContain('id="container-add-count"');
     expect(css).toMatch(/\.csc-mode legend\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
     expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
-    expect(css).toMatch(/\.csc-combined-toggle span\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-combined-toggle span\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
+    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);

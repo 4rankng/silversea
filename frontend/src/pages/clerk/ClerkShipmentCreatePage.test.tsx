@@ -200,6 +200,37 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     expect(mocks.quickCreate.mock.calls[0][0].cargoMode).toBe('FCL');
   });
 
+  it('renders one data-flag checkbox treatment and states why Bill/Booking is locked', async () => {
+    const { container } = renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    // Card 20260922_31: every boolean data flag on the form — Lệnh chạy
+    // ngoài, Có cược container, Đóng kết hợp — wears the SAME plain inline
+    // checkbox treatment, and no other flag treatment survives in the DOM.
+    const flagLabels = Array.from(container.querySelectorAll('label.csc-flag-checkbox'));
+    expect(flagLabels.map((label) => label.textContent?.trim())).toEqual([
+      'Lệnh chạy ngoài',
+      'Có cược container',
+      'Đóng kết hợp',
+    ]);
+    expect(flagLabels.every((label) => label.querySelector('input[type="checkbox"]') !== null)).toBe(true);
+    expect(container.querySelectorAll('.csc-combined-toggle, .csc-adhoc-toggle, .csc-adhoc-toggle--chip')).toHaveLength(0);
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(flagLabels.length);
+
+    // The required Bill/Booking field is locked before a trade direction is
+    // picked — and says why, instead of sitting there silently disabled.
+    const booking = container.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+    expect(booking?.disabled).toBe(true);
+    expect(container.querySelector('[data-field-id="shipment-booking-ref"]')?.textContent)
+      .toContain('Chọn Hình thức xuất nhập khẩu trước');
+
+    // Choosing the direction unlocks the field and retires the reason.
+    await choose('Hình thức xuất nhập khẩu', 'EXPORT');
+    await waitFor(() => expect(booking?.disabled).toBe(false));
+    expect(container.querySelector('[data-field-id="shipment-booking-ref"]')?.textContent)
+      .not.toContain('Chọn Hình thức xuất nhập khẩu trước');
+  });
+
   it('labels notes by recipient and sends driver notes through the canonical API field', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
