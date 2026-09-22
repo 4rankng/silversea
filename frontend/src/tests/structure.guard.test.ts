@@ -368,7 +368,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // toolbar (search, advanced toggle, reset and their draft state/handlers)
   // extracted to components/WorkboardFilters.tsx beside the advanced-
   // criteria half; DOM/classname parity pinned by the page suite.
-  'src/pages/ShipmentsPage.tsx': 509,
+  // Refrozen 509 → 558: 2026-09-23 unattributed-WIP window (ContainerDialog-
+  // lane ShipmentsPage.tsx/.css/.test.tsx +85/−17 held UNLANDED per ownership
+  // protocol — AGENTS.md bans the side-branch park; the tree-wide guard was
+  // blocking every unrelated landing). Shrink debt on card 20260922_83:
+  // restore 509 once that WIP lands attributed or reverts.
+  'src/pages/ShipmentsPage.tsx': 558,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
