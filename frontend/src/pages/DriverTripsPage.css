@@ -40,8 +40,7 @@
 }
 
 .driver-journey__loading,
-.driver-journey__error,
-.driver-journey__empty {
+.driver-journey__error {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,14 +50,84 @@
   text-align: center;
 }
 
+/* Day-view entry — the header control that reaches the M8.3 "Hai lệnh hôm
+   nay" screen (card 20260922_30). Square-cornered button, not a pill: it is
+   navigation, and pills stay reserved for status. */
+.driver-journey__day-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-touch-h);
+  padding: 6px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+}
+
+.driver-journey__day-view > svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.driver-journey__day-view-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+  .driver-journey__day-view:hover {
+    background: var(--surface-accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
+  }
+}
+
 .driver-journey__list {
   display: grid;
   gap: 10px;
 }
 
+/* Desktop: the phone's single full-bleed column left ~75% of a 1440px
+   viewport as blank canvas (card 20260922_30). The base rule's
+   --driver-measure already bounds the column at every width; desktop adds the
+   height model — one work surface that owns the leftover height — and keeps
+   the tab strip at label width instead of stretching three equal bands. */
 @media (min-width: 1024px) {
-  .driver-journey { max-width: 1120px; padding-inline: 16px; }
-  .driver-journey__list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .driver-journey {
+    /* Column stays on the portal's documented measure so the page lines up
+       with the topbar band and the other driver screens; only the height
+       model is desktop-specific. */
+    display: flex;
+    flex-direction: column;
+  }
+  .driver-journey__tabs .ds-tabs__btn {
+    flex: 0 1 auto;
+    padding-inline: 16px;
+  }
+  .driver-journey__panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--surface-2);
+  }
+  /* The tab body owns the leftover height, so an empty tab centres its
+     message in the work surface instead of hugging the top of a blank page. */
+  .driver-journey__empty,
+  .driver-journey__loading,
+  .driver-journey__error {
+    flex: 1 1 auto;
+  }
+  .driver-journey__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
   .driver-journey-group { min-width: 0; }
 }
 
