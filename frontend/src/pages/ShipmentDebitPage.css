@@ -17,87 +17,13 @@
   min-width: 0;
 }
 
-/* One-row top bar: filters + toolbar share the row at desk widths; it only
-   wraps under 1280px. */
-.shipment-debit-workspace__header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: end;
-}
-
-.shipment-debit-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: end;
-  /* Content-sized, never grown: growing this box stretched it across the
-     header and pinned the toolbar to the far right edge behind ~550px of dead
-     middle space (user report 2026-09-20). Packing left keeps the whole bar
-     data-dense; the toolbar follows right after the date fields. */
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.shipment-debit-filters > .csc-searchable-field {
-  flex: 1 1 220px;
-  max-width: 480px;
-  /* The searchable chain under-reports its intrinsic width the same way the
-     date groups did: without a floor the content-sized filters box shrinks
-     the picker to a 65px sliver (placeholder truncates). 240px holds the
-     required-customer placeholder and selected names. */
-  min-width: 240px;
-}
-
-.shipment-debit-filters__dates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Same intrinsic-width poison the searchable field's 240px floor fights: the
-   date inputs' w-full chains report ~0, so this content-sized cluster squeezed
-   to 198px (95px per group — placeholder pinned to the right border, the
-   calendar trigger collapsing to 0px, no affordance). 149px is the same
-   control's measured width on /dispatch — cross-page coherence. */
-.shipment-debit-filters__dates > * {
-  min-width: 149px;
-}
-
-@media (min-width: 1280px) {
-  .shipment-debit-workspace__header,
-  .shipment-debit-filters,
-  .shipment-debit-filters__dates {
-    flex-wrap: nowrap;
-  }
-}
-
-.shipment-debit-toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: end;
-  flex-shrink: 0;
-}
-
-.shipment-debit-toolbar > * {
-  flex-shrink: 0;
-}
-
-/* The select's width:100% poisons the toolbar's intrinsic width: flex
-   resolves the percentage against indefinite space and the box lands at the
-   select's contribution alone, so the export button overflows the row and
-   clips at the viewport edge. Size the field from its own content with a
-   comfortable floor instead. */
-.shipment-debit-toolbar .ds-uui-select {
-  width: auto;
-  min-width: 180px;
-}
-
 /* Card 20260922_31: with nothing selected the export action dropped to 50%
    opacity on its brand fill, so it still read as the live primary CTA at a
    glance. While disabled it now drops the brand fill entirely — neutral
-   surface + muted ink — so "no lot selected yet" is unmistakable. */
-.shipment-debit-toolbar button:disabled {
+   surface + muted ink — so "no lot selected yet" is unmistakable. Anchored on
+   the workspace section that wraps the shared filter bar (card 20260922_38
+   rework M1), not just the page wrapper. */
+.shipment-debit-workspace button.shipment-debit-export:disabled {
   background: var(--surface-2);
   color: var(--fg-3);
   box-shadow: none;
@@ -271,13 +197,6 @@
 .shipment-debit-row__lock--locked {
   color: var(--ink-1);
   background: color-mix(in srgb, var(--ink-1) 8%, transparent);
-}
-
-@media (max-width: 820px) {
-  .shipment-debit-toolbar {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
 }
 
 /* Row-click selection (user ruling 2026-09-19): the checkbox never existed

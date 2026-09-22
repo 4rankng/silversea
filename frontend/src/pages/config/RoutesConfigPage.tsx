@@ -16,6 +16,8 @@ import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import './RoutesConfigPage.css';
 import { RouteFormModal } from './route-form-modal';
+import { EmptyState } from '../../design-system';
+import { ListFilterBar } from '../../components/ListFilterBar';
 
 export default function RoutesConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -105,20 +107,11 @@ export default function RoutesConfigPage() {
       />
 
       <div className="table-wrap">
-        <div className="toolbar">
-          <div className="toolbar__spacer" />
-          <div className="toolbar__search">
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input
-              type="text"
-              name="routeSearch"
-              aria-label="Tìm tuyến đường"
-              placeholder="Tìm tuyến đường…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+        {/* Shared filter-bar contract (card 20260922_38): the routes search
+            lives in the bar's typed search slot. */}
+        <ListFilterBar
+          search={{ value: search, onChange: setSearch, placeholder: 'Tìm tuyến đường…', ariaLabel: 'Tìm tuyến đường' }}
+        />
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table routes-table" aria-busy={isFetching}>
@@ -135,7 +128,9 @@ export default function RoutesConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={2 + Object.keys(colPresence).length} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{isPending ? 'Đang tải tuyến đường…' : isError ? 'Không tải được tuyến đường.' : search ? 'Không có tuyến đường phù hợp.' : 'Chưa có dữ liệu'}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={2 + Object.keys(colPresence).length} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{isPending ? 'Đang tải tuyến đường…' : isError ? 'Không tải được tuyến đường.' : (
+                <EmptyState variant="compact" illustration="trips" title={search ? 'Không có tuyến đường phù hợp.' : 'Chưa có dữ liệu'} />
+              )}</td></tr>}
               {filtered.map((r, index) => (
                 <tr key={r.id}>
                   {colPresence.code && <td data-label="Mã tuyến" data-empty={!r.code?.trim() || undefined} className="routes-table__code" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>}

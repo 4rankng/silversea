@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,6 +118,37 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     })));
     // 3 options stay below the search threshold → the select renders a button trigger.
     expect(screen.getByRole('button', { name: /Trạng thái khóa lô/ })).toHaveTextContent('Đã khóa');
+  });
+
+  it('adopts the shared ListFilterBar contract (card 20260922_38)', () => {
+    const { container } = renderPage();
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+    // The hand-rolled bar is gone — no page-local filter chrome remains.
+    expect(container.querySelector('.shipment-debit-filters, .shipment-debit-toolbar')).toBeNull();
+    // Customer + delivery range + lock filter in row order, export action on
+    // the right side of the same row (the bar's spacer is its hook).
+    expect(bar.querySelector('.filter-bar__spacer')).not.toBeNull();
+    within(bar).getByRole('combobox', { name: 'Khách hàng' });
+    within(bar).getByText('Từ ngày giao');
+    within(bar).getByText('Đến ngày giao');
+    within(bar).getByRole('button', { name: /Trạng thái khóa lô/ });
+    within(bar).getByRole('button', { name: 'Xuất Debit Note' });
+  });
+
+  it('keeps the disabled export CTA off its brand fill (card 20260922_31)', () => {
+    renderPage();
+    const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
+    // Nothing selected yet → the primary action is disabled…
+    expect(button.disabled).toBe(true);
+    // …and the disabled brand-strip rule is live on the workspace section that
+    // wraps the shared bar (CSS-source pin — house convention; jsdom has no
+    // layout engine, so computed fills are measured in the browser wave).
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+    const rule = css.match(/\.shipment-debit-workspace button\.shipment-debit-export:disabled\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/background:\s*var\(--surface-2\);/);
+    expect(rule).toMatch(/box-shadow:\s*none;/);
+    expect(rule).not.toMatch(/brand|accent/);
   });
 
   it('renders money from the payload and shows Chưa xác định for unknown amounts', async () => {

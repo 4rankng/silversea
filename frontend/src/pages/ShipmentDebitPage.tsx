@@ -17,6 +17,7 @@ import { Button as UUIButton } from '../components/untitled-ui/base/buttons/butt
 import { EmptyState, BufferedUuiDateInput, UuiSelectField } from '../design-system';
 import { PageHeader } from '../components/UI';
 import { USearchableField } from '../features/shipments/create/uui-searchable-field';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { Lock, Unlock } from 'lucide-react';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
@@ -222,41 +223,41 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        <div className="shipment-debit-workspace__header">
-          <div className="shipment-debit-filters">
-            <USearchableField
-              id="shipment-debit-customer"
-              label="Khách hàng"
-              value={customerId}
-              onChange={(value) => {
-                setSelectedIds(new Set());
-                updateParam('customer', value || null);
-              }}
-              options={customers.map((customer) => ({ value: String(customer.id), label: customer.name }))}
-              placeholder="Bắt buộc chọn khách hàng"
-              searchable
-            />
-            <div className="shipment-debit-filters__dates">
-              <BufferedUuiDateInput label="Từ ngày giao" size="sm" value={deliveryFrom} onChange={(value) => updateParam('from', value || null)} inputProps={{ max: deliveryTo || undefined }} />
-              <BufferedUuiDateInput label="Đến ngày giao" size="sm" value={deliveryTo} onChange={(value) => updateParam('to', value || null)} inputProps={{ min: deliveryFrom || undefined }} />
-            </div>
-          </div>
-          <div className="shipment-debit-toolbar">
-            <UuiSelectField
-              label="Trạng thái khóa lô"
-              value={lockStatus}
-              options={LOCK_FILTERS}
-              onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
-            />
-            {/* Hidden without manage rights; disabled until at least one LOCKED
-                lot is ticked — and with the brand fill stripped while disabled
-                (page CSS) so it can never read as the live action with nothing
-                selected (card 20260922_31). */}
-            {canManage && <UUIButton size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
+        {/* Shared filter-bar contract (card 20260922_38): customer pick +
+            delivery range + lock filter in one wrapping row; the export
+            action rides the bar's right-side actions slot. */}
+        <ListFilterBar
+          actions={canManage && (
+            /* Hidden without manage rights; disabled until at least one LOCKED
+               lot is ticked — and with the brand fill stripped while disabled
+               (page CSS) so it can never read as the live action with nothing
+               selected (card 20260922_31). */
+            <UUIButton className="shipment-debit-export" size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
               Xuất Debit Note
-            </UUIButton>}
-          </div>
-        </div>
+            </UUIButton>
+          )}
+        >
+          <USearchableField
+            id="shipment-debit-customer"
+            label="Khách hàng"
+            value={customerId}
+            onChange={(value) => {
+              setSelectedIds(new Set());
+              updateParam('customer', value || null);
+            }}
+            options={customers.map((customer) => ({ value: String(customer.id), label: customer.name }))}
+            placeholder="Bắt buộc chọn khách hàng"
+            searchable
+          />
+          <BufferedUuiDateInput label="Từ ngày giao" size="sm" value={deliveryFrom} onChange={(value) => updateParam('from', value || null)} inputProps={{ max: deliveryTo || undefined }} />
+          <BufferedUuiDateInput label="Đến ngày giao" size="sm" value={deliveryTo} onChange={(value) => updateParam('to', value || null)} inputProps={{ min: deliveryFrom || undefined }} />
+          <UuiSelectField
+            label="Trạng thái khóa lô"
+            value={lockStatus}
+            options={LOCK_FILTERS}
+            onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
+          />
+        </ListFilterBar>
         {customerId === '' ? (
           <EmptyState illustration="finance" title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
         ) : summary.isPending ? (

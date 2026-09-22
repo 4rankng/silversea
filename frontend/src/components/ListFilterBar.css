@@ -1,0 +1,79 @@
+/* ============================================================================
+ * ListFilterBar — the one shared filter bar for list pages (card 20260922_38).
+ *
+ * The row itself rides the shared `.filter-bar` chrome (FilterBar.css: flex +
+ * flex-wrap + one gap rhythm + divider-led surface) — a structural dependency
+ * of ListFilterBar.tsx. This sheet carries only the contract deltas, pinned by
+ * ListFilterBar.test.tsx:
+ *   - Wrap contract (fix family 20260919_48 / 20260920_34): content-sized
+ *     controls, wrap only when genuinely out of space, a consistent second
+ *     row below, never ragged floats.
+ *   - One control height per context (card 20260920_19): every design-system
+ *     control in the bar joins `--filter-control-h`, and segmented date groups
+ *     (which read `--uui-control-h` through inheritance) follow it too.
+ *     Coarse pointers rise to the 44px touch floor.
+ *   - Per-control width floors/caps carried over from the page bars they
+ *     protected — each one guards a documented user-reported defect.
+ * ========================================================================== */
+
+.list-filter-bar {
+  /* Reaches controls that read --uui-control-h through inheritance/fallback
+     (segmented date groups); element-level size rules win for the rest. */
+  --uui-control-h: var(--filter-control-h);
+}
+
+/* Height unification vs the control-geometry size rules. Specificity, not
+   stylesheet order, decides: control-geometry.css rules are
+   [data-uui-control] = (0,1,0) and [data-uui-control][data-control-size='…']
+   = (0,2,0) (incl. their pointer/width media variants at the same weights).
+   Our [data-uui-control] selector here is (0,2,0) — it beats the (0,1,0) base
+   for unsized controls — and our [data-uui-control][data-control-size]
+   blanket is (0,3,0), which beats every (0,2,0) size rule for sm/md/lg/xl/xs
+   controls regardless of import order. */
+.list-filter-bar [data-uui-control],
+.list-filter-bar [data-uui-control][data-control-size] {
+  --uui-control-h: var(--filter-control-h);
+}
+
+/* Width contracts — scoped to the flex items these control families actually
+   emit (verified against the sources):
+   - `.csc-searchable-field` (USearchableField root) and the bare ComboBox
+     trigger (`[data-uui-control='combobox']`, emitted by combobox.tsx): the
+     chain under-reports its intrinsic width and squeezed to a 65px sliver
+     with a truncated placeholder → 240 floor (the old
+     `.shipment-debit-filters > .csc-searchable-field` floor); the 480 cap
+     keeps long customer names from blowing the row.
+   - `[data-input-wrapper]` (BufferedUuiDateInput root): its w-full chains
+     report ~0, so the cluster squeezed to 95px per group with the calendar
+     trigger collapsing → 149 floor (the /dispatch parity width).
+   - `.ds-uui-select` (UuiSelectField root): width:100% poisons the row's
+     intrinsic width and overflowed the trailing action past the viewport →
+     width:auto with a 180 floor. */
+.list-filter-bar .csc-searchable-field,
+.list-filter-bar [data-uui-control='combobox'] {
+  min-width: 240px;
+  max-width: 480px;
+}
+
+.list-filter-bar [data-input-wrapper] {
+  min-width: 149px;
+}
+
+.list-filter-bar .ds-uui-select {
+  width: auto;
+  min-width: 180px;
+}
+
+.list-filter-bar__quick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+@media (pointer: coarse) {
+  .list-filter-bar {
+    --filter-control-h: var(--control-touch-h);
+  }
+}

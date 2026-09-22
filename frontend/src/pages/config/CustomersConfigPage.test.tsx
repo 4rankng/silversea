@@ -242,3 +242,24 @@ describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
     expect(fetchAllTrips).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('ListFilterBar adoption (card 20260922_38)', () => {
+  it('renders the shared bar with search and one quick-filter group, no duplicate filter select', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+    // The hand-rolled toolbar and its duplicate mobile filter select are gone.
+    expect(container.querySelector('.cfg-customer-toolbar, .cfg-customer-filter-pills, .cfg-customer-search, .cfg-customer-filter-select')).toBeNull();
+    const group = screen.getByRole('group', { name: 'Lọc khách hàng' });
+    expect(within(group).getAllByRole('button')).toHaveLength(4);
+    within(bar).getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
+  });
+
+  it('routes the empty face through the shared EmptyState', async () => {
+    getAllCustomers.mockResolvedValue([]);
+    renderPage();
+    const face = await screen.findByText('Chưa có khách hàng');
+    expect(face.closest('.ds-empty-state')).not.toBeNull();
+  });
+});

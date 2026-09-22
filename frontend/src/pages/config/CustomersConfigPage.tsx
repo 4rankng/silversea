@@ -4,7 +4,7 @@ import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react';
+import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
@@ -17,8 +17,8 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/ta
 import type { Customer } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { CustomerForm } from './CustomerForm';
-import { Input } from '../../components/untitled-ui/base/input/input';
-import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { EmptyState } from '../../design-system';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
@@ -245,20 +245,17 @@ export default function CustomersConfigPage() {
       </div>
 
       <div className="table-wrap">
-        <div className="toolbar cfg-customer-toolbar">
-          <div className="cfg-customer-filter-pills" role="group" aria-label="Lọc khách hàng">
-            {(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
-              const labels = { all: `Tất cả${data ? ` · ${totalCount}` : ''}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động${data ? ` · ${activeCount}` : ''}`, locked: `Tạm khoá${data ? ` · ${lockedCount}` : ''}` };
-              return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-pill${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
-            })}
-          </div>
-          <Input size="sm" icon={Search} aria-label="Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ"
-            placeholder="Tên, MST, điện thoại…" value={search} onChange={setSearch} className="cfg-customer-search" />
-          <UuiSelectField label="Lọc khách hàng" hideLabel value={customerFilter}
-            wrapperClassName="cfg-customer-filter-select"
-            onChange={(event) => setCustomerFilter(event.target.value as typeof customerFilter)}
-            options={[{ value: 'all', label: 'Tất cả' }, { value: 'high-risk', label: 'Rủi ro cao' }, { value: 'active', label: 'Hoạt động' }, { value: 'locked', label: 'Tạm khoá' }]} />
-        </div>
+        {/* Shared filter-bar contract (card 20260922_38): one quick-filter
+            group + search; the duplicate mobile "Lọc khách hàng" select is
+            gone (one input per datum — the pills wrap under the bar contract). */}
+        <ListFilterBar
+          search={{ value: search, onChange: setSearch, placeholder: 'Tên, MST, điện thoại…', ariaLabel: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' }}
+          quickFiltersLabel="Lọc khách hàng"
+          quickFilters={(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
+            const labels = { all: `Tất cả${data ? ` · ${totalCount}` : ''}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động${data ? ` · ${activeCount}` : ''}`, locked: `Tạm khoá${data ? ` · ${lockedCount}` : ''}` };
+            return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-pill${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
+          })}
+        />
         <div className="cfg-customer-fetch-status" role="status" aria-live="polite">
           {isFetching ? (isPending ? 'Đang tải khách hàng…' : 'Đang cập nhật kết quả…') : isError ? <>
             Không thể tải khách hàng. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void refetch(); }}>Thử lại</button>
@@ -285,7 +282,9 @@ export default function CustomersConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={2 + Object.keys(colPresence).length} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'}</td></tr>}
+              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={2 + Object.keys(colPresence).length} data-label="">
+                <EmptyState variant="compact" illustration="fleet" title={search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'} />
+              </td></tr>}
               {filtered.map((c, index) => (
                 <tr key={c.id}>
                   <td data-label="Tên Khách hàng" className="cfg-customer-identity">

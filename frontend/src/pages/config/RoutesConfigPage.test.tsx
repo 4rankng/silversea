@@ -124,3 +124,20 @@ describe('UI-CD-09 catalog query whitespace', () => {
     expect(input).toHaveValue('');
   });
 });
+
+describe('ListFilterBar adoption (card 20260922_38)', () => {
+  it('renders the shared bar with the routes search, no hand-rolled search chrome', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Hải Phòng - Nội Bài');
+    expect(container.querySelector('.filter-bar.list-filter-bar')).not.toBeNull();
+    expect(container.querySelector('.toolbar__search')).toBeNull();
+    screen.getByRole('textbox', { name: 'Tìm tuyến đường' });
+  });
+
+  it('routes the empty face through the shared EmptyState', async () => {
+    getRoutesList.mockResolvedValue([]);
+    renderPage();
+    const face = await screen.findByText('Chưa có dữ liệu');
+    expect(face.closest('.ds-empty-state')).not.toBeNull();
+  });
+});

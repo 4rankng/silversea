@@ -74,19 +74,8 @@
 
 /* Compact records keep additional fields in an explicit disclosure. */
 .cfg-customer-short-name, .cfg-customer-compact-meta, .cfg-customer-details { display: none; }
-.cfg-page--customers .cfg-customer-toolbar { display: flex; gap: 8px; padding: 8px 0; background: transparent; min-height: 0; }
-.cfg-customer-filter-pills { display: flex; gap: 4px; flex-wrap: wrap; }
-.cfg-customer-search { flex: 1 1 220px; max-width: 340px; min-width: 0; margin-left: auto; }
-.cfg-page--customers .cfg-customer-filter-select { display: none; }
 .cfg-page--customers > .table-wrap { background: transparent; border: 0; box-shadow: none; }
 .cfg-customer-fetch-status { min-height: 20px; display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
-
-@media (max-width: 760px) {
-  .cfg-page--customers .cfg-customer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 130px; align-items: end; gap: 6px; }
-  .cfg-customer-filter-pills { display: none; }
-  .cfg-customer-search { width: 100%; max-width: none; margin: 0; }
-  .cfg-page--customers .cfg-customer-filter-select { display: block; min-width: 0; }
-}
 
 @container (max-width: 1100px) {
   .cfg-page--customers .cfg-customer-table tbody { gap: 0; }
