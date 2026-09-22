@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:7c23dcc65540f5c0a28a295eeee911332c1aa97f9a048cfd383bb491a176c9e8",
+  "pageVersion": "sha256:89caf6b61d14c0e803bc88b8617dc76fa492e4c43271cc613fda112ffa792c98",
   "claims": [
     {
       "id": "claim_a14c0582dfff450fb754f048a152128f",
@@ -52,7 +52,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/lib/format.ts",
-          "version": "repo-file-v1:sha256:2ebcd437ba8e8a7fed72d0d1976ca7b958654d824c9e54c043c2e582b399c3fd"
+          "version": "repo-file-v1:sha256:2f31bb396d5bab7e5e036e651260684cd9371d34abc69202224cb218c3a3cb87"
         },
         {
           "resource": "repo://frontend/src/pages/finance-derived.ts#L17-L73",
@@ -115,6 +115,6 @@
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-20T06:47:25.307Z"
+    "at": "2026-09-21T23:41:16.831Z"
   }
 }

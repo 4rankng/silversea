@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b77a0154b172a49718a1d6fc5a018ae72cb9ab58c29327106b230e645a7efc9c",
+  "pageVersion": "sha256:5f5680dd0e4219a56736e6fc1b0a3e72cb6c8867d251f5a30b855f97a641e155",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -36,7 +36,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:eda09f42db6e2740d36d55b0d623ba963fddb29d8e7eea582800f14a9d0caf51"
+          "version": "repo-file-v1:sha256:63289abe1c73b8b71678bf451dc7db89cfefc7c66aa267c020d096faf05b060d"
         }
       ]
     },
@@ -98,7 +98,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:eda09f42db6e2740d36d55b0d623ba963fddb29d8e7eea582800f14a9d0caf51"
+          "version": "repo-file-v1:sha256:63289abe1c73b8b71678bf451dc7db89cfefc7c66aa267c020d096faf05b060d"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -116,7 +116,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts",
-          "version": "repo-file-v1:sha256:13fd48ce376ae9e0cd5613bd5284203450c59573cb92ebe5c3a0059623dafcbf"
+          "version": "repo-file-v1:sha256:dc751956c213fe3b1d258f6c9136d3a58705f23f0bbd43f440d2c25f9b867268"
         },
         {
           "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
@@ -144,11 +144,11 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-          "version": "repo-file-v1:sha256:6170958f61c057615dc53bccdaa1d7593b2ee5d801c2e894125f76721f9aa977"
+          "version": "repo-file-v1:sha256:db576f647a7d4015c253632e8221db914482880097574eda30cf92b01516354a"
         },
         {
           "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts",
-          "version": "repo-file-v1:sha256:13fd48ce376ae9e0cd5613bd5284203450c59573cb92ebe5c3a0059623dafcbf"
+          "version": "repo-file-v1:sha256:dc751956c213fe3b1d258f6c9136d3a58705f23f0bbd43f440d2c25f9b867268"
         }
       ]
     },
@@ -422,7 +422,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/features/shipments/create/uui-searchable-field.tsx",
-          "version": "repo-file-v1:sha256:376a89f59a00eb7b672e4fadf46f3fad712a8a309b97a20279eedc144c39608c"
+          "version": "repo-file-v1:sha256:1778fe5be5933b22bae6ebbf9835ecea9d6c521ac8e71b280911b2e6507bcf77"
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts#L231-L234",
@@ -502,11 +502,11 @@
       "evidence": [
         {
           "resource": "repo://backend/src/services/ops-settlement-export.service.ts",
-          "version": "repo-file-v1:sha256:0d96dd2f85abf4349eac6f03dc3d9f8cb7b77966a35ebe3e43ffe523c1c2630e"
+          "version": "repo-file-v1:sha256:12f285367c8f5783ab56c6d69a6b73a64e440e7878ee8caa05f99836c04909a1"
         },
         {
           "resource": "repo://frontend/src/features/ops/OpsSettlementsPanel.tsx",
-          "version": "repo-file-v1:sha256:b7653ad4301945c0d39121cf4b8da91358a9898dc299d90e7b2dddfcb553a45f"
+          "version": "repo-file-v1:sha256:07fe77c9c4483c55a451a904e65e9d3909ce21e2ed7019f8c431f864c47d0842"
         }
       ]
     },
@@ -523,6 +523,6 @@
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-21T04:49:12.152Z"
+    "at": "2026-09-21T23:41:16.831Z"
   }
 }
