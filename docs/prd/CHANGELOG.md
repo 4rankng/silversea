@@ -4,6 +4,41 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-22 — Giao diện đồng bộ: quản lý container ngay tại danh sách lô, bảng lọc và hiển thị trạng thái thống nhất
+
+Đợt 22/09 đồng bộ hóa trải nghiệm hiển thị toàn ứng dụng: dữ liệu trong bảng hiển thị
+trọn vẹn không bị cắt cụt, giá trị trạng thái hiển thị dạng chữ, các trang danh sách
+dùng chung một kiểu thanh lọc, màn hình trống thể hiện thống nhất, và bảng màu nền
+được hiệu chuẩn lại để mọi chữ đều đọc rõ. Toàn bộ quy tắc hiển thị đã chốt từ 16/09
+đến 22/09 được hợp nhất thành một cuốn quy tắc hiển thị nội bộ làm chuẩn chung cho
+việc xây dựng và nghiệm thu giao diện.
+
+- **Thêm/bớt container ngay trên danh sách lô** (QuyTrinhO2C.md): lô FCL có hộp thoại
+  "Quản lý container" mở từ ô Tổng quan hàng hóa trên danh sách lô; lịch trình, phân xe
+  và các tham số theo từng container vẫn thao tác tại trang chi tiết lô. Xóa container
+  đang có chuyến bị chặn kèm lý do ngay trên hộp thoại.
+- **Dữ liệu trong bảng không bị cắt cụt** (README.md): văn bản dài tự xuống dòng; mã,
+  biển số, số điện thoại hiển thị trọn cụm — bỏ dấu "…" trên ô dữ liệu; cột tự rộng theo
+  nội dung.
+- **Một kiểu thanh lọc dùng chung** (QuyTrinhO2C.md): các trang danh sách (danh mục khách
+  hàng, tuyến đường, màn hình kế toán chốt debit) dùng chung thanh lọc — một hàng khi đủ
+  chỗ, xuống đúng hàng thứ hai khi thiếu chỗ, điều khiển co giãn theo nội dung, nền phẳng
+  không đổ bóng.
+- **Màn hình trống thống nhất** (README.md): các trạng thái không có dữ liệu / chưa chọn /
+  không có kết quả hiển thị cùng một kiểu trên mọi trang, dùng chung một bộ hình minh họa
+  chọn theo ngữ cảnh (một số vị trí giữ hình riêng đang có để giữ nguyên diện mạo).
+- **Lớp nổi đồng bộ** (QuyTrinhO2C.md): hộp thoại, menu, gợi ý và thông báo đều dùng cùng
+  nền trắng chuẩn — tín hiệu nổi duy nhất trong giao diện phẳng.
+- **Trạng thái hiển thị dạng chữ** (README.md): bỏ khối màu bo tròn / hình viên thuốc cho
+  giá trị trạng thái; trạng thái là văn bản (kèm chấm màu nhỏ khi cần), biểu tượng chỉ dùng
+  cho nút hành động.
+- **Bảng màu hiệu chuẩn lại** (README.md): các lớp nền, đường kẻ và chữ nhạt được đo và
+  điều chỉnh giữ khoảng cách đủ đọc (chữ luôn ≥4,5:1 so với nền); xanh "thành công" chỉ
+  dùng cho việc đã hoàn thành hoặc tiền đã thu — tiền chưa thu hiển thị màu vàng cảnh báo.
+- **Kiểm tra tự động bảo đảm quy tắc**: bổ sung các kiểm tra tự động chốt dữ liệu bảng
+  không bị cắt, màu trạng thái đủ tương phản và lớp nổi đúng nền — thay đổi vi phạm sẽ
+  fail kiểm tra ngay.
+
 ## 2026-09-22 — Vai trò: mặt hình làm việc theo vai (quyết định Điều vận/Lái xe)
 
 - **Điều vận và Lái xe không có work-in-box — by design** (QuyTrinhO2C.md §3 đối chiếu; quyết định 2026-09-22,
