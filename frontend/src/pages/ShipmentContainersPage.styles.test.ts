@@ -306,4 +306,14 @@ describe('shipment detail workboard styling', () => {
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
     expect(css).not.toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--/);
   });
+
+  it('card 20260922_54: thead headers wrap at spaces only — never mid-word, never an orphan letter', () => {
+    const thead = css.match(/\.shipment-container-ledger thead th\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(thead).toContain('word-break: keep-all');
+    expect(thead).toContain('overflow-wrap: normal');
+    expect(thead).not.toContain('overflow-wrap: anywhere');
+    // Data cells keep the emergency break — long container numbers need it.
+    const td = css.match(/\.shipment-container-ledger tbody > tr > td \{([^}]*)\}/)?.[1] ?? '';
+    expect(td).toContain('overflow-wrap: anywhere');
+  });
 });

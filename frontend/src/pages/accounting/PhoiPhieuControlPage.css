@@ -4,6 +4,7 @@
    inside their cells instead (body cells keep their existing behavior). */
 .ppc-board thead th {
   white-space: normal;
-  overflow-wrap: anywhere;
+  word-break: keep-all;   /* headers wrap at spaces only — no CONTAINE/R fracture (card 20260922_54, law §4) */
+  overflow-wrap: normal;  /* withdraw the mid-word emergency break; break-word would still allow it */
   line-height: 1.3;
 }
