@@ -75,7 +75,7 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
                 ref={el => { itemRefs.current[flatIdx] = el; }}
                 style={{
                   ...itemStyle,
-                  background: isActive ? 'var(--bg-3, rgba(255,255,255,0.07))' : 'transparent',
+                  background: isActive ? 'var(--surface-3)' : 'transparent',
                 }}
                 onMouseEnter={() => onHover(flatIdx)}
                 onClick={() => onSelect(item)}
@@ -122,7 +122,7 @@ const dropdownStyle: React.CSSProperties = {
   maxHeight: 'min(360px, calc(100dvh - 120px))',
   overflowY: 'auto',
   overscrollBehavior: 'contain',
-  background: 'var(--bg-1)',
+  background: 'var(--surface)',
   border: '1px solid var(--line)',
   borderRadius: 12,
   boxShadow: '0 8px 32px rgba(0,0,0,0.28)',

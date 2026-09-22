@@ -20,7 +20,7 @@
 }
 .confirm-box {
   position: relative;
-  background: linear-gradient(160deg, var(--surface, #fff) 0%, var(--surface-2, #f8faf9) 55%);
+  background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
   border-radius: var(--r);
   width: 100%;

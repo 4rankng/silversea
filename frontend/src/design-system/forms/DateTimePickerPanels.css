@@ -15,7 +15,7 @@
   max-width: calc(100vw - 24px);
   border: 1px solid var(--line, #d1d5db);
   border-radius: 10px;
-  background: var(--bg-1, #fff);
+  background: var(--surface);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
 }
 
@@ -77,7 +77,7 @@
    document height (88 pin: scrollingElement.scrollHeight === clientHeight). */
 .dtp-dialog { width: min(396px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; gap: 6px; padding: 10px; }
 .dtp-dialog__split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.dtp-dialog__field { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 8px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; background: var(--bg-1, #fff); color: var(--ink, #1f2937); text-align: left; }
+.dtp-dialog__field { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 8px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; background: var(--surface-2); color: var(--ink, #1f2937); text-align: left; }
 .dtp-dialog__field.is-open { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent); }
 .dtp-dialog__field-label { font-size: var(--text-caption-size, 12px); font-weight: 700; color: var(--ink-3, #6b7280); }
 .dtp-dialog__field-value { flex: 1; text-align: right; font-family: var(--font-data, monospace); font-size: var(--text-body-size, 14px); }

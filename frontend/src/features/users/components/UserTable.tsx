@@ -482,7 +482,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, bu
                     {activeMenuId === u.id && (
                       <div className="users-mobile-card__dropdown" role="menu" style={{
                         position: 'absolute', right: 0, top: '100%', zIndex: 100,
-                        background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
                         overflow: 'hidden', minWidth: 120,
                       }} onClick={(e) => e.stopPropagation()}>
                         {canManage && canDelete && (

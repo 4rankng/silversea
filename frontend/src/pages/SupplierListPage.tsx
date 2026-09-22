@@ -26,7 +26,6 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { Money } from '../components/shared/Money';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import '../styles/operational-table-typography.css';
 import '../styles/record-table.css';
 import './SupplierListPage.css';
@@ -481,8 +480,7 @@ export default function SupplierListPage() {
               )}
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
-                  <img src={resolveEmptyIllustration('empty-clients')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  <div>Chưa có dữ liệu</div>
+                  <EmptyState variant="compact" context="clients" title="Chưa có dữ liệu" />
                 </td></tr>
               )}
               {filtered.map((s, index) => (
@@ -524,7 +522,7 @@ export default function SupplierListPage() {
                       {menuOpenId === s.id && (
                         <div style={{
                           position: 'absolute', right: 12, zIndex: 20,
-                          background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
                           boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
                           ...(index >= filtered.length - 2 && filtered.length > 2
                             ? { bottom: '100%', marginBottom: 4 }

@@ -29,7 +29,7 @@
   padding: 14px;
   border: 1px solid var(--border-2);
   border-radius: 12px;
-  background: var(--surface-1, #fff);
+  background: var(--surface);
 }
 
 .carrier-allocation-dialog__row-head {
@@ -95,7 +95,7 @@
   gap: 10px;
   padding-top: 12px;
   border-top: 1px solid var(--border-1);
-  background: var(--surface-1, #fff);
+  background: var(--surface);
 }
 
 .carrier-allocation-dialog.is-mobile .carrier-allocation-dialog__row {

@@ -27,14 +27,14 @@ export function ReassignDialog({
         <button
           type="button"
           onClick={() => setReassignState(s => ({ ...s, carrierType: 'OWN' }))}
-          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'OWN' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'OWN' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'OWN' ? 'var(--brand-soft)' : 'var(--surface)', color: reassignState.carrierType === 'OWN' ? 'var(--brand-dark)' : 'var(--text-2)' }}
         >
           Xe nhà
         </button>
         <button
           type="button"
           onClick={() => setReassignState(s => ({ ...s, carrierType: 'EXTERNAL' }))}
-          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-soft)' : '#fff', color: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+          style={{ flex: 1, padding: '4px', fontSize: 'var(--text-control-size)', borderRadius: 4, border: '1px solid var(--border)', background: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-soft)' : 'var(--surface)', color: reassignState.carrierType === 'EXTERNAL' ? 'var(--brand-dark)' : 'var(--text-2)' }}
         >
           Xe ngoài
         </button>

@@ -195,7 +195,7 @@ export function RevenueTrendChart({
             left: `${(ax / W) * 100}%`,
             top: `${(Math.min(ay, ayGp) / H) * 100}%`,
             transform: `translate(${activeIdx === 0 ? '0' : activeIdx === months.length - 1 ? '-100%' : '-50%'}, calc(-100% - 12px))`,
-            background: '#fff',
+            background: 'var(--surface)',
             borderRadius: '8px',
             border: '1px solid #E2E8E5',
             padding: '10px 14px',

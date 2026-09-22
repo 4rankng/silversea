@@ -26,7 +26,7 @@
   max-height: calc(100vh - 48px);
   max-height: calc(100dvh - 48px);
   overflow: hidden;
-  background: var(--bg-1, #fff);
+  background: var(--surface);
   border-radius: 14px;
   display: flex;
   flex-direction: column;

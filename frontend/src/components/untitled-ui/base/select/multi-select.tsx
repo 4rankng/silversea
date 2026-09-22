@@ -253,7 +253,7 @@ const MultiSelectRoot = ({
                         style={{ width: popoverWidth || undefined }}
                         className={(state) =>
                             cx(
-                                "w-(--trigger-width) origin-(--trigger-anchor-point) overflow-hidden rounded-lg border border-secondary bg-primary outline-hidden will-change-transform",
+                                "w-(--trigger-width) origin-(--trigger-anchor-point) overflow-hidden rounded-lg border border-secondary bg-[var(--surface)] outline-hidden will-change-transform",
                                 state.isEntering &&
                                     "duration-150 ease-out animate-in fade-in placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",
                                 state.isExiting &&

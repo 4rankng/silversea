@@ -17,7 +17,7 @@
   justify-content: space-between;
   gap: 18px;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
 }
 
 .billing-builder__title-block {
@@ -34,7 +34,7 @@
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 10px 28px rgba(0, 63, 34, 0.08);
 }
 
@@ -91,7 +91,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -173,7 +173,7 @@
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--sh-sm);
 }
 
@@ -223,7 +223,7 @@
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
-  background: #fff;
+  background: var(--surface);
   color: #111827;
 }
 
@@ -466,7 +466,7 @@
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--sh-sm);
 }
 
@@ -506,7 +506,7 @@
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
 }
 
 /* Tablet wrap — between the desktop grid and the 680px mobile layout, the
@@ -739,7 +739,7 @@
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__mobile-route {
@@ -828,7 +828,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     overflow: auto;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__mobile-item.is-excluded {
@@ -866,7 +866,7 @@
     padding: 0 10px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__note {
@@ -912,7 +912,7 @@
     gap: 7px;
     padding-top: 9px;
     padding-bottom: max(10px, env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.94);
+    background: var(--surface);
     backdrop-filter: blur(12px) saturate(140%);
     box-shadow: 0 -1px 0 rgba(9, 9, 11, 0.06), 0 -12px 24px rgba(9, 9, 11, 0.04);
   }

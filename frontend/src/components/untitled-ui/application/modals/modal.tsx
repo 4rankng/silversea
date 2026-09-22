@@ -29,7 +29,7 @@ export const Modal = (props: AriaModalOverlayProps) => (
         {...props}
         className={(state) =>
             cx(
-                "rounded-xl bg-primary align-middle shadow-xl outline-hidden max-sm:overflow-y-auto sm:rounded-2xl",
+                "rounded-xl bg-[var(--surface)] align-middle shadow-xl outline-hidden max-sm:overflow-y-auto sm:rounded-2xl",
                 // Max height based on parent's vertical padding
                 "max-h-[calc(var(--visual-viewport-height)-var(--modal-pt)-var(--modal-pb))]",
                 // Animations

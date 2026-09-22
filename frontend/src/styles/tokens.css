@@ -113,9 +113,11 @@
 
   /* --- Backward-compat aliases (existing code uses these var names) --- */
   --bg-1: #E3E8E5;
-  /* --bg-2 stays white: its call sites include floating overlays whose audit
-     belongs to card 20260922_36 — flipping the alias here would couple two
-     behavior changes in one landing. */
+  /* --bg-2: white fill alias for NON-overlay fills only (control/field fills,
+     hover tints, table-head/notice fills). Card 20260922_36 (nepocorp F4) is
+     EXECUTED: every floating overlay surface rides --surface — never this
+     alias, never raw white — enforced by styles/overlay-surface.styles.test.ts.
+     Call sites audited 2026-09-22: none remain on floating overlay surfaces. */
   --bg-2: #FFFFFF;
   --bg-3: var(--surface-3);
   --bg-glass: rgba(255, 255, 255, 0.82);
