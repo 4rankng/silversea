@@ -74,7 +74,9 @@ describe('DetailedPlanFilters', () => {
       />,
     );
 
-    expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(2);
+    // Bar chrome is the shared ListFilterBar's now; only the date field still
+    // carries the shared input wrapper (behavior over plumbing — card _46).
+    expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(1);
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
@@ -97,7 +99,7 @@ describe('DetailedPlanFilters', () => {
     expect(within(drawer).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
     expect(within(drawer).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
 
-    expect(screen.getByText('Tìm nhanh')).toBeTruthy();
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
     expect(screen.getAllByText('Ngày vận chuyển')).toHaveLength(1);
     expect(screen.getByText('Phân xe')).toBeTruthy();
     expect(screen.getByText('Điểm nâng')).toBeTruthy();
@@ -386,7 +388,9 @@ describe('DetailedPlanFilters', () => {
       />,
     );
 
-    expect(screen.getByText('Đang lọc 10 điều kiện')).toBeTruthy();
+    // The active count lives on the drawer trigger now (sr-only status line
+    // deleted with the self-made chrome — card _46).
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 8 đang áp dụng' })).toBeTruthy();
     // The Xóa lọc button is now always rendered but only enabled when a
     // filter is active; the click should still reset every filter.
     const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });

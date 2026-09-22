@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Check, FilterLines, XClose } from '@untitledui/icons';
 import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
+import { ListFilterBar } from '../../../components/ListFilterBar';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import { businessDateISO } from '../../../lib/format';
@@ -124,10 +124,6 @@ export function DetailedPlanFilters({
     filters.hourFrom !== '',
     filters.hourTo !== '',
   ].filter(Boolean).length;
-  const activeFilterCount = activeDrawerFilterCount
-    + (filters.date !== '' ? 1 : 0)
-    + (filters.dateFrom !== '' || filters.dateTo !== '' ? 1 : 0)
-    + (filters.q.trim() !== '' ? 1 : 0);
 
   const clearFilters = () => {
     setDateResetKey((key) => key + 1);
@@ -163,22 +159,33 @@ export function DetailedPlanFilters({
   };
 
   return (
-    <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
-      <span className="detailed-plan-filters__status" aria-live="polite">
-        {activeFilterCount > 0 ? `Đang lọc ${activeFilterCount} điều kiện` : 'Chưa áp dụng bộ lọc'}
-      </span>
-      <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
-        <span className="detailed-plan-filters__label">Tìm nhanh</span>
-        <UUIInput
-          type="search"
-          className="detailed-plan-filters__search"
-          placeholder="Bill, khách hàng, container…"
-          value={filters.q}
-          onChange={(value) => onChange({ q: value })}
-          size="sm"
-          aria-label="Tìm nhanh"
-        />
-      </label>
+    <>
+      {/* Shared filter-bar contract (card 20260922_46, adopts card _38):
+          search + transport-date scope ride the shared bar; the drawer
+          trigger rides the right-side actions slot. Multi-select logic and
+          the drawer panel are unchanged. */}
+      <ListFilterBar
+        search={{
+          value: filters.q,
+          onChange: (value) => onChange({ q: value }),
+          placeholder: 'Bill, khách hàng, container…',
+          ariaLabel: 'Tìm nhanh',
+        }}
+        actions={(
+          <UUIButton
+            size="sm"
+            color="secondary"
+            iconLeading={FilterLines}
+            onPress={() => setIsFilterDrawerOpen(true)}
+            aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+          >
+            Bộ lọc
+            {activeDrawerFilterCount > 0 && (
+              <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
+            )}
+          </UUIButton>
+        )}
+      >
       <div className="detailed-plan-filters__date-scope">
         <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
         {(filters.dateFrom !== '' || filters.dateTo !== '') && (
@@ -248,21 +255,7 @@ export function DetailedPlanFilters({
           </UUIButton>
         </div>
       </div>
-      <div className="detailed-plan-filters__toolbar-actions">
-        <UUIButton
-          className="detailed-plan-filters__drawer-trigger"
-          size="sm"
-          color="secondary"
-          iconLeading={FilterLines}
-          onPress={() => setIsFilterDrawerOpen(true)}
-          aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
-        >
-          Bộ lọc
-          {activeDrawerFilterCount > 0 && (
-            <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
-          )}
-        </UUIButton>
-      </div>
+      </ListFilterBar>
       <Drawer
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
@@ -336,6 +329,6 @@ export function DetailedPlanFilters({
           </section>
         </div>
       </Drawer>
-    </section>
+    </>
   );
 }
