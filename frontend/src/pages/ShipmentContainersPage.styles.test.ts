@@ -125,10 +125,14 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    // The multiline status cell (badge + missing-fields warning) needs a wider
-    // column than the old single-badge 7%; notes gave up 2% to fund it.
-    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*12%;/);
+    // The multiline status cell (badge + missing-fields warning) keeps 11%;
+    // notes gave 1% and the ladder gives 7% to the actions column (card
+    // 20260922_3: without its own col rule the fixed layout collapsed the
+    // Thao tác column to 0px at ≥1366 and the Xóa/Thêm buttons were
+    // unreachable). The nine shares must still sum to 100%.
+    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*11%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*11%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 

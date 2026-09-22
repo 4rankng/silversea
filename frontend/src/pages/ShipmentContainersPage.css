@@ -109,22 +109,28 @@
    place names (see note below), and status only ever holds a short one/two
    -word badge so it gets the smallest share instead of matching its wide
    sr-only-adjacent siblings. */
-.shipment-container-ledger__col--customer { width: 11%; }
-.shipment-container-ledger__col--documents { width: 15%; }
-.shipment-container-ledger__col--container { width: 12%; }
+.shipment-container-ledger__col--customer { width: 10%; }
+.shipment-container-ledger__col--documents { width: 13%; }
+.shipment-container-ledger__col--container { width: 11%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
    table-layout: fixed, the column shrinks below the longest unbreakable
    token and the cell's overflow:hidden clips the trailing characters — keep
    this share generous even though sample data rarely fills it. */
 .shipment-container-ledger__col--route { width: 16%; }
-.shipment-container-ledger__col--schedule { width: 12%; }
-.shipment-container-ledger__col--vehicle { width: 11%; }
-.shipment-container-ledger__col--notes { width: 12%; }
+.shipment-container-ledger__col--schedule { width: 11%; }
+.shipment-container-ledger__col--vehicle { width: 10%; }
+.shipment-container-ledger__col--notes { width: 11%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
 .shipment-container-ledger__col--status { width: 11%; }
+/* Card 20260922_3 rework: the actions column had no col rule while the other
+   eight summed to 100%, so table-layout: fixed collapsed it to 0px from
+   ~1366px up — Thao tác buttons painted clipped and real taps never landed
+   (elementFromPoint fell through to the scroller). 7% keeps every icon
+   button inside the tap target at 1440/1680. */
+.shipment-container-ledger__col--actions { width: 7%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek

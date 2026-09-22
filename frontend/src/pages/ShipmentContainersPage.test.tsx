@@ -132,6 +132,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       'Phân xe',
       'Ghi chú',
       'Trạng thái',
+      // Card 20260922_3: the actions column renders whenever the row can
+      // mutate (add/remove container wired) — previously invisible (0px col).
+      'Thao tác',
     ]);
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell

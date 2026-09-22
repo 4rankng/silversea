@@ -723,6 +723,7 @@ export function ShipmentContainerLedger({
             <col className="shipment-container-ledger__col--vehicle" />
             <col className="shipment-container-ledger__col--notes" />
             <col className="shipment-container-ledger__col--status" />
+            {canMutateRows && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
