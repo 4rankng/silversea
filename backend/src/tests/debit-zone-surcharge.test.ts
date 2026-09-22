@@ -57,6 +57,50 @@ async function mkLotWithZonePort(configAmount?: string): Promise<{ shipmentId: n
   return { shipmentId: shipment.id, containerId: container.id };
 }
 
+/** Fee-configured port helper (card 20260922_63 cases): zone is data; the
+ *  optional amount seeds a per-port CONFIG row. */
+async function mkPortWithFee(zone: 'LACH_HUYEN' | 'HAI_PHONG', amount?: string): Promise<number> {
+  const [port] = await db.insert(s.ports).values({
+    name: `ZS port ${suffix} ${portIds.length}`,
+    code: `ZS-${portIds.length}-${Date.now().toString(36)}`,
+    dispatchZone: zone,
+  }).returning();
+  portIds.push(port.id);
+  if (amount != null) {
+    await db.insert(s.portZoneSurcharges).values({
+      portId: port.id,
+      kindSlug: ZONE_SURCHARGE_KIND,
+      label: 'Phí nâng/hạ Lạch Huyện',
+      amount,
+    });
+  }
+  return port.id;
+}
+
+/** One-container lot with explicit pickup/dropoff port ends. */
+async function mkLotWithEnds(pickupPortId: number, dropoffPortId: number | null): Promise<number> {
+  const [customer] = await db.insert(s.customers).values({ name: `ZS customer ${suffix} ${shipmentIds.length}` }).returning();
+  customerIds.push(customer.id);
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: customer.id,
+    routeId: null,
+    cargoMode: 'FCL',
+    shipmentCode: `ZS-${suffix}-${shipmentIds.length}`,
+    status: 'READY_FOR_DISPATCH',
+    tradeDirection: 'EXPORT',
+    createdBy: 1,
+  }).returning();
+  shipmentIds.push(shipment.id);
+  const [container] = await db.insert(s.shipmentContainers).values({
+    shipmentId: shipment.id,
+    containerNumber: `ZS${shipmentIds.length}${suffix.slice(-4)}`.toUpperCase(),
+    pickupPortId,
+    dropoffPortId,
+  }).returning();
+  containerIds.push(container.id);
+  return shipment.id;
+}
+
 after(async () => {
   try {
     await db.delete(s.opsExpenseEntries).where(inArray(s.opsExpenseEntries.shipmentId, shipmentIds));
@@ -79,6 +123,32 @@ describe('zone-surcharge ladder', () => {
     const { shipmentId } = await mkLotWithZonePort('440000');
     const detail = await getShipmentDebitDetail(shipmentId);
     assert.deepEqual(detail.zoneSurcharge, { label: 'Lạch Huyện', amount: 440000, source: 'CONFIG' });
+    shipmentDebitDetailSchema.parse(detail);
+  });
+
+  test('CONFIG rung is per-lift (card 20260922_63 case 2): lift + drop both in-zone = 2×', async () => {
+    const lift = await mkPortWithFee('LACH_HUYEN', '500000');
+    const drop = await mkPortWithFee('LACH_HUYEN', '500000');
+    const shipmentId = await mkLotWithEnds(lift, drop);
+    const detail = await getShipmentDebitDetail(shipmentId);
+    assert.deepEqual(detail.zoneSurcharge, { label: 'Phí nâng/hạ Lạch Huyện', amount: 1000000, source: 'CONFIG' });
+    shipmentDebitDetailSchema.parse(detail);
+  });
+
+  test('CONFIG rung per-lift (card 20260922_63 case 1): drop outside the fee zone = 1×', async () => {
+    const lift = await mkPortWithFee('LACH_HUYEN', '500000');
+    const drop = await mkPortWithFee('HAI_PHONG');
+    const shipmentId = await mkLotWithEnds(lift, drop);
+    const detail = await getShipmentDebitDetail(shipmentId);
+    assert.deepEqual(detail.zoneSurcharge, { label: 'Phí nâng/hạ Lạch Huyện', amount: 500000, source: 'CONFIG' });
+    shipmentDebitDetailSchema.parse(detail);
+  });
+
+  test('CONFIG rung per-lift: same port for nâng + hạ counts 2 lifts', async () => {
+    const port = await mkPortWithFee('LACH_HUYEN', '500000');
+    const shipmentId = await mkLotWithEnds(port, port);
+    const detail = await getShipmentDebitDetail(shipmentId);
+    assert.deepEqual(detail.zoneSurcharge, { label: 'Phí nâng/hạ Lạch Huyện', amount: 1000000, source: 'CONFIG' });
     shipmentDebitDetailSchema.parse(detail);
   });
 

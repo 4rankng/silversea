@@ -21,7 +21,7 @@ export async function resolveLotZoneSurcharge(
     .filter((value): value is number => value != null))];
   // The display label comes from CONFIG whenever one exists for the lot's
   // ports (place names are data). Structural fallback otherwise.
-  const configRows = portIds.length > 0 ? await db.select({ label: s.portZoneSurcharges.label, amount: s.portZoneSurcharges.amount })
+  const configRows = portIds.length > 0 ? await db.select({ portId: s.portZoneSurcharges.portId, label: s.portZoneSurcharges.label, amount: s.portZoneSurcharges.amount })
     .from(s.portZoneSurcharges)
     .where(and(inArray(s.portZoneSurcharges.portId, portIds), isNull(s.portZoneSurcharges.deletedAt))) : [];
   const configLabel = configRows[0]?.label ?? 'Phí nâng/hạ theo vùng';
@@ -50,7 +50,25 @@ export async function resolveLotZoneSurcharge(
     return { label: configLabel, amount: total, source: 'INCIDENTAL' };
   }
   if (configRows.length > 0) {
-    return { label: configLabel, amount: Number(configRows[0].amount), source: 'CONFIG' };
+    // Card 20260922_63: the fee is PER LIFT — each container end (nâng at the
+    // pickup port, hạ at the dropoff port) at a fee-configured port counts
+    // once. Config rows are per-port data, so their presence IS the fee-zone
+    // membership; ports and amounts never enter this logic by name.
+    const amountByPort = new Map<number, number>();
+    for (const row of configRows) amountByPort.set(row.portId, Number(row.amount));
+    let lifts = 0;
+    let amount = 0;
+    for (const container of lotContainers) {
+      for (const endPortId of [container.pickupPortId, container.dropoffPortId]) {
+        const perLift = endPortId != null ? amountByPort.get(endPortId) : undefined;
+        if (perLift != null) {
+          lifts += 1;
+          amount += perLift;
+        }
+      }
+    }
+    if (lifts === 0) return null;
+    return { label: configLabel, amount, source: 'CONFIG' };
   }
   return null;
 }

@@ -11,6 +11,7 @@ import { eq, and, desc, isNotNull, isNull, sql } from 'drizzle-orm';
 import { expenseTypeSeedPolicy } from './expense-type-seed-policy';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
+import { ZONE_SURCHARGE_KIND } from './services/zone-surcharge.service';
 import {
   createShipment,
   transitionShipmentStatus,
@@ -602,6 +603,7 @@ export async function seed() {
     { name: 'TC - HICT',                          shortName: 'HICT',        code: 'HICT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     { name: 'TIL - HTIT',                         shortName: 'HTIT',        code: 'HTIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     { name: 'Hateco - HHIT',                      shortName: 'HHIT',        code: 'HHIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'SITC - Lạch Huyện',                  shortName: 'SITC LH',     code: 'SITCLH', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     // Hải Phòng cluster — Cấm river mouth, ICDs and yards (HAI_PHONG)
     { name: 'Cảng Hải Phòng',                    shortName: 'Hải Phòng',    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng', dispatchZone: 'HAI_PHONG' },
     { name: 'Cảng Đình Vũ',                      shortName: 'Đình Vũ',      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
@@ -684,6 +686,42 @@ export async function seed() {
   } else {
     console.log(`✅ Ports already exist, ${zoneFilled} zone backfilled, ${shortNameFilled} short name backfilled.`);
   }
+
+  // ─── Zone-surcharge fee config (fill-only, card 20260922_63) ─────────────
+  // The per-lift lift fee is CONFIG DATA on Lạch Huyện-cluster ports; the
+  // customer's negotiated default (500.000/lift) ships as seed data so fresh
+  // checkouts match staging. Insert-missing only: a re-run never reverts
+  // operator edits to label or amount.
+  const zoneFeeSeeds = [
+    { code: 'HICT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'HTIT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'HHIT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'SITCLH', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+  ];
+  let zoneFeeInserted = 0;
+  for (const fee of zoneFeeSeeds) {
+    const [feePort] = await db.select({ id: schema.ports.id })
+      .from(schema.ports)
+      .where(and(eq(schema.ports.code, fee.code), isNull(schema.ports.deletedAt)))
+      .limit(1);
+    if (!feePort) continue;
+    const [existingFee] = await db.select({ id: schema.portZoneSurcharges.id })
+      .from(schema.portZoneSurcharges)
+      .where(and(
+        eq(schema.portZoneSurcharges.portId, feePort.id),
+        eq(schema.portZoneSurcharges.kindSlug, ZONE_SURCHARGE_KIND),
+      ))
+      .limit(1);
+    if (existingFee) continue;
+    await db.insert(schema.portZoneSurcharges).values({
+      portId: feePort.id,
+      kindSlug: ZONE_SURCHARGE_KIND,
+      label: fee.label,
+      amount: fee.amount,
+    });
+    zoneFeeInserted += 1;
+  }
+  console.log(`✅ Zone-surcharge fee config ensured (${zoneFeeInserted} inserted of ${zoneFeeSeeds.length} planned).`);
 
   // ─── Forwarder expense types (fill-only seed) ────────────────────────────
   // Card 20260922_1: the fill logic moved verbatim to seed/seed-expense-types.ts
