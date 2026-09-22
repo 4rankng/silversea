@@ -94,4 +94,10 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expect(popover).toContain('background: var(--surface)');
     expect(popover).not.toContain('background: #fff');
   });
+
+  it('ops-bill identity values wrap in both the table and the mobile-card render', () => {
+    const css = read('src/pages/ForwarderTripsPage.css');
+    expectNoClip(rules(css, /\.ops-bill-table td button/));
+    expectNoClip(rules(css, /\.ops-bill-mobile-list__identity strong/));
+  });
 });

@@ -183,10 +183,9 @@
 .ops-bill-table td small { margin-top: 2px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.35; }
 
 .ops-bill-table td button {
-  display: -webkit-box;
+  display: block;
   width: 100%;
   padding: 0;
-  overflow: hidden;
   border: 0;
   background: transparent;
   color: var(--brand);
@@ -196,8 +195,7 @@
   text-align: left;
   cursor: pointer;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: normal;
 }
 
 .ops-bill-row {
@@ -435,14 +433,12 @@
   .ops-bill-mobile-list__identity small { display: block; margin-bottom: 2px; color: var(--fg-3); font-size: var(--text-caption-size); font-weight: 700; }
 
   .ops-bill-mobile-list__identity strong {
-    display: -webkit-box;
-    overflow: hidden;
+    display: block;
     color: var(--brand);
     font-size: var(--fs-sm);
     line-height: 1.35;
     overflow-wrap: anywhere;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    white-space: normal;
   }
 
   .ops-bill-mobile-list__meta {
