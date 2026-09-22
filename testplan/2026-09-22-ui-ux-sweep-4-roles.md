@@ -81,5 +81,5 @@ Số liệu dùng trong các card là số **sau khi lọc**, và mọi kết lu
 Dương tính giả đã gặp và xử lý:
 
 - `clippedByViewport` trên mobile từng báo 47–48 phần tử — đó là **drawer sidebar nằm ngoài màn**; sau khi thêm bộ lọc hit-test, lần chạy lại mobile trả **0**. Số liệu trong `probe/mobile/` là số sau lọc.
-- `overlappingText` = 9 trên `/ops/wallet` mobile là các cặp `th`/`td` của bảng desktop còn trong DOM nhưng không hiển thị ở mobile — ảnh chụp mobile của màn này sạch, nên **không** được ghi thành lỗi (đối chiếu ảnh trước khi kết luận).
+- `overlappingText` trên mobile (`/ops/wallet` = 9, `/config/customers` ≈ 3690) là các phần tử nằm trong khối đã bị cắt (`<details>` đóng, bảng desktop còn trong DOM) mà bộ lọc hit-test chưa loại được, vì điểm đo rơi vào **phần tử cha**. Ảnh chụp mobile của cả hai màn sạch ⇒ **không** ghi thành lỗi. Cách ly: chỉ nhận là “đang hiển thị” khi điểm hit-test trả về chính phần tử đó hoặc con của nó; sửa tiếp trong harness nếu cần chạy lại sweep.
 - Chữ `sr-only` (1×1px) bị loại khỏi mọi phép đo “chữ bị cắt”.
