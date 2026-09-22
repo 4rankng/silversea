@@ -20,6 +20,12 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
   };
 });
 
+const { monthState } = vi.hoisted(() => ({ monthState: { month: 9, year: 2026 } }));
+
+vi.mock('../../../hooks/useMonth', () => ({
+  useMonth: () => monthState,
+}));
+
 vi.mock('../../../api/configClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/configClient')>();
   return {
@@ -730,5 +736,42 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     expect(result.current.sortDirection).toBe('asc');
     // Ascending delivery-point order: An Phú before Bình Dương (vi collation).
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([202, 201]);
+  });
+});
+
+describe('card 20260922_32 — topbar month scope actually filters', () => {
+  it('initial mount seeds the inclusive month range into the query', async () => {
+    monthState.month = 9; monthState.year = 2026;
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
+    expect(call.dateFrom).toBe('2026-09-01');
+    expect(call.dateTo).toBe('2026-09-30');
+    expect(call.date).toBeUndefined();
+  });
+
+  it('switching the topbar month rewrites the range and re-queries', async () => {
+    monthState.month = 9; monthState.year = 2026;
+    const { result, rerender } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const callsBefore = listDispatchDetailPlanRowsMock.mock.calls.length;
+    monthState.month = 8;
+    rerender();
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock.mock.calls.length).toBeGreaterThan(callsBefore));
+    const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
+    expect(call.dateFrom).toBe('2026-08-01');
+    expect(call.dateTo).toBe('2026-08-31');
+  });
+
+  it('the screen presets overwrite the month range (last writer wins)', async () => {
+    monthState.month = 9; monthState.year = 2026;
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    act(() => result.current.updateFilters({ date: '2026-09-22', dateFrom: '', dateTo: '' }));
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
+    expect(call.date).toBe('2026-09-22');
+    expect(call.dateFrom).toBeUndefined();
+    expect(call.dateTo).toBeUndefined();
   });
 });

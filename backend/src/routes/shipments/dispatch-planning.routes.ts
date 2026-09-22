@@ -206,6 +206,8 @@ dispatchPlanningRoutes.get(
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
       date: typeof req.query.date === 'string' ? req.query.date : undefined,
+      dateFrom: typeof req.query.dateFrom === 'string' ? req.query.dateFrom : undefined,
+      dateTo: typeof req.query.dateTo === 'string' ? req.query.dateTo : undefined,
       direction: directionRaw ? directionRaw as 'IMPORT' | 'EXPORT' : undefined,
       assignmentStatus: assignmentStatusRaw ? assignmentStatusRaw as 'UNASSIGNED' | 'ASSIGNED' : undefined,
       pickupIds: idList('pickupIds'),

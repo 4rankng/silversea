@@ -50,6 +50,9 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 | `TC-UI-12` | 31 | `/shipments-debit`, `/shipments/new` | Trạng thái trống tự chế; 3 kiểu điều khiển chọn; trường bắt buộc bị mờ không giải thích | Dùng `EmptyState` chung; một quy ước điều khiển; nêu lý do khoá |
 | `TC-UI-13` | 32 | `/dispatch-detail` (điều vận) | Topbar ghi "Tháng 8/2026 · 01/08–31/08" (sau click chuột thật) nhưng bảng vẫn 50 dòng 02/03/2026 → 10/08/2026; đổi tháng **không** đổi dữ liệu | Đổi tháng ⇒ dữ liệu đổi, hoặc bộ chọn tháng không hiển thị ở màn này |
 
+> **[2026-09-22] FIXED (card 32) — amendment to TC-UI-13 and the 5b4a8733 inert-pin:** the topbar month scope now actually filters the detailed-plan board. Implementation: additive inclusive `dateFrom`/`dateTo` range support on `/shipments/dispatch-detail-plan-rows` (exact-`date` back-compat preserved), the hook seeds the current month's bounds at mount and rewrites them on month switch (presets/date input override, last writer wins), and the filter bar shows the real range as a scope chip. Unit pins: month change ⇒ query params change (hook suite 30/30); component preset interplay repinned (71/71). Re-runnable after the cut.
+
+
 ### Cách chạy một case
 
 1. `make dev` (Postgres `:5441`, backend `:3002`, frontend `:7175`).

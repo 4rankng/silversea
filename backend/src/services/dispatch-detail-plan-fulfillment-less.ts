@@ -36,6 +36,8 @@ import { runInTx } from '../lib/tx';
 export interface FulfillmentLessFilters {
   q?: string;
   date?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
   direction?: string | null;
   pickupIds?: number[] | null;
   dropoffIds?: number[] | null;
@@ -71,6 +73,8 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
     accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
     filters.direction ? eq(s.shipments.tradeDirection, filters.direction as 'IMPORT' | 'EXPORT') : undefined,
     filters.date ? sql`${TRANSPORT_DATE_SQL} = ${filters.date}` : undefined,
+    filters.dateFrom ? sql`${TRANSPORT_DATE_SQL} >= ${filters.dateFrom}` : undefined,
+    filters.dateTo ? sql`${TRANSPORT_DATE_SQL} <= ${filters.dateTo}` : undefined,
     filters.pickupIds ? inArray(s.shipmentContainers.pickupPortId, filters.pickupIds) : undefined,
     filters.dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, filters.dropoffIds) : undefined,
     filters.deliveryPointIds ? inArray(s.shipments.operationalSiteId, filters.deliveryPointIds) : undefined,

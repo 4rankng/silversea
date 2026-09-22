@@ -235,6 +235,9 @@ export interface DispatchDetailPlanRow {
 export interface DispatchDetailPlanFilters {
   q?: string;
   date?: string;
+  /** Inclusive transport-date range — the topbar month scope (20260922_32). */
+  dateFrom?: string;
+  dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT' | '';
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | '';
   pickupIds?: number[];

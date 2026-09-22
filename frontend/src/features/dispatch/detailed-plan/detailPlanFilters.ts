@@ -3,6 +3,10 @@ import type { DispatchDetailPlanFilters } from '../../../api/dispatchPlanningCli
 export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   q: string;
   date: string;
+  /** Inclusive transport-date range (YYYY-MM-DD). The topbar month scope
+   *  writes these (card 20260922_32); the screen presets overwrite them. */
+  dateFrom: string;
+  dateTo: string;
   direction: 'IMPORT' | 'EXPORT' | '';
   assignmentStatus: 'UNASSIGNED' | 'ASSIGNED' | '';
   pickupIds: number[];
@@ -17,6 +21,8 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   q: '',
   date: '',
+  dateFrom: '',
+  dateTo: '',
   direction: '',
   assignmentStatus: '',
   pickupIds: [],
@@ -41,6 +47,8 @@ export function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
   return {
     ...(q ? { q } : {}),
     ...(filters.date ? { date: filters.date } : {}),
+    ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
     ...(filters.direction ? { direction: filters.direction } : {}),
     ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
     ...(filters.pickupIds.length > 0 ? { pickupIds: filters.pickupIds } : {}),

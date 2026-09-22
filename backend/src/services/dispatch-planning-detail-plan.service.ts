@@ -49,6 +49,8 @@ export interface ListDispatchDetailPlanRowsInput {
   limit?: number;
   q?: string;
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT';
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED';
   pickupIds?: number[];
@@ -249,6 +251,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page as number)) : 1;
   const qPattern = buildPattern(input.q);
   const date = normalizeDate(input.date);
+  const dateFrom = normalizeDate(input.dateFrom);
+  const dateTo = normalizeDate(input.dateTo);
   const pickupIds = normalizeIdList(input.pickupIds, 'pickupIds');
   const dropoffIds = normalizeIdList(input.dropoffIds, 'dropoffIds');
   const deliveryPointIds = normalizeIdList(input.deliveryPointIds, 'deliveryPointIds');
@@ -278,6 +282,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
       date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
+      dateFrom ? sql`${dispatchDetailTransportDateSql()} >= ${dateFrom}` : undefined,
+      dateTo ? sql`${dispatchDetailTransportDateSql()} <= ${dateTo}` : undefined,
       pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
       dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
       deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,

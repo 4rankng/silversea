@@ -87,11 +87,11 @@ describe('DetailedPlanFilters', () => {
     expect(within(dateMode).getByRole('button', { name: 'Hôm nay' }).querySelector('svg')).toBeNull();
     expect(within(dateMode).getByRole('button', { name: 'Hôm sau' }).querySelector('svg')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(), dateFrom: '', dateTo: '' });
     fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)), dateFrom: '', dateTo: '' });
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
-    expect(onChange).toHaveBeenCalledWith({ date: '' });
+    expect(onChange).toHaveBeenCalledWith({ date: '', dateFrom: '', dateTo: '' });
 
     const drawer = openFilterDrawer();
     expect(within(drawer).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
@@ -285,11 +285,11 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByRole('button', { name: 'Hôm sau' }).getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(), dateFrom: '', dateTo: '' });
     fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)), dateFrom: '', dateTo: '' });
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
-    expect(onChange).toHaveBeenCalledWith({ date: '' });
+    expect(onChange).toHaveBeenCalledWith({ date: '', dateFrom: '', dateTo: '' });
   });
 
   it('keeps Xóa lọc available to reset incomplete local filter drafts', () => {
@@ -355,6 +355,8 @@ describe('DetailedPlanFilters', () => {
       ...EMPTY_DETAILED_PLAN_FILTERS,
       q: 'BILL-001',
       date: '2099-01-01',
+      dateFrom: '',
+      dateTo: '',
     });
   });
 
@@ -365,6 +367,8 @@ describe('DetailedPlanFilters', () => {
         filters={{
           q: 'BILL-001',
           date: '2099-01-01',
+          dateFrom: '',
+          dateTo: '',
           direction: 'IMPORT',
           assignmentStatus: 'UNASSIGNED',
           pickupIds: [1],

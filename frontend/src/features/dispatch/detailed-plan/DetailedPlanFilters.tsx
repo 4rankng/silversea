@@ -126,6 +126,7 @@ export function DetailedPlanFilters({
   ].filter(Boolean).length;
   const activeFilterCount = activeDrawerFilterCount
     + (filters.date !== '' ? 1 : 0)
+    + (filters.dateFrom !== '' || filters.dateTo !== '' ? 1 : 0)
     + (filters.q.trim() !== '' ? 1 : 0);
 
   const clearFilters = () => {
@@ -137,7 +138,9 @@ export function DetailedPlanFilters({
 
   const selectDate = (date: string) => {
     setDateResetKey((key) => key + 1);
-    onChange({ date });
+    // Presets and the exact-date input replace the month range entirely
+    // (last writer wins — card 20260922_32).
+    onChange({ date, dateFrom: '', dateTo: '' });
   };
 
   const clearDrawerFilters = () => {
@@ -178,12 +181,23 @@ export function DetailedPlanFilters({
       </label>
       <div className="detailed-plan-filters__date-scope">
         <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
+        {(filters.dateFrom !== '' || filters.dateTo !== '') && (
+          <span
+            className="detailed-plan-filters__range-chip"
+            data-range={`${filters.dateFrom}..${filters.dateTo}`}
+            aria-label={`Phạm vi đang lọc ${filters.dateFrom} đến ${filters.dateTo}`}
+          >
+            {filters.dateFrom !== '' && filters.dateTo !== ''
+              ? `${filters.dateFrom.slice(8, 10)}/${filters.dateFrom.slice(5, 7)} – ${filters.dateTo.slice(8, 10)}/${filters.dateTo.slice(5, 7)}`
+              : filters.dateFrom !== '' ? `từ ${filters.dateFrom}` : `đến ${filters.dateTo}`}
+          </span>
+        )}
         <div className="detailed-plan-filters__date-scope-controls">
           <BufferedUuiDateInput
             key={dateResetKey}
             className="detailed-plan-filters__date"
             value={filters.date}
-            onChange={(value) => onChange({ date: value })}
+            onChange={(value) => onChange({ date: value, dateFrom: '', dateTo: '' })}
             size="sm"
             aria-label="Ngày vận chuyển"
           />
