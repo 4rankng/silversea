@@ -991,14 +991,12 @@
   gap: 0;
 }
 
-.dd-trip-card,
-.dd-single-card {
+.dd-trip-card {
   border-bottom: 1px solid var(--bg-3);
   background: var(--surface);
 }
 
-.dd-trip-card:last-child,
-.dd-single-card:last-child {
+.dd-trip-card:last-child {
   border-bottom: 0;
 }
 
@@ -1013,8 +1011,7 @@
   align-items: center;
 }
 
-.dd-trip-date,
-.dd-single-date {
+.dd-trip-date {
   font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -1026,20 +1023,7 @@
   min-width: 0;
 }
 
-.dd-single-route {
-  font-size: var(--fs-sm);
-  font-weight: 750;
-  color: var(--ink);
-  line-height: 1.45;
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.dd-trip-subline,
-.dd-single-meta {
+.dd-trip-subline {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1050,8 +1034,7 @@
   font-weight: 650;
 }
 
-.dd-trip-subline span,
-.dd-single-meta span {
+.dd-trip-subline span {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -1125,27 +1108,6 @@
   text-transform: uppercase;
 }
 
-.dd-single-card {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-  gap: 12px;
-  padding: 12px;
-  align-items: center;
-}
-
-.dd-single-body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dd-single-card > strong {
-  font-family: var(--font-data);
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-}
-
 .dd-breakdown-section--service-fees .dd-breakdown-head {
   background: var(--success-soft, #F3FBF6);
 }
@@ -1162,8 +1124,7 @@
     grid-template-columns: 86px minmax(190px, 1.5fr) minmax(110px, 0.7fr) minmax(104px, max-content) minmax(82px, max-content);
     min-width: 700px;
   }
-  .dd-trip-main,
-  .dd-single-card {
+  .dd-trip-main {
     grid-template-columns: 1fr;
     gap: 8px;
   }
@@ -1173,9 +1134,6 @@
   }
   .dd-fee-breakdown {
     margin-left: 0;
-  }
-  .dd-single-route {
-    white-space: normal;
   }
 }
 
@@ -1212,17 +1170,11 @@
     gap: 6px;
     padding: 12px;
   }
-  .debt-detail-page .dd-trip-card,
-  .debt-detail-page .dd-single-card {
+  .debt-detail-page .dd-trip-card {
     padding: 12px;
   }
   .debt-detail-page .dd-fee-breakdown {
     grid-template-columns: 1fr;
-  }
-  .debt-detail-page .dd-single-top {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
   }
 }
 
