@@ -1146,32 +1146,6 @@
   white-space: nowrap;
 }
 
-.dd-single-container {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 24px;
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dd-single-debit {
-  color: var(--ink);
-}
-
-.dd-single-credit {
-  color: var(--success, #00803a);
-}
-
 .dd-breakdown-section--service-fees .dd-breakdown-head {
   background: var(--success-soft, #F3FBF6);
 }
@@ -1655,24 +1629,6 @@
   color: var(--ink-2);
   font-size: var(--ops-table-supporting-size);
   white-space: nowrap;
-}
-.dd-group-detail-btn {
-  border: 0;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 650;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dd-group-detail-btn:hover {
-  color: var(--accent);
 }
 .dd-td-note .dd-code {
   font-family: var(--font-data);
