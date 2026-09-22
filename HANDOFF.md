@@ -16,8 +16,8 @@ Included:
 - 29 screens × 3 viewports (1440 / 1920 / 390) captured + DOM-measured; screenshots and probe
   JSON in `qa/2026-09-22_ui-ux-sweep-4roles/` (gitignored), digest in
   `qa/2026-09-22_ui-ux-sweep_probe-digest.log`.
-- 12 cards written to `Kanban-PROD/TODO/`: `20260922_20` … `20260922_31`.
-- Test cases `TC-UI-01` … `TC-UI-12` in `testplan/2026-09-22-ui-ux-sweep-4-roles.md` (committed).
+- 13 cards written to `Kanban-PROD/TODO/`: `20260922_20` … `20260922_32`.
+- Test cases `TC-UI-01` … `TC-UI-13` in `testplan/2026-09-22-ui-ux-sweep-4-roles.md` (committed).
 - Staging verification of two findings against build `bf6e659a` (CUS `thanhdc`).
 
 Out of scope (not covered, per the report): write flows (create/dispatch/expense/POD) were only

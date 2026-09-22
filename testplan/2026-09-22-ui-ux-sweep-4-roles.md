@@ -32,7 +32,7 @@ Màn đã phủ (**29 màn** × 3 bề rộng):
 
 ## 2. Bộ case QA (chạy lại sau mỗi lần sửa)
 
-Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` … `20260922_31`) và đã được ghi nhận **FAIL** trên build nêu ở trên.
+Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` … `20260922_32`) và đã được ghi nhận **FAIL** trên build nêu ở trên.
 
 | Case | Card | Màn / phạm vi | Quan sát hiện tại (FAIL) | Mong đợi |
 |---|---|---|---|---|
@@ -48,6 +48,7 @@ Mỗi case dưới đây map 1-1 với một card trên board (`20260922_20` …
 | `TC-UI-10` | 29 | sidebar CUS → `/accounting/deposit-tracker` | Mục nav hiện nhưng CUS bị đá về `/shipments` (`landed=/shipments`) | Nav và route guard cùng nguồn quyền |
 | `TC-UI-11` | 30 | `/my-trips` (1440px), `/my-trips/two-orders` | Trang trống ~75% ở desktop; route "hai lệnh" không có lối vào nào | Bố cục desktop dùng hết không gian; không route mồ côi |
 | `TC-UI-12` | 31 | `/shipments-debit`, `/shipments/new` | Trạng thái trống tự chế; 3 kiểu điều khiển chọn; trường bắt buộc bị mờ không giải thích | Dùng `EmptyState` chung; một quy ước điều khiển; nêu lý do khoá |
+| `TC-UI-13` | 32 | `/dispatch-detail` (điều vận) | Topbar ghi "Tháng 8/2026 · 01/08–31/08" (sau click chuột thật) nhưng bảng vẫn 50 dòng 02/03/2026 → 10/08/2026; đổi tháng **không** đổi dữ liệu | Đổi tháng ⇒ dữ liệu đổi, hoặc bộ chọn tháng không hiển thị ở màn này |
 
 ### Cách chạy một case
 

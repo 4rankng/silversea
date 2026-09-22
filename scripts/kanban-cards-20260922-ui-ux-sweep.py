@@ -448,6 +448,42 @@ CARDS = [
             'Local: `cus`/Abc123 → `/shipments/new` (hoặc nút "Tạo lô mới"): đối chiếu ba kiểu điều khiển chọn và trường bắt buộc bị mờ.',
         ],
     ),
+    dict(
+        num='32',
+        slug='bo-chon-thang-khong-tac-dong',
+        case_id='TC-UI-13',
+        title='Bộ chọn tháng trên topbar không lọc gì ở "Kế hoạch Chi tiết Xe" nhưng vẫn ghi phạm vi tháng',
+        status='MỞ — phát hiện qua QA UI/UX sweep 2026-09-22 (local HEAD, thao tác chuột thật)',
+        source=f'Phiên QA UI/UX 4 vai trò, case **TC-UI-13** (`{SPEC}`). Màn: `/dispatch-detail` (vai trò điều vận `dieuvan`).',
+        desc=[
+            'Topbar hiển thị phạm vi **"Tháng 9/2026 · 01/09 – 30/09"**, nhưng bảng "Kế hoạch Chi tiết Xe" liệt kê 50 dòng trải từ **02/03/2026 tới 10/08/2026** — tức nội dung không nằm trong tháng đang ghi.',
+            'Bấm bộ chọn tháng và chọn **"Tháng 8"** (click chuột thật): nhãn topbar đổi thành "Tháng 8/2026 · 01/08 – 31/08" nhưng danh sách **không đổi một dòng** — vẫn 50 dòng, vẫn 02/03/2026 → 10/08/2026.',
+            'Thứ thực sự điều khiển danh sách là bộ lọc riêng của màn ("Ngày vận chuyển" + `Hôm nay / Hôm sau / Tất cả`, đang ở `Tất cả` và ô ngày trống). Vì bộ chọn tháng trông như một bộ lọc đang hoạt động, người dùng chọn tháng rồi tưởng đã lọc xong — trong khi bảng vẫn trộn 5 tháng dữ liệu (tổng 3751 dòng, phân trang "Hiển thị 1–50 trên 3751" chỉ nằm ở cuối trang).',
+            'Đây là lỗi "điều khiển đổi nhãn nhưng không đổi dữ liệu" — nhóm lỗi khó phát hiện nhất bằng đọc mã, nên cần một case hồi quy đổi-tháng-có-đổi-dữ-liệu.',
+        ],
+        evidence=[
+            (f'{EV}/evidence/13-month-selector-ignored.png',
+             'Topbar ghi "Tháng 8/2026 · 01/08 – 31/08" (sau khi QA chọn tháng 8 bằng chuột thật) nhưng các dòng đầu của bảng là 02/03/2026 và 13/03/2026 — bộ chọn tháng không lọc gì'),
+        ],
+        facts=[
+            'Đo bằng thao tác thật: trước khi đổi — 50 dòng, dòng đầu 02/03/2026, dòng cuối 10/08/2026; sau khi chọn "Tháng 8" — **vẫn 50 dòng, cùng dải ngày**, URL vẫn `/dispatch-detail`.',
+            'Phân trang ở cuối nội dung: `Hiển thị 1–50 trên 3751` (toạ độ `y=4498` trong vùng cuộn cao `4555`), tức mặc định màn này trộn toàn bộ các tháng trong 1 danh sách 3751 dòng.',
+            'Bộ lọc của màn: input `Ngày vận chuyển` (trống) + preset `Tất cả` đang bật — đây mới là biến điều khiển truy vấn.',
+            'Tham chiếu cùng họ: card `20260920_20` (QA_PASSED) đã xử lý kích thước vùng bấm của chính bộ chọn tháng này; lỗi ở đây là **hành vi**, không phải kích thước.',
+        ],
+        ac=[
+            'Bộ chọn tháng phải hoặc **lọc thật** tập dữ liệu của mọi màn có phân trang theo ngày (đổi tháng ⇒ tập dòng đổi), hoặc **không hiển thị** ở màn không áp dụng nó.',
+            'Nếu màn có phạm vi riêng (như bộ lọc ngày của Kế hoạch Chi tiết), phải ghi rõ phạm vi thật ngay trên bảng (ví dụ "Tất cả các ngày · 3751 dòng") để nhãn topbar không mâu thuẫn với nội dung.',
+            'Không được để điều khiển đổi nhãn mà không đổi dữ liệu: mỗi điều khiển phải có tác động quan sát được, hoặc bị vô hiệu hoá kèm lý do.',
+            'Regression: case tự động đổi tháng trên các màn vận hành có phân trang ngày, khẳng định hoặc tập dòng thay đổi, hoặc điều khiển không render.',
+        ],
+        verify=[
+            'Local: `dieuvan`/Abc123 → `/dispatch-detail` → đọc topbar (hiện "Tháng 9/2026") và dải ngày của các dòng đầu (03/2026).',
+            'Bấm bộ chọn tháng → chọn "Tháng 8" → nhãn đổi nhưng danh sách vẫn giữ nguyên 50 dòng cũ: đó là lỗi.',
+            'Sau khi sửa: hoặc danh sách chỉ còn dòng của tháng đã chọn, hoặc bộ chọn tháng không còn xuất hiện ở màn này.',
+        ],
+    ),
+
 ]
 
 
