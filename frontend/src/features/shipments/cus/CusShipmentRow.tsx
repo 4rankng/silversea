@@ -62,7 +62,6 @@ export function CusShipmentRow({
   // single number.
   const declarationNumbers = item.declarationNumbers ?? (item.declarationNumber ? [item.declarationNumber] : []);
   const primarySignal = derivePrimaryShipmentSignal(item, ['schedule']);
-  const PrimarySignalIcon = primarySignal?.icon;
   const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
   const customerNoteLines = noteLines(item.customerNotes);
   const operationalNoteLines = noteLines(item.operationalNotes);
@@ -193,15 +192,13 @@ export function CusShipmentRow({
         <div className="cus-row-actions">
           <div className="cus-row-actions__summary">
             <WorkflowBadge item={item} />
-            {primarySignal && PrimarySignalIcon && (
+            {primarySignal && (
               <span
                 className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}
                 title={primarySignal.label}
               >
-                <PrimarySignalIcon size={13} aria-hidden="true" />
-                {/* Card 20260922_24: this marker used to be icon-only, so it
-                    rendered a second, unexplained truck right next to the
-                    WorkflowBadge's truck. It now carries its own visible label. */}
+                {/* Card 20260922_27 (operator): TEXT ONLY in data cells — the
+                    decorative icon is gone; the label carries the meaning. */}
                 <span className="cus-attention-label__text">{primarySignal.label}</span>
               </span>
             )}

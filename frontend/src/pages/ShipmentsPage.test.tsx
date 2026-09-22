@@ -1843,12 +1843,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('uses distinct semantic colors for running and locked shipments', () => {
     expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
     expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
-    expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
-    // Base rule must precede the bucket modifiers or its border shorthand
-    // overrides their border-color by source order.
+    // Card 20260922_27 (operator): the status is TEXT ONLY — modifiers carry
+    // semantic text color, never a pill body (no fill, no border, no radius).
+    expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*color:\s*var\(--slate-4\);/);
+    expect(css).not.toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background/);
     expect(css.indexOf('.cus-workflow-badge {')).toBeGreaterThan(-1);
     expect(css.indexOf('.cus-workflow-badge {')).toBeLessThan(css.indexOf('.cus-workflow-badge--new'));
-    expect(css).toMatch(/\.cus-workflow-badge--new\s*\{[^}]*border-color:\s*var\(--line-2\);/);
+    expect(css).toMatch(/\.cus-workflow-badge--new\s*\{[^}]*color:\s*var\(--ink-2\);/);
+    expect(css).not.toMatch(/\.cus-workflow-badge\s*\{[^}]*border-radius:\s*999/);
   });
 
   it('emits the seven-column grouped dashboard schema from the XLSX export', async () => {

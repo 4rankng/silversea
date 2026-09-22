@@ -1,10 +1,7 @@
 import {
   AlertTriangle,
-  CalendarClock,
   CircleCheck,
   CircleDollarSign,
-  FileLock2,
-  Truck,
 } from 'lucide-react';
 import {
   SHIPMENT_STATUS_LABELS,
@@ -42,15 +39,9 @@ export function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }
   );
 }
 
-const BUCKET_ICONS = {
-  [ShipmentCusBucket.NEW]: CalendarClock,
-  [ShipmentCusBucket.RUNNING]: Truck,
-  [ShipmentCusBucket.PENDING_LOCK]: FileLock2,
-  [ShipmentCusBucket.LOCKED]: CircleCheck,
-};
-
 export function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
-  const Icon = BUCKET_ICONS[item.bucket];
+  // Card 20260922_27 (operator): status renders as TEXT ONLY in data cells —
+  // the bucket icon turned the label into a decorative blob.
   // PENDING_LOCK groups completed operational work awaiting accounting
   // finalization; show its actual state instead of the generic bucket label.
   // Driver full-closed shipments are LOCKED (locked
@@ -61,9 +52,7 @@ export function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) 
     || item.bucket === ShipmentCusBucket.PENDING_LOCK;
   const label = useStatusLabel ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel;
   return (
-    <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>
-      <Icon size={14} aria-hidden="true" /> {label}
-    </span>
+    <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>{label}</span>
   );
 }
 

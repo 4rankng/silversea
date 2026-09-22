@@ -1223,44 +1223,33 @@
 
 .cus-finance-evidence strong { }
 
+/* Card 20260922_27 (operator): the status renders as PLAIN TEXT — the pill
+   bubble (padding + full rounding + tinted fill) and its icon are gone;
+   the bucket's semantic color survives via the text color alone. */
 .cus-workflow-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: max-content;
+  display: inline;
   max-width: 100%;
-  padding: 3px 7px;
-  /* Transparent on all badges so a bordered variant keeps sibling metrics.
-     Must stay above the bucket modifiers: the border shorthand's
-     border-color would otherwise override their border-color by order. */
-  border: 1px solid transparent;
-  border-radius: 999px;
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
 }
 
 /* Workflow badge modifiers emitted dynamically:
    `cus-workflow-badge--${item.bucket.toLowerCase()}` */
-/* The neutral NEW fill is barely distinguishable as a pill on plain surface
-   cells; a hairline edge defines it without turning it into an alarm color. */
+/* Card 20260922_27: modifiers carry ONLY text color now — the tinted fills
+   were the pill body. */
 .cus-workflow-badge--new {
-  border-color: var(--line-2);
-  background: var(--surface-3);
   color: var(--ink-2);
 }
 
 .cus-workflow-badge--running {
-  background: var(--info-soft);
   color: var(--info-text);
 }
 
 .cus-workflow-badge--pending_lock {
-  background: var(--warning-soft);
   color: var(--warning-text);
 }
 
 .cus-workflow-badge--locked {
-  background: var(--slate-5);
   color: var(--slate-4);
 }
 
