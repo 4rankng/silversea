@@ -18,7 +18,7 @@ import { disconnectRedis } from '../lib/redis';
 const suffix = `${Date.now()}-bk-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
 const shipmentIds: number[] = [];
-let actorId = 1;
+const actorId = 1;
 
 async function mkLot(direction: 'EXPORT' | 'IMPORT', refs: { bookingRef?: string; blNumber?: string }): Promise<number> {
   const [customer] = await db.insert(s.customers).values({ name: `BK ${suffix} ${shipmentIds.length}` }).returning();
