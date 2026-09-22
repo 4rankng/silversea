@@ -159,13 +159,13 @@ export default function DepositRefundTrackerPage() {
             {rows.map((row, index) => (
               <tr key={row.id} className={row.status === 'DA_HOAN_CUOC' ? 'is-refunded' : undefined}>
                 <td>{index + 1}</td>
-                <td>{formatDepositDate(row.createdAt)}</td>
+                <td className="date-cell">{formatDepositDate(row.createdAt)}</td>
                 <td>{row.customerName}</td>
                 <td>{row.carrierName}</td>
                 <td className="bill">{row.billNumber}</td>
                 <td className="num">{formatMoney(Number(row.depositAmount))} ₫</td>
-                <td>{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
-                <td>{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
+                <td className="date-cell">{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
+                <td className="date-cell">{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
                 <td>
                   <span className={`deposit-status deposit-status--${row.status === 'DA_HOAN_CUOC' ? 'done' : 'pending'}`}>
                     {STATUS_LABELS[row.status]}
