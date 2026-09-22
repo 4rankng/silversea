@@ -183,8 +183,8 @@ export async function assignPhoiPhieuTruckAccountant(truckId: number, body: {
   return api.put(`/expense-accounting/phoi-phieu/trucks/${truckId}/accountant`, body);
 }
 
-export async function correctPhoiPhieuRow(tripId: number, sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
-  return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, { tripId, ...body } as Record<string, unknown>, {
+export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
+  return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, body, {
     headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
   });
 }

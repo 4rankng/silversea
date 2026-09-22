@@ -65,7 +65,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
           ...(Number.isFinite(tra ?? NaN) ? { amount: tra! } : {}),
         };
         if (row.confirmed) {
-          await correctPhoiPhieuRow(tripId, row.entryId, payload);
+          await correctPhoiPhieuRow(row.entryId, payload);
         } else {
           await updatePhoiPhieuRowAmounts(tripId, row.entryId, payload);
         }

@@ -254,6 +254,10 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
 
     const sources = await tx.select({
       id: s.expenseAccountingSources.id,
+      // Native OPS entry id — the id space the cash-voucher engine resolves
+      // (source-row ids are a DIFFERENT sequence; passing them 404s or hits
+      // a wrong-entry lookalike when the sequences diverge).
+      nativeId: s.expenseAccountingSources.sourceId,
       shipmentId: s.expenseAccountingSources.shipmentId,
       version: s.expenseAccountingSources.version,
       allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
@@ -298,7 +302,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput): Promi
           skipped += 1;
           continue;
         }
-        entries.push({ sourceKind: 'OPS', sourceId: source.id, expectedVersion: source.version, amount: remaining });
+        entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining });
       }
       if (entries.length === 0) continue;
       // R3: the fan-out key is counterparty × fund kind — a mixed selection
@@ -651,8 +655,10 @@ export async function getPhoiPhieuReport(query: {
   const rows: PhoiPhieuReportRow[] = [...groups.entries()].map(([party, bucket]) => {
     const tong = bucket.tienNang + bucket.tienHa + bucket.psKhac;
     const conLai = tong - bucket.da;
+    // Honest-and-additive: daThuTra reports the over-paid actual (may exceed
+    // tong, conLai goes negative) so the FE over-pay annotation can fire.
     return { party, tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
-      tongPhaiThuTra: tong, daThuTra: Math.min(bucket.da, tong), conLai, ghiChu: bucket.ghiChu };
+      tongPhaiThuTra: tong, daThuTra: bucket.da, conLai, ghiChu: bucket.ghiChu };
   }).sort((a, b) => b.tongPhaiThuTra - a.tongPhaiThuTra);
   const grand = rows.reduce((acc, row) => ({
     party: 'TỔNG CỘNG', tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,

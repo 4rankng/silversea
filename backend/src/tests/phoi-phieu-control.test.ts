@@ -52,6 +52,7 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   track(s.opsExpenseEntries, entry.id);
   const [source] = await db.insert(s.expenseAccountingSources).values({
     sourceKind: 'OPS', sourceId: entry.id, shipmentId: shipment.id, tripId: trip.id,
+    amount: '250000', customerChargeAmount: String(opts.charge ?? 100000),
     confirmedAt: new Date(), version: 1,
   }).returning({ id: s.expenseAccountingSources.id });
   track(s.expenseAccountingSources, source.id);
@@ -347,5 +348,83 @@ describe('card 20260921_12/13 rework — authorization + id-space', () => {
       /Không tìm thấy khoản phí chi hộ OPS/,
       'a DRIVER-kind source id must never void through the chi-ho dialog',
     );
+  });
+});
+
+describe('card 20260922_2 rework — over-pay report honesty + voucher id space', () => {
+  test('report keeps the over-paid actual in daThuTra (no min clamp)', async () => {
+    const { getPhoiPhieuReport } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ charge: 250000 });
+    const [acct] = await db.insert(s.treasuryAccounts).values({
+      code: `TA-${suffix}-${cleanup.length}`, name: `Quỹ ${suffix}`, type: 'CASH', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, acct.id);
+    const [movement] = await db.insert(s.treasuryMovements).values({
+      treasuryAccountId: acct.id, direction: 'IN', amount: '300000', valueDate: '2026-09-22',
+      physicalReference: `PR-${suffix}-${cleanup.length}`, sourceVersion: 1, paymentContractVersion: 1,
+      createdBy: accountantId,
+    }).returning({ id: s.treasuryMovements.id });
+    track(s.treasuryMovements, movement.id);
+    const [voucher] = await db.insert(s.expenseCashVouchers).values({
+      code: `VC-${suffix}-${cleanup.length}`, counterpartyType: 'USER', counterpartyId: accountantId,
+      treasuryMovementId: movement.id, status: 'RECORDED', createdById: accountantId,
+    }).returning({ id: s.expenseCashVouchers.id });
+    track(s.expenseCashVouchers, voucher.id);
+    await db.insert(s.expenseCashAllocations).values({
+      voucherId: voucher.id, expenseAccountingSourceId: fixture.source.id, sourceVersion: 1, amount: '300000',
+    });
+    // Cleanup for the allocation rides the tracked voucher (FK cascade order:
+    // allocation rows are swept by the suite's table cleanup or manual sweep below).
+
+    const report = await getPhoiPhieuReport({ kind: 'THU' });
+    const [custRow] = await db.select({ name: s.customers.name }).from(s.shipments)
+      .innerJoin(s.customers, eq(s.customers.id, s.shipments.customerId)).where(eq(s.shipments.id, fixture.shipment.id));
+    const row = report.rows.find((r) => r.party === custRow.name);
+    assert.ok(row, 'the over-paid customer row exists');
+    assert.equal(row.daThuTra, 300000, 'Da thu reports the actual 300000, not the clamped 250000');
+    assert.equal(row.conLai, -50000, 'Con lai goes negative for over-pay — honest and additive');
+    assert.equal(row.tongPhaiThuTra, 250000, 'Tong stays the 250000 due');
+  });
+
+  test('board voucher resolves entries on the native OPS id space', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    // Deliberately diverge the two id spaces: extra native entries push the
+    // OPS sequence ahead, then a second (entry, source) pair is created so
+    // native id > source-row id — the exact QA probe shape (source 15,
+    // native 14 inverted).
+    for (let i = 0; i < 2; i += 1) {
+      const [dummy] = await db.insert(s.opsExpenseEntries).values({
+        shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '1000',
+        customerChargeAmount: '0', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
+        paidById: accountantId, paidAt: '2026-09-22',
+      }).returning({ id: s.opsExpenseEntries.id });
+      track(s.opsExpenseEntries, dummy.id);
+    }
+    const [entry2] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '1000',
+      customerChargeAmount: '100000', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
+      paidById: accountantId, paidAt: '2026-09-22',
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, entry2.id);
+    const [source2] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'OPS', sourceId: entry2.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id,
+      confirmedAt: new Date(), version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source2.id);
+    const [src] = await db.select({ id: s.expenseAccountingSources.id, sourceId: s.expenseAccountingSources.sourceId })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source2.id));
+    assert.ok(src.sourceId > src.id, 'fixture guarantees native id > source-row id (id spaces diverged)');
+
+    const result = await createPhoiPhieuVoucher({
+      tripIds: [fixture.trip.id], direction: 'IN',
+      treasuryAccountId: 1, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+    });
+    assert.ok(result.entries >= 1, 'voucher issued with at least one entry');
+    const allocation = await db.select({ sourceRowId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount })
+      .from(s.expenseCashAllocations).innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
+      .where(eq(s.expenseCashVouchers.code, result.code as unknown as string));
+    const onFixtureRow = allocation.find((a) => a.sourceRowId === source2.id);
+    assert.ok(onFixtureRow, 'allocation lands on the fixture source row, not a dummy-native-id lookalike');
+    assert.equal(String(onFixtureRow?.amount), String(100000), 'remaining = charge side 100000');
   });
 });
