@@ -142,22 +142,35 @@
 }
 
 
-/* ── Card 20260922_23 — legibility of the 13-column board ───────────────────
-   Measured on the shared .tt-table base: every header cell was 98px with
-   `white-space: nowrap`, so "Thông tin lô hàng" spilled 49.6px into "Cont"
-   (35.5x14px of overlapping text) and "Nhà cung cấp hđ" 38.2px into "Thông
-   tin hđ"; the data cells used `overflow-wrap: anywhere`, splitting tokens
-   mid-line (QATU1234|569, SHP-|2609-|00020, 21/09/202|6, 12.000.000|đ).
-   Headers wrap inside their own cell now, and the token-bearing columns are
-   nowrap so a code/date/amount can never break — the table scrolls sideways
-   instead, which is what `.table-scroll` is for. */
+/* ── Card 20260922_52 — anti-word-break contract for the 14-column board ────
+   Supersedes the card-20260922_23 block: under the shared .tt-table base
+   (table-layout: fixed) min-width on header cells never sizes a column track
+   — only `width` does — so the board still collapsed to ~80px equal tracks and
+   nowrap values spilled 34–60px onto the next column (financial values
+   painting over each other). Contract now:
+   - the table never compresses below 1350px (card floor); .table-scroll is the
+     smooth horizontal scroller;
+   - every column carries an explicit width track (fixed layout reads width
+     from the first-row cells): long-text columns 176/156/184, token columns
+     sized to their tokens;
+   - headers wrap at spaces only (word-break: keep-all, overflow-wrap: normal)
+     — never a mid-word fracture; data cells keep the base emergency-break;
+   - money columns (Số tiền trả, Chênh lệch) right-align and never clip.
+   Column order (canWrite 14-col layout): STT(1) Ngày(2) Thông tin lô hàng(3)
+   Cont(4) MST(5) Nhà cung cấp hđ(6) Thông tin hđ(7) Số tiền trả(8) COM(9)
+   Chênh lệch(10) Ngày gửi hđ(11) Ghi chú(12) Tiến độ(13) Thao tác(14). */
+.invoice-tracking-table {
+  min-width: 1350px;
+}
+
 .invoice-tracking-table thead th {
   white-space: normal;
-  overflow-wrap: break-word;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 /* Token columns: STT(1) · Ngày(2) · Cont(4) · MST(5) · Số tiền trả(8) ·
-   Chênh lệch(10) · Ngày gửi hđ(11) · Tiến độ(13). */
+   Chênh lệch(10) · Ngày gửi hđ(11) — a code/date/amount can never break. */
 .invoice-tracking-table tbody td:nth-child(1),
 .invoice-tracking-table tbody td:nth-child(2),
 .invoice-tracking-table tbody td:nth-child(4),
@@ -174,17 +187,33 @@
 .invoice-tracking-table .ivt-stack > span { white-space: nowrap; }
 .invoice-tracking-table .ivt-stack__sub { overflow-wrap: break-word; word-break: normal; white-space: normal; }
 
-/* Content-sized columns: the three wide ones claim their fair share instead of
-   matching the width of a two-letter header. */
-.invoice-tracking-table thead th:nth-child(3) { min-width: 164px; }
-.invoice-tracking-table thead th:nth-child(6) { min-width: 144px; }
-.invoice-tracking-table thead th:nth-child(7) { min-width: 152px; }
-.invoice-tracking-table thead th:nth-child(12) { min-width: 96px; }
+/* Explicit track widths — fixed layout reads `width` from the first-row cells;
+   min-width alone is inert there. Card floors: lô ≥160, Cont ≥120, hóa đơn
+   ≥130. */
+.invoice-tracking-table thead th:nth-child(1) { width: 52px; }
+.invoice-tracking-table thead th:nth-child(2) { width: 92px; }
+.invoice-tracking-table thead th:nth-child(3) { width: 176px; }
+.invoice-tracking-table thead th:nth-child(4) { width: 124px; }
+.invoice-tracking-table thead th:nth-child(5) { width: 112px; }
+.invoice-tracking-table thead th:nth-child(6) { width: 156px; }
+.invoice-tracking-table thead th:nth-child(7) { width: 184px; }
+.invoice-tracking-table thead th:nth-child(8) { width: 124px; }
+.invoice-tracking-table thead th:nth-child(9) { width: 96px; }
+.invoice-tracking-table thead th:nth-child(10) { width: 116px; }
+.invoice-tracking-table thead th:nth-child(11) { width: 100px; }
+.invoice-tracking-table thead th:nth-child(12) { width: 96px; }
+.invoice-tracking-table thead th:nth-child(13) { width: 116px; }
+.invoice-tracking-table thead th:nth-child(14) { width: 96px; }
 
-/* ≤640px: 14 columns cannot fit a phone. Keep every column readable (≥88px for
-   the narrow ones) and let .table-scroll scroll sideways — the measured mobile
-   failure was 24.9–36.9px cells with every value stacked one character per
-   line (customer name 231px tall). */
+/* Money columns right-align and never clip (card acceptance). */
+.invoice-tracking-table tbody td:nth-child(8),
+.invoice-tracking-table tbody td:nth-child(10) {
+  text-align: right;
+}
+
+/* ≤640px: 14 columns cannot fit a phone. The width tracks above hold at every
+   viewport (the board scrolls sideways in .table-scroll); the media block
+   keeps card _23's mobile floors. */
 @media (max-width: 640px) {
   .invoice-tracking-table { min-width: 1180px; }
   .invoice-tracking-table thead th { min-width: 88px; }
