@@ -327,10 +327,9 @@
   align-items: center;
   gap: 8px;
 
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .trip-list-page .plate::before {
   content: "";

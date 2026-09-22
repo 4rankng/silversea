@@ -787,7 +787,7 @@ export default function CustomersPage() {
                     </td>
                     <td data-label="Đối tác" style={{ position: 'relative' }}>
                       <StatusStrip status={c.status} />
-                      <span className="customers-clamp-2" style={{ fontWeight: 700, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                      <span className="customers-cell-wrap" style={{ fontWeight: 700, wordBreak: 'break-word', whiteSpace: 'normal' }}>
                         {c.name}
                       </span>
                       <span className="customers-cell-sub" title={c.taxCode || undefined}>

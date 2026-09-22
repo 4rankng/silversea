@@ -160,14 +160,12 @@
   overflow-wrap: normal;
 }
 
-/* Bank names are prose ("Ngoại thương Việt Nam (VCB)") — cap the column and
-   truncate with an ellipsis instead of wrapping; the full name stays on the
-   cell's title tooltip. */
+/* Bank names are prose ("Ngoại thương Việt Nam (VCB)") — wrap them (card
+   20260922_37 no-truncation doctrine); the cell's title tooltip is a courtesy,
+   never the only copy. */
 .dispatch-catalogs__table td[data-label="Ngân hàng nhận tiền"] {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -190,8 +190,6 @@
   font-size: var(--text-data-size);
   min-width: 0;
 }
-.role-work-inbox__table td:nth-child(3) { overflow: hidden; }
-
 .role-work-inbox__table tr:last-child td { border-bottom: 0; }
 .role-work-inbox__table tr.is-priority td:first-child { box-shadow: inset 3px 0 var(--warning); }
 
@@ -202,12 +200,11 @@
 
 .role-work-inbox__identity { font-size: var(--text-data-size); }
 .role-work-inbox__subtitle {
-  overflow: hidden;
   margin-top: 3px;
   color: var(--fg-3);
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .role-work-inbox__facts {
@@ -219,7 +216,7 @@
 
 .role-work-inbox__facts div { min-width: 0; }
 .role-work-inbox__facts dt { color: var(--fg-3); font-size: var(--text-label-size); }
-.role-work-inbox__facts dd { overflow: hidden; margin: 1px 0 0; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.role-work-inbox__facts dd { margin: 1px 0 0; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
 
 /* Card 20260922_27: status label uses the house text+dot convention instead
    of a pill background — the dot takes the state's semantic color. */
@@ -388,12 +385,6 @@
      real blockers keep rendering. Specificity must beat the td card-grid
      rules above (0,1,1), hence the table-qualified selector. */
   .role-work-inbox__table td.role-work-inbox__cell--empty { display: none; }
-  .role-work-inbox__subtitle {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
-  }
   .role-work-inbox__facts { grid-template-columns: 1fr; }
   .role-work-inbox__facts dd { white-space: normal; }
   .role-work-inbox__action { display: block !important; padding: 10px 12px !important; text-align: left; }

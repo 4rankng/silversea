@@ -203,7 +203,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                             {sell > 0 ? formatCurrency(sell) : ''}
                           </td>
                           <td
-                            style={{ fontSize: 'var(--text-data-size)', color: 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            style={{ fontSize: 'var(--text-data-size)', color: 'var(--ink-3)', overflowWrap: 'anywhere' }}
                             title={[fee.invoiceNumber && `HĐ ${fee.invoiceNumber}`, fee.invoiceDate && `Ngày ${fee.invoiceDate}`, fee.declarationNumber && `TK ${fee.declarationNumber}`].filter(Boolean).join(' · ') || undefined}
                           >
                             {fee.invoiceNumber || fee.declarationNumber ? (

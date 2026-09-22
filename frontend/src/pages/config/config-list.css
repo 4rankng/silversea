@@ -148,16 +148,16 @@
 /* ── QA-090: identifiers stay whole, records stay scannable ─────────────
  * Codes, tax codes and phone numbers must never break across lines: the
  * eye scans them as single tokens. Applied via data-label so every config
- * directory (customers, factories, trucks, trailers, …) stays consistent. */
+ * directory (customers, factories, trucks, trailers, …) stays consistent.
+ * Card 20260922_37: a whole token is a FULLY VISIBLE token — the clip
+ * (overflow/ellipsis/max-width 170px) is gone and the column expands to the
+ * content instead (no-truncation doctrine, law book §4). */
 .cfg-customer-table td[data-label="Mã KH"],
 .cfg-customer-table td[data-label="Mã Số Thuế"],
 .cfg-customer-table td[data-label="SĐT Giám đốc"],
 .cfg-customer-table td[data-label="SĐT Kế toán"],
 .factories-table td[data-label="Mã"] {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 170px;
 }
 
 @media (max-width: 640px) {

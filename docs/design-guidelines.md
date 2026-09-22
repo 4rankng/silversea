@@ -71,9 +71,13 @@
 ## 4. Tables and data display
 
 - **No-truncation doctrine.** Never clip a column value (`overflow: hidden` clipping is banned). Long text wraps by
-  default (`overflow-wrap`); a hover tooltip with the full text or a card layout is the fallback for values that cannot
-  wrap. Horizontal scroll is reserved for token tables (card 20260922_23 pattern).
-  *Source:* nepocorp report F5 (2026-09-22); default rule per data table = card 20260922_37.
+  default (`overflow-wrap`); single-token values (codes, plates, tax codes, phones) instead EXPAND — `white-space:
+  nowrap` with no clip, so the column sizes to content (composes with card 20260922_22's auto layout). A hover tooltip
+  with the full text or a card layout is the fallback for values that cannot wrap. Horizontal scroll is reserved for
+  token tables (card 20260922_23 pattern). **The only truncation allowed in a table is an intentional short badge
+  adjacent to `sr-only` text** — every other clipped cell value is a defect.
+  *Source:* nepocorp report F5 (2026-09-22); default rule per data table + exception clause = card 20260922_37
+  (swept 2026-09-22).
 - **Status/action columns keep a fixed width at every viewport.** ~150–170px at ALL widths, desktop included; one
   full-text action max per row; destructive actions are icon-only with `aria-label`.
   *Source:* 2026-09-18 operator ruling (CusShipmentRow rework); sweep card 20260922_21.
@@ -205,3 +209,4 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | Date | Change |
 |---|---|
 | 2026-09-22 | Law book created (card 20260922_34, nepocorp F2). Seeded with every standing ruling 09-16 → 09-22. |
+| 2026-09-22 | No-truncation sweep (card 20260922_37): table data cells wrap or expand, never clip; §4 short-badge exception clause made explicit; regression pin `table-no-truncation.styles.test.ts`. |

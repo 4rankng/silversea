@@ -1,6 +1,8 @@
 .csc-container-cell { cursor: text; }
 .csc-container-cell__value { position: relative; min-width: 0; min-height: var(--control-touch-h, 44px); }
-.csc-container-cell__display { position: absolute; z-index: 1; inset: 0; display: flex; min-width: 0; align-items: center; padding: 0 10px; overflow: hidden; color: var(--fg-1); font-size: var(--text-data-size); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+/* Card 20260922_37: values wrap — container codes, routes and factory names
+   are never clipped mid-token (law book §4 no-truncation doctrine). */
+.csc-container-cell__display { position: absolute; z-index: 1; inset: 0; display: flex; min-width: 0; align-items: center; padding: 0 10px; color: var(--fg-1); font-size: var(--text-data-size); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; pointer-events: none; }
 .csc-container-cell__display--empty { color: var(--fg-3); }
 .csc-container-cell--numeric .csc-container-cell__display { justify-content: flex-end; text-align: right; }
 .csc-container-cell__editor { position: relative; z-index: 2; display: flex; min-width: 0; min-height: var(--control-touch-h, 44px); align-items: center; }
