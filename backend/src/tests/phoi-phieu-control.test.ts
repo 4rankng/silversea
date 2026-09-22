@@ -52,7 +52,6 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   track(s.opsExpenseEntries, entry.id);
   const [source] = await db.insert(s.expenseAccountingSources).values({
     sourceKind: 'OPS', sourceId: entry.id, shipmentId: shipment.id, tripId: trip.id,
-    amount: '250000', customerChargeAmount: String(opts.charge ?? 100000),
     confirmedAt: new Date(), version: 1,
   }).returning({ id: s.expenseAccountingSources.id });
   track(s.expenseAccountingSources, source.id);
