@@ -30,6 +30,15 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
+  // Added as baseline 455 (was new-file capped): 2026-09-22 card 20260922_4 —
+  // the searchable-family bare-Enter commit adds a capture-phase Enter branch
+  // beside Escape in ComboBoxValue (explicit-navigation tracking, unique-match
+  // commit, auto-highlight drop) plus the onEnterCommit prop plumbing. The
+  // pre-existing 09-07/09-08 combobox baselines live under the workspace
+  // entry below; this file's own growth is refrozen here. Reviewed as a
+  // contract change; a future split (extract the keydown-capture handlers)
+  // should restore a smaller ceiling.
+  'src/components/untitled-ui/base/select/combobox.tsx': 455,
   // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
   // Bumped 656 -> 679: 2026-09-11 trip-detail polish — wire gains
   // factoryAddress / khoPhone / invoiceMaster / knownTagLabels and their
