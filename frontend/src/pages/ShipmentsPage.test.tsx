@@ -350,14 +350,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByText('Hải Phòng → Hà Nội')).toBeTruthy();
     expect(surface.getByText('TK-54321')).toBeTruthy();
     expect(surface.queryByText(/CBM/)).toBeNull();
-    expect(surface.getAllByText(/12\/8\/2026/).length).toBeGreaterThan(0);
+    expect(surface.getAllByText(/12\/08\/2026/).length).toBeGreaterThan(0);
     // The overview only shows explicit container appointments; it must not
     // repeat the nearest closing/return time from plannedReturnAt.
     expect(surface.queryByText('17:00 · trả hàng')).toBeNull();
     // Per-container appointment groups: one line per distinct close/return
     // datetime, with the container-type mix of that group.
-    expect(surface.getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
-    expect(surface.getByText('16:30 12/8/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
+    expect(surface.getByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
+    expect(surface.getByText('16:30 12/08/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
@@ -373,10 +373,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
     renderPage();
 
-    const scheduleCell = (await screen.findByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).closest('td');
+    const scheduleCell = (await screen.findByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
-    expect(within(scheduleCell!).getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
     expect(within(scheduleCell!).queryByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).toBeNull();
   });
 
@@ -1002,7 +1002,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    expect(await within(masterRow()).findByText('20:03 19/9/26')).toBeTruthy();
+    expect(await within(masterRow()).findByText('20:03 19/09/2026')).toBeTruthy();
   });
 
   it('keeps the schedule dialog open when the desktop time-picker panel is clicked (card 20260915_6)', async () => {

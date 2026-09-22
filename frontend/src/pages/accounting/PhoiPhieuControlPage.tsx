@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, getPhoiPhieuReport, listPhoiPhieuRows, listPhoiPhieuStk, listPhoiPhieuTruckAssignments, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, listPhoiPhieuTruckAssignments, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatDate } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
+import './PhoiPhieuControlPage.css';
 
 const TRIP_STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -31,7 +33,7 @@ interface Filters {
 function PhoiPhieuTruckAssignments() {
   const queryClient = useQueryClient();
   const boardQuery = useQuery({
-    queryKey: ['phoi-phieu-truck-assignments'],
+    queryKey: qk.phoiPhieu.truckAssignments,
     queryFn: listPhoiPhieuTruckAssignments,
   });
   const [message, setMessage] = useState<string | null>(null);
@@ -44,7 +46,7 @@ function PhoiPhieuTruckAssignments() {
       assignPhoiPhieuTruckAccountant(input.truckId, { accountantId: input.accountantId, expectedVersion: input.expectedVersion }),
     onSuccess: () => {
       setMessage(null);
-      void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-truck-assignments'] });
+      void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.truckAssignments });
     },
     onError: (error: Error) => setMessage(error.message),
   });
@@ -83,17 +85,14 @@ function AssignmentRow({ row, accountants, onSave }: {
     <tr>
       <td>{row.plate}</td>
       <td>
-        <select
-          aria-label={`Kế toán phụ trách ${row.plate}`}
+        <UuiSelectField
+          label={`Kế toán phụ trách ${row.plate}`}
+          hideLabel
           value={picked}
           onChange={(event) => setPicked(event.target.value)}
-          style={{ minWidth: 160 }}
-        >
-          <option value="">— Chưa gán —</option>
-          {accountants.map((accountant) => (
-            <option key={accountant.id} value={String(accountant.id)}>{accountant.fullName ?? `Kế toán #${accountant.id}`}</option>
-          ))}
-        </select>
+          options={[{ value: '', label: '— Chưa gán —' }, ...accountants.map((accountant) => ({ value: String(accountant.id), label: accountant.fullName ?? `Kế toán #${accountant.id}` }))]}
+          width="content"
+        />
       </td>
       <td>
         <button
@@ -120,10 +119,10 @@ export default function PhoiPhieuControlPage() {
   const queryClient = useQueryClient();
 
   const rowsQuery = useQuery({
-    queryKey: ['phoi-phieu-rows', filters],
+    queryKey: qk.phoiPhieu.rows(filters),
     queryFn: () => listPhoiPhieuRows(filters),
   });
-  const stkQuery = useQuery({ queryKey: ['phoi-phieu-stk'], queryFn: () => listPhoiPhieuStk() });
+  const stkQuery = useQuery({ queryKey: qk.phoiPhieu.stk, queryFn: () => listPhoiPhieuStk() });
   const rows = useMemo(() => rowsQuery.data?.items ?? [], [rowsQuery.data]);
   const canSelect = (row: PhoiPhieuRow) => row.confirmable;
   const allSelected = rows.length > 0 && rows.filter(canSelect).every((row) => selected.has(row.tripId));
@@ -162,22 +161,13 @@ export default function PhoiPhieuControlPage() {
       });
       setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)} — sổ quỹ đã được điều chỉnh.` });
       setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] });
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
     } catch (error) {
       setMessage({ kind: 'err', text: error instanceof Error ? error.message : 'Không lập được phiếu.' });
     } finally {
       setIssuing(false);
     }
   }
-
-  const totals = useMemo(() => {
-    const visible = rows;
-    return {
-      thu: visible.reduce((sum, row) => sum + (row.chiHoThu ?? 0), 0),
-      tra: visible.reduce((sum, row) => sum + (row.chiHoTra ?? 0), 0),
-      tienDuong: visible.reduce((sum, row) => sum + (row.tienDuong ?? 0), 0),
-    };
-  }, [rows]);
 
   return (
     <div className="page-shell">
@@ -203,7 +193,7 @@ export default function PhoiPhieuControlPage() {
       </div>
 
       <div className="shipment-container-ledger" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
-        <table className="tt-table">
+        <table className="tt-table ppc-board">
           <caption>Bảng kiểm soát phơi phiếu - Tiền đường</caption>
           <thead><tr>
             <th scope="col"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
@@ -234,7 +224,7 @@ export default function PhoiPhieuControlPage() {
                 </td>
                 <td>{money(row.tienDuong)}<button type="button" className="btn-secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button></td>
                 <td>{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
-                <td>{row.departureDate ?? '—'}</td>
+                <td>{formatDate(row.departureDate)}</td>
                 <td>{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
                 <td>{row.driverNote ?? '—'}</td>
               </tr>
@@ -246,24 +236,26 @@ export default function PhoiPhieuControlPage() {
         <PhoiPhieuTienDuongDialog
           tripId={tienDuongTripId}
           onClose={() => setTienDuongTripId(null)}
-          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] })}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />
       )}
       <div style={{ margin: '16px 0' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo tháng</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
           <label style={{ fontSize: 'var(--text-caption-size)' }}>Phạm vi: </label>
-          <select
-            aria-label="Phạm vi báo cáo"
+          <UuiSelectField
+            label="Phạm vi báo cáo"
+            hideLabel
             value={reportScope}
             onChange={(event) => setReportScope(event.target.value as typeof reportScope)}
-            style={{ padding: '4px 8px' }}
-          >
-            <option value="">Mặc định (của tôi với kế toán)</option>
-            <option value="SELF">Của tôi</option>
-            <option value="ALL">Tất cả</option>
-            <option value="UNASSIGNED">Chưa gán</option>
-          </select>
+            options={[
+              { value: '', label: 'Mặc định (của tôi với kế toán)' },
+              { value: 'SELF', label: 'Của tôi' },
+              { value: 'ALL', label: 'Tất cả' },
+              { value: 'UNASSIGNED', label: 'Chưa gán' },
+            ]}
+            width="content"
+          />
         </div>
         <PhoiPhieuReportTable kind="THU" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
         <PhoiPhieuReportTable kind="TRA" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
@@ -273,7 +265,7 @@ export default function PhoiPhieuControlPage() {
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}
           onClose={() => setChiHoTripId(null)}
-          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-rows'] })}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />
       )}
     </div>

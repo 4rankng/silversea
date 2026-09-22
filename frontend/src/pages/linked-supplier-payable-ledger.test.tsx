@@ -67,7 +67,7 @@ describe('linked supplier payable ledger', () => {
     const ledger = screen.getByRole('region', {
       name: 'Chi tiết công nợ phải trả của Nhà xe Minh Long',
     });
-    expect(within(ledger).getByText('20/7/2026')).toBeTruthy();
+    expect(within(ledger).getByText('20/07/2026')).toBeTruthy();
     expect(within(ledger).getByText('CP-20260720-01')).toBeTruthy();
     expect(within(ledger).getByText('Ghi nhận chi phí')).toBeTruthy();
     expect(within(ledger).getByText('Cước thuê ngoài tháng 7')).toBeTruthy();

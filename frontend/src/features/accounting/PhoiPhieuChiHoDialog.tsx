@@ -5,6 +5,7 @@ import {
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow,
 } from '../../api/phoiPhieuClient';
 import { formatCurrency } from '../../lib/format';
+import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
 export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
-    queryKey: ['phoi-phieu-chi-ho', tripId],
+    queryKey: qk.phoiPhieu.chiHo(tripId),
     queryFn: () => getPhoiPhieuChiHo(tripId),
   });
   const [edits, setEdits] = useState<Record<number, { thu: string; tra: string }>>({});
@@ -70,7 +71,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
           await updatePhoiPhieuRowAmounts(tripId, row.entryId, payload);
         }
       }
-      await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-chi-ho', tripId] });
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
       onSaved();
       onClose();
     } catch (saveError) {
@@ -93,7 +94,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
         feeName: 'Khoản phí mới',
         payerKind: 'USER',
       });
-      await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-chi-ho', tripId] });
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : 'Không thêm được dòng.');
     } finally {
@@ -108,7 +109,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     setError('');
     try {
       await voidPhoiPhieuRow(tripId, row.sourceId, 'Kế toán xóa dòng trong xem chi tiết chi hộ');
-      await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-chi-ho', tripId] });
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
     } catch (voidError) {
       setError(voidError instanceof Error ? voidError.message : 'Không xóa được dòng.');
     } finally {
@@ -140,7 +141,6 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
               </tr></thead>
               <tbody>
                 {detail.data.rows.map((row, index) => {
-                  const edit = edits[row.sourceId];
                   return (
                     <tr key={row.sourceId}>
                       <td>{index + 1}</td>

@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Plus } from 'lucide-react';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import {
   createDepositTracker,
   listDepositTrackers,
@@ -19,6 +20,7 @@ import {
   type DepositTrackerRow,
 } from '../../api/depositRefundClient';
 import { formatMoney } from '../../lib/format';
+import { qk } from '../../api/keys';
 
 /** ISO date → dd/mm/yy display (the card's typing pattern). */
 export function formatDepositDate(iso: string | null): string {
@@ -58,12 +60,12 @@ export default function DepositRefundTrackerPage() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['deposit-refund', from, to, status],
+    queryKey: qk.depositTracker.list(from, to, status),
     queryFn: () => listDepositTrackers(from || undefined, to || undefined, status || undefined),
   });
   const rows = query.data?.items ?? [];
   const warnings = query.data?.warnings;
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['deposit-refund'] });
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.depositTracker.all });
 
   const refundMutation = useMutation({
     mutationFn: (id: number) => markDepositRefunded(id),
@@ -89,13 +91,17 @@ export default function DepositRefundTrackerPage() {
       <section className="deposit-tracker-filters" aria-label="Bộ lọc">
         <BufferedUuiDateInput label="Từ ngày" size="sm" value={from} onChange={setFrom} />
         <BufferedUuiDateInput label="Đến ngày" size="sm" value={to} onChange={setTo} />
-        <FormGroup label="Trạng thái">
-          <select aria-label="Trạng thái hoàn cược" value={status} onChange={(event) => setStatus(event.target.value as DepositStatus | '')}>
-            <option value="">Tất cả</option>
-            <option value="CHUA_HOAN_CUOC">Chưa hoàn cược</option>
-            <option value="DA_HOAN_CUOC">Đã hoàn cược</option>
-          </select>
-        </FormGroup>
+        <UuiSelectField
+          label="Trạng thái"
+          ariaLabel="Trạng thái hoàn cược"
+          value={status}
+          onChange={(event) => setStatus(event.target.value as DepositStatus | '')}
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
+            { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
+          ]}
+        />
         <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
         <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm dòng</Btn>
       </section>
@@ -121,6 +127,8 @@ export default function DepositRefundTrackerPage() {
           <strong>{formatMoney(query.data?.total ?? 0)} ₫</strong>
         </div>
       </section>
+
+      {actionError && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{actionError}</p>}
 
       <div className="table-wrap">
         <table className="deposit-tracker-table">

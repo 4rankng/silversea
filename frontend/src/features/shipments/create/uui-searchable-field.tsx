@@ -145,8 +145,8 @@ export function USearchableField({
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
-        onEnterCommit={searchable ? commitEnterMatch : undefined}
         size={size}
+        onEnterCommit={searchable ? commitEnterMatch : undefined}
         aria-label={hideLabel ? label : undefined}
         label={hideLabel ? undefined : label}
         // `searchable` mode opens the popover on focus (so the user sees the

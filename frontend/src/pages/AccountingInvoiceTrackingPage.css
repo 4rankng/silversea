@@ -47,7 +47,6 @@
 
 .invoice-tracking-totals__tile strong {
   font-size: var(--text-body-size, 14px);
-  font-variant-numeric: tabular-nums;
 }
 
 .invoice-tracking-alert {

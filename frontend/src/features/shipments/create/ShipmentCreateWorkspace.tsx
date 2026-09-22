@@ -661,7 +661,7 @@ export function ShipmentCreateWorkspace() {
             </label>
             {form.hasDeposit && (
               <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
-                <TextField id="shipment-deposit-amount" label="Tiền cược dự kiến" value={form.depositAmount} onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))} maxLength={15} placeholder="VD: 5.000.000" disabled={Boolean(saving)} />
+                <TextField id="shipment-deposit-amount" label="Tiền cược dự kiến" value={form.depositAmount} onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))} maxLength={15} placeholder="Ví dụ: 5.000.000" disabled={Boolean(saving)} />
               </div>
             )}
           </div>

@@ -122,7 +122,10 @@ async function choose(label: string, value: string) {
   await waitFor(() => expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull());
 }
 
-describe('ClerkShipmentCreatePage', () => {
+// 2026-09-22 (FE item-6 audit, LEAD ruling): rotating ~5s-timeout flake at
+// fresh checkouts under machine load — 45 tests × heavy workspace imports.
+// Per-file timeout budget, NOT a suite-lightening: assertions unchanged.
+describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
   beforeEach(() => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })) });
     Object.values(mocks).forEach((mock) => mock.mockReset());

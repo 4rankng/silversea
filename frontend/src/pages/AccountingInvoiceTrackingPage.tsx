@@ -14,6 +14,7 @@ import {
 } from '@tingting/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../components/UI';
 import { BufferedUuiDateInput } from '../design-system/forms/BufferedUuiDateInput';
+import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import {
   createInvoiceTracking,
   deleteInvoiceTracking,
@@ -21,6 +22,7 @@ import {
   updateInvoiceTracking,
 } from '../api/invoiceTrackingClient';
 import { getShipmentDetail, listShipments } from '../api/shipmentClient';
+import { qk } from '../api/keys';
 import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
 import { businessDateISO, formatISODate, formatMoney } from '../lib/format';
@@ -63,14 +65,14 @@ export default function AccountingInvoiceTrackingPage() {
   const { confirm, dialog } = useConfirm();
 
   const query = useQuery({
-    queryKey: ['invoice-tracking', from, to],
+    queryKey: qk.invoiceTracking.list(from, to),
     queryFn: () => listInvoiceTracking(from, to),
   });
   const rows = query.data?.rows ?? [];
   const totals = computeTotals(rows);
   const colCount = canWrite ? 14 : 13;
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['invoice-tracking'] });
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.invoiceTracking.all });
 
   const progressMutation = useMutation({
     mutationFn: ({ id, progress }: { id: number; progress: InvoiceTrackingProgress }) =>
@@ -196,17 +198,15 @@ export default function AccountingInvoiceTrackingPage() {
                 <td>{row.note ?? '—'}</td>
                 <td>
                   {canWrite ? (
-                    <select
-                      className="invoice-tracking-progress"
+                    <UuiSelectField
+                      wrapperClassName="invoice-tracking-progress"
+                      label="Tiến độ"
+                      hideLabel
                       value={row.progress}
-                      aria-label="Tiến độ"
                       disabled={progressMutation.isPending}
                       onChange={(event) => progressMutation.mutate({ id: row.id, progress: event.target.value as InvoiceTrackingProgress })}
-                    >
-                      {INVOICE_TRACKING_PROGRESS.map((value) => (
-                        <option key={value} value={value}>{INVOICE_TRACKING_PROGRESS_LABELS[value]}</option>
-                      ))}
-                    </select>
+                      options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
+                    />
                   ) : (
                     <span>{INVOICE_TRACKING_PROGRESS_LABELS[row.progress]}</span>
                   )}
@@ -402,13 +402,13 @@ function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }: InvoiceTracki
               </p>
             )}
             {tripOptions.length > 0 && (
-              <FormGroup label="Chuyến (cont)" htmlFor="ivt-trip">
-                <select id="ivt-trip" className="input" value={tripId ?? ''} onChange={(event) => setTripId(Number(event.target.value))}>
-                  {tripOptions.map((trip) => (
-                    <option key={trip.tripId} value={trip.tripId}>{trip.label}</option>
-                  ))}
-                </select>
-              </FormGroup>
+              <UuiSelectField
+                id="ivt-trip"
+                label="Chuyến (cont)"
+                value={tripId != null ? String(tripId) : ''}
+                onChange={(event) => setTripId(Number(event.target.value))}
+                options={tripOptions.map((trip) => ({ value: String(trip.tripId), label: trip.label }))}
+              />
             )}
             {lotError && <p className="ivt-hint ivt-hint--error" role="alert">{lotError}</p>}
           </div>
@@ -436,13 +436,13 @@ function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }: InvoiceTracki
           <FormGroup label="Ngày" htmlFor="ivt-expense-date">
             <input id="ivt-expense-date" className="input" type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
           </FormGroup>
-          <FormGroup label="Tiến độ" htmlFor="ivt-progress">
-            <select id="ivt-progress" className="input" value={progress} onChange={(event) => setProgress(event.target.value as InvoiceTrackingProgress)}>
-              {INVOICE_TRACKING_PROGRESS.map((value) => (
-                <option key={value} value={value}>{INVOICE_TRACKING_PROGRESS_LABELS[value]}</option>
-              ))}
-            </select>
-          </FormGroup>
+          <UuiSelectField
+            id="ivt-progress"
+            label="Tiến độ"
+            value={progress}
+            onChange={(event) => setProgress(event.target.value as InvoiceTrackingProgress)}
+            options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
+          />
           <FormGroup label="Ghi chú" htmlFor="ivt-note">
             <input id="ivt-note" className="input" value={note} onChange={(event) => setNote(event.target.value)} />
           </FormGroup>

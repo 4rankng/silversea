@@ -55,7 +55,7 @@ describe('ForwarderExpenseRow bill ledger metadata', () => {
     expect(screen.getByText('1.450.000 ₫')).toBeTruthy();
     expect(screen.getByText('Chi hộ tạm ứng')).toBeTruthy();
     expect(screen.getByText('HD-134584')).toBeTruthy();
-    expect(screen.getByText('4/8/2026')).toBeTruthy();
+    expect(screen.getByText('04/08/2026')).toBeTruthy();
   });
 
   it('shows a linked settlement as an existing record without implying pending approval', () => {

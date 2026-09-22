@@ -104,7 +104,7 @@ describe('DriverTripsPage', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
     renderPage();
 
-    expect(await screen.findByText('00:30 - 07/09')).toBeTruthy();
+    expect(await screen.findByText('00:30 07/09/2026')).toBeTruthy();
   });
 
   it('filters history by the completion month rather than the planned departure month', () => {
@@ -171,7 +171,7 @@ describe('DriverTripsPage', () => {
     // Card time is pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) — the
     // assertion is a fixed string, NOT device-local, so a runner in any
     // timezone proves the pin: 07:30Z = 14:30 VN on 01/08.
-    const expectedTime = '14:30 - 01/08';
+    const expectedTime = '14:30 01/08/2026';
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
     expect(screen.getByText('Giờ đóng / trả:')).toBeTruthy();

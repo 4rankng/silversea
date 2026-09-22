@@ -8,6 +8,7 @@ import {
   type AccountingDebitBoardRow,
 } from '../../api/accountingDebitClient';
 import { formatCurrency } from '../../lib/format';
+import { qk } from '../../api/keys';
 
 const money = (value: string | null) => {
   if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>Chưa xác định</span>;
@@ -68,7 +69,7 @@ export default function AccountingDebitClosePage() {
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
-    queryKey: ['accounting-debit-board', filters.dateFrom, filters.dateTo],
+    queryKey: qk.accounting.debitBoard(filters.dateFrom, filters.dateTo),
     queryFn: () => listAccountingDebitBoard({ dateFrom: filters.dateFrom || undefined, dateTo: filters.dateTo || undefined }),
   });
   const rows = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);
@@ -95,7 +96,7 @@ export default function AccountingDebitClosePage() {
 
   const refresh = () => {
     setSelected(new Set());
-    void queryClient.invalidateQueries({ queryKey: ['accounting-debit-board'] });
+    void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
   };
 
   const sendMutation = useMutation({

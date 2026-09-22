@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
+import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
 import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
 
@@ -13,7 +14,7 @@ interface Props {
 export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
-    queryKey: ['phoi-phieu-tien-duong', tripId],
+    queryKey: qk.phoiPhieu.tienDuong(tripId),
     queryFn: () => getPhoiPhieuTienDuong(tripId),
   });
   const [confirming, setConfirming] = useState<number | null>(null);
@@ -35,7 +36,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
     setError('');
     try {
       await confirmPhoiPhieuTienDuong(tripId, row.sourceId, 1);
-      await queryClient.invalidateQueries({ queryKey: ['phoi-phieu-tien-duong', tripId] });
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) });
       onSaved();
     } catch (confirmError) {
       setError(confirmError instanceof Error ? confirmError.message : 'Không xác nhận được khoản.');
