@@ -37,12 +37,11 @@
 }
 
 .fwd-order-panel__body { padding: 0 16px; }
+/* §4 no-truncation doctrine: order-panel values are fully observable — long
+   text wraps (overflow-wrap), no clamp and no hover fallback needed for
+   these short-form values (card 20260922_49). */
 .fwd-order-panel__body .info-row__value {
-  display: -webkit-box;
-  overflow: hidden;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .fwd-expense-form {
