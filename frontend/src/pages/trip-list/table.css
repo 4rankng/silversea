@@ -14,7 +14,7 @@
   color: var(--ink-3);
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(203, 211, 206, 0.72);
-  border-radius: 999px;
+  border-radius: 8px;
   max-width: 100%;
   letter-spacing: 0;
   user-select: none;
@@ -579,7 +579,7 @@
   color: var(--success-text);
   background: var(--success-soft);
   border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: var(--fs-xs);
   font-weight: 700;
 }
