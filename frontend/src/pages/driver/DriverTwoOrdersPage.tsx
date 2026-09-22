@@ -16,7 +16,6 @@ import { TRIP_STATUS_LABELS, TRIP_STATUS_COLORS, type TripStatus } from '@tingti
 import { PageHeader } from '../../components/UI';
 import { useDriverTwoOrders } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { formatDate } from '../../lib/format';
 import './DriverSecondaryPages.css';
 import { EmptyState } from '../../design-system';

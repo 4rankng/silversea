@@ -182,7 +182,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     sessionStorage.removeItem('shipment-debit.expanded-lot');
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit;customer=1'.replace(';', '?'));
-    (await screen.findAllByText('BL-1'))[0];
+    await screen.findAllByText('BL-1');
     expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
   });
 });

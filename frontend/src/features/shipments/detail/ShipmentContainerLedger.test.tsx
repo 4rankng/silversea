@@ -527,7 +527,6 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
 });
 
 describe('vehicle plate clear affordance (20260916_6)', () => {
-  const editable = () => ({ canRead: true, canEdit: true });
   const lineWithPlate = () => ({
     ...baseLine(),
     carrierType: 'EXTERNAL',
@@ -541,7 +540,7 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   function renderVehicleEditor(overrides: Record<string, unknown> = {}) {
     const row = baseRow({ carrierName: 'Nhà xe A', plateNumber: '29C-123.45' });
     const onSaveVehicle = vi.fn(async () => {});
-    const view = render(
+    render(
       <ShipmentContainerLedger
         rows={[row]}
         totalContainers={1}

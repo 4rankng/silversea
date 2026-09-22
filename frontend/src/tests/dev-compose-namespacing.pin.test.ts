@@ -35,8 +35,8 @@ describe('dev compose namespacing pin', () => {
 
   it('keeps the never-resurrect volume key ss-prod-pgdata', () => {
     expect(compose).toMatch(/^\s*-\s*ss-prod-pgdata:/m);
-    expect(compose).toMatch(/^  ss-prod-pgdata:$/m);
+    expect(compose).toMatch(/^ {2}ss-prod-pgdata:$/m);
     expect(compose).not.toMatch(/^\s*-\s*silversea-pgdata:/m);
-    expect(compose).not.toMatch(/^  silversea-pgdata:$/m);
+    expect(compose).not.toMatch(/^ {2}silversea-pgdata:$/m);
   });
 });

@@ -11,7 +11,6 @@ import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/
 import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { EmptyState } from '../../design-system';
 
 /* ─── Page-scoped styles ─── */

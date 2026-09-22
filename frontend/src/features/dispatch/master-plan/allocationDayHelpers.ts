@@ -1,4 +1,4 @@
-import { formatContainerCounts, parseContainerSummaryDemand } from './allocation-demand-format';
+import { parseContainerSummaryDemand } from './allocation-demand-format';
 
 import { localDateInBusinessZone } from '@tingting/shared';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';

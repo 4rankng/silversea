@@ -38,7 +38,7 @@ import {
   type ShipmentVehicleDraft,
   type ShipmentDetailEditMode,
 } from '../detail/ShipmentContainerLedger';
-import { canEditMode, isOptimisticShipmentConflict, CUS_DETAIL_PAGE_SIZE, type DispatchStatusFilter } from './cusDetailModel';
+import { canEditMode, isOptimisticShipmentConflict, type DispatchStatusFilter } from './cusDetailModel';
 import { safeError } from './cusUtils';
 
 export interface CusDetailListParams {

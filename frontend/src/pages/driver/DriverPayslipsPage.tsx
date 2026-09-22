@@ -11,7 +11,6 @@ import { PageHeader } from '../../components/UI';
 import { useDriverPayslips } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import './DriverSecondaryPages.css';
 import { EmptyState } from '../../design-system';
 

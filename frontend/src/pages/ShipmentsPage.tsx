@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
 import {
-  SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   ShipmentCusBucket,
