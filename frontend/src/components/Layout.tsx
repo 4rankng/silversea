@@ -283,7 +283,10 @@ export function getNavItems(
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — read-only for this role;
         // the page hides editors and the server rejects writes (403).
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'reconciliation' as SectionName },
-        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'reconciliation' as SectionName },
+        // Theo dõi hoàn cược deliberately ABSENT for CUS: the route guard
+        // (/accounting/deposit-tracker) admits only ADMIN/MANAGER/ACCOUNTANT.
+        // Nav must derive from the same permission source as the guard — an
+        // entry here bounces CUS to /shipments (card 20260922_29).
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [

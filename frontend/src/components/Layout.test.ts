@@ -106,7 +106,9 @@ describe('getNavItems', () => {
       ['Chi tiết lô hàng', '/shipments-detail'],
       ['Chi phí - Quyết toán', '/shipments-debit'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
-      ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
+      // Card 20260922_29: Theo dõi hoàn cược removed for CUS — the route
+      // guard admits only ADMIN/MANAGER/ACCOUNTANT; nav must not advertise
+      // a path the role cannot open.
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
@@ -287,7 +289,7 @@ describe('getNavItems', () => {
 
   it('shows CUS only the document-ops and catalog items without the recoverable-costs capability', () => {
     const items = getNavItems(Role.CUS);
-    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'invoice-tracking', 'deposit-tracker', 'customers', 'config-routes', 'config-fuel-price-periods']);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'shipment-debit', 'invoice-tracking', 'customers', 'config-routes', 'config-fuel-price-periods']);
     expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 
