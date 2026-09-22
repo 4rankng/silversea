@@ -91,13 +91,12 @@
 .shipment-container-ledger > .ds-pagination { position: static; z-index: var(--z-sticky, 100); margin: 0; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }
 .shipments-detail-workspace > .ds-empty-state .ds-empty-state__illustration { width: min(220px, 80vw); height: 150px; opacity: 1; }
 
-/* A bottom-sticky footer can cover the only row when the app scrollport is
-   short. Keep single-row and touch layouts in normal flow; pin pagination only
-   for longer desktop ledgers where it materially improves navigation. */
-@media (min-width: 1101px) {
-  /* margin-bottom/padding-bottom seal the .app-body 32px strip (card _38). */
-  .shipment-container-ledger:has(tbody > tr:nth-child(2)) > .ds-pagination { position: sticky; bottom: 0; margin-bottom: -32px; padding-bottom: calc(12px + 32px); }
-}
+/* Card 20260922_20: the desktop-only sticky pagination (b6eda31c) pinned to
+   a scrollport that is not the app's real scroller (main.app-body), so the
+   bar floated mid-table covering rows — and its -32px margin hack to seal
+   the app frame's bottom strip is banned by the card. The pagination stays
+   static, in flow at the table's end, at every width; a future sticky must
+   bind to the true scrollport or live outside the table flow. */
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 /* All eight columns pin an explicit share (sums to 100%) instead of mixing

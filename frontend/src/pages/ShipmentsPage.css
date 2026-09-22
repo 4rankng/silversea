@@ -426,25 +426,17 @@
 /* A bounded workboard owns both its records and its navigation. Keeping this
    footer in the same scroll region prevents the app shell from hiding it below
    the fold after an operator reaches the final row. */
+/* Card 20260922_20: sticky-bottom pagination pinned to a scrollport that is
+   not main.app-body, floating the bar mid-table over rows (same defect the
+   container ledger shipped); the -32px seal of the app frame's bottom strip
+   is banned by the card. Static in flow at every width. */
 .cus-dashboard-viewport > .ds-pagination {
-  position: sticky;
-  bottom: 0;
+  position: static;
   z-index: 4;
   margin: 0;
-  /* The .app-body frame keeps a 32px bottom padding; sticky bottom:0 stops at
-     the padding edge and page content bleeds through the exposed strip (card
-     _38). Extend the bar's own box over the strip so it seals the frame. */
-  margin-bottom: -32px;
   padding: 12px;
-  padding-bottom: calc(12px + 32px);
   border-top: 1px solid var(--line);
   background: var(--surface);
-}
-
-@media (max-width: 1100px) {
-  .cus-dashboard-viewport > .ds-pagination {
-    position: static;
-  }
 }
 
 .cus-dashboard-table {

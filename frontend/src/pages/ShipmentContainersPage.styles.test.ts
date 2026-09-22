@@ -147,9 +147,13 @@ describe('shipment detail workboard styling', () => {
     expect(ledgerSource).toMatch(/<div className="shipment-container-ledger"[\s\S]*?\{footer\}[\s\S]*?<\/div>/);
   });
 
-  it('keeps pagination out of single-row and mobile record content', () => {
+  it('keeps pagination in flow at the table end on every viewport (card 20260922_20)', () => {
+    // Static base is the only pagination positioning: the desktop sticky
+    // (b6eda31c) pinned to a scrollport that is not main.app-body and floated
+    // the bar mid-table over rows; its -32px margin hack is banned.
     expect(css).toMatch(/\.shipment-container-ledger > \.ds-pagination\s*\{[^}]*position:\s*static;/);
-    expect(css).toMatch(/@media \(min-width:\s*1101px\)[\s\S]*?\.shipment-container-ledger:has\(tbody > tr:nth-child\(2\)\) > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
+    expect(css).not.toMatch(/:has\(tbody > tr:nth-child\(2\)\) > \.ds-pagination[^}]*sticky/);
+    expect(css).not.toMatch(/\.ds-pagination[^}]*margin-bottom:\s*-/);
   });
 
   it('keeps an opened cell editor above the sticky pagination layer', () => {
