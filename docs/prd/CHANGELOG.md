@@ -4,6 +4,14 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-22 — Vai trò: mặt hình làm việc theo vai (quyết định Điều vận/Lái xe)
+
+- **Điều vận và Lái xe không có work-in-box — by design** (QuyTrinhO2C.md §3 đối chiếu; quyết định 2026-09-22,
+  operator ủy quyền): Điều vận làm việc trên `/dispatch`, `/dispatch-detail` và Sổ chuyến đi; Lái xe trên
+  `/my-trips`; work-in-box (`RoleWorkInbox`) chỉ dành cho Ops (`/my-orders`) và CUS (`/portal/shipments`).
+  Endpoint `/driver/me/work-in-box` giữ nguyên như API dự phòng, chưa có màn hình dùng — nếu sau này cần, dựng
+  mặt hình riêng thay vì gán vào màn hình hiện có. (Đóng card 20260922_73.)
+
 ## 2026-09-22 — Chi phí theo lô: danh mục dữ liệu, sổ quỹ hai nguồn, phôi phiếu, hoàn ứng, hoàn cược
 
 - **Danh mục phí là dữ liệu, phân loại lái xe theo danh mục dùng chung** (`OpsVanHanh.md` §9.1, §9.4): danh mục phí chi hộ và định mức tiền đường nạp theo cấu hình (fill-only — không ghi đè sửa tay của người dùng), tên phí và mức tiền là dữ liệu; lái xe chọn loại phí từ danh mục dùng chung, lớp có-hóa-đơn/không-hóa-đơn do máy chủ quyết từ cờ của danh mục; dòng có hóa đơn phải kèm số hóa đơn và thu khách sau khi kế toán đối chiếu, dòng không hóa đơn không bao giờ thu khách.
