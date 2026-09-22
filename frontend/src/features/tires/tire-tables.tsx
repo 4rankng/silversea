@@ -11,7 +11,7 @@ import "../../styles/record-table.css";
 import "../../styles/operational-table-typography.css";
 import "../../pages/TruckTiresPage.css";
 
-const TIRE_STATUS_COLORS: Record<Tire['status'], string> = { IN_USE: '#16A34A', IN_STOCK: '#2563EB', DISPOSED: '#9CA3AF' };
+const TIRE_STATUS_COLORS: Record<Tire['status'], string> = { IN_USE: 'var(--success-text)', IN_STOCK: '#2563EB', DISPOSED: '#9CA3AF' };
 function daysInService(installedAt: string | null, removedAt: string | null): number | null { return daysBetween(installedAt, removedAt); }
 export function TireTable({
   tires,
