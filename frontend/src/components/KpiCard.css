@@ -95,14 +95,21 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 
-
+  /* The unit is its own flex item so it sits a word-space away from the digits
+     ("71 người", not "71người"). The gap lives on the value, sized against the
+     metric font, because responsive.css restates .kpi__value-unit (and page CSS
+     overrides it per breakpoint) — a unit-level margin gets cancelled there.
+     Money uses the same mechanism for its currency unit. */
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3em;
 }
 .kpi__value-unit {
   font-size: var(--text-data-size);
   line-height: 1.35;
   color: var(--ink-3);
   font-weight: var(--fw-medium);
-  margin-left: 2px;
 }
 .kpi--compact .kpi__value {
   font-size: var(--text-metric-size);

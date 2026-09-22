@@ -13,9 +13,9 @@ import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 import { formatDate } from '../lib/format';
 
 const ADVANCE_STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'var(--ink-muted)', RECORDED: 'var(--ok, #16a34a)', VOIDED: 'var(--err, #dc2626)',
+  DRAFT: 'var(--ink-muted)', RECORDED: 'var(--success-text)', VOIDED: 'var(--err, #dc2626)',
   PENDING: 'var(--warn, #d97706)',
-  APPROVED: 'var(--ok, #16a34a)',
+  APPROVED: 'var(--success-text)',
   REJECTED: 'var(--err, #dc2626)',
 };
 
@@ -65,7 +65,9 @@ export default function OpsWalletPage() {
         </div>
         <div className="ops-wallet-card">
           <span className="ops-wallet-card__label">Chi phí đã ghi nhận</span>
-          <strong style={{ color: 'var(--ok, #16a34a)' }}>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
+          {/* Card 20260922_27: a cost total is not a success state — the green
+              token made the largest number on the page read as "good news". */}
+          <strong>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
         </div>
       </section>
 
