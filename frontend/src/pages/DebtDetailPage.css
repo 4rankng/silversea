@@ -1467,26 +1467,6 @@
   white-space: nowrap;
 }
 
-.dd-group-toggle {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--ink-2);
-  cursor: pointer;
-  flex: 0 0 auto;
-  margin-right: 8px;
-  vertical-align: middle;
-}
-.dd-group-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
 /* ─── Transaction Type Pill ─────────────────────────────────────────────────── */
 
 .dd-txn-pill {
