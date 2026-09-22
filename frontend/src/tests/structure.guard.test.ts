@@ -48,7 +48,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // card fields (T7 label, pairKind/pairOrder/pairLocked) with the
   // tag-pool/trip-detail polish client. Reviewed as a contract change.
   'src/api/driverClient.ts': 691,
-  'src/api/keys.ts': 562,
+  // Bumped 562 -> 600: 2026-09-22 phoi-phieu stack closeout (b8b4dffb) — the
+  // qk factory gains the phoiPhieu/depositTracker/invoiceTracking and
+  // accounting.debitBoard groups (lint rider: inline keys centralized).
+  // Split candidate: per-domain key files composed into qk like the expense
+  // and shipment-debit groups.
+  'src/api/keys.ts': 600,
   // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
   // combined-invoice tracking page landed over the ceiling without a
   // baseline; refrozen here to unblock cut #24. Split candidate.
