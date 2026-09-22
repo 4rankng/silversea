@@ -696,3 +696,28 @@
   color: var(--tbl-green-700);
   background: var(--tbl-green-050);
 }
+
+/* ── Compact desktop (1024–1439): column priority (QA-2026-09-22-03) ──── */
+/* Law §4 reserves horizontal scroll for token tables; /trips is a data table.
+   Below the wide-desktop threshold (Layout WIDE_DESKTOP_MIN_WIDTH, 1440) the
+   analytic columns yield their tracks instead of the row scrolling: Tiêu hao
+   (consumption) and Tổng đi đường (road) both live on trip detail; no
+   missing-data warning rides on them (getMissingIndicators covers revenue +
+   fuel, both visible at every width; the D2 "Thiếu giá 15T" chip is in the
+   revenue column). Money strings and tokens stay whole — the template floors
+   are content floors (trip code ≈82px, plate chip ≈98px, container token
+   ≈86px, revenue chip case ≈110px, money ≈75px), no ellipsis, no mid-token
+   clip; long text wraps per law §4. Computed + pinned in
+   TripListPage.styles.test.ts: floors 828 + gaps 70 + padding 32 = 930 ≤ the
+   1175px scrollport budget at 1280. */
+@media (max-width: 1439px) {
+  .trip-list-page .col-consumption,
+  .trip-list-page .col-road {
+    display: none;
+  }
+  .trip-list-page .table-head,
+  .trip-list-page .table-row {
+    grid-template-columns: minmax(120px, 1.3fr) 104px minmax(120px, 1.45fr) 88px 112px 92px 92px 100px;
+    min-width: 0;
+  }
+}
