@@ -822,7 +822,7 @@ export default function CustomersPage() {
                       {menuOpenId === c.id && (
                         <div style={{
                           position: 'absolute', right: 12, zIndex: 20,
-                          background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
                           boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
                           ...(index >= filtered.length - 2 && filtered.length > 2
                             ? { bottom: '100%', marginBottom: 4 }
