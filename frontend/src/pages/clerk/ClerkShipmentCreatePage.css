@@ -372,3 +372,10 @@
 @media (min-width: 641px) {
   .csc-container-row .csc-icon-button { min-width: 30px; min-height: 30px; }
 }
+
+/* CƯỢC CONTAINER row (card 20260922_6): compact flex row under the identity
+   grid — checkbox + conditional amount field on one line, wrapping on narrow
+   screens. */
+.csc-deposit-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; min-width: 0; flex-wrap: wrap; }
+.csc-deposit-row .csc-combined-toggle { flex: 0 0 auto; }
+.csc-deposit-amount { flex: 0 1 260px; min-width: 180px; }

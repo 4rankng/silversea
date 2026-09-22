@@ -23,6 +23,11 @@ export interface ShipmentCreateFormState {
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   cargoMode: CargoMode;
   isCombined: boolean;
+  /** Card 20260922_6 — "có cược" intake tick + expected amount (string input
+   *  state; payload coerces digits). Intake intent only — the persisted
+   *  outcome is the deposit_refund_trackers row from the create tx. */
+  hasDeposit: boolean;
+  depositAmount: string;
   operationalSiteId: string;
   pickupWarehouseSiteId: string;
   customsCutoffAt: string;
@@ -106,6 +111,8 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   tradeDirection: '',
   cargoMode: 'FCL',
   isCombined: false,
+  hasDeposit: false,
+  depositAmount: '',
   operationalSiteId: '',
   pickupWarehouseSiteId: '',
   customsCutoffAt: '',
@@ -119,6 +126,14 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   packageType: '',
   operationalNotes: '',
 };
+
+/** VN đồng formatting for the deposit-amount input: digits in, dotted
+ *  thousands out ("5000000" → "5.000.000"). Payload strips non-digits. */
+export function formatVnMoney(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 
 export function createEmptyContainer(): ShipmentContainerDraft {
   return {
@@ -289,6 +304,8 @@ export function buildShipmentRootPayload(
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
     isCombined: form.isCombined,
+    hasDeposit: form.hasDeposit,
+    depositAmount: form.hasDeposit ? Number(form.depositAmount.replace(/\D/g, '')) || null : null,
     operationalSiteId: form.cargoMode === 'LCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: (() => {

@@ -1646,6 +1646,12 @@ const createShipmentBaseSchema = z.object({
   deliveryLocation: z.string().max(255).optional().nullable(),
   contactName: z.string().max(100).optional().nullable(),
   contactPhone: z.string().max(20).optional().nullable(),
+  /** Card 20260922_6 — container-deposit intake tick ("có cược"): intent
+   *  only; the persisted outcome is the deposit_refund_trackers row created
+   *  by recordDepositFromIntake inside the create tx (no shipment columns). */
+  hasDeposit: z.boolean().optional().default(false),
+  depositAmount: z.coerce.number().int('Tiền cược dự kiến phải là số nguyên (đồng)')
+    .min(0, 'Tiền cược dự kiến không được âm').optional().nullable(),
 });
 
 function validateShipmentAdHocIdentity(

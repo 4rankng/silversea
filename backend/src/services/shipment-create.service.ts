@@ -10,6 +10,7 @@ import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
+import { recordDepositFromIntake } from './deposit-refund-tracker.service';
 import { assertContainerSetValid, reconcileShipmentContainersInTx } from './shipment-containers.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import type { ShipmentContainerInput } from './shipment-types';
@@ -193,6 +194,26 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     reason: 'Tạo lô hàng',
     changedBy: input.createdBy ?? null,
   });
+
+  // Card 20260922_6 — container-deposit intake tick ("có cược"): when the
+  // CUS ticked a deposit at intake, the hoàn-cược tracker row lands in the
+  // SAME tx so a rolled-back create never strands an orphan tracker row.
+  // KT completes bill/carrier/amount by hand when the lot didn't carry them.
+  if (input.hasDeposit) {
+    let customerName = rawCustomerName ?? '';
+    if (!customerName && customerId != null) {
+      const [customer] = await tx.select({ name: s.customers.name }).from(s.customers)
+        .where(eq(s.customers.id, customerId)).limit(1);
+      customerName = customer?.name ?? '';
+    }
+    await recordDepositFromIntake({
+      shipmentId: shipment.id,
+      customerName,
+      carrierName: input.shippingLineName ?? '',
+      billNumber: input.blNumber ?? '',
+      expectedAmount: input.depositAmount ?? null,
+    }, tx);
+  }
 
   const bookingEventCreatorId = input.createdBy ?? actor?.userId ?? null;
   if (bookingEventCreatorId != null) {

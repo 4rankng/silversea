@@ -8,6 +8,7 @@ import { expenseDateSchema, TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
+import type { Tx } from './trip-shared';
 
 export const DEPOSIT_STATUSES = ['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC'] as const;
 export type DepositStatus = typeof DEPOSIT_STATUSES[number];
@@ -150,12 +151,12 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
  *  surface). KT manual creation uses createDepositTracker. */
 export async function recordDepositFromIntake(input: {
   shipmentId: number; customerName: string; carrierName: string; billNumber: string; expectedAmount?: number | string | null;
-}): Promise<void> {
-  const [existing] = await db.select({ id: s.depositRefundTrackers.id })
+}, conn: typeof db | Tx = db): Promise<void> {
+  const [existing] = await conn.select({ id: s.depositRefundTrackers.id })
     .from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.shipmentId, input.shipmentId)).limit(1);
   if (existing) return;
   const amount = Number(input.expectedAmount ?? 0);
-  const [row] = await db.insert(s.depositRefundTrackers).values({
+  const [row] = await conn.insert(s.depositRefundTrackers).values({
     shipmentId: input.shipmentId,
     billNumber: input.billNumber.trim(),
     customerName: input.customerName.trim(),
@@ -163,7 +164,7 @@ export async function recordDepositFromIntake(input: {
     depositAmount: String(Number.isSafeInteger(amount) && amount > 0 ? amount : 0),
   }).returning();
   if (Number(row.depositAmount) === 0) {
-    await db.update(s.depositRefundTrackers).set({ depositAmount: '0' }).where(eq(s.depositRefundTrackers.id, row.id));
+    await conn.update(s.depositRefundTrackers).set({ depositAmount: '0' }).where(eq(s.depositRefundTrackers.id, row.id));
   }
 }
 

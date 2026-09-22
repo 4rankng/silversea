@@ -275,6 +275,11 @@ export interface CreateShipmentInput {
   deliveryLocation?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  /** Card 20260922_6 — cược-container intake tick + expected amount (VN đồng
+   *  integer). Intake intent only: recordDepositFromIntake persists the
+   *  tracker row inside the create tx; nothing is stored on the shipment. */
+  hasDeposit?: boolean;
+  depositAmount?: number | null;
   createdBy?: number | null;
 }
 

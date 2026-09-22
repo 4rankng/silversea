@@ -584,6 +584,10 @@ coreRoutes.post(
         deliveryLocation: parsed.data.deliveryLocation,
         contactName: parsed.data.contactName,
         contactPhone: parsed.data.contactPhone,
+        // Card 20260922_6 — cược-container intake tick must survive the
+        // quick-create field mapping or the tracker row never fires.
+        hasDeposit: parsed.data.hasDeposit,
+        depositAmount: parsed.data.depositAmount,
         createdBy: getUser(req).userId,
         containers: parsed.data.containers,
       },

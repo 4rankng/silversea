@@ -27,6 +27,7 @@ import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
   createEmptyContainer,
+  formatVnMoney,
   getShipmentCreateReadiness,
   resetCustomerSite,
   type CargoMode,
@@ -230,6 +231,7 @@ export function ShipmentCreateWorkspace() {
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
         : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
+        : key === 'hasDeposit' ? value !== EMPTY_FORM.hasDeposit
         : Array.isArray(value) ? value.length > 0
         : value !== ''
     ));
@@ -642,6 +644,26 @@ export function ShipmentCreateWorkspace() {
             {/* SỐ TỜ KHAI */}
             <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={50} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
 
+          </div>
+
+          {/* CƯỢC CONTAINER (card 20260922_6) — tick + expected amount, intake
+              intent only: the KT hoàn-cược tracker row is created inside the
+              same create transaction (recordDepositFromIntake). */}
+          <div className="csc-deposit-row" data-field-id="shipment-deposit">
+            <label className="csc-combined-toggle" data-field-id="shipment-has-deposit">
+              <input
+                type="checkbox"
+                checked={form.hasDeposit}
+                onChange={(event) => update('hasDeposit', event.target.checked)}
+                disabled={Boolean(saving)}
+              />
+              <span><strong>Có cược container</strong></span>
+            </label>
+            {form.hasDeposit && (
+              <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
+                <TextField id="shipment-deposit-amount" label="Tiền cược dự kiến" value={form.depositAmount} onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))} maxLength={15} placeholder="VD: 5.000.000" disabled={Boolean(saving)} />
+              </div>
+            )}
           </div>
         </ShipmentCreateSection>
 

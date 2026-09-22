@@ -146,6 +146,9 @@ export interface QuickCreateShipmentRequest {
   /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;
   customerNotes?: string | null;
+  /** Card 20260922_6 — cược-container intake tick + expected amount. */
+  hasDeposit?: boolean;
+  depositAmount?: number | null;
 }
 
 export interface ShipmentPricingPreviewRequest {
