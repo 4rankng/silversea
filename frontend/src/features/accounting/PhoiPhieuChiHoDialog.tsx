@@ -159,6 +159,13 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
                   <td><strong>{formatCurrency(totals.tra)}</strong></td>
                   <td colSpan={2} />
                 </tr>
+                {totals.thu > totals.tra && totals.tra > 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ color: 'var(--warn, #d97706)' }}>
+                      Đã thu/trả vượt — cần hoàn lại phần chênh ({formatCurrency(totals.thu - totals.tra)})
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>

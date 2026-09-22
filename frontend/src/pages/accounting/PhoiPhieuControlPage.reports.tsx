@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPhoiPhieuReport } from '../../api/phoiPhieuClient';
+import { overpayAnnotationOf } from '../../features/accounting/overpayAnnotation';
 import { formatCurrency } from '../../lib/format';
 
 export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
@@ -27,7 +28,7 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
             <td>{formatCurrency(row.tienNang)}</td><td>{formatCurrency(row.tienHa)}</td>
             <td>{formatCurrency(row.psKhac)}</td><td><strong>{formatCurrency(row.tongPhaiThuTra)}</strong></td>
             <td>{formatCurrency(row.daThuTra)}</td><td>{formatCurrency(row.conLai)}</td>
-            <td>{row.daThuTra > row.tongPhaiThuTra && row.tongPhaiThuTra > 0 ? 'Đã thu/trả vượt — cần hoàn lại phần chênh' : row.ghiChu ?? '—'}</td>
+            <td>{[overpayAnnotationOf({ tongPhaiThuTra: row.tongPhaiThuTra, daThuTra: row.daThuTra }), row.ghiChu].filter(Boolean).join(' · ') || '—'}</td>
           </tr>
         ))}
         {grand && (

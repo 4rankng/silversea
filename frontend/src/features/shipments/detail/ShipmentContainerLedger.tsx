@@ -9,6 +9,7 @@ import type {
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useConfirm } from '../../../components/UI';
 import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
@@ -625,6 +626,7 @@ export function ShipmentContainerLedger({
   // Card 20260921_2: the add-row form opens for a ROW's lot (the workboard is
   // multi-lot); removal is a per-row action. Both hide while an edit session
   // is open, and both hide when the parent chose not to wire them.
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [addForRow, setAddForRow] = useState<ShipmentCusContainerFlatRow | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const canMutateRows = onAddContainer != null && onRemoveContainer != null && activeEdit == null;
@@ -700,6 +702,7 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
+        {confirmDialog}
         {addForRow && canMutateRows && (
           <AddContainerRowForm
             shipmentId={addForRow.shipmentId}
@@ -835,7 +838,10 @@ export function ShipmentContainerLedger({
                           className="btn-secondary btn--sm shipment-container-ledger__remove"
                           aria-label={`Xóa container ${row.containerNumber || row.ordinal}`}
                           disabled={addSubmitting || editLoadingRowId === row.id}
-                          onClick={() => void onRemoveContainer?.(row)}
+                          onClick={async () => {
+                            const ok = await confirm(`Xóa container ${row.containerNumber ?? ''}? Dòng đã lưu chỉ xóa được khi chưa gắn chuyến.`, { variant: 'danger', confirmLabel: 'Xóa' });
+                            if (ok) await onRemoveContainer?.(row);
+                          }}
                         >Xóa</button>
                       </div>
                     </td>

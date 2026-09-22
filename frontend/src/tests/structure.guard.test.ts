@@ -263,7 +263,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/features/shipments/cus/CusContainerLedger.tsx': 530,
   // Bumped 750 -> 852: 2026-09-21 card 20260921_2 - per-row add/remove
   // affordances and the inline add-row form on the container workboard.
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 852,
+  // Bumped 852 -> 858: 2026-09-22 card 20260922_3 — the container Xoa gains
+  // the useConfirm danger dialog (confirm-before-delete, cross-cutting
+  // card-20 rule). The whole confirm interaction is worth its lines; split
+  // candidate logged for the wave-close notes.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 858,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T
