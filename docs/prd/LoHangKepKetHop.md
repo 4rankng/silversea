@@ -67,13 +67,13 @@ Khi hai người cùng phân xe, hệ thống không được xác nhận thành
 - Nếu người khác đã đổi phân công trong lúc màn hình đang mở, giữ nội dung đang nhập để đối chiếu và giải thích thay đổi trước khi người dùng tiếp tục. Không âm thầm ghi đè lựa chọn mới của người khác.
 - Sau khi lưu, mở lại công việc hoặc xem từ vai trò liên quan phải thấy phân công mới mà không cần tải lại toàn bộ ứng dụng.
 - Bấm lưu nhiều lần hoặc thử lại sau gián đoạn không tạo thêm cặp, phân công, chi phí hay lương trùng lặp.
-- Có thể xem lại cặp trước đây, người thay đổi và thời điểm thay đổi để giải thích lịch sử vận hành.
+- Có thể xem lại cặp ghép đang có hiệu lực và tình trạng phân công hiện hành.
 
 Mọi thao tác cần Internet. Khi chưa thể xác định đã lưu hay chưa, trạng thái phải nói rõ và làm rõ kết quả trước khi người dùng thử lại. Không cho làm việc ngoại tuyến hoặc tự gửi lại khi có mạng.
 
 ## 4. Hiển thị cho Điều vận, CUS và lái xe
 
-Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, bỏ nhãn hoạt động nhưng vẫn xem được lịch sử.
+Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, nhãn ghép ngừng hiển thị; trạng thái hiện hành của từng công việc vẫn đọc được.
 
 Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.md).
 
@@ -121,7 +121,7 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 2. Từ chối container 40FT trong cặp hai 20FT, container thứ ba, công việc đã thuộc cặp khác và tổng trọng lượng vượt năng lực; mỗi trường hợp có lý do dễ hiểu.
 3. KẸP hợp lệ không tự chặn công việc thứ hai vì xe bận trong chính cặp. Công việc ngoài cặp vẫn bị chặn khi trùng xe/moóc/tài xế.
 4. Hai Điều vận cùng phân xe không tạo phân công mâu thuẫn. Lưu không thành công hoặc thử lại không để lại nửa cặp hay bản ghi trùng.
-5. Sửa, bỏ ghép hoặc phân lại cập nhật đúng cả hai công việc, lịch dùng xe, nhãn, chi phí và lương; mở lại thấy kết quả mới và xem được lịch sử thay đổi.
+5. Sửa, bỏ ghép hoặc phân lại cập nhật đúng cả hai công việc, lịch dùng xe, nhãn, chi phí và lương; mở lại thấy kết quả mới.
 6. Với KẾT HỢP, chưa trả xong Lệnh 1 thì không bắt đầu đóng Lệnh 2. Quy tắc chạy đồng thời của KẸP không làm mất điều kiện này.
 7. Ghép công việc từ lô nhiều container vẫn giữ đúng nguồn, khách hàng, chứng từ, doanh thu, bằng chứng và tiến độ riêng.
 8. Một hành trình dùng chung chỉ có một khoản phí tương ứng và một lần tính lương ghép. Phí độc lập của từng chặng vẫn được giữ; bỏ ghép hoặc thử lại không làm tăng tổng sai.

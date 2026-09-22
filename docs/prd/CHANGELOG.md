@@ -41,6 +41,7 @@ tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc 
 - **Xuất đề nghị thanh toán Ops: trung thực định dạng** (`OpsVanHanh.md`): định dạng không hỗ trợ trả lỗi rõ thay vì im lặng trả xlsx; xlsx là chuẩn xuất, in A4 là đường giấy theo PRD.
 - **Không lộ mã số nội bộ trên sheet đề nghị thanh toán** (`OpsVanHanh.md`): lô thiếu mã hiển thị Số Bill/Booking hoặc "—", không bao giờ hiện DB id.
 - **Kỳ giá dầu ghi Người nhập** (`CuocPhiPhuPhiDau.md` §4): kỳ mới lưu người tạo; kỳ cũ hiển thị "Không xác định".
+- **Lịch sử theo lô bỏ khỏi giao diện, điều chỉnh phân công vẫn giữ lý do và lịch sử** (`LoHangKepKetHop.md` §3.3/§4/§7, `QuyTrinhO2C.md` §3.2): chủ sản phẩm chốt 21/09 — lịch sử audit theo lô chỉ dựng lại khi khách yêu cầu; các bản ghi cặp trước đây/xem lại lịch sử ghép bị bỏ khỏi PRD (đối chiếu tài liệu 22/09). Riêng điều chỉnh phân công của Điều vận giữ nguyên "lý do và lịch sử" qua bản ghi nghiệp vụ vận hành, tách khỏi màn lịch sử lô.
 
 ## 2026-09-20 — Quick-edit lịch & ghi chú mở cho đủ ba vai
 
