@@ -154,6 +154,17 @@ export function FleetVehiclesView() {
   );
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself; plate, driver, status and the action rail stay mandatory.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const t of rows) {
+      if (t.carrierId != null) present.carrier = true;
+      if (t.currentTrailerId && trailerById.get(t.currentTrailerId)) present.trailer = true;
+    }
+    return present;
+  }, [rows, trailerById]);
+
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
@@ -207,8 +218,8 @@ export function FleetVehiclesView() {
             <thead>
               <tr>
                 <SortHeader label="Biển số" sortKey="licensePlate" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />
+                {colPresence.carrier && <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={applySort} />}
+                {colPresence.trailer && <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />}
                 <SortHeader label="Tài xế được gán" sortKey="driverName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 <th aria-label="Thao tác" />
@@ -226,8 +237,8 @@ export function FleetVehiclesView() {
                     <td data-label="Biển số" className="dispatch-catalogs__plate">
                       <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa xe ${t.licensePlate}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(t.id); }}>{t.licensePlate}</button>
                     </td>
-                    <td data-label="Nhà xe" data-empty={t.carrierId == null || undefined}>{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>
-                    <td data-label="Rơ-moóc đang nối" data-empty={!trailer || undefined}>{trailer ? trailer.licensePlate : '—'}</td>
+                    {colPresence.carrier && <td data-label="Nhà xe" data-empty={t.carrierId == null || undefined}>{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>}
+                    {colPresence.trailer && <td data-label="Rơ-moóc đang nối" data-empty={!trailer || undefined}>{trailer ? trailer.licensePlate : '—'}</td>}
                     <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? 'Chưa phân công'}</td>
                     <td data-label="Trạng thái">
                       <BadgeWithDot

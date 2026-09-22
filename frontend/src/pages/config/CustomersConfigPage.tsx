@@ -144,6 +144,28 @@ export default function CustomersConfigPage() {
     }, (a, b) => b.id - a.id);
   }, [customers, customerFilter, sort, customerTripStats]);
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself: the catalog previously spent most of its width on "—"
+  // placeholders. Mandatory columns (Tên khách hàng + actions) always render;
+  // hidden columns return as soon as any filtered row carries data.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const c of filtered) {
+      if (c.shortName?.trim() && c.shortName !== c.name) present.shortName = true;
+      if (c.code?.trim()) present.code = true;
+      if (c.taxCode?.trim()) present.taxCode = true;
+      if (c.address?.trim()) present.address = true;
+      if (c.contactPerson?.trim()) present.contactPerson = true;
+      if (c.phone?.trim()) present.phone = true;
+      if (c.accountantName?.trim()) present.accountantName = true;
+      if (c.accountantPhone?.trim()) present.accountantPhone = true;
+      if (c.contactInfo?.trim()) present.contactInfo = true;
+      if (c.agencyFeePaymentTermDays != null) present.agencyFeePaymentTermDays = true;
+      if (c.paymentTermDays != null) present.paymentTermDays = true;
+    }
+    return present;
+  }, [filtered]);
+
   return (
     <div ref={pageRef} className="cfg-page cfg-page--customers">
       <PageHeader
@@ -248,22 +270,22 @@ export default function CustomersConfigPage() {
             <thead>
               <tr>
                 <SortHeader label="Tên Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Mã Số Thuế" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Địa Chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="SĐT liên hệ" sortKey="phone" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Kế toán liên hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="SĐT Kế toán" sortKey="accountantPhone" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Liên hệ khác" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />
+                {colPresence.shortName && <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={handleSort} />}
+                {colPresence.code && <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />}
+                {colPresence.taxCode && <SortHeader label="Mã Số Thuế" sortKey="taxCode" sort={sort} onSortChange={handleSort} />}
+                {colPresence.address && <SortHeader label="Địa Chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />}
+                {colPresence.contactPerson && <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />}
+                {colPresence.phone && <SortHeader label="SĐT liên hệ" sortKey="phone" sort={sort} onSortChange={handleSort} />}
+                {colPresence.accountantName && <SortHeader label="Kế toán liên hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />}
+                {colPresence.accountantPhone && <SortHeader label="SĐT Kế toán" sortKey="accountantPhone" sort={sort} onSortChange={handleSort} />}
+                {colPresence.contactInfo && <SortHeader label="Liên hệ khác" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />}
+                {colPresence.agencyFeePaymentTermDays && <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />}
+                {colPresence.paymentTermDays && <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />}
                 <th style={{ width: 88 }}></th>
               </tr>
             </thead>
             <tbody>
-              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={13} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'}</td></tr>}
+              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={2 + Object.keys(colPresence).length} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'}</td></tr>}
               {filtered.map((c, index) => (
                 <tr key={c.id}>
                   <td data-label="Tên Khách hàng" className="cfg-customer-identity">
@@ -275,17 +297,17 @@ export default function CustomersConfigPage() {
                     </div>
                     <CustomerCompactDetails customer={c} />
                   </td>
-                  <td data-label="Tên viết tắt">{c.shortName || '—'}</td>
-                  <td data-label="Mã KH">{c.code || '—'}</td>
-                  <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>
-                  <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || '—'}</td>
-                  <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>
-                  <td data-label="SĐT liên hệ">{c.phone || '—'}</td>
-                  <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>
-                  <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>
-                  <td data-label="Liên hệ khác" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>
-                  <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>
-                  <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>
+                  {colPresence.shortName && <td data-label="Tên viết tắt">{c.shortName || '—'}</td>}
+                  {colPresence.code && <td data-label="Mã KH">{c.code || '—'}</td>}
+                  {colPresence.taxCode && <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>}
+                  {colPresence.address && <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || '—'}</td>}
+                  {colPresence.contactPerson && <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>}
+                  {colPresence.phone && <td data-label="SĐT liên hệ">{c.phone || '—'}</td>}
+                  {colPresence.accountantName && <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>}
+                  {colPresence.accountantPhone && <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>}
+                  {colPresence.contactInfo && <td data-label="Liên hệ khác" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>}
+                  {colPresence.agencyFeePaymentTermDays && <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>}
+                  {colPresence.paymentTermDays && <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>}
                   <td
                     data-label=""
                     className="record-table__action"

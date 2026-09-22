@@ -90,7 +90,9 @@ describe('RoutesConfigPage dispatcher edit/delete access', () => {
     await screen.findByText('Hải Phòng - Nội Bài');
 
     expect(screen.getByRole('button', { name: /Thêm tuyến/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(8);
+    // Card 20260922_22: columns render by data presence — the fixture fills
+    // code/loadPoint/distanceKm, so name + those three + actions = 5.
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(5);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 
@@ -98,7 +100,9 @@ describe('RoutesConfigPage dispatcher edit/delete access', () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
 
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(8);
+    // Card 20260922_22: columns render by data presence — the fixture fills
+    // code/loadPoint/distanceKm, so name + those three + actions = 5.
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(5);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });

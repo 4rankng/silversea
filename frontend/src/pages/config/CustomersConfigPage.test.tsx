@@ -56,10 +56,19 @@ function makeCustomer(id: number, name: string, creditLimit: string): Customer {
   return {
     id,
     name,
-    taxCode: null,
-    contactPerson: null,
-    phone: null,
-    contactInfo: null,
+    // Card 20260922_22: populated optional fields keep the full column set
+    // visible under the presence-driven model this suite's counts assert.
+    shortName: `TCT-${id}`,
+    code: `KH-${String(id).padStart(3, '0')}`,
+    taxCode: `010${String(id).padStart(8, '0')}`,
+    address: `Số ${id} đường Trần Phú`,
+    contactPerson: `Người liên hệ ${id}`,
+    phone: `09010000${String(id).padStart(2, '0')}`,
+    accountantName: `Kế toán ${id}`,
+    accountantPhone: `09020000${String(id).padStart(2, '0')}`,
+    contactInfo: 'Zalo / email',
+    agencyFeePaymentTermDays: 30,
+    paymentTermDays: 45,
     creditLimit,
     creditWarningThreshold: null,
     status: 'ACTIVE',
@@ -118,7 +127,8 @@ describe('CustomersConfigPage client-side sorting', () => {
     fireEvent.click(within(details).getByText('Thông tin chi tiết'));
     expect(details.open).toBe(true);
     expect(within(details).getByText('Khách hàng An')).toBeVisible();
-    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng Khách hàng An' }));
+    // The row-action label prefers the populated shortName (component contract).
+    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng TCT-1' }));
     expect(within(row).getByRole('button', { name: 'Sửa' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Xoá' })).toBeInTheDocument();
   });

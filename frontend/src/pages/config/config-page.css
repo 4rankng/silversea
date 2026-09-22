@@ -607,26 +607,49 @@
 }
 
 /* ── Desktop: routes-table layout ────────────────────────────────────
-   Uses table-layout: fixed + explicit widths so columns distribute
-   evenly across the 7-column layout (Mã tuyến, Tên tuyến, Tên rút gọn,
-   Điểm đóng trả, Khoảng cách, Ghi chú, actions). */
-.routes-table { min-width: 980px; table-layout: fixed; width: 100%; }
-.routes-table thead th:nth-child(1) { width: 12%; }   /* Mã tuyến */
-.routes-table thead th:nth-child(2) { width: 20%; }   /* Tên tuyến */
-.routes-table thead th:nth-child(3) { width: 16%; }   /* Tên rút gọn */
-.routes-table thead th:nth-child(4) { width: 18%; }   /* Điểm đóng trả */
-.routes-table thead th:nth-child(5) { width: 10%; }   /* Khoảng cách */
-.routes-table thead th:nth-child(6) { width: 16%; }   /* Ghi chú */
-.routes-table thead th:nth-child(7) { width: 8%;  }   /* actions */
+   Card 20260922_22: columns size to their real content (table-layout: auto)
+   instead of equal-split fixed shares — persistently-empty columns are
+   hidden at the component level (colPresence), so the width budget goes to
+   data. Code/distance/toll cells keep their tokens on one line (nowrap);
+   name and note wrap freely. */
+.routes-table { min-width: 0; table-layout: auto; width: 100%; }
 /* Allow text to wrap inside cells so long content stays readable. The action
-   cell is excluded — it hosts the row's absolutely-positioned kebab dropdown. */
+   cell is excluded — it hosts the row's absolutely-positioned kebab dropdown.
+   Code/num cells keep tokens on one line (card 20260922_22: no token break).
+   */
 .routes-table tbody td:not(.record-table__action) {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.routes-table tbody td:nth-child(1) .row-strong {
+.routes-table td.routes-table__code,
+.routes-table td.num {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.routes-table tbody td.routes-table__name .row-strong {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* ── Desktop: customers-table layout ────────────────────────────────
+   Card 20260922_22: columns size to their real content (table-layout:
+   auto) and persistently-empty columns hide at the component level
+   (colPresence), so the width budget goes to data. Customer codes, tax
+   codes, phones and payment terms keep their tokens on one line; the
+   identity cell and prose columns wrap freely. */
+.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }
+.cfg-customer-table tbody td:not(.record-table__action) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Identifiers scan as single tokens: Mã KH, MST, SĐT and payment terms. */
+.cfg-customer-table td[data-label='Mã KH'],
+.cfg-customer-table td[data-label='Mã Số Thuế'],
+.cfg-customer-table td[data-label='SĐT liên hệ'],
+.cfg-customer-table td[data-label='SĐT Kế toán'],
+.cfg-customer-table td.num {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* When the shared record-table base collapses rows to labelled cards

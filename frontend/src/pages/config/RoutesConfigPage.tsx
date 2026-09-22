@@ -62,10 +62,27 @@ export default function RoutesConfigPage() {
     (a, b) => b.id - a.id,
   ), [routes, sort]);
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself: the equal-split fixed layout was spending over half the table
+  // width on "—" placeholders. Mandatory columns (Tên tuyến) always render;
+  // hidden columns return as soon as any row carries data.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const r of filtered) {
+      if (r.code?.trim()) present.code = true;
+      if (r.shortName?.trim() && r.shortName !== r.name) present.shortName = true;
+      if (r.loadPoint?.trim()) present.loadPoint = true;
+      if (r.distanceKm != null) present.distanceKm = true;
+      if (r.tollsStations != null) present.tollsStations = true;
+      if (r.note?.trim()) present.note = true;
+    }
+    return present;
+  }, [filtered]);
+
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
       <PageHeader
-        title="Tuyến đường & Cự ly"
+        title="Tuyến đường"
         description={isPending ? 'Đang tải tuyến đường…' : <><strong>{totalCount}</strong> tuyến đang quản lý</>}
         onBack={handleBack}
         iconName="route-distance"
@@ -107,29 +124,29 @@ export default function RoutesConfigPage() {
           <table className="record-table ops-table routes-table" aria-busy={isFetching}>
             <thead>
               <tr>
-                <SortHeader label="Mã Tuyến" sortKey="code" sort={sort} onSortChange={handleSort} />
+                {colPresence.code && <SortHeader label="Mã Tuyến" sortKey="code" sort={sort} onSortChange={handleSort} />}
                 <SortHeader label="Tên tuyến" sortKey="name" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Tên tuyến rút gọn" sortKey="shortName" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Điểm đóng/trả" sortKey="loadPoint" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label="Khoảng Cách (km)" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label="Vé cầu đường" sortKey="tollsStations" sort={sort} onSortChange={handleSort} />
-                <th>Ghi chú</th>
+                {colPresence.shortName && <SortHeader label="Tên tuyến rút gọn" sortKey="shortName" sort={sort} onSortChange={handleSort} />}
+                {colPresence.loadPoint && <SortHeader label="Điểm đóng/trả" sortKey="loadPoint" sort={sort} onSortChange={handleSort} />}
+                {colPresence.distanceKm && <SortHeader className="num" label="Khoảng Cách (km)" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />}
+                {colPresence.tollsStations && <SortHeader className="num" label="Vé cầu đường" sortKey="tollsStations" sort={sort} onSortChange={handleSort} />}
+                {colPresence.note && <th>Ghi chú</th>}
                 <th style={{ width: 88 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{isPending ? 'Đang tải tuyến đường…' : isError ? 'Không tải được tuyến đường.' : search ? 'Không có tuyến đường phù hợp.' : 'Chưa có dữ liệu'}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={2 + Object.keys(colPresence).length} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>{isPending ? 'Đang tải tuyến đường…' : isError ? 'Không tải được tuyến đường.' : search ? 'Không có tuyến đường phù hợp.' : 'Chưa có dữ liệu'}</td></tr>}
               {filtered.map((r, index) => (
                 <tr key={r.id}>
-                  <td data-label="Mã tuyến" data-empty={!r.code?.trim() || undefined} className="routes-table__code" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
+                  {colPresence.code && <td data-label="Mã tuyến" data-empty={!r.code?.trim() || undefined} className="routes-table__code" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>}
                   <td data-label="Tên tuyến" className="routes-table__name">
                     <div className="row-strong">{r.name}</div>
                   </td>
-                  <td data-label="Tên rút gọn" data-empty={!r.shortName?.trim() || r.shortName === r.name || undefined}>{r.shortName || '—'}</td>
-                  <td data-label="Điểm đóng trả" data-empty={!r.loadPoint?.trim() || undefined}>{r.loadPoint || '—'}</td>
-                  <td className="num routes-table__distance" data-label="Khoảng cách" data-empty={r.distanceKm == null || undefined}>{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
-                  <td className="num" data-label="Vé cầu đường" data-empty={r.tollsStations == null || undefined}>{r.tollsStations ?? '—'}</td>
-                  <td data-label="Ghi chú" data-empty={!r.note?.trim() || undefined} className="routes-table__note" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
+                  {colPresence.shortName && <td data-label="Tên rút gọn" data-empty={!r.shortName?.trim() || r.shortName === r.name || undefined}>{r.shortName || '—'}</td>}
+                  {colPresence.loadPoint && <td data-label="Điểm đóng trả" data-empty={!r.loadPoint?.trim() || undefined}>{r.loadPoint || '—'}</td>}
+                  {colPresence.distanceKm && <td className="num routes-table__distance" data-label="Khoảng cách" data-empty={r.distanceKm == null || undefined}>{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>}
+                  {colPresence.tollsStations && <td className="num" data-label="Vé cầu đường" data-empty={r.tollsStations == null || undefined}>{r.tollsStations ?? '—'}</td>}
+                  {colPresence.note && <td data-label="Ghi chú" data-empty={!r.note?.trim() || undefined} className="routes-table__note" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', overflowWrap: 'anywhere' }}>{r.note || '—'}</td>}
                   <td
                     data-label=""
                     className="record-table__action"

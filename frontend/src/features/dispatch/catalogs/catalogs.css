@@ -97,6 +97,10 @@
      these lookup tables are narrow enough to fit the viewport, so keep them
      unbounded like the other worksheet pages. */
   min-width: 0;
+  /* Card 20260922_22: columns size to their real content — persistently
+     empty columns hide at the component level (colPresence), so fixed
+     equal-split layout would waste the freed width. */
+  table-layout: auto;
   /* separate (not collapse) bounded worksheets keep the sticky thead's
      border-bottom rendering with the pinned cells. */
   border-collapse: separate;
@@ -147,6 +151,13 @@
 
 .dispatch-catalogs__table td[data-label="Mã tài xế"] .dispatch-catalogs__desktop-driver-code {
   white-space: nowrap;
+}
+
+/* Trailer plates are single tokens like tractor plates (card 20260922_22:
+   content-sized auto layout with conditionally-hidden empty columns). */
+.dispatch-catalogs__table td[data-label="Rơ-moóc đang nối"] {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* Bank names are prose ("Ngoại thương Việt Nam (VCB)") — cap the column and

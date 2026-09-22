@@ -56,6 +56,19 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
     // narrowest band outright.
     expect(base).toContain('@container (max-width: 360px)');
   });
+
+  it('pins the catalogs to content-sized auto layout without width shares (card 20260922_22)', () => {
+    // Both config catalogs size columns to real content; persistently-empty
+    // columns hide at the component level (colPresence), so no equal-split
+    // nth-child width share may re-enter the routes block, and the customers
+    // table carries the same auto-layout contract.
+    expect(css).toContain('.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }');
+    const routesBlock = css.slice(
+      css.indexOf('.routes-table { min-width: 0;'),
+      css.indexOf('/* When the shared record-table base collapses'),
+    );
+    expect(routesBlock).not.toMatch(/nth-child\(\d+\)\s*\{\s*width:/);
+  });
 });
 
 describe('customer catalog uses compact scoped summary and record layouts', () => {

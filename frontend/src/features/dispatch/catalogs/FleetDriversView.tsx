@@ -87,6 +87,23 @@ export function FleetDriversView() {
   );
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself, so the width budget goes to data instead of "—" placeholders.
+  // The Mã tài xế column stays mandatory: it hosts the row's edit button.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const d of rows) {
+      if (d.idNumber?.trim()) present.idNumber = true;
+      if (d.licenseNumber?.trim()) present.licenseNumber = true;
+      if (d.licenseExpiryDate) present.licenseExpiryDate = true;
+      if (d.phone?.trim()) present.phone = true;
+      if (d.bankName?.trim()) present.bankName = true;
+      if (d.bankAccount?.trim()) present.bankAccount = true;
+      if (d.salaryType?.trim()) present.salaryType = true;
+    }
+    return present;
+  }, [rows]);
+
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Tài xế' }]} />
@@ -127,13 +144,13 @@ export function FleetDriversView() {
               <tr>
                 <SortHeader label="Mã tài xế" sortKey="code" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Họ tên" sortKey="name" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số CCCD" sortKey="idNumber" sort={sort} onSortChange={applySort} />
-                <SortHeader label="GPLX" sortKey="licenseNumber" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hạn bằng lái" sortKey="licenseExpiryDate" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />
+                {colPresence.idNumber && <SortHeader label="Số CCCD" sortKey="idNumber" sort={sort} onSortChange={applySort} />}
+                {colPresence.licenseNumber && <SortHeader label="GPLX" sortKey="licenseNumber" sort={sort} onSortChange={applySort} />}
+                {colPresence.licenseExpiryDate && <SortHeader label="Hạn bằng lái" sortKey="licenseExpiryDate" sort={sort} onSortChange={applySort} />}
+                {colPresence.phone && <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />}
+                {colPresence.bankName && <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />}
+                {colPresence.bankAccount && <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />}
+                {colPresence.salaryType && <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />}
               </tr>
             </thead>
             <tbody>
@@ -151,9 +168,9 @@ export function FleetDriversView() {
                     {d.code?.trim() && <span className="dispatch-catalogs__compact-driver-code">Mã: {d.code}</span>}
                   </td>
                   <td data-label="Họ tên" className="dispatch-catalogs__desktop-driver-name">{d.name}</td>
-                  <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>
-                  <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>
-                  <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>
+                  {colPresence.idNumber && <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>}
+                  {colPresence.licenseNumber && <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>}
+                  {colPresence.licenseExpiryDate && <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>
                     {d.licenseExpiryDate ? (
                       <>
                         <span className="dispatch-catalogs__license-date">{formatISODate(d.licenseExpiryDate)}</span>
@@ -169,11 +186,11 @@ export function FleetDriversView() {
                         })()}
                       </>
                     ) : '—'}
-                  </td>
-                  <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>
-                  <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>
-                  <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>
-                  <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>
+                  </td>}
+                  {colPresence.phone && <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>}
+                  {colPresence.bankName && <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>}
+                  {colPresence.bankAccount && <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>}
+                  {colPresence.salaryType && <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>}
                 </tr>
               ))}
             </tbody>
