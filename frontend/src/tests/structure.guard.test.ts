@@ -255,7 +255,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 1123 → 1130: 2026-09-20 card 20260920_26 — the row-cell "+ Thêm"
   // buttons move into the combobox listbox as a typed-text create option;
   // split debt tracked on the D1 extraction note.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1130,
+  // Bumped 1130 → 1160: 2026-09-22 card 20260922_6 — the cược-container
+  // deposit row docks under the identity grid (fca7be71); extraction of the
+  // deposit fields into their own component rides the PhoiPhieu rework stack.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1160,
   // Bumped 1143 → 1169: 2026-09-18 card 20260918_8 — row-tier creatable
   // factory/route cells (allowsCustomValue + raw passthrough updaters).
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
