@@ -70,6 +70,20 @@ const CANONICAL_CLASSES = [
   { code: 'CONT40', name: 'Container 40 feet', isContainer: true, sortOrder: 9 },
 ] as const;
 
+// Card 20260922_58 (catalog half): four container PRICE classes split by
+// cargo weight — labels verbatim from the customer sheet (BÁO GIÁ MẪU 1,
+// LONG MINH). Weight does not split fuel norms (sheet pairs share
+// lít/chuyến: 64/64 and 70/70), so norms stay keyed on CONT20/CONT40 and
+// the price-selection half (card _66) resolves the class via shared
+// resolveContainerPriceClass (boundary: <20t light, >=20t heavy, missing
+// weight blocks).
+const CANONICAL_CONTAINER_PRICE_CLASSES = [
+  { code: 'CONT20.LIGHT', name: 'Cont 20 - Trọng tải < 20 tấn', isContainer: true, sortOrder: 10 },
+  { code: 'CONT20.HEAVY', name: 'Cont 20 - Trọng tải > 20 tấn', isContainer: true, sortOrder: 11 },
+  { code: 'CONT40.LIGHT', name: 'Cont 40 nhẹ - Trọng tải < 20 tấn', isContainer: true, sortOrder: 12 },
+  { code: 'CONT40.HEAVY', name: 'Cont 40 nặng - Trọng tải > 20 tấn', isContainer: true, sortOrder: 13 },
+] as const;
+
 // Design liters/km ladder (CuocPhiThietKeDB.md §3.3) — DEMO until the
 // customer confirms real consumption norms.
 const CANONICAL_NORMS: Record<string, string> = {
@@ -174,7 +188,7 @@ export async function seedDemoFreightPricing(): Promise<void> {
 // ─── Step 1: vehicle size classes (ensure-if-missing) ───────────────────────
 async function ensureVehicleSizeClasses(): Promise<void> {
   let created = 0;
-  for (const cls of CANONICAL_CLASSES) {
+  for (const cls of [...CANONICAL_CLASSES, ...CANONICAL_CONTAINER_PRICE_CLASSES]) {
     const [existing] = await db.select({ id: s.vehicleSizeClasses.id })
       .from(s.vehicleSizeClasses)
       .where(eq(s.vehicleSizeClasses.code, cls.code))
@@ -183,7 +197,8 @@ async function ensureVehicleSizeClasses(): Promise<void> {
     await db.insert(s.vehicleSizeClasses).values({ ...cls });
     created += 1;
   }
-  console.log(`✅ Vehicle size classes verified! (${CANONICAL_CLASSES.length - created} present, ${created} new)`);
+  const total = CANONICAL_CLASSES.length + CANONICAL_CONTAINER_PRICE_CLASSES.length;
+  console.log(`✅ Vehicle size classes verified! (${total - created} present, ${created} new)`);
 }
 
 // ─── Step 2: real fuel price periods (insert-if-missing, never modify) ──────
