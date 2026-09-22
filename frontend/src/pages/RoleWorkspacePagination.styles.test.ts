@@ -9,8 +9,12 @@ describe('role workspace pagination', () => {
   it('keeps CUS pagination in normal flow at tablet and mobile widths', () => {
     const css = readPageCss('ShipmentsPage.css');
 
-    expect(css).toMatch(/\.cus-dashboard-viewport > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
-    expect(css).toMatch(/@media \(max-width:\s*1100px\)[\s\S]*?\.cus-dashboard-viewport > \.ds-pagination\s*\{[^}]*position:\s*static;/);
+    // Card 20260922_20: the desktop sticky pinned to a scrollport that is
+    // not main.app-body and floated the bar mid-list over rows — the pager
+    // is in flow at EVERY width now, which subsumes the desktop-sticky/
+    // static-cards split this test pinned (same ruling as card 20260921_22).
+    expect(css).toMatch(/\.cus-dashboard-viewport > \.ds-pagination\s*\{[^}]*position:\s*static;/);
+    expect(css).not.toMatch(/\.cus-dashboard-viewport > \.ds-pagination[^}]*sticky/);
   });
 
   it('keeps dispatcher pagination in normal flow when the plan becomes cards', () => {
