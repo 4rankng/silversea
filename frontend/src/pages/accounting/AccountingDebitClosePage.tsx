@@ -186,8 +186,11 @@ export default function AccountingDebitClosePage() {
         </span>
       </div>
       {boardQuery.isError && <p role="alert">Không tải được bảng tổng hợp. Vui lòng thử lại.</p>}
-      <div className="shipment-container-ledger" role="region" aria-label="Bảng Kế hoạch điều động tổng hợp" tabIndex={0}>
-        <table className="tt-table">
+      <div className="shipment-container-ledger" role="region" aria-label="Bảng Kế hoạch điều động tổng hợp" tabIndex={0} style={{ overflowX: 'auto' }}>
+        {/* 18 columns cannot squeeze below readable width — floor the table
+            and let the wrapper scroll horizontally (hard-gate fix: at 1440
+            the auto layout collapsed cells into overlapping text). */}
+        <table className="tt-table" style={{ minWidth: 2600 }}>
           <caption>KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP — thu/trả theo lô (cước vận chuyển)</caption>
           <thead>
             <tr>
