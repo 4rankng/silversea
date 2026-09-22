@@ -430,30 +430,10 @@
   gap: 12px;
 }
 
-.debit-template-list-empty__image {
-  width: clamp(150px, 18vw, 230px);
-  aspect-ratio: 1;
-  object-fit: contain;
-  margin-bottom: 2px;
-}
-
-.debit-template-list-empty__copy {
-  display: grid;
-  gap: 5px;
-  max-width: 340px;
-}
-
-.debit-template-list-empty__copy strong,
 .debit-template-list-empty > strong {
   font-size: var(--text-section-size);
   line-height: 1.35;
   color: var(--ink);
-}
-
-.debit-template-list-empty__copy span {
-  font-size: var(--text-data-size);
-  line-height: 1.5;
-  color: var(--ink-3);
 }
 
 @media (max-width: 720px) {
@@ -477,10 +457,6 @@
   .debit-template-list-empty {
     min-height: 340px;
     padding: 32px 18px;
-  }
-
-  .debit-template-list-empty__image {
-    width: clamp(142px, 42vw, 190px);
   }
 }
 

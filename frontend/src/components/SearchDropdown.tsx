@@ -44,7 +44,7 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
     return (
       <div style={dropdownStyle}>
         <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-body-size)', lineHeight: 1.45 }}>
-          <EmptyIllustration name="empty-search" width={118} height={96} style={{ margin: '0 auto 8px', display: 'block' }} />
+          <EmptyIllustration context="search" width={118} height={96} style={{ margin: '0 auto 8px', display: 'block' }} />
           <div>Không có kết quả</div>
         </div>
       </div>
