@@ -72,7 +72,7 @@ CARDS = [
             (f'{EV}/staging/staging-shipments-detail-1568.png',
              'Staging `/shipments-detail` toàn màn (1568×1000, tài khoản thanhdc) — trạng thái người dùng chụp lại'),
             (f'{EV}/screens/desktop/cus__shipments-detail.png',
-             'Cùng màn trên local HEAD (1440px): cột "Thao tác" 89px, hiển thị đúng — chứng minh bản vá đã có trong code, chỉ thiếu ở build đang phát'),
+             'Cùng màn trên local HEAD (ảnh chụp 1440px): cột "Thao tác" 80px và hiển thị đúng — chứng minh bản vá đã có trong code, chỉ thiếu ở build đang phát'),
         ],
         facts=[
             'Staging `GET /api/health` → `buildHash: bf6e659a`; commit `bf6e659a` (22/09 08:55) là cha của `8e21fbdf` (22/09 12:34) — kiểm chứng bằng `git merge-base --is-ancestor`.',
