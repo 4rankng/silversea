@@ -376,39 +376,6 @@
   font-weight: 500;
 }
 
-/* Mini search in drivers card */
-.fleet-page .fleet-mini-search {
-  position: relative;
-  width: 220px;
-}
-
-.fleet-page .fleet-mini-search input {
-  width: 100%;
-  min-height: var(--filter-control-h);
-  padding: 10px 10px 10px 32px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: var(--text-control-size);
-  line-height: 1.35;
-  color: var(--ink);
-}
-
-.fleet-page .fleet-mini-search input:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
-}
-
-.fleet-page .fleet-mini-search svg {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ink-3);
-}
-
 /* Table footer legend */
 .fleet-page .fleet-legend {
   display: flex;
@@ -1076,9 +1043,6 @@
     height: 42px;
   }
 
-  .fleet-page .fleet-mini-search {
-    width: 140px;
-  }
   .fleet-page .fleet-card-head {
     flex-direction: column;
     align-items: flex-start;
@@ -1087,10 +1051,6 @@
   .fleet-page .fleet-card-tools {
     width: 100%;
     flex-wrap: wrap;
-  }
-  .fleet-page .fleet-mini-search {
-    width: 100%;
-    flex: 1;
   }
 
   /* ── Pass 13 mobile tweaks (2026-06-02) ── */

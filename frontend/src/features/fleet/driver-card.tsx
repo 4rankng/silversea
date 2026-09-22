@@ -1,5 +1,6 @@
 import { useState, memo } from "react";
-import { UserRoundCheck, Plus, Search, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { UserRoundCheck, Plus, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { ListFilterBar } from "../../components/ListFilterBar";
 import { Panel, StatusPill, Modal } from "../../components/UI";
 import { StatusStrip } from "../../components/shared/StatusStrip";
 import { useCRUD } from "../../hooks/useCRUD";
@@ -147,22 +148,22 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
           </div>
         </div>
         <div className="fleet-card-tools">
-          <div className="fleet-mini-search">
-            <Search size={14} />
-            <input
-              type="text"
-              name="driverSearch"
-              aria-label="Tìm lái xe theo tên hoặc số điện thoại"
-              placeholder="Tìm tên hoặc SĐT…"
-              value={driverSearch}
-              onChange={(e) => setDriverSearch(e.target.value)}
-            />
-          </div>
           <button className="btn btn--primary btn--sm" onClick={() => crud.setShowAddForm(true)}>
             <Plus size={13} /> Thêm lái xe
           </button>
         </div>
       </div>
+      {/* Shared filter-bar contract: the driver view's hand-rolled mini-search
+          cuts over to the one shared bar; filter behavior is unchanged
+          (case-insensitive name/phone substring on the trimmed query). */}
+      <ListFilterBar
+        search={{
+          value: driverSearch,
+          onChange: setDriverSearch,
+          placeholder: "Tìm tên hoặc SĐT…",
+          ariaLabel: "Tìm lái xe theo tên hoặc số điện thoại",
+        }}
+      />
       <div className="desktop-only">
         <div className="table-scroll">
           <table className="tt-table">
