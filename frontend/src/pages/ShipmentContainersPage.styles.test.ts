@@ -7,6 +7,7 @@ const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'ut
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/ShipmentContainerLedger.tsx'), 'utf8');
 const railCss = readFileSync(resolve(process.cwd(), 'src/design-system/SummaryRail.css'), 'utf8');
+const missingSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/ShipmentMissingFieldsSummary.tsx'), 'utf8');
 
 describe('shipment detail workboard styling', () => {
   it('UI-CD-14 leaves nested shared control inputs to their own component styling', () => {
@@ -246,19 +247,27 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/__row--missing-date > th,/);
     expect(css).not.toMatch(/__row--missing-date > td\s*\{/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-pending/);
-    expect(css).toMatch(/shipment-container-ledger__vehicle-state/);
+    // Card 20260922_24: the duplicate dispatch-state badge is gone — the amber
+    // cell tint is the only vehicle-attention cue in the Phân xe cell, because
+    // the state itself is printed once, in the Trạng thái cell.
+    expect(css).not.toMatch(/shipment-container-ledger__vehicle-state/);
+    expect(ledgerSource).not.toMatch(/__vehicle-state">/);
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(ledgerSource).not.toContain('shipment-container-ledger__vehicle-guidance');
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
-    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
+    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__plate--missing\)/);
     // Status chips are UUI badges: the component owns fill, ring, and geometry;
     // page CSS only tunes type so a chip can never read as a button.
     expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).not.toMatch(/__plate--missing\s*\{[^}]*border/);
-    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*color:\s*var\(--warning-text\);/);
     expect(ledgerSource).toMatch(/<BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">/);
-    expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state">/);
+    expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap">/);
+    // The missing-fields toggle names the field (single) or the count — never a
+    // bare "Thiếu dữ liệu" that contradicts the row's own status.
+    expect(missingSource).toMatch(/missingFields\.length === 1/);
+    expect(missingSource).toMatch(/Thiếu \$\{missingFields\[0\]\.label\}/);
+    expect(missingSource).not.toMatch(/Thiếu dữ liệu\{open/);
     expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap">/);
     expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*width:\s*fit-content;[^}]*font-size:\s*var\(--text-caption-size\);/);
     // The triage summary is one compact amber chip — a count disclosure that
@@ -276,5 +285,26 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/__direction--export\s*\{[^}]*var\(--brand/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
+  });
+
+  it('card 20260922_21: the colgroup always shares exactly 100% and the narrow band keeps the actions column usable', () => {
+    const width = (cls: string) => {
+      const m = css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`));
+      expect(m, `missing width for col--${cls}`).toBeTruthy();
+      return Number(m![1]);
+    };
+    // The 09-22 regression: eight columns pinned 100% and the ninth had no rule,
+    // so table-layout:fixed collapsed the actions column to 0px from ~1366px up.
+    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
+    expect(base.reduce((a, b) => a + b, 0)).toBe(100);
+    // The 1101-1365 band re-points notes+actions; the pair must keep the base
+    // total so no other column's share drifts, and actions must stay >= 9%
+    // (>= 88px at the band's table widths) so "＋ Thêm" cannot wrap vertically.
+    const band = css.match(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{([\s\S]*?)\n\}/);
+    expect(band).toBeTruthy();
+    const bandNotes = Number(/col--notes\s*\{\s*width:\s*([\d.]+)%/.exec(band![1])![1]);
+    const bandActions = Number(/col--actions\s*\{\s*width:\s*([\d.]+)%/.exec(band![1])![1]);
+    expect(bandNotes + bandActions).toBe(width('notes') + width('actions'));
+    expect(bandActions).toBeGreaterThanOrEqual(9);
   });
 });

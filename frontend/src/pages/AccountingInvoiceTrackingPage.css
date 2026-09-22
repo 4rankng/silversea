@@ -141,3 +141,56 @@
   gap: 8px;
 }
 
+
+/* ── Card 20260922_23 — legibility of the 13-column board ───────────────────
+   Measured on the shared .tt-table base: every header cell was 98px with
+   `white-space: nowrap`, so "Thông tin lô hàng" spilled 49.6px into "Cont"
+   (35.5x14px of overlapping text) and "Nhà cung cấp hđ" 38.2px into "Thông
+   tin hđ"; the data cells used `overflow-wrap: anywhere`, splitting tokens
+   mid-line (QATU1234|569, SHP-|2609-|00020, 21/09/202|6, 12.000.000|đ).
+   Headers wrap inside their own cell now, and the token-bearing columns are
+   nowrap so a code/date/amount can never break — the table scrolls sideways
+   instead, which is what `.table-scroll` is for. */
+.invoice-tracking-table thead th {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Token columns: STT(1) · Ngày(2) · Cont(4) · MST(5) · Số tiền trả(8) ·
+   Chênh lệch(10) · Ngày gửi hđ(11) · Tiến độ(13). */
+.invoice-tracking-table tbody td:nth-child(1),
+.invoice-tracking-table tbody td:nth-child(2),
+.invoice-tracking-table tbody td:nth-child(4),
+.invoice-tracking-table tbody td:nth-child(5),
+.invoice-tracking-table tbody td:nth-child(8),
+.invoice-tracking-table tbody td:nth-child(10),
+.invoice-tracking-table tbody td:nth-child(11) {
+  white-space: nowrap;
+}
+
+/* The lot cell stacks mã lô over khách hàng: the code is a token, the name
+   wraps at spaces (never mid-word). */
+.invoice-tracking-table .ivt-stack { min-width: 0; }
+.invoice-tracking-table .ivt-stack > span { white-space: nowrap; }
+.invoice-tracking-table .ivt-stack__sub { overflow-wrap: break-word; word-break: normal; white-space: normal; }
+
+/* Content-sized columns: the three wide ones claim their fair share instead of
+   matching the width of a two-letter header. */
+.invoice-tracking-table thead th:nth-child(3) { min-width: 164px; }
+.invoice-tracking-table thead th:nth-child(6) { min-width: 144px; }
+.invoice-tracking-table thead th:nth-child(7) { min-width: 152px; }
+.invoice-tracking-table thead th:nth-child(12) { min-width: 96px; }
+
+/* ≤640px: 14 columns cannot fit a phone. Keep every column readable (≥88px for
+   the narrow ones) and let .table-scroll scroll sideways — the measured mobile
+   failure was 24.9–36.9px cells with every value stacked one character per
+   line (customer name 231px tall). */
+@media (max-width: 640px) {
+  .invoice-tracking-table { min-width: 1180px; }
+  .invoice-tracking-table thead th { min-width: 88px; }
+  .invoice-tracking-table thead th:nth-child(1) { min-width: 52px; }
+  .invoice-tracking-table thead th:nth-child(3) { min-width: 180px; }
+  .invoice-tracking-table thead th:nth-child(6) { min-width: 160px; }
+  .invoice-tracking-table thead th:nth-child(7) { min-width: 150px; }
+  .invoice-tracking-table tbody td { white-space: normal; }
+}
