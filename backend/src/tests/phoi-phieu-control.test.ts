@@ -385,6 +385,21 @@ describe('card 20260922_2 rework — over-pay report honesty + voucher id space'
     assert.equal(row.tongPhaiThuTra, 250000, 'Tong stays the 250000 due');
   });
 
+  test('report keeps NULL-trip sources visible under the unknown party', async () => {
+    const { getPhoiPhieuReport } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ charge: 60000 });
+    // Null the source's trip_id — the shape a correct-route linked-replacement
+    // leaves behind (previously the report silently dropped the row).
+    await db.update(s.expenseAccountingSources).set({ tripId: null }).where(eq(s.expenseAccountingSources.id, fixture.source.id));
+    const report = await getPhoiPhieuReport({ kind: 'THU' });
+    const row = report.rows.find((r) => r.party === 'Chưa xác định');
+    assert.ok(row, 'the NULL-trip source still reports under the unknown party');
+    assert.equal(
+      row.tienNang + row.tienHa + row.psKhac > 0, true,
+      'the unknown-party bucket carries the dropped amount',
+    );
+  });
+
   test('board voucher resolves entries on the native OPS id space', async () => {
     const fixture = await mkBoardFixture({ charge: 100000 });
     // Deliberately diverge the two id spaces: extra native entries push the

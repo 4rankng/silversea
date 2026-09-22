@@ -638,8 +638,10 @@ export async function getPhoiPhieuReport(query: {
 
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null }>();
   for (const source of sources) {
-    if (source.tripId == null) continue;
-    const partyInfo = tripParty.get(source.tripId);
+    // A NULL trip (the correct-route linked-replacement nulls the source's
+    // trip_id) must not silently drop the money from the report — it keeps
+    // reporting, bucketed under the unknown party.
+    const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : undefined;
     const party = partyInfo?.name ?? 'Chưa xác định';
     const bucket = groups.get(party) ?? { tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null };
     const bucketKey = bucketByCategory(source.category);
