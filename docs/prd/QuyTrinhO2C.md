@@ -344,6 +344,21 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 
 **Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. Phần **chốt debit vendor** được khách ghi rõ chưa hoàn thiện: giữ quy tắc hiện hành cho tới khi phạm vi mới được xác nhận, không tự áp các mô tả VAT/thời điểm ghi AP còn tạm thời.
 
+### Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (bổ sung 22/09)
+
+- Màn hình kế toán mới: bảng theo lô với đầy đủ cột thu/trả cước vận chuyển (cước thu tự động, Lạch
+  Huyện, phụ phí, phát sinh bên thu; cước trả điều vận, Lạch Huyện điều vận, phát sinh điều vận, tổng 1,
+  phí RU bên trả), cột lợi nhuận = tổng thu − tổng 1 − phí RU; số thiếu hiển thị **"Chưa xác định"**,
+  không bao giờ gán 0. Bộ lọc kiểu excel chỉ ở hai cột: tên khách hàng (Thông tin lô hàng) và tên nhà xe (Phân xe).
+- **"Duyệt" là đối soát, không phải phê duyệt** (quyết định của người dùng 21/09): kế toán tích dòng và
+  gửi **yêu cầu điều chỉnh cước**; trong lúc yêu cầu còn chờ, lô đó **không xuất được debit** (hệ thống
+  từ chối nêu rõ mã lô). Kế toán xác nhận từng dòng hoặc tích tất cả để mở khóa; rút yêu cầu thì lô mở lại
+  và trạng thái đã xác nhận trước đó hiện ra; lô đã khóa số liệu không nhận yêu cầu mới. Xác nhận/rút
+  không bao giờ làm thay đơn giá.
+- Phí RU tự động từ bảng giá (rate RU) — chưa có dữ liệu giá thì hiển thị "Chưa xác định". Riêng phần
+  chốt debit chi tiết (Debit tab, VAT, Lần/Tháng, TỔNG HỢP CÔNG NỢ) vẫn **ĐỂ LẠI** chờ bản đặc tả hoàn
+  chỉnh của khách hàng.
+
 ## 8. Trải nghiệm chung và độ tin cậy
 
 ### 8.1 Biết chính xác điều gì đã được lưu

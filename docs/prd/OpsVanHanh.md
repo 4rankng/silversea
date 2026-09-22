@@ -105,7 +105,7 @@ Một yêu cầu ứng cũ chưa có chứng cứ giao tiền không được t�
 - Thiếu hoặc khó đọc biên lai không làm tiền tự quay lại ví. Sửa sai số tiền hoặc hủy một khoản ghi nhầm phải có lý do và lịch sử trước/sau.
 - Số dư âm hiển thị đúng số và các khoản tạo ra nó. Không tự kết luận Ops nhận quá nhiều tiền ứng hoặc tự bỏ tiền túi khi không có thông tin chứng minh.
 - Người dùng phân biệt được số đã ghi với khoản đang lưu. Khi chưa biết thao tác đã thành công hay chưa, sản phẩm nói rõ và giúp xác định kết quả trước khi người dùng nhập lại.
-- **Sổ quỹ tách hai nguồn** (chốt 21/09, ship 22/09): mỗi phiếu thu/chi gắn đúng một nguồn quỹ — TK công ty (ACB) hoặc Tiền mặt; sổ của từng nguồn đọc được riêng (số dư đầu, thu, chi, tồn), tài khoản chưa gắn nguồn được đếm riêng và không lẫn vào sổ nguồn nào.
+- **Sổ quỹ tách hai nguồn** (chốt 21/09, ship 22/09): mỗi phiếu thu/chi gắn đúng một nguồn quỹ — TK công ty (ACB) hoặc Tiền mặt; sổ của từng nguồn đọc được riêng (số dư đầu, thu, chi, tồn), tài khoản chưa gắn nguồn được đếm riêng và không lẫn vào sổ nguồn nào. **Lồng ghép lịch sử (chốt 22/09):** sổ đơn nguồn cũ nhập vào dòng tiền TK công ty (ACB) bằng một lần phân loại tài khoản cũ — các bút toán cũ giữ nguyên vẹn (sổ chỉ thêm), hiện ngay trong sổ ACB với số dư chạy liên tục; nguồn Tiền mặt bắt đầu trống từ thời điểm bật.
 
 Các thông tin **Số dư**, **Tiền nhận**, **Đã chi**, **Đã hoàn trả** phải dễ đọc, nhưng không chiếm gần hết màn hình. Lịch sử giao dịch và hành động thường dùng xuất hiện sớm trên điện thoại và máy tính bảng.
 

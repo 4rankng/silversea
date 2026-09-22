@@ -13,6 +13,17 @@ tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc 
 - **Bảng điều khiển phôi phiếu và theo dõi hóa đơn kết hợp** (`OpsVanHanh.md` §9.2): kế toán quản lý phiếu thu/chi theo chuyến trên một bảng điều khiển, gom dòng cùng xe liền nhau; theo dõi số hóa đơn, số tiền hóa đơn và tiền trả nhà cung cấp theo lô, CUS xem chỉ-đọc.
 - **Theo dõi hoàn cược container** (`OpsVanHanh.md` §9.6): lô khách khai "có cược" tự vào bảng theo dõi; kế toán điền ngày nộp công văn (dd/mm/yy hoặc lịch), ngày dự kiến hoàn cược mặc định +14 ngày và vẫn sửa được; tick "đã hoàn cược" ghi nhận đã thu và đổ tiền về quỹ công ty (ACB) qua engine kho quỹ hiện có; hai cảnh báo chạy song song (lô quá 7 ngày chưa có ngày nộp công văn; tổng tiền chưa hoàn cược).
 
+- **Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP** (`QuyTrinhO2C.md`): màn hình kế toán theo lô với
+  đầy đủ cột thu/trả cước vận chuyển, bộ lọc excel 2 cột, luồng "gửi yêu cầu điều chỉnh cước" theo cơ chế
+  **cột xác nhận** (không tái lập luồng phê duyệt — quyết định 21/09); lô đang chờ đối soát không xuất được
+  debit; thiếu dữ liệu hiển thị "Chưa xác định", không gán 0; phần Debit tab/VAT/Lần-Tháng/TỔNG HỢP CÔNG NỢ
+  giữ ĐỂ LẠI chờ đặc tả.
+- **Lồng ghép lịch sử sổ quỹ vào ACB** (`OpsVanHanh.md` §5.2, chốt 22/09): nhập sổ đơn nguồn cũ vào dòng
+  tiền TK công ty bằng phân loại tài khoản — bút toán cũ giữ nguyên vẹn, hiện ngay trong sổ ACB, số dư chạy
+  liên tục; nguồn Tiền mặt bắt đầu trống từ thời điểm bật.
+- **Mười lệnh ghi tài chính bắt buộc mang Idempotency-Key** (ràng buộc kỹ thuật phục vụ nghiệp vụ): ba lệnh
+  điều chỉnh cước, ba lệnh theo dõi hoàn cược và bốn lệnh phơi phiếu — gửi lại không bao giờ nhân đôi bút toán.
+
 ## 2026-09-21 — Quyền chi phí Ops theo xe, guard giai đoạn, Lớp 1 đọc bản chốt mới nhất
 
 - **Quyền khai chi phí của Ops sinh từ gán xe (auto-link theo xe)** (`OpsVanHanh.md` §3.3): chủ sản phẩm chốt — Ops được gán đầu xe (phân công xe–Ops) tự có quyền lưu chi phí trên các lô do xe đó chở; gán tay từng lô qua form người dùng (Admin) vẫn hoạt động song song; thu hồi gán xe làm mất quyền trên các lô chưa có khoản chi đã lưu. Trước đó cổng `user_shipment_links` chỉ có writer gán tay nên Ops thật không thể lưu chi phí.
