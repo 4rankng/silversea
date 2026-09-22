@@ -100,4 +100,14 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expectNoClip(rules(css, /\.ops-bill-table td button/));
     expectNoClip(rules(css, /\.ops-bill-mobile-list__identity strong/));
   });
+
+  it('debit row customer names wrap (no 2-line clamp on the identity value)', () => {
+    const css = read('src/pages/ShipmentDebitPage.css');
+    expectNoClip(rules(css, /\.shipment-debit-row__customer/));
+  });
+
+  it('config customer full names wrap in the compact-card render', () => {
+    const css = read('src/pages/config/customer-config-density.css');
+    expectNoClip(rules(css, /\.cfg-customer-full-name/));
+  });
 });

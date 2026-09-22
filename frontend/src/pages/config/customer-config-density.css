@@ -87,7 +87,7 @@
   .cfg-page--customers .cfg-customer-table tbody tr > td.record-table__action { grid-column: 2; grid-row: 1; align-self: start; padding: 0; }
   .cfg-page--customers .cfg-customer-table .row-action { min-width: 44px; min-height: 44px; }
   .cfg-customer-short-name { display: block; font-size: var(--text-data-size); line-height: 1.4; }
-  .cfg-customer-full-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+  .cfg-customer-full-name { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
   .cfg-customer-short-name + .cfg-customer-full-name { color: var(--ink-3); font-weight: var(--fw-regular, 400); font-size: var(--text-caption-size); }
   .cfg-customer-compact-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
   .cfg-customer-details { display: block; }
