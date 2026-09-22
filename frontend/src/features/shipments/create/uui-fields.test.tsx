@@ -201,6 +201,94 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
     });
   });
 
+  it('20260922_4 AC1: bare Enter commits the unique filtered match on an id select', async () => {
+    const onChange = vi.fn();
+    function FactoryHarness() {
+      const [value, setValue] = useState('');
+      return <><USearchableField label="Nhà máy" value={value} onChange={(next) => { setValue(next); onChange(next); }} searchable
+        options={[{ value: 'vid', label: 'VID', searchText: 'F_CODE Công ty Việt Đăng' }, { value: 'ne', label: 'NEWEB-1', searchText: 'NEWEB Công ty TNHH' }]} /><output aria-label="Selected catalog ID">{value}</output></>;
+    }
+    render(<FactoryHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    await openMenu(input);
+    fireEvent.change(input, { target: { value: 'f_code' } });
+    await waitFor(() => expect(screen.getByRole('option', { name: /VID/ })).toBeVisible());
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    // Enter without a highlighted option commits the UNIQUE filtered match…
+    expect(screen.getByLabelText('Selected catalog ID').textContent).toBe('vid');
+    expect(onChange).toHaveBeenCalledWith('vid');
+    // …normalizes the input to the option label and closes the menu.
+    expect(input).toHaveValue('VID');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('20260922_4 AC2: Enter over text matching nothing commits nothing and keeps the typed text', async () => {
+    const onChange = vi.fn();
+    function FactoryHarness() {
+      const [value, setValue] = useState('');
+      return <><USearchableField label="Nhà máy" value={value} onChange={(next) => { setValue(next); onChange(next); }} searchable
+        options={[{ value: 'vid', label: 'VID', searchText: 'F_CODE Công ty Việt Đăng' }]} /><output aria-label="Selected catalog ID">{value}</output></>;
+    }
+    render(<FactoryHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    await openMenu(input);
+    fireEvent.change(input, { target: { value: 'không có trong danh mục xyz' } });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Không tìm thấy kết quả'));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    // No dirty id: the form value never changes…
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Selected catalog ID').textContent).toBe('');
+    // …and the typed text is NOT wiped by the react-aria settle.
+    expect(input).toHaveValue('không có trong danh mục xyz');
+  });
+
+  it('20260922_4 AC3: ArrowDown+Enter still commits the highlighted row', async () => {
+    const onChange = vi.fn();
+    function FactoryHarness() {
+      const [value, setValue] = useState('');
+      return <><USearchableField label="Nhà máy" value={value} onChange={(next) => { setValue(next); onChange(next); }} searchable
+        options={[{ value: 'vid', label: 'VID' }, { value: 'ne', label: 'NEWEB-1' }]} /><output aria-label="Selected catalog ID">{value}</output></>;
+    }
+    render(<FactoryHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    await openMenu(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    await waitFor(() => expect(input).toHaveAttribute('aria-activedescendant'));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('vid');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('20260922_4 AC4: the same Enter contract on a custom-value field (hãng tàu) — unique match commits, ambiguous keeps text', async () => {
+    const onChange = vi.fn();
+    function LineHarness() {
+      const [value, setValue] = useState('');
+      return <><USearchableField label="Hãng tàu" value={value} onChange={(next) => { setValue(next); onChange(next); }} searchable allowsCustomValue
+        options={[{ value: 'Maersk', label: 'Maersk' }, { value: 'MSC', label: 'MSC' }]} /><output aria-label="Selected catalog ID">{value}</output></>;
+    }
+    render(<LineHarness />);
+    const input = screen.getByRole('combobox', { name: /^Hãng tàu/ });
+    await openMenu(input);
+    // Unique: "maersk" filters to one option; Enter snaps to the catalog value.
+    fireEvent.change(input, { target: { value: 'maersk' } });
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Maersk' })).toBeVisible());
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('Maersk');
+    expect(input).toHaveValue('Maersk');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    // Ambiguous: "m" matches both — Enter must NOT guess, text stays, menu stays open.
+    fireEvent.change(input, { target: { value: 'm' } });
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Maersk' })).toBeVisible();
+      expect(screen.getByRole('option', { name: 'MSC' })).toBeVisible();
+    });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalledWith('m');
+    expect(input).toHaveValue('m');
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('VID-CUS-SELECT-01 clears the selected ID before searching for and choosing a replacement', async () => {
     function CatalogHarness() {
       const [value, setValue] = useState('1');

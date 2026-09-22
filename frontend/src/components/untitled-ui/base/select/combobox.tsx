@@ -28,6 +28,16 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     /** Called when the user clicks the clear (X) button. */
     onClear?: () => void;
     /**
+     * Bare-Enter commit for type-to-search fields (20260922_4). When the menu
+     * is open, the input is focused and NO option is highlighted (no
+     * aria-activedescendant), the owner may commit the unique filtered match:
+     * return the {id, label} to commit, or null when the text matches nothing
+     * or matches ambiguously — the event is then swallowed so react-aria's
+     * Enter settle (which re-fires the old selection and wipes the typed
+     * text) never runs. An option highlighted via ArrowDown is unaffected.
+     */
+    onEnterCommit?: (typedText: string) => { id: string; label: string } | null;
+    /**
      * Initial placement hint for the popover relative to the trigger. Useful
      * when the picker sits inside a column that has a sibling action button
      * (e.g. "+ Thêm") right below — request "top" so the popover opens
@@ -54,8 +64,11 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null> }) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
     const state = useContext(ComboBoxStateContext);
+    // True from the last explicit option-navigation key until the next typing
+    // key or a consumed Enter — see the keydown-capture handler below.
+    const navigatedHighlightedRef = useRef(false);
 
     const value = state?.selectedItem?.value || (state?.selectedKey != null ? { id: state.selectedKey } : null);
     const inputValue = state?.inputValue || null;
@@ -103,6 +116,50 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                 ref={containerRef}
                 data-combobox-value
                 onKeyDownCapture={(event) => {
+                    // Track explicit option navigation. react-aria AUTO-focuses
+                    // the first filtered option when a type-to-search menu
+                    // reopens (via KeepSuggestionsOpen), so a present
+                    // aria-activedescendant alone does not mean the user chose
+                    // to highlight — only explicit navigation makes Enter's
+                    // highlighted-commit the user's own pick (20260922_4).
+                    if (["ArrowDown", "ArrowUp", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                        navigatedHighlightedRef.current = true;
+                    } else if (event.key !== "Enter") {
+                        navigatedHighlightedRef.current = false;
+                    }
+                    // Bare-Enter commit for type-to-search fields. Capture phase
+                    // runs before the input's react-aria Enter shortcut, so a
+                    // decision here preempts its settle (re-fire old selection +
+                    // wipe typed text). A user-navigated highlight (ArrowDown…)
+                    // is left to react-aria's own commit.
+                    if (event.key === "Enter" && state?.isOpen && onEnterCommit) {
+                        const input = containerRef?.current?.querySelector<HTMLInputElement>("input");
+                        if (
+                            input
+                            && document.activeElement === input
+                            && state.inputValue.trim() !== ""
+                            && !(input.getAttribute("aria-activedescendant") && navigatedHighlightedRef.current)
+                        ) {
+                            const match = onEnterCommit(state.inputValue);
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (match) {
+                                // Same dance as Escape: flush the new text while
+                                // the menu is still open so react-aria's render
+                                // effect syncs `lastValue` — closing afterwards
+                                // then cannot trip its input-change reopen.
+                                flushSync(() => state.setInputValue(match.label));
+                                state.setOpen(false);
+                            } else if (input.getAttribute("aria-activedescendant")) {
+                                // Ambiguous text with react-aria's auto-focused
+                                // first match: drop the auto-highlight so a
+                                // repeated Enter cannot commit the guess.
+                                state.selectionManager?.setFocusedKey(null);
+                            }
+                        }
+                        navigatedHighlightedRef.current = false;
+                        return;
+                    }
                     // Dismiss this list, not an enclosing editor. Synchronize
                     // controlled text before closing: an ignored null selection
                     // otherwise reopens a focus-triggered list with the old query.
@@ -293,6 +350,7 @@ export const ComboBox = ({
     hideRequiredIndicator,
     triggerClassName,
     onClear,
+    onEnterCommit,
     className,
     popoverPlacement,
     ...otherProps
@@ -362,6 +420,7 @@ export const ComboBox = ({
                             allowsCustomValue={otherProps.allowsCustomValue}
                             triggerClassName={triggerClassName}
                             onClear={onClear}
+                            onEnterCommit={onEnterCommit}
                             size={size}
                             // This is a workaround to correctly calculating the trigger width
                             // while using ResizeObserver wasn't 100% reliable.

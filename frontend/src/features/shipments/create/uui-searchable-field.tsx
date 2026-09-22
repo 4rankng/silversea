@@ -7,7 +7,7 @@
 // re-fire the existing selection (RAC semantics), never the option label.
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
+import { ComboBox, matchesComboboxSearch } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 
 interface USearchableFieldProps {
@@ -125,9 +125,27 @@ export function USearchableField({
     setChosenKey(selected?.value ?? (allowsCustomValue ? value ?? null : null));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, selectedLabel]);
+  // 20260922_4: bare Enter (menu open, no highlighted option) commits the
+  // UNIQUE filtered match — the same predicate/normalization the menu itself
+  // filters with, over the caller's options only (the __create__ footer is
+  // excluded so it can never make a real option look ambiguous). Zero or
+  // multiple matches → null: nothing commits, the typed text stays and the
+  // menu stays open; free/ambiguous text never rides into an id handler
+  // (the id-select contract from the null-selection guard is unchanged).
+  const commitEnterMatch = (typedText: string): { id: string; label: string } | null => {
+    if (!searchable) return null;
+    const matches = options.filter((option) => matchesComboboxSearch(`${option.label} ${option.searchText ?? ''}`.trim(), typedText));
+    if (matches.length !== 1) return null;
+    const match = matches[0];
+    setChosenKey(match.value);
+    onChange(match.value);
+    setInputValue(match.label);
+    return { id: String(match.value), label: match.label };
+  };
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
+        onEnterCommit={searchable ? commitEnterMatch : undefined}
         size={size}
         aria-label={hideLabel ? label : undefined}
         label={hideLabel ? undefined : label}
