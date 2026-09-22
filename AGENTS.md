@@ -165,6 +165,7 @@ Structured knowledge graph in `.ua/` — committed to git, shared across agents.
 ## Local dev quick reference
 
 - **Backend architecture:** [`docs/backend-architecture.md`](docs/backend-architecture.md) — layering rules, naming, god-file split, add-an-entity path; enforced by `backend/src/tests/unit/arch-layering.test.ts`.
+- **Design law book:** [`docs/design-guidelines.md`](docs/design-guidelines.md) — every standing UI ruling as law (data cells text-only, no pills, icons-for-actions-only, semantic colors, contrast, density, tables, empty states); every UI change obeys it.
 - **Context engineering:** [`docs/context-engineering/playbook.md`](docs/context-engineering/playbook.md)
 - Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3002` · Frontend `:7175` · Adminer `:8083`
 - First-time setup: `make setup`
