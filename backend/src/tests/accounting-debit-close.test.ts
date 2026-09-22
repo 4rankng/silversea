@@ -196,6 +196,19 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
     await assert.doesNotReject(assertNoPendingRateAdjustment([lot.id]));
   });
 
+  test('a withdrawn re-request unmasks the earlier CONFIRMED state on the board', async () => {
+    const accountantId = await mkUser(Role.ACCOUNTANT);
+    const customer = await mkCustomer(`ADC W ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-28');
+    await createRateAdjustmentRequests({ shipmentIds: [lot.id], userId: accountantId });
+    await confirmRateAdjustmentRequests({ requestIds: [await livePendingId(lot.id)], userId: accountantId });
+    await createRateAdjustmentRequests({ shipmentIds: [lot.id], userId: accountantId });
+    await withdrawRateAdjustmentRequests({ requestIds: [await livePendingId(lot.id)], userId: accountantId });
+    const result = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
+    const row = result.items.find((r) => r.shipmentId === lot.id)!;
+    assert.equal(row.adjustment.status, 'CONFIRMED', 'latest non-withdrawn row is the confirmed one');
+  });
+
   test('P2: a cost-locked lot rejects new requests and the export guard stays clear', async () => {
     const accountantId = await mkUser(Role.ACCOUNTANT);
     const customer = await mkCustomer(`ADC L ${suffix}`);

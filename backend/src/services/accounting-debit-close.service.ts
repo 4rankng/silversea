@@ -310,6 +310,7 @@ export async function getAccountingDebitBoard(query: {
       sql`(${s.shipmentRateAdjustmentRequests.id}) = (
         select max(latest.id) from ${s.shipmentRateAdjustmentRequests} latest
         where latest.shipment_id = ${s.shipmentRateAdjustmentRequests.shipmentId}
+          and latest.withdrawn_at is null
       )`,
     ));
   const adjByLot = new Map(adjRows.map((row) => [row.shipmentId, row]));
