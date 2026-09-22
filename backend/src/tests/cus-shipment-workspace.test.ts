@@ -326,8 +326,12 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
   });
 
   test('LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework)', async () => {
-    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date('2026-09-22T01:15:00.000Z') });
-    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date('2026-09-21T13:03:00.000Z') });
+    // Fixture dates float a week AHEAD of the run clock: the readiness read
+    // compares against now, so hardcoding a real calendar date (2026-09-22)
+    // made this test flip SCHEDULED → OVERDUE the day that instant passed.
+    const aWeekOut = Date.now() + 7 * 86_400_000;
+    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date(aWeekOut) });
+    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date(aWeekOut + 3_600_000) });
 
     const importItem = await findItem(importLot.id);
     const exportItem = await findItem(exportLot.id);
