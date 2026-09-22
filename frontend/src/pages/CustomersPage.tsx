@@ -28,7 +28,6 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
-import { EmptyIllustration } from '../components/shared';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import './CustomersPage.css';
@@ -606,9 +605,9 @@ export default function CustomersPage() {
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--ink-3)' }}>Đang tải…</div>
           ) : filtered.length === 0 ? (
             <EmptyState
-              illustration="/assets/illustrations/empty-clients.svg"
-              title="Chưa có khách hàng"
-              description="Thêm khách hàng đầu tiên để bắt đầu quản lý công nợ."
+              context="clients"
+              title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có khách hàng'}
+              description={search || filter !== 'all' ? 'Thử thay đổi từ khóa hoặc bộ lọc.' : 'Thêm khách hàng đầu tiên để bắt đầu quản lý công nợ.'}
               action={<button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}><Plus size={14} /> Thêm khách hàng</button>}
             />
           ) : (
@@ -757,8 +756,7 @@ export default function CustomersPage() {
               )}
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={5 + Number(extraCols.shortName) + Number(extraCols.taxCode) + Number(extraCols.freightTerm) + 2} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
-                  <EmptyIllustration name="empty-clients" width={140} height={116} style={{ margin: '0 auto 8px', display: 'block' }} />
-                  <div>Chưa có dữ liệu</div>
+                  <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
               {filtered.map((c, index) => (
