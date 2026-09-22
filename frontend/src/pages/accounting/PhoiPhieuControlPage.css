@@ -1,0 +1,9 @@
+/* Card 20260922 stack item D — header collision at 1440: the 13-column
+   fixed-layout board gives each th ~94px, and tt-table's nowrap uppercase
+   headers paint over neighboring columns. Let this board's headers wrap
+   inside their cells instead (body cells keep their existing behavior). */
+.ppc-board thead th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
