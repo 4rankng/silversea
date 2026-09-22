@@ -1595,9 +1595,10 @@
 }
 
 .cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cus-container-cell input:focus-visible {
@@ -2026,9 +2027,10 @@
 }
 
 .cus-appointment-trigger__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-weight: 500;
 }
 

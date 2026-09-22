@@ -214,7 +214,8 @@ const detail = {
 
 // Card 20260922_41 dialog fixtures: line 10 is attached to a live dispatch
 // trip (delete blocked — the 409 guard's client-side presentation), line 13
-// is free (deletable).
+// is free (deletable), line 14 carries a CANCELED trip (delete must stay
+// enabled — an over-block has no in-UI recovery).
 const manageDetail = {
   ...detail,
   containers: [
@@ -231,6 +232,17 @@ const manageDetail = {
       tripStatus: null,
       customerAppointmentAt: null,
       raw: { containerNumber: 'MSKU7654321', containerTypeId: 3, cargoWeightKg: '3000.00', cargoVolumeCbm: null },
+    },
+    {
+      ...detail.containers[0],
+      id: 14,
+      ordinal: 3,
+      containerNumber: 'MSKU2222333',
+      dispatchStatus: 'AWAITING_VEHICLE',
+      tripId: 7,
+      tripStatus: 'CANCELED',
+      customerAppointmentAt: null,
+      raw: { containerNumber: 'MSKU2222333', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null },
     },
   ],
   selectors: {
@@ -1198,7 +1210,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
     ));
     apiPost.mockImplementation(() => {
-      containers = manageDetail.containers.slice(0, 1);
+      containers = manageDetail.containers.filter((line) => line.id !== 13);
       return Promise.resolve({ removedId: 13, shipmentVersion: 4 });
     });
     renderPage();
@@ -1231,6 +1243,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const free = within(dialog).getByRole('button', { name: 'Xóa container MSKU7654321' });
     expect(free).toBeEnabled();
     expect(free).not.toHaveAttribute('title');
+    // Review M1: a CANCELED trip never blocks removal (the backend guard only
+    // sees live trips) — over-blocking would be unrecoverable in this dialog.
+    const canceledTrip = within(dialog).getByRole('button', { name: 'Xóa container MSKU2222333' });
+    expect(canceledTrip).toBeEnabled();
+    expect(canceledTrip).not.toHaveAttribute('title');
 
     fireEvent.click(blocked);
     expect(apiPost).not.toHaveBeenCalled();

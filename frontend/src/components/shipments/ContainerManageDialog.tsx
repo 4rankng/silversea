@@ -88,7 +88,7 @@ export function ContainerManageDialog({ shipment, onClose, onChanged }: Containe
   }, [shipment, load]);
 
   async function removeLine(line: ShipmentCusWorkspaceContainerLine) {
-    if (!shipment || !detail || busy || line.tripId != null) return;
+    if (!shipment || !detail || busy || line.tripId != null && line.tripStatus !== 'CANCELED') return;
     setBusy(true);
     setWriteError(null);
     try {
@@ -191,9 +191,16 @@ export function ContainerManageDialog({ shipment, onClose, onChanged }: Containe
                 <tbody>
                   {lines.map((line) => {
                     const containerNumber = line.raw.containerNumber ?? line.containerNumber;
-                    // tripId != null = a live dispatch trip holds this row —
-                    // exactly the trigger of the backend 409 removal guard.
-                    const attached = line.tripId != null;
+                    // A live dispatch trip holds this row = the backend 409
+                    // removal guard's exact trigger. Read-side equivalence is
+                    // proven: cus-shipment-workspace-reads.service.ts joins
+                    // trips with deletedAt IS NULL + status != 'CANCELED' over
+                    // fulfillments with canceledAt IS NULL — the same three
+                    // filters as findActiveTripForContainer. The tripStatus
+                    // half mirrors the builder's own live-trip test
+                    // (cus-workspace-builders.service.ts:84) so a defensive
+                    // fixture can never over-block a canceled trip.
+                    const attached = line.tripId != null && line.tripStatus !== 'CANCELED';
                     return (
                       <tr key={line.id}>
                         <th scope="row" data-label="STT">{line.ordinal}</th>

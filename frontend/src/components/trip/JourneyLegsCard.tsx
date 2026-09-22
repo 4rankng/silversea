@@ -3,7 +3,7 @@ import './JourneyLegsCard.css';
 import { Plus } from 'lucide-react';
 import { CardSection } from './CardSection';
 import { JourneyLegRow } from './JourneyLegRow';
-import { EmptyState } from '../../../design-system';
+import { EmptyState } from '../../design-system';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 
 interface JourneyLegsCardProps {
