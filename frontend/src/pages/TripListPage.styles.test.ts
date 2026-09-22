@@ -19,3 +19,13 @@ describe('trips table width contract (card _23)', () => {
     expect(tableCss.match(new RegExp(template.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g'))?.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('quick-row-error contract (card _44)', () => {
+  it('error message renders as plain wrapped text, no pill, no clip', () => {
+    const rule = tableCss.match(/\.trip-list-page \.quick-row-error \{[\s\S]*?\}/)?.[0];
+    expect(rule).toBeDefined();
+    expect(rule).not.toMatch(/border-radius|background:|border:|max-width|text-overflow|overflow: hidden/);
+    expect(rule).toContain('overflow-wrap: anywhere');
+    expect(rule).toContain('white-space: normal');
+  });
+});

@@ -638,17 +638,11 @@
   font-weight: 700;
 }
 .trip-list-page .quick-row-error {
-  max-width: 86px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
-  border-radius: 999px;
-  padding: 2px 7px;
   font-size: var(--fs-xs);
   font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .trip-list-page .pill-moi {

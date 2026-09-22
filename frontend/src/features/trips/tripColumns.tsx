@@ -502,7 +502,7 @@ export function buildTripColumns(
               {TRIP_STATUS_LABELS[trip.status]}
             </span>
             {quickEdit?.enabled && quickEdit.errors[trip.id] && (
-              <span className="quick-row-error" title={quickEdit.errors[trip.id]}>Lỗi</span>
+              <span className="quick-row-error">{quickEdit.errors[trip.id]}</span>
             )}
           </div>
         );
