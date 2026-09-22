@@ -87,7 +87,11 @@ export default function AccountingDebitClosePage() {
 
   const pendingRows = visibleRows.filter((row) => row.adjustment.status === 'PENDING');
   const pendingIds = pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null);
-  const selectable = (row: AccountingDebitBoardRow) => row.adjustment.status === 'NONE';
+  // Tickable = no live adjustment (NONE) or a CONFIRMED one (re-request a
+  // new adjustment cycle until the lot's cost lock freezes it). A live
+  // PENDING shows its Xác nhận/Rút controls instead of a tick.
+  const selectable = (row: AccountingDebitBoardRow) =>
+    row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
 
   const refresh = () => {
     setSelected(new Set());

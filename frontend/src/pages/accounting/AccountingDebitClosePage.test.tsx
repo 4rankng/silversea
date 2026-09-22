@@ -87,6 +87,14 @@ describe('AccountingDebitClosePage', () => {
     expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
   });
 
+  it('a CONFIRMED lot stays tickable for a new adjustment cycle (re-request)', async () => {
+    boardWith([
+      row({ shipmentId: 3, code: 'SHP-26-0003', adjustment: { status: 'CONFIRMED', requestId: 77, requestedAt: null, confirmedAt: '2026-09-22T03:00:00.000Z' } }),
+    ]);
+    renderPage();
+    expect(await screen.findByLabelText('Chọn lô SHP-26-0003')).toBeInTheDocument();
+  });
+
   it('tick rows + send adjustment request, then confirm clears pending state', async () => {
     boardWith([
       row(),
