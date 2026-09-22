@@ -1,6 +1,6 @@
 .admin-health-workspace { margin-bottom: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .admin-health-workspace > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
-.admin-health-workspace > header span { color: var(--accent); font-size: var(--text-caption-size); font-weight: var(--fw-bold); letter-spacing: .06em; text-transform: uppercase; }
+.admin-health-workspace > header span { color: var(--accent-2); font-size: var(--text-caption-size); font-weight: var(--fw-bold); letter-spacing: .06em; text-transform: uppercase; }
 .admin-health-workspace > header h2 { margin: 2px 0 0; color: var(--ink); font-size: var(--text-section-size); }
 .admin-health-workspace > header p { margin: 3px 0 0; color: var(--ink-2); font-size: var(--text-body-size); }
 .admin-health-workspace > header button { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line-2); border-radius: 7px; background: var(--surface); color: var(--ink-2); }
@@ -23,7 +23,7 @@
 .admin-health-workspace article footer { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; padding-top: 4px; }
 .admin-health-workspace article small { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }
 .admin-health-workspace article a,
-.admin-health-workspace__state button { display: inline-flex; min-height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border: 1px solid var(--accent); border-radius: 7px; padding: 0 9px; color: var(--accent); font-size: var(--text-caption-size); font-weight: var(--fw-bold); text-decoration: none; }
+.admin-health-workspace__state button { display: inline-flex; min-height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border: 1px solid var(--accent); border-radius: 7px; padding: 0 9px; color: var(--accent-2); font-size: var(--text-caption-size); font-weight: var(--fw-bold); text-decoration: none; }
 .admin-health-workspace__state { display: flex; flex-wrap: wrap; min-height: 92px; align-items: center; justify-content: center; gap: 8px; padding: 18px; color: var(--ink-2); }
 .admin-health-workspace__state.is-unavailable { color: var(--warning); }
 .admin-health-workspace > header > div { min-width: 0; overflow-wrap: anywhere; }

@@ -87,7 +87,7 @@
 .user-name__you {
   margin-left: 6px;
   font-size: var(--text-caption-size);
-  color: var(--accent);
+  color: var(--accent-2);
   font-weight: var(--fw-medium);
 }
 

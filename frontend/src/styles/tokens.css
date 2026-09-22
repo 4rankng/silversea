@@ -147,6 +147,9 @@
      success-text token (7.0:1 on white) — one definition heals all
      badge siblings app-wide. */
   --ok: var(--success-text);
+  /* Card 20260922_35: same heal as --ok — pages falling back to
+     #dc2626 (~4:1) now inherit the 4.5:1-engineered danger text. */
+  --err: var(--danger-text);
   --warning: #A45D1C;
   --warning-soft: #FFF3E8;
   --warning-text: #6F3C10;

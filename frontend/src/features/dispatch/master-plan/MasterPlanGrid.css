@@ -806,7 +806,7 @@
   margin: 0;
   align-items: center;
   justify-content: flex-end;
-  color: var(--accent);
+  color: var(--accent-2);
   background: transparent;
   border: 0;
   font-size: var(--ops-table-meta-size, 11px);
