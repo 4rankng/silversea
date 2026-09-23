@@ -103,8 +103,11 @@ export const forwarderClient = {
   setExpenseCompletion: async (tripId: number, data: { tripContainerId: number | null; completed: boolean }) =>
     api.put(`/forwarder/me/trips/${tripId}/expense-completion`, data),
 
-  deleteExpense: async (id: number, expectedUpdatedAt: string) => {
-    return api.delete(FORWARDER.EXPENSE(id), { expectedUpdatedAt });
+  deleteExpense: async (id: number, expectedUpdatedAt: string, reason: string) => {
+    return api.delete(FORWARDER.EXPENSE(id), {
+      expectedUpdatedAt,
+      body: JSON.stringify({ reason }),
+    });
   },
 
   getAdvanceRequests: async (status?: string) => {

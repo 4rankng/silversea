@@ -124,7 +124,7 @@ export function useUpdateOpsExpense() {
 export function useDeleteOpsExpense() {
   const invalidate = useInvalidateOps();
   return useMutation({
-    mutationFn: (id: number) => opsClient.deleteExpense(id),
+    mutationFn: (input: { id: number; reason: string }) => opsClient.deleteExpense(input.id, input.reason),
     onSettled: () => invalidate(),
   });
 }

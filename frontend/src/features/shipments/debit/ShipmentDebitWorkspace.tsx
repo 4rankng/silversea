@@ -8,6 +8,7 @@ import {
   saveShipmentDebitEdits,
 } from '../../../api/shipmentClient';
 import { useAuth } from '../../../hooks/useAuth';
+import { useReasonPrompt } from '../../../components/reason-prompt';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
 import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
@@ -66,21 +67,30 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
     onSettled: () => { saveInFlight.current = false; },
   });
 
-  function saveDraft() {
+  async function saveDraft() {
     if (saveInFlight.current || !detail.data) return;
     const body = buildDelta(detail.data, draft);
     if (deltaIsEmpty(body)) return;
-    const signature = JSON.stringify([shipmentId, body]);
+    // Q10 (card 20260922_78): a removal batch requires a mandatory free-text
+    // reason — prompt before anything is sent; cancel aborts the whole save.
+    let outgoing = body;
+    if (body.removeExpenseIds?.length) {
+      const reason = await prompt('Nhập lý do bỏ các dòng phí đã chọn trước khi lưu.', { confirmLabel: 'Lưu' });
+      if (reason == null) return;
+      outgoing = { ...body, removalReason: reason };
+    }
+    const signature = JSON.stringify([shipmentId, outgoing]);
     // A missing response may follow a committed write. Replaying an unchanged
     // command must reuse its key, especially when it adds new expense rows.
     if (saveAttempt.current?.signature !== signature) {
       saveAttempt.current = { signature, key: crypto.randomUUID() };
     }
     saveInFlight.current = true;
-    save.mutate({ body, key: saveAttempt.current.key });
+    save.mutate({ body: outgoing, key: saveAttempt.current.key });
   }
 
   const auth = useAuth();
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const role = auth?.user?.role;
   const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
   const canAdjust = role === Role.ADMIN || role === Role.ACCOUNTANT;
@@ -149,6 +159,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
         {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
         {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
       </div>
+        {reasonDialog}
     </div>
   );
 }

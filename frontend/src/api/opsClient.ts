@@ -185,7 +185,7 @@ export const opsClient = {
   }) => api.post<OpsExpenseRow & { id: number }>('/ops/expenses', body),
   updateExpense: (id: number, body: Record<string, unknown>) =>
     api.patch<OpsExpenseRow>(`/ops/expenses/${id}`, body),
-  deleteExpense: (id: number) => api.delete<{ success: boolean }>(`/ops/expenses/${id}`),
+  deleteExpense: (id: number, reason: string) => api.delete<{ success: boolean }>(`/ops/expenses/${id}`, { body: JSON.stringify({ reason }) }),
   uploadExpensePhoto: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

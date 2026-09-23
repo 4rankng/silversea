@@ -13,6 +13,7 @@ import {
   type InvoiceTrackingRow,
 } from '@tingting/shared';
 import { Btn, PageHeader, useConfirm } from '../components/UI';
+import { useReasonPrompt } from '../components/reason-prompt';
 import { BufferedUuiDateInput } from '../design-system/forms/BufferedUuiDateInput';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import {
@@ -62,6 +63,7 @@ export default function AccountingInvoiceTrackingPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; row: InvoiceTrackingRow } | null>(null);
   const { confirm, dialog } = useConfirm();
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
 
   const query = useQuery({
     queryKey: qk.invoiceTracking.list(from, to),
@@ -84,7 +86,7 @@ export default function AccountingInvoiceTrackingPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteInvoiceTracking(id),
+    mutationFn: (input: { id: number; reason: string }) => deleteInvoiceTracking(input.id, input.reason),
     onSuccess: () => {
       setActionError(null);
       invalidate();
@@ -93,17 +95,22 @@ export default function AccountingInvoiceTrackingPage() {
   });
 
   const handleDelete = async (row: InvoiceTrackingRow) => {
-    const ok = await confirm(
-      `Xóa theo dõi hóa đơn ${row.invoiceNumber ?? ''}? Khoản "Chi phí hóa đơn" trên lô cũng sẽ bị xóa.`,
-      { variant: 'danger', confirmLabel: 'Xóa' },
+    // Q10 (card 20260922_78): the delete soft-voids the tracker AND its
+    // mirrored lot-fee row — the prompt captures the mandatory free-text
+    // reason; cancel aborts without any request.
+    const reason = await prompt(
+      `Xóa theo dõi hóa đơn ${row.invoiceNumber ?? ''}? Khoản "Chi phí hóa đơn" trên lô cũng sẽ được hủy kèm lý do (đối chiếu được).`,
+      { confirmLabel: 'Xóa' },
     );
-    if (ok) deleteMutation.mutate(row.id);
+    if (reason == null) return;
+    deleteMutation.mutate({ id: row.id, reason });
   };
 
   return (
     <div className="invoice-tracking-page">
       <PageHeader title="Theo dõi hóa đơn kết hợp" description="Kế toán quản lý hóa đơn kết hợp theo lô hàng; chứng từ xem chỉ-đọc." />
       {dialog}
+      {reasonDialog}
       <p className="invoice-tracking-page__intro">
         Quản lý số hóa đơn, số tiền hóa đơn và số tiền trả nhà cung cấp theo từng lô hàng.
         Vai trò Chứng từ chỉ xem, mọi thay đổi do kế toán thực hiện.

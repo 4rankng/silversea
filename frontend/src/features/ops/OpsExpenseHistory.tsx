@@ -9,6 +9,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { useToast } from '../../components/shared/Toast';
@@ -56,6 +57,7 @@ export function OpsExpenseHistory() {
   const deleteLock = useRef(false);
   const [deleting, setDeleting] = useState(false);
   const { confirm, dialog } = useConfirm();
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
@@ -64,9 +66,11 @@ export function OpsExpenseHistory() {
     if (deleteLock.current) return;
     deleteLock.current = true; setDeleting(true);
     try {
-      if (await confirm(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`, { variant: 'danger', confirmLabel: 'Xóa' })) {
-        await deleteExpense.mutateAsync(row.id);
-      }
+      // Q10 (card 20260922_78): the delete asks for a mandatory free-text
+      // reason — cancel/empty aborts without any request.
+      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
+      if (reason == null) return;
+      await deleteExpense.mutateAsync({ id: row.id, reason });
     } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
     finally { deleteLock.current = false; setDeleting(false); }
   }
@@ -181,6 +185,7 @@ export function OpsExpenseHistory() {
       )}
       {legacyFor && <OpsLegacyExpenseDetail row={legacyFor} onClose={() => setLegacyFor(null)} />}
       {dialog}
+      {reasonDialog}
     </section>
   );
 }

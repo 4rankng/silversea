@@ -38,8 +38,9 @@ export async function updateInvoiceTracking(id: number, body: InvoiceTrackingPat
   });
 }
 
-export async function deleteInvoiceTracking(id: number): Promise<void> {
+export async function deleteInvoiceTracking(id: number, reason: string): Promise<void> {
   await api.delete(`/accounting/invoice-tracking/${id}`, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
+    body: JSON.stringify({ reason }),
   });
 }

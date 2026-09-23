@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, X, Plus, Check } from 'lucide-react';
 import { api } from '../lib/api';
+import { useReasonPrompt } from '../components/reason-prompt';
 import { configClient } from '../api/configClient';
 import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -41,6 +42,8 @@ export default function ExpenseEntryPage() {
   const [pageError, setPageError] = useState('');
   const [governanceReason, setGovernanceReason] = useState('');
   const [savedExpenseId, setSavedExpenseId] = useState<number | null>(null);
+  const [deletingVoucher, setDeletingVoucher] = useState(false);
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const { photos, uploading, photoError, handlePhotoUpload, removePhoto, savePendingPhotos } = useExpenseReceiptPhotos(id, savedExpenseId);
   // True once an edit-mode expense has been hydrated into the form (see effect
   // below) — the "ready" baseline for the discard-dirty guard so the
@@ -89,6 +92,31 @@ export default function ExpenseEntryPage() {
   const { confirm, dialog } = useConfirm();
   const guard = useDirtyGuard([form, governanceReason, photos.filter(photo => photo.file).map(photo => photo.id)], hydrated);
   const handleBack = () => navigate('/expenses');
+
+  // Q10 (card 20260922_78): the voucher delete rides the governed endpoint
+  // (reason + Idempotency-Key + optimistic version) — the row is soft-voided
+  // server-side, never removed.
+  const handleDeleteVoucher = async () => {
+    if (!isEdit || !existingExpense) return;
+    const reason = await prompt('Xóa phiếu chi này? Phiếu được giữ lại ở trạng thái đã hủy kèm lý do để đối chiếu.', { confirmLabel: 'Xóa phiếu' });
+    if (reason == null) return;
+    setDeletingVoucher(true);
+    try {
+      await api.delete(`${FINANCIAL.EXPENSE(Number(id))}`, {
+        headers: {
+          'Idempotency-Key': crypto.randomUUID(),
+          'If-Unmodified-Since': new Date(existingExpense.updatedAt).toUTCString(),
+        },
+        body: JSON.stringify({ reason }),
+      });
+      toast({ kind: 'success', message: 'Đã xóa phiếu chi (lưu lý do).' });
+      navigate('/expenses');
+    } catch (e) {
+      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được phiếu chi. Vui lòng thử lại.' });
+    } finally {
+      setDeletingVoucher(false);
+    }
+  };
   useBackShortcut(handleBack, {
     isDirty: guard.isDirty,
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
@@ -361,6 +389,14 @@ export default function ExpenseEntryPage() {
             <p>Không tải được danh mục nhà cung cấp và hạng mục. Nội dung đang nhập được giữ nguyên.</p>
             <Btn onClick={() => void expenseCatalogsQuery.refetch()} disabled={expenseCatalogsQuery.isFetching}>Tải lại danh mục</Btn>
           </div>}
+          {(isEdit && existingExpense) && (
+            <div className="expense-page-danger-row">
+              <button type="button" className="btn btn--danger btn--sm" disabled={deletingVoucher} onClick={() => void handleDeleteVoucher()}>
+                {deletingVoucher ? 'Đang xóa…' : 'Xóa phiếu chi'}
+              </button>
+            </div>
+          )}
+          {reasonDialog}
           {(pageError || photoError) && (
             <div className="animate-shake expense-page-error">
               <strong>Lỗi:</strong> {pageError || photoError}

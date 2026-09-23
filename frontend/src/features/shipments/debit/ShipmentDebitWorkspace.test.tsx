@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shipmentDebitEditPayloadSchema } from '@tingting/shared';
@@ -247,12 +247,18 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
       edits: [{ expenseId: 9002, buyAmount: 250000 }],
       addOtherFees: [{ tripId: 601, name: 'Phí rửa container', amount: 150000 }],
     });
-    // A removed fee travels as an id, never as an amount edit.
+    // A removed fee travels as an id, never as an amount edit — and Q10
+    // (card 20260922_78) demands a free-text reason before the save fires.
     fireEvent.click(screen.getByRole('button', { name: 'Xóa phí khác Phí đăng kiểm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    const reasonDialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    expect(((await within(reasonDialog).findByLabelText('Lý do xóa (bắt buộc)') as HTMLTextAreaElement).value)).toBe('');
+    fireEvent.change(within(reasonDialog).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Chốt nhầm dòng' } });
+    fireEvent.click(within(reasonDialog).getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(saveEdits.mock.calls.length).toBeGreaterThanOrEqual(2));
     const second = saveEdits.mock.calls[saveEdits.mock.calls.length - 1][1];
     expect(second.removeExpenseIds).toEqual([9002]);
+    expect(second.removalReason).toBe('Chốt nhầm dòng');
     expect(second.edits ?? []).toEqual([]);
   });
 

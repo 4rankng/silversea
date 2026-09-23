@@ -1,5 +1,5 @@
 const tripDetailOverrides: { data?: Record<string, unknown> } = {};
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -211,19 +211,27 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     apiGetMock.mockResolvedValue({ items: [] });
   });
 
-  it('requires confirmation before deleting and preserves the concurrency token', async () => {
-    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  it('requires a reason before deleting and preserves the concurrency token (Q10, card 20260922_78)', async () => {
     renderPage();
 
+    // First attempt: cancel the reason prompt — no delete may fire.
     fireEvent.click(screen.getByRole('button', { name: 'Xóa chi phí thử nghiệm' }));
-    await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(1));
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    expect(((await within(dialog).findByLabelText('Lý do xóa (bắt buộc)') as HTMLTextAreaElement).value)).toBe('');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).toBeNull());
     expect(deleteExpenseMock).not.toHaveBeenCalled();
 
+    // Second attempt: a typed reason rides the delete call with the token.
     fireEvent.click(screen.getByRole('button', { name: 'Xóa chi phí thử nghiệm' }));
+    const dialog2 = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    fireEvent.change(within(dialog2).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Sai khoản' } });
+    fireEvent.click(within(dialog2).getByRole('button', { name: 'Xóa khoản chi' }));
     await waitFor(() => expect(deleteExpenseMock).toHaveBeenCalledWith({
       id: 44,
       tripId: 15,
       expectedUpdatedAt: '2026-08-04T10:00:00.000Z',
+      reason: 'Sai khoản',
     }));
   });
 
