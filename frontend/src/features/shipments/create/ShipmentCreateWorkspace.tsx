@@ -853,7 +853,6 @@ export function ShipmentCreateWorkspace() {
                     value={factory?.shortName || factory?.name
                       || (form.isAdHoc ? row.rawFactoryName : '')}
                     placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
-                    subValue={factory?.address || undefined}
                     fieldId={`container-${row.key}-factory`}
                     error={issueByField.get(`container-${row.key}-factory`)}
                   >
