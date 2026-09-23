@@ -36,7 +36,6 @@ async function mkShipment(opts: { bl: string; withContainer: boolean; withDeclar
     routeId: route.id,
     blNumber: opts.bl,
     status: 'NEW',
-    departureDate: '2026-09-20',
   }).returning();
   created.shipmentIds.push(row.id);
   if (opts.withContainer) {
