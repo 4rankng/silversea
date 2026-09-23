@@ -4,6 +4,8 @@ import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoi
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
 import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
+import '../ops/ops-modal.css';
+import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
 
 interface Props {
   tripId: number;
@@ -50,7 +52,10 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Chi tiết tiền đường" className="ops-modal" style={{ maxWidth: 640 }}>
+    <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết tiền đường">
+      {/* Card 20260922_67: house modal shell — portal + backdrop + Escape +
+          focus return. The backdrop carries the dialog role. */}
+      <div className="ops-modal" style={{ maxWidth: 640 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết tiền đường {detail.data?.tripCode ?? ''}</h2>
         <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
@@ -95,5 +100,6 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
         )}
       </div>
     </div>
+    </OpsModalBackdrop>
   );
 }

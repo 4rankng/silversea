@@ -9,6 +9,8 @@ import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
+import '../ops/ops-modal.css';
+import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
 
 interface Props {
   tripId: number;
@@ -106,7 +108,13 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   }
 
   return (
-    <><div role="dialog" aria-modal="true" aria-label="Chi tiết chi hộ" className="ops-modal" style={{ maxWidth: 720 }}>
+    <>
+      {/* Card 20260922_67: the house modal shell (features/ops) — portal into
+          document.body + fixed backdrop + scroll lock + Escape + focus return.
+          The backdrop carries the dialog role; the inner .ops-modal stays a
+          plain surface. */}
+      <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết chi hộ">
+        <div className="ops-modal" style={{ maxWidth: 720 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết chi hộ {detail.data?.tripCode ?? ''}</h2>
         <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
@@ -159,8 +167,9 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
         {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
         {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
       </div>
-    </div>
-    {adding && catalog.data && <ExpenseCreateDrawer
+        </div>
+      </OpsModalBackdrop>
+      {adding && catalog.data && <ExpenseCreateDrawer
       work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
       catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
       onClose={() => setAdding(false)}
