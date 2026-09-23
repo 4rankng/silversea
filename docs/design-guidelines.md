@@ -160,6 +160,13 @@
   internet fills gaps, it does not override house rules. Primitive-looking dropdown styling = take from untitledui
   dropdown components.
   *Reference rule:* 2026-09-20 operator directive; untitledui-dropdown rule 2026-09-18.
+- **d-* primitives are sanctioned house primitives.** daisyUI 5 is installed, wired via `tokens.css`
+  (`@plugin "daisyui" prefix "d-"` + nepo theme), and adopted (19 files / 170 usages) — it stays. tailkit +
+  untitledui catalogs remain the design REFERENCE and the source for new primitive patterns; a d-* → other-library
+  rewrite is churn without user-visible value and is not wanted without a fresh operator directive. New primitive
+  additions still follow reference-before-invention.
+  *Source:* operator delegation 2026-09-23 ("if you think replace daisyUI … no need to ask me anymore" — lead
+  ruling: sanction, documented here per card 20260922_39's resolution).
 - **QA enforces the book.** No DEV_COMPLETED without embedded per-criterion screenshots; full-page state-matrix at
   1280/1440/1920/2560 per reachable state class; a screenshot contradicting the claim auto-fails the card; shared
   components re-sweep every hosting screen.
@@ -213,3 +220,4 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | 2026-09-22 | Law book created (card 20260922_34, nepocorp F2). Seeded with every standing ruling 09-16 → 09-22. |
 | 2026-09-22 | No-truncation sweep (card 20260922_37): table data cells wrap or expand, never clip; §4 short-badge exception clause made explicit; regression pin `table-no-truncation.styles.test.ts`. |
 | 2026-09-22 | §4 reconciliation (same-day): the short-badge exception governs `text-overflow: ellipsis` specifically; the tooltip/card fallback (note preview, card 20260915_35) stands as written. |
+| 2026-09-23 | §9: d-* (daisyUI 5) primitives sanctioned as house primitives — installed, themed, adopted; tailkit/untitledui remain design references. Card 20260922_39 resolution. |
