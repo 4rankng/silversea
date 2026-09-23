@@ -12,6 +12,11 @@ import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import multer from 'multer';
+import { previewQuotationImport, commitQuotationImport } from '../../services/quotation-import.service';
+import { buildQuotationExport } from '../../services/quotation-export.service';
+
+const quotationImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 import { runIdempotent } from '../../services/idempotency.service';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
@@ -24,6 +29,11 @@ const router = Router();
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(await listQuotations());
+}));
+
+router.get('/fuel-approvals', asyncHandler(async (req: Request, res: Response) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  res.json(await listQuotationFuelApprovals(status));
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -90,11 +100,6 @@ router.delete('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Req
 // decide endpoint; 'Để sau' makes no call (rows stay PENDING). Reads share
 // the mount's casbin 'config' gate; decisions are finance-gated.
 
-router.get('/fuel-approvals', asyncHandler(async (req: Request, res: Response) => {
-  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-  res.json(await listQuotationFuelApprovals(status));
-}));
-
 router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const parsed = z.object({
@@ -112,6 +117,33 @@ router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN),
     create: (tx) => decideQuotationFuelApprovals(actor.userId, parsed.ids, parsed.decision, tx),
   });
   res.status(replayed ? 200 : 201).json(result);
+}));
+
+// ─── Card 20260922_57: báo giá xlsx import/export ─────────────────────────
+// Preview never writes; commit is per-sheet transactional and ALWAYS creates
+// a new quotation frame (ruling 6). Export round-trips the template layout.
+
+router.post('/import', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) throw new ApiError(400, 'Chưa chọn tệp xlsx.');
+  res.json(await previewQuotationImport(req.file.buffer));
+}));
+
+router.post('/import/commit', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  if (!req.file) throw new ApiError(400, 'Chưa chọn tệp xlsx.');
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
+  const results = await commitQuotationImport(req.file.buffer, actor.userId);
+  res.json({ results });
+}));
+
+router.get('/:id/export', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
+  const buffer = await buildQuotationExport(id);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="bao-gia-${id}.xlsx"`);
+  res.end(Buffer.from(buffer));
 }));
 
 export default router;

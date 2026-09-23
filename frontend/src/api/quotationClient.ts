@@ -42,7 +42,36 @@ export const quotationClient = {
   decideFuelApprovals(ids: number[], decision: 'AGREED' | 'DECLINED'): Promise<{ updated: Array<{ id: number; customerId: number; status: string }> }> {
     return api.post(QUOTATION_PATHS.FUEL_APPROVALS_DECIDE, { ids, decision }, withIdempotencyKey());
   },
+  /** Card 20260922_57: xlsx import — parse returns a PREVIEW (no writes);
+   *  commit is per-sheet transactional and always creates NEW frames. */
+  importPreview(file: File): Promise<ImportPreviewPayload> {
+    const body = new FormData();
+    body.append('file', file);
+    return api.upload(QUOTATION_PATHS.IMPORT, body) as Promise<ImportPreviewPayload>;
+  },
+  importCommit(file: File): Promise<{ results: Array<{ sheet: string; quotationId: number | null; customerName: string; errors: string[] }> }> {
+    const body = new FormData();
+    body.append('file', file);
+    return api.upload(QUOTATION_PATHS.IMPORT_COMMIT, body, withIdempotencyKey()) as Promise<{ results: Array<{ sheet: string; quotationId: number | null; customerName: string; errors: string[] }> }>;
+  },
+  exportQuotation(id: number): Promise<Blob> {
+    return api.getBlob(QUOTATION_PATHS.DETAIL(id) + '/export');
+  },
 };
+
+export interface ImportPreviewRowPayload {
+  classCode: string; classLabel: string;
+  heSo: number | null; liters: number | null; giaCos: number | null;
+  basePrice: number | null; billingKmOneWay: number | null; error: string | null;
+}
+export interface ImportPreviewSheetPayload {
+  sheet: string; customerName: string | null; customerId: number | null;
+  customerTaxCode: string | null; baseFuelPrice: number | null; fuelLagDays: number | null;
+  roundingMode: 'NONE' | 'THOUSAND' | 'TEN_THOUSAND';
+  routes: Array<{ factoryName: string; routeId: number | null; matchedRouteName: string | null; sharePct: number | null; rows: ImportPreviewRowPayload[]; errors: string[] }>;
+  errors: string[];
+}
+export interface ImportPreviewPayload { sheets: ImportPreviewSheetPayload[]; totalErrors: number; }
 
 export interface QuotationFuelApprovalRow {
   id: number;

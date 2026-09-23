@@ -55,6 +55,8 @@ export const QUOTATION_PATHS = {
   /** Card 20260922_61: kế toán's "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" batch list. */
   FUEL_APPROVALS: '/quotations/fuel-approvals',
   FUEL_APPROVALS_DECIDE: '/quotations/fuel-approvals/decide',
+  IMPORT: '/quotations/import',
+  IMPORT_COMMIT: '/quotations/import/commit',
 } as const;
 
 /**

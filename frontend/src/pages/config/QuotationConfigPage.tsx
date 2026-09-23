@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../components/UI';
 import { EmptyState, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
@@ -6,6 +6,7 @@ import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateI
 import { ListFilterBar } from '../../components/ListFilterBar';
 import { QUOTATION_GRID_COLUMNS, type QuotationCellView } from '@tingting/shared';
 import { useQuotation, useQuotations, useUpdateQuotation } from '../../hooks/useQuotationQueries';
+import { quotationClient, type ImportPreviewPayload } from '../../api/quotationClient';
 import { formatCurrency } from '../../lib/format';
 import './QuotationConfigPage.css';
 
@@ -121,6 +122,51 @@ function RouteBlock({
 }
 
 export default function QuotationConfigPage() {
+  // Card 20260922_57: xlsx import (preview → commit) + export.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreviewData, setImportPreviewData] = useState<ImportPreviewPayload | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportFile = async (file: File) => {
+    setImportFile(file); setImportError(null); setImporting(true);
+    try { setImportPreviewData(await quotationClient.importPreview(file)); }
+    catch (error) { setImportError(error instanceof Error ? error.message : 'Không đọc được tệp.'); }
+    finally { setImporting(false); }
+  };
+
+  const handleImportCommit = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const { results } = await quotationClient.importCommit(importFile);
+      const failed = results.filter((entry) => entry.errors.length > 0);
+      if (failed.length > 0) setImportError(failed.flatMap((entry) => entry.errors).join(' · '));
+      else {
+        setImportPreviewData(null); setImportFile(null);
+        if (importInputRef.current) importInputRef.current.value = '';
+      }
+      await frames.refetch();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Không ghi nhận được tệp.');
+    } finally { setImporting(false); }
+  };
+
+  const handleExport = async (quotationId: number) => {
+    try {
+      const blob = await quotationClient.exportQuotation(quotationId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `bao-gia-${quotationId}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Không xuất được tệp.');
+    }
+  };
+
   const frames = useQuotations();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [customer, setCustomer] = useState('');
@@ -172,9 +218,32 @@ export default function QuotationConfigPage() {
 
       <ListFilterBar
         actions={(
-          <a className="btn btn--primary" href="#/config/quotations/new" onClick={(event) => event.preventDefault()} title="Thẻ _57 — chưa trong phạm vi thẻ _56">
+          <>
+          <label className="btn btn--secondary" style={{ cursor: 'pointer' }}>
+            Nhập xlsx
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleImportFile(file);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            disabled={selectedId == null}
+            onClick={() => selectedId != null && void handleExport(selectedId)}
+          >
+            Xuất xlsx
+          </button>
+          <a className="btn btn--primary" href="#/config/quotations/new" onClick={(event) => event.preventDefault()} title="Thẻ _56 — chưa trong phạm vi thẻ _57">
             ＋ Tạo báo giá
           </a>
+          </>
         )}
       >
         <UuiSelectField
@@ -187,6 +256,41 @@ export default function QuotationConfigPage() {
         <BufferedUuiDateInput label="Đến ngày" size="sm" value={dateTo} onChange={setDateTo} />
       </ListFilterBar>
 
+      {importError && <Alert variant="error" style="soft">{importError}</Alert>}
+      {importPreviewData && (
+        <section className="quotation-import-preview" aria-label="Xem trước nhập xlsx">
+          <p className="quotation-status">
+            Xem trước: {importPreviewData.totalErrors === 0
+              ? 'khớp toàn bộ — bấm Ghi nhận để nhập.'
+              : `${importPreviewData.totalErrors} lỗi ánh xạ — sửa file hoặc báo quản trị.`}
+          </p>
+          {importPreviewData.sheets.map((sheet) => (
+            <div key={sheet.sheet} style={{ marginBottom: 8 }}>
+              <strong>{sheet.sheet}</strong> — {sheet.customerName ?? '(không rõ khách hàng)'}
+              {sheet.routes.map((route) => (
+                <div key={route.factoryName} style={{ paddingLeft: 12 }}>
+                  {route.matchedRouteName
+                    ? `✓ ${route.factoryName} → ${route.matchedRouteName}`
+                    : `✗ ${route.errors.join(' · ') || 'không khớp tuyến'}`}
+                  {route.rows.map((row) => (
+                    <div key={row.classCode} style={{ paddingLeft: 12, color: row.error ? 'var(--danger)' : undefined }}>
+                      {row.error ? `✗ ${row.error}` : `✓ ${row.classLabel}: ${row.liters ?? '?'} lít · ${row.giaCos ?? '?'} ₫`}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            disabled={importing || importPreviewData.totalErrors > 0}
+            onClick={() => void handleImportCommit()}
+          >
+            {importing ? 'Đang ghi…' : 'Ghi nhận nhập file'}
+          </button>
+        </section>
+      )}
       {frames.isLoading && <p className="quotation-status">Đang tải danh sách báo giá…</p>}
 
       <div className="quotation-layout">
