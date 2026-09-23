@@ -709,7 +709,11 @@ router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Respon
   res.json({ items: rows, total: rows.length, page: 1, pageSize: Math.max(rows.length, 1) });
 }));
 
-router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT), createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
+// Card 20260922_61 (ruling 8): kế toán owns the fuel-period catalog. CUS
+// stays an entrant per the Phương án tính cước docx §5-1 (the casbin
+// route-scoped CUS bridge below the config mount encodes the same contract)
+// — dropping CUS here regressed the config-routes suite's §5-1 pin.
+router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.CUS), createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
   orderByField: 'effectiveFrom',
   // The factory stamps the idempotency record, not the entity row — the fuel
   // entry must remember WHO entered it (audit attribution, card _57).
