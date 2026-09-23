@@ -127,7 +127,13 @@ export function DetailedPlanGrid({
   const { tags } = useDispatchTaskTags();
   const taskLabels = tags.map((tag) => tag.label);
 
-  if (error) {
+  // P1 (post-cut#4 mount regression, QA _58 repro): a transient failure on a
+  // 30s background-refresh tick must NOT collapse the grid to the error
+  // branch — that unmounted the table mid-edit (inline editors died) and the
+  // surface read as "zero rows". With rows already loaded, the failure
+  // renders as a non-blocking banner over the intact table; the full-branch
+  // error state stays reserved for a cold load with nothing to show.
+  if (error && items.length === 0) {
     return (
       <>
         <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
@@ -152,6 +158,13 @@ export function DetailedPlanGrid({
 
       {assignmentError && (
         <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
+      )}
+
+      {error && items.length > 0 && (
+        <div className="dispatch-plan-page__error" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+        </div>
       )}
 
       {lotBanner && (

@@ -459,9 +459,9 @@ describe('DetailedPlanGrid', () => {
     expect(notesCell!.textContent).not.toContain('—');
   });
 
-  it('renders an error state without the table', () => {
+  it('renders an error state without the table on a cold load (nothing fetched yet)', () => {
     const onRetry = vi.fn();
-    renderGrid([row()], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.', onRetry });
+    renderGrid([], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.', onRetry });
     expect(screen.getByRole('alert').textContent).toContain('Không thể tải');
     expect(screen.queryByRole('table')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
@@ -870,4 +870,48 @@ it('opens OPS recovery instructions without editing the driver note', () => {
   renderGrid([row({ notes: { vehicleNote: null, customerNote: null, opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] } })]);
   fireEvent.click(screen.getByRole('button', { name: /OPS:\s*Khách trả theo chứng từ/ }));
   expect(screen.getByRole('dialog')).toHaveTextContent('Giữ bản gốc');
+});
+
+describe('DetailedPlanGrid — background-refresh resilience (P1 dispatch-detail mount regression)', () => {
+  it('keeps the table and its inline editors mounted when a background refresh fails (items already loaded)', async () => {
+    // Post-cut#4 repro (QA _58 block): a transient failure on the 30s
+    // auto-refresh tick collapsed the whole grid to the error branch —
+    // rows vanished and the open inline editor died with them. Stale data
+    // must stay on screen with a non-blocking banner instead.
+    const onRetry = vi.fn();
+    renderGrid([row(), row({ fulfillmentId: 102 })], {
+      error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.',
+      onRetry,
+    });
+    // Both rows survive (identified by container number — the row identity
+    // the dispatchers read).
+    expect(screen.getAllByText('MSCU1234567').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(2);
+    // The failure is announced but never as a table replacement…
+    expect(screen.getByRole('alert')).toBeTruthy();
+    // …and the retry affordance rides the banner, not a full-surface swap.
+    fireEvent.click(screen.getByRole('button', { name: /Thử lại/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    // The editor-affordance column (assignment) stays interactive: the first
+    // row still exposes its plate control.
+    expect(screen.queryAllByRole('row').length).toBeGreaterThan(2);
+  });
+
+  it('keeps the filter bar mounted in every state so the drive can always find Tìm nhanh', () => {
+    const filters = { ...EMPTY_DETAILED_PLAN_FILTERS, q: 'MSCU' };
+    // Error state…
+    const errorRender = renderGrid([row()], {
+      filters,
+      error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.',
+    });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+    errorRender.unmount();
+    // …loading state…
+    const loadingRender = renderGrid([], { filters, loading: true });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+    loadingRender.unmount();
+    // …and the data state.
+    renderGrid([row()], { filters });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+  });
 });
