@@ -1,78 +1,70 @@
-# Regression Test Plan — Audit tài liệu các chi phí.pdf (2026-09-22)
+# Regression Test Plan — Audit tài liệu các chi phí.pdf
 
-**Ngày lập:** 2026-09-22  
-**Mục tiêu:** Kiểm thử thực tế các yêu cầu trong tài liệu `/Users/dev/Downloads/các chi phí.pdf` trên môi trường local dev (`http://localhost:7175`, API `:3002`, DB `:5441`).  
+**Ngày cập nhật:** 2026-09-23 (Phiên re-test toàn diện đợt 2)  
+**Mục tiêu:** Kiểm thử thực tế toàn bộ các yêu cầu trong tài liệu `/Users/dev/Downloads/các chi phí.pdf` trên môi trường local dev (`http://localhost:7175`, API `:3002`, DB `:5441`).  
 **Tài khoản sử dụng:** `ketoan` (Kế toán), `giaonhan` (OPS Giao nhận), `laixe` (Lái xe) — Mật khẩu: `Abc123` (theo `testplan/testaccounts.txt`).  
-**Thư mục bằng chứng:** `qa/2026-09-22_cac-chi-phi-audit/`  
-**Kanban Tickets tương ứng:** `20260922_51`, `20260922_52`, `20260922_53`, `20260922_54` trên Google Drive `Kanban-PROD/TODO/`.
+**Thư mục bằng chứng:** `qa/2026-09-23_cac-chi-phi-comprehensive/` và `qa/2026-09-22_cac-chi-phi-audit/`  
+**Kanban Tickets tương ứng:**
+- `20260922_67` (trước là 51): Popup phơi phiếu vẽ ngoài màn hình -> **ĐÃ FIX & PASS** (Đã chuyển `QA_PASSED/`)
+- `20260922_54`: Header "Thông số container" ngắt CONTAINE / R -> **ĐÃ FIX & PASS** (Đã chuyển `QA_PASSED/`)
+- `20260922_52`: Bảng hóa đơn kết hợp 14 cột chồng chữ -> **FAIL / OPEN** (Trong `TODO/`)
+- `20260922_53`: Bảng hoàn cược xén nút & gãy token ngày -> **PARTIAL / OPEN** (Token ngày đã fix, nút ở x=1655px cần cuộn ngang trên màn 1440px)
 
 ---
 
 ## 1. Danh sách các Case hồi quy (Regression Test Cases)
 
-| Case ID | Card Kanban | Màn hình | Mức độ | Hiện tượng phát hiện (FAIL) | Kỳ vọng khi PASS |
-|---|---|---|---|---|---|
-| `TC-CCP-01` | `20260922_51` | `/accounting/phoi-phieu` | **P0 (Blocker)** | Bấm "Xem chi tiết" ở cột Chi hộ hoặc Tiền đường: Không có modal nào xuất hiện trong viewport. Modal bị render ở `top: 21,588px` (tận đáy trang sau 100+ dòng) do thiếu `ops-modal-backdrop` và thiếu `ops-modal.css`. | Modal xuất hiện ngay chính giữa màn hình (viewport center), có nền mờ fixed che phủ, nhấn Esc hoặc nút [✕] để đóng. |
-| `TC-CCP-02` | `20260922_52` | `/accounting/invoice-tracking` | **P1 (High)** | Bảng 14 cột dùng `table-layout: fixed` chia đều 80.6px kết hợp `.ivt-stack > span { white-space: nowrap }` không ẩn overflow, khiến tên khách hàng (`CÔNG TY TNHH LONG MINH`) và hóa đơn (`HD-C18-01`) tràn ngang 35–60px đè thẳng lên cột container và số tiền bên cạnh. | Bảng có min-width hợp lý (≥ 1350px) kèm cuộn ngang mượt mà, phân bổ tỷ lệ cột chuẩn, chữ không tràn đè lên nhau. |
-| `TC-CCP-03` | `20260922_53` | `/accounting/deposit-tracker` | **P1 (High)** | Cột Thao tác cuối bảng bị xén mất viền và chữ: nút "Đã hoàn cược" bị cụt thành "Đã hoàn"; các token ngày ("21/09/26") và mã bill ("DUE1") bị bẻ đôi thành 2 dòng. | Nút thao tác hiển thị nguyên vẹn 100%, có scroll ngang an toàn, ngày tháng giữ nguyên trên 1 dòng `white-space: nowrap`. |
-| `TC-CCP-04` | `20260922_54` | `/accounting/phoi-phieu` | **P2 (Medium)** | Header cột "Thông số container" bị bẻ gãy từ: dòng 2 hiện `CONTAINE`, dòng 3 rơi trơ trọi chữ cái `R`. | Header cột giữ nguyên từ ngữ (`word-break: keep-all`), không ngắt cụt 1 ký tự rơi dòng. |
+| Case ID | Card Kanban | Màn hình | Mức độ | Hiện trạng đợt 1 | Kết quả Re-test đợt 2 (2026-09-23) | Bằng chứng đợt 2 |
+|---|---|---|---|---|---|---|
+| `TC-CCP-01` | `20260922_67` | `/accounting/phoi-phieu` | **P0 (Blocker)** | Bấm "Xem chi tiết" popup render ở `top: 21,588px` ngoài màn hình | **PASS (FIXED)**: Đã bọc `OpsModalBackdrop`, popup mở ngay viewport center (`top: 0px`, `zIndex: 300`), có phím Esc/đóng | `qa/2026-09-23_cac-chi-phi-comprehensive/m1-03-chi-ho-dialog.png`, `m1-04-tien-duong-dialog.png` |
+| `TC-CCP-02` | `20260922_52` | `/accounting/invoice-tracking` | **P1 (High)** | Bảng 14 cột `table-layout: fixed` chia đều 80.6px khiến text tràn 35–60px đè cột kế bên | **FAIL (REPRODUCED)**: Chữ Cột 3 tràn 82.6px sang Cột 4; Cột 7 tràn 59.4px sang Cột 8. Tổng tràn đo được 158.1px | `qa/2026-09-23_cac-chi-phi-comprehensive/m2-02-invoice-table-crop.png` |
+| `TC-CCP-03` | `20260922_53` | `/accounting/deposit-tracker` | **P1 (High)** | Nút "Đã hoàn cược" bị xén cụt viền phải; token ngày gãy đôi dòng | **PARTIAL**: Token ngày hiển thị 1 dòng (PASS); Nút "Đã hoàn cược" nằm tại toạ độ x=1655px trên viewport 1440px (yêu cầu cuộn ngang) | `qa/2026-09-23_cac-chi-phi-comprehensive/m3-02-deposit-table-crop.png`, `m3-07-refund-completed-verified.png` |
+| `TC-CCP-04` | `20260922_54` | `/accounting/phoi-phieu` | **P2 (Medium)** | Header "Thông số container" bị ngắt thành `CONTAINE` / `R` | **PASS (FIXED)**: Hiển thị trọn vẹn `THÔNG SỐ CONTAINER` (rộng 94.1px), không còn chữ cái R đơn lẻ | `qa/2026-09-23_cac-chi-phi-comprehensive/m1-02-header-container-crop.png` |
 
 ---
 
-## 2. Chi tiết từng ca kiểm thử và các bước tái hiện (Reproduction Steps)
+## 2. Kết quả Kiểm thử Nghiệp vụ Toàn diện 7 Phân hệ (§1 - §5)
 
-### TC-CCP-01: Hộp thoại "Xem chi tiết" Phơi phiếu vẽ ngoài màn hình (P0)
-- **Tài khoản:** `ketoan` / `Abc123`
-- **Màn hình:** `http://localhost:7175/accounting/phoi-phieu`
-- **Các bước thực hiện:**
-  1. Đăng nhập vai trò Kế toán, truy cập `/accounting/phoi-phieu`.
-  2. Bấm nút **"Xem chi tiết"** tại cột "Chi hộ (Phải thu / Phải trả)" ở dòng đầu tiên.
-  3. Quan sát màn hình trước mắt: **FAIL** — Không có hộp thoại nào xuất hiện; người dùng tưởng nhầm nút bị hỏng.
-  4. Mở Console / DevTools hoặc cuộn chuột liên tục xuống đáy trang (toạ độ `y = 21,500px`): Hộp thoại chi tiết Chi hộ nằm trơ trọi ở đáy trang, không có backdrop che phủ, không căn giữa.
-- **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Bọc component bằng `OpsModalBackdrop` (hoặc `.ops-modal-backdrop` có `position: fixed; inset: 0; z-index: var(--z-modal)`).
-  - Import đầy đủ `ops-modal.css` trong cả `PhoiPhieuChiHoDialog.tsx` và `PhoiPhieuTienDuongDialog.tsx`.
-  - Hộp thoại hiện ngay giữa màn hình khi bấm nút.
+### Phân hệ 1: Kế toán — Bảng Kiểm soát Phơi phiếu (`/accounting/phoi-phieu`)
+- **Tải trang & Hiển thị (`TC-M1.1`):** **PASS**. Bảng `ppc-board` tải đầy đủ 100+ dòng, phân trang, thông tin container kèm trọng tải (`cargoWeightKg`), thông tin xe gộp biển số liên tiếp.
+- **Header Thông số container (`TC-CCP-04`):** **PASS**. Text chuẩn `THÔNG SỐ CONTAINER`.
+- **Xem chi tiết Chi hộ (`TC-CCP-01a` / `TC-M1.3b`):** **PASS**. Popup mở ngay trong viewport, có đầy đủ:
+  - Checkbox "Tích để nhập Thu và Trả phơi bằng nhau" (tự động đồng bộ số tiền).
+  - Bảng kê phí chi hộ từng dòng (STT, Nội dung phí, Hóa đơn, Số tiền thu/trả, Người thanh toán).
+  - Ô nhập Ngày lấy phơi & Trạng thái lấy phơi.
+- **Xem chi tiết Tiền đường (`TC-CCP-01b`):** **PASS**. Popup tiền đường mở trong viewport với backdrop cố định.
+- **Báo cáo tháng Thu/Trả & Phân công xe (`TC-M1.5`):** **PASS**. Đầy đủ 2 bảng báo cáo tháng và bảng `PhoiPhieuTruckAssignments`.
 
----
+### Phân hệ 2: Kế toán — Theo dõi Hóa đơn kết hợp (`/accounting/invoice-tracking`)
+- **Bố cục 14 cột (`TC-CCP-02`):** **FAIL**. Bảng bị ép co lại 80.6px/cột kết hợp `white-space: nowrap` không ẩn overflow khiến chữ tràn sang đè cột kế bên (đo được tràn tới 158.1px).
+- **Thêm chi phí lô hàng (`TC-M2.2`):** **PASS**. Nút "+ Thêm chi phí lô hàng" mở modal với đầy đủ trường Lô hàng, Container, Số hóa đơn, Ngày hóa đơn, Số tiền, Thuế VAT, NCC, Ghi chú.
+- **Xóa hóa đơn có lý do bắt buộc (`TC-M2.3` - Q10):** **PASS**. Nút xóa kích hoạt `useReasonPrompt` yêu cầu nhập lý do bắt buộc trước khi soft-void.
 
-### TC-CCP-02: Bảng theo dõi hóa đơn kết hợp bị chồng chữ chéo giữa các cột (P1)
-- **Tài khoản:** `ketoan` / `Abc123`
-- **Màn hình:** `http://localhost:7175/accounting/invoice-tracking`
-- **Các bước thực hiện:**
-  1. Đăng nhập vai trò Kế toán, truy cập `/accounting/invoice-tracking`.
-  2. Đặt kích thước cửa sổ 1440×900.
-  3. Quan sát dòng 1 và dòng 2 của bảng:
-     - Ô Cột 3 (Mã lô & Tên khách hàng): Dòng chữ `CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH` tràn ngang 34.4px đè trực tiếp lên số container `QATU1234569` ở Cột 4.
-     - Ô Cột 7 (Số hóa đơn & Số tiền): Khối chữ `Số hóa đơn: HD-C18-01 / Số tiền: 12.000.000 đ` tràn ngang 59.4px đè trực tiếp lên cột tiền `8.000.000 đ` ở Cột 8.
-- **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Thiết lập `min-width: 1350px` cho bảng trong khung cuộn ngang `.table-scroll`.
-  - Thiết lập chiều rộng thích hợp cho các cột chứa văn bản dài (Mã lô / Khách hàng ≥ 160px).
-  - Không để chữ của cột trước tràn đè lên nội dung cột sau.
+### Phân hệ 3: Kế toán — Theo dõi Hoàn cược container (`/accounting/deposit-tracker`)
+- **Hiển thị & Nút thao tác (`TC-CCP-03`):** Bảng có tổng chiều rộng 1397px trên khung chứa 1127px. Token ngày hiển thị chuẩn không bị gãy dòng. Cột Thao tác nằm ở cuối bảng có thanh cuộn ngang.
+- **Thêm dòng cược (`TC-M3.2`):** **PASS**. Nút "+ Thêm dòng" mở modal nhập cược vỏ container.
+- **Cập nhật Ngày CV (`TC-M3.3`):** **PASS**. Nút "Ngày CV / số tiền" mở modal cập nhật ngày giấy mượn container / biên lai CV.
+- **Thao tác Hoàn cược & Ghi nhận Sổ quỹ (`TC-M3.4`):** **PASS (Rung 3)**. Bấm "Đã hoàn cược" -> hiện confirm dialog -> xác nhận -> CSDL ghi nhận bản ghi `treasury_movements` (id=62, quỹ ACB id=1, hướng IN, số tiền 1.000.000đ, ref `HOAN-CUOC-12-DUE1`).
 
----
+### Phân hệ 4: Kế toán — Chốt Debit & Khóa đơn giá (`/accounting/chot-debit`)
+- **Bảng điều động tổng hợp 18+ cột (`TC-M4.1`):** **PASS**. Bảng có 20 cột, hiển thị 558 dòng lô hàng/container với lịch trình, đơn giá biểu phí, thỏa thuận, phụ phí, chi hộ.
+- **Chốt Debit (`TC-M4.2`):** **PASS**. Chọn checkbox dòng và bấm "Xác nhận đối soát" mở dialog chốt debit, khóa sửa đổi đơn giá (HTTP 409 khi cố tình sửa).
 
-### TC-CCP-03: Bảng hoàn cược container bị xén nút thao tác và bẻ gãy token ngày (P1)
-- **Tài khoản:** `ketoan` / `Abc123`
-- **Màn hình:** `http://localhost:7175/accounting/deposit-tracker`
-- **Các bước thực hiện:**
-  1. Đăng nhập vai trò Kế toán, truy cập `/accounting/deposit-tracker`.
-  2. Quan sát mép phải của bảng:
-     - Nút "Đã hoàn cược" bị mép màn hình xén cụt, chỉ còn hiện chữ "Đã hoàn" và mất viền phải.
-     - Cột Ngày: Chuỗi "21/09/26" bị ngắt làm 2 dòng ("21/09" ở trên và "/26" ở dưới).
-     - Cột Bill: Chuỗi "DUE1" bị ngắt làm 2 dòng ("DUE" ở trên và "1" ở dưới).
-- **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Đảm bảo toàn bộ nút "Đã hoàn cược" hiển thị đầy đủ, không bị cắt mép viền.
-  - Cột ngày tháng và mã định danh phải có `white-space: nowrap`.
-  - Cung cấp cơ chế cuộn ngang rõ ràng khi bảng rộng hơn vùng chứa.
+### Phân hệ 5: Kế toán — Duyệt chi phí OPS (`/accounting/expenses?view=ops`)
+- **Danh sách chi phí OPS (`TC-M5.1`):** **PASS**. Màn hình "Chi phí và đối chiếu" tải 25+ dòng chi phí do giao nhận khai báo chờ kế toán duyệt.
 
----
+### Phân hệ 6: OPS Giao nhận — Khai chi phí & Ví tạm ứng (`giaonhan`)
+- **Khai chi phí trên đơn hàng (`TC-M6.1`):** **PASS**. Mở modal "+ Khai chi phí" trên `/ops/orders`:
+  - Phân loại rõ ràng Thực chi (tiền bỏ ra) và Thực thu (tiền thu khách).
+  - Checkbox "Khách trả" (tự động tick theo cấu hình).
+  - Trường upload chứng từ ảnh hóa đơn / biên lai.
+- **Ví tạm ứng OPS (`TC-M6.2`):** **PASS**. Trang `/ops/wallet` hiển thị số dư ví tạm ứng, các khoản đã tạm ứng/hoàn ứng, nút "Yêu cầu tạm ứng" hoạt động.
 
-### TC-CCP-04: Header "Thông số container" bị bẻ chữ CONTAINE / R (P2)
-- **Tài khoản:** `ketoan` / `Abc123`
-- **Màn hình:** `http://localhost:7175/accounting/phoi-phieu`
-- **Các bước thực hiện:**
-  1. Truy cập `/accounting/phoi-phieu`.
-  2. Nhìn vào thead, cột thứ 4: Thấy chữ `THÔNG SỐ` ở dòng 1, `CONTAINE` ở dòng 2, và chữ cái đơn lẻ `R` ở dòng 3.
-- **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Tiêu đề cột áp dụng `word-break: keep-all` hoặc tăng độ rộng cột tối thiểu để từ "CONTAINER" không bị bẻ đôi.
+### Phân hệ 7: Lái xe — Chuyến hàng, Tiền đường & Chi phí (`laixe`)
+- **Danh sách chuyến (`/my-trips`):** **PASS**. Tab "Đang chạy", "Đã nhận", "Hoàn thành" hiển thị các chuyến hàng.
+- **Chi tiết chuyến (`/my-trips/195` - `TC-M7.1`):** **PASS**. Có riêng section **"Chi phí lô hàng & tiền đường"**, nút **"Thêm chi phí"** mở form với các trường:
+  - Loại chi phí (Phí nâng, bốc xếp, vá vỏ, cầu đường...).
+  - Số tiền phát sinh thực tế.
+  - Người trả / Phương thức thanh toán.
+  - Ngày phát sinh & Số hóa đơn (nếu có).
+  - Nút upload ảnh biên lai viết tay / hóa đơn.
