@@ -24,7 +24,7 @@ import {
 import { qk } from '../api/keys';
 import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
-import { businessDateISO, formatISODate, formatMoney } from '../lib/format';
+import { businessDateISO, formatBusinessRef, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
 import './AccountingInvoiceTrackingPage.css';
 
@@ -99,7 +99,7 @@ export default function AccountingInvoiceTrackingPage() {
     // mirrored lot-fee row — the prompt captures the mandatory free-text
     // reason; cancel aborts without any request.
     const reason = await prompt(
-      `Xóa theo dõi hóa đơn ${row.invoiceNumber ?? ''}? Khoản "Chi phí hóa đơn" trên lô cũng sẽ được hủy kèm lý do (đối chiếu được).`,
+      `Xóa theo dõi hóa đơn ${formatBusinessRef(row.invoiceNumber)}? Khoản "Chi phí hóa đơn" trên lô cũng sẽ được hủy kèm lý do (đối chiếu được).`,
       { confirmLabel: 'Xóa' },
     );
     if (reason == null) return;
@@ -182,26 +182,26 @@ export default function AccountingInvoiceTrackingPage() {
                 <td>{formatISODate(row.expenseDate)}</td>
                 <td>
                   <span className="ivt-stack">
-                    <span className="ivt-stack__primary">{row.shipmentCode ?? '—'}</span>
-                    <span className="ivt-stack__sub">{row.customerName ?? ''}</span>
-                    </span>
+                    <span className="ivt-stack__primary">{formatBusinessRef(row.shipmentCode)}</span>
+                    <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
+                  </span>
                 </td>
-                <td>{row.containerNumber ?? '—'}</td>
-                <td>{row.taxCode ?? '—'}</td>
-                <td>{row.supplierName ?? '—'}</td>
+                <td>{formatBusinessRef(row.containerNumber)}</td>
+                <td>{formatBusinessRef(row.taxCode)}</td>
+                <td>{formatBusinessRef(row.supplierName)}</td>
                 <td>
                   <span className="ivt-stack">
-                    <span>Số hóa đơn: {row.invoiceNumber ?? '—'}</span>
+                    <span>Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
                     <span>Số tiền: {formatMoney(Number(row.invoiceAmount))} ₫</span>
                   </span>
                 </td>
                 <td>{formatMoney(Number(row.supplierPayment))} ₫</td>
-                <td>{row.comNote ?? '—'}</td>
+                <td>{formatBusinessRef(row.comNote)}</td>
                 <td title="Số tiền hóa đơn − Số tiền trả">
                   {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
                 </td>
                 <td>{formatISODate(row.invoiceSentAt)}</td>
-                <td>{row.note ?? '—'}</td>
+                <td>{formatBusinessRef(row.note)}</td>
                 <td>
                   {canWrite ? (
                     <UuiSelectField

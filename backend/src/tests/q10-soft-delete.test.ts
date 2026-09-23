@@ -24,6 +24,7 @@ const fulfillmentIds: number[] = [];
 const tripIds: number[] = [];
 const expenseIds: number[] = [];
 const trackerIds: number[] = [];
+const opsExpenseIds: number[] = [];
 const idempotencyKeys: string[] = [];
 
 async function baseFixture() {
@@ -79,11 +80,22 @@ async function expenseFixture(tripId: number, forwarderId: number | null) {
 }
 
 after(async () => {
+  // Card 20260922_52 — this hook used to delete trip_expenses FIRST, which
+  // `invoice_tracking.expense_id` (FK, NO ACTION) rejects: the whole batch
+  // aborted, the catch below swallowed it, and every run leaked its fixture
+  // rows into the shared application DB. Those rows are what the operator saw
+  // on /accounting/invoice-tracking on 23/09 — the placeholder invoice no.
+  // "INV-EMPTY-<epoch>-q10-<rand>" and lot code "Q10-<epoch>-q10-<rand>-<n>".
+  // Order is FK-driven now: trackers → expenses → trips → fulfillments →
+  // ops-expense entries → shipments → routes → customers → users
+  // (invoice_tracking also references trips and users, so it must go before
+  // both; ops_expense_entries holds shipments with RESTRICT).
   try {
-    await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
     await db.delete(s.invoiceTracking).where(inArray(s.invoiceTracking.id, trackerIds));
+    await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
     await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+    await db.delete(s.opsExpenseEntries).where(inArray(s.opsExpenseEntries.id, opsExpenseIds));
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
     await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
     await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
@@ -91,7 +103,11 @@ after(async () => {
     try {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, userIds));
     } catch { /* best-effort */ }
-  } catch { /* best-effort */ }
+  } catch (error) {
+    // Never silent: a leaked fixture row reaches the UI, so a failed cleanup
+    // must be loud enough to catch in the run's output.
+    console.error('[q10-soft-delete] fixture cleanup failed — rows leaked into the shared DB:', error);
+  }
   await client.end();
   await disconnectRedis();
 });
@@ -233,6 +249,7 @@ describe('Q10 soft-delete conversions (card 20260922_78)', () => {
       paidById: f.user.id,
       paidAt: '2026-09-22',
     }).returning();
+    opsExpenseIds.push(entry.id);
     await deleteOpsExpense(f.user.id, entry.id, 'Nhập trùng khoản chi hộ', undefined);
     const [row] = await db.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, entry.id));
     assert.ok(row, 'the ops expense row must SURVIVE the delete');
@@ -250,6 +267,7 @@ describe('Q10 soft-delete conversions (card 20260922_78)', () => {
       paidById: f.user.id,
       paidAt: '2026-09-22',
     }).returning();
+    opsExpenseIds.push(entry.id);
     await assert.rejects(
       () => deleteOpsExpense(f.user.id, entry.id, '', undefined),
       (error: unknown) => (error as { statusCode?: number }).statusCode === 400,

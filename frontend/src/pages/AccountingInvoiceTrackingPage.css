@@ -142,25 +142,37 @@
 }
 
 
-/* ── Card 20260922_52 — anti-word-break contract for the 14-column board ────
-   Supersedes the card-20260922_23 block: under the shared .tt-table base
-   (table-layout: fixed) min-width on header cells never sizes a column track
-   — only `width` does — so the board still collapsed to ~80px equal tracks and
-   nowrap values spilled 34–60px onto the next column (financial values
-   painting over each other). Contract now:
-   - the table never compresses below 1350px (card floor); .table-scroll is the
-     smooth horizontal scroller;
-   - every column carries an explicit width track (fixed layout reads width
-     from the first-row cells): long-text columns 176/156/184, token columns
-     sized to their tokens;
-   - headers wrap at spaces only (word-break: keep-all, overflow-wrap: normal)
-     — never a mid-word fracture; data cells keep the base emergency-break;
-   - money columns (Số tiền trả, Chênh lệch) right-align and never clip.
+/* ── Card 20260922_52 (rework v2) — anti-spill contract for the 14-column board
+   Supersedes the card-20260922_23 block, and replaces the rework-v1 attempt
+   that kept the shared .tt-table `table-layout: fixed`.
+
+   Why fixed layout could not work: under fixed layout a `width` track is a
+   hard box, so any token wider than its track paints straight over the next
+   column. The operator's 23/09 screenshot is exactly that — a leaked q10
+   fixture row carried lot code "Q10-1790165053059-q10-8h9x64-3" (col 3) and
+   placeholder invoice no. "INV-EMPTY-1790165053059-q10-8h9x64" (col 7), both
+   far wider than their 176px/184px tracks. The only fixed-layout escape is
+   clipping, which design law §4 bans outright on data cells. So the board
+   moves to the house content-sizing layout (card 20260922_22 pattern:
+   .routes-table / .cfg-customer-table), where containment is structural:
+   - the table never compresses below 1350px (card floor) and .table-scroll
+     carries the overflow — a column whose token needs more room widens the
+     table instead of spilling;
+   - token cells stay on one line, so their column grows to the token;
+   - text cells wrap (`overflow-wrap: anywhere`), so a long value can never
+     leave its cell;
+   - headers wrap at spaces only (keep-all / normal) — never a mid-word
+     fracture (card 20260922_54 contract);
+   - money columns (Số tiền trả, Chênh lệch) right-align with the house
+     thousand-separator formatter.
+   Nothing here clips or ellipsises a data cell.
    Column order (canWrite 14-col layout): STT(1) Ngày(2) Thông tin lô hàng(3)
    Cont(4) MST(5) Nhà cung cấp hđ(6) Thông tin hđ(7) Số tiền trả(8) COM(9)
    Chênh lệch(10) Ngày gửi hđ(11) Ghi chú(12) Tiến độ(13) Thao tác(14). */
 .invoice-tracking-table {
+  table-layout: auto;
   min-width: 1350px;
+  width: 100%;
 }
 
 .invoice-tracking-table thead th {
@@ -169,8 +181,28 @@
   overflow-wrap: normal;
 }
 
+/* Column floors. Every column carries one, so the board's rhythm is stable at
+   every width (the previous fixed-layout tracks, verbatim) while a token
+   wider than its floor now widens its own column instead of painting over the
+   next one. Card floors: Thông tin lô hàng ≥160, Cont ≥120, Thông tin hđ ≥130. */
+.invoice-tracking-table thead th:nth-child(1) { min-width: 52px; }   /* STT */
+.invoice-tracking-table thead th:nth-child(2) { min-width: 92px; }   /* Ngày */
+.invoice-tracking-table thead th:nth-child(3) { min-width: 176px; }  /* Thông tin lô hàng */
+.invoice-tracking-table thead th:nth-child(4) { min-width: 124px; }  /* Cont */
+.invoice-tracking-table thead th:nth-child(5) { min-width: 112px; }  /* MST */
+.invoice-tracking-table thead th:nth-child(6) { min-width: 156px; }  /* Nhà cung cấp hđ */
+.invoice-tracking-table thead th:nth-child(7) { min-width: 184px; }  /* Thông tin hđ */
+.invoice-tracking-table thead th:nth-child(8) { min-width: 124px; }  /* Số tiền trả */
+.invoice-tracking-table thead th:nth-child(9) { min-width: 96px; }   /* COM */
+.invoice-tracking-table thead th:nth-child(10) { min-width: 116px; } /* Chênh lệch */
+.invoice-tracking-table thead th:nth-child(11) { min-width: 100px; } /* Ngày gửi hđ */
+.invoice-tracking-table thead th:nth-child(12) { min-width: 96px; }  /* Ghi chú */
+.invoice-tracking-table thead th:nth-child(13) { min-width: 116px; } /* Tiến độ */
+.invoice-tracking-table thead th:nth-child(14) { min-width: 96px; }  /* Thao tác */
+
 /* Token columns: STT(1) · Ngày(2) · Cont(4) · MST(5) · Số tiền trả(8) ·
-   Chênh lệch(10) · Ngày gửi hđ(11) — a code/date/amount can never break. */
+   Chênh lệch(10) · Ngày gửi hđ(11) — a code/date/amount never breaks, and its
+   column takes the room it needs instead. */
 .invoice-tracking-table tbody td:nth-child(1),
 .invoice-tracking-table tbody td:nth-child(2),
 .invoice-tracking-table tbody td:nth-child(4),
@@ -179,33 +211,29 @@
 .invoice-tracking-table tbody td:nth-child(10),
 .invoice-tracking-table tbody td:nth-child(11) {
   white-space: nowrap;
+  overflow-wrap: normal;
 }
 
-/* The lot cell stacks mã lô over khách hàng: the code is a token, the name
-   wraps at spaces (never mid-word). The sub selector must OUT-RANK the
-   generic `> span` nowrap above (measured on staging 2026-09-23: at equal
-   specificity the nowrap won and the customer name spilled 83px into Cont). */
+/* Text columns: Thông tin lô hàng(3) · Nhà cung cấp hđ(6) · Thông tin hđ(7) ·
+   COM(9) · Ghi chú(12). `anywhere` (not `break-word`) matters: it is the only
+   value that also shrinks the cell's min-content width, so one long word can
+   never force the column wider than its share. */
+.invoice-tracking-table tbody td:nth-child(3),
+.invoice-tracking-table tbody td:nth-child(6),
+.invoice-tracking-table tbody td:nth-child(7),
+.invoice-tracking-table tbody td:nth-child(9),
+.invoice-tracking-table tbody td:nth-child(12) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The lot cell stacks mã lô over khách hàng: the code is a token (its column
+   grows), the name wraps. The sub selector must OUT-RANK the generic `> span`
+   nowrap — at equal specificity the nowrap won and the customer name spilled
+   83px into Cont (measured on staging 2026-09-23). */
 .invoice-tracking-table .ivt-stack { min-width: 0; }
 .invoice-tracking-table .ivt-stack > span { white-space: nowrap; }
-.invoice-tracking-table .ivt-stack > span.ivt-stack__sub { overflow-wrap: break-word; word-break: normal; white-space: normal; }
-
-/* Explicit track widths — fixed layout reads `width` from the first-row cells;
-   min-width alone is inert there. Card floors: lô ≥160, Cont ≥120, hóa đơn
-   ≥130. */
-.invoice-tracking-table thead th:nth-child(1) { width: 52px; }
-.invoice-tracking-table thead th:nth-child(2) { width: 92px; }
-.invoice-tracking-table thead th:nth-child(3) { width: 176px; }
-.invoice-tracking-table thead th:nth-child(4) { width: 124px; }
-.invoice-tracking-table thead th:nth-child(5) { width: 112px; }
-.invoice-tracking-table thead th:nth-child(6) { width: 156px; }
-.invoice-tracking-table thead th:nth-child(7) { width: 184px; }
-.invoice-tracking-table thead th:nth-child(8) { width: 124px; }
-.invoice-tracking-table thead th:nth-child(9) { width: 96px; }
-.invoice-tracking-table thead th:nth-child(10) { width: 116px; }
-.invoice-tracking-table thead th:nth-child(11) { width: 100px; }
-.invoice-tracking-table thead th:nth-child(12) { width: 96px; }
-.invoice-tracking-table thead th:nth-child(13) { width: 116px; }
-.invoice-tracking-table thead th:nth-child(14) { width: 96px; }
+.invoice-tracking-table .ivt-stack > span.ivt-stack__sub { overflow-wrap: anywhere; word-break: normal; white-space: normal; }
 
 /* Money columns right-align and never clip (card acceptance). */
 .invoice-tracking-table tbody td:nth-child(8),
@@ -213,15 +241,9 @@
   text-align: right;
 }
 
-/* ≤640px: 14 columns cannot fit a phone. The width tracks above hold at every
-   viewport (the board scrolls sideways in .table-scroll); the media block
-   keeps card _23's mobile floors. */
+/* ≤640px: 14 columns cannot fit a phone — the board scrolls sideways in
+   .table-scroll at every viewport. The mobile block only lowers the table
+   floor; the column tracks and the token/wrap split above hold as-is. */
 @media (max-width: 640px) {
   .invoice-tracking-table { min-width: 1180px; }
-  .invoice-tracking-table thead th { min-width: 88px; }
-  .invoice-tracking-table thead th:nth-child(1) { min-width: 52px; }
-  .invoice-tracking-table thead th:nth-child(3) { min-width: 180px; }
-  .invoice-tracking-table thead th:nth-child(6) { min-width: 160px; }
-  .invoice-tracking-table thead th:nth-child(7) { min-width: 150px; }
-  .invoice-tracking-table tbody td { white-space: normal; }
 }

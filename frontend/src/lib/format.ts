@@ -142,6 +142,31 @@ export function formatMoney(n: number | string | null): string {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(num);
 }
 
+/**
+ * Display guard for DB-derived reference strings (design law §8, 2026-09-19;
+ * cards 20260919_38/39): internal ids and machine-generated codes never render
+ * as visible text — the cell shows the house empty value instead.
+ *
+ * Card 20260922_52: a q10 integration-fixture row reached the combined-invoice
+ * board and the page echoed its placeholders verbatim — the operator's 23/09
+ * screenshot shows "Số hóa đơn: INV-EMPTY-1790038443239-q10-q63uv3" repeated
+ * down the column, next to the fixture lot code
+ * "Q10-<epoch>-q10-<random>-<n>". The fixture signature is machine-generated
+ * by construction (13-digit epoch + the `-q10-` marker), so a value an
+ * operator could type can never match it.
+ *
+ * The source of the leak is fixed too (backend/src/tests/q10-soft-delete.test.ts
+ * cleaned up nothing — see that file's after() hook); this guard is the
+ * display-layer half of the contract, so no future fixture can reach the UI.
+ */
+export function formatBusinessRef(value: string | null | undefined): string {
+  const text = value?.trim() ?? '';
+  if (text === '') return '—';
+  if (/INV-EMPTY/i.test(text)) return '—';
+  if (/\b\d{13}-q10-[a-z0-9]{6}\b/i.test(text)) return '—';
+  return text;
+}
+
 /** Calendar date in the platform's Vietnam business timezone for date inputs. */
 export function businessDateISO(value: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
