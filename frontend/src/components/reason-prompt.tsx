@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 import { animate, spring, utils } from 'animejs';
 import { useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import './ReasonPrompt.css';
 
 const entrance: EntranceFn = (overlay, content, prefersReduced) => {
   if (prefersReduced) {
@@ -79,10 +80,12 @@ export function ReasonPromptDialog({
         <div className="confirm-body">
           <div className="confirm-icon confirm-icon--danger"><AlertTriangle size={22} color="var(--danger)" /></div>
           <p id={messageId} className="confirm-message">{message}</p>
-          <label className="detailed-plan-filters__label" htmlFor={inputId}>Lý do xóa (bắt buộc)</label>
+        </div>
+        <div className="confirm-prompt">
+          <label className="confirm-prompt__label" htmlFor={inputId}>Lý do xóa (bắt buộc)</label>
           <textarea
             id={inputId}
-            className="form-input"
+            className="confirm-prompt__textarea"
             value={reason}
             maxLength={REASON_MAX_LENGTH}
             rows={3}

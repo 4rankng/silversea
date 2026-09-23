@@ -1,0 +1,22 @@
+/* Card 20260923_8 group C — the reason prompt's input field block. Lives in
+   its own component-imported stylesheet so rendering is host-independent:
+   the label previously borrowed DetailedPlanGrid.css (loaded only on pages
+   that happen to import it) and the textarea relied on an undefined
+   .form-input class — the "inconsistent across the 3 screens" defect. */
+.confirm-prompt {
+  display: grid;
+  gap: 6px;
+}
+.confirm-prompt__label {
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  color: var(--ink-2);
+  /* One line, always — the 4-line ragged label was the operator's defect. */
+  white-space: nowrap;
+}
+.confirm-prompt__textarea {
+  width: 100%;
+  /* rows=3 + padding — never the 69.7px squeeze inside the flex row. */
+  min-height: 84px;
+  resize: vertical;
+}
