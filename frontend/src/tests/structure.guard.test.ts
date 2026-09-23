@@ -57,7 +57,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // (cd862de4) repaired a merge slip in the shipment key tuple
   // (`'tires',, 'quotations'` → one key per line), which costs the two lines
   // the old ceiling did not carry. Split candidate unchanged.
-  'src/api/keys.ts': 602,
+  // Bumped 602 -> 604: 2026-09-23 card 20260923_5 — the silent-409 toast fix
+  // (d9e7e2ee) maps the remove-container rejection to a typed error branch in
+  // the query keys module. Split candidate unchanged.
+  'src/api/keys.ts': 604,
   // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
   // combined-invoice tracking page landed over the ceiling without a
   // baseline; refrozen here to unblock cut #24. Split candidate.
