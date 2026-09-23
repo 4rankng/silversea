@@ -38,7 +38,7 @@ test('canonical copies reject direct edits/deletes atomically while manual and T
   for (const row of rows.slice(0, 3)) {
     for (const payload of [
       { edits: [{ expenseId: rows[3].id, buyAmount: 777 }, { expenseId: row.id, buyAmount: 500, sellAmount: 600, note: 'bypass' }] },
-      { edits: [{ expenseId: rows[3].id, buyAmount: 777 }], removeExpenseIds: [row.id] },
+      { edits: [{ expenseId: rows[3].id, buyAmount: 777 }], removeExpenseIds: [row.id], removalReason: 'QA lý do' },
     ]) {
       await assert.rejects(() => save(payload), (error: unknown) => error instanceof ApiError && error.statusCode === 409);
       assert.deepEqual(await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, row.id)), [row]);
@@ -51,8 +51,14 @@ test('canonical copies reject direct edits/deletes atomically while manual and T
   for (const row of rows.slice(3)) assert.notEqual(fees.find(fee => fee.id === row.id)?.readOnly, true);
   await save({ edits: rows.slice(3).map(row => ({ expenseId: row.id, buyAmount: 150, sellAmount: 180 })) });
   for (const row of rows.slice(3)) assert.equal((await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, row.id)))[0].sellAmount, '180');
-  await save({ removeExpenseIds: [rows[3].id] });
-  assert.equal((await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, rows[3].id))).length, 0);
+  await save({ removeExpenseIds: [rows[3].id], removalReason: 'QA lý do' });
+  // Q10 (card 20260922_78): the removal SOFT-voids the row — it survives
+  // with the governed trail instead of disappearing.
+  const removed = (await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, rows[3].id)))[0];
+  assert.equal(removed.approvalStatus, 'VOIDED');
+  assert.equal(removed.deletionReason, 'QA lý do');
+  assert.equal(removed.deletedBy, user.id);
+  assert.ok(removed.deletedAt);
   assert.equal((await db.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, ops.id)))[0].amount, '100');
   assert.equal((await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)))[0].amount, '100');
   assert.equal((await db.select().from(s.invoiceTracking).where(eq(s.invoiceTracking.id, invoice.id)))[0].supplierPayment, '100');
