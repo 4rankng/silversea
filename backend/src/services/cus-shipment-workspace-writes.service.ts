@@ -872,13 +872,27 @@ export async function addCusShipmentContainer(args: {
   const execute = async (tx: Tx) => {
     const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
 
-    // The merged desired set validates exactly like the reconcile: ISO 6346
-    // format, no in-lot duplicate, placeholder rows allowed.
+    // Cards _75/_76: validate the NEW input ALONE and name it as the sole
+    // culprit on failure. The old merged-set re-validation blamed seeded
+    // legacy rows (wrong ISO 6346 check digits) for a valid new entry —
+    // legacy rows were accepted at their creation and are tracked as fixture
+    // debt (card _71 ledger), so they no longer block quick-add. Duplicates
+    // within the lot are still rejected.
+    const requestedNumber = args.input.containerNumber.trim();
+    const [inputValid, inputMessage] = validateContainerNumber(requestedNumber);
+    if (!inputValid) {
+      throw new ApiError(400, `Số container "${requestedNumber}" không hợp lệ: ${inputMessage}`);
+    }
     const existingRows = await tx.select({ containerNumber: s.shipmentContainers.containerNumber })
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
-    const requestedNumber = args.input.containerNumber.trim();
-    assertContainerSetValid([...existingRows, { containerNumber: requestedNumber }]);
+    const duplicate = existingRows.some((candidate) => (
+      candidate.containerNumber != null
+      && normalizeContainerNumber(candidate.containerNumber) === normalizeContainerNumber(requestedNumber)
+    ));
+    if (duplicate) {
+      throw new ApiError(400, `Số container "${requestedNumber}" đã tồn tại trong lô hàng.`);
+    }
 
     const [inserted] = await tx.insert(s.shipmentContainers).values({
       shipmentId: args.shipmentId,

@@ -44,6 +44,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { calculateCheckDigit } from '@tingting/shared';
 import { insertTripComposite } from '../services/trip-composite.service';
 
 // ─── Idempotency marker ────────────────────────────────────────────────────────
@@ -221,15 +222,19 @@ const CONTAINER_PREFIXES = ['MSCU', 'TCLU', 'CMAU', 'EGHU', 'OOLU', 'FCIU', 'HLX
 function genContainerNumber(used: Set<string>): string {
   for (let attempt = 0; attempt < 50; attempt++) {
     const prefix = pick(CONTAINER_PREFIXES);
-    const digits = String(randInt(1000000, 9999999));
-    const candidate = prefix + digits;
+    const serial = String(randInt(100000, 999999));
+    // Card 20260922_76: the 7th digit is the ISO 6346 check digit — compute
+    // it (not random) so quick-add's re-validation accepts seeded lots.
+    const check = calculateCheckDigit(prefix + serial);
+    const candidate = `${prefix}${serial}${check}`;
     if (!used.has(candidate)) {
       used.add(candidate);
       return candidate;
     }
   }
-  // Pathological: fall back to a timestamp-derived unique number.
-  return 'BULK' + String(Date.now() + Math.floor(Math.random() * 1000)).slice(-7);
+  // Pathological: fall back to a timestamp-derived unique (still valid) number.
+  const serial = String(Date.now()).slice(-6);
+  return `MSCU${serial}${calculateCheckDigit(`MSCU${serial}`)}`;
 }
 function genSealNumber(): string {
   return 'SL' + String(randInt(1_000_000, 9_999_999));
