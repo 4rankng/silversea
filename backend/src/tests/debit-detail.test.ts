@@ -310,12 +310,45 @@ describe('20260918 debit-edits PUT (red-first)', () => {
       .where(eq(s.tripExpenses.tripId, lot.trip.id));
     assert.ok(added, 'the OTHER fee row must exist');
     assert.equal(added.expenseType, 'OTHER');
+    // Q10 (card 20260922_78): a removal batch MUST carry a free-text reason.
     const remove = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
       removeExpenseIds: [added.id],
+      removalReason: 'Phí nâng hạ phát sinh bị gõ nhầm',
     });
     assert.equal(remove.status, 200, JSON.stringify(remove.body));
-    const [gone] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, added.id));
-    assert.ok(!gone, 'the removed fee row must be gone');
+    // Save → reload: the fee leaves the ACTIVE list (the row itself survives
+    // as a governed soft-void — pinned in q10-soft-delete.test.ts).
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    const activeFeeIds = (detail.body.chiHoRows as Array<{ otherFees: Array<{ id: number }> }>)
+      .flatMap((row) => row.otherFees.map((fee) => fee.id));
+    assert.ok(!activeFeeIds.includes(added.id), 'the removed fee must be gone from the active list');
+  });
+
+  test('Q10 guard: removeExpenseIds without a non-blank removalReason → 400, nothing written', async () => {
+    const lot = await mkShipmentWithTrip();
+    const add = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, {
+      addOtherFees: [{ tripId: lot.trip.id, name: 'Phí kiểm tra lý do xóa', amount: 123000 }],
+    });
+    assert.equal(add.status, 200, JSON.stringify(add.body));
+    const [fee] = await db.select().from(s.tripExpenses)
+      .where(eq(s.tripExpenses.tripId, lot.trip.id));
+    assert.ok(fee, 'the OTHER fee row must exist');
+
+    for (const body of [
+      { removeExpenseIds: [fee.id] },
+      { removeExpenseIds: [fee.id], removalReason: '   ' },
+    ]) {
+      const rejected = await api('PUT', `/api/shipments/${lot.shipment.id}/debit-edits`, accountantId, body);
+      assert.equal(rejected.status, 400, JSON.stringify(rejected.body));
+      assert.match(String(rejected.body.error), /Lý do xóa là bắt buộc khi có dòng phí bị bỏ/);
+    }
+    // The guard rejects before any write — the fee is still active.
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    const activeFeeIds = (detail.body.chiHoRows as Array<{ otherFees: Array<{ id: number }> }>)
+      .flatMap((row) => row.otherFees.map((fee2) => fee2.id));
+    assert.ok(activeFeeIds.includes(fee.id), 'a rejected removal must leave the fee active');
   });
 
   test('idempotency replay applies once — no duplicate rows', async () => {
