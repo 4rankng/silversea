@@ -338,6 +338,21 @@ export function buildShipmentSearchPredicate(search: string | undefined) {
     ilike(s.customers.name, pattern),
     ilike(s.shipments.factoryName, pattern),
     ilike(s.shipments.shippingLineName, pattern),
+    // Card 20260922_77: the placeholder promises "số container hoặc tờ khai" —
+    // mirror the cus-workspace three-branch contract (EXISTS on the child
+    // rows; btrim + ILIKE under the same LIKE-escaped pattern).
+    sql`exists (
+      select 1
+      from ${s.shipmentContainers}
+      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+        and btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}
+    )`,
+    sql`exists (
+      select 1
+      from ${s.shipmentDeclarations}
+      where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
+        and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${pattern}
+    )`,
   );
 }
 
