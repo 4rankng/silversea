@@ -29,6 +29,11 @@ function fmt(value: number | null | undefined): string {
   return value == null ? '—' : formatCurrency(value);
 }
 
+// Card 20260923_10 D5: liters are a count, not money — the row label already
+// names the unit, so the cell carries the bare number (1dp cap for the raw
+// float tails km × norm × 2 produces), never the đồng formatter's suffix.
+const LITERS_FORMAT = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
+
 interface RouteBlockData {
   routeId: number;
   routeName: string;
@@ -108,7 +113,7 @@ function RouteBlock({
                       </td>
                     );
                   }
-                  if (rowIndex === 1) return <td key={key}>{fmt(cell.liters)}</td>;
+                  if (rowIndex === 1) return <td key={key}>{cell.liters == null ? '—' : LITERS_FORMAT.format(cell.liters)}</td>;
                   if (rowIndex === 2) {
                     return <td key={key} className={cell.missingPrice ? 'is-missing' : undefined}>{cell.missingPrice ? 'Thiếu giá' : fmt(cell.giaCos)}</td>;
                   }

@@ -99,3 +99,16 @@
   color: var(--warning-text, #92400e);
   font-style: italic;
 }
+
+/* ── D3 (card 20260923_10): .tt-table thead th is `white-space: nowrap`
+   under `table-layout: fixed`, so a long header overflows visibly into the
+   neighbour cell — "NGÀY HIỆU LỰC" paints over "GHI CHÚ" in the frames list
+   (and the same class hits the route-block grid at 1920). The no-truncation
+   law (docs/design-guidelines.md §4/§11) allows only WRAP or EXPAND, and the
+   frames panel is width-capped (minmax(280px, 380px)) — wrap is the only
+   legal move. Applies to both quotation tables. */
+.quotation-frames__table thead th,
+.quotation-grid thead th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
