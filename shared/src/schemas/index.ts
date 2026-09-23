@@ -2126,9 +2126,10 @@ export type SaveBillingDocumentInput = {
 };
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
 export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
-
 export type BillingDocumentLineInput = z.infer<typeof billingDocumentLineSchema>;
 
 export * from './governance-action';
 export * from './customer-service-finance';
 export * from './work-inbox';
+export * from './quotation';
+

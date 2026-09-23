@@ -20,6 +20,9 @@ export const shipmentDebitEditPayloadSchema = z.strictObject({
     amount: z.number(),
   })).optional(),
   removeExpenseIds: z.array(z.number().int()).optional(),
+  /** Q10 (card 20260922_78): mandatory whenever removeExpenseIds is non-empty
+   *  — the free-text reason stored on every soft-voided fee row. */
+  removalReason: z.string().optional(),
   /** Freight-side actual-PS per container — keyed by container, not expense. */
   freightEdits: z.array(z.object({
     containerNumber: z.string().min(1),

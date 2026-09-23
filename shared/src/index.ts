@@ -160,6 +160,17 @@ export {
 } from './schemas';
 
 export {
+  QUOTATION_GRID_COLUMNS, QUOTATION_CONTAINER_CLASS_CODES, QUOTATION_PATHS,
+  isQuotationContainerClass, quotationBaseClassCode,
+  quotationCellSchema, quotationCreateSchema, quotationUpdateSchema,
+} from './schemas';
+
+export type {
+  QuotationColumnKey, QuotationCellInput, QuotationCreateInput,
+  QuotationUpdateInput, QuotationCellView, QuotationView,
+} from './schemas';
+
+export {
   shipmentCusWorkspaceQuerySchema,
   shipmentCusContainerQuerySchema,
   shipmentCusMissingFieldSchema,
@@ -309,6 +320,17 @@ export type {
 
 export { round2dp, roundInt } from './calculations/round';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
+export {
+  CONTAINER_PRICE_CLASS_LABELS,
+  CONTAINER_WEIGHT_BOUNDARY_TONS,
+  MISSING_WEIGHT_MESSAGE,
+  resolveContainerPriceClass,
+} from './calculations/container-price-class';
+export type {
+  ContainerBaseType,
+  ContainerPriceClassCode,
+  ContainerPriceClassResolution,
+} from './calculations/container-price-class';
 export type {
   ComputeFuelSurchargeInput,
   ComputeFuelSurchargeResult,
