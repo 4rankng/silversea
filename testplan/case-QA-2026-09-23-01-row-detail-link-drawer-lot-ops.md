@@ -54,7 +54,28 @@ because the assertions read `textContent`/DOM presence instead of what the opera
 - Backend guards/contracts — unchanged; the client only stops inviting doomed clicks.
 - Quick-edit cargo field semantics.
 
+## Defects found by the rung (2026-09-23, QA lane) and their fence
+
+The rung (`testplan/qa/evidence/2026-09-23_c1-drawer-ops/REPORT.md`) passed every criterion but surfaced two
+drawer-motion defects that the jsdom suite could not see. Both are reworked and fenced here.
+
+| ID | Severity | Symptom | Root cause | Fence |
+|---|---|---|---|---|
+| **D1** | MEDIUM | 2560×1440: after "Chi tiết" the drawer is logically open (`aria-hidden="false"`, Xóa lô reachable) but never moves — `rect.x === viewport.width` (fully off the right edge). Forcing `transform: translateX(0%) !important` was the only way to screenshot it. | Reopen landing mid-exit. The entrance/exit are separate `animate()` calls and anime.js v4 does **not** cancel tweens across calls, so the *stale exit* kept ticking, finished **last**, and wrote `translateX(100%)` after the fresh entrance had already settled. The close-generation guard only suppresses the late `setVisible(false)`; it never stopped the animation. | `frontend/src/components/UI.drawer-animation.test.tsx` → "D1: reopening mid-exit still leaves the open panel at rest" |
+| **D2** | LOW | 390px: the panel took ~3s to arrive, the first ~500ms showing an empty screen behind it. | `duration: 420` was passed **with** a `spring()` ease — in anime.js v4 a spring ease *overrides* `duration` and drives the timeline from its own `settlingDuration` (≈860ms in / ≈1020ms out for the old 200/24 and 180/20 pairs; ~460ms floor at any stiffness). The declared 420ms never applied. | same file → "D2: the panel reaches rest within the slide budget" (budget 700ms; measured 859ms before, 300ms after) |
+
+Repro (both defects, one run): open /shipments → press "Chi tiết" → close the drawer → press "Chi tiết" again
+before the exit slide finishes. Pre-fix the panel ends off-screen at any width ≥1280 (worst observed at 2560);
+post-fix it settles at `translateX(0%)` with `rect.right === viewport.width`.
+
 ## Automated fence (red-first, must stay green)
+
+- `frontend/src/components/UI.drawer-animation.test.tsx` (card `20260923_1` D1/D2)
+  - `D1: reopening mid-exit still leaves the open panel at rest` — RED pre-fix (`translateX(100%)`), GREEN post-fix.
+  - `D2: the panel reaches rest within the slide budget` — RED pre-fix (859ms > 700ms), GREEN post-fix (300ms).
+  - Evidence: `qa/2026-09-23_c1fix-d1d2_red-first.log`, `qa/2026-09-23_c1fix-d1d2_ui-driver.log`,
+    `qa/2026-09-23_c1fix-d1d2_ui-01_reopen-mid-exit-2560.png`, `qa/2026-09-23_c1fix-d1d2_ui-02_reopen-mid-exit-390.png`.
+
 
 - `frontend/src/pages/ShipmentsPage.test.tsx`
   - `row actions: text "Chi tiết" without an icon; no trash on the row` — asserts the `[data-text]` label

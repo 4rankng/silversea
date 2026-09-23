@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
-import { animate, utils, spring } from 'animejs';
+import { animate, utils, spring, type JSAnimation } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 export { PageHeader } from './PageHeader';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
@@ -555,6 +555,20 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLElement>(null);
+  // In-flight anime.js handles. anime.js does not cancel animations targeting
+  // the same property across separate `animate()` calls, so a reopen landing
+  // mid-exit leaves the stale exit ticking — it finishes LAST and writes
+  // translateX(100%) after the fresh entrance settled, parking an open drawer
+  // (aria-hidden="false") off-screen at rect.x === viewport.width (card
+  // 20260923_1 D1, 2560px). Each phase cancels the previous one first.
+  const overlayAnimRef = useRef<JSAnimation | null>(null);
+  const asideAnimRef = useRef<JSAnimation | null>(null);
+  const stopDrawerAnimations = () => {
+    overlayAnimRef.current?.cancel();
+    asideAnimRef.current?.cancel();
+    overlayAnimRef.current = null;
+    asideAnimRef.current = null;
+  };
 
   const { visible, handleClose, overlayToken } = useAnimatedOverlay({
     overlayRef,
@@ -562,26 +576,33 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
     isOpen,
     onClose,
     entrance: (overlay, aside, prefersReduced) => {
+      stopDrawerAnimations();
       if (prefersReduced) {
         utils.set(overlay, { opacity: 1 });
         utils.set(aside, { translateX: '0%' });
         return;
       }
+      // Power eases, not `spring()`: an anime.js v4 spring IGNORES `duration`
+      // (it drives the timeline from its own settlingDuration — ≈860ms in /
+      // ≈1020ms out for the old pairs, with a ~460ms floor at any stiffness),
+      // so the slide really ran ~3× its declared 420ms and the panel sat
+      // off-screen long after the tap on mobile (card 20260923_1 D2).
       utils.set(overlay, { opacity: 0 });
-      animate(overlay, { opacity: [0, 1], duration: 200, ease: 'out(2)' });
+      overlayAnimRef.current = animate(overlay, { opacity: [0, 1], duration: 200, ease: 'out(2)' });
       utils.set(aside, { translateX: '100%', willChange: 'transform' });
-      animate(aside, {
+      asideAnimRef.current = animate(aside, {
         translateX: ['100%', '0%'],
-        duration: 420,
-        ease: spring({ stiffness: 200, damping: 24 }),
+        duration: 300,
+        ease: 'out(3)',
       });
     },
     exit: (overlay, aside, onDone) => {
-      animate(overlay, { opacity: [1, 0], duration: 220, ease: 'in(2)' });
-      animate(aside, {
+      stopDrawerAnimations();
+      overlayAnimRef.current = animate(overlay, { opacity: [1, 0], duration: 220, ease: 'in(2)' });
+      asideAnimRef.current = animate(aside, {
         translateX: ['0%', '100%'],
-        duration: 350,
-        ease: spring({ stiffness: 180, damping: 20 }),
+        duration: 240,
+        ease: 'in(2)',
         onComplete: onDone,
       });
     },
