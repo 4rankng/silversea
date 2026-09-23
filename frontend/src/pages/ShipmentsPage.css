@@ -11,163 +11,6 @@
   container-type: inline-size;
 }
 
-.cus-worksheet-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  padding: 8px 0 0;
-  border-bottom: 0;
-  background: transparent;
-}
-
-.cus-worksheet-toolbar__filters {
-  display: grid;
-  /* One self-sizing rail: every filter shares a left edge, a label baseline and
-     the row's leftover width. A new filter never needs a track edit.
-     150px keeps all seven slots (the search spans two) on one row from a
-     ~1120px rail up; a 180px track orphaned the last select on its own row at
-     the ordinary 1440-1600px canvas. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 8px 12px;
-  min-width: 0;
-  align-items: end;
-}
-
-/* The identity field is the only one that needs two tracks. */
-.cus-search-field { grid-column: span 2; }
-
-/* Reset sits under the rail, flush with its left edge. */
-.cus-worksheet-toolbar__reset { grid-column: 1 / -1; justify-self: start; }
-
-/* Page rules arrange the toolbar; shared UUI size variants own control density. */
-.cus-worksheet-toolbar .shipment-uui-field {
-  gap: 4px;
-  min-width: 0;
-}
-
-/* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
-   stack at 4px. Match them or the select labels ride 2px above the rest. */
-.cus-worksheet-toolbar .shipment-uui-field .ds-uui-select__control { gap: 4px; }
-
-.cus-worksheet-toolbar .shipment-uui-field [data-label] {
-  color: var(--ink-2);
-  font-weight: var(--fw-semibold);
-}
-
-.cus-worksheet-toolbar .shipment-uui-control,
-.cus-worksheet-toolbar .shipment-uui-select {
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: none;
-  color: var(--ink);
-}
-
-.cus-worksheet-toolbar .shipment-uui-control:focus-within,
-.cus-worksheet-toolbar .shipment-uui-select:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  outline-offset: 1px;
-}
-
-.cus-worksheet-toolbar .shipment-uui-control__input {
-  box-sizing: border-box;
-  width: 100%;
-  border: 0;
-  border-radius: inherit;
-  outline: 0;
-  color: var(--ink);
-}
-
-.cus-worksheet-toolbar .shipment-uui-control__input:focus-visible {
-  outline: 0;
-}
-
-.cus-worksheet-toolbar .shipment-uui-control__input--search {
-  padding-left: 32px;
-}
-
-.cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
-  color: var(--ink-3);
-}
-
-.cus-worksheet-toolbar .shipment-uui-control__icon {
-  color: var(--ink-3);
-}
-
-.cus-worksheet-toolbar .shipment-uui-select { font-weight: var(--fw-medium); }
-
-
-.cus-search-field__anchor {
-  position: relative;
-}
-
-.cus-search-field:has(.shipment-uui-clear) .shipment-uui-control__input {
-  padding-right: calc(var(--uui-control-h) + 4px);
-}
-.cus-search-field .shipment-uui-control .cus-search-field__validation-icon { display: none; }
-
-.cus-worksheet-toolbar .shipment-uui-clear {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: var(--uui-control-h);
-  min-width: var(--uui-control-h);
-  height: var(--uui-control-h);
-  min-height: var(--uui-control-h);
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--ink-3);
-  box-shadow: none;
-}
-
-.cus-worksheet-toolbar .shipment-uui-clear:hover {
-  background: var(--surface-3);
-  color: var(--ink);
-}
-
-.cus-workspace .shipment-uui-button {
-  border: 1px solid transparent;
-  border-radius: 6px;
-  box-shadow: none;
-  font-weight: var(--fw-semibold);
-}
-
-.cus-workspace .shipment-uui-button--primary {
-  border-color: var(--accent-2);
-  background: var(--accent-2);
-  color: var(--fg-on-brand);
-}
-
-.cus-workspace .shipment-uui-button--primary:hover {
-  border-color: var(--accent-ink);
-  background: var(--accent-ink);
-}
-
-.cus-workspace .shipment-uui-button--secondary {
-  border-color: var(--line-2);
-  background: var(--surface);
-  color: var(--ink);
-}
-
-.cus-workspace .shipment-uui-button--secondary:hover,
-.cus-workspace .shipment-uui-button--tertiary:hover {
-  background: var(--surface-3);
-}
-
-.cus-workspace .shipment-uui-button--tertiary {
-  background: transparent;
-  color: var(--ink-2);
-}
-
-.cus-worksheet-toolbar .shipment-uui-button:focus-visible,
-.cus-worksheet-toolbar .shipment-uui-clear:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 
 .cus-worksheet-meta {
   display: flex;
@@ -1031,48 +874,18 @@
   overflow: visible;
 }
 
-.cus-search-field,
 .cus-action-reason {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.cus-search-field > label,
 .cus-action-reason > span {
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
 }
 
-.cus-search-field__control {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  color: var(--ink-3);
-}
-
-.cus-search-field__control:focus-within {
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  outline-offset: 1px;
-}
-
-.cus-search-field__control input {
-  flex: 1;
-  min-width: 0;
-  height: 42px;
-  padding: 0 9px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-}
 
 .cus-action-reason textarea {
   width: 100%;
@@ -2436,34 +2249,6 @@
 .cus-container-revert:focus-visible {
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: 2px;
-}
-
-/* Secondary filters use the shared button and a full-width disclosure. */
-.cus-advanced-toggle,
-.cus-active-filter-summary { display: none; }
-.cus-worksheet-advanced { display: contents; }
-@container cus-workboard (max-width: 880px) {
-  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
-  /* This rail is search + disclosure, not the wide six-filter rail, so the
-     search takes one track: spanning two collapsed the auto track and pushed
-     the toggle onto a full-width row of its own. */
-  .cus-search-field { grid-column: auto; }
-  .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }
-  .cus-active-filter-summary {
-    display: block;
-    grid-column: 1 / -1;
-    color: var(--ink-2);
-    font-size: var(--text-caption-size);
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-  }
-  .cus-worksheet-advanced {
-    display: none;
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-  .cus-worksheet-advanced[data-open] { display: grid; }
 }
 /* Anchored editors must remain reachable with the keyboard open or in landscape. */
 .cus-appointment-popover {

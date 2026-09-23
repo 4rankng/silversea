@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
@@ -10,7 +11,6 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
@@ -144,7 +144,6 @@ export default function ShipmentContainersPage() {
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus || informationStatus);
   const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus, informationStatus].filter(Boolean).length;
   // Phone/tablet: secondary criteria collapse so records start higher.
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const resetFilters = () => {
     setDateResetKey((key) => key + 1);
@@ -217,43 +216,18 @@ export default function ShipmentContainersPage() {
       <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={detail.loading}>
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
-            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Bill/Book, số container hoặc tờ khai" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
-            <UUIButton
-              type="button"
-              size="sm"
-              color="secondary"
-              className="cus-advanced-toggle"
-              aria-label={activeDetailFilterCount > 0 ? `Bộ lọc nâng cao · ${activeDetailFilterCount}` : 'Bộ lọc nâng cao'}
-              aria-expanded={advancedOpen}
-              aria-controls="cus-detail-advanced-filters"
-              onPress={() => setAdvancedOpen((o) => !o)}
-              iconLeading={SlidersHorizontal}
-            >
-              Bộ lọc{activeDetailFilterCount > 0 ? ` · ${activeDetailFilterCount}` : ''}
-            </UUIButton>
-            <div id="cus-detail-advanced-filters" className="shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
-              <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
-                <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
-                <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
-              </div>
-              <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
-                <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
-                <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
-                <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />
-                <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--info" />
-              </div>
-              <div className="shipments-detail-filters__group shipments-detail-filters__group--presets">
-                <div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">
-                  <UUIButton size="sm" color="secondary" onPress={showToday} aria-pressed={dateFrom === today && dateTo === today}>
-                    Hôm nay
-                  </UUIButton>
-                  <UUIButton size="sm" color="secondary" onPress={showTomorrow} aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}>
-                    Hôm sau
-                  </UUIButton>
-                  <UUIButton size="sm" color="secondary" onPress={showAllDates} aria-pressed={allDates}>
-                    Tất cả
-                  </UUIButton>
-                </div>
+            {/* Card 20260922_42: shared ListFilterBar (card _38 contract).
+                Search + all controls ride the shared bar in one wrapping row;
+                the self-made disclosure chrome is deleted. Filter semantics
+                are byte-identical: same params, same handlers, same presets. */}
+            <ListFilterBar
+              search={{
+                value: searchInput,
+                onChange: updateSearch,
+                placeholder: 'Bill/Book, số container hoặc tờ khai',
+                ariaLabel: 'Container, Bill/Booking hoặc tờ khai',
+              }}
+              actions={(
                 <UUIButton
                   size="sm"
                   color="secondary"
@@ -263,8 +237,26 @@ export default function ShipmentContainersPage() {
                 >
                   Xóa bộ lọc
                 </UUIButton>
+              )}
+            >
+              <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
+              <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
+              <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
+              <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
+              <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />
+              <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--info" />
+              <div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">
+                <UUIButton size="sm" color="secondary" onPress={showToday} aria-pressed={dateFrom === today && dateTo === today}>
+                  Hôm nay
+                </UUIButton>
+                <UUIButton size="sm" color="secondary" onPress={showTomorrow} aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}>
+                  Hôm sau
+                </UUIButton>
+                <UUIButton size="sm" color="secondary" onPress={showAllDates} aria-pressed={allDates}>
+                  Tất cả
+                </UUIButton>
               </div>
-            </div>
+            </ListFilterBar>
           </div>
         </div>
 

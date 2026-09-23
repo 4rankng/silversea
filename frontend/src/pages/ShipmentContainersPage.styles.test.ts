@@ -35,23 +35,17 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter \[data-label\],\s*\n?\.shipments-detail-filter label\s*\{[^}]*margin-bottom:\s*0;[^}]*font-weight:\s*var\(--fw-semibold\);/);
     expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*6px;/);
     expect(css).toMatch(/\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*gap:\s*4px;/);
-    expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    // Owner's final filter spec (card _36): 12-col grid, two fixed rows.
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*1fr\);[^}]*gap:\s*12px 16px;[^}]*align-items:\s*end;/);
-    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{[^}]*grid-column:\s*span 4;/);
-    expect(css).toMatch(/\.shipments-detail-filter--customer\s*\{[^}]*grid-column:\s*span 4;/);
-    expect(css).toMatch(/\.shipments-detail-filter--direction\s*\{[^}]*grid-column:\s*span 3;/);
-    expect(css).toMatch(/\.shipments-detail-filter--info\s*\{[^}]*grid-column:\s*span 2;/);
-    expect(css).toMatch(/\.shipments-detail-presets\s*\{[^}]*grid-column:\s*span 2;/);
-    expect(css).toMatch(/\.shipments-detail-filters__reset\s*\{[^}]*grid-column:\s*span 2;[^}]*justify-self:\s*end;/);
-    expect(source).toMatch(/<div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">[\s\S]*?Hôm nay[\s\S]*?Hôm sau[\s\S]*?Tất cả[\s\S]*?<UUIButton[\s\S]*?shipments-detail-filters__reset[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
+    // Card 20260922_42: the shared ListFilterBar owns row layout; the
+    // self-made 12-col owner grid (card _36) is superseded and deleted.
+    expect(source).toContain('<ListFilterBar');
+    expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns/);
+    expect(css).toMatch(/\.shipments-detail-presets button \+ button\s*\{[^}]*border-left:\s*1px solid var\(--line-2\);/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
     expect(source).not.toContain('shipments-detail-filters__footer');
     expect(css).not.toContain('.shipments-detail-filters__date-actions');
-    expect(css).toMatch(/\.shipments-detail-presets button \+ button\s*\{[^}]*border-left:\s*1px solid var\(--line-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
     expect(ledgerSource).toMatch(/<SummaryRail\s/);
     expect(ledgerSource).not.toContain('shipment-container-summary');
@@ -62,40 +56,19 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
-    // Owner's final spec (card _36): one predictable 12-col grid — two fixed
-    // rows at every desktop width, predictable over crammed one-row flow.
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*1fr\);/);
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*gap:\s*12px 16px;/);
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*align-items:\s*end;/);
+    // Card 20260922_42: the shared bar hosts the controls; the page keeps
+    // only the owner-spec compact 36px control geometry and control-family
+    // alignment rules. The self-made disclosure family is deleted.
+    expect(source).toContain('<ListFilterBar');
     expect(css).toMatch(/\.shipments-detail-filters \[data-uui-control\]\s*\{[^}]*--uui-control-h:\s*36px;/);
-    expect(css).toMatch(/\.shipments-detail-filters__advanced,\s*\.shipments-detail-filters__group\s*\{\s*display:\s*contents;\s*\}/);
-    expect(css).toMatch(/\.shipments-detail-filter--search\s*\{[^}]*grid-column:\s*span 4;/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*box-shadow:\s*none;/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).not.toContain('.shipments-detail-filter select');
-    expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    // Narrow layouts retain search plus an explicit disclosure instead of
-    // forcing every filter into tall one-field rows.
-    const narrow = css.slice(css.indexOf('@container shipments-detail (max-width: 1000px)'));
-    expect(narrow).toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
-    expect(narrow).toMatch(/\.shipments-detail-filters \.cus-advanced-toggle\s*\{[^}]*display:\s*inline-flex;/);
-    // Here the rail is search + disclosure, so the search drops its two-track
-    // span; spanning two collapsed the auto track onto a row of its own.
-    expect(narrow).toMatch(/\.shipments-detail-filter--search\s*\{\s*grid-column:\s*auto;\s*\}/);
-    expect(narrow).toMatch(/\.shipments-detail-filters__advanced\s*\{[^}]*display:\s*none;[^}]*grid-column:\s*1 \/ -1;/);
-    expect(narrow).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(narrow).toMatch(/\.shipments-detail-filters__group--dates,\s*\.shipments-detail-filters__group--selects\s*\{[^}]*display:\s*contents;/);
-    expect(narrow).toMatch(/\.shipments-detail-filters__group--selects > \.shipments-detail-filter:first-child\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(source).toContain('aria-controls="cus-detail-advanced-filters"');
-    expect(source).toContain('data-open={advancedOpen ? \'\' : undefined}');
-    const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 700px)'));
-    // The tablet disclosure shares the same self-sizing rail; its old five-track
-    // template already held six fields and wrapped the last one.
-    expect(tablet).toMatch(/\.shipments-detail-filters__advanced\[data-open\]\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
-    expect(tablet).toMatch(/\.shipments-detail-filters__group--selects > \.shipments-detail-filter:first-child\s*\{[^}]*grid-column:\s*auto;/);
+    expect(css).not.toMatch(/cus-advanced-toggle|filters__advanced|filters__group/);
+    expect(source).not.toContain('aria-controls="cus-detail-advanced-filters"');
+    expect(source).not.toContain('data-open={advancedOpen');
   });
 
   it('uses a borderless workband rather than an outer card or ruled lines around the filters and ledger', () => {

@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
 import {
+  CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   ShipmentCusBucket,
@@ -20,7 +21,8 @@ import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
-import { WorkboardToolbar, WORKBOARD_BUCKETS, type WorkboardToolbarHandle } from '../components/WorkboardFilters';
+import { WORKBOARD_BUCKETS, WorkboardFilters } from '../components/WorkboardFilters';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -35,6 +37,8 @@ import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
+import { parseDateTime24 } from '../lib/format';
+import { validateDateInputText } from '../design-system/hooks/useBufferedDateTextValue';
 import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
@@ -74,7 +78,33 @@ export default function ShipmentsPage() {
   const [managedShipment, setManagedShipment] = useState<ShipmentCusWorkspaceListItem | null>(null); // 20260922_41 lot container dialog
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
-  const filtersRef = useRef<WorkboardToolbarHandle>(null);
+  // Card 20260922_42: the toolbar's draft state moved page-side — search
+  // applies on the same 350ms debounce with the same silent pattern-skip;
+  // dateResetKey clears the buffered date drafts; the export gate validates
+  // the same two date inputs by id inside the bar container.
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const [searchInput, setSearchInput] = useState(suffixParam);
+  const [dateResetKey, setDateResetKey] = useState(0);
+  const [hasDateDraft, setHasDateDraft] = useState(false);
+
+  const validateFilterDates = () => {
+    const fromInput = filterBarRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-from');
+    const toInput = filterBarRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-to');
+    const visibleFrom = fromInput?.value ? parseDateTime24(`00:00 ${fromInput.value}`)?.slice(0, 10) ?? '' : '';
+    const visibleTo = toInput?.value ? parseDateTime24(`00:00 ${toInput.value}`)?.slice(0, 10) ?? '' : '';
+    // Read the actual draft pair: a rapid submit can precede the next render
+    // and its validity effect, so URL state alone is not validation evidence.
+    if (fromInput) fromInput.setCustomValidity(validateDateInputText(fromInput.value, '', visibleTo));
+    if (toInput) toInput.setCustomValidity(validateDateInputText(toInput.value, visibleFrom));
+    const invalidInput = filterBarRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid');
+    if (!invalidInput) return true;
+    // Reveal the invalid draft to the user: focus + native validity bubble.
+    requestAnimationFrame(() => {
+      invalidInput.focus();
+      invalidInput.reportValidity();
+    });
+    return false;
+  };
 
   const ws = useCusWorkspaceState({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
@@ -107,6 +137,18 @@ export default function ShipmentsPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  // One apply model for the whole bar (2026-09-18): every control applies as
+  // it changes — the text search on a short debounce. Pattern-violating text
+  // never reaches the URL (silent skip, same as the pre-cutover debounce).
+  useEffect(() => {
+    const value = searchInput.trim();
+    if (value === suffixParam) return;
+    if (value && !CUS_SEARCH_PATTERN.test(value)) return;
+    const timer = setTimeout(() => {
+      updateParam('searchSuffix', value || null);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, suffixParam, updateParam]);
 
   // Both sort params are written in one setSearchParams pass so no render can
   // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
@@ -149,7 +191,9 @@ export default function ShipmentsPage() {
 
 
   const clearFiltersUrl = () => {
-    filtersRef.current?.clear();
+    setDateResetKey((key) => key + 1);
+    setHasDateDraft(false);
+    setSearchInput('');
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'adHoc', 'page'].forEach((key) => next.delete(key));
@@ -180,7 +224,7 @@ export default function ShipmentsPage() {
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc);
   const exportWorksheet = async () => {
-    if (!(filtersRef.current?.validateDates() ?? true)) return;
+    if (!validateFilterDates()) return;
     setExporting(true);
     ws.setError(null);
     try {
@@ -240,18 +284,42 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        <WorkboardToolbar
-          ref={filtersRef}
-          suffixParam={suffixParam}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          direction={direction}
-          bucket={bucket}
-          adHoc={adHoc}
-          hasFilters={hasFilters}
-          updateParam={updateParam}
-          onClear={clearFiltersUrl}
-        />
+        {/* Card 20260922_42: shared ListFilterBar (card _38 contract). The
+            WorkboardFilters strip rides as children — same five controls, same
+            ids, same updateParam paths (behavior byte-identical); the toolbar
+            chrome (advanced disclosure, summary chip) is deleted. */}
+        <div ref={filterBarRef} className="cus-filterbar-slot" onInput={(event) => { if ((event.target as HTMLElement).matches('[data-date-input]')) setHasDateDraft(true); }}>
+          <ListFilterBar
+            search={{
+              value: searchInput,
+              onChange: (value) => setSearchInput(value),
+              placeholder: 'Bill/Book, số container hoặc tờ khai',
+              ariaLabel: 'Bill/Book hoặc tờ khai',
+            }}
+            actions={(hasFilters || hasDateDraft) && (
+              <UUIButton
+                type="button"
+                size="sm"
+                color="tertiary"
+                className="shipment-uui-button shipment-uui-button--tertiary cus-filterbar-reset"
+                onPress={clearFiltersUrl}
+                iconLeading={<RotateCcw size={16} aria-hidden="true" />}
+              >
+                Xóa lọc
+              </UUIButton>
+            )}
+          >
+            <WorkboardFilters
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              direction={direction}
+              adHoc={adHoc}
+              bucket={bucket}
+              dateResetKey={dateResetKey}
+              updateParam={updateParam}
+            />
+          </ListFilterBar>
+        </div>
 
         {ws.data && (
           <section className="cus-workspace-summary" aria-label="Tóm tắt ưu tiên xử lý">

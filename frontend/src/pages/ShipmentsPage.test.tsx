@@ -329,7 +329,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByRole('heading', { name: 'Tổng quan lô hàng' })).toBeTruthy();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
-    expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
+    expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('type')).toBe('text');
   });
 
   it('surfaces API-backed operational priorities before the detailed shipment table', async () => {
@@ -351,21 +351,20 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(summary.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  // 2026-09-18: the bar applies live (one apply model); an invalid draft is
-  // never sent, and Enter/submit is what surfaces the validation message.
-  it('applies a valid suffix as typed and rejects an invalid draft on submit', async () => {
+  // Card 20260922_42: the bar applies live (one apply model, shared bar
+  // search slot) — a pattern-violating draft is never applied at all.
+  it('applies a valid suffix after the debounce and never applies a pattern-violating draft', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
 
     fireEvent.change(input, { target: { value: 'A12' } });
-    fireEvent.submit(input.closest('form')!);
-    expect(screen.getByRole('alert').textContent).toContain('Nhập một phần số Bill/Book, container hoặc tờ khai');
+    await new Promise((resolve) => setTimeout(resolve, 450));
     expect(apiGet).not.toHaveBeenCalledWith(expect.stringContaining('searchSuffix=A12'));
 
     fireEvent.change(input, { target: { value: 'AB$1' } });
-    fireEvent.submit(input.closest('form')!);
-    expect(screen.getByRole('alert').textContent).toContain('Nhập một phần số Bill/Book, container hoặc tờ khai');
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    expect(apiGet).not.toHaveBeenCalledWith(expect.stringContaining('searchSuffix=AB%241'));
 
     fireEvent.change(input, { target: { value: 'aB12C' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
@@ -627,10 +626,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.queryByRole('button', { name: 'Xóa bộ lọc Mã: AB12' })).toBeNull();
   });
 
-  it('clears an applied suffix immediately from the search-field control', async () => {
+  it('clears an applied suffix via the bar reset action', async () => {
     renderPage('/shipments?searchSuffix=AB12');
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa lọc' }));
 
     await waitFor(() => {
       const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
@@ -740,33 +739,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPut).not.toHaveBeenCalled();
   });
 
-  it('CUS-OVERVIEW-02 links the compact filter toggle to its panel and preserves chosen criteria across collapse', async () => {
+  it('CUS-OVERVIEW-02: the five filter controls ride the shared bar — always visible, no disclosure', async () => {
     renderPage();
     await screen.findByRole('table');
-    const toggle = screen.getByRole('button', { name: /^Bộ lọc nâng cao/ });
-    expect(toggle.textContent).toContain('Bộ lọc');
-    expect(toggle.textContent).not.toContain('nâng cao');
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    const controlledId = toggle.getAttribute('aria-controls');
-    expect(controlledId).toBeTruthy();
-    const panel = document.getElementById(controlledId!);
-    expect(panel).not.toBeNull();
-    expect(panel?.hasAttribute('data-open')).toBe(false);
-
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(panel?.hasAttribute('data-open')).toBe(true);
-    fireEvent.click(within(panel!).getByRole('button', { name: /Xuất \/ Nhập/ }));
+    expect(screen.getByLabelText('Từ ngày giao')).toBeTruthy();
+    expect(screen.getByLabelText('Xuất / Nhập')).toBeTruthy();
+    expect(screen.getByLabelText('Kế hoạch')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Bộ lọc nâng cao/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Xuất \/ Nhập/ }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
-
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByLabelText('Điều kiện đang áp dụng').textContent).toContain('Xuất');
-    fireEvent.click(toggle);
-    expect(within(panel!).getByRole('button', { name: /Xuất \/ Nhập/ }).textContent).toContain('Xuất');
-    expect(panel?.hasAttribute('data-open')).toBe(true);
-    expect(String(apiGet.mock.calls.at(-1)?.[0])).toContain('direction=EXPORT');
   });
 
   it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
@@ -1941,23 +1923,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
-    expect(source + filtersSource).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
+    // Card 20260922_42: the search rides the shared bar slot; the control
+    // strip keeps its own inputClassName pins.
+    expect(source).toContain("ariaLabel: 'Bill/Book hoặc tờ khai'");
+    expect(source).toContain('<ListFilterBar');
+    expect(filtersSource).toContain('inputClassName="shipment-uui-control__input"');
     expect(source + filtersSource).not.toContain('className="cus-filter-field shipment-uui-field"');
-    for (const label of ['Bill/Book hoặc tờ khai', 'Từ ngày giao', 'Đến ngày giao']) {
-      expect(source + filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+size="sm"`));
+    for (const label of ['Từ ngày giao', 'Đến ngày giao']) {
+      expect(filtersSource).toMatch(new RegExp(`label="${label}"\\s+size="sm"`));
     }
     for (const label of ['Xuất / Nhập', 'Kế hoạch']) {
-      expect(source + filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
+      expect(filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
     }
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
-    expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*32px;/);
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
-    // 2026-09-18 flat filter rail: one self-sizing template for every filter,
-    // the disclosure is not a layout box, and the page actions left the form.
-    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 150px\), 1fr\)\);/);
-    expect(css).toMatch(/\.cus-worksheet-advanced\s*\{\s*display:\s*contents;\s*\}/);
-    expect(css).not.toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(120px/);
-    expect(css).not.toContain('.cus-worksheet-toolbar__actions');
+    // Card 20260922_42 dead-chrome pin: the self-made toolbar family is gone.
+    expect(css).not.toMatch(/cus-worksheet-toolbar|cus-search-field|cus-worksheet-advanced|cus-advanced-toggle|cus-active-filter-summary/);
     expect(source).toMatch(/action=\{canCreateShipment && <UUIButton/);
     // Container codes: one line, never bold, copy icon in the ordinal slot
     // (user ruling 2026-09-18).
@@ -1966,15 +1947,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // hover — same top-right slot, never over the container number.
     expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*auto;[^}]*right:\s*12px;/);
     expect(source).toContain('cus-workspace-summary__export');
-    expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
-    // CUS-OVERVIEW-02: search and disclosure share a row, while the revealed
-    // criteria and their summary span the complete toolbar grid.
-    expect(filterCss).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
-    // The wide rail's two-track search must not survive here: it collapsed the
-    // auto track and pushed the disclosure onto a full-width row of its own.
-    expect(filterCss).toMatch(/\.cus-search-field\s*\{\s*grid-column:\s*auto;\s*\}/);
-    expect(filterCss).toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(filterCss).toMatch(/\.cus-active-filter-summary\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(rowSource).toContain('cus-cargo-summary__containers');
     expect(rowSource).toContain('kg ·');

@@ -558,8 +558,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCDE&transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT'));
     await screen.findByText('CONT-001');
-    const selectsGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
-    expect(within(selectsGroup).getByRole('button', { name: /Khách hàng/i })).toHaveTextContent('Công ty Silver Sea');
+    const filtersRegion = document.querySelector('.shipments-detail-filters') as HTMLElement;
+    expect(within(filtersRegion).getByRole('button', { name: /Khách hàng/i })).toHaveTextContent('Công ty Silver Sea');
   });
 
   it('ignores malformed or inverted URL filters instead of sending an invalid API query', async () => {
@@ -578,12 +578,12 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '15/08/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
 
-    const selectsGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
-    fireEvent.click(within(selectsGroup).getByRole('button', { name: /Khách hàng/i }));
+    const filtersRegion2 = document.querySelector('.shipments-detail-filters') as HTMLElement;
+    fireEvent.click(within(filtersRegion2).getByRole('button', { name: /Khách hàng/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Công ty Silver Sea' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7'));
 
-    fireEvent.click(within(selectsGroup).getByRole('button', { name: /Nhập \/ Xuất/i }));
+    fireEvent.click(within(filtersRegion2).getByRole('button', { name: /Nhập \/ Xuất/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
 
@@ -613,9 +613,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=AWAITING_VEHICLE`));
     await screen.findByText('CONT-001');
-    const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
     // The status list is long enough that UuiSelectField renders it as a searchable combobox.
-    expect(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i })).toHaveValue('Chờ phân xe');
+    expect(screen.getByRole('combobox', { name: /Trạng thái/i })).toHaveValue('Chờ phân xe');
     expect(screen.getAllByText('Chờ phân xe').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
@@ -634,8 +633,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
-    fireEvent.click(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: /Trạng thái/i }));
     for (const label of ['Chờ phân xe', 'Đã tạo chuyến', 'Đang chạy', 'Hoàn thành']) {
       expect(screen.getByRole('option', { name: label })).toBeTruthy();
     }
@@ -644,18 +642,21 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=COMPLETED`));
   });
 
-  it('rejects an invalid suffix without issuing a filtered request', async () => {
+  it('applies only valid suffixes — pattern-violating drafts never reach the endpoint', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
     const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
-    // Mid-typing prefixes of a valid reference (incl. separators) must not
-    // flash the error; only a truly invalid value may.
+    // Mid-typing prefixes of a valid reference apply nothing; a pattern-
+    // violating draft is never issued as a filtered request.
     fireEvent.change(input, { target: { value: 'AB-' } });
-    await waitFor(() => expect(screen.queryByText(/tối thiểu 4 ký tự/i)).toBeNull());
-    fireEvent.change(input, { target: { value: 'ABC!' } });
-    expect(await screen.findByText('Nhập một phần số Bill/Book, container hoặc tờ khai, tối thiểu 4 ký tự (không dùng % hoặc _).')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 450));
     expect(apiGet).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, { target: { value: 'ABC!' } });
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, { target: { value: 'ABCDEF' } });
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(expect.stringContaining('searchSuffix=ABCDEF')));
   });
 
   it('accepts the full container/Bill number, not only a 4-5 char suffix (2026-09-09 report)', async () => {
@@ -1008,7 +1009,7 @@ describe('Trạng thái dữ liệu filter (20260917_3)', () => {
     expect(await screen.findByText('CONT-001')).toBeTruthy();
     const listUrl = String(apiGet.mock.lastCall?.[0] ?? '');
     expect(listUrl).toContain('informationStatus=MISSING');
-    expect(screen.getByRole('button', { name: /Bộ lọc nâng cao · 1/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Trạng thái dữ liệu/i })).toHaveTextContent('Chưa cập nhật');
     // The control reflects the active state (react-aria Select — interaction
     // itself is exercised by the browser rung; jsdom cannot press it).
     expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThan(0);
@@ -1023,6 +1024,6 @@ describe('Trạng thái dữ liệu filter (20260917_3)', () => {
       const url = String(apiGet.mock.lastCall?.[0] ?? '');
       expect(url).not.toContain('informationStatus');
     });
-    expect(screen.queryByRole('button', { name: /Bộ lọc nâng cao · 1/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Trạng thái dữ liệu/i })).toHaveTextContent('Tất cả');
   });
 });

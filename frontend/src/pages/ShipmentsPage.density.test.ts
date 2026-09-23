@@ -11,10 +11,10 @@ const ledgerRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipme
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
-    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control__input\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*inherit;[^}]*outline:\s*0;/);
-    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control__input:focus-visible\s*\{[^}]*outline:\s*0;/);
-    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control\s*,[\s\S]*?border:\s*1px solid var\(--line-strong\);/);
-    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control:focus-within,[\s\S]*?outline:\s*2px solid/);
+    // Card 20260922_42: the toolbar-scoped shell rules retired with the
+    // self-made toolbar; the shared filter-bar sheet + design-system
+    // defaults own the control chrome now.
+    expect(css).not.toMatch(/cus-worksheet-toolbar/);
   });
 
   it('keeps edit fields in one bounded dialog instead of expanding a table column', () => {

@@ -27,35 +27,15 @@
   background: transparent;
 }
 .shipments-detail-filters {
-  display: grid;
-  /* Owner's final filter spec (2026-09-20, card _36): one predictable 12-col
-     grid at every desktop width — two fixed rows, no auto-flow reflow. Row 1:
-     search 4 · from 2 · to 2 · customer 4. Row 2: direction 3 · dispatch 3 ·
-     info 2 · date presets 2 · reset 2 (right). Supersedes the one-row ruling. */
-  grid-template-columns: repeat(12, 1fr);
-  gap: 12px 16px;
-  align-items: end;
+  /* Card 20260922_42: the self-made 12-col filter grid (owner spec 2026-09-20,
+     card _36) is superseded by the shared ListFilterBar adoption — the shared
+     bar owns row layout and wrap; this container just hosts it. The owner's
+     compact 36px control geometry is KEPT (density ruling survives). */
   min-width: 0;
 }
 /* Every control in the bar shares the owner-spec compact 36px geometry
-   (addendum to card _36: minimal vertical space, data density first). */
+   (card _36 density ruling — survives the ListFilterBar adoption). */
 .shipments-detail-filters [data-uui-control] { --uui-control-h: 36px; box-sizing: border-box; }
-.shipments-detail-filters .cus-advanced-toggle { display: none; }
-/* Neither the disclosure nor its groups are layout boxes: their fields are rail
-   items. Adding a filter never needs a track edit. */
-.shipments-detail-filters__advanced,
-.shipments-detail-filters__group { display: contents; }
-/* Owner-spec column spans. Row 1. */
-.shipments-detail-filter--search { grid-column: span 4; }
-.shipments-detail-filter--from { grid-column: span 2; }
-.shipments-detail-filter--to { grid-column: span 2; }
-.shipments-detail-filter--customer { grid-column: span 4; }
-/* Row 2. */
-.shipments-detail-filter--direction { grid-column: span 3; }
-.shipments-detail-filter--dispatch { grid-column: span 3; }
-.shipments-detail-filter--info { grid-column: span 2; }
-.shipments-detail-presets { grid-column: span 2; }
-.shipments-detail-filters__reset { grid-column: span 2; justify-self: end; width: auto; }
 /* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
    stack at 4px. Match them or the select labels ride 2px above the rest. */
 .shipments-detail-filter .ds-uui-select__control { gap: 4px; }
@@ -67,11 +47,8 @@
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
 
-.shipments-detail-filter--search input { padding-left: 30px; }
-.shipments-detail-filter--search input { text-transform: uppercase; }
-/* Date presets: ONE connected segmented group (owner spec) sitting in the
-   labelless rail slots — the grid's align-items:end keeps its bottom flush
-   with the adjacent selects. */
+/* Date presets: ONE connected segmented group (owner spec) riding the shared
+   bar's control row — compact geometry survives the ListFilterBar adoption. */
 .shipments-detail-presets { display: inline-flex; align-items: stretch; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); overflow: hidden; }
 .shipments-detail-presets button { flex: 1 1 auto; height: 34px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; padding-inline: 10px; }
 .shipments-detail-presets button + button { border-left: 1px solid var(--line-2); }
@@ -392,17 +369,6 @@
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
 @container shipments-detail (max-width: 1000px) {
-  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-  /* This rail is search + disclosure, so the search takes one track: spanning
-     two collapses the auto track and pushes the toggle onto a row of its own. */
-  .shipments-detail-filter--search { grid-column: auto; }
-  .shipments-detail-filters .cus-advanced-toggle { display: inline-flex; }
-  .shipments-detail-filters__advanced { display: none; grid-column: 1 / -1; min-width: 0; gap: 8px; align-items: end; }
-  .shipments-detail-filters__advanced[data-open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .shipments-detail-filters__group--dates,
-  .shipments-detail-filters__group--selects { display: contents; }
-  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: 1 / -1; }
-  .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
   .shipment-container-ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -543,16 +509,6 @@
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__cell--status { display: block; }
   .shipment-container-ledger__cell--status::before { display: none; }
   .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-}
-
-/* Tablet has enough room for the secondary fields without borrowing the phone's
-   three-row disclosure. The same self-sizing rail keeps dates adjacent in
-   keyboard order and survives a filter being added. */
-@container shipments-detail (min-width: 700px) and (max-width: 1000px) {
-  .shipments-detail-filters__advanced[data-open] {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  }
-  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: auto; }
 }
 
 /* Stack labels above values inside tablet record blocks. A fixed 96px label
