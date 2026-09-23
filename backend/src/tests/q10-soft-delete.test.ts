@@ -15,6 +15,7 @@ import { deleteOpsExpense } from '../services/ops-expenses.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-q10-${Math.random().toString(36).slice(2, 8)}`;
+
 const customerIds: number[] = [];
 const userIds: number[] = [];
 const routeIds: number[] = [];
@@ -112,6 +113,27 @@ describe('Q10 soft-delete conversions (card 20260922_78)', () => {
     assert.equal(row.deletionReason, 'Sai số lượng cần thu hồi');
     assert.equal(row.deletedBy, f.user.id);
     assert.ok(row.deletedAt, 'deletedAt recorded');
+  });
+
+  test('forwarder delete without a reason is rejected', async () => {
+    const f = await baseFixture();
+    // Mirror the soft-void fixture so, absent the reason guard, the delete
+    // would SUCCEED (no rejection) — the assertion then discriminates the
+    // guard itself, not an unrelated scope error.
+    const [opsUser] = await db.insert(s.users).values({ username: `q10-ops-${suffix}-${userIds.length}`, passwordHash: 'test', role: Role.OPS, status: 'ACTIVE' }).returning();
+    userIds.push(opsUser.id);
+    const trip = await tripFixture({ shipmentId: f.shipment.id, customerId: f.customer.id, routeId: f.route.id, status: 'IN_TRANSIT' });
+    await db.insert(s.userShipmentLinks).values({ userId: opsUser.id, shipmentId: f.shipment.id });
+    const expense = await expenseFixture(trip.id, opsUser.id);
+    // Whitespace-only must fail the trim guard, not slip through as "".
+    await assert.rejects(
+      db.transaction((tx) => deleteTripExpenseInTx(tx, expense.id, opsUser.id, expense.updatedAt, '   ', f.user.id)),
+      (error: unknown) => typeof error === 'object' && error !== null && 'statusCode' in error && error.statusCode === 400,
+    );
+    const [row] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
+    assert.ok(row, 'nothing deleted when the reason is missing');
+    assert.equal(row.approvalStatus, 'RECORDED');
+    assert.ok(!row.deletedAt, 'deletedAt stays NULL on the rejected delete');
   });
 
   test('invoice-tracking delete soft-voids the tracker and its mirrored fee row', async () => {
