@@ -212,6 +212,15 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'billing-documents.send-confirmation', pattern: /^\/api\/finance\/billing-documents\/[^/]+\/send-for-confirmation$/ },
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_DELETE, pattern: /^\/api\/finance\/billing-documents\/[^/]+$/ },
   { method: 'PUT', endpoint: 'freight-rate-snapshots.override', pattern: /^\/api\/pricing\/snapshots\/[^/]+\/override$/ },
+  // Card 20260922_66/_61: quotation writes are governed (runIdempotent) —
+  // declared here so the envelope 400s a key-less write with the VN message
+  // instead of the audit guard's raw 500 "Material write audit context is
+  // incomplete" (QA staging finding 2026-09-23). Endpoint strings MUST equal
+  // the routes' runIdempotent endpoint values.
+  { method: 'POST', endpoint: 'quotations.create', pattern: /^\/api\/quotations$/ },
+  { method: 'PUT', endpoint: 'quotations.update', pattern: /^\/api\/quotations\/[^/]+$/ },
+  { method: 'DELETE', endpoint: 'quotations.delete', pattern: /^\/api\/quotations\/[^/]+$/ },
+  { method: 'POST', endpoint: 'quotation-fuel-approvals.decide', pattern: /^\/api\/quotations\/fuel-approvals\/decide$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/governance-actions\/[^/]+\/check$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/governance-actions\/[^/]+\/approve$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_REJECT, pattern: /^\/api\/governance-actions\/[^/]+\/reject$/ },

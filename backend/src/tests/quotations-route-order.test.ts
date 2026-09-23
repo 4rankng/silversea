@@ -98,4 +98,38 @@ describe('quotations route order at the config mount (card 20260922_66 regressio
     });
     assert.equal(res.status, 404, 'numeric :id must reach the detail handler (frame missing → 404)');
   });
+
+  test('POST without Idempotency-Key → 400 (VN), never a raw 500', async () => {
+    const res = await fetch(`${baseUrl}/api/quotations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json() as { error?: string };
+    assert.equal(res.status, 400, `key-less write must 400, got ${res.status}`);
+    assert.match(body.error ?? '', /Idempotency-Key/);
+  });
+
+  test('POST with Idempotency-Key → 201 through the governed envelope', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `Qshadow customer ${suffix}` }).returning();
+    const res = await fetch(`${baseUrl}/api/quotations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+        'Idempotency-Key': `qshadow-${suffix}-create`,
+      },
+      body: JSON.stringify({
+        customerId: customer.id,
+        templateName: 'Mẫu báo giá 1',
+        effectiveDate: '2026-09-15',
+      }),
+    });
+    const body = await res.json() as { id?: number; error?: string };
+    assert.equal(res.status, 201, `governed write must pass the envelope: ${JSON.stringify(body).slice(0, 200)}`);
+    assert.ok(Number(body.id) > 0);
+    await db.delete(s.quotations).where(eq(s.quotations.id, Number(body.id)));
+    await db.delete(s.customers).where(eq(s.customers.id, customer.id));
+  });
 });
