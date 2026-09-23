@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { animate, createScope, utils, spring } from 'animejs';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
@@ -183,11 +184,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [addToast, dismiss],
   );
 
+  // Portal the container to document.body: #root is position:fixed and forms
+  // a stacking context, so an in-tree toast (z 500) painted UNDER overlays
+  // that live at body level (drawer z 300, modal overlay z 200) — errors
+  // fired from inside a drawer were never visible (card 20260923_5).
+  const portalTarget = typeof document === 'undefined' ? null : document.body;
+
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
       {/* Keep the region mounted before messages arrive so assistive technology
           observes additions; announcements never move focus out of the form. */}
+      {portalTarget && createPortal(
         <div
           ref={containerRef}
           className="toast-container"
@@ -224,7 +232,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               </div>
             );
           })}
-        </div>
+        </div>,
+        portalTarget,
+      )}
     </ToastContext.Provider>
   );
 }
