@@ -61,7 +61,7 @@
 .csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
 .csc-route-dialog__distance-field { flex: 0 1 184px; width: min(100%, 184px); min-width: 0; }
 .csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
-.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
+.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); }
 .csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
 .csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-customer-picker__add { width: fit-content; white-space: nowrap; }

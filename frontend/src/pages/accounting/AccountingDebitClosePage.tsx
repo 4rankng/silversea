@@ -32,7 +32,7 @@ function DebitFilterDropdown({ label, values, selected, onChange }: {
       <div style={{
         position: 'absolute', insetInline: 0, zIndex: 30, background: 'var(--surface, #fff)',
         border: '1px solid var(--border, #e2e8f0)', borderRadius: 8, padding: '8px 10px',
-        maxHeight: 260, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        maxHeight: 260, overflowY: 'auto',
       }}>
         {values.length === 0 && <span style={{ fontSize: 'var(--text-caption-size)' }}>Không có dữ liệu</span>}
         {values.map((value) => (

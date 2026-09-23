@@ -125,7 +125,6 @@ const dropdownStyle: React.CSSProperties = {
   background: 'var(--surface)',
   border: '1px solid var(--line)',
   borderRadius: 12,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
   zIndex: 999,
   padding: '8px',
 };

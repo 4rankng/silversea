@@ -525,7 +525,7 @@
   top: 5px; right: 5px;
   min-width: 16px; height: 16px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
   font-family: var(--font-data);

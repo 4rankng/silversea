@@ -9,7 +9,17 @@ function read(relativePath: string) {
 describe('selection-state contract', () => {
   it('uses neutral ink structure instead of semantic colour for explicit selections', () => {
     expect(read('src/pages/salary-attendance/calendar.css')).toContain('box-shadow: inset 3px 0 0 var(--ink);');
-    expect(read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css')).toContain('box-shadow: inset 3px 0 0 var(--color-fg-primary, var(--text-primary, #101828));');
+    // Card _46 replacement surface (red census 2026-09-23 re-pin): dispatch-
+    // detail's FacetMultiSelect rides the shared SearchableMultiSelect. Its
+    // selected state is never color-only (PRD QuyTrinhO2C §8.3): every option
+    // carries aria-selected + a conditionally-rendered check glyph (shape,
+    // not hue), and the check column is a reserved structural slot in the
+    // option row — nepocorp's own SearchableSelect pattern, ported.
+    const multiSelect = read('src/design-system/forms/SearchableMultiSelect.tsx');
+    expect(multiSelect).toContain('aria-selected={isSelected}');
+    expect(multiSelect).toContain("{isSelected ? <Check size={15} /> : null}");
+    expect(multiSelect).toContain("searchable-select__option${isActive ? ' searchable-select__option--active' : ''}");
+    expect(read('src/design-system/forms/SearchableSelect.css')).toContain('.searchable-select__check {');
     expect(read('src/features/users/users.css')).toContain('.users-customer-scope__option.is-selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/features/app-settings/FinancePolicySection.tsx')).toContain('variant="bordered"');
     expect(read('src/design-system/Tabs.css')).toContain('.ds-tabs--bordered .ds-tabs__btn--active {\n  color: var(--ink);\n  border-bottom-color: var(--ink);\n  background: transparent;');

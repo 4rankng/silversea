@@ -267,7 +267,6 @@
     max-width: calc(100vw - 16px);
     max-height: min(70dvh, 560px, calc(100dvh - max(72px, env(safe-area-inset-top)) - 16px));
     border-radius: 16px;
-    box-shadow: 0 20px 48px rgba(10, 31, 19, 0.22);
     animation: searchableSelectSheetIn 180ms ease-out both;
     transform: none;
   }

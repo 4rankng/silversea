@@ -29,7 +29,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 20px 50px -20px rgba(16, 23, 42, .18);
   /* anime.js handles opacity/scale animation */
   opacity: 1;
   transform: none;

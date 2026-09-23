@@ -71,6 +71,7 @@ const TSX_SCOPE = [
   'src/pages/config/CustomersConfigPage.tsx', // row-action menu
   'src/pages/config/RoutesConfigPage.tsx', // row-action menu
   'src/pages/accounting/AccountingDebitClosePage.tsx', // floating popover
+  'src/pages/PayableDetailPage.tsx', // export menu (§3 flat-contract sweep)
 ];
 
 // Files with overlay raw-white offenders that this card must NOT edit.
@@ -204,5 +205,33 @@ describe('floating overlays ride the --surface token (card 20260922_36, F4)', ()
       expect(entry.lane.length).toBeGreaterThan(0);
       expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
+  });
+
+  it('overlay layers carry no ad-hoc elevation shadows (§3 flat contract)', () => {
+    // Elevation comes from the surface ladder + the 1px border, never a
+    // shadow. Allowed forms: `none`, the approved --sh-* tokens (the shell
+    // pins them all to none), and ring-form shadows — focus/pulse/inset
+    // indicators (`0 0 0 …`), which are not elevation.
+    const allowed = (value: string): boolean =>
+      value === 'none'
+      || /^var\(--sh-[a-z-]+\)/.test(value)
+      || /^(inset\s+)?0 0 0\b/.test(value);
+    const violations: string[] = [];
+    for (const file of CSS_SCOPE) {
+      for (const { selector, body } of ruleBodies(read(file))) {
+        if (!OVERLAY_LAYER.test(selector)) continue;
+        for (const value of [...body.matchAll(/box-shadow\s*:\s*([^;}]*)/gi)].map((m) => m[1].trim())) {
+          if (!allowed(value)) violations.push(`${file} · ${selector} · box-shadow: ${value}`);
+        }
+      }
+    }
+    for (const file of TSX_SCOPE) {
+      const src = read(file);
+      for (const m of src.matchAll(/boxShadow:\s*['"`]([^'"`]+)['"`]/g)) {
+        const value = m[1].trim();
+        if (!allowed(value)) violations.push(`${file} · boxShadow: '${value}'`);
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });

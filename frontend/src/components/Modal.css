@@ -102,9 +102,6 @@
   position: relative;
   border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
   background: var(--surface);
-  box-shadow:
-    0 34px 70px -32px rgba(16, 23, 42, .18),
-    0 1px 0 rgba(255, 255, 255, .6) inset;
   animation: modal-rise .45s cubic-bezier(.16, 1, .3, 1) both;
   overflow: visible;
 }
@@ -321,8 +318,6 @@
     max-height: calc(100dvh - 24px);
     border-radius: 14px 14px 0 0;
     margin: auto 0 0;
-    box-shadow: 0 -8px 40px -8px rgba(0, 0, 0, 0.12),
-      0 0 0 1px rgba(0, 0, 0, 0.04);
   }
 
   .modal__head {

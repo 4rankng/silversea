@@ -36,7 +36,10 @@ describe('ops modal shell stylesheet ownership', () => {
     expect(css).toMatch(/\.ops-modal-backdrop\s*\{[^}]*z-index:\s*var\(--z-modal\);/);
     expect(css).not.toMatch(/\.ops-modal-backdrop\s*\{[^}]*z-index:\s*\d/);
     // The dialog surface is opaque — an unstyled inline render fails this.
-    expect(css).toMatch(/\.ops-modal\s*\{[^}]*background:\s*var\(--bg-1/);
+    // Stale-pin repair (red census 2026-09-23): a8c84bea (card 20260922_36,
+    // F4 fill sweep) moved the surface fill to var(--surface) per law book
+    // §3 — floating overlays are always --surface, never a canvas alias.
+    expect(css).toMatch(/\.ops-modal\s*\{[^}]*background:\s*var\(--surface\)/);
   });
 
   it('OpsOrdersPage.css no longer carries the moved shell (moved, not copied)', () => {
