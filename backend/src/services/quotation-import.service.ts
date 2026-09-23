@@ -6,10 +6,12 @@
 // Ruling 6: commit creates a NEW quotation frame — never overwrites.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { getQuotation } from './quotation.service';
+import { releaseQuotationVersion } from './quotation-version.service';
 
 const GRID_LABELS = ['Hệ số', 'Tổng lít dầu/chuyến', 'Giá cos', 'Phụ phí'];
 
@@ -217,13 +219,26 @@ function cellWhere(factory: string, label: string): string {
 
 /** Derive one-way km from the liters row: km = liters ÷ norm ÷ 2.
  * Family-safe (fuel-period 500 class): the norm may live on the base class
- * row or on a weight-split sibling — resolve across the whole family. */
-async function normForBase(baseCode: string): Promise<number | null> {
-  const base = baseCode.includes('.') ? baseCode.split('.')[0] : baseCode;
+ * row or on a weight-split sibling — resolve across the whole family, then
+ * fall back to a NAME match (prod-mirror databases name classes differently
+ * from the canonical codes, e.g. "Xe 1.25 tấn" vs "1.25T"). Returns null
+ * only when neither the class nor any family norm resolves. */
+export async function normForBase(baseCode: string): Promise<number | null> {
+  const base = baseCode.includes('.') && !/^[0-9]/.test(baseCode)
+    ? baseCode.split('.')[0]
+    : baseCode;
   const familyCodes = [baseCode, `${base}.LIGHT`, `${base}.HEAVY`, base]
     .filter((code, index, all) => all.indexOf(code) === index);
-  const classRows = await db.select({ id: s.vehicleSizeClasses.id })
+  let classRows = await db.select({ id: s.vehicleSizeClasses.id })
     .from(s.vehicleSizeClasses).where(inArray(s.vehicleSizeClasses.code, familyCodes));
+  if (classRows.length === 0) {
+    // Name fallback: the numeric/letter core of the code against class names
+    // (canonical '1.25T' vs mirror 'Xe 1.25 tấn' resolve to the same class).
+    const core = base.replace(/[A-Za-z]/g, ' ').trim() || base;
+    classRows = await db.select({ id: s.vehicleSizeClasses.id })
+      .from(s.vehicleSizeClasses)
+      .where(sql`${s.vehicleSizeClasses.name} ilike ${'%' + core + '%'}`);
+  }
   if (classRows.length === 0) return null;
   const [norm] = await db
     .select({ litersPerKm: s.fuelConsumptionNorms.litersPerKm })
@@ -280,7 +295,7 @@ export async function commitQuotationImport(
           const base = row.classCode.includes('.') ? row.classCode.split('.')[0] : row.classCode;
           const norm = await normForBase(base);
           if (norm == null || norm <= 0) {
-            throw new ApiError(400, `${cellWhere(route.factoryName, row.classLabel)}: không có định mức dầu cho ${base}.`);
+            throw new ApiError(400, `${cellWhere(route.factoryName, row.classLabel)}: không có định mức dầu cho ${base}. Kiểm tra hạng xe "${base}" tồn tại trong danh mục và định mức có ngày hiệu lực ≤ ngày nhập.`);
           }
           const km = Math.round(row.liters! / norm / 2);
           const [cls] = await tx.select({ id: s.vehicleSizeClasses.id })
@@ -342,6 +357,10 @@ export async function commitQuotationImport(
       }
       return frame.id;
     });
+    // Card _62: the import commit releases the frame's birth version (v1)
+    // — post-commit so the frozen payload sees the committed state.
+    const view = await getQuotation(quotationId);
+    await releaseQuotationVersion(view, { triggerKind: 'IMPORT', actorId });
     results.push({ sheet: enriched.sheet, quotationId, customerName: enriched.customerName ?? '(không rõ khách hàng)', errors: [] });
   }
   return results;
