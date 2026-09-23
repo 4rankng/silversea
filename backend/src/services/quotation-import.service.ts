@@ -284,10 +284,12 @@ export async function commitQuotationImport(
         const routeId = route.routeId!;
         const preparedRows: Array<{ row: (typeof route.rows)[number]; km: number; classId: number }> = [];
         for (const row of route.rows) {
-          const base = row.classCode.includes('.') ? row.classCode.split('.')[0] : row.classCode;
-          const norm = await normForBase(base);
+          // Pass the class code WHOLE: normForBase resolves the digit-leading
+          // dotted family itself ('1.25T' → 1.25T/LIGHT/HEAVY); pre-splitting
+          // here truncated '1.25T' to '1' and 400'd a resolvable row.
+          const norm = await normForBase(row.classCode);
           if (norm == null || norm <= 0) {
-            throw new ApiError(400, `${cellWhere(route.factoryName, row.classLabel)}: không có định mức dầu cho ${base}. Kiểm tra hạng xe "${base}" tồn tại trong danh mục và định mức có ngày hiệu lực ≤ ngày nhập.`);
+            throw new ApiError(400, `${cellWhere(route.factoryName, row.classLabel)}: không có định mức dầu cho ${row.classCode}. Kiểm tra hạng xe "${row.classCode}" tồn tại trong danh mục và định mức có ngày hiệu lực ≤ ngày nhập.`);
           }
           const km = Math.round(row.liters! / norm / 2);
           const [cls] = await tx.select({ id: s.vehicleSizeClasses.id })
