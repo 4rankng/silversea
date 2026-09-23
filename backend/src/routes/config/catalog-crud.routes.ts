@@ -26,6 +26,11 @@ import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
 import driverUserBindingRouter from './driver-user-binding.routes';
 import customersScreenRouter from './customers.routes';
+// Card 20260922_61: static import ONLY — the extensionless dynamic import
+// broke the dist build (ERR_MODULE_NOT_FOUND at runtime; the ESM rewrite
+// covers static imports, not dynamic specifiers — dist trap pinned by
+// shipment-debit-summary.test.ts and dist-safe-dynamic-imports.test.ts).
+import { spawnQuotationFuelApprovals } from '../../services/quotation.service';
 import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
@@ -714,7 +719,6 @@ router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT), cre
   // PENDING approval row; the engine prices the OLD period until kế toán
   // ticks Đồng ý.
   afterCreate: async (item, _data, _req, tx) => {
-    const { spawnQuotationFuelApprovals } = await import('../../services/quotation.service');
     await spawnQuotationFuelApprovals(item.id, tx);
   },
 }));

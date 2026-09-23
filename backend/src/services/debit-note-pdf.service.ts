@@ -23,7 +23,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { resolveDebitNoteTemplateForDoc } from './billing-document.service';
+import { getDocument, resolveDebitNoteTemplateForDoc } from './billing-document.service';
 import {
   resolveBillingDocumentIdentity,
   renderColumnValue,
@@ -132,7 +132,8 @@ export async function getDebitNoteForRender(
 ): Promise<DebitNoteRenderInput> {
   // Reuse the canonical hydration path so screen ↔ export always see the
   // same line data (including canonicalFreightDescription normalization).
-  const { getDocument } = await import('./billing-document.service');
+  // Static import only — extensionless dynamic specifiers break the dist
+  // build (the fuel-period 500 class; dist-safe-dynamic-imports.test.ts).
   const doc = await getDocument(documentId);
   // resolveDebitNoteTemplateForDoc always falls back to a system default
   // (never null in practice), but its declared return type is nullable.
