@@ -79,6 +79,9 @@ export const qk = {
     // Freight pricing engine (docx "Phương án tính cước tự động").
     fuelPricePeriods: ['fuel-price-periods'],
     freightRateTerms: ['freight-rate-terms'],
+    // Quotation live-view frames (card 20260922_66) — the Báo giá screen.
+    quotations: ['quotations'],
+    quotation: (id: number) => ['quotations', id] as const,
     debitNoteOverride: (snapshotId: number | string | null | undefined) =>
       ['debit-note-override', snapshotId] as const,
     allSuppliers: ['all-suppliers'],
@@ -137,8 +140,7 @@ export const qk = {
     'all-suppliers',
     'all-expense-categories',
     'salary-period',
-    'tires',
-  ] as const,
+    'tires',, 'quotations'] as const,
 
   /* ── CUS shipments workboard (/shipments) ─────────────────────────── */
   shipmentsCus: {

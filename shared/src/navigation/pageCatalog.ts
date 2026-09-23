@@ -287,6 +287,11 @@ export const PAGE_CATALOG = {
     path: '/config/pricing-tables',
     section: 'config',
   },
+  configQuotations: {
+    title: 'Báo giá',
+    path: '/config/quotations',
+    section: 'config',
+  },
   configRoadAllowances: {
     title: 'Phụ cấp đường',
     path: '/config/road-allowances',
