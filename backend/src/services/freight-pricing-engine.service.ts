@@ -14,6 +14,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { computeFreightRate } from '@tingting/shared';
 import { quotationBaseClassCode } from '@tingting/shared';
+import { roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -53,6 +54,10 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
   /** Per-cell fuel-surcharge multiplier applied (card 20260922_59; 1 = none).
    * Optional: MANUAL fallbacks elsewhere may omit it; persist defaults to 1. */
   heSo?: number;
+  /** Pre-rounding surcharge (card 20260922_60): the value AFTER the heSo
+   * multiplication but BEFORE the customer's rounding rule. Equals `surcharge`
+   * when no rounding mode is configured. Absent on MANUAL fallbacks. */
+  surchargeRaw?: number;
   /** Whether the result should be treated as MANUAL (missing data). */
   source: 'AUTO' | 'MANUAL';
   /** Human-readable formula for the UI. */
@@ -62,20 +67,21 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
 // ─── Resolve freight rate (3-step engine) ───────────────────────────────────
 
 /**
- * Per-cell Hệ số lookup (card 20260922_59): the customer's latest active
- * quotation at the transport date, cell for (route × class). Candidates in
- * order: the exact class code, the base class's LIGHT split (the price-
+ * Per-cell Hệ số + the quotation frame's rounding mode (cards _59/_60): the
+ * customer's latest active quotation at the transport date. Cell candidates
+ * in order: the exact class code, the base class's LIGHT split (the price-
  * carrying column when callers address the base code), the base code itself.
- * No quotation / no cell ⇒ 1 (ordinary round trip; ruling 5 default).
+ * No quotation / no cell ⇒ { heSo: 1, roundingMode: 'NONE' } (ruling 5/7
+ * deterministic defaults — pre-card behavior intact).
  */
-async function resolveCellHeSo(
+async function resolveQuotationHints(
   customerId: number,
   routeId: number,
   vehicleSizeClassCode: string,
   transportDate: string,
-): Promise<number> {
+): Promise<{ heSo: number; roundingMode: string }> {
   const [quotation] = await db
-    .select({ id: s.quotations.id })
+    .select({ id: s.quotations.id, roundingMode: s.quotations.surchargeRoundingMode })
     .from(s.quotations)
     .where(and(
       eq(s.quotations.customerId, customerId),
@@ -84,7 +90,7 @@ async function resolveCellHeSo(
     ))
     .orderBy(desc(s.quotations.effectiveDate))
     .limit(1);
-  if (!quotation) return 1;
+  if (!quotation) return { heSo: 1, roundingMode: 'NONE' };
 
   const base = quotationBaseClassCode(vehicleSizeClassCode);
   const candidates = [vehicleSizeClassCode, `${base}.LIGHT`, base]
@@ -98,11 +104,27 @@ async function resolveCellHeSo(
       eq(s.quotationCells.routeId, routeId),
       inArray(s.vehicleSizeClasses.code, candidates),
     ));
+  let heSo = 1;
   for (const candidate of candidates) {
     const hit = rows.find((r) => r.code === candidate);
-    if (hit) return Number(hit.heSo);
+    if (hit) {
+      heSo = Number(hit.heSo);
+      break;
+    }
   }
-  return 1;
+  return { heSo, roundingMode: quotation.roundingMode };
+}
+
+/**
+ * Card 20260922_60: apply the customer's surcharge rounding rule — Excel
+ * ROUND(x; -n) half-away-from-zero (ruling 7). 'NONE' = unconfigured ⇒ the
+ * value passes through unchanged (deterministic default). Surcharge is
+ * always ≥ 0 (MAX(0, …) clamp upstream), but the helper stays sign-safe.
+ */
+function applySurchargeRounding(mode: string, value: number): number {
+  if (mode === 'THOUSAND') return roundHalfAwayFromZero(value, -3);
+  if (mode === 'TEN_THOUSAND') return roundHalfAwayFromZero(value, -4);
+  return value;
 }
 
 /**
@@ -146,12 +168,12 @@ export async function resolveFreightRate(
     );
   }
 
-  // ── Card 20260922_59: per-cell Hệ số (fuel-surcharge-only multiplier) ──
-  // Stored on the customer's active quotation (quotation_cells, _66). Lookup
-  // order: the exact class code → the base class's LIGHT split (the price-
-  // carrying column for base-code engine calls) → default 1. Nothing found =
-  // ordinary round trip (multiplier 1), so pre-quotation behavior is intact.
-  const heSo = await resolveCellHeSo(customerId, routeId, vehicleSizeClassCode, transportDate);
+  // ── Card 20260922_59/_60: per-cell Hệ số + the frame's rounding mode ──
+  // Both live on the customer's active quotation (quotation frame + cells,
+  // _66). Defaults keep pre-card behavior intact: multiplier 1, no rounding.
+  const { heSo, roundingMode } = await resolveQuotationHints(
+    customerId, routeId, vehicleSizeClassCode, transportDate,
+  );
 
   // ── Step 2: pricing_tables (base price) ──
   const vehicleClass = await db
@@ -363,11 +385,14 @@ export async function resolveFreightRate(
     liters,
   });
 
-  // Card 20260922_59: the cell Hệ số multiplies the fuel surcharge ONLY.
-  // At heSo=1 this is Math.round on an unchanged integer — byte-identical to
-  // the pre-card engine (regression-pinned by test). Giá cos (freight J)
-  // never sees the factor.
-  const surcharge = Math.round(result.surcharge * heSo);
+  // Cards _59/_60: the cell Hệ số multiplies the fuel surcharge ONLY; the
+  // customer's rounding rule then rounds that product (Excel ROUND, half
+  // away from zero — ruling 7). Giá cos (freight J) never sees either.
+  // At heSo=1 + mode NONE this is byte-identical to the pre-card engine
+  // (regression-pinned by test).
+  const surchargeAfterHeSo = Math.round(result.surcharge * heSo);
+  const surchargeRaw = surchargeAfterHeSo;
+  const surcharge = applySurchargeRounding(roundingMode, surchargeAfterHeSo);
   const total = result.freight + surcharge;
 
   const priceClassNote = priceClassInherited
@@ -378,12 +403,16 @@ export async function resolveFreightRate(
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,
     `+ MAX(0, (${fuel.unitPrice} − ${terms.baseFuelPrice}) × ${liters.toFixed(3)})`,
     ...(heSo !== 1 ? [`× hệ số ${heSo}`] : []),
+    ...(roundingMode !== 'NONE'
+      ? [`→ làm tròn ${roundingMode === 'THOUSAND' ? '3 số' : '4 số'} = ${surcharge}`]
+      : []),
     `= ${total}`,
   ].join(' ');
 
   return {
     ...result,
     surcharge,
+    surchargeRaw,
     total,
     fuelPricePeriodId: fuel.id,
     rateTermsId: terms.id,
@@ -427,6 +456,7 @@ export async function persistFreightRateSnapshot(
       fuelDelta: String(result.fuelDelta),
       sharePct: String(result.sharePct),
       heSo: String(result.heSo ?? 1),
+      surchargeRaw: String(result.surchargeRaw ?? result.surcharge),
     })
     .returning({ id: s.freightRateSnapshots.id });
 
