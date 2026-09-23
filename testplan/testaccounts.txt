@@ -28,6 +28,11 @@ local:
     DISPATCHER:  dieuvan, dungnv (NV015), bacdk (NV016), huongnt (NV017)
     OPS:         giaonhan, hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
+    # Seed provenance (card 20260922_72): the LOCAL list above is created by
+    # dev `pnpm seed` — demo stand-ins (admin/giamdoc/ketoan/cus/dieuvan/
+    # laixe/giaonhan/thu/pho/quyet) AND the named staff thanhdc (CUS),
+    # dungnv (DISPATCHER), dvthuc (DRIVER) all come from backend/src/seed.ts.
+    # Other named staff (NV003…) remain prod-mirror-only (`make stgdb`).
     DRIVER:      laixe, thu, pho, quyet, bqhuong, btdung, vvtrung, tvtham
                  (the four dev-seed drivers exist only on dev-seed; the rest
                  are from the 38 named staging drivers — no Mã NV)

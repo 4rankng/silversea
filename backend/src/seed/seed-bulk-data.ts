@@ -352,6 +352,9 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     const [created] = await db.insert(s.customers).values({
       name: fullName,
       shortName,
+      // Card 20260922_70: KH-2xxx range for bulk synthetic customers —
+      // disjoint from the sheet run (KH-0001…) and demo samples (KH-1xxx…).
+      code: `KH-${String(2000 + i + 1).padStart(4, '0')}`,
       taxCode,
       contactPerson: genVietnameseName(),
       phone: genPhone(),
@@ -756,6 +759,41 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     stats.expenses++;
   }
   console.log(`  ✅ Expenses: +${stats.expenses}`);
+
+  // ── 8b. Card 20260922_71: trip-expense fixture with invoice + declaration
+  // number — the chứng từ cell's 'TK …' title fallback needs BOTH values in
+  // at least one seeded row (fresh seeds otherwise create no trip_expenses).
+  {
+    const opsUserId = (await resolveActiveUserIdsByRole()).get('giaonhan') ?? null;
+    const [completedTrip] = await db.select({ id: s.trips.id })
+      .from(s.trips).where(eq(s.trips.status, 'COMPLETED'))
+      .orderBy(s.trips.id).limit(1);
+    if (opsUserId != null && completedTrip != null) {
+      const [existing] = await db.select({ id: s.tripExpenses.id })
+        .from(s.tripExpenses)
+        .where(eq(s.tripExpenses.declarationNumber, '103020261100012345'))
+        .limit(1);
+      if (!existing) {
+        await db.insert(s.tripExpenses).values({
+          tripId: completedTrip.id,
+          forwarderId: opsUserId,
+          createdBy: opsUserId,
+          expenseType: 'OTHER',
+          buyAmount: '820000',
+          sellAmount: '900000',
+          settlementMethod: 'OPS_ADVANCE',
+          expenseDate: '2026-08-16',
+          payeeName: null,
+          invoiceNumber: 'BOT-2026-008812',
+          declarationNumber: '103020261100012345',
+          approvalStatus: 'RECORDED',
+          note: 'BULK fixture: phí cầu đường BOT kèm số tờ khai (card 20260922_71)',
+          noInvoiceEvidenceTypes: [],
+        });
+        console.log('  ✅ Trip-expense fixture: invoice + declaration number (+1)');
+      }
+    }
+  }
 
   // ── 9. Notifications: a handful so the bell icon isn't empty on first load
   for (let i = 0; i < 25; i++) {

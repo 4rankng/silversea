@@ -177,6 +177,8 @@ async function ensureExternalCarrier(createdBy: number): Promise<number> {
     const [inserted] = await db.insert(s.customers).values({
       name: 'Công ty TNHH Vận tải Gaya Container Lines',
       shortName: 'Gaya Container Lines',
+      // Card 20260922_70: KH-3xxx for seed-trips' carrier row — disjoint range.
+      code: 'KH-3001',
       taxCode: CARRIER_TAX_CODE,
       contactPerson: 'Đỗ Thị Gaya',
       phone: '02253866778',

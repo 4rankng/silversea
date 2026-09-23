@@ -66,6 +66,11 @@ export async function seed() {
     { username: 'dieuvan', email: 'dieuvan@nepo.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
     { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
     { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
+    // Card 20260922_72: named staff from testaccounts.txt — dev-seed and the
+    // prod mirror now agree on these logins (password rule: Abc123).
+    { username: 'thanhdc', email: 'thanhdc@nepo.vn', phone: '0900000020', passwordHash, role: Role.CUS, fullName: 'Trần Đức Thanh' },
+    { username: 'dungnv', email: 'dungnv@nepo.vn', phone: '0900000021', passwordHash, role: Role.DISPATCHER, fullName: 'Nguyễn Văn Dũng' },
+    { username: 'dvthuc', email: 'dvthuc@nepo.vn', phone: '0900000022', passwordHash, role: Role.DRIVER, fullName: 'Đỗ Văn Thức' },
     { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
     { username: 'pho', email: 'pho@nepo.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
     { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
@@ -995,7 +1000,7 @@ export async function seedShipments(passwordHash: string) {
     { name: 'Công ty TNHH Canon Việt Nam', taxCode: '0301444222', contactPerson: 'Lê Thị Hương', phone: '02253992222' },
   ];
   const sampleCustomers: { id: number; name: string }[] = [];
-  for (const c of sampleCustomerSeeds) {
+  for (const [sampleIndex, c] of sampleCustomerSeeds.entries()) {
     const normalisedTaxCode = c.taxCode.toLowerCase().trim();
     const [existing] = await db.select({ id: schema.customers.id, name: schema.customers.name })
       .from(schema.customers)
@@ -1008,7 +1013,14 @@ export async function seedShipments(passwordHash: string) {
       sampleCustomers.push(existing);
       continue;
     }
-    const [created] = await db.insert(schema.customers).values({ ...c, shortName: c.name.replace(/^(Công ty|CÔNG TY)[^ ]* /, '').slice(0, 60) }).returning({ id: schema.customers.id, name: schema.customers.name });
+    // Card 20260922_70: demo sample customers get codes in a range disjoint
+    // from the master-data sheet run (KH-0001… = seedCustomers) so every
+    // seeded customer row renders a non-empty Mã KH.
+    const [created] = await db.insert(schema.customers).values({
+      ...c,
+      code: `KH-${String(1000 + sampleIndex + 1).padStart(4, '0')}`,
+      shortName: c.name.replace(/^(Công ty|CÔNG TY)[^ ]* /, '').slice(0, 60),
+    }).returning({ id: schema.customers.id, name: schema.customers.name });
     sampleCustomers.push(created);
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);

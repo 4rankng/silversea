@@ -26,6 +26,10 @@ export const OPS_EXPENSE_PLANS = [
     noInvoiceEvidenceTypes: ['RECEIPT'], note: 'Phí nâng container cảng Đình Vũ' },
   { ref: '105254549088', expenseType: 'OTHER', buyAmount: '820000', sellAmount: '900000',
     payeeName: null, invoiceNumber: 'BOT-2026-008812',
+    // Card 20260922_71: fixtures must exercise the 'TK …' title fallback on
+    // the chứng từ cell — this is the invoice+declaration pair (the other
+    // plan stays receipt-backed with no declaration, by design).
+    declarationNumber: '103020261100012345',
     noInvoiceEvidenceTypes: [], note: 'Phí cầu đường BOT QL5' },
 ];
 

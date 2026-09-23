@@ -53,7 +53,12 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
   const customerByCode = new Map<string, number>();
   if (customers.length === 0) return { customerByCode };
 
-  for (const c of customers) {
+  for (const [customerIndex, c] of customers.entries()) {
+    // Card 20260922_70: dev-seed customers must carry a non-empty Mã KH —
+    // the config/customers identifier column hides on empty codes (colPresence).
+    // Deterministic per data-array order (the sheet file is auto-generated
+    // and stable); fits customers.code varchar(80).
+    const customerCode = `KH-${String(customerIndex + 1).padStart(4, '0')}`;
     const normalized = normTax(c.taxCode);
     const partnerValues = {
       normalizedTaxCode: normalized,
@@ -107,6 +112,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
     const customerValues = {
       name: c.name,
       shortName: c.internalCode,
+      code: customerCode,
       taxCode: c.taxCode,
       partnerId,
       contactPerson: c.manager || null,
