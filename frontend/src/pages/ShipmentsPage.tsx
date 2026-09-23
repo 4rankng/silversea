@@ -12,7 +12,6 @@ import {
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { ContainerManageDialog } from '../components/shipments/ContainerManageDialog';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
@@ -75,7 +74,7 @@ export default function ShipmentsPage() {
 
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
-  const [managedShipment, setManagedShipment] = useState<ShipmentCusWorkspaceListItem | null>(null); // 20260922_41 lot container dialog
+  const [deleteLotError, setDeleteLotError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   // Card 20260922_42: the toolbar's draft state moved page-side — search
@@ -165,8 +164,24 @@ export default function ShipmentsPage() {
 
   const openShipmentDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
+    setDeleteLotError(null);
     void loadDetail(shipmentId);
   }, [loadDetail]);
+
+  // Card 20260923_1: Xóa lô lives in the drawer header — blocked with an
+  // inline error while any container remains (ruling: clear the containers
+  // first), then routed into the existing confirmed delete flow with its API
+  // guards (đã điều xe / đã phát sinh).
+  const requestDeleteLot = useCallback((item: ShipmentCusWorkspaceListItem) => {
+    const containers = ws.details[item.id]?.containers ?? [];
+    if (containers.length > 0) {
+      setDeleteLotError('Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô');
+      return;
+    }
+    setDeleteLotError(null);
+    setDrawerId(null);
+    actions.openAction(item, 'delete');
+  }, [actions, ws.details]);
 
   const requestCloseMobileDetail = useCallback(() => {
     if (drawerId != null && savingDetailIds.has(drawerId)) {
@@ -410,12 +425,13 @@ export default function ShipmentsPage() {
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}
                       onStartQuickEdit={(item, field) => {
-                        // 20260922_41 grain split: FCL cargo cell = the lot's container dialog (no navigation, no cargo popup); FCL identity keeps the per-container factory workspace; all else keeps its quick-edit.
+                        // Card 20260923_1: the cargo cell returns to quick-edit
+                        // for every cargo mode — container composition is
+                        // managed in the drawer now. FCL identity keeps the
+                        // per-container factory workspace (rest of _41).
                         if (item.cargoMode === 'FCL' && field === 'identity') return navigate(factoryDetailPath(item));
-                        if (item.cargoMode === 'FCL' && field === 'cargo') return setManagedShipment(item);
                         startQuickEdit(item, field);
                       }}
-                      onOpenAction={actions.openAction}
                       onOpenDetail={openShipmentDetail}
                     />
                   ))}
@@ -482,6 +498,20 @@ export default function ShipmentsPage() {
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
           {drawerItem && (
             <>
+              {/* Card 20260923_1: the lot-delete affordance lives in the drawer
+                  header — topmost row of the drawer body. */}
+              <div className="cus-drawer-lot-bar">
+                {drawerItem.operational.deletable && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                    onClick={() => requestDeleteLot(drawerItem)}
+                  >
+                    Xóa lô
+                  </button>
+                )}
+                {deleteLotError && <p className="cus-drawer-lot-error" role="alert">{deleteLotError}</p>}
+              </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
                   <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>
@@ -550,9 +580,6 @@ export default function ShipmentsPage() {
       </Modal>
 
       <ShipmentActionModal actions={actions} />
-
-      {/* 20260922_41: onChanged keeps the row summary (2x40HC · 5.000 kg) in step with the new composition immediately, dialog stays open. */}
-      <ContainerManageDialog shipment={managedShipment} onClose={() => setManagedShipment(null)} onChanged={() => { if (managedShipment) ws.invalidateDetail(managedShipment.id); void loadList(); }} />
     </div>
   );
 }

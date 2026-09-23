@@ -48,13 +48,12 @@ export interface CusShipmentRowProps {
   quickEditOpen: boolean;
   savingQuickEdit: boolean;
   onStartQuickEdit: (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => void;
-  onOpenAction: (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => void;
   onOpenDetail: (shipmentId: number) => void;
 }
 
 export function CusShipmentRow({
   item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit,
-  onStartQuickEdit, onOpenAction, onOpenDetail,
+  onStartQuickEdit, onOpenDetail,
 }: CusShipmentRowProps) {
   const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
   // Card 20260921_3: the Chứng từ cell shows EVERY tờ khai of the lot, joined
@@ -204,19 +203,9 @@ export function CusShipmentRow({
             )}
           </div>
           <div className="cus-row-actions__buttons">
-            {item.operational.deletable && (
-              <UUIButton
-                size="sm"
-                color="secondary"
-                className="cus-dashboard-delete"
-                aria-label={`Xóa lô hàng ${identity}`}
-                onPress={() => onOpenAction(item, 'delete')}
-                isDisabled={editing}
-                iconLeading={<Trash2 size={16} aria-hidden="true" />}
-              >
-                Xóa
-              </UUIButton>
-            )}
+            {/* Card 20260923_1: the lot-delete affordance left the row — it
+                lives in the drawer header now. The detail action is a
+                text-only link button (no chevron, no trash). */}
             <UUIButton
               id={'cus-dashboard-detail-' + item.id}
               size="sm"
@@ -227,7 +216,6 @@ export function CusShipmentRow({
               aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
               onPress={() => onOpenDetail(item.id)}
               isDisabled={editing}
-              iconTrailing={ChevronRight}
             >
               Chi tiết
             </UUIButton>

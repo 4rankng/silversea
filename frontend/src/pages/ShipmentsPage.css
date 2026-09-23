@@ -2281,3 +2281,72 @@
 .cus-note-preview > .cus-note-clamp {
   white-space: pre-wrap;
 }
+
+/* ── Card 20260923_1: drawer lot ops ─────────────────────────────────────── */
+/* Xóa lô bar — topmost row of the drawer body; the inline error rides it. */
+.cus-drawer-lot-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.cus-drawer-lot-error {
+  margin: 0;
+  color: var(--danger-text, #b42318);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+}
+
+/* Per-row remove — mirrors the copy affordance's hover-reveal slot, one
+   step further out; destructive hover takes the danger color. */
+.cus-container-row__remove {
+  visibility: hidden;
+  position: absolute;
+  top: 50%;
+  right: 44px;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text, #b42318); }
+.cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
+.cus-container-row:hover .cus-container-row__remove,
+.cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
+
+/* Thêm container — button below the last container row; the inline form is
+   one compact row that wraps on the narrow drawer. */
+.cus-container-ledger__add { margin: 10px 0 0; }
+.cus-container-ledger__add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.cus-container-ledger__add-form input,
+.cus-container-ledger__add-form select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--app-radius-sm, 6px);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.cus-container-ledger__add-form input[aria-label='Số container'] { flex: 1 1 170px; text-transform: uppercase; }
+.cus-container-ledger__add-form input[aria-label='Trọng lượng (kg)'] { flex: 0 1 130px; }
+.cus-container-ledger__add-error {
+  margin: 6px 0 0;
+  color: var(--danger-text, #b42318);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+}

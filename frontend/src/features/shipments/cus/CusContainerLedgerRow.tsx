@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Copy } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -28,6 +28,8 @@ export function ContainerLineRow({
   onAppointmentCancel,
   showCopyAppointment,
   onCopyAppointmentToEmpty,
+  onRemove,
+  removing,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -36,6 +38,10 @@ export function ContainerLineRow({
   onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
   idPrefix: string;
   editing: boolean;
+  /** Card 20260923_1: lot-level remove — the drawer manages container
+   *  composition; absent when no refetch path is wired. */
+  onRemove?: () => void;
+  removing?: boolean;
   /** Staff close for external-carrier trips (external drivers don't use the
    *  app) — absent when the line has no completable external trip. */
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
@@ -92,6 +98,18 @@ export function ContainerLineRow({
               aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
             >
               <Copy size={13} aria-hidden="true" />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="cus-container-row__remove"
+              onClick={onRemove}
+              disabled={removing}
+              title="Xóa container khỏi lô"
+              aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
+            >
+              <Trash2 size={13} aria-hidden="true" />
             </button>
           )}
         </div>

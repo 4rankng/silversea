@@ -306,6 +306,19 @@ function masterRowDetailButton(): HTMLButtonElement {
 }
 
 describe('ShipmentsPage — CUS closeout workspace', () => {
+  // Card 20260923_1 (operator ruling): the row carries a text-only "Chi tiết"
+  // link — no chevron icon, and the lot-delete affordance leaves the row
+  // entirely (it moves into the drawer header).
+  it('row actions: text "Chi tiết" without an icon; no trash on the row', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    const row = masterRow();
+    const detailButton = within(row).getByRole('button', { name: /Mở chi tiết lô hàng/ });
+    expect(detailButton.textContent).toContain('Chi tiết');
+    expect(detailButton.querySelector('svg')).toBeNull();
+    expect(within(row).queryByRole('button', { name: /Xóa lô hàng/ })).toBeNull();
+  });
+
   beforeEach(() => {
     authState.user.role = Role.CUS;
     apiGet.mockReset();
@@ -1121,7 +1134,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     })));
   });
 
-  it('opens the lot container dialog from the FCL cargo cell without navigating (card 20260922_41)', async () => {
+  it('opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1)', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(manageDetail)
@@ -1130,19 +1143,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
 
+    // Card 20260923_1: container composition lives in the drawer; the FCL
+    // cargo cell returns to quick-edit (the dialog is gone).
+    await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: /Quản lý container/ })).toBeNull();
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' }), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull());
 
-    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
-    expect(await within(dialog).findByText('MSKU1234567')).toBeTruthy();
-    expect(screen.queryByTestId('container-detail-page')).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull();
-    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
-    // The composition summary string survives verbatim — never "Số cont: N".
-    expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
-    expect(within(masterRow()).getByText('25.000 kg')).toBeTruthy();
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(await within(drawer).findByText('MSKU1234567')).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Thêm container' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' })).toBeTruthy();
   });
 
-  it('adds a container from the dialog and refreshes the row summary immediately (card 20260922_41)', async () => {
+  it('adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)', async () => {
     let containers = manageDetail.containers.slice(0, 1);
     let listSummary = '2x40HC';
     apiGet.mockImplementation((url: string) => (
@@ -1156,16 +1174,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       return Promise.resolve({ line: manageDetail.containers[1] });
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
-    fireEvent.click(within(dialog).getByRole('button', { name: '+ Thêm container' }));
-    fireEvent.change(within(dialog).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: /Loại container/ }));
-    fireEvent.click(await screen.findByRole('option', { name: '20DC · Container 20DC' }));
-    fireEvent.change(within(dialog).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
-    fireEvent.change(within(dialog).getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-13' } });
-    fireEvent.change(within(dialog).getByLabelText('Giờ đóng/trả'), { target: { value: '09:30' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu dòng mới' }));
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
+    fireEvent.change(within(drawer).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
+    fireEvent.change(within(drawer).getByLabelText('Loại cont'), { target: { value: '3' } });
+    fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
+    fireEvent.change(within(drawer).getByLabelText('Giờ hẹn đóng/trả'), { target: { value: '2026-08-13T09:30' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: /^Thêm$/ }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers',
@@ -1178,13 +1196,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       }),
       { headers: { 'Idempotency-Key': expect.any(String) } },
     ));
-    // The row summary reflects the new composition immediately (dialog open).
+    // The row summary reflects the new composition immediately.
     expect(await within(masterRow()).findByText('1x20DC')).toBeTruthy();
     expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
-    expect(await within(dialog).findByText('MSKU7654321')).toBeTruthy();
   });
 
-  it('removes an unattached container from the dialog (card 20260922_41)', async () => {
+  it('removes an unattached container from the drawer (card 20260923_1)', async () => {
     let containers = manageDetail.containers;
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
@@ -1192,47 +1209,83 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
     ));
     apiPost.mockImplementation(() => {
-      containers = manageDetail.containers.filter((line) => line.id !== 13);
+      containers = [];
       return Promise.resolve({ removedId: 13, shipmentVersion: 4 });
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa container MSKU7654321' }));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/13/remove',
       { expectedShipmentVersion: 3 },
       { headers: { 'Idempotency-Key': expect.any(String) } },
     ));
-    await waitFor(() => expect(within(dialog).queryByText('MSKU7654321')).toBeNull());
+    await waitFor(() => expect(within(drawer).queryByText('MSKU7654321')).toBeNull());
   });
 
-  it('blocks delete with the exact trip tooltip on a trip-attached container (card 20260922_41)', async () => {
+  it('surfaces the 409 guard on a trip-attached container removal (card 20260923_1)', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(manageDetail)
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
     ));
+    apiPost.mockRejectedValueOnce(new Error('Container đã gắn chuyến xe TRIP-9 — không xóa được.'));
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Quản lý container — Lô BILL-12345' });
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
-    const blocked = within(dialog).getByRole('button', { name: 'Xóa container MSKU1234567' });
-    expect(blocked).toBeDisabled();
-    expect(blocked).toHaveAttribute('title', 'Không thể xóa container đã gắn chuyến xe');
-    const free = within(dialog).getByRole('button', { name: 'Xóa container MSKU7654321' });
-    expect(free).toBeEnabled();
-    expect(free).not.toHaveAttribute('title');
-    // Review M1: a CANCELED trip never blocks removal (the backend guard only
-    // sees live trips) — over-blocking would be unrecoverable in this dialog.
-    const canceledTrip = within(dialog).getByRole('button', { name: 'Xóa container MSKU2222333' });
-    expect(canceledTrip).toBeEnabled();
-    expect(canceledTrip).not.toHaveAttribute('title');
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
 
-    fireEvent.click(blocked);
-    expect(apiPost).not.toHaveBeenCalled();
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    // The guard surfaces as a toast, never a raw alert.
+    expect(await screen.findByText(/Container đã gắn chuyến xe TRIP-9/)).toBeTruthy();
+  });
+
+  it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', async () => {
+    let containers = manageDetail.containers;
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: { ...row.operational, deletable: true } }]))
+    ));
+    apiPost.mockImplementation(((url: string) => {
+      const match = String(url).match(/\/containers\/(\d+)\/remove/);
+      if (match) {
+        const removedId = Number(match[1]);
+        containers = containers.filter((line) => line.id !== removedId);
+        return Promise.resolve({ removedId, shipmentVersion: 4 });
+      }
+      return Promise.resolve({});
+    }) as typeof apiPost);
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+
+    // Containers present → inline error, no delete API call.
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
+    expect(await screen.findByText('Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô')).toBeTruthy();
+
+    // Clear all three containers via the drawer removes → detail refetches empty.
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await waitFor(() => expect(within(drawer).queryByText('MSKU1234567')).toBeNull());
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
+    await waitFor(() => expect(within(drawer).queryByText('MSKU7654321')).toBeNull());
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU2222333' }));
+    await waitFor(() => expect(within(drawer).queryByText('MSKU2222333')).toBeNull());
+
+    // Zero containers → the confirmed delete flow takes over (the action
+    // modal's reason textarea is the modal's stable signature).
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
+    await waitFor(() => expect(document.querySelector('.cus-action-reason textarea')).toBeTruthy());
   });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {

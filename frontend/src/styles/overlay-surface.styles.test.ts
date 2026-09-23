@@ -40,7 +40,6 @@ const CSS_SCOPE = [
   'src/components/layout/topbar.css', // .month-picker popover
   'src/components/layout/sidebar.css', // .rail-tooltip, user dropdown
   'src/components/shipment/CarrierAllocationDialog.css', // allocation dialog
-  'src/components/shipments/ContainerManageDialog.css', // container dialog
   'src/components/untitled-ui/base/select/combobox.css', // combobox popover
   'src/components/billing/BillingDocumentBuilder.css', // dialog-hosted builder
   'src/design-system/forms/DateTimePickerPanels.css', // .dtp-popover / .dtp-dialog
@@ -101,7 +100,6 @@ const CSS_SURFACES: Array<[string, RegExp]> = [
   ['src/components/layout/sidebar.css', /^\.rail-tooltip$/],
   ['src/components/shipment/CarrierAllocationDialog.css', /^\.carrier-allocation-dialog__row$/],
   ['src/components/shipment/CarrierAllocationDialog.css', /^\.carrier-allocation-dialog__footer$/],
-  ['src/components/shipments/ContainerManageDialog.css', /^\.cus-container-manage__table$/],
   ['src/components/billing/BillingDocumentBuilder.css', /^\.billing-builder__topbar$/],
   ['src/design-system/forms/DateTimePickerPanels.css', /^\.dtp-popover$/],
   ['src/design-system/forms/DateTimePickerPanels.css', /^\.dtp-time__exact > input$/],

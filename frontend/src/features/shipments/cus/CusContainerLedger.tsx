@@ -6,7 +6,11 @@ import {
 } from '@tingting/shared';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import {
+  addCusShipmentContainerRow,
+  removeCusShipmentContainerRow,
+  updateCusShipmentContainerLine,
+} from '../../../api/shipmentClient';
 import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
@@ -121,6 +125,65 @@ export function ContainerLedger({
   const [completingLine, setCompletingLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
   const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
+
+  // ── Card 20260923_1: lot-level container ops in the drawer ──────────────
+  // Thêm container (form below the last row) and per-row Xóa ride the
+  // cus-workspace APIs (card 20260921_2 lineage). Adds apply the returned
+  // line through onLineSaved; removes refetch the detail (the line is gone,
+  // and the shipment version advances server-side).
+  const [addOpen, setAddOpen] = useState(false);
+  const [addFields, setAddFields] = useState({ containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '' });
+  const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+
+  async function submitAddContainer() {
+    const containerNumber = addFields.containerNumber.trim().toUpperCase();
+    if (!containerNumber) {
+      setAddError('Số container là bắt buộc');
+      return;
+    }
+    setAdding(true);
+    setAddError(null);
+    const signature = idempotencySignature(`container-add:${detail.summary.id}:${containerNumber}`);
+    try {
+      const result = await addCusShipmentContainerRow(detail.summary.id, {
+        expectedShipmentVersion: detail.summary.version,
+        containerNumber,
+        ...(addFields.containerTypeId ? { containerTypeId: Number(addFields.containerTypeId) } : {}),
+        ...(addFields.cargoWeightKg.trim() ? { cargoWeightKg: addFields.cargoWeightKg.trim() } : {}),
+        ...(addFields.customerAppointmentAt ? { customerAppointmentAt: localDateTimeToIso(addFields.customerAppointmentAt) } : {}),
+      }, getIdempotencyKey(signature));
+      clearIdempotencyKey(signature);
+      await onLineSaved(result.line);
+      setAddOpen(false);
+      setAddFields({ containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '' });
+      toast({ kind: 'success', message: `Đã thêm container ${containerNumber}.` });
+    } catch (error) {
+      setAddError(safeError(error, 'Không thêm được container.'));
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function removeContainer(line: ShipmentCusWorkspaceContainerLine) {
+    if (removingId != null) return;
+    setRemovingId(line.id);
+    setAddError(null);
+    const signature = idempotencySignature(`container-remove:${detail.summary.id}:${line.id}`);
+    try {
+      await removeCusShipmentContainerRow(detail.summary.id, line.id, {
+        expectedShipmentVersion: detail.summary.version,
+      }, getIdempotencyKey(signature));
+      clearIdempotencyKey(signature);
+      toast({ kind: 'success', message: `Đã xóa container ${line.containerNumber || line.ordinal}.` });
+      onExternalTripCompleted?.();
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không xóa được container.') });
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   // Re-sync drafts only for lines whose server-side operational truth actually
   // changed — a wholesale reset on every detail refresh wiped unsaved edits on
@@ -408,12 +471,77 @@ export function ContainerLedger({
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
                   showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 2}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
+                  onRemove={onExternalTripCompleted ? () => void removeContainer(line) : undefined}
+                  removing={removingId === line.id}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {/* Card 20260923_1: Thêm container — rides the ledger bottom (ruling:
+          the button sits right below the last container row). FCL and LCL
+          both manage containers here now. */}
+      <div className="cus-container-ledger__add">
+        {!addOpen && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => setAddOpen(true)}
+          >
+            Thêm container
+          </button>
+        )}
+        {addOpen && (
+          <form
+            className="cus-container-ledger__add-form"
+            onSubmit={(event) => { event.preventDefault(); void submitAddContainer(); }}
+          >
+            <input
+              aria-label="Số container"
+              placeholder="Số container"
+              value={addFields.containerNumber}
+              onChange={(event) => setAddFields((current) => ({ ...current, containerNumber: event.target.value }))}
+              autoFocus
+              maxLength={50}
+            />
+            <select
+              aria-label="Loại cont"
+              value={addFields.containerTypeId}
+              onChange={(event) => setAddFields((current) => ({ ...current, containerTypeId: event.target.value }))}
+            >
+              <option value="">Loại cont</option>
+              {detail.selectors.containerTypes.map((type) => (
+                <option key={type.id} value={String(type.id)}>{type.label}</option>
+              ))}
+            </select>
+            <input
+              aria-label="Trọng lượng (kg)"
+              placeholder="Trọng lượng (kg)"
+              value={addFields.cargoWeightKg}
+              onChange={(event) => setAddFields((current) => ({ ...current, cargoWeightKg: event.target.value }))}
+              inputMode="decimal"
+            />
+            <input
+              aria-label="Giờ hẹn đóng/trả"
+              type="datetime-local"
+              value={addFields.customerAppointmentAt}
+              onChange={(event) => setAddFields((current) => ({ ...current, customerAppointmentAt: event.target.value }))}
+            />
+            <button type="submit" className="btn btn--primary btn--sm" disabled={adding}>
+              {adding ? 'Đang thêm…' : 'Thêm'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => { setAddOpen(false); setAddError(null); }}
+            >
+              Hủy
+            </button>
+          </form>
+        )}
+        {addError && <p className="cus-container-ledger__add-error" role="alert">{addError}</p>}
+      </div>
       {/* Staff-close confirmation — closes the external driver's trip on their behalf */}
       <ConfirmDialog
         isOpen={completingLine != null}

@@ -140,7 +140,9 @@ export const qk = {
     'all-suppliers',
     'all-expense-categories',
     'salary-period',
-    'tires',, 'quotations'] as const,
+    'tires',
+    'quotations',
+  ] as const,
 
   /* ── CUS shipments workboard (/shipments) ─────────────────────────── */
   shipmentsCus: {
