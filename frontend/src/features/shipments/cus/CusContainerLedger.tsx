@@ -6,6 +6,7 @@ import {
 } from '@tingting/shared';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { UuiSelectField } from '../../../design-system';
 import {
   addCusShipmentContainerRow,
   removeCusShipmentContainerRow,
@@ -110,7 +111,9 @@ export function ContainerLedger({
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
-  /** Detail refetch after a staff close — completion advances the shipment. */
+  /** Detail refetch after a container-set change — a staff close advances the
+   *  shipment, and a removed line is gone server-side, so the ledger re-reads
+   *  the detail rather than patching one row. */
   onExternalTripCompleted?: () => void;
   /** Fires once after an appointment commit settles successfully — the host
    *  closes the detail surface so Enter returns the user to the list, matching
@@ -471,7 +474,7 @@ export function ContainerLedger({
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
                   showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 2}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
-                  onRemove={onExternalTripCompleted ? () => void removeContainer(line) : undefined}
+                  onRemove={() => void removeContainer(line)}
                   removing={removingId === line.id}
                 />
               ))}
@@ -505,16 +508,19 @@ export function ContainerLedger({
               autoFocus
               maxLength={50}
             />
-            <select
-              aria-label="Loại cont"
+            <UuiSelectField
+              label="Loại cont"
+              hideLabel
+              size="sm"
+              width="content"
+              wrapperClassName="cus-container-ledger__add-select"
               value={addFields.containerTypeId}
               onChange={(event) => setAddFields((current) => ({ ...current, containerTypeId: event.target.value }))}
-            >
-              <option value="">Loại cont</option>
-              {detail.selectors.containerTypes.map((type) => (
-                <option key={type.id} value={String(type.id)}>{type.label}</option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Chưa chọn loại cont' },
+                ...detail.selectors.containerTypes.map((type) => ({ value: String(type.id), label: type.code })),
+              ]}
+            />
             <input
               aria-label="Trọng lượng (kg)"
               placeholder="Trọng lượng (kg)"

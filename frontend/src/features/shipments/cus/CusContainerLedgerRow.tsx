@@ -65,6 +65,10 @@ export function ContainerLineRow({
   const routeEditable = editing && p.routeEditable;
   const liftSiteEditable = editing && p.liftSiteEditable, dropoffSiteEditable = editing && p.dropoffSiteEditable;
   const customerAppointmentEditable = editing && p.customerAppointmentEditable;
+  // Mirrors the backend's findActiveTripForContainer: a trip on THIS row blocks
+  // its removal unless it was CANCELED. The 409 stays authoritative — this only
+  // keeps the affordance from inviting a doomed click.
+  const activeTrip = line.tripId != null && line.tripStatus !== 'CANCELED';
 
   const carrierOptions = [
     { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
@@ -105,8 +109,8 @@ export function ContainerLineRow({
               type="button"
               className="cus-container-row__remove"
               onClick={onRemove}
-              disabled={removing}
-              title="Xóa container khỏi lô"
+              disabled={removing || activeTrip}
+              title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
               aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
             >
               <Trash2 size={13} aria-hidden="true" />

@@ -1083,31 +1083,23 @@
   margin-left: auto;
 }
 
-.cus-dashboard-delete {
-  min-height: 34px;
-  padding-inline: 8px;
+/* Card 20260923_1 (operator ruling): the row's detail action is a text-only
+   link button. The label span UUIButton renders must stay VISIBLE — the old
+   icon-only override (`[data-text] { display: none }`, from the chevron era)
+   turned this into an empty clickable box once the chevron left. */
+.cus-dashboard-detail {
+  min-height: 32px;
+  color: var(--accent-ink) !important;
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
-  flex-shrink: 0;
 }
-
-/* The Trạng thái column (fixed table-layout, ~150-170px of usable width at
-   every breakpoint down to the mobile card view) never has room for "Xóa" +
-   "Chi tiết" as full-text buttons side by side. Drop the "Xóa" label and
-   keep the icon so the pair never wraps onto two lines — the aria-label
-   still names the action for assistive tech. */
-.cus-dashboard-delete[data-text],
-.cus-dashboard-delete [data-text] {
-  display: none !important;
+.cus-dashboard-detail:hover {
+  background: transparent !important;
+  color: var(--accent-2) !important;
 }
-
-/* Same-row icon-only action column (user ruling 2026-09-18): "Chi tiết"
-   keeps its label for assistive tech and the hover tooltip, but renders as
-   the bare chevron so the badge + signal + action pair share one line. */
-.cus-dashboard-detail[data-text],
-.cus-dashboard-detail [data-text] {
-  display: none !important;
+.cus-dashboard-detail:focus-visible {
+  outline-offset: 3px;
 }
 
 .cus-signals {
@@ -1627,11 +1619,23 @@
   }
 
   /* Card mode stacks the identity cell full-width and pins the ordinal top-right;
-     the copy affordance follows it there so it can never sit on the code. */
+     the copy affordance follows it there so it can never sit on the code. The
+     per-row remove sits one slot further out with a 44px touch target
+     (design law §5) — the identity cell is full width here, so nothing is
+     covered. */
   .cus-container-table .cus-container-row__copy {
     top: 10px;
     right: 12px;
     left: auto;
+    transform: none;
+  }
+
+  .cus-container-table .cus-container-row__remove {
+    top: 10px;
+    right: 44px;
+    left: auto;
+    width: 44px;
+    height: 44px;
     transform: none;
   }
 }
@@ -2322,6 +2326,12 @@
 .cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
 .cus-container-row:hover .cus-container-row__remove,
 .cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
+/* Touch viewports never hover. The copy affordance already reveals itself for
+   coarse pointers; the DESTRUCTIVE action must not be the one the operator
+   cannot find on mobile (card 20260923_1 acceptance). */
+@media (max-width: 640px), (pointer: coarse) {
+  .cus-container-row__remove { visibility: visible; }
+}
 
 /* Thêm container — button below the last container row; the inline form is
    one compact row that wraps on the narrow drawer. */
@@ -2333,11 +2343,13 @@
   align-items: center;
 }
 .cus-container-ledger__add-form input,
-.cus-container-ledger__add-form select {
+.cus-container-ledger__add-select {
   height: 36px;
+  border-radius: var(--app-radius-sm, 6px);
+}
+.cus-container-ledger__add-form input {
   padding: 0 10px;
   border: 1px solid var(--line-2);
-  border-radius: var(--app-radius-sm, 6px);
   background: var(--surface);
   color: var(--ink);
   font: inherit;

@@ -38,7 +38,6 @@ const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'
 const filtersSource = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
-const filterCss = css.slice(css.indexOf('@container cus-workboard'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
 // structural split; these guard assertions follow the markup, not the page file.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
@@ -317,6 +316,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(detailButton.textContent).toContain('Chi tiết');
     expect(detailButton.querySelector('svg')).toBeNull();
     expect(within(row).queryByRole('button', { name: /Xóa lô hàng/ })).toBeNull();
+
+    // The label the operator reads lives in UUIButton's `[data-text]` span —
+    // an icon-only override on it would render an EMPTY box (textContent still
+    // reads "Chi tiết", which is why this asserts the shipped stylesheet).
+    expect(detailButton.querySelector('[data-text]')?.textContent).toBe('Chi tiết');
+    expect(css).not.toMatch(/\.cus-dashboard-detail[^{]*\[data-text\][^{]*\{[^}]*display:\s*none/);
+    // House link style (ruling: no pill, no border) — the rule carries no
+    // border/background chrome of its own.
+    const detailRule = css.match(/\.cus-dashboard-detail\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(detailRule).not.toMatch(/border|background/);
   });
 
   beforeEach(() => {
@@ -1180,7 +1189,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
     fireEvent.change(within(drawer).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
-    fireEvent.change(within(drawer).getByLabelText('Loại cont'), { target: { value: '3' } });
+    // The loại-cont picker is the house UuiSelectField (native selects are
+    // banned): its trigger carries the value text as its accessible name, and
+    // the options live in a portalled listbox.
+    fireEvent.click(within(drawer).getByRole('button', { name: /Chưa chọn loại cont/ }));
+    fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
+    expect(within(drawer).getByRole('button', { name: /20DC/ })).toBeTruthy();
     fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
     fireEvent.change(within(drawer).getByLabelText('Giờ hẹn đóng/trả'), { target: { value: '2026-08-13T09:30' } });
     fireEvent.click(within(drawer).getByRole('button', { name: /^Thêm$/ }));
@@ -1249,7 +1263,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', async () => {
-    let containers = manageDetail.containers;
+    // Trip-attached rows are blocked in the UI (card 20260923_1), so the
+    // clear-all path is exercised on detached lines — the guard itself is
+    // pinned by the dedicated trip-attached test above.
+    let containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...manageDetail, containers })
@@ -1286,6 +1303,75 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // modal's reason textarea is the modal's stable signature).
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
     await waitFor(() => expect(document.querySelector('.cus-action-reason textarea')).toBeTruthy());
+  });
+
+  it('keeps Xóa lô reachable and states why a dispatched lot cannot be deleted (card 20260923_1)', async () => {
+    // deletable:false = a trip already left on this lot (orderIssuedContainers /
+    // direct live trip). The affordance stays visible and answers with the
+    // guard's own reason — hiding the button left the operator with no reason.
+    const dispatchedRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      cargoMode: 'FCL',
+      operational: { ...row.operational, deletable: false },
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([dispatchedRow]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
+
+    expect(await screen.findByText(/Không thể xóa lô hàng đã có container được điều xe/)).toBeTruthy();
+    expect(apiPost).not.toHaveBeenCalled();
+  });
+
+  it('keeps the container remove icon reachable on touch and blocks trip-attached rows (card 20260923_1)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(manageDetail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+
+    // Touch viewports have no hover: the destructive affordance must be
+    // revealed for coarse pointers (operator could not find it on mobile).
+    expect(css).toMatch(/@media[^{]*\(pointer:\s*coarse\)[^{]*\{[\s\S]{0,200}\.cus-container-row__remove\s*\{\s*visibility:\s*visible/);
+
+    // A live trip blocks its own row (mirrors findActiveTripForContainer);
+    // a CANCELED trip does not — an over-block has no in-UI recovery.
+    const attached = within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' });
+    expect(attached).toBeDisabled();
+    expect(attached.getAttribute('title')).toBe('Không thể xóa container đã gắn chuyến xe');
+    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' })).not.toBeDisabled();
+    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU2222333' })).not.toBeDisabled();
+  });
+
+  it('places Thêm container directly below the last container row (card 20260923_1)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(manageDetail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+
+    const ledger = within(drawer).getByLabelText('Chi tiết container');
+    const table = within(ledger).getByRole('table');
+    const addButton = within(ledger).getByRole('button', { name: 'Thêm container' });
+    expect(table.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {

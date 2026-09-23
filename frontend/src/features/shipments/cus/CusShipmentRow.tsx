@@ -6,10 +6,6 @@
 // the non-button trigger wrapper.
 
 import {
-  ChevronRight,
-  Trash2,
-} from 'lucide-react';
-import {
   SHIPMENT_STATUS_LABELS,
   ShipmentCusBucket,
   type ShipmentCusWorkspaceListItem,
@@ -203,13 +199,12 @@ export function CusShipmentRow({
             )}
           </div>
           <div className="cus-row-actions__buttons">
-            {/* Card 20260923_1: the lot-delete affordance left the row — it
-                lives in the drawer header now. The detail action is a
-                text-only link button (no chevron, no trash). */}
+            {/* Card 20260923_1 (operator ruling): the row's detail action is a
+                text-only link button — no chevron, no trash, no pill chrome. */}
             <UUIButton
               id={'cus-dashboard-detail-' + item.id}
               size="sm"
-              color="tertiary"
+              color="link-color"
               className="cus-dashboard-detail"
               aria-haspopup="dialog"
               aria-controls={'cus-detail-drawer-' + item.id}

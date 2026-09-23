@@ -53,7 +53,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // accounting.debitBoard groups (lint rider: inline keys centralized).
   // Split candidate: per-domain key files composed into qk like the expense
   // and shipment-debit groups.
-  'src/api/keys.ts': 600,
+  // Bumped 600 -> 602: 2026-09-23 card 20260923_1 — the drawer-ops batch
+  // (cd862de4) repaired a merge slip in the shipment key tuple
+  // (`'tires',, 'quotations'` → one key per line), which costs the two lines
+  // the old ceiling did not carry. Split candidate unchanged.
+  'src/api/keys.ts': 602,
   // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
   // combined-invoice tracking page landed over the ceiling without a
   // baseline; refrozen here to unblock cut #24. Split candidate.
@@ -286,7 +290,14 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // ledger gains the Hoàn thành row action (button, confirm dialog, handler,
   // refetch hook). Reviewed as a contract change; a future split (extract
   // the external-trip close dialog) should restore a smaller ceiling.
-  'src/features/shipments/cus/CusContainerLedger.tsx': 530,
+  // Bumped 530 → 591: 2026-09-23 card 20260923_1 — the drawer owns the lot's
+  // container composition again: the Thêm container form (fields, inline
+  // validation, add API call, house UuiSelectField for loại cont) and the
+  // per-row Xóa riding the cus-workspace add/remove endpoints, plus the
+  // trip-attached disable. Reviewed as a contract change; split candidate:
+  // extract the add-container form into its own component (the ledger is now
+  // the largest CUS feature file).
+  'src/features/shipments/cus/CusContainerLedger.tsx': 591,
   // Bumped 750 -> 852: 2026-09-21 card 20260921_2 - per-row add/remove
   // affordances and the inline add-row form on the container workboard.
   // Bumped 852 -> 858: 2026-09-22 card 20260922_3 — the container Xoa gains
@@ -377,7 +388,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // protocol — AGENTS.md bans the side-branch park; the tree-wide guard was
   // blocking every unrelated landing). Shrink debt on card 20260922_83:
   // restore 509 once that WIP lands attributed or reverts.
-  'src/pages/ShipmentsPage.tsx': 558,
+  // Refrozen 558 → 610: 2026-09-23 card 20260923_1 — that WIP LANDED
+  // (cd862de4) and this landing adds the drawer's lot-delete bar/guard, so the
+  // page carries the drawer ops instead of the removed ContainerManageDialog
+  // wiring. The 20260922_83 shrink debt stays open and now has a named split:
+  // extract the drawer body into a CusShipmentDrawer component.
+  'src/pages/ShipmentsPage.tsx': 610,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)

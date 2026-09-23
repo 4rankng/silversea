@@ -43,6 +43,15 @@ import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
+// Card 20260923_1 — the drawer's Xóa lô answers with a reason instead of
+// vanishing. The dispatched wording is the lifecycle guard's own message
+// (shipment-lifecycle softDeleteShipment), so the inline banner and the 409
+// the API would raise say the same thing.
+const LOT_DELETE_BLOCK_MESSAGES = {
+  containers: 'Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô',
+  dispatched: 'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
+} as const;
+
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -74,7 +83,11 @@ export default function ShipmentsPage() {
 
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
-  const [deleteLotError, setDeleteLotError] = useState<string | null>(null);
+  // Card 20260923_1: the drawer's Xóa lô stays reachable at every state and
+  // answers with a reason instead of vanishing. The stored value is the BLOCK
+  // KIND (not a message) so the banner self-heals: once the blocking condition
+  // stops holding, the derived message is empty without an extra effect.
+  const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'containers' | 'dispatched' } | null>(null);
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   // Card 20260922_42: the toolbar's draft state moved page-side — search
@@ -164,22 +177,25 @@ export default function ShipmentsPage() {
 
   const openShipmentDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
-    setDeleteLotError(null);
+    setDeleteLotBlock(null);
     void loadDetail(shipmentId);
   }, [loadDetail]);
 
   // Card 20260923_1: Xóa lô lives in the drawer header — blocked with an
   // inline error while any container remains (ruling: clear the containers
-  // first), then routed into the existing confirmed delete flow with its API
-  // guards (đã điều xe / đã phát sinh).
+  // first), and with the lifecycle guard's own reason when a trip already left
+  // the lot (deletable=false). Only the clear case routes into the existing
+  // confirmed delete flow with its API guards (đã điều xe / đã phát sinh).
   const requestDeleteLot = useCallback((item: ShipmentCusWorkspaceListItem) => {
-    const containers = ws.details[item.id]?.containers ?? [];
-    if (containers.length > 0) {
-      setDeleteLotError('Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô');
+    if ((ws.details[item.id]?.containers.length ?? 0) > 0) {
+      setDeleteLotBlock({ shipmentId: item.id, kind: 'containers' });
       return;
     }
-    setDeleteLotError(null);
-    setDrawerId(null);
+    if (!item.operational.deletable) {
+      setDeleteLotBlock({ shipmentId: item.id, kind: 'dispatched' });
+      return;
+    }
+    setDeleteLotBlock(null);
     actions.openAction(item, 'delete');
   }, [actions, ws.details]);
 
@@ -220,6 +236,15 @@ export default function ShipmentsPage() {
   const total = ws.data?.total ?? 0;
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
+  // Derived, not stored: the banner clears itself the moment the blocking
+  // condition stops holding (e.g. the last container is removed).
+  const drawerContainerCount = drawerId != null ? ws.details[drawerId]?.containers.length ?? 0 : 0;
+  const lotDeleteBlockKind = deleteLotBlock != null && deleteLotBlock.shipmentId === drawerItem?.id ? deleteLotBlock.kind : null;
+  const lotDeleteMessage = lotDeleteBlockKind === 'containers' && drawerContainerCount > 0
+    ? LOT_DELETE_BLOCK_MESSAGES.containers
+    : lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
+      ? LOT_DELETE_BLOCK_MESSAGES.dispatched
+      : null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -499,18 +524,18 @@ export default function ShipmentsPage() {
           {drawerItem && (
             <>
               {/* Card 20260923_1: the lot-delete affordance lives in the drawer
-                  header — topmost row of the drawer body. */}
+                  header — topmost row of the drawer body. It stays reachable in
+                  every state and answers with a reason (containers first, then
+                  the lifecycle guard) instead of disappearing. */}
               <div className="cus-drawer-lot-bar">
-                {drawerItem.operational.deletable && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm cus-drawer-lot-delete"
-                    onClick={() => requestDeleteLot(drawerItem)}
-                  >
-                    Xóa lô
-                  </button>
-                )}
-                {deleteLotError && <p className="cus-drawer-lot-error" role="alert">{deleteLotError}</p>}
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                  onClick={() => requestDeleteLot(drawerItem)}
+                >
+                  Xóa lô
+                </button>
+                {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
