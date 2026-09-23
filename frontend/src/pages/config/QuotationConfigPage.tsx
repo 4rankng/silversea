@@ -158,6 +158,7 @@ export default function QuotationConfigPage() {
       body: {
         templateName: detail.data!.templateName,
         effectiveDate: detail.data!.effectiveDate,
+        surchargeRoundingMode: detail.data!.surchargeRoundingMode,
         note: detail.data!.note,
         cells,
       },
