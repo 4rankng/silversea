@@ -173,6 +173,8 @@ interface ExpenseRowProps { exp: Expense; expenseTypeOptions: Array<{ code: stri
 export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseTypeOptions, uploadingExpenseId, photos, onUpload: handleUploadPhoto, onEdit: openExpenseEditor, onDelete: handleDeleteExpense, deletePending, onLoadPhotos: loadExpensePhotos }: ExpenseRowProps) {
  const expensePhotos: Record<number, string[]> = photos ? { [exp.id]: photos } : {};
  const deleteExpenseMut = { isPending: deletePending };
+ const isVoided = exp.approvalStatus === 'VOIDED' || exp.approvalStatus === 'REJECTED';
+ const voidedLabel = exp.approvalStatus === 'REJECTED' ? 'Đã từ chối' : 'Đã hủy';
  const settlementMethodLabel = exp.settlementMethod === 'FORWARDER_ADVANCE'
    ? 'Chi hộ tạm ứng'
    : SETTLEMENT_METHOD_LABELS[exp.settlementMethod as SettlementMethod] || exp.settlementMethod;
@@ -181,9 +183,16 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   <div className="fwd-expense-record__layout">
                     <DollarSign size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                     <div className="fwd-expense-record__main">
-                      <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)', ...(isVoided ? { color: 'var(--fg-3)', textDecoration: 'line-through' as const } : {}) }}>
                         {OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
                       </span>
+                      {isVoided && (
+                        <span style={{
+                          fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
+                          color: 'var(--danger-text)', background: 'var(--danger-soft)',
+                          borderRadius: 4, padding: '3px 7px', marginLeft: 6,
+                        }}>{voidedLabel}</span>
+                      )}
                       {exp.activeSettlementId && (
                         <span style={{
                           fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
@@ -197,6 +206,11 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       {exp.returnForEvidenceReason && (
                         <div style={{ marginTop: 6, fontSize: 'var(--text-body-size)', color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
                           Cần bổ sung: {exp.returnForEvidenceReason}
+                        </div>
+                      )}
+                      {isVoided && (
+                        <div style={{ marginTop: 6, fontSize: 'var(--text-body-size)', color: 'var(--danger-text)', background: 'var(--danger-soft)', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
+                          {`Lý do hủy: ${exp.deletionReason ?? ''}${exp.deletedByName ? ` — ${exp.deletedByName}` : ''}${exp.deletedAt ? `, ${formatDate(exp.deletedAt)}` : ''}`}
                         </div>
                       )}
                       {(exp.expenseDate || exp.payeeName) && (
@@ -213,7 +227,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       </dl>
                     </div>
                     <div className="fwd-expense-record__amount">
-                      <div style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-data-size)', ...(isVoided ? { color: 'var(--fg-3)', textDecoration: 'line-through' as const } : {}) }}>
                         {formatCurrency(exp.buyAmount)}
                       </div>
                     </div>
@@ -241,7 +255,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     <button
                       className="icon-btn fwd-expense-action"
                       onClick={() => openExpenseEditor(exp)}
-                      disabled={Boolean(exp.activeSettlementId) || !exp.canEdit}
+                      disabled={Boolean(exp.activeSettlementId) || !exp.canEdit || isVoided}
                       aria-label={`Điều chỉnh ${OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
                       title={exp.activeSettlementId ? 'Khoản chi đã gửi kế toán' : !exp.canEdit ? 'Khoản chi do Ops khác kê' : 'Điều chỉnh chi phí'}
                     >
@@ -250,7 +264,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     <button
                       className="icon-btn fwd-expense-action"
                       onClick={() => void handleDeleteExpense(exp.id)}
-                      disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit}
+                      disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit || isVoided}
                       title="Xóa chi phí"
                       style={{ color: 'var(--danger)', opacity: 0.6, padding: 4 }}
                     >

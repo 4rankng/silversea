@@ -1125,6 +1125,10 @@ export interface ForwarderTripDetail {
     invoiceDate: string | null;
     declarationNumber: string | null;
     approvalStatus: string;
+    /** Q10 soft-void trail — present only when the row was voided. */
+    deletionReason?: string | null;
+    deletedAt?: string | null;
+    deletedByName?: string | null;
     note: string | null;
     noInvoiceEvidenceTypes: NoInvoiceEvidenceType[];
     noInvoicePolicySnapshot: NoInvoicePolicySnapshot | null;

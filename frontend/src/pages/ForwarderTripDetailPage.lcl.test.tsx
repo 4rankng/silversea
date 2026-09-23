@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -299,5 +299,94 @@ describe('ForwarderTripDetailPage LCL virtual scope UI', () => {
 
     expect(screen.getByText('Số Container / Seal (0)')).toBeTruthy();
     expect(screen.getByText('Chưa có số container/seal nào')).toBeTruthy();
+  });
+});
+
+// Soft-voided fee rows (approvalStatus VOIDED/REJECTED, Q10) must render as
+// voided — badge, deletion reason, disabled actions — instead of looking
+// active and 409-ing on click.
+describe('ForwarderTripDetailPage voided fee rows', () => {
+  const baseTrip = {
+    id: 3,
+    routeName: 'Kho CFS - ICD',
+    status: 'IN_TRANSIT',
+    tripCode: 'TRIP-VOID-003',
+    customerName: 'SilverSea',
+    truckPlate: '51H-67890',
+    departureDate: '2026-08-03',
+    cargoTypeName: null,
+    customerReference: null,
+    notes: null,
+    instructions: null,
+    containers: [
+      { id: 601, containerTypeId: 3, containerTypeName: '20 feet', containerNumber: 'MSKU7654321' },
+    ],
+    legs: [{ id: 1, sequence: 1, origin: 'Kho CFS', destination: 'ICD', km: 28, loadingType: 'HANG' }],
+    completionScopes: [],
+    expenses: [
+      {
+        id: 88,
+        expenseType: 'LIFTING',
+        buyAmount: 250000,
+        settlementMethod: 'FORWARDER_ADVANCE',
+        canEdit: true,
+        activeSettlementId: null,
+        tripContainerId: 601,
+        approvalStatus: 'RECORDED',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      },
+      {
+        id: 89,
+        expenseType: 'LIFTING',
+        buyAmount: 77000,
+        settlementMethod: 'OPS_ADVANCE',
+        canEdit: true,
+        activeSettlementId: null,
+        tripContainerId: 601,
+        approvalStatus: 'VOIDED',
+        deletionReason: 'Sai khoản — kê trùng cước lift up',
+        deletedByName: 'Nguyễn Văn Dũng',
+        deletedAt: '2026-09-23T02:30:00.000Z',
+        updatedAt: '2026-09-23T02:30:00.000Z',
+      },
+    ],
+  };
+
+  function renderVoidedTrip(expenses: Array<Record<string, unknown>>) {
+    const fixture = { ...baseTrip, expenses };
+    tripDetailRef.current = fixture as unknown as typeof tripDetailRef.current;
+    renderPage();
+    return document.body.querySelectorAll('.fwd-expense-record');
+  }
+
+  it('renders a VOIDED row with badge, deletion reason, and disabled actions next to an active row', () => {
+    const rows = renderVoidedTrip(baseTrip.expenses as Array<Record<string, unknown>>);
+    expect(rows).toHaveLength(2);
+
+    const activeRow = within(rows[0] as HTMLElement);
+    const voidedRow = within(rows[1] as HTMLElement);
+
+    expect(voidedRow.getByText('Đã hủy')).toBeTruthy();
+    expect(voidedRow.getByText(/Lý do hủy: Sai khoản — kê trùng cước lift up/)).toBeTruthy();
+    expect(voidedRow.getByText(/Nguyễn Văn Dũng/)).toBeTruthy();
+    expect((voidedRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((voidedRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(true);
+
+    expect(activeRow.queryByText('Đã hủy')).toBeNull();
+    expect(activeRow.queryByText(/Lý do hủy:/)).toBeNull();
+    expect((activeRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(false);
+    expect((activeRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('renders a legacy REJECTED row with the refused label and the same disabled-actions treatment', () => {
+    const rows = renderVoidedTrip([
+      { ...baseTrip.expenses[1], id: 90, approvalStatus: 'REJECTED' } as Record<string, unknown>,
+    ]);
+    expect(rows).toHaveLength(1);
+
+    const voidedRow = within(rows[0] as HTMLElement);
+    expect(voidedRow.getByText('Đã từ chối')).toBeTruthy();
+    expect((voidedRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((voidedRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

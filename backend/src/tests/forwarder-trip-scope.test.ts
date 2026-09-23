@@ -290,6 +290,35 @@ describe('forwarder shipment scope', () => {
     assert.equal(detail.declarationNumbers, `TK-A-${suffix}`);
   });
 
+  test('trip detail projects Q10 soft-void fields (reason, who, when) for voided fee rows', async () => {
+    const [voider] = await db.insert(s.users).values({
+      username: `forwarder-scope-voider-${suffix}`,
+      passwordHash: 'test-only',
+      role: Role.OPS,
+      status: 'ACTIVE',
+      fullName: `Nguyễn Kiểm Thử ${suffix}`,
+    }).returning({ id: s.users.id });
+    ids.users.push(voider.id);
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: tripA,
+      expenseType: 'LIFTING',
+      buyAmount: '123000',
+      approvalStatus: 'VOIDED',
+      deletionReason: `Lý do kiểm thử ${suffix}`,
+      deletedBy: voider.id,
+      deletedAt: new Date(),
+    }).returning({ id: s.tripExpenses.id });
+
+    const detail = await getForwarderTripDetail(tripA, forwarderA);
+    assert.ok(detail);
+    const voided = detail.expenses.find((row) => row.id === expense.id);
+    assert.ok(voided);
+    assert.equal(voided.approvalStatus, 'VOIDED');
+    assert.equal(voided.deletionReason, `Lý do kiểm thử ${suffix}`);
+    assert.ok(voided.deletedAt);
+    assert.equal(voided.deletedByName, `Nguyễn Kiểm Thử ${suffix}`);
+  });
+
   test('scope revocation and terminal shipment state deny mutations immediately', async () => {
     await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA]));
     await assert.rejects(
