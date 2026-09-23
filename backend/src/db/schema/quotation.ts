@@ -15,14 +15,18 @@ export const quotations = pgTable('quotations', {
   customerId: integer('customer_id').notNull(),
   templateName: varchar('template_name', { length: 120 }).notNull(),
   effectiveDate: date('effective_date').notNull(),
+  // Card 20260922_60: the per-customer fuel-surcharge rounding rule from the
+  // quotation's fuel-parameter header ("Phụ phí làm tròn = Round(....;-...)").
+  // 'NONE' = unconfigured (deterministic: no rounding).
+  surchargeRoundingMode: varchar('surcharge_rounding_mode', { length: 20 })
+    .notNull()
+    .default('NONE'),
   note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 });
 // Deliberately NO unique constraint on (customer, template, date): card _57
-// re-uploads create NEW versions (ruling 6) — multiple active rows per
-// customer must stay possible until _62's version release workflow lands.
 // re-uploads create NEW versions (ruling 6) — multiple active rows per
 // customer must stay possible until _62's version release workflow lands.
 

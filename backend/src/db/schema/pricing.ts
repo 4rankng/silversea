@@ -330,6 +330,10 @@ export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
   // quotation_cells) APPLIED to surchargeAmount when this snapshot was taken.
   // Default 1 = ordinary round trip; historical rows read as 1 (true).
   heSo: numeric('he_so', { precision: 8, scale: 4 }).notNull().default('1'),
+  // Card 20260922_60: pre-rounding surcharge (raw) kept beside the CHARGED
+  // surchargeAmount so the customer's rounding rule explains the number.
+  // NULL on historical rows (no customer rounding existed pre-_60).
+  surchargeRaw: numeric('surcharge_raw', { precision: 15, scale: 0 }),
   computedAt: timestamp('computed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

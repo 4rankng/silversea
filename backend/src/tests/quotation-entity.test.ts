@@ -175,16 +175,19 @@ function cellOf(grid: Awaited<ReturnType<typeof getQuotation>>['cells'], routeId
 
 describe('quotation entity (card 20260922_66)', () => {
   test('CRUD roundtrip: frame + heSo cell persist and read back', async () => {
+    // effectiveDate in the FUTURE of the other tests' transport dates: the
+    // engine (_59) reads the latest quotation ≤ transport date, so this
+    // heSo=2 frame must not dominate the heSo=1 assertions further down.
     const { id } = await createQuotation({
       customerId: longMinhId,
       templateName: 'Mẫu báo giá 1',
-      effectiveDate: EFFECTIVE_DATE,
+      effectiveDate: '2026-09-30',
       cells: [{ routeId: routeAskey, vehicleSizeClassCode: 'CONT20.LIGHT', heSo: 2 }],
     });
     ids.quotations.push(id);
     const view = await getQuotation(id);
     assert.strictEqual(view.templateName, 'Mẫu báo giá 1');
-    assert.strictEqual(view.effectiveDate, EFFECTIVE_DATE);
+    assert.strictEqual(view.effectiveDate, '2026-09-30');
     const cell = cellOf(view.cells, routeAskey, 'CONT20.LIGHT');
     assert.strictEqual(cell.heSo, 2);
     assert.strictEqual(cell.giaCos, 3952000);
@@ -203,6 +206,7 @@ describe('quotation entity (card 20260922_66)', () => {
     await updateQuotation(id, {
       templateName: 'Mẫu báo giá 1 (rev 2)',
       effectiveDate: EFFECTIVE_DATE,
+      surchargeRoundingMode: 'NONE',
       cells: [{ routeId: routeNeweb, vehicleSizeClassCode: 'CONT20.HEAVY', heSo: 1.5 }],
     });
     const view = await getQuotation(id);

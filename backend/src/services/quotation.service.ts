@@ -48,7 +48,7 @@ async function writeCells(quotationId: number, cells: QuotationCellInput[], ex: 
     quotationId,
     routeId: c.routeId,
     vehicleSizeClassId: classIdByCode.get(c.vehicleSizeClassCode)!,
-    heSo: String(c.heSo),
+    heSo: String(c.heSo ?? 1),
   })));
 }
 
@@ -61,9 +61,10 @@ export async function createQuotation(
     customerId: input.customerId,
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
+    surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
     note: input.note ?? null,
   }).returning({ id: s.quotations.id });
-  await writeCells(row.id, input.cells, ex);
+  await writeCells(row.id, input.cells ?? [], ex);
   return { id: row.id };
 }
 
@@ -79,6 +80,7 @@ export async function updateQuotation(
   await ex.update(s.quotations).set({
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
+    surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
     note: input.note ?? null,
     updatedAt: new Date(),
   }).where(eq(s.quotations.id, quotationId));
@@ -111,9 +113,13 @@ function cellFromEngine(rate: ResolvedFreightRate, col: CellColumn): EngineCell 
   const missing = rate.source === 'MANUAL';
   const giaCos = !split && !missing ? rate.freight : null;
   const liters = missing ? null : rate.liters;
-  // Hệ số scales the engine surcharge; at 1 this is byte-identical to the
-  // engine output (regression pin A5) — no recomputation of the engine math.
-  const surcharge = missing ? null : Math.round(rate.surcharge * col.heSo);
+  // Card 20260922_59: the ENGINE applies the cell factor (resolveCellHeSo →
+  // Math.round(engine surcharge × heSo)) — rate.surcharge arrives already
+  // scaled, so the grid must NOT multiply again (double-application guard).
+  const surcharge = missing ? null : rate.surcharge;
+  // Card 20260922_60: pre-rounding raw rides the engine result (== surcharge
+  // when the customer's rounding mode is NONE).
+  const surchargeRaw = missing ? null : (rate.surchargeRaw ?? rate.surcharge);
   return {
     routeId: col.routeId,
     routeName: col.routeName,
@@ -123,6 +129,7 @@ function cellFromEngine(rate: ResolvedFreightRate, col: CellColumn): EngineCell 
     missingPrice: split || missing,
     liters,
     surcharge,
+    surchargeRaw,
     total: giaCos == null ? null : giaCos + (surcharge ?? 0),
     baseFuelPrice: col.baseFuelPrice,
     fuelLagDays: col.fuelLagDays,
@@ -130,7 +137,7 @@ function cellFromEngine(rate: ResolvedFreightRate, col: CellColumn): EngineCell 
       ? rate.formula
       : split
         ? `Phụ phí hạng nặng: MAX(0, Δdầu) × ${rate.liters} lít × hệ số ${col.heSo} — Giá cos chưa có`
-        : col.heSo === 1 ? rate.formula : `${rate.formula} × hệ số ${col.heSo}`,
+        : rate.formula, // engine formula already carries the × hệ số term when ≠1
   };
 }
 
@@ -144,6 +151,7 @@ function missingCell(col: CellColumn, hint: string | null, litersFallback: numbe
     missingPrice: true,
     liters: litersFallback,
     surcharge: null,
+    surchargeRaw: null,
     total: null,
     baseFuelPrice: col.baseFuelPrice,
     fuelLagDays: col.fuelLagDays,
@@ -259,6 +267,7 @@ export async function getQuotation(quotationId: number): Promise<QuotationView> 
     customerName: s.customers.name,
     templateName: s.quotations.templateName,
     effectiveDate: s.quotations.effectiveDate,
+    surchargeRoundingMode: s.quotations.surchargeRoundingMode,
     note: s.quotations.note,
   }).from(s.quotations)
     .innerJoin(s.customers, eq(s.customers.id, s.quotations.customerId))
@@ -266,7 +275,11 @@ export async function getQuotation(quotationId: number): Promise<QuotationView> 
     .limit(1);
   if (!frame) throw new ApiError(404, 'Không tìm thấy báo giá');
   const grid = await buildGrid(quotationId, frame.customerId, frame.effectiveDate);
-  return { ...frame, cells: grid };
+  return {
+    ...frame,
+    surchargeRoundingMode: frame.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
+    cells: grid,
+  };
 }
 
 export async function listQuotations(): Promise<QuotationView[]> {
@@ -276,12 +289,17 @@ export async function listQuotations(): Promise<QuotationView[]> {
     customerName: s.customers.name,
     templateName: s.quotations.templateName,
     effectiveDate: s.quotations.effectiveDate,
+    surchargeRoundingMode: s.quotations.surchargeRoundingMode,
     note: s.quotations.note,
   }).from(s.quotations)
     .innerJoin(s.customers, eq(s.customers.id, s.quotations.customerId))
     .where(isNull(s.quotations.deletedAt))
     .orderBy(desc(s.quotations.createdAt));
   // Frames only — the live grid assembles on the detail route.
-  return rows.map((r) => ({ ...r, cells: [] }));
+  return rows.map((r) => ({
+    ...r,
+    surchargeRoundingMode: r.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
+    cells: [],
+  }));
 }
 

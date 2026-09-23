@@ -161,13 +161,14 @@ export {
 
 export {
   QUOTATION_GRID_COLUMNS, QUOTATION_CONTAINER_CLASS_CODES, QUOTATION_PATHS,
+  SURCHARGE_ROUNDING_MODES,
   isQuotationContainerClass, quotationBaseClassCode,
   quotationCellSchema, quotationCreateSchema, quotationUpdateSchema,
 } from './schemas';
 
 export type {
   QuotationColumnKey, QuotationCellInput, QuotationCreateInput,
-  QuotationUpdateInput, QuotationCellView, QuotationView,
+  QuotationUpdateInput, QuotationCellView, QuotationView, SurchargeRoundingMode,
 } from './schemas';
 
 export {
@@ -318,7 +319,7 @@ export type {
   AccountingTransportRegisterResponse,
 } from './schemas';
 
-export { round2dp, roundInt } from './calculations/round';
+export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
 export {
   CONTAINER_PRICE_CLASS_LABELS,

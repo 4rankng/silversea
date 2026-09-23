@@ -54,6 +54,15 @@ export const QUOTATION_PATHS = {
   DETAIL: (id: number) => `/quotations/${id}`,
 } as const;
 
+/**
+ * Per-customer fuel-surcharge rounding rule (card 20260922_60, ruling 7):
+ * Excel ROUND(x; -n) half-away-from-zero applied to the surcharge ONLY.
+ * 'NONE' = unconfigured — the deterministic default (no rounding).
+ * 'THOUSAND' = "3 số" (thousands), 'TEN_THOUSAND' = "4 số" (ten-thousands).
+ */
+export const SURCHARGE_ROUNDING_MODES = ['NONE', 'THOUSAND', 'TEN_THOUSAND'] as const;
+export type SurchargeRoundingMode = (typeof SURCHARGE_ROUNDING_MODES)[number];
+
 // Hệ số — per-cell multiplier of the FUEL SURCHARGE ONLY (operator ruling
 // 2026-09-22, card _59: default 1; business meaning deferred to the
 // customer). Stored numeric(8,4); 0 disables the surcharge line.
@@ -69,14 +78,15 @@ export const quotationCreateSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   templateName: z.string().trim().min(1).max(120),
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày hiệu lực phải có dạng YYYY-MM-DD'),
+  surchargeRoundingMode: z.enum(SURCHARGE_ROUNDING_MODES).default('NONE'),
   note: z.string().trim().max(2000).nullable().optional(),
   cells: z.array(quotationCellSchema).max(400).default([]),
 }).strict();
 
 export const quotationUpdateSchema = quotationCreateSchema.omit({ customerId: true }).strict();
 
-export type QuotationCellInput = z.infer<typeof quotationCellSchema>;
-export type QuotationCreateInput = z.infer<typeof quotationCreateSchema>;
+export type QuotationCellInput = z.input<typeof quotationCellSchema>;
+export type QuotationCreateInput = z.input<typeof quotationCreateSchema>;
 export type QuotationUpdateInput = z.infer<typeof quotationUpdateSchema>;
 
 // ─── Live-view grid cell (computed, never persisted except heSo) ───────────
@@ -96,6 +106,8 @@ export interface QuotationCellView {
   surcharge: number | null;
   /** giaCos + surcharge; excluded from row totals while the price is missing. */
   total: number | null;
+  /** Pre-rounding surcharge (card _60) — equals surcharge when mode is NONE. */
+  surchargeRaw: number | null;
   baseFuelPrice: number | null;
   fuelLagDays: number | null;
   /** Human-readable formula for the UI (engine-style). */
@@ -108,6 +120,7 @@ export interface QuotationView {
   customerName: string;
   templateName: string;
   effectiveDate: string;
+  surchargeRoundingMode: SurchargeRoundingMode;
   note: string | null;
   cells: QuotationCellView[];
 }
