@@ -1,4 +1,6 @@
 {
+  "version": "7",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
@@ -827,6 +829,20 @@
       "version": "7",
       "when": 1790090007655,
       "tag": "20260922151327_eminent_guardsmen",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1790097600000,
+      "tag": "20260923001500_card78_q10_deletion_trail",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1790098500000,
+      "tag": "20260923010000_card78_ops_reason",
       "breakpoints": true
     }
   ]

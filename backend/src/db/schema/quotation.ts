@@ -1,0 +1,64 @@
+// Quotation (Mẫu báo giá 1) — card 20260922_66.
+// Live-view frame over the running pricing parameters (operator ruling
+// 2026-09-22 Q1): the quotation never copies prices/norms/fuel terms — it
+// stores template identity, effective date, and per-cell Hệ số only. Per-trip
+// money stays frozen in freight_rate_snapshots at Ngày vận chuyển.
+// Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
+
+import {
+  date, integer, jsonb, numeric, pgTable, serial, text, timestamp,
+  uniqueIndex, varchar,
+} from 'drizzle-orm/pg-core';
+
+export const quotations = pgTable('quotations', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull(),
+  templateName: varchar('template_name', { length: 120 }).notNull(),
+  effectiveDate: date('effective_date').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+});
+// Deliberately NO unique constraint on (customer, template, date): card _57
+// re-uploads create NEW versions (ruling 6) — multiple active rows per
+// customer must stay possible until _62's version release workflow lands.
+// re-uploads create NEW versions (ruling 6) — multiple active rows per
+// customer must stay possible until _62's version release workflow lands.
+
+// The grid's per-cell mutable datum: the Hệ số (ruling _59 — multiplies the
+// fuel surcharge ONLY, default 1, snapshotted at version release later).
+// Giá cos, liters, and fuel parameters are NEVER stored here; they resolve
+// live from pricing_tables / freight_rate_terms / fuel_consumption_norms.
+// Cells key on vehicle class CODES including _58's weight-split catalog
+// (CONT20.LIGHT/.HEAVY, CONT40.LIGHT/.HEAVY); heavy cells carry no price of
+// their own in Mẫu 1 today (missing data, ruling 2) — the light twin's
+// engine result supplies fuel params for the surcharge-only line.
+export const quotationCells = pgTable('quotation_cells', {
+  id: serial('id').primaryKey(),
+  quotationId: integer('quotation_id').notNull(),
+  routeId: integer('route_id').notNull(),
+  vehicleSizeClassId: integer('vehicle_size_class_id').notNull(),
+  heSo: numeric('he_so', { precision: 8, scale: 4 }).notNull().default('1'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('quotation_cells_uniq')
+    .on(table.quotationId, table.routeId, table.vehicleSizeClassId),
+]);
+
+// Schema-only STUB for card _62 (version-release snapshots). Nothing in _66
+// writes it; the release workflow lands with _62 on this seam.
+export const quotationVersionSnapshots = pgTable('quotation_version_snapshots', {
+  id: serial('id').primaryKey(),
+  quotationId: integer('quotation_id').notNull(),
+  version: integer('version').notNull(),
+  payload: jsonb('payload').notNull(),
+  releasedBy: integer('released_by'),
+  releasedAt: timestamp('released_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('quotation_version_snapshots_quotation_version_uniq')
+    .on(table.quotationId, table.version),
+]);
+

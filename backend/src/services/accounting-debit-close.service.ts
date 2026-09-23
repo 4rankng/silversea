@@ -180,6 +180,8 @@ export async function getAccountingDebitBoard(query: {
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
+      // Q10 (card 20260922_78): soft-voided fee rows leave the money math.
+      ne(s.tripExpenses.approvalStatus, 'VOIDED'),
     ));
   const otherSellByLot = new Map<number, number>();
   const otherSellKnown = new Set<number>();

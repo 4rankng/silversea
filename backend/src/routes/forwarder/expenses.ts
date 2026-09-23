@@ -7,7 +7,9 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { getUser } from '../../middleware/auth';
 import { throwValidation } from '../../lib/validation';
 import { listUnlinkedTripExpenses } from '../../services/forwarder.service';
 import {
@@ -86,11 +88,17 @@ router.delete('/expenses/:id', asyncHandler(async (req: Request, res: Response) 
     req,
     'Cần tải lại phiên bản chi phí mới nhất trước khi xóa.',
   );
+  // Q10 (card 20260922_78): the delete reason is mandatory, free text, and
+  // stored on the soft-voided row with the actor's user id.
+  const reason = z.object({ reason: z.string().trim().min(1, 'Lý do xóa là bắt buộc.').max(500) })
+    .parse((req.body ?? {})).reason;
   const outcome = await deleteForwarderExpenseCommand({
     forwarderId: forwarder.id,
     expenseId,
     expectedUpdatedAt,
     idempotencyKey,
+    reason,
+    deletedBy: getUser(req).userId,
   });
   if (outcome.result.auditEntityKey) {
     res.locals.auditEntityKey = outcome.result.auditEntityKey;

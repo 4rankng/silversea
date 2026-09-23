@@ -174,6 +174,12 @@ export const tripExpenses = pgTable('trip_expenses', {
   returnForEvidenceReason: text('return_for_evidence_reason'),
   returnedForEvidenceAt: timestamp('returned_for_evidence_at'),
   returnedForEvidenceBy: integer('returned_for_evidence_by'),
+  // Q10 (card 20260922_78): fee rows are SOFT-deleted, never removed — the
+  // reason is free text entered by the actor at delete time (no canned
+  // constants), with actor + timestamp for the governed trail.
+  deletionReason: text('deletion_reason'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: integer('deleted_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
@@ -422,6 +428,11 @@ export const invoiceTracking = pgTable('invoice_tracking', {
   progress: varchar('progress', { length: 20 }).notNull().default('CHUA_GUI'),
   expenseDate: date('expense_date').notNull().defaultNow(),
   createdBy: integer('created_by'),
+  // Q10 (card 20260922_78): tracker rows soft-delete with the same governed
+  // trail as the fee rows they mirror.
+  deletionReason: text('deletion_reason'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: integer('deleted_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [

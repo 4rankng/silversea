@@ -67,7 +67,12 @@ export async function listInvoiceTracking(from: string, to: string): Promise<{ r
     .innerJoin(s.shipments, eq(s.shipments.id, s.invoiceTracking.shipmentId))
     .innerJoin(s.trips, eq(s.trips.id, s.invoiceTracking.tripId))
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
-    .where(and(gte(s.invoiceTracking.expenseDate, from), lte(s.invoiceTracking.expenseDate, to)))
+    .where(and(
+      gte(s.invoiceTracking.expenseDate, from),
+      lte(s.invoiceTracking.expenseDate, to),
+      // Q10 (card 20260922_78): soft-deleted trackers leave the list.
+      isNull(s.invoiceTracking.deletedAt),
+    ))
     .orderBy(asc(s.invoiceTracking.expenseDate), asc(s.invoiceTracking.id));
 
   const tripIds = [...new Set(rows.map((r) => r.tripId))];
@@ -207,21 +212,33 @@ export async function updateInvoiceTracking(
   return runInTx(transaction, execute);
 }
 
-/** Delete removes the mirrored expense too — unless accounting already
- * settled it, in which case the tracker row is locked (409). */
-export async function deleteInvoiceTracking(userId: number, id: number, transaction?: Tx) {
+/** Q10 delete (card 20260922_78): BOTH the tracker row and its mirrored fee
+ * row survive — soft-voided with a mandatory free-text reason, actor and
+ * timestamp. The physical delete (and the FK-order dance it forced) is gone;
+ * settled trackers stay locked (409). */
+export async function deleteInvoiceTracking(userId: number, id: number, reason: string, transaction?: Tx) {
+  if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   const execute = async (tx: Tx) => {
     const [existing] = await tx.select().from(s.invoiceTracking)
       .where(eq(s.invoiceTracking.id, id))
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy dòng theo dõi');
-    // Tracker row first: invoice_tracking.expense_id holds a real FK to
-    // trip_expenses, so the mirror deletes after the referencing row is gone.
-    await tx.delete(s.invoiceTracking).where(eq(s.invoiceTracking.id, id));
+    const now = new Date();
+    await tx.update(s.invoiceTracking).set({
+      deletionReason: reason.trim(),
+      deletedAt: now,
+      deletedBy: userId,
+      updatedAt: now,
+    }).where(eq(s.invoiceTracking.id, id));
     if (existing.expenseId != null) {
-      await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, existing.expenseId));
+      await tx.update(s.tripExpenses).set({
+        approvalStatus: 'VOIDED',
+        deletionReason: reason.trim(),
+        deletedAt: now,
+        deletedBy: userId,
+        updatedAt: now,
+      }).where(eq(s.tripExpenses.id, existing.expenseId));
     }
-    void userId;
     return { ok: true };
   };
   return runInTx(transaction, execute);

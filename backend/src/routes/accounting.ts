@@ -5,6 +5,7 @@
 // server-side per card AC1).
 
 import { Router } from 'express';
+import { z } from 'zod';
 import { Role } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import {
@@ -86,13 +87,17 @@ accountingRoutes.patch('/invoice-tracking/:id', OFFICE_ROLES, asyncHandler(async
 accountingRoutes.delete('/invoice-tracking/:id', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
+  // Q10 (card 20260922_78): mandatory free-text reason; soft-voids the
+  // tracker row and its mirrored fee row with actor + timestamp.
+  const reason = z.object({ reason: z.string().trim().min(1, 'Lý do xóa là bắt buộc.').max(500) })
+    .parse((req.body ?? {})).reason;
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.INVOICE_TRACKING_DELETE,
     idempotencyKey: requireIdempotencyKey(req),
-    payload: { id, userId: user.userId },
+    payload: { id, userId: user.userId, reason },
     createdBy: user.userId,
     create: async (tx) => {
-      await deleteInvoiceTracking(user.userId, id, tx);
+      await deleteInvoiceTracking(user.userId, id, reason, tx);
       return { success: true };
     },
   });

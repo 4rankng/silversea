@@ -59,6 +59,10 @@ export const opsExpenseEntries = pgTable('ops_expense_entries', {
   // expenses fall into the next batch. Incomplete legacy drafts may release
   // their entries through the audited owner-only correction action.
   opsSettlementId: integer('ops_settlement_id'),
+  // Q10 (card 20260922_78): owner deletes are soft voids with a mandatory
+  // free-text reason — the governed trail sits on the row.
+  deletionReason: text('deletion_reason'),
+  deletedBy: integer('deleted_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [

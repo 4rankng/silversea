@@ -416,8 +416,13 @@ export async function deleteForwarderExpenseCommand(args: {
   expenseId: number;
   expectedUpdatedAt: Date;
   idempotencyKey: string;
+  /** Q10 (card 20260922_78): mandatory free-text reason; stored on the row. */
+  reason: string;
+  /** Q10 actor: the signed-in user id (forwarder auth middleware attaches it). */
+  deletedBy: number;
 }) {
-  const { forwarderId, expenseId, expectedUpdatedAt } = args;
+  const { forwarderId, expenseId, expectedUpdatedAt, reason, deletedBy } = args;
+  if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   return runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_DELETE,
     idempotencyKey: args.idempotencyKey,
@@ -425,13 +430,15 @@ export async function deleteForwarderExpenseCommand(args: {
       expenseId,
       forwarderId,
       expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      reason: reason.trim(),
+      deletedBy,
     },
     createdBy: forwarderId,
     responseStatusCode: 200,
     create: async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
       const expense = await getTripExpenseAuditInfo(expenseId, tx);
-      const result = await deleteTripExpenseInTx(tx, expenseId, forwarderId, expectedUpdatedAt);
+      const result = await deleteTripExpenseInTx(tx, expenseId, forwarderId, expectedUpdatedAt, reason, deletedBy);
       if (result === null) throw new ApiError(404, 'Không tìm thấy chi phí');
       if (result === 'FORBIDDEN') throw new ApiError(403, 'Không có quyền xóa chi phí này');
       const auditEntityKey = expense

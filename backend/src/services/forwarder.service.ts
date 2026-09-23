@@ -760,7 +760,12 @@ export async function deleteTripExpenseInTx(
   expenseId: number,
   forwarderId: number,
   expectedUpdatedAt: Date,
+  reason: string,
+  deletedBy: number,
 ) {
+  // Q10 (card 20260922_78): the delete is a SOFT void — the row survives with
+  // a free-text reason, actor and timestamp. No hard-delete path remains.
+  if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   await lockTripExpenseMutation(tx, expenseId);
   const [existing] = await tx.select({
     id: s.tripExpenses.id,
@@ -797,7 +802,13 @@ export async function deleteTripExpenseInTx(
       notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
     )).limit(1);
   if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
-  await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
+  await tx.update(s.tripExpenses).set({
+    approvalStatus: 'VOIDED',
+    deletionReason: reason.trim(),
+    deletedBy,
+    deletedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(s.tripExpenses.id, expenseId));
   await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
   return 'DELETED';
 }

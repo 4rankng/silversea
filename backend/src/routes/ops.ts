@@ -192,13 +192,17 @@ router.patch('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: R
 router.delete('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
+  // Q10 (card 20260922_78 batch 2): the soft void now captures a mandatory
+  // free-text reason with the actor.
+  const reason = z.object({ reason: z.string().trim().min(1, 'Lý do xóa là bắt buộc.').max(500) })
+    .parse((req.body ?? {})).reason;
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_DELETE,
     idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, userId: user.userId },
+    payload: { expenseId, userId: user.userId, reason },
     createdBy: user.userId,
     create: async (tx) => {
-      await deleteOpsExpense(user.userId, expenseId, tx);
+      await deleteOpsExpense(user.userId, expenseId, reason, tx);
       return { success: true };
     },
   });

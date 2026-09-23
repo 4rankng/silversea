@@ -431,12 +431,14 @@ export interface DebitEditPayload {
   edits?: Array<{ expenseId: number; buyAmount?: number; sellAmount?: number; note?: string }>;
   addOtherFees?: Array<{ tripId: number; name: string; amount: number }>;
   removeExpenseIds?: number[];
+  /** Q10 (card 20260922_78): mandatory whenever removeExpenseIds is non-empty. */
+  removalReason?: string;
   freightEdits?: Array<{ containerNumber: string; psActual?: number; note?: string }>;
 }
 
 /** Editable surface for PUT /debit-edits — strict on unknown keys. */
 export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEditPayload {
-  const allowed = ['edits', 'addOtherFees', 'removeExpenseIds', 'freightEdits'];
+  const allowed = ['edits', 'addOtherFees', 'removeExpenseIds', 'removalReason', 'freightEdits'];
   for (const key of Object.keys(payload)) {
     if (!allowed.includes(key)) {
       throw new ApiError(400, `Trường "${key}" không được sửa — chỉ chấp nhận: ${allowed.join(', ')}.`);
@@ -468,6 +470,12 @@ export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEdi
   for (const id of removeExpenseIds) {
     if (typeof id !== 'number') throw new ApiError(400, 'removeExpenseIds phải là mảng số.');
   }
+  // Q10 (card 20260922_78): a removal batch without a free-text reason is
+  // rejected before anything is written.
+  const removalReason = typeof payload.removalReason === 'string' ? payload.removalReason.trim() : '';
+  if (removeExpenseIds.length > 0 && !removalReason) {
+    throw new ApiError(400, 'Lý do xóa là bắt buộc khi có dòng phí bị bỏ.');
+  }
   const freightEdits = Array.isArray(payload.freightEdits) ? payload.freightEdits : [];
   for (const edit of freightEdits as Array<Record<string, unknown>>) {
     for (const key of Object.keys(edit)) {
@@ -479,7 +487,7 @@ export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEdi
       throw new ApiError(400, 'freightEdits cần containerNumber.');
     }
   }
-  return { edits, addOtherFees, removeExpenseIds, freightEdits } as DebitEditPayload;
+  return { edits, addOtherFees, removeExpenseIds, removalReason, freightEdits } as DebitEditPayload;
 }
 
 export async function saveDebitEdits(input: {
@@ -560,7 +568,15 @@ export async function saveDebitEdits(input: {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
         }
         await assertDebitExpenseEditable(tx, expense.id);
-        await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
+        // Q10 (card 20260922_78): the removal soft-voids the row — it stays
+        // with its reason, actor and timestamp for the governed trail.
+        await tx.update(s.tripExpenses).set({
+          approvalStatus: 'VOIDED',
+          deletionReason: payload.removalReason ?? '',
+          deletedBy: input.actorId,
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(s.tripExpenses.id, expenseId));
       }
       return { id: input.shipmentId };
     },

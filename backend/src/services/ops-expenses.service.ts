@@ -284,9 +284,13 @@ export async function updateOpsExpense(
 export async function deleteOpsExpense(
   userId: number,
   expenseId: number,
+  reason: string,
   transaction?: Tx,
 ): Promise<void> {
-  if (!transaction) return db.transaction(tx => deleteOpsExpense(userId, expenseId, tx));
+  // Q10 (card 20260922_78): deletes are governed soft voids — reason is
+  // mandatory and persisted on the row with the actor.
+  if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
+  if (!transaction) return db.transaction(tx => deleteOpsExpense(userId, expenseId, reason, tx));
   const executor: Executor = transaction ?? db;
   const entry = await getEditableExpense(userId, expenseId, executor);
   await assertOpsExpenseAssignment(transaction, userId, entry.shipmentId);
@@ -295,7 +299,12 @@ export async function deleteOpsExpense(
     await assertExpenseSourceMutable(transaction, source);
     await transaction.update(s.expenseAccountingSources).set({ status: 'VOIDED', version: source.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, source.id));
   }
-  const [voided] = await executor.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
+  const [voided] = await executor.update(s.opsExpenseEntries).set({
+    approvalStatus: 'VOIDED',
+    deletionReason: reason.trim(),
+    deletedBy: userId,
+    updatedAt: new Date(),
+  })
     .where(and(eq(s.opsExpenseEntries.id, expenseId), eq(s.opsExpenseEntries.paidById, userId), isNull(s.opsExpenseEntries.opsSettlementId))).returning({ id: s.opsExpenseEntries.id });
   if (!voided) throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái. Tải lại và thử lại.');
 }

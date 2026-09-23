@@ -24,6 +24,14 @@ const router = Router();
 router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = req.body;
+  // Card 20260922_79 (Q11 closure): the reason is mandatory. It is NOT copied
+  // into any domain table — the audit middleware persists the sanitized
+  // request body into audit_logs beside the actor and timestamp, so the
+  // operational record holds all three together.
+  const reason = typeof data.reason === 'string' ? data.reason.trim() : '';
+  if (!reason) {
+    throw new ApiError(400, 'Lý do điều chuyển là bắt buộc');
+  }
   if (data.expectedVersion !== undefined
       && (!Number.isInteger(data.expectedVersion) || data.expectedVersion <= 0)) {
     throw new ApiError(400, 'Phiên bản chuyến đi không hợp lệ');
