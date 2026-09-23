@@ -113,6 +113,13 @@ export interface LockShipmentFreightRateArgs {
    * after the container appointment and the shipment's expected delivery date.
    */
   fallbackTransportDate?: string | null;
+  /**
+   * Card _58 ruling 4c (QA rework): DISPATCH calls set this — a weightless
+   * container lot then 409s ("Thiếu trọng tải") instead of silently skipping,
+   * because a silently unpriced dispatch is the exact failure the ruling
+   * forbids. Intake calls leave it unset: edits keep skipping pricing.
+   */
+  requirePrice?: boolean;
 }
 
 /**
@@ -242,6 +249,9 @@ export async function lockShipmentFreightRate(
     // missing price through the absent freeze; the shared resolver's
     // MISSING_WEIGHT message carries the reason for price-preview surfaces.
     if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
+      if (args.requirePrice) {
+        throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
+      }
       return null;
     }
     const baseType = rateKey === 'CONT40' ? 'CONT40' as const : 'CONT20' as const;

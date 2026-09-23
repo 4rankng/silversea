@@ -605,6 +605,9 @@ export async function issueOrderCreateOrUpdate(
       shipmentContainerId: fulfillment.shipmentContainerId,
       rateKeyOverride: input.pricingRateKey ?? null,
       fallbackTransportDate: localDateInBusinessZone(plannedStartAt),
+      // Card _58 ruling 4c: dispatching a weightless container lot must LOUDLY
+      // block (409), never dispatch silently unpriced.
+      requirePrice: true,
     });
     // F6 factory snapshot (MDN-13): freeze the operational site's display
     // fields at dispatch so later master-data edits cannot drift an
