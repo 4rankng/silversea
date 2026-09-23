@@ -336,6 +336,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     autoShipmentId = shipment.id;
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       // Null container number is legal intake (placeholder before the BL
       // arrives) and avoids the ISO-6346 check-digit rule.
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
@@ -366,6 +367,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const shipment = await mkShipment({ customerId: customerA, routeId: null });
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
       routeId: routeA,
     }]);
@@ -399,8 +401,8 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     await mkPricingTable(customerB.id, routeA, 'CONT40', '3900000');
     const shipment = await mkShipment({ customerId: customerB.id, routeId: null });
     const containers = await batchUpsertShipmentContainers(shipment.id, adminId, [
-      { containerTypeId: containerType40Id, routeId: routeA, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
-      { containerTypeId: containerType40Id, routeId: routeB.id, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
+      { containerTypeId: containerType40Id, cargoWeightKg: 18_000, routeId: routeA, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
+      { containerTypeId: containerType40Id, cargoWeightKg: 18_000, routeId: routeB.id, customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00` },
     ]);
     const anchorB = containers[1].id;
 
@@ -424,6 +426,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const shipment = await mkShipment({ customerId: customerA, routeId: null });
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
       // no routeId — nothing to price by
     }]);
@@ -431,6 +434,25 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const view = await getShipmentFreightRateView(shipment.id);
     assert.equal(view.latest, null, 'routeless FCL still writes nothing');
     assert.equal(view.snapshotCount, 0);
+  });
+
+  test('weightless container lot skips the intake freeze entirely (ruling 4c absent-freeze)', async () => {
+    // Card _58 ruling 4c + the staging pin (intake edits on weightless lots
+    // proceed WITHOUT pricing): the intake freeze for a weightless container
+    // is SKIPPED, not zero-frozen — no snapshot row at all, so no freight,
+    // no formula, no residue. Pricing surfaces as absent until dispatch,
+    // where the same lot 409s (missing-weight guard, pinned separately).
+    const shipment = await mkShipment({ customerId: customerA, routeId: null });
+    await batchUpsertShipmentContainers(shipment.id, adminId, [{
+      containerTypeId: containerType40Id,
+      customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
+      routeId: routeA,
+      // no cargoWeightKg — ruling 4c: no weight, no price, no invented row
+    }]);
+
+    const view = await getShipmentFreightRateView(shipment.id);
+    assert.equal(view.latest, null, 'weightless intake freeze is absent, not zero');
+    assert.equal(view.snapshotCount, 0, 'absent freeze = absent snapshot, full stop');
   });
 
   test('shipment detail exposes the latest snapshot read-only view', async () => {
@@ -530,6 +552,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const appointD13 = `${addDays(SUITE_BASE_DATE, 13)}T08:00:00+07:00`;
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: appointD13,
     }]);
 
@@ -601,6 +624,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const shipment = await mkShipment({ customerId: customer.id, routeId: route.id });
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
     }]);
 
@@ -619,6 +643,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     const shipment = await mkShipment({ customerId: customer.id, routeId: route.id });
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
     }]);
     const view = await getShipmentFreightRateView(shipment.id);
@@ -659,6 +684,7 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     });
     await batchUpsertShipmentContainers(shipment.id, adminId, [{
       containerTypeId: containerType40Id,
+      cargoWeightKg: 18_000,
       customerAppointmentAt: `${TRANSPORT_DATE}T08:00:00+07:00`,
     }]);
     const view = await getShipmentFreightRateView(shipment.id);
