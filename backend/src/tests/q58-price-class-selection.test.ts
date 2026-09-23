@@ -178,13 +178,13 @@ describe('container price-class selection at lot pricing (card 20260922_58)', ()
     assert.equal(Number(snap.freightAmount), 4_284_000, 'exactly 20,0t is NẶNG (≥20 heavy — ruling 4a)');
   });
 
-  test('missing cargo weight blocks container pricing', async () => {
+  test('missing cargo weight: pricing is SKIPPED deterministically — no freeze, no invented price (ruling c)', async () => {
     const lot = await mkLot({ baseRateKey: 'CONT20', cargoWeightKg: null, cont20LightPrice: '3900000', cont20HeavyPrice: '4200000' });
-    await assert.rejects(
-      () => db.transaction((tx) => lockShipmentFreightRate(tx, { shipmentId: lot.shipment.id, shipmentContainerId: lot.container.id })),
-      (error: unknown) => (error as { statusCode?: number }).statusCode === 409
-        && /Thiếu trọng tải/.test((error as Error).message),
-    );
+    const outcome = await db.transaction((tx) => lockShipmentFreightRate(tx, { shipmentId: lot.shipment.id, shipmentContainerId: lot.container.id }));
+    assert.equal(outcome, null, 'missing weight → no freeze at all (deterministic absence, ruling c)');
+    const snaps = await db.select({ id: s.freightRateSnapshots.id })
+      .from(s.freightRateSnapshots).where(eq(s.freightRateSnapshots.shipmentId, lot.shipment.id));
+    assert.equal(snaps.length, 0, 'no snapshot row is written — nothing priced by guesswork');
   });
 
   test('base-only customer inherits the base row at both weights (no 4-class grid)', async () => {

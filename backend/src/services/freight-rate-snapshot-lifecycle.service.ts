@@ -235,8 +235,14 @@ export async function lockShipmentFreightRate(
       .orderBy(s.shipmentContainers.id)
       .limit(1);
     const weightKg = anchorContainer?.cargoWeightKg == null ? null : Number(anchorContainer.cargoWeightKg);
+    // Ruling (c): missing weight = NO PRICE, deterministically — the freeze is
+    // SKIPPED (no invented number, no stale column) rather than throwing:
+    // a hard 409 here would also block plain intake edits (dates, etc.) on
+    // weightless lots, which never asked for a price. Dispatch surfaces the
+    // missing price through the absent freeze; the shared resolver's
+    // MISSING_WEIGHT message carries the reason for price-preview surfaces.
     if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
-      throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
+      return null;
     }
     const baseType = rateKey === 'CONT40' ? 'CONT40' as const : 'CONT20' as const;
     const resolution = resolveContainerPriceClass(baseType, weightKg / 1000);
