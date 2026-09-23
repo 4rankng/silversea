@@ -341,7 +341,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // a smaller ceiling.
   'src/pages/DriverTripDetailPage.tsx': 691,
   'src/pages/DriverTripPodPage.tsx': 520,
-  'src/pages/ExpenseEntryPage.tsx': 702,
+  // Bumped 702 → 704: 2026-09-23 Q10 deletion trail (card 20260922_78) —
+  // ExpenseEntryPage gains the governed "Xóa phiếu chi" action wiring the
+  // already-Q10-shaped governed-delete endpoint (reason prompt + Idempotency-Key
+  // + If-Unmodified-Since). Reviewed as a contract change.
+  'src/pages/ExpenseEntryPage.tsx': 704,
   // Bumped 987 → 999: 2026-09-14 chart empty-state three-way
   // branch — the no-trip message now keys on completed-trip presence with a
   // distinct completed-but-zero explanation. Reviewed as a contract change.
