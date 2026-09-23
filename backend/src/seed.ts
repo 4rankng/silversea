@@ -34,6 +34,7 @@ import { seedFactories } from './seed/seed-factories';
 import { seedPorts } from './seed/seed-ports';
 import { seedVehiclesFromExcel } from './seed/seed-vehicles-from-excel';
 import { resolveSeedActors, seedTrips } from './seed/seed-trips';
+import { seedQuotationFixtures } from './seed/seed-quotation-fixtures';
 import { seedVendorFinancials } from './seed/seed-vendor-financials';
 import { seedForwarderMoney } from './seed/seed-forwarder-money';
 import { seedCustomerAr } from './seed/seed-customer-ar';
@@ -776,6 +777,9 @@ export async function seed() {
   // matrix seeder so the withheld (blank-Excel) 15T rungs converge to demo
   // prices instead of staying soft-deleted. seed-prod excludes this module.
   await seedDemoFreightPricing();
+  // Card 20260922_64 QA fixtures: LONG MINH + LOG COM frames carrying the
+  // verbatim Chi-phí-khác catalog (case 07 preconditions; upsert-only).
+  await seedQuotationFixtures();
   // Seed operational sites (factories + warehouses) after customers so the
   // shipment intake "Nhà máy"/"Kho lấy hàng" dropdowns are never empty.
   await seedOperationalSites();

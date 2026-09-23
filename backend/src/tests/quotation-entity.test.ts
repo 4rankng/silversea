@@ -208,6 +208,7 @@ describe('quotation entity (card 20260922_66)', () => {
       effectiveDate: EFFECTIVE_DATE,
       surchargeRoundingMode: 'NONE',
       cells: [{ routeId: routeNeweb, vehicleSizeClassCode: 'CONT20.HEAVY', heSo: 1.5 }],
+      fees: [],
     });
     const view = await getQuotation(id);
     assert.strictEqual(view.templateName, 'Mẫu báo giá 1 (rev 2)');

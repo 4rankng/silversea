@@ -6,7 +6,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  date, integer, jsonb, numeric, pgTable, serial, text, timestamp,
+  date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp,
   uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { fuelPricePeriods } from './pricing';
@@ -88,4 +88,26 @@ export const quotationFuelApprovals = pgTable('quotation_fuel_approvals', {
 }, (table) => [
   uniqueIndex('quotation_fuel_approvals_period_customer_uniq')
     .on(table.fuelPricePeriodId, table.customerId),
+]);
+
+// Card 20260922_64: the per-customer "Chi phí khác" catalog riding the
+// quotation frame. Amounts are TẠM defaults (ruling 9a — editable data,
+// never hardcoded); null defaultAmount = pending-empty (Kiểm hóa) or manual
+// per lot (ruling 9b/9c). Routing carries the customer's column semantics:
+// DEDICATED_CUSTOMS / DEDICATED_LACH_HUYEN go to their own columns; OTHER_
+// COSTS rides the chi-phí-khác column with the fee name noted into bảng kê.
+export const quotationFees = pgTable('quotation_fees', {
+  id: serial('id').primaryKey(),
+  quotationId: integer('quotation_id').notNull(),
+  feeName: varchar('fee_name', { length: 120 }).notNull(),
+  subType: varchar('sub_type', { length: 80 }),
+  defaultAmount: numeric('default_amount', { precision: 15, scale: 0 }),
+  routing: varchar('routing', { length: 30 }).notNull().default('OTHER_COSTS'),
+  note: text('note'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('quotation_fees_quotation_idx').on(table.quotationId),
 ]);

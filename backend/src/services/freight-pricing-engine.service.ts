@@ -281,12 +281,18 @@ export async function resolveFreightRate(
   }
 
   // ── Step 3: fuel_consumption_norms ──
+  // Norms are keyed on the BASE class (weight never splits consumption —
+  // _58), but staging data seeded on the weight-split rows must still
+  // resolve: the family lookup covers base + LIGHT/HEAVY members.
+  const normFamilyCodes = [vehicleSizeClassCode, `${vehicleSizeClassCode}.LIGHT`, `${vehicleSizeClassCode}.HEAVY`]
+    .filter((code, index, all) => all.indexOf(code) === index);
   const norm = await db
-    .select()
+    .select({ id: s.fuelConsumptionNorms.id, litersPerKm: s.fuelConsumptionNorms.litersPerKm })
     .from(s.fuelConsumptionNorms)
+    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.fuelConsumptionNorms.vehicleSizeClassId))
     .where(
       and(
-        eq(s.fuelConsumptionNorms.vehicleSizeClassId, vehicleClass.id),
+        inArray(s.vehicleSizeClasses.code, normFamilyCodes),
         lte(s.fuelConsumptionNorms.effectiveDate, transportDate),
         isNull(s.fuelConsumptionNorms.deletedAt),
       ),

@@ -6,7 +6,7 @@
 // Ruling 6: commit creates a NEW quotation frame — never overwrites.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -215,17 +215,21 @@ function cellWhere(factory: string, label: string): string {
   return `${factory} · ${label}`;
 }
 
-/** Derive one-way km from the liters row: km = liters ÷ norm ÷ 2. */
+/** Derive one-way km from the liters row: km = liters ÷ norm ÷ 2.
+ * Family-safe (fuel-period 500 class): the norm may live on the base class
+ * row or on a weight-split sibling — resolve across the whole family. */
 async function normForBase(baseCode: string): Promise<number | null> {
   const base = baseCode.includes('.') ? baseCode.split('.')[0] : baseCode;
-  const [cls] = await db.select({ id: s.vehicleSizeClasses.id })
-    .from(s.vehicleSizeClasses).where(eq(s.vehicleSizeClasses.code, base)).limit(1);
-  if (!cls) return null;
+  const familyCodes = [baseCode, `${base}.LIGHT`, `${base}.HEAVY`, base]
+    .filter((code, index, all) => all.indexOf(code) === index);
+  const classRows = await db.select({ id: s.vehicleSizeClasses.id })
+    .from(s.vehicleSizeClasses).where(inArray(s.vehicleSizeClasses.code, familyCodes));
+  if (classRows.length === 0) return null;
   const [norm] = await db
     .select({ litersPerKm: s.fuelConsumptionNorms.litersPerKm })
     .from(s.fuelConsumptionNorms)
     .where(and(
-      eq(s.fuelConsumptionNorms.vehicleSizeClassId, cls.id),
+      inArray(s.fuelConsumptionNorms.vehicleSizeClassId, classRows.map((row) => row.id)),
       lte(s.fuelConsumptionNorms.effectiveDate, new Date().toISOString().slice(0, 10)),
       isNull(s.fuelConsumptionNorms.deletedAt),
     ))

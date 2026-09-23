@@ -11,10 +11,12 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
   QUOTATION_GRID_COLUMNS,
+  defaultFeeRouting,
   quotationBaseClassCode,
 } from '@tingting/shared';
 import type {
   QuotationCellInput, QuotationCellView, QuotationCreateInput, QuotationUpdateInput, QuotationView,
+  QuotationFeeInput, QuotationFeeView,
 } from '@tingting/shared';
 import type { ResolvedFreightRate } from './freight-pricing-engine.service';
 import { resolveFreightRate } from './freight-pricing-engine.service';
@@ -52,6 +54,58 @@ async function writeCells(quotationId: number, cells: QuotationCellInput[], ex: 
   })));
 }
 
+/** Card _64: persist the Chi-phí-khác catalog (replace-all with the cells). */
+async function writeFees(quotationId: number, fees: QuotationFeeInput[], ex: DbOrTx): Promise<void> {
+  if (fees.length === 0) return;
+  await ex.insert(s.quotationFees).values(fees.map((fee, index) => ({
+    quotationId,
+    feeName: fee.feeName,
+    subType: fee.subType ?? null,
+    defaultAmount: fee.defaultAmount == null ? null : String(fee.defaultAmount),
+    routing: fee.routing ?? defaultFeeRouting(fee.feeName),
+    note: fee.note ?? null,
+    sortOrder: fee.sortOrder ?? index,
+  })));
+}
+
+/** Card _64: the _57 importer's catalog seam — replace-all on commit. */
+export async function upsertQuotationFees(
+  quotationId: number,
+  fees: QuotationFeeInput[],
+  ex: DbOrTx = db,
+): Promise<void> {
+  const [frame] = await ex.select({ id: s.quotations.id }).from(s.quotations)
+    .where(and(eq(s.quotations.id, quotationId), isNull(s.quotations.deletedAt)))
+    .limit(1);
+  if (!frame) throw new ApiError(404, 'Không tìm thấy báo giá');
+  await ex.delete(s.quotationFees).where(eq(s.quotationFees.quotationId, quotationId));
+  await writeFees(quotationId, fees, ex);
+}
+
+/** Card _64: fee rows for the view (not deleted, catalog order). */
+async function loadFees(quotationId: number, ex: DbOrTx = db): Promise<QuotationFeeView[]> {
+  const rows = await ex.select({
+    id: s.quotationFees.id,
+    feeName: s.quotationFees.feeName,
+    subType: s.quotationFees.subType,
+    defaultAmount: s.quotationFees.defaultAmount,
+    routing: s.quotationFees.routing,
+    note: s.quotationFees.note,
+    sortOrder: s.quotationFees.sortOrder,
+  }).from(s.quotationFees)
+    .where(and(eq(s.quotationFees.quotationId, quotationId), isNull(s.quotationFees.deletedAt)))
+    .orderBy(s.quotationFees.sortOrder, s.quotationFees.id);
+  return rows.map((row) => ({
+    id: row.id,
+    feeName: row.feeName,
+    subType: row.subType,
+    defaultAmount: row.defaultAmount == null ? null : Number(row.defaultAmount),
+    routing: row.routing as QuotationFeeView['routing'],
+    note: row.note,
+    sortOrder: row.sortOrder,
+  }));
+}
+
 export async function createQuotation(
   input: QuotationCreateInput,
   ex: DbOrTx = db,
@@ -65,6 +119,7 @@ export async function createQuotation(
     note: input.note ?? null,
   }).returning({ id: s.quotations.id });
   await writeCells(row.id, input.cells ?? [], ex);
+  await writeFees(row.id, input.fees ?? [], ex);
   return { id: row.id };
 }
 
@@ -86,7 +141,11 @@ export async function updateQuotation(
   }).where(eq(s.quotations.id, quotationId));
   // Replace-all cell semantics (sparse overrides; absent = hệ số 1).
   await ex.delete(s.quotationCells).where(eq(s.quotationCells.quotationId, quotationId));
-  await writeCells(quotationId, input.cells, ex);
+  await writeCells(quotationId, input.cells ?? [], ex);
+  // Replace-all fee-catalog semantics (card _64): the frame payload carries
+  // the whole Chi-phí-khác list.
+  await ex.delete(s.quotationFees).where(eq(s.quotationFees.quotationId, quotationId));
+  await writeFees(quotationId, input.fees ?? [], ex);
 }
 
 export async function deleteQuotation(quotationId: number, ex: DbOrTx = db): Promise<void> {
@@ -275,10 +334,12 @@ export async function getQuotation(quotationId: number): Promise<QuotationView> 
     .limit(1);
   if (!frame) throw new ApiError(404, 'Không tìm thấy báo giá');
   const grid = await buildGrid(quotationId, frame.customerId, frame.effectiveDate);
+  const fees = await loadFees(quotationId);
   return {
     ...frame,
     surchargeRoundingMode: frame.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
     cells: grid,
+    fees,
   };
 }
 
@@ -300,9 +361,9 @@ export async function listQuotations(): Promise<QuotationView[]> {
     ...r,
     surchargeRoundingMode: r.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
     cells: [],
+    fees: [],
   }));
 }
-
 
 // ─── Card 20260922_61: fuel-update approval workflow (ruling 8) ─────────────
 

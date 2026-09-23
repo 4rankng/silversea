@@ -161,14 +161,16 @@ export {
 
 export {
   QUOTATION_GRID_COLUMNS, QUOTATION_CONTAINER_CLASS_CODES, QUOTATION_PATHS,
-  SURCHARGE_ROUNDING_MODES,
-  isQuotationContainerClass, quotationBaseClassCode,
+  SURCHARGE_ROUNDING_MODES, FEE_ROUTING_MODES,
+  defaultFeeRouting, isQuotationContainerClass, quotationBaseClassCode,
   quotationCellSchema, quotationCreateSchema, quotationUpdateSchema,
+  quotationFeeSchema,
 } from './schemas';
 
 export type {
   QuotationColumnKey, QuotationCellInput, QuotationCreateInput,
   QuotationUpdateInput, QuotationCellView, QuotationView, SurchargeRoundingMode,
+  QuotationFeeInput, QuotationFeeView, FeeRoutingMode,
 } from './schemas';
 
 export {

@@ -68,6 +68,36 @@ export const QUOTATION_PATHS = {
 export const SURCHARGE_ROUNDING_MODES = ['NONE', 'THOUSAND', 'TEN_THOUSAND'] as const;
 export type SurchargeRoundingMode = (typeof SURCHARGE_ROUNDING_MODES)[number];
 
+/**
+ * Card 20260922_64: routing of a "Chi phí khác" catalog fee. The customer's
+ * spec fixes two DEDICATED columns (Hải quan giám sát, Nâng/Hạ Lạch Huyện);
+ * every other fee rides the other-costs column with its name noted into the
+ * bảng kê. Amounts are TẠM defaults (ruling 9a) — stored as data, never
+ * code constants.
+ */
+export const FEE_ROUTING_MODES = ['DEDICATED_CUSTOMS', 'DEDICATED_LACH_HUYEN', 'OTHER_COSTS'] as const;
+export type FeeRoutingMode = (typeof FEE_ROUTING_MODES)[number];
+
+/** Entry-time classification default — stored on the row, then editable data. */
+export function defaultFeeRouting(feeName: string): FeeRoutingMode {
+  const text = feeName.toLowerCase();
+  if (text.includes('hải quan giám sát')) return 'DEDICATED_CUSTOMS';
+  if (text.includes('lạch huyện')) return 'DEDICATED_LACH_HUYEN';
+  return 'OTHER_COSTS';
+}
+
+export const quotationFeeSchema = z.object({
+  feeName: z.string().trim().min(1).max(120),
+  subType: z.string().trim().max(80).nullable().optional(),
+  // TẠM default (ruling 9a); null = pending-empty (Kiểm hóa) or manual per lot.
+  defaultAmount: z.coerce.number().int().nonnegative().max(99_999_999_999).nullable().optional(),
+  routing: z.enum(FEE_ROUTING_MODES).optional(),
+  note: z.string().trim().max(500).nullable().optional(),
+  sortOrder: z.coerce.number().int().min(0).max(999).optional(),
+}).strict();
+
+export type QuotationFeeInput = z.input<typeof quotationFeeSchema>;
+
 // Hệ số — per-cell multiplier of the FUEL SURCHARGE ONLY (operator ruling
 // 2026-09-22, card _59: default 1; business meaning deferred to the
 // customer). Stored numeric(8,4); 0 disables the surcharge line.
@@ -86,6 +116,9 @@ export const quotationCreateSchema = z.object({
   surchargeRoundingMode: z.enum(SURCHARGE_ROUNDING_MODES).default('NONE'),
   note: z.string().trim().max(2000).nullable().optional(),
   cells: z.array(quotationCellSchema).max(400).default([]),
+  // Card 20260922_64: the per-customer "Chi phí khác" catalog rides the frame
+  // payload — the material-write envelope on POST/PUT /quotations governs it.
+  fees: z.array(quotationFeeSchema).max(200).default([]),
 }).strict();
 
 export const quotationUpdateSchema = quotationCreateSchema.omit({ customerId: true }).strict();
@@ -128,4 +161,16 @@ export interface QuotationView {
   surchargeRoundingMode: SurchargeRoundingMode;
   note: string | null;
   cells: QuotationCellView[];
+  /** Card _64: the per-customer fee catalog (Chi phí khác), routing included. */
+  fees: QuotationFeeView[];
+}
+
+export interface QuotationFeeView {
+  id: number;
+  feeName: string;
+  subType: string | null;
+  defaultAmount: number | null;
+  routing: FeeRoutingMode;
+  note: string | null;
+  sortOrder: number;
 }
