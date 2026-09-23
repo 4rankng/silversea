@@ -15,6 +15,7 @@
     "test:e2e:debug": "playwright test --debug",
     "size-check": "node scripts/check-size.mjs",
     "generate:brand": "node scripts/generate-transting-brand-assets.mjs",
+    "generate:quotation-fixture": "node scripts/generate-quotation-import-fixture.mjs",
     "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-brand-contract.mjs",
     "check:brand": "node scripts/check-brand-contract.mjs",
     "lint": "eslint .",

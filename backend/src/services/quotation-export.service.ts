@@ -9,6 +9,8 @@ import * as s from '../db/schema';
 import { quotationBaseClassCode } from '@tingting/shared';
 import { resolveFreightRate } from './freight-pricing-engine.service';
 import { ApiError } from '../errors';
+import type { QuotationView } from '@tingting/shared';
+type QuotationViewShape = QuotationView;
 
 function classLabel(code: string): string {
   if (code === 'CONT20.LIGHT') return 'Cont 20 - Trọng tải < 20 tấn';
@@ -31,7 +33,59 @@ async function latestFuel(customerId: number, routeId: number, classCode: string
     return null;
   }
 }
-export async function buildQuotationExport(quotationId: number): Promise<Buffer> {
+export async function buildQuotationExport(quotationId: number, version?: number): Promise<Buffer> {
+  // Card _62: a version render comes straight from the FROZEN payload — the
+  // cells carry heSo/liters/giaCos/surcharge verbatim, so no pricing queries.
+  if (version != null) {
+    const [snap] = await db.select({ payload: s.quotationVersionSnapshots.payload })
+      .from(s.quotationVersionSnapshots)
+      .where(and(
+        eq(s.quotationVersionSnapshots.quotationId, quotationId),
+        eq(s.quotationVersionSnapshots.version, version),
+      )).limit(1);
+    if (!snap) throw new ApiError(404, 'Không tìm thấy phiên bản báo giá');
+    const view = snap.payload as QuotationViewShape;
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('BÁO GIÁ');
+    sheet.getCell('A1').value = 'Khách hàng';
+    sheet.getCell('B1').value = view.customerName ?? '';
+    sheet.getCell('A2').value = 'Giá dầu tham chiếu';
+    sheet.getCell('B2').value = view.cells[0]?.baseFuelPrice ?? null;
+    sheet.getCell('C2').value = 'Lag Day n';
+    sheet.getCell('D2').value = view.cells[0]?.fuelLagDays ?? 0;
+    sheet.getCell('E2').value = 'Phụ phí làm tròn';
+    sheet.getCell('F2').value = view.surchargeRoundingMode === 'TEN_THOUSAND' ? '-4'
+      : view.surchargeRoundingMode === 'THOUSAND' ? '-3' : 'NONE';
+    let cursor = 4;
+    const routesInOrder = [...new Set(view.cells.map((cell) => cell.routeName))];
+    for (const routeName of routesInOrder) {
+      const routeCells = view.cells.filter((cell) => cell.routeName === routeName);
+      sheet.getCell(`A${cursor}`).value = 'Nhà máy';
+      sheet.getCell(`B${cursor}`).value = routeName;
+      cursor += 1;
+      sheet.getCell(`A${cursor}`).value = 'Nội dung';
+      routeCells.forEach((cell, index) => {
+        sheet.getCell(cursor, index + 2).value = classLabel(cell.vehicleSizeClassCode);
+      });
+      cursor += 1;
+      const gridRows: Array<[string, (cell: QuotationViewShape['cells'][number]) => number | string | null]> = [
+        ['Hệ số', (cell) => cell.heSo],
+        ['Tổng lít dầu/chuyến', (cell) => cell.liters],
+        ['Giá cos', (cell) => cell.giaCos],
+        ['Phụ phí', (cell) => cell.surcharge],
+      ];
+      for (const [label, render] of gridRows) {
+        sheet.getCell(`A${cursor}`).value = label;
+        routeCells.forEach((cell, index) => {
+          sheet.getCell(cursor, index + 2).value = render(cell);
+        });
+        cursor += 1;
+      }
+      cursor += 1;
+    }
+    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
   const [frame] = await db.select().from(s.quotations)
     .where(and(eq(s.quotations.id, quotationId), isNull(s.quotations.deletedAt))).limit(1);
   if (!frame) throw new ApiError(404, 'Không tìm thấy báo giá');

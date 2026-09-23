@@ -182,7 +182,9 @@ router.post('/import/commit', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotati
 router.get('/:id/export', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
-  const buffer = await buildQuotationExport(id);
+  const versionRaw = req.query.version;
+  const version = versionRaw != null && String(versionRaw) !== '' ? Number(versionRaw) : undefined;
+  const buffer = await buildQuotationExport(id, version);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="bao-gia-${id}.xlsx"`);
   res.end(Buffer.from(buffer));

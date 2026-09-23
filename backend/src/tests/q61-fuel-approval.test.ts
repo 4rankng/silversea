@@ -1,9 +1,9 @@
 // Card 20260922_61 (ruling 8): the "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" workflow —
 // period entry targets exactly active-quotation customers; the engine prices
 // the OLD period until kế toán ticks Đồng ý; Không/Để sau keep the old price.
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -15,6 +15,8 @@ import { resolveFreightRate } from '../services/freight-pricing-engine.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-q61`;
+/** Marker note on every fixture period — before() purges orphans by it. */
+let periodIdWatermark = 0;
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdClassIds: number[] = [];
@@ -74,10 +76,14 @@ async function mkPricedCustomer(name: string) {
   return { customer, route, cls, quotation };
 }
 
-async function mkFuelPeriod(unitPrice: string, day: number) {
+async function mkFuelPeriod(unitPrice: string, daysAgo: number) {
+  // Run-relative dates: fuel_price_periods.effective_from is globally unique,
+  // so fixed calendar dates collide with leftovers from earlier runs. The
+  // marker note lets before() purge any orphans those runs left behind.
+  const day = new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
   const [period] = await db.insert(s.fuelPricePeriods).values({
     unitPrice,
-    effectiveFrom: `2026-09-${String(day).padStart(2, '0')}`,
+    effectiveFrom: day,
   }).returning();
   createdPeriodIds.push(period.id);
   return period;
@@ -104,6 +110,7 @@ after(async () => {
     await db.delete(s.freightRateTerms).where(inArray(s.freightRateTerms.id, createdTermsIds));
     await db.delete(s.fuelConsumptionNorms).where(inArray(s.fuelConsumptionNorms.id, createdNormIds));
     await db.delete(s.fuelPricePeriods).where(inArray(s.fuelPricePeriods.id, createdPeriodIds));
+    await db.delete(s.fuelPricePeriods).where(sql`id > ${periodIdWatermark}`);
     await db.delete(s.vehicleSizeClasses).where(inArray(s.vehicleSizeClasses.id, createdClassIds));
     await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -113,11 +120,36 @@ after(async () => {
   await disconnectRedis();
 });
 
+before(async () => {
+  // Orphan purge: earlier crashed runs left periods at their fixture dates.
+  // This run's dates are derived from the same offsets, so clear exactly the
+  // window the fixtures will use, then set the id watermark for after().
+  const days = [40, 30, 20, 10].map((offset) => (
+    new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10)
+  )).concat(['2035-01-01', '2035-06-01']);
+  // Approvals first (FK), then the orphaned periods themselves.
+  await db.delete(s.quotationFuelApprovals).where(
+    inArray(s.quotationFuelApprovals.fuelPricePeriodId,
+      db.select({ id: s.fuelPricePeriods.id }).from(s.fuelPricePeriods)
+        .where(inArray(s.fuelPricePeriods.effectiveFrom, days))),
+  );
+  await db.delete(s.fuelPricePeriods).where(inArray(s.fuelPricePeriods.effectiveFrom, days));
+  const [watermark] = await db.select({ maxId: sql`max(id)` }).from(s.fuelPricePeriods);
+  periodIdWatermark = Number(watermark?.maxId ?? 0);
+});
+
+
+async function mkFuelPeriodAt(unitPrice: string, effectiveFrom: string) {
+  const [period] = await db.insert(s.fuelPricePeriods).values({ unitPrice, effectiveFrom }).returning();
+  createdPeriodIds.push(period.id);
+  return period;
+}
+
 describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
   test('period entry targets exactly the active-quotation customers, idempotently', async () => {
     const a = await mkPricedCustomer('Q61 khách A');
     const b = await mkPricedCustomer('Q61 khách B');
-    const period = await mkFuelPeriod('30000', 5);
+    const period = await mkFuelPeriod('30000', 20);
     const created = await spawnQuotationFuelApprovals(period.id, db);
     assert.ok(created >= 2, 'both fixture customers targeted');
     const list = await listQuotationFuelApprovals('PENDING');
@@ -135,8 +167,11 @@ describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
 
   test('engine prices the OLD period while PENDING, NEW after Đồng ý', async () => {
     const a = await mkPricedCustomer('Q61 giá cũ/khác');
-    const oldPeriod = await mkFuelPeriod('20000', 1);
-    const newPeriod = await mkFuelPeriod('30000', 3);
+    // Hermetic anchoring: far-future fixed dates (2035) — no leftover period
+    // from any earlier run can sit above them, so the engine's selection sees
+    // exactly these two.
+    const oldPeriod = await mkFuelPeriodAt('20000', '2035-01-01');
+    const newPeriod = await mkFuelPeriodAt('30000', '2035-06-01');
     await spawnQuotationFuelApprovals(newPeriod.id, db);
     const list = await listQuotationFuelApprovals('PENDING');
     const mine = list.items.find((row) => row.customerId === a.customer.id
@@ -147,7 +182,7 @@ describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
       customerId: a.customer.id,
       routeId: a.route.id,
       vehicleSizeClassCode: a.cls.code,
-      transportDate: '2026-09-04',
+      transportDate: '2035-06-01',
     });
     assert.equal(before.fuelPricePeriodId, oldPeriod.id, 'PENDING → old period prices');
     // Không (DECLINED): still the old period.
@@ -156,7 +191,7 @@ describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
       customerId: a.customer.id,
       routeId: a.route.id,
       vehicleSizeClassCode: a.cls.code,
-      transportDate: '2026-09-04',
+      transportDate: '2035-06-01',
     });
     assert.equal(declined.fuelPricePeriodId, oldPeriod.id, 'DECLINED → old period holds');
     // Đồng ý (AGREED): the watermark advances — trips priced from now use it.
@@ -169,7 +204,7 @@ describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
       customerId: a.customer.id,
       routeId: a.route.id,
       vehicleSizeClassCode: a.cls.code,
-      transportDate: '2026-09-04',
+      transportDate: '2035-06-01',
     });
     assert.equal(agreed.fuelPricePeriodId, newPeriod.id, 'Đồng ý → new period applies');
   });
@@ -177,7 +212,7 @@ describe('quotation fuel-update approvals (card 20260922_61, ruling 8)', () => {
   test('batch decide updates many rows with actor + timestamp', async () => {
     const a = await mkPricedCustomer('Q61 batch 1');
     const b = await mkPricedCustomer('Q61 batch 2');
-    const period = await mkFuelPeriod('31000', 7);
+    const period = await mkFuelPeriod('31000', 30);
     await spawnQuotationFuelApprovals(period.id, db);
     const actor = await mkActor();
     const list = await listQuotationFuelApprovals('PENDING');

@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -58,6 +58,15 @@ function request(path: string, init: { method?: string; token: string; body?: un
 }
 
 before(async () => {
+  // Purge any orphan left at this run's fixture date by an earlier run (its
+  // approvals reference the period, so clear them first).
+  const fixtureDate = new Date(Date.now() + 200 * 86_400_000).toISOString().slice(0, 10);
+  await db.delete(s.quotationFuelApprovals).where(
+    inArray(s.quotationFuelApprovals.fuelPricePeriodId,
+      db.select({ id: s.fuelPricePeriods.id }).from(s.fuelPricePeriods)
+        .where(eq(s.fuelPricePeriods.effectiveFrom, fixtureDate))),
+  );
+  await db.delete(s.fuelPricePeriods).where(eq(s.fuelPricePeriods.effectiveFrom, fixtureDate));
   await initEnforcer();
   const app = express();
   app.use(express.json());
@@ -81,8 +90,12 @@ describe('fuel-period entry guard (card 20260922_61 RBAC)', () => {
       method: 'POST',
       token: accountantToken,
       idempotencyKey: `q61g-${suffix}-1`,
-      body: { unitPrice: 29940, effectiveFrom: `2026-10-${createdPeriodIds.length + 10}` },
+      body: { unitPrice: 29940, effectiveFrom: new Date(Date.now() + 200 * 86_400_000).toISOString().slice(0, 10) },
     });
+    if (response.status !== 201) {
+      const body = await response.clone().text();
+      console.log('[q61g-debug] ketoan POST status:', response.status, 'body:', body.slice(0, 200));
+    }
     assert.equal(response.status, 201);
     const body = await response.json() as { id: number };
     createdPeriodIds.push(body.id);
@@ -101,7 +114,15 @@ describe('fuel-period entry guard (card 20260922_61 RBAC)', () => {
 
 after(async () => {
   try {
-    await db.delete(s.fuelPricePeriods).where(inArray(s.fuelPricePeriods.id, createdPeriodIds));
+    // Spawn's approval rows reference the periods — clear them FIRST or the
+    // FK blocks the period delete and orphans accumulate across runs.
+    const fixtureDate = new Date(Date.now() + 200 * 86_400_000).toISOString().slice(0, 10);
+    await db.delete(s.quotationFuelApprovals).where(
+      inArray(s.quotationFuelApprovals.fuelPricePeriodId,
+        db.select({ id: s.fuelPricePeriods.id }).from(s.fuelPricePeriods)
+          .where(eq(s.fuelPricePeriods.effectiveFrom, fixtureDate))),
+    );
+    await db.delete(s.fuelPricePeriods).where(eq(s.fuelPricePeriods.effectiveFrom, fixtureDate));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   } catch { /* best-effort */ }
   server?.close();

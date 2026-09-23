@@ -1,6 +1,22 @@
 import { api } from '../lib/api';
 import { QUOTATION_PATHS, type QuotationCreateInput, type QuotationUpdateInput, type QuotationView } from '@tingting/shared';
 
+export interface QuotationVersionRow {
+  version: number;
+  triggerKind: 'MANUAL_EDIT' | 'FUEL_APPROVED' | 'IMPORT' | string;
+  releasedBy: number | null;
+  releasedAt: string | null;
+}
+
+const TRIGGER_KIND_LABELS: Record<string, string> = {
+  MANUAL_EDIT: 'Chỉnh sửa tay',
+  FUEL_APPROVED: 'Duyệt cập nhật giá dầu',
+  IMPORT: 'Nhập file',
+};
+export function triggerKindLabel(kind: string): string {
+  return TRIGGER_KIND_LABELS[kind] ?? kind;
+}
+
 // Quotation live-view frames (card 20260922_66). LIST returns frames without
 // cells (the live grid assembles on the detail route); money columns arrive
 // as numbers on QuotationCellView; heSo is numeric(8,4) on the wire. Paths
@@ -56,6 +72,22 @@ export const quotationClient = {
   },
   exportQuotation(id: number): Promise<Blob> {
     return api.getBlob(QUOTATION_PATHS.DETAIL(id) + '/export');
+  },
+  /** Card _62: version history — newest-first list + one frozen payload. */
+  listVersions(id: number, filter?: { from?: string; to?: string }): Promise<{ items: QuotationVersionRow[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filter?.from) params.set('from', filter.from);
+    if (filter?.to) params.set('to', filter.to);
+    const query = params.toString();
+    return api.get<{ items: QuotationVersionRow[]; total: number }>(
+      `${QUOTATION_PATHS.DETAIL(id)}/versions${query ? `?${query}` : ''}`,
+    );
+  },
+  getVersionPayload(id: number, version: number): Promise<QuotationView> {
+    return api.get<QuotationView>(`${QUOTATION_PATHS.DETAIL(id)}/versions/${version}`);
+  },
+  exportVersion(id: number, version: number): Promise<Blob> {
+    return api.getBlob(`${QUOTATION_PATHS.DETAIL(id)}/export?version=${version}`);
   },
 };
 

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../../components/UI';
 import { EmptyState, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
@@ -6,8 +7,10 @@ import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateI
 import { ListFilterBar } from '../../components/ListFilterBar';
 import { QUOTATION_GRID_COLUMNS, type QuotationCellView } from '@tingting/shared';
 import { useQuotation, useQuotations, useUpdateQuotation } from '../../hooks/useQuotationQueries';
-import { quotationClient, type ImportPreviewPayload } from '../../api/quotationClient';
-import { formatCurrency } from '../../lib/format';
+import { quotationClient, triggerKindLabel, type ImportPreviewPayload } from '../../api/quotationClient';
+import type { QuotationView } from '@tingting/shared';
+import { formatCurrency, formatDate } from '../../lib/format';
+import { QuotationImportPreview } from './QuotationImportPreview';
 import './QuotationConfigPage.css';
 
 // ─── Báo giá (card 20260922_56) — quotation live-view screen ───────────────
@@ -129,6 +132,40 @@ export default function QuotationConfigPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [versionFilterFrom, setVersionFilterFrom] = useState('');
+  const [versionFilterTo, setVersionFilterTo] = useState('');
+  const [viewingVersion, setViewingVersion] = useState<{ version: number; payload: QuotationView | null } | null>(null);
+  // Card _62: version history for the selected quotation (newest first).
+  const versionsQuery = useQuery({
+    queryKey: ['quotation-versions', selectedId, versionFilterFrom, versionFilterTo],
+    queryFn: () => quotationClient.listVersions(selectedId!, {
+      from: versionFilterFrom || undefined,
+      to: versionFilterTo || undefined,
+    }),
+    enabled: selectedId != null,
+  });
+
+  const handleViewVersion = async (version: number) => {
+    const payload = await quotationClient.getVersionPayload(selectedId!, version);
+    setViewingVersion({ version, payload });
+  };
+
+  const handleExportVersion = async (version: number) => {
+    try {
+      const blob = await quotationClient.exportVersion(selectedId!, version);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `bao-gia-${selectedId}-phien-ban-${version}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Không xuất được phiên bản.');
+    }
+  };
+
+
   const handleImportFile = async (file: File) => {
     setImportFile(file); setImportError(null); setImporting(true);
     try { setImportPreviewData(await quotationClient.importPreview(file)); }
@@ -168,7 +205,6 @@ export default function QuotationConfigPage() {
   };
 
   const frames = useQuotations();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [customer, setCustomer] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -207,6 +243,7 @@ export default function QuotationConfigPage() {
         surchargeRoundingMode: detail.data!.surchargeRoundingMode,
         note: detail.data!.note,
         cells,
+        fees: detail.data!.fees,
       },
     });
   }
@@ -258,38 +295,17 @@ export default function QuotationConfigPage() {
 
       {importError && <Alert variant="error" style="soft">{importError}</Alert>}
       {importPreviewData && (
-        <section className="quotation-import-preview" aria-label="Xem trước nhập xlsx">
-          <p className="quotation-status">
-            Xem trước: {importPreviewData.totalErrors === 0
-              ? 'khớp toàn bộ — bấm Ghi nhận để nhập.'
-              : `${importPreviewData.totalErrors} lỗi ánh xạ — sửa file hoặc báo quản trị.`}
-          </p>
-          {importPreviewData.sheets.map((sheet) => (
-            <div key={sheet.sheet} style={{ marginBottom: 8 }}>
-              <strong>{sheet.sheet}</strong> — {sheet.customerName ?? '(không rõ khách hàng)'}
-              {sheet.routes.map((route) => (
-                <div key={route.factoryName} style={{ paddingLeft: 12 }}>
-                  {route.matchedRouteName
-                    ? `✓ ${route.factoryName} → ${route.matchedRouteName}`
-                    : `✗ ${route.errors.join(' · ') || 'không khớp tuyến'}`}
-                  {route.rows.map((row) => (
-                    <div key={row.classCode} style={{ paddingLeft: 12, color: row.error ? 'var(--danger)' : undefined }}>
-                      {row.error ? `✗ ${row.error}` : `✓ ${row.classLabel}: ${row.liters ?? '?'} lít · ${row.giaCos ?? '?'} ₫`}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ))}
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            disabled={importing || importPreviewData.totalErrors > 0}
-            onClick={() => void handleImportCommit()}
-          >
-            {importing ? 'Đang ghi…' : 'Ghi nhận nhập file'}
-          </button>
-        </section>
+        <QuotationImportPreview
+          preview={importPreviewData}
+          committing={importing}
+          onCommit={() => void handleImportCommit()}
+          onCancel={() => {
+            setImportPreviewData(null);
+            setImportFile(null);
+            setImportError(null);
+            if (importInputRef.current) importInputRef.current.value = '';
+          }}
+        />
       )}
       {frames.isLoading && <p className="quotation-status">Đang tải danh sách báo giá…</p>}
 
@@ -333,6 +349,72 @@ export default function QuotationConfigPage() {
           ))}
         </section>
       </div>
+
+      {selectedId != null && (
+        <section className="quotation-versions" aria-label="Lịch sử phiên bản báo giá">
+          <h3>Lịch sử phiên bản</h3>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <BufferedUuiDateInput label="Từ ngày (phiên bản)" size="sm" value={versionFilterFrom} onChange={setVersionFilterFrom} />
+            <BufferedUuiDateInput label="Đến ngày (phiên bản)" size="sm" value={versionFilterTo} onChange={setVersionFilterTo} />
+          </div>
+          {versionsQuery.isLoading && <p className="quotation-status">Đang tải phiên bản…</p>}
+          {versionsQuery.data && versionsQuery.data.items.length === 0 && (
+            <p className="quotation-status">Chưa có phiên bản nào được ghi nhận.</p>
+          )}
+          <table className="tt-table" style={{ width: '100%', maxWidth: 720 }}>
+            <thead>
+              <tr>
+                <th scope="col">Phiên bản</th>
+                <th scope="col">Thao tác</th>
+                <th scope="col">Thời điểm</th>
+                <th scope="col"><span className="sr-only">Xem / xuất</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(versionsQuery.data?.items ?? []).map((row) => (
+                <tr key={row.version}>
+                  <td>Phiên bản {row.version}</td>
+                  <td>{triggerKindLabel(row.triggerKind)}</td>
+                  <td>{row.releasedAt ? formatDate(row.releasedAt.slice(0, 10)) : '—'}</td>
+                  <td>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => void handleViewVersion(row.version)}>Xem</button>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => void handleExportVersion(row.version)}>Xuất xlsx</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {viewingVersion && viewingVersion.payload && (
+            <div role="group" aria-label={`Phiên bản ${viewingVersion.version} (chỉ đọc)`} style={{ marginTop: 12 }}>
+              <p className="quotation-status">Phiên bản {viewingVersion.version} — chỉ đọc.</p>
+              <table className="tt-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th scope="col">Tuyến</th>
+                    <th scope="col">Hạng</th>
+                    <th scope="col">Hệ số</th>
+                    <th scope="col">Lít</th>
+                    <th scope="col">Giá cos</th>
+                    <th scope="col">Phụ phí</th>
+                  </tr>
+                </thead>
+                <tbody>
+                          {viewingVersion.payload.cells.map((cell) => (
+                    <tr key={`${cell.routeId}-${cell.vehicleSizeClassCode}`}>
+                      <td>{cell.routeName}</td>
+                      <td>{cell.vehicleSizeClassCode}</td>
+                      <td>{cell.heSo}</td>
+                      <td>{cell.liters != null ? cell.liters : '—'}</td>
+                      <td>{cell.giaCos != null ? formatCurrency(cell.giaCos) : '—'}</td>
+                      <td>{cell.surcharge != null ? formatCurrency(cell.surcharge) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

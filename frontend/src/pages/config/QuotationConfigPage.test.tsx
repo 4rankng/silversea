@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QUOTATION_GRID_COLUMNS } from '@tingting/shared';
 import QuotationConfigPage from './QuotationConfigPage';
 
-const { apiGet, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPut: vi.fn() }));
+const { apiGet, apiPut, apiGetBlob } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPut: vi.fn(), apiGetBlob: vi.fn() }));
 vi.mock('../../lib/api', () => ({
-  api: { get: apiGet, post: vi.fn(), put: apiPut },
+  api: { get: apiGet, post: vi.fn(), put: apiPut, getBlob: apiGetBlob },
   ApiError: class ApiError extends Error {},
 }));
 
@@ -108,5 +108,65 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(body.cells[0]).toEqual({ routeId: 3, vehicleSizeClassCode: '1.25T', heSo: 1.5 });
     expect(body.templateName).toBe('Mẫu 1');
     expect(body.effectiveDate).toBe('2026-09-01');
+  });
+});
+
+describe('QuotationConfigPage version history (card 20260922_62)', () => {
+  const versionItems = [
+    { version: 2, triggerKind: 'FUEL_APPROVED', releasedBy: 3, releasedAt: '2026-09-20T10:00:00.000Z' },
+    { version: 1, triggerKind: 'MANUAL_EDIT', releasedBy: 3, releasedAt: '2026-09-10T10:00:00.000Z' },
+  ];
+  const versionPayload = {
+    id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01',
+    surchargeRoundingMode: 'NONE', note: null,
+    cells: [{
+      routeId: 3, routeName: 'HN — ASKEY', vehicleSizeClassCode: 'CONT20.LIGHT', heSo: 1,
+      liters: 64, giaCos: 3978000, surcharge: 241948, total: 4219948, missingPrice: false,
+      surchargeRaw: 241948, baseFuelPrice: 17842.5926, fuelLagDays: 2, formula: 'f',
+    }],
+  };
+
+  beforeEach(() => {
+    apiGet.mockReset();
+    apiGetBlob.mockReset();
+  });
+
+  it('renders the newest-first history with business VN trigger labels and passes the date filter', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(frames);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: gridCells,
+      });
+      // Order matters: the frozen-payload route must win over the list prefix.
+      if (path === '/quotations/1/versions/2') return Promise.resolve(versionPayload);
+      if (path.startsWith('/quotations/1/versions')) return Promise.resolve({ items: versionItems, total: 2 });
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    fireEvent.click(await within(framesRegion).findByText('Công ty A'));
+
+    const history = await screen.findByRole('region', { name: 'Lịch sử phiên bản báo giá' });
+    expect(await within(history).findByText('Phiên bản 2')).toBeTruthy();
+    expect(await within(history).findByText('Duyệt cập nhật giá dầu')).toBeTruthy();
+    expect(await within(history).findByText('Chỉnh sửa tay')).toBeTruthy();
+
+    // The date filter rides the request as from/to.
+    fireEvent.change(within(history).getByLabelText('Từ ngày (phiên bản)'), { target: { value: '15/09/2026' } });
+    await waitFor(() => expect(
+      apiGet.mock.calls.some(([path]) => String(path).includes('/versions?from=15%2F09%2F2026') || String(path).includes('from=')),
+    ).toBe(true));
+
+    // Xem renders the FROZEN payload read-only; export rides the version param.
+    fireEvent.click((await within(history).findAllByRole('button', { name: 'Xem' }))[0]);
+    await waitFor(() => expect(
+      apiGet.mock.calls.some(([path]) => String(path) === '/quotations/1/versions/2'),
+    ).toBe(true));
+    expect(await screen.findByRole('group', { name: 'Phiên bản 2 (chỉ đọc)' })).toBeTruthy();
+    expect(screen.getByText('HN — ASKEY')).toBeTruthy();
+    expect(screen.getByText('CONT20.LIGHT')).toBeTruthy();
+    fireEvent.click(within(history).getAllByRole('button', { name: 'Xuất xlsx' })[0]);
+    await waitFor(() => expect(apiGetBlob).toHaveBeenCalledWith('/quotations/1/export?version=2'));
   });
 });
