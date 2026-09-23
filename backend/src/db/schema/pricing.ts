@@ -326,6 +326,10 @@ export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
   liters: numeric('liters', { precision: 10, scale: 3 }).notNull(),
   fuelDelta: numeric('fuel_delta', { precision: 12, scale: 4 }).notNull(),
   sharePct: numeric('share_pct', { precision: 5, scale: 2 }).notNull(),
+  // Card 20260922_59: the per-cell Hệ số (fuel-surcharge-only multiplier from
+  // quotation_cells) APPLIED to surchargeAmount when this snapshot was taken.
+  // Default 1 = ordinary round trip; historical rows read as 1 (true).
+  heSo: numeric('he_so', { precision: 8, scale: 4 }).notNull().default('1'),
   computedAt: timestamp('computed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

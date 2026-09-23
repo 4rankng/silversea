@@ -22,7 +22,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { localDateInBusinessZone } from '@tingting/shared';
+import { localDateInBusinessZone, resolveContainerPriceClass } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {
   persistFreightRateSnapshot,
@@ -213,10 +213,41 @@ export async function lockShipmentFreightRate(
     ?? null;
   if (!rateKey || !transportDate) return null;
 
+  // Card 20260922_58 selection half: container base classes pick their PRICE
+  // column from the anchor container's cargo weight (operator ruling: ≥20,0t
+  // nặng; weight = cargo weight; missing weight BLOCKS — never a default).
+  // Norms stay keyed on the base class, so liters never change. A dispatch
+  // override that is already a 4-class code is dispatch precision and is
+  // respected verbatim.
+  let priceVehicleSizeClassCode: string | undefined;
+  if (/^(CONT20|CONT40)$/.test(rateKey)) {
+    const [anchorContainer] = await tx.select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
+      .from(s.shipmentContainers)
+      .where(args.shipmentContainerId != null
+        ? and(
+          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          eq(s.shipmentContainers.id, args.shipmentContainerId),
+        )
+        : and(
+          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          isNotNull(s.shipmentContainers.containerTypeId),
+        ))
+      .orderBy(s.shipmentContainers.id)
+      .limit(1);
+    const weightKg = anchorContainer?.cargoWeightKg == null ? null : Number(anchorContainer.cargoWeightKg);
+    if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
+      throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
+    }
+    const baseType = rateKey === 'CONT40' ? 'CONT40' as const : 'CONT20' as const;
+    const resolution = resolveContainerPriceClass(baseType, weightKg / 1000);
+    if (resolution.ok) priceVehicleSizeClassCode = resolution.code;
+  }
+
   const resolved = await resolveFreightRateWithManualFallback({
     customerId: shipment.customerId,
     routeId,
     vehicleSizeClassCode: rateKey,
+    priceVehicleSizeClassCode,
     transportDate,
   });
 
