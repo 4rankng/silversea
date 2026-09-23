@@ -1256,15 +1256,24 @@
 }
 
 /* Percentage columns sum to 100% so the fixed-layout table always fits its
- * container — no horizontal scroll at any drawer width. */
+ * container — no horizontal scroll at any drawer width.
+ *
+ * Card 20260923_9: Trọng lượng (8%) and Thao tác (9%) join the ledger so the
+ * add-container row can align to every column it owns; the rest give up the
+ * 17% they cost (route −7, carrier −7, dispatch −2, plate −2, appointment +1)
+ * — the drawer caps at 1180px, so an 11th column is only affordable by
+ * letting the wrapping columns wrap, which §4's no-truncation doctrine
+ * already allows. */
 .cus-container-col__identity { width: 11%; }
 .cus-container-col__type { width: 7%; }
-.cus-container-col__route { width: 17%; }
-.cus-container-col__dispatch { width: 9%; }
-.cus-container-col__carrier { width: 15%; }
-.cus-container-col__plate { width: 9%; }
+.cus-container-col__route { width: 10%; }
+.cus-container-col__dispatch { width: 7%; }
+.cus-container-col__carrier { width: 8%; }
+.cus-container-col__plate { width: 7%; }
 .cus-container-col__site { width: 10%; }
-.cus-container-col__appointment { width: 12%; }
+.cus-container-col__weight { width: 8%; }
+.cus-container-col__appointment { width: 13%; }
+.cus-container-col__actions { width: 9%; }
 
 .cus-container-table th,
 .cus-container-table td {
@@ -1549,7 +1558,8 @@
   }
 
   .cus-container-table,
-  .cus-container-table tbody {
+  .cus-container-table tbody,
+  .cus-container-table tfoot {
     display: block;
     width: 100%;
     min-width: 0;
@@ -1559,6 +1569,37 @@
   .cus-container-table colgroup,
   .cus-container-table thead { display: none; }
   .cus-container-table tbody { display: grid; gap: 8px; }
+
+  /* Card mode: the add row is a card like a container row, its input-bearing
+     cells keep the labelled 2-column layout, and the columns the add API does
+     not fill drop out (no empty labelled fields). */
+  .cus-container-table .cus-container-ledger__add-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .cus-container-table .cus-container-ledger__add-row > * {
+    display: grid;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .cus-container-table .cus-container-ledger__add-blank { display: none; }
+
+  .cus-container-table .cus-container-ledger__add-row .cus-container-cell--actions {
+    grid-column: 1 / -1;
+  }
+  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-actions {
+    justify-content: flex-end;
+  }
 
   .cus-container-table .cus-container-row {
     position: relative;
@@ -1619,10 +1660,7 @@
   }
 
   /* Card mode stacks the identity cell full-width and pins the ordinal top-right;
-     the copy affordance follows it there so it can never sit on the code. The
-     per-row remove sits one slot further out with a 44px touch target
-     (design law §5) — the identity cell is full width here, so nothing is
-     covered. */
+     the copy affordance follows it there so it can never sit on the code. */
   .cus-container-table .cus-container-row__copy {
     top: 10px;
     right: 12px;
@@ -1630,13 +1668,15 @@
     transform: none;
   }
 
+  /* The per-row remove owns the Thao tác card field now (card 20260923_9):
+     a 44px touch target (design law §5) instead of an overlay slot, and left
+     visible by the coarse-pointer rule. */
   .cus-container-table .cus-container-row__remove {
-    top: 10px;
-    right: 44px;
-    left: auto;
+    position: static;
     width: 44px;
     height: 44px;
     transform: none;
+    justify-self: end;
   }
 }
 
@@ -2301,13 +2341,14 @@
   font-weight: var(--fw-semibold, 600);
 }
 
-/* Per-row remove — mirrors the copy affordance's hover-reveal slot, one
-   step further out; destructive hover takes the danger color. */
+/* Per-row remove — lives in the row's own Thao tác cell (card 20260923_9).
+   Keeps the hover-reveal contract (fine pointers) with the danger hover; the
+   cell is the anchor, so the icon never overlaps the container code. */
 .cus-container-row__remove {
   visibility: hidden;
   position: absolute;
   top: 50%;
-  right: 44px;
+  right: 8px;
   transform: translateY(-50%);
   z-index: 2;
   display: inline-flex;
@@ -2333,29 +2374,53 @@
   .cus-container-row__remove { visibility: visible; }
 }
 
-/* Thêm container — button below the last container row; the inline form is
-   one compact row that wraps on the narrow drawer. */
+/* Thêm container — button below the last container row (card 20260923_1) and,
+   card 20260923_9, an ADD ROW inside the ledger table's tfoot so its fields
+   ride the table's own column grid: each control sits in its column's cell and
+   every column without an input keeps an empty cell, which is what makes the
+   input edges meet the column edges at every drawer width. */
 .cus-container-ledger__add { margin: 10px 0 0; }
-.cus-container-ledger__add-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+
+.cus-container-ledger__add-row > * {
+  padding: 6px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  vertical-align: middle;
 }
-.cus-container-ledger__add-form input,
-.cus-container-ledger__add-select {
-  height: 36px;
-  border-radius: var(--app-radius-sm, 6px);
-}
-.cus-container-ledger__add-form input {
-  padding: 0 10px;
+
+.cus-container-ledger__add-row input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 6px;
   border: 1px solid var(--line-2);
+  border-radius: var(--app-radius-sm, 6px);
   background: var(--surface);
   color: var(--ink);
-  font: inherit;
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
 }
-.cus-container-ledger__add-form input[aria-label='Số container'] { flex: 1 1 170px; text-transform: uppercase; }
-.cus-container-ledger__add-form input[aria-label='Trọng lượng (kg)'] { flex: 0 1 130px; }
+
+.cus-container-ledger__add-row input[aria-label='Số container'] { text-transform: uppercase; }
+.cus-container-ledger__add-row input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  outline-offset: 1px;
+}
+
+/* QA-2026-09-23-02: the picker must never render as a sliver. It used to be
+   `width="content"` (fit-content ⇒ ~2px trigger from react-aria's
+   search-text-sized input + hideLabel); it now fills its column cell like the
+   row controls do, so the field is visible at any drawer width. */
+.cus-container-ledger__add-select { min-width: 0; }
+
+.cus-container-ledger__add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .cus-container-ledger__add-error {
   margin: 6px 0 0;
   color: var(--danger-text, #b42318);

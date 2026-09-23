@@ -27,6 +27,14 @@ function makeLine(id: number, ordinal: number, appointmentAt: string | null) {
     carrierType: 'EXTERNAL',
     externalCarrierId: 9,
     shipmentVersion: 4,
+    // Card 20260923_9: the ledger renders the line's own cargo weight.
+    raw: {
+      containerNumber: `MSKU000000${ordinal}`,
+      containerTypeId: 5,
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+      routeId: 7,
+    },
     permissions: {
       carrierEditable: true,
       plateEditable: true,

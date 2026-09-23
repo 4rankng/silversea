@@ -38,6 +38,14 @@ function containerLine(overrides: Partial<ShipmentCusWorkspaceContainerLine> = {
     carrierType: 'EXTERNAL',
     externalCarrierId: 9,
     shipmentVersion: 4,
+    // Card 20260923_9: the ledger renders the line's own cargo weight.
+    raw: {
+      containerNumber: 'MSKU1234567',
+      containerTypeId: 5,
+      cargoWeightKg: '12500',
+      cargoVolumeCbm: '26.25',
+      routeId: 7,
+    },
     permissions: editablePermissions,
     ...overrides,
   } as ShipmentCusWorkspaceContainerLine;

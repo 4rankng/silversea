@@ -11,6 +11,7 @@ import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
+  formatQuantity,
   type ContainerLineDraft,
 } from './cusUtils';
 
@@ -39,7 +40,9 @@ export function ContainerLineRow({
   idPrefix: string;
   editing: boolean;
   /** Card 20260923_1: lot-level remove — the drawer manages container
-   *  composition; absent when no refetch path is wired. */
+   *  composition; absent when no refetch path is wired. Card 20260923_9: the
+   *  action lives in the row's own Thao tác cell (hover-reveal on fine
+   *  pointers, always visible on touch). */
   onRemove?: () => void;
   removing?: boolean;
   /** Staff close for external-carrier trips (external drivers don't use the
@@ -102,18 +105,6 @@ export function ContainerLineRow({
               aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
             >
               <Copy size={13} aria-hidden="true" />
-            </button>
-          )}
-          {onRemove && (
-            <button
-              type="button"
-              className="cus-container-row__remove"
-              onClick={onRemove}
-              disabled={removing || activeTrip}
-              title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
-              aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
-            >
-              <Trash2 size={13} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -204,6 +195,11 @@ export function ContainerLineRow({
           <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
         </ShipmentContainerCell>
       ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
+      {/* Card 20260923_9: the line's own weight, and the remove action in its
+          own column — the drawer's add row sits under both. */}
+      <td data-label="Trọng lượng (kg)" className="cus-container-cell">
+        <strong>{formatQuantity(line.raw.cargoWeightKg)}</strong>
+      </td>
       {customerAppointmentEditable ? (
         <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
           <button
@@ -234,6 +230,20 @@ export function ContainerLineRow({
           />
         </td>
       ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong></td>}
+      <td data-label="Thao tác" className="cus-container-cell cus-container-cell--actions">
+        {onRemove && (
+          <button
+            type="button"
+            className="cus-container-row__remove"
+            onClick={onRemove}
+            disabled={removing || activeTrip}
+            title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+            aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
+          >
+            <Trash2 size={13} aria-hidden="true" />
+          </button>
+        )}
+      </td>
     </tr>
   );
 }

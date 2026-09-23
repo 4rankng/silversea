@@ -6,7 +6,6 @@ import {
 } from '@tingting/shared';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { UuiSelectField } from '../../../design-system';
 import {
   addCusShipmentContainerRow,
   removeCusShipmentContainerRow,
@@ -15,6 +14,7 @@ import {
 import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
+import { CusContainerAddRow, EMPTY_ADD_FIELDS, type AddContainerFields } from './CusContainerAddRow';
 import {
   idempotencySignature,
   lineDraft,
@@ -135,10 +135,15 @@ export function ContainerLedger({
   // line through onLineSaved; removes refetch the detail (the line is gone,
   // and the shipment version advances server-side).
   const [addOpen, setAddOpen] = useState(false);
-  const [addFields, setAddFields] = useState({ containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '' });
+  const [addFields, setAddFields] = useState<AddContainerFields>(EMPTY_ADD_FIELDS);
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const closeAddRow = useCallback(() => {
+    setAddOpen(false);
+    setAddError(null);
+  }, []);
 
   async function submitAddContainer() {
     const containerNumber = addFields.containerNumber.trim().toUpperCase();
@@ -159,8 +164,8 @@ export function ContainerLedger({
       }, getIdempotencyKey(signature));
       clearIdempotencyKey(signature);
       await onLineSaved(result.line);
-      setAddOpen(false);
-      setAddFields({ containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '' });
+      closeAddRow();
+      setAddFields(EMPTY_ADD_FIELDS);
       toast({ kind: 'success', message: `Đã thêm container ${containerNumber}.` });
     } catch (error) {
       setAddError(safeError(error, 'Không thêm được container.'));
@@ -412,11 +417,17 @@ export function ContainerLedger({
           {onCollapse && <button type="button" className="cus-detail-collapse" onClick={onCollapse} disabled={saving} aria-label={saving ? 'Đang lưu dữ liệu container' : 'Thu gọn chi tiết container'}><X size={16} aria-hidden="true" /><span>{saving ? 'Đang lưu' : 'Thu gọn'}</span></button>}
         </div>
       </header>
-      {detail.containers.length === 0 ? <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p> : (
+      {/* Card 20260923_9: the add row lives inside the table, so an empty lot
+          still needs the grid when the operator opens the form — otherwise the
+          fields would have no columns to align to. */}
+      {detail.containers.length === 0 && !addOpen ? <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p> : (
         <div
           className="cus-container-table-scroll"
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing || saving || !isDirty) return;
+            // The add-container row owns its own Enter (submit) and Hủy — the
+            // ledger's save/discard shortcuts must not fire from inside it.
+            if ((event.target as HTMLElement).closest('.cus-container-ledger__add-row')) return;
             // _34: the appointment popover owns its own Enter (commit path);
             // table-level Enter only saves TABLE drafts.
             if ((event.target as HTMLElement).closest('.cus-appointment-popover, .cus-appointment-backdrop')) return;
@@ -444,7 +455,14 @@ export function ContainerLedger({
               <col className="cus-container-col__plate" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
+              {/* Card 20260923_9: Trọng lượng + Thao tác join the ledger grid
+                  so the add-container row below can sit under every column it
+                  owns (weight was already a per-line field the drawer never
+                  showed; the action cell hosts the row Xóa and the add row's
+                  Thêm/Hủy). */}
+              <col className="cus-container-col__weight" />
               <col className="cus-container-col__appointment" />
+              <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -455,7 +473,9 @@ export function ContainerLedger({
               <th scope="col">Biển số</th>
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
+              <th scope="col">Trọng lượng (kg)</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
+              <th scope="col">Thao tác</th>
             </tr></thead>
             <tbody>
               {detail.containers.map((line) => (
@@ -479,12 +499,26 @@ export function ContainerLedger({
                 />
               ))}
             </tbody>
+            {addOpen && (
+              <tfoot>
+                <CusContainerAddRow
+                  fields={addFields}
+                  containerTypes={detail.selectors.containerTypes}
+                  adding={adding}
+                  onChange={(patch) => setAddFields((current) => ({ ...current, ...patch }))}
+                  onSubmit={() => void submitAddContainer()}
+                  onCancel={closeAddRow}
+                />
+              </tfoot>
+            )}
           </table>
         </div>
       )}
       {/* Card 20260923_1: Thêm container — rides the ledger bottom (ruling:
           the button sits right below the last container row). FCL and LCL
-          both manage containers here now. */}
+          both manage containers here now. Card 20260923_9: the form itself is
+          the table's tfoot row (grid-aligned); this block keeps only the
+          trigger and the inline error. */}
       <div className="cus-container-ledger__add">
         {!addOpen && (
           <button
@@ -494,57 +528,6 @@ export function ContainerLedger({
           >
             Thêm container
           </button>
-        )}
-        {addOpen && (
-          <form
-            className="cus-container-ledger__add-form"
-            onSubmit={(event) => { event.preventDefault(); void submitAddContainer(); }}
-          >
-            <input
-              aria-label="Số container"
-              placeholder="Số container"
-              value={addFields.containerNumber}
-              onChange={(event) => setAddFields((current) => ({ ...current, containerNumber: event.target.value }))}
-              autoFocus
-              maxLength={50}
-            />
-            <UuiSelectField
-              label="Loại cont"
-              hideLabel
-              size="sm"
-              width="content"
-              wrapperClassName="cus-container-ledger__add-select"
-              value={addFields.containerTypeId}
-              onChange={(event) => setAddFields((current) => ({ ...current, containerTypeId: event.target.value }))}
-              options={[
-                { value: '', label: 'Chưa chọn loại cont' },
-                ...detail.selectors.containerTypes.map((type) => ({ value: String(type.id), label: type.code })),
-              ]}
-            />
-            <input
-              aria-label="Trọng lượng (kg)"
-              placeholder="Trọng lượng (kg)"
-              value={addFields.cargoWeightKg}
-              onChange={(event) => setAddFields((current) => ({ ...current, cargoWeightKg: event.target.value }))}
-              inputMode="decimal"
-            />
-            <input
-              aria-label="Giờ hẹn đóng/trả"
-              type="datetime-local"
-              value={addFields.customerAppointmentAt}
-              onChange={(event) => setAddFields((current) => ({ ...current, customerAppointmentAt: event.target.value }))}
-            />
-            <button type="submit" className="btn btn--primary btn--sm" disabled={adding}>
-              {adding ? 'Đang thêm…' : 'Thêm'}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => { setAddOpen(false); setAddError(null); }}
-            >
-              Hủy
-            </button>
-          </form>
         )}
         {addError && <p className="cus-container-ledger__add-error" role="alert">{addError}</p>}
       </div>

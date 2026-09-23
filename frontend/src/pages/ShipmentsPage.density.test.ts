@@ -68,4 +68,37 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
+
+  // Card 20260923_9: the add-container row rides the ledger's colgroup, so
+  // every track it covers needs one percentage width and the set must still
+  // sum to 100% — a track without a width (or an 11th one over budget) is what
+  // pushes the drawer into horizontal scroll and breaks the alignment promise.
+  it('keeps every ledger column on one percentage grid that sums to 100%', () => {
+    const colgroup = ledgerSource.slice(ledgerSource.indexOf('<colgroup>'), ledgerSource.indexOf('</colgroup>'));
+    const classes = [...colgroup.matchAll(/<col className="(cus-container-col__\w+)"/g)].map((match) => match[1]);
+    expect(classes).toEqual([
+      'cus-container-col__identity',
+      'cus-container-col__type',
+      'cus-container-col__route',
+      'cus-container-col__dispatch',
+      'cus-container-col__carrier',
+      'cus-container-col__plate',
+      'cus-container-col__site',
+      'cus-container-col__site',
+      'cus-container-col__weight',
+      'cus-container-col__appointment',
+      'cus-container-col__actions',
+    ]);
+
+    const widths = classes.map((className) => {
+      const rule = new RegExp(`\\.${className} \\{ width: (\\d+)%; \\}`).exec(css);
+      expect(rule, `${className} carries a percentage width`).toBeTruthy();
+      return Number(rule![1]);
+    });
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+
+    // Percentage-only tracks: a px floor on a column would overflow the
+    // drawer's capped 1180px width.
+    expect(css).not.toMatch(/\.cus-container-col__\w+ \{[^}]*min-width:\s*\d+px/);
+  });
 });
