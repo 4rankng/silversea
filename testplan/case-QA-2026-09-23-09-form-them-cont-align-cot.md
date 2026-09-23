@@ -44,8 +44,9 @@ drawer width instead of by a duplicated width list.
 6. Fill số cont + loại cont + trọng lượng + giờ hẹn and press "Thêm": the row persists (drawer ledger row +
    `Trọng lượng` cell shows the weight).
 7. Press "Hủy": the add row disappears and the "Thêm container" trigger returns.
-8. At 390 the add row is a card (2-column labelled fields) with the empty-order columns dropped and the
-   buttons full-width right-aligned.
+8. At 390 the add row is a card whose fields each own their whole row (single column: Số container,
+   Loại cont, Trọng lượng, Giờ hẹn), the empty-order columns dropped and the buttons right-aligned
+   (was "2-column labelled fields" — superseded by residual QA-2026-09-23-09-R1 below).
 
 ## Expected behavior
 
@@ -108,3 +109,63 @@ console.table(deltas);
 
 Rung-3 artifacts owed: screenshot per width (`qa/<date>_c9-grid_ui-<width>.png`), the `console.table`
 output, driver log, and the DB row after pressing Thêm.
+
+---
+
+# Residual case QA-2026-09-23-09-R1 — mobile 390: every add-row field owns its whole row
+
+- **Case ID:** QA-2026-09-23-09-R1
+- **Reported:** 2026-09-24 (Director, from the QA lane's rung on staging `b1781217`; QA report
+  `testplan/qa/evidence/2026-09-23_staging-b1781217/REPORT.md` §(a)).
+- **Verbatim:** *"mobile 390 — ô "Trọng lượng (kg)" chỉ 167px (~45% hàng để trống, không full-width).
+  DOM childWidths: [343, 2, 167, 185, 51.3, 41]."* — QA's mapping of that array:
+  `[Số container, Loại cont combobox, Trọng lượng, Giờ hẹn, Thêm, Hủy]`.
+- **Provenance note (load-bearing):** that measurement is from build `b1781217`, which PRECEDES this
+  card's fix — QA's own report says so ("The fix `ff3cc0a7` lives AHEAD of `b1781217`"). It therefore
+  measured the DELETED flex form (`.cus-container-ledger__add-form`, `display:flex; flex-wrap:wrap`),
+  where `Số container` took the first line (343), the Loại cont combobox collapsed to a ~2px sliver
+  (case QA-2026-09-23-02), and Trọng lượng (167) shared the next line with that sliver — 45% blank.
+  On the re-cut build (`ff3cc0a7`, verified live: `/api/health` buildHash) the same field rendered
+  **160.5px in a 353px row** inside the 2-column card — the residual's substance (a field that does
+  not use its row on a phone) was still true.
+- **Surface:** same as QA-2026-09-23-09 — `/shipments` CUS workboard → "Chi tiết" → drawer →
+  "Chi tiết container" → "+ Thêm container".
+- **Status:** FIXED — CSS-only; rung 3 (UI DRIVEN) done on local dev 2026-09-24.
+
+## Steps
+
+1. Log in as CUS, open `/shipments`, open a lot's drawer, press "Thêm container".
+2. Set the viewport to **390**.
+3. Measure every visible add-row cell: `[...row.children].filter(c => getComputedStyle(c).display !== 'none')`
+   → `getBoundingClientRect().width`.
+
+## Expected behavior
+
+| # | Expectation |
+|---|---|
+| R1 | At 390 every add-row field cell (Số container, Loại cont, Trọng lượng (kg), Giờ hẹn đóng/trả, Thao tác) is the row's FULL content width — no field sits in half a row with the other half blank. |
+| R2 | Trọng lượng (kg) is full-width like every other field (the named residual). |
+| R3 | The 2-column card survives for wider drawers: at a container width > 560px the add row is still `repeat(2, minmax(0, 1fr))` and the data rows' 2-column card is untouched at every width. |
+| R4 | Table mode is unchanged: at 1280 the add row's cells keep `cellIndex` 0 / 8 / 9 and the input-to-column edge delta stays ≤ 2px. |
+| R5 | The add flow still works after the layout change: fill + "Thêm" persists the container (drawer row + weight cell + DB row). |
+
+## Fence (red-first, must stay green)
+
+- `frontend/src/pages/ShipmentsPage.density.test.ts` →
+  `gives every add-container field its whole row on phones` — asserts the `@container shipment-drawer
+  (max-width: 560px)` rule sets the add row to one `minmax(0, 1fr)` track, and that the card mode
+  (≤760px) still owns the row's `display: grid`. **RED** on the pre-change stylesheet
+  (`qa/2026-09-24_c9b-mobile-weight_red-first.log`, 1 failed), GREEN after.
+  jsdom has no layout, so the width itself is the rung-3 browser measurement below.
+- Superseded expectation: §Expected behavior #8 previously read "2-column labelled fields" — replaced
+  by the single-column phone card (R1/R2). The 2-column card is unchanged above 560px (R3).
+
+## Rung-3 evidence (2026-09-24, local dev, CUS `cus`, lot 1269)
+
+| Rung | Artifact |
+|---|---|
+| UI DRIVEN | `qa/2026-09-24_c9b-mobile-weight_ui-390.png` (stacked add row), `qa/2026-09-24_c9b-mobile-weight_ui-1280.png` (table mode), `qa/2026-09-24_c9b-mobile-weight_ui-before-390.png` (pre-change 2-column card) |
+| widths | `qa/2026-09-24_c9b-mobile-weight_ui-widths.log` — 390: every cell 331 of 353 (was Trọng lượng 160.5); 700: `273.5px 273.5px`; 1280: cellIndex 0/8/9, dx 0.0 |
+| DB side effect | `shipment_containers` id 677 `TSTU1234568` `cargo_weight_kg 7777.00` `shipment_id 1269` |
+| driver | `qa/2026-09-24_c9b-mobile-weight_ui-driver.log` |
+

@@ -101,4 +101,20 @@ describe('shipment container editor density', () => {
     // drawer's capped 1180px width.
     expect(css).not.toMatch(/\.cus-container-col__\w+ \{[^}]*min-width:\s*\d+px/);
   });
+
+  // Card 20260923_9 residual (QA rung, staging 390): inside the card the add
+  // row was a 2-column grid, so Trọng lượng (kg) rendered 160.5px wide in a
+  // 353px row — the other half of its row blank, unlike Số container, which
+  // owns its whole row. Phones drop the add row to a single track so every
+  // field takes its full row; the 2-column card stays for wider drawers.
+  it('gives every add-container field its whole row on phones', () => {
+    expect(css).toMatch(
+      /@container shipment-drawer \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,
+    );
+    // The single track is only reachable while the card layout owns the row —
+    // a bare 1fr override on the table row would fight the 11-column grid.
+    expect(css).toMatch(
+      /@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?display:\s*grid;/,
+    );
+  });
 });
