@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ReceiptText } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, listPhoiPhieuTruckAssignments, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
@@ -196,16 +197,16 @@ export default function PhoiPhieuControlPage() {
         <table className="tt-table ppc-board">
           <caption>Bảng kiểm soát phơi phiếu - Tiền đường</caption>
           <thead><tr>
-            <th scope="col"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
+            <th scope="col" className="ppc-col--select"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
             <th scope="col">Lịch trình</th>
             <th scope="col">Khách hàng &amp; Tuyến đường</th>
             <th scope="col">Thông số container</th>
             <th scope="col">Địa điểm nâng / hạ</th>
             <th scope="col">Thông tin xe</th>
-            <th scope="col">Chi hộ (Phải thu / Phải trả)</th>
-            <th scope="col">Tiền đường</th>
-            <th scope="col">Trạng thái</th>
-            <th scope="col">Ngày</th>
+            <th scope="col" className="ppc-col--chiho">Chi hộ (Phải thu / Phải trả)</th>
+            <th scope="col" className="ppc-col--money">Tiền đường</th>
+            <th scope="col" className="ppc-col--status">Trạng thái</th>
+            <th scope="col" className="ppc-col--date">Ngày</th>
             <th scope="col">Ghi chú vận đơn</th>
             <th scope="col">Ghi chú lái xe</th>
           </tr></thead>
@@ -218,13 +219,19 @@ export default function PhoiPhieuControlPage() {
                 <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
                 <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
                 <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
-                <td>
-                  Phải thu: {money(row.chiHoThu)}<br />Phải trả: {money(row.chiHoTra)}
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setChiHoTripId(row.tripId)}>Xem chi tiết</button>
+                <td className="ppc-col--chiho">
+                  <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
+                  <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>
+                  <span className="ppc-cell-actions">
+                    <button type="button" className="ppc-icon-btn" aria-label={`Chi tiết chi hộ ${row.tripCode ?? ''}`} title="Chi tiết chi hộ" onClick={() => setChiHoTripId(row.tripId)}><ReceiptText size={14} aria-hidden="true" /></button>
+                  </span>
                 </td>
-                <td>{money(row.tienDuong)}<button type="button" className="btn btn--secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button></td>
-                <td>{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
-                <td>{formatDate(row.departureDate)}</td>
+                <td className="ppc-col--money">
+                  <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button>
+                </td>
+                <td className="ppc-col--status">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
+                <td className="ppc-col--date">{formatDate(row.departureDate)}</td>
                 <td>{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
                 <td>{row.driverNote ?? '—'}</td>
               </tr>

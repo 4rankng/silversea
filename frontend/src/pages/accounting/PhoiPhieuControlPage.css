@@ -8,3 +8,30 @@
   overflow-wrap: normal;  /* withdraw the mid-word emergency break; break-word would still allow it */
   line-height: 1.3;
 }
+
+/* Card 20260923_8 group B — column budget + atomic cells. tt-table is
+   table-layout: fixed (equal ~8.3% shares for 12 columns): dates fractured
+   mid-number and "Chưa xác định" wrapped ragged. Explicit widths for the
+   narrow/atomic columns; single-token cells expand (nowrap, no clip) per
+   design law §4; the two ghi chú columns keep wrapping (long text). */
+.ppc-board th.ppc-col--select { width: 3%; }
+.ppc-board th.ppc-col--chiho { width: 14%; }
+.ppc-board th.ppc-col--money { width: 11%; }
+.ppc-board th.ppc-col--status { width: 8%; }
+.ppc-board th.ppc-col--date { width: 10%; }
+.ppc-board td.ppc-col--date { white-space: nowrap; }
+.ppc-board .ppc-line { display: block; }
+.ppc-board .ppc-value { white-space: nowrap; }
+.ppc-board .ppc-cell-actions { display: block; margin-top: 4px; }
+.ppc-board .ppc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px; /* ≥24px desktop hit-area floor (§5) */
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.ppc-board .ppc-icon-btn:hover { border-color: var(--accent); }
