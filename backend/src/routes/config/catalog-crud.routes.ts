@@ -704,7 +704,7 @@ router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Respon
   res.json({ items: rows, total: rows.length, page: 1, pageSize: Math.max(rows.length, 1) });
 }));
 
-router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
+router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT), createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
   orderByField: 'effectiveFrom',
   // The factory stamps the idempotency record, not the entity row — the fuel
   // entry must remember WHO entered it (audit attribution, card _57).
