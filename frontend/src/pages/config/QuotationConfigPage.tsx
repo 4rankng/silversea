@@ -92,7 +92,7 @@ function RouteBlock({
             {ROW_LABELS.map((label, rowIndex) => (
               <tr key={label}>
                 <th scope="row" className="quotation-grid__row-label">{label}</th>
-                {block.cells.map((cell, cellIndex) => {
+                {block.cells.map((cell, _cellIndex) => {
                   const key = cellKey(cell);
                   if (rowIndex === 0) {
                     return (
