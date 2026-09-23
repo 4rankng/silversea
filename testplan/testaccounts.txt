@@ -50,7 +50,8 @@ staging:
                  huyenntt (NV021), anhntn (NV022)
     DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
     OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
-                 tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
+                 tuvn (NV006), hoangnm (NV007), cuongvd (NV008),
+                 vanchuyen (QA fixture, card 20260922_49)
     DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
                  (no Mã NV); every one logs in with username + Abc123
   # API notes for scripted testing (learned 2026-09-06):
@@ -62,6 +63,9 @@ staging:
   #   - /api/shipments is the shared list surface for CUS + DISPATCHER.
   #   - Unknown paths behind auth return 403 (casbin deny), not 404 — a 403
   #     on an API probe often means "wrong path", not "wrong permissions".
+  #   - POST /api/auth/users for role OPS REQUIRES shipmentIds (>=1 valid
+  #     lot) while ACTIVE, or it 400s ("phải có ít nhất một lô hàng được
+  #     giao") — learned 2026-09-23 creating vanchuyen (card 20260922_49).
   #   - e2e: export BOTH SILVERSEA_URL and SILVERSEA_API when pointing
   #     run_all.sh at staging; with only SILVERSEA_URL set, API tests still
   #     hit localhost:3001 and fail 401 while UI tests pass.
