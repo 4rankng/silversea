@@ -172,37 +172,37 @@
   border-bottom: 1px solid var(--line);
 }
 
-.debt-filter-pills {
+.debt-filter-chips {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.debt-filter-bar .filter-pill {
+.debt-filter-bar .filter-chip {
   padding: 8px 14px;
   background: var(--surface);
   border-color: rgba(15, 23, 42, 0.08);
   color: var(--ink-2);
 }
 
-.debt-filter-bar .filter-pill:hover {
+.debt-filter-bar .filter-chip:hover {
   background: var(--surface-2);
   border-color: rgba(0, 177, 79, 0.18);
   color: var(--ink);
 }
 
-.debt-filter-bar .filter-pill.is-active {
+.debt-filter-bar .filter-chip.is-active {
   background: var(--ink);
   border-color: var(--ink, #101814);
   color: var(--fg-inverse, #f7fbf8);
 }
 
-.debt-filter-bar .filter-pill__count {
+.debt-filter-bar .filter-chip__count {
   background: rgba(15, 23, 42, 0.08);
   color: var(--ink-2);
 }
 
-.debt-filter-bar .filter-pill.is-active .filter-pill__count {
+.debt-filter-bar .filter-chip.is-active .filter-chip__count {
   background: rgba(255, 255, 255, 0.16);
   color: var(--fg-inverse, #f7fbf8);
 }
@@ -354,7 +354,7 @@
     gap: 6px;
     padding: 8px;
   }
-  .debt-filter-pills {
+  .debt-filter-chips {
     flex-wrap: wrap;
     gap: 6px;
   }

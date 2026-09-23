@@ -324,12 +324,12 @@ export function FilterPill({ active, onClick, children, icon, count }: FilterPil
   return (
     <button
       type="button"
-      className={`filter-pill${active ? ' is-active' : ''}`}
+      className={`filter-chip${active ? ' is-active' : ''}`}
       onClick={onClick}
     >
       {icon}
       <span>{children}</span>
-      {count !== undefined && <span className="filter-pill__count">{count}</span>}
+      {count !== undefined && <span className="filter-chip__count">{count}</span>}
     </button>
   );
 }

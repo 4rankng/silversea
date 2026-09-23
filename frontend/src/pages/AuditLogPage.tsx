@@ -374,7 +374,7 @@ fontSize: 'var(--text-data-size)',
           return (
             <button
               key={cat.key}
-              className={`filter-pill${isActive ? ' is-active' : ''}`}
+              className={`filter-chip${isActive ? ' is-active' : ''}`}
               onClick={() => {
                 setFilter(cat.key);
               }}
@@ -382,7 +382,7 @@ fontSize: 'var(--text-data-size)',
               <Icon size={14} />
               {cat.label}
               {filter === cat.key && (
-                <span className="filter-pill__count">{total}</span>
+                <span className="filter-chip__count">{total}</span>
               )}
             </button>
           );

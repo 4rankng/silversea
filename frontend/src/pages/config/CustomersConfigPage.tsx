@@ -253,7 +253,7 @@ export default function CustomersConfigPage() {
           quickFiltersLabel="Lọc khách hàng"
           quickFilters={(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
             const labels = { all: `Tất cả${data ? ` · ${totalCount}` : ''}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động${data ? ` · ${activeCount}` : ''}`, locked: `Tạm khoá${data ? ` · ${lockedCount}` : ''}` };
-            return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-pill${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
+            return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-chip${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
           })}
         />
         <div className="cfg-customer-fetch-status" role="status" aria-live="polite">

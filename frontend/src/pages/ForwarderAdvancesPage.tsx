@@ -39,7 +39,7 @@ export default function ForwarderAdvancesPage() {
   const settledPaid = recordedSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
   const { rootRef } = usePageAnimations({
     ready: !loading,
-    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-pills', '.fadv-card-trip'],
+    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-chips', '.fadv-card-trip'],
   });
   const createAdvanceRequest = useCreateAdvanceRequest();
   const requests = table.rows;
@@ -252,13 +252,13 @@ export default function ForwarderAdvancesPage() {
 
       {/* Filter pills */}
       {totalRequests > 0 && (
-        <div className="fwd-filter-pills">
+        <div className="fwd-filter-chips">
           <button
-            className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
+            className={`fwd-filter-chip ${activeFilter === '' ? 'fwd-filter-chip--active' : ''}`}
             onClick={() => table.setFilter('status', undefined)}
           >
             Tất cả
-            <span className="fwd-filter-pill__count">{totalRequests}</span>
+            <span className="fwd-filter-chip__count">{totalRequests}</span>
           </button>
           {(Object.entries(ADVANCE_REQUEST_STATUS_LABELS) as [AdvanceRequestStatus, string][]).map(([status, label]) => {
             const count = counts[status] ?? 0;
@@ -266,12 +266,12 @@ export default function ForwarderAdvancesPage() {
             return (
               <button
                 key={status}
-                className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
+                className={`fwd-filter-chip ${activeFilter === status ? 'fwd-filter-chip--active' : ''}`}
                 onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
               >
-                <span className="fwd-filter-pill__dot" style={{ background: STATUS_COLORS[status] }} />
+                <span className="fwd-filter-chip__dot" style={{ background: STATUS_COLORS[status] }} />
                 {label}
-                <span className="fwd-filter-pill__count">{count}</span>
+                <span className="fwd-filter-chip__count">{count}</span>
               </button>
             );
           })}

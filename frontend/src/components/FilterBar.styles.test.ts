@@ -24,7 +24,7 @@ describe('shared filter bar styling', () => {
     // 999px pill. The fix (0d51e334) made it a small-radius rectangle; this
     // pin keeps it that way.
     expect(css).not.toContain('999px');
-    const count = css.match(/\.filter-pill__count\s*\{([^}]*)\}/)?.[1] ?? '';
+    const count = css.match(/\.filter-chip__count\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(count).toContain('border-radius: 4px');
   });
 });

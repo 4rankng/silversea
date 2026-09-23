@@ -96,8 +96,8 @@
 }
 .filter-bar__search input::placeholder { color: var(--ink-3); }
 
-/* filter-pill — generic filter pill component */
-.filter-pill {
+/* filter-chip — generic filter pill component */
+.filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -114,18 +114,18 @@
   white-space: nowrap;
   transition: background 200ms var(--ease), border-color 200ms var(--ease), color 200ms var(--ease);
 }
-.filter-pill:hover {
+.filter-chip:hover {
   border-color: var(--line-2);
   background: var(--surface-2);
   color: var(--ink);
 }
-.filter-pill.is-active {
+.filter-chip.is-active {
   background: var(--ink);
   color: var(--fg-on-brand);
   border-color: var(--ink);
 }
-.filter-pill svg { width: 14px; height: 14px; }
-.filter-pill__count {
+.filter-chip svg { width: 14px; height: 14px; }
+.filter-chip__count {
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: 700;
@@ -134,7 +134,7 @@
   border-radius: 4px;
   margin-left: 2px;
 }
-.filter-pill.is-active .filter-pill__count {
+.filter-chip.is-active .filter-chip__count {
   background: rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
 }
@@ -151,7 +151,7 @@
 @media (max-width: 640px), (pointer: coarse) {
   .filter-tab,
   .filter-bar .filter-tab,
-  .filter-pill {
+  .filter-chip {
     font-size: var(--text-control-size);
   }
 }
@@ -190,7 +190,7 @@
 @media (pointer: coarse) {
   .filter-tab,
   .filter-bar .filter-tab,
-  .filter-pill,
+  .filter-chip,
   .filter-bar__search { --filter-control-h: var(--control-touch-h); }
 }
 

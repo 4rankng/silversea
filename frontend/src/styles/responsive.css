@@ -412,7 +412,7 @@
 
   /* ── Toolbar + filter pills ── */
   .toolbar__search { min-width: 0; width: 100%; }
-  .toolbar > .filter-pill { flex: 0 0 auto; }
+  .toolbar > .filter-chip { flex: 0 0 auto; }
   .toolbar > div[style*="flex: 1"],
   .toolbar > .toolbar__spacer,
   .toolbar > .toolbar-spacer { display: none; }
@@ -433,7 +433,7 @@
   .pill-row::-webkit-scrollbar,
   .toolbar::-webkit-scrollbar { display: none; }
   .filter-tabs > *, .pill-row > * { flex-shrink: 0; }
-  .filter-pill {
+  .filter-chip {
     min-height: var(--control-mobile-h);
     padding: 4px 8px;
     font-size: var(--text-caption-size);
@@ -704,7 +704,7 @@
   #root table tbody td { padding-block: 4px; }
   #root .csc-container-cell__value,
   #root .csc-container-cell__editor { min-height: var(--control-mobile-h); }
-  #root .filter-pill,
+  #root .filter-chip,
   #root .stab-pill,
   #root .wf-link,
   #root .wf-minibtn,
@@ -735,7 +735,7 @@
     min-height: 44px;
   }
 
-  .filter-pill {
+  .filter-chip {
     min-height: 44px;
   }
 

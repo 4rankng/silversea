@@ -71,14 +71,14 @@ const AVATAR_ICON: Record<Role, typeof Users> = {
 };
 
 const ROLE_FILTER_CLS: Record<string, string> = {
-  [Role.ADMIN]: 'filter-pill--admin',
-  [Role.MANAGER]: 'filter-pill--manager',
-  [Role.ACCOUNTANT]: 'filter-pill--accountant',
-  [Role.DRIVER]: 'filter-pill--driver',
-  [Role.OPS]: 'filter-pill--forwarder',
-  [Role.CUSTOMER]: 'filter-pill--forwarder',
-  [Role.CUS]: 'filter-pill--accountant',
-  [Role.DISPATCHER]: 'filter-pill--manager',
+  [Role.ADMIN]: 'filter-chip--admin',
+  [Role.MANAGER]: 'filter-chip--manager',
+  [Role.ACCOUNTANT]: 'filter-chip--accountant',
+  [Role.DRIVER]: 'filter-chip--driver',
+  [Role.OPS]: 'filter-chip--forwarder',
+  [Role.CUSTOMER]: 'filter-chip--forwarder',
+  [Role.CUS]: 'filter-chip--accountant',
+  [Role.DISPATCHER]: 'filter-chip--manager',
 };
 
 function RoleAvatar({ role }: { role: Role }) {
@@ -150,12 +150,12 @@ export function UserTable({
             return (
               <button
                 key={f}
-                className={`filter-pill${filter === f ? ' is-active' : ''} ${ROLE_FILTER_CLS[f] || ''}`}
+                className={`filter-chip${filter === f ? ' is-active' : ''} ${ROLE_FILTER_CLS[f] || ''}`}
                 onClick={() => onFilterChange(f)}
                 aria-pressed={filter === f}
               >
                 <span>{label}</span>
-                {filter === f && <span className="filter-pill__count">{count}</span>}
+                {filter === f && <span className="filter-chip__count">{count}</span>}
               </button>
             );
           })}

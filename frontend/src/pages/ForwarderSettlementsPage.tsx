@@ -62,7 +62,7 @@ export default function ForwarderSettlementsPage() {
   });
   const { rootRef } = usePageAnimations({
     ready: !loadingSettlements,
-    selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-pills', '.fset-card'],
+    selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-chips', '.fset-card'],
   });
   const { data: catalogs } = useCatalogs();
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
@@ -163,13 +163,13 @@ export default function ForwarderSettlementsPage() {
 
       {/* Status filter pills — matching ForwarderTripsPage design */}
       {totalCount > 0 && (
-        <div className="fwd-filter-pills">
+        <div className="fwd-filter-chips">
           <button
-            className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
+            className={`fwd-filter-chip ${activeFilter === '' ? 'fwd-filter-chip--active' : ''}`}
             onClick={() => setActiveFilter('')}
           >
             Tất cả
-            <span className="fwd-filter-pill__count">{settlements.length}</span>
+            <span className="fwd-filter-chip__count">{settlements.length}</span>
           </button>
           {(Object.entries(ADVANCE_SETTLEMENT_STATUS_LABELS) as [AdvanceSettlementStatus, string][]).map(([status, label]) => {
             const count = statusCounts[status] ?? 0;
@@ -177,13 +177,13 @@ export default function ForwarderSettlementsPage() {
             return (
               <button
                 key={status}
-                className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
+                className={`fwd-filter-chip ${activeFilter === status ? 'fwd-filter-chip--active' : ''}`}
                 data-status={status}
                 onClick={() => setActiveFilter(prev => prev === status ? '' : status)}
               >
-                <span className="fwd-filter-pill__dot" style={{ background: STATUS_STRIP[status] }} />
+                <span className="fwd-filter-chip__dot" style={{ background: STATUS_STRIP[status] }} />
                 {label}
-                <span className="fwd-filter-pill__count">{count}</span>
+                <span className="fwd-filter-chip__count">{count}</span>
               </button>
             );
           })}

@@ -254,21 +254,21 @@
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 640px) {
   /* ── TripListPage: larger filter pill tap targets, breakdown bar fix ── */
-  .trip-list-page .filter-pill {
+  .trip-list-page .filter-chip {
     height: auto;
     min-height: 48px;
     padding: 8px 12px;
     font-size: var(--fs-xs);
     align-items: center;
   }
-  .trip-list-page .filter-pill .filter-lbl-wrap {
+  .trip-list-page .filter-chip .filter-lbl-wrap {
     gap: 3px;
     line-height: 1.35;
   }
-  .trip-list-page .filter-pill .filter-lbl-cap {
+  .trip-list-page .filter-chip .filter-lbl-cap {
     line-height: 1.35;
   }
-  .trip-list-page .filter-pill select {
+  .trip-list-page .filter-chip select {
     min-height: 44px;
     line-height: 1.35;
   }

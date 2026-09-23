@@ -123,46 +123,46 @@
 
 /* ── Filter pills with subtle role-colored tints ───────────────────────── */
 
-.filter-pill--admin {
+.filter-chip--admin {
   --fp-color: var(--danger);
   --fp-soft: var(--danger-soft);
 }
-.filter-pill--manager {
+.filter-chip--manager {
   --fp-color: var(--warning);
   --fp-soft: var(--warning-soft);
 }
-.filter-pill--accountant {
+.filter-chip--accountant {
   --fp-color: var(--ink-2);
   --fp-soft: var(--surface-3);
 }
-.filter-pill--driver {
+.filter-chip--driver {
   --fp-color: var(--success);
   --fp-soft: var(--success-soft);
 }
-.filter-pill--forwarder {
+.filter-chip--forwarder {
   --fp-color: var(--info);
   --fp-soft: var(--info-soft);
 }
 
 /* Inactive state: subtle tinted border hint */
-.filter-pill[class*="filter-pill--"] {
+.filter-chip[class*="filter-chip--"] {
   border-color: color-mix(in srgb, var(--fp-color) 20%, transparent);
 }
 
-.filter-pill[class*="filter-pill--"]:hover {
+.filter-chip[class*="filter-chip--"]:hover {
   background: var(--fp-soft);
   border-color: color-mix(in srgb, var(--fp-color) 40%, transparent);
   color: var(--fp-color);
 }
 
 /* Active state: neutral high-contrast selection */
-.filter-pill[class*="filter-pill--"].is-active {
+.filter-chip[class*="filter-chip--"].is-active {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--fg-on-brand);
 }
 
-.filter-pill[class*="filter-pill--"].is-active .filter-pill__count {
+.filter-chip[class*="filter-chip--"].is-active .filter-chip__count {
   background: rgba(255, 255, 255, 0.2);
   color: var(--fg-on-brand);
 }
@@ -650,7 +650,7 @@
     padding: 10px;
   }
 
-  .users-role-toolbar .filter-pill {
+  .users-role-toolbar .filter-chip {
     width: 100%;
     min-width: 0;
     justify-content: center;

@@ -96,7 +96,7 @@ describe('shared control density', () => {
       '.cus-worksheet-toolbar .ds-uui-select',
       '.penalty-filter-bar .ds-uui-select',
       '.dispatch-allocation-popover__row .ds-uui-select',
-      '.trip-list-page .filter-pill .ds-uui-select',
+      '.trip-list-page .filter-chip .ds-uui-select',
       // CUS /shipments/new local conformance skin — the shared UUI label
       // defaults vary per component (combobox vs text vs date), so the
       // form aligns them to the dense 12/18 semibold cadence. Scope is

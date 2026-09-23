@@ -18,7 +18,7 @@ export function useTripListAnimations() {
       staggerDelay: 60,
     });
     useListAnimations({
-      itemSelector: '.filter-pill, .status-tab',
+      itemSelector: '.filter-chip, .status-tab',
       mode: 'rows',
       staggerDelay: 40,
     });

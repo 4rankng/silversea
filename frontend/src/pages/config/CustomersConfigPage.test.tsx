@@ -250,7 +250,7 @@ describe('ListFilterBar adoption (card 20260922_38)', () => {
     const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
     expect(bar).not.toBeNull();
     // The hand-rolled toolbar and its duplicate mobile filter select are gone.
-    expect(container.querySelector('.cfg-customer-toolbar, .cfg-customer-filter-pills, .cfg-customer-search, .cfg-customer-filter-select')).toBeNull();
+    expect(container.querySelector('.cfg-customer-toolbar, .cfg-customer-filter-chips, .cfg-customer-search, .cfg-customer-filter-select')).toBeNull();
     const group = screen.getByRole('group', { name: 'Lọc khách hàng' });
     expect(within(group).getAllByRole('button')).toHaveLength(4);
     within(bar).getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });

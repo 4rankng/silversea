@@ -353,15 +353,15 @@ export default function DebtListPage() {
       <div className="debt-data-card" data-tour-id="debt-customer-list">
         {/* Filter pill bar */}
         <div className="debt-filter-bar">
-          <div className="debt-filter-pills">
+          <div className="debt-filter-chips">
             <button
               type="button"
-              className={`filter-pill${filterMode === 'all' ? ' is-active' : ''}`}
+              className={`filter-chip${filterMode === 'all' ? ' is-active' : ''}`}
               onClick={() => table.setFilter('bucket', undefined)}
             >
               <Users size={14} />
               <span>Tất cả</span>
-              <span className="filter-pill__count">{customerDebts.length}</span>
+              <span className="filter-chip__count">{customerDebts.length}</span>
             </button>
             {/* Cross-bucket "Quá hạn" / "Rủi ro cao" pills removed — per-bucket
                 filtering now lives on the 4 aging cards above, and mixing the

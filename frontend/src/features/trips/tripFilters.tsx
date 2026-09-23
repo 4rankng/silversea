@@ -93,7 +93,7 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
             Đang tìm trên tất cả tháng
           </span>
         )}
-        <label className={`filter-pill${truckFilter ? ' has-value' : ''}`}>
+        <label className={`filter-chip${truckFilter ? ' has-value' : ''}`}>
           <div className="filter-lbl-wrap">
             <span className="filter-lbl-cap">Phương tiện</span>
             <UuiSelectField
@@ -111,7 +111,7 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
           {CHEVRON}
         </label>
 
-        <label className={`filter-pill${customerFilter ? ' has-value' : ''}`}>
+        <label className={`filter-chip${customerFilter ? ' has-value' : ''}`}>
           <div className="filter-lbl-wrap">
             <span className="filter-lbl-cap">Khách hàng</span>
             <UuiSelectField

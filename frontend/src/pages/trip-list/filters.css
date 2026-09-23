@@ -156,7 +156,7 @@
   min-width: 0;
 }
 
-.trip-list-page .filter-pill {
+.trip-list-page .filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -174,26 +174,26 @@
   min-width: 0;
   transition: background .16s ease, border-color .16s ease;
 }
-.trip-list-page .filter-pill:hover { background: var(--surface); border-color: var(--line-2); }
-.trip-list-page .filter-pill:focus-within {
+.trip-list-page .filter-chip:hover { background: var(--surface); border-color: var(--line-2); }
+.trip-list-page .filter-chip:focus-within {
   background: var(--surface);
   border-color: var(--fc-green);
   outline: 2px solid color-mix(in srgb, var(--fc-green) 30%, transparent);
   outline-offset: 2px;
 }
-.trip-list-page .filter-pill .filter-lbl-wrap {
+.trip-list-page .filter-chip .filter-lbl-wrap {
   display: flex; flex-direction: column;
   align-items: flex-start;
   line-height: 1.35;
   min-width: 0;
   flex: 1;
 }
-.trip-list-page .filter-pill .filter-lbl-cap {
+.trip-list-page .filter-chip .filter-lbl-cap {
   font-size: var(--fs-xs); font-weight: 600;
   line-height: 1.35;
   color: var(--ink-3); letter-spacing: .01em;
 }
-.trip-list-page .filter-pill select {
+.trip-list-page .filter-chip select {
   background: transparent; border: none; outline: none;
   font: inherit; font-size: var(--filter-control-font-size); font-weight: 600;
   color: inherit; cursor: pointer;
@@ -210,7 +210,7 @@
 }
 
 /*
- * UuiSelectField inside a filter-pill: the pill already provides the chrome
+ * UuiSelectField inside a filter-chip: the pill already provides the chrome
  * (border, background, chevron). The UUI trigger button (rounded border +
  * white background + own chevron) was rendering as a nested box on top of
  * the pill chrome, producing a "box-in-a-box" visual with a duplicate
@@ -219,12 +219,12 @@
  * at the end of the pill (which already has a `has-value` color state) is
  * the established visual.
  */
-.trip-list-page .filter-pill .ds-uui-select {
+.trip-list-page .filter-chip .ds-uui-select {
   display: contents;
 }
-.trip-list-page .filter-pill .ds-uui-select__control,
-.trip-list-page .filter-pill .ds-uui-select__control > button,
-.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] {
+.trip-list-page .filter-chip .ds-uui-select__control,
+.trip-list-page .filter-chip .ds-uui-select__control > button,
+.trip-list-page .filter-chip .ds-uui-select__control > [role='group'] {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -243,13 +243,13 @@
   line-height: var(--filter-control-line-height);
   transition: none;
 }
-.trip-list-page .filter-pill .ds-uui-select__control > button:focus,
-.trip-list-page .filter-pill .ds-uui-select__control > button:focus-visible,
-.trip-list-page .filter-pill .ds-uui-select__control > [role='group']:focus-within {
+.trip-list-page .filter-chip .ds-uui-select__control > button:focus,
+.trip-list-page .filter-chip .ds-uui-select__control > button:focus-visible,
+.trip-list-page .filter-chip .ds-uui-select__control > [role='group']:focus-within {
   outline: none;
   box-shadow: none;
 }
-.trip-list-page .filter-pill .ds-uui-select__control > button > span {
+.trip-list-page .filter-chip .ds-uui-select__control > button > span {
   min-height: 0;
   padding: 0;
   width: 100%;
@@ -259,23 +259,23 @@
    sized element is a `[data-combobox-value]` wrapper (icon + input), not a
    static `<span>` inside a `<button>` — same "no nested chrome" treatment,
    applied to that wrapper, plus the input's own text styling. */
-.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] [data-combobox-value] {
+.trip-list-page .filter-chip .ds-uui-select__control > [role='group'] [data-combobox-value] {
   min-height: 0;
   padding: 0;
   width: 100%;
   gap: 6px;
 }
-.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] input {
+.trip-list-page .filter-chip .ds-uui-select__control > [role='group'] input {
   font: inherit;
   font-size: var(--filter-control-font-size);
   font-weight: 600;
   color: inherit;
   -webkit-text-fill-color: currentColor;
 }
-.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] span {
+.trip-list-page .filter-chip .ds-uui-select__control > [role='group'] span {
   color: inherit;
 }
-.trip-list-page .filter-pill .ds-uui-select__control svg[aria-hidden='true'] {
+.trip-list-page .filter-chip .ds-uui-select__control svg[aria-hidden='true'] {
   display: none;
 }
 
@@ -312,29 +312,29 @@
     grid-template-columns: 1fr;
   }
 
-  .trip-list-page .filter-pill {
+  .trip-list-page .filter-chip {
     min-height: var(--filter-control-h);
     padding-top: 6px;
     padding-bottom: 6px;
   }
 
-  .trip-list-page .filter-pill select {
+  .trip-list-page .filter-chip select {
     min-height: var(--filter-control-h);
   }
 }
-.trip-list-page .filter-pill .filter-chev {
+.trip-list-page .filter-chip .filter-chev {
   color: var(--ink-3);
   transition: transform .16s ease;
   flex: none;
 }
 /* active filter (has a value selected) */
-.trip-list-page .filter-pill.has-value {
+.trip-list-page .filter-chip.has-value {
   border-color: var(--ink);
   background: var(--surface);
   color: var(--ink);
 }
-.trip-list-page .filter-pill.has-value .filter-lbl-cap { color: var(--ink-3); }
-.trip-list-page .filter-pill.has-value .filter-chev { color: var(--ink); }
+.trip-list-page .filter-chip.has-value .filter-lbl-cap { color: var(--ink-3); }
+.trip-list-page .filter-chip.has-value .filter-chev { color: var(--ink); }
 
 /* ── Section heading ──────────────────────────────────────────────────── */
 .trip-list-page .section-head {

@@ -13,8 +13,8 @@ describe('debt customer-list filter hierarchy', () => {
   });
 
   it('keeps filter controls flat without decorative gradients or default shadows', () => {
-    const pill = css.match(/\.debt-filter-bar \.filter-pill\s*\{([^}]*)\}/)?.[1] ?? '';
-    const activePill = css.match(/\.debt-filter-bar \.filter-pill\.is-active\s*\{([^}]*)\}/)?.[1] ?? '';
+    const pill = css.match(/\.debt-filter-bar \.filter-chip\s*\{([^}]*)\}/)?.[1] ?? '';
+    const activePill = css.match(/\.debt-filter-bar \.filter-chip\.is-active\s*\{([^}]*)\}/)?.[1] ?? '';
     const search = css.match(/\.debt-filter-search\s*\{([^}]*)\}/)?.[1] ?? '';
 
     expect(pill).not.toMatch(/(?:linear-gradient|box-shadow\s*:)/);
