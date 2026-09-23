@@ -375,7 +375,7 @@ export async function spawnQuotationFuelApprovals(fuelPricePeriodId: number, ex:
     .select({ id: s.quotations.id, customerId: s.quotations.customerId })
     .from(s.quotations)
     .where(isNull(s.quotations.deletedAt))
-    .orderBy(desc(s.quotations.effectiveDate));
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id));
   const latestPerCustomer = new Map<number, number>();
   for (const q of activeQuotations) {
     if (!latestPerCustomer.has(q.customerId)) latestPerCustomer.set(q.customerId, q.id);
@@ -427,6 +427,6 @@ export async function decideQuotationFuelApprovals(actorId: number, ids: number[
       inArray(s.quotationFuelApprovals.id, ids),
       eq(s.quotationFuelApprovals.status, 'PENDING'),
     ))
-    .returning({ id: s.quotationFuelApprovals.id, customerId: s.quotationFuelApprovals.customerId, status: s.quotationFuelApprovals.status });
+    .returning({ id: s.quotationFuelApprovals.id, quotationId: s.quotationFuelApprovals.quotationId, customerId: s.quotationFuelApprovals.customerId, status: s.quotationFuelApprovals.status });
   return { updated };
 }

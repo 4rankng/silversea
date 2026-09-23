@@ -88,7 +88,7 @@ async function resolveQuotationHints(
       lte(s.quotations.effectiveDate, transportDate),
       isNull(s.quotations.deletedAt),
     ))
-    .orderBy(desc(s.quotations.effectiveDate))
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
     .limit(1);
   if (!quotation) return { heSo: 1, roundingMode: 'NONE' };
 

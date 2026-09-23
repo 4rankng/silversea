@@ -22,6 +22,9 @@ import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
   listQuotationFuelApprovals, listQuotations, updateQuotation,
 } from '../../services/quotation.service';
+import {
+  getQuotationVersionPayload, listQuotationVersions, releaseQuotationVersion,
+} from '../../services/quotation-version.service';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
@@ -36,6 +39,27 @@ router.get('/fuel-approvals', asyncHandler(async (req: Request, res: Response) =
   res.json(await listQuotationFuelApprovals(status));
 }));
 
+// Card _62: version history — list (all releases, newest first) and one
+// frozen payload. Reads ride the config gate; releases are event-driven.
+router.get('/:id/versions', asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
+  const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+  const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+  res.json(await listQuotationVersions(id, { from, to }));
+}));
+
+router.get('/:id/versions/:version', asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const version = Number(req.params.version);
+  if (!Number.isInteger(id) || id < 1 || !Number.isInteger(version) || version < 1) {
+    throw new ApiError(400, 'ID không hợp lệ');
+  }
+  res.json(await getQuotationVersionPayload(id, version));
+}));
+
+// NOTE: '/:id' param routes register AFTER the literal paths above so the
+// list/version routes are never swallowed by an :id match.
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
@@ -55,6 +79,11 @@ router.post('/', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request,
     create: (tx) => createQuotation(parsed.data, tx),
     getEntityId: (value) => value.id,
   });
+  // Card _62: a fresh frame releases its birth version (v1).
+  if (!replayed) {
+    const view = await getQuotation(result.id);
+    await releaseQuotationVersion(view, { triggerKind: 'MANUAL_EDIT', actorId: actor.userId });
+  }
   res.status(replayed ? 200 : 201).json(result);
 }));
 
@@ -73,6 +102,11 @@ router.put('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Reques
     getEntityId: () => id,
     create: (tx) => updateQuotation(id, parsed.data, tx).then(() => ({ id })),
   });
+  // Card _62: a committed manual edit releases the new state as a version.
+  if (!replayed) {
+    const view = await getQuotation(id);
+    await releaseQuotationVersion(view, { triggerKind: 'MANUAL_EDIT', actorId: actor.userId });
+  }
   res.json(result);
 }));
 
@@ -116,6 +150,14 @@ router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN),
     entityType: 'quotation',
     create: (tx) => decideQuotationFuelApprovals(actor.userId, parsed.ids, parsed.decision, tx),
   });
+  // Card _62: an AGREED fuel update releases a version of each affected
+  // quotation (the new fuel-period watermark takes effect from this event).
+  if (!replayed && parsed.decision === 'AGREED') {
+    for (const row of (result as { updated: Array<{ quotationId: number }> }).updated) {
+      const view = await getQuotation(row.quotationId);
+      await releaseQuotationVersion(view, { triggerKind: 'FUEL_APPROVED', actorId: actor.userId });
+    }
+  }
   res.status(replayed ? 200 : 201).json(result);
 }));
 

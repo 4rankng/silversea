@@ -52,13 +52,17 @@ export const quotationCells = pgTable('quotation_cells', {
     .on(table.quotationId, table.routeId, table.vehicleSizeClassId),
 ]);
 
-// Schema-only STUB for card _62 (version-release snapshots). Nothing in _66
-// writes it; the release workflow lands with _62 on this seam.
+// Card _62: version-release snapshots — LIVE VIEW NO MORE. Every change
+// (manual edit / AGREED fuel update / new import) releases a version here:
+// the payload freezes the whole rendered quotation (frame + grid figures +
+// fee catalog + fuel params) so an old version renders its own numbers.
+// trigger_kind names the event that released it.
 export const quotationVersionSnapshots = pgTable('quotation_version_snapshots', {
   id: serial('id').primaryKey(),
   quotationId: integer('quotation_id').notNull(),
   version: integer('version').notNull(),
   payload: jsonb('payload').notNull(),
+  triggerKind: varchar('trigger_kind', { length: 30 }),
   releasedBy: integer('released_by'),
   releasedAt: timestamp('released_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
