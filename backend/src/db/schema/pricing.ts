@@ -334,6 +334,10 @@ export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
   // surchargeAmount so the customer's rounding rule explains the number.
   // NULL on historical rows (no customer rounding existed pre-_60).
   surchargeRaw: numeric('surcharge_raw', { precision: 15, scale: 0 }),
+  // Frozen prose for states the id-based formula rebuild cannot express —
+  // the surcharge-pending path (unconfirmed surcharge grounds: freight
+  // computes, surcharge 0). NULL on AUTO/rebuilt rows.
+  formulaText: text('formula_text'),
   computedAt: timestamp('computed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

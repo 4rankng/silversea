@@ -62,6 +62,10 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
   source: 'AUTO' | 'MANUAL';
   /** Human-readable formula for the UI. */
   formula: string;
+  /** Frozen prose for states the id-based rebuild cannot express (e.g. the
+   *  surcharge-pending path). Persisted on the snapshot; the read side
+   *  prefers it over the rebuilt hint. Absent elsewhere. */
+  formulaText?: string;
 }
 
 // ─── Resolve freight rate (3-step engine) ───────────────────────────────────
@@ -252,34 +256,6 @@ export async function resolveFreightRate(
     };
   }
 
-  // Unconfirmed surcharge terms ⇒ MANUAL mode. PRD CuocPhiThietKeDB.md §8
-  // (via 20260917_11): an empty threshold must NOT be read as "always
-  // adjust" — a contract whose threshold mode is UNSET (never customer-
-  // confirmed) or whose lag has no confirmation cannot auto-apply a new
-  // fuel-period price as if the grounds were complete. Mirrors the 15T
-  // missing-base-price path above: flag for an authorized human decision.
-  if (
-    terms.surchargeThresholdMode === 'UNSET'
-    || !terms.fuelLagConfirmed
-  ) {
-    const missing: string[] = [];
-    if (terms.surchargeThresholdMode === 'UNSET') missing.push('ngưỡng biến động giá dầu chưa được khách chốt');
-    if (!terms.fuelLagConfirmed) missing.push('độ trễ giá dầu chưa được xác nhận');
-    return {
-      freight: 0, surcharge: 0, total: 0, fuelDelta: 0,
-      fuelPricePeriodId: 0,
-      rateTermsId: terms.id,
-      pricingTableId: basePriceRow?.id ?? 0,
-      fuelNormId: 0,
-      billedKm: 0,
-      liters: 0,
-      sharePct: Number(terms.sharePct),
-      heSo: 1,
-      source: 'MANUAL',
-      formula: `Thiếu căn cứ phụ phí dầu: ${missing.join('; ')} — cần người có thẩm quyền chốt.`,
-    };
-  }
-
   // ── Step 3: fuel_consumption_norms ──
   // Norms are keyed on the BASE class (weight never splits consumption —
   // _58), but staging data seeded on the weight-split rows must still
@@ -306,6 +282,56 @@ export async function resolveFreightRate(
       404,
       `Không tìm thấy định mức dầu cho loại xe: ${vehicleSizeClassCode}`,
     );
+  }
+
+  // ── Surcharge-pending path (freight-grounds vs surcharge-grounds split).
+  // PRD CuocPhiThietKeDB.md §8 (via 20260917_11): unconfirmed surcharge
+  // grounds must NEVER auto-apply a fuel-period price — so surcharge stays 0
+  // and no period is consumed. But freight grounds (rate terms + base price)
+  // are COMPLETE here, so the freight itself computes from its own grounds
+  // and the fuel-norm trace id is recorded (card _58: the norm lookup must
+  // run at issue). The pending reasons ride `formulaText` so the read side
+  // states the truth instead of a wrong missing-norm message. Billing km /
+  // liters mirror the AUTO trace columns.
+  if (
+    terms.surchargeThresholdMode === 'UNSET'
+    || !terms.fuelLagConfirmed
+  ) {
+    const missing: string[] = [];
+    if (terms.surchargeThresholdMode === 'UNSET') missing.push('ngưỡng biến động giá dầu chưa được khách chốt');
+    if (!terms.fuelLagConfirmed) missing.push('độ trễ giá dầu chưa được xác nhận');
+    // Zero fuel delta ⇒ surcharge 0 through the shared rounding — freight
+    // identical in rounding to the AUTO path.
+    const pending = computeFreightRate({
+      basePrice: Number(basePriceRow.price),
+      sharePct: Number(terms.sharePct),
+      fuelPrice: Number(terms.baseFuelPrice),
+      baseFuelPrice: Number(terms.baseFuelPrice),
+      liters: 0,
+    });
+    const billedKm = Number(terms.billingKmOneWay) * Number(terms.billingKmMultiplier);
+    const liters = billedKm * Number(norm.litersPerKm);
+    const pendingFormula = [
+      `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${pending.freight}`,
+      `— phụ phí dầu chờ xác nhận (${missing.join('; ')})`,
+    ].join(' ');
+    return {
+      freight: pending.freight,
+      surcharge: 0,
+      total: pending.freight,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: basePriceRow.id,
+      fuelNormId: norm.id,
+      billedKm,
+      liters,
+      sharePct: Number(terms.sharePct),
+      heSo: 1,
+      source: 'AUTO',
+      formula: pendingFormula,
+      formulaText: pendingFormula,
+    };
   }
 
   // ── Step 4: fuel_price_periods (with lag + threshold) ──
@@ -477,6 +503,7 @@ export async function persistFreightRateSnapshot(
       sharePct: String(result.sharePct),
       heSo: String(result.heSo ?? 1),
       surchargeRaw: String(result.surchargeRaw ?? result.surcharge),
+      formulaText: result.formulaText ?? null,
     })
     .returning({ id: s.freightRateSnapshots.id });
 
