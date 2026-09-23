@@ -709,6 +709,14 @@ router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPrice
   // The factory stamps the idempotency record, not the entity row — the fuel
   // entry must remember WHO entered it (audit attribution, card _57).
   beforeCreate: async (data, req) => ({ ...data, createdBy: getUser(req).userId }),
+  // Card 20260922_61 (ruling 8): a new fuel period opens the "ĐỒNG Ý CẬP
+  // NHẬT BÁO GIÁ" workflow — every customer with an active quotation gets a
+  // PENDING approval row; the engine prices the OLD period until kế toán
+  // ticks Đồng ý.
+  afterCreate: async (item, _data, _req, tx) => {
+    const { spawnQuotationFuelApprovals } = await import('../../services/quotation.service');
+    await spawnQuotationFuelApprovals(item.id, tx);
+  },
 }));
 
 // Freight rate terms — one contract block per customer × route. The pct/abs

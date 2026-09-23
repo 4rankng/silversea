@@ -52,6 +52,9 @@ export const QUOTATION_GRID_COLUMNS: readonly (QuotationColumnKey & { label: str
 export const QUOTATION_PATHS = {
   LIST: '/quotations',
   DETAIL: (id: number) => `/quotations/${id}`,
+  /** Card 20260922_61: kế toán's "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" batch list. */
+  FUEL_APPROVALS: '/quotations/fuel-approvals',
+  FUEL_APPROVALS_DECIDE: '/quotations/fuel-approvals/decide',
 } as const;
 
 /**

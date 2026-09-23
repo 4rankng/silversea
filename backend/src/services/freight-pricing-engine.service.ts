@@ -11,7 +11,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, notInArray } from 'drizzle-orm';
 import { computeFreightRate } from '@tingting/shared';
 import { quotationBaseClassCode } from '@tingting/shared';
 import { roundHalfAwayFromZero } from '@tingting/shared';
@@ -306,6 +306,19 @@ export async function resolveFreightRate(
   const lagDays = terms.fuelLagDays ?? 0;
   const targetDate = subtractDays(transportDate, lagDays);
 
+  // ── Card 20260922_61 (ruling 8): the approval gate ──
+  // The engine may not use a fuel period this customer has NOT agreed to.
+  // Any PENDING/DECLINED approval row for the customer blocks its period;
+  // Đồng ý clears the block so trips priced after approval use the new
+  // period. In-flight shipments are already frozen in their snapshots.
+  const blockedPeriods = (await db
+    .select({ periodId: s.quotationFuelApprovals.fuelPricePeriodId })
+    .from(s.quotationFuelApprovals)
+    .where(and(
+      eq(s.quotationFuelApprovals.customerId, customerId),
+      inArray(s.quotationFuelApprovals.status, ['PENDING', 'DECLINED']),
+    ))).map((row) => row.periodId);
+
   let fuel = await db
     .select()
     .from(s.fuelPricePeriods)
@@ -313,6 +326,7 @@ export async function resolveFreightRate(
       and(
         lte(s.fuelPricePeriods.effectiveFrom, targetDate),
         isNull(s.fuelPricePeriods.deletedAt),
+        blockedPeriods.length > 0 ? notInArray(s.fuelPricePeriods.id, blockedPeriods) : undefined,
       ),
     )
     .orderBy(desc(s.fuelPricePeriods.effectiveFrom))

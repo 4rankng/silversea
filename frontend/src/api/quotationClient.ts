@@ -33,4 +33,27 @@ export const quotationClient = {
   update(id: number, body: QuotationUpdateInput): Promise<QuotationView> {
     return api.put<QuotationView>(QUOTATION_PATHS.DETAIL(id), body, withIdempotencyKey());
   },
+  /** Card 20260922_61: kế toán's "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" batch list. */
+  listFuelApprovals(status?: string): Promise<{ items: QuotationFuelApprovalRow[]; total: number }> {
+    return api.get<{ items: QuotationFuelApprovalRow[]; total: number }>(
+      `${QUOTATION_PATHS.FUEL_APPROVALS}${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    );
+  },
+  decideFuelApprovals(ids: number[], decision: 'AGREED' | 'DECLINED'): Promise<{ updated: Array<{ id: number; customerId: number; status: string }> }> {
+    return api.post(QUOTATION_PATHS.FUEL_APPROVALS_DECIDE, { ids, decision }, withIdempotencyKey());
+  },
 };
+
+export interface QuotationFuelApprovalRow {
+  id: number;
+  fuelPricePeriodId: number;
+  customerId: number;
+  quotationId: number;
+  status: 'PENDING' | 'AGREED' | 'DECLINED';
+  customerName: string;
+  periodUnitPrice: string;
+  periodEffectiveFrom: string;
+  quotationName: string;
+  quotationEffectiveDate: string;
+  decidedAt: string | null;
+}

@@ -5,6 +5,7 @@
 // per house standard.
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { Role, quotationCreateSchema, quotationUpdateSchema } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
@@ -13,7 +14,8 @@ import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
 import {
-  createQuotation, deleteQuotation, getQuotation, listQuotations, updateQuotation,
+  createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
+  listQuotationFuelApprovals, listQuotations, updateQuotation,
 } from '../../services/quotation.service';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
@@ -81,6 +83,35 @@ router.delete('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Req
     },
   });
   res.json({ ok: true });
+}));
+
+// ─── Card 20260922_61: "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" (ruling 8) ──────────────
+// ONE batch list for kế toán: select-all and per-row both ride the same
+// decide endpoint; 'Để sau' makes no call (rows stay PENDING). Reads share
+// the mount's casbin 'config' gate; decisions are finance-gated.
+
+router.get('/fuel-approvals', asyncHandler(async (req: Request, res: Response) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  res.json(await listQuotationFuelApprovals(status));
+}));
+
+router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const parsed = z.object({
+    ids: z.array(z.number().int().positive()).min(1, 'Chưa chọn dòng nào.'),
+    decision: z.enum(['AGREED', 'DECLINED']),
+  }).parse(req.body ?? {});
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: 'quotation-fuel-approvals.decide',
+    idempotencyKey,
+    payload: { ids: parsed.ids, decision: parsed.decision, actorId: actor.userId },
+    createdBy: actor.userId,
+    entityType: 'quotation',
+    create: (tx) => decideQuotationFuelApprovals(actor.userId, parsed.ids, parsed.decision, tx),
+  });
+  res.status(replayed ? 200 : 201).json(result);
 }));
 
 export default router;

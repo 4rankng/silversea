@@ -303,3 +303,69 @@ export async function listQuotations(): Promise<QuotationView[]> {
   }));
 }
 
+
+// ─── Card 20260922_61: fuel-update approval workflow (ruling 8) ─────────────
+
+/** When kế toán enters a fuel price period, every customer with an ACTIVE
+ *  quotation gets one PENDING row for that period. UNIQUE (period, customer)
+ *  makes replay/re-entry a no-op. Returns the created count. */
+export async function spawnQuotationFuelApprovals(fuelPricePeriodId: number, ex: DbOrTx = db): Promise<number> {
+  const activeQuotations = await ex
+    .select({ id: s.quotations.id, customerId: s.quotations.customerId })
+    .from(s.quotations)
+    .where(isNull(s.quotations.deletedAt))
+    .orderBy(desc(s.quotations.effectiveDate));
+  const latestPerCustomer = new Map<number, number>();
+  for (const q of activeQuotations) {
+    if (!latestPerCustomer.has(q.customerId)) latestPerCustomer.set(q.customerId, q.id);
+  }
+  if (latestPerCustomer.size === 0) return 0;
+  await ex.insert(s.quotationFuelApprovals)
+    .values([...latestPerCustomer.entries()].map(([customerId, quotationId]) => ({
+      fuelPricePeriodId, customerId, quotationId, status: 'PENDING' as const,
+    })))
+    .onConflictDoNothing();
+  return latestPerCustomer.size;
+}
+
+/** Batch list for the kế toán alert — pending (or any status) rows with the
+ *  names the UI renders (ids never render as text on this surface). */
+export async function listQuotationFuelApprovals(status?: string) {
+  const rows = await db
+    .select({
+      id: s.quotationFuelApprovals.id,
+      fuelPricePeriodId: s.quotationFuelApprovals.fuelPricePeriodId,
+      customerId: s.quotationFuelApprovals.customerId,
+      quotationId: s.quotationFuelApprovals.quotationId,
+      status: s.quotationFuelApprovals.status,
+      customerName: s.customers.name,
+      periodUnitPrice: s.fuelPricePeriods.unitPrice,
+      periodEffectiveFrom: s.fuelPricePeriods.effectiveFrom,
+      quotationName: s.quotations.templateName,
+      quotationEffectiveDate: s.quotations.effectiveDate,
+      decidedAt: s.quotationFuelApprovals.decidedAt,
+    })
+    .from(s.quotationFuelApprovals)
+    .innerJoin(s.customers, eq(s.customers.id, s.quotationFuelApprovals.customerId))
+    .innerJoin(s.fuelPricePeriods, eq(s.fuelPricePeriods.id, s.quotationFuelApprovals.fuelPricePeriodId))
+    .innerJoin(s.quotations, eq(s.quotations.id, s.quotationFuelApprovals.quotationId))
+    .where(status ? eq(s.quotationFuelApprovals.status, status) : undefined)
+    .orderBy(desc(s.quotationFuelApprovals.id));
+  return { items: rows, total: rows.length };
+}
+
+/** Đồng ý / Không — batch (many ids) or per-row (one id) through the same
+ *  endpoint. Already-decided rows keep their state (idempotent batch);
+ *  'Để sau' never calls this (rows simply stay PENDING). */
+export async function decideQuotationFuelApprovals(actorId: number, ids: number[], decision: 'AGREED' | 'DECLINED', ex: DbOrTx = db) {
+  if (ids.length === 0) throw new ApiError(400, 'Chưa chọn dòng nào.');
+  const now = new Date();
+  const updated = await ex.update(s.quotationFuelApprovals)
+    .set({ status: decision, decidedBy: actorId, decidedAt: now, updatedAt: now })
+    .where(and(
+      inArray(s.quotationFuelApprovals.id, ids),
+      eq(s.quotationFuelApprovals.status, 'PENDING'),
+    ))
+    .returning({ id: s.quotationFuelApprovals.id, customerId: s.quotationFuelApprovals.customerId, status: s.quotationFuelApprovals.status });
+  return { updated };
+}

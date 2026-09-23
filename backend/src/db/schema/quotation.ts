@@ -9,6 +9,7 @@ import {
   date, integer, jsonb, numeric, pgTable, serial, text, timestamp,
   uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
+import { fuelPricePeriods } from './pricing';
 
 export const quotations = pgTable('quotations', {
   id: serial('id').primaryKey(),
@@ -66,3 +67,25 @@ export const quotationVersionSnapshots = pgTable('quotation_version_snapshots', 
     .on(table.quotationId, table.version),
 ]);
 
+
+// Card 20260922_61: the "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" workflow. When kế toán
+// enters a fuel price period, every customer with an active quotation gets a
+// PENDING row; the pricing engine caps that customer's fuel period at the
+// newest AGREED row's period (watermark), so a new price applies only after
+// Đồng ý (ruling 8). UNIQUE (period, customer) keeps generation idempotent.
+export const quotationFuelApprovals = pgTable('quotation_fuel_approvals', {
+  id: serial('id').primaryKey(),
+  fuelPricePeriodId: integer('fuel_price_period_id')
+    .notNull()
+    .references(() => fuelPricePeriods.id),
+  customerId: integer('customer_id').notNull(),
+  quotationId: integer('quotation_id').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('PENDING'),
+  decidedBy: integer('decided_by'),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('quotation_fuel_approvals_period_customer_uniq')
+    .on(table.fuelPricePeriodId, table.customerId),
+]);
