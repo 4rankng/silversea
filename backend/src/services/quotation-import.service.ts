@@ -219,26 +219,18 @@ function cellWhere(factory: string, label: string): string {
 
 /** Derive one-way km from the liters row: km = liters ÷ norm ÷ 2.
  * Family-safe (fuel-period 500 class): the norm may live on the base class
- * row or on a weight-split sibling — resolve across the whole family, then
- * fall back to a NAME match (prod-mirror databases name classes differently
- * from the canonical codes, e.g. "Xe 1.25 tấn" vs "1.25T"). Returns null
- * only when neither the class nor any family norm resolves. */
+ * row or on a weight-split sibling — resolve across the whole family.
+ * Deliberately NO name matching (lead ruling 2026-09-23): a substring name
+ * match silently priced one class with another class's norm — an exact-code
+ * miss returns null and the route's 400 names the missing code instead. */
 export async function normForBase(baseCode: string): Promise<number | null> {
   const base = baseCode.includes('.') && !/^[0-9]/.test(baseCode)
     ? baseCode.split('.')[0]
     : baseCode;
   const familyCodes = [baseCode, `${base}.LIGHT`, `${base}.HEAVY`, base]
     .filter((code, index, all) => all.indexOf(code) === index);
-  let classRows = await db.select({ id: s.vehicleSizeClasses.id })
+  const classRows = await db.select({ id: s.vehicleSizeClasses.id })
     .from(s.vehicleSizeClasses).where(inArray(s.vehicleSizeClasses.code, familyCodes));
-  if (classRows.length === 0) {
-    // Name fallback: the numeric/letter core of the code against class names
-    // (canonical '1.25T' vs mirror 'Xe 1.25 tấn' resolve to the same class).
-    const core = base.replace(/[A-Za-z]/g, ' ').trim() || base;
-    classRows = await db.select({ id: s.vehicleSizeClasses.id })
-      .from(s.vehicleSizeClasses)
-      .where(sql`${s.vehicleSizeClasses.name} ilike ${'%' + core + '%'}`);
-  }
   if (classRows.length === 0) return null;
   const [norm] = await db
     .select({ litersPerKm: s.fuelConsumptionNorms.litersPerKm })

@@ -61,6 +61,14 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
   // combined-invoice tracking page landed over the ceiling without a
   // baseline; refrozen here to unblock cut #24. Split candidate.
+  // Added as baseline 440 (was new-file capped): 2026-09-23 card 20260922_56 —
+  // the quotation config screen (filters + frame list + live 10-column grid)
+  // landed over the ceiling without a baseline; the update-payload and fee
+  // routing follow-ups completed it. Refrozen here to unblock cut #7.
+  // Split candidate: extract the live-grid table into its own component.
+  'src/pages/config/QuotationConfigPage.tsx': 440,
+  // Added as baseline 460 (was new-file capped): 2026-09-22 card 20260922_56's
+  // sibling invoice surface — refrozen here to unblock cut #24. Split candidate.
   'src/pages/AccountingInvoiceTrackingPage.tsx': 460,
   // Added as baseline 414 (was new-file capped): 2026-09-21 card 20260921_2 -
   // the CUS detail hook gains addContainer/removeContainer row mutations
@@ -162,7 +170,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
   // on a stable identity helper (branch rows carry a null fulfillment id).
   // Bumped 435 → 439: 2026-09-15 multiline note-line spans (20260915_35).
-  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 439,
+    // Bumped 439 -> 450: 2026-09-23 P1 mount-resilience fix (a00e0a64) — the grid's
+  // error branch became a cold-load-only path with a non-blocking refresh
+  // banner; rows stay mounted through transient failures. Reviewed as a
+  // contract change; a future split should restore a smaller ceiling.
+'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 450,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
