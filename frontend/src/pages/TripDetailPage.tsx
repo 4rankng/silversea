@@ -358,6 +358,19 @@ export default function TripDetailPage() {
             </div>
           </>
         )}
+
+        <div className="field">
+          <label htmlFor="reassignReason">Lý do điều chuyển *</label>
+          <textarea
+            id="reassignReason"
+            name="reassignReason"
+            rows={2}
+            className="input"
+            placeholder="Bắt buộc — ghi vào nhật ký nghiệp vụ cùng người thực hiện và thời gian"
+            value={ui.reassignReason}
+            onChange={e => page.setReassignReason(e.target.value)}
+          />
+        </div>
       </Modal>
 
       {/* ── Adjustment Drawer ───────────────────────────────────────────── */}

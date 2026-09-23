@@ -213,6 +213,7 @@ export function useReassignMutations() {
     carrierType: 'OWN',
     truckId: '', driverId: '',
     externalCarrierId: '', externalPlateNumber: '', externalDriverName: '', externalDriverPhone: '',
+    reason: '',
     loading: false, error: '',
   });
 
@@ -226,17 +227,19 @@ export function useReassignMutations() {
       externalPlateNumber: trip.externalPlateNumber || '',
       externalDriverName: trip.externalDriverName || '',
       externalDriverPhone: trip.externalDriverPhone || '',
+      reason: '',
       loading: false, error: '',
     });
   }, []);
 
   const closeReassign = useCallback(() => {
     setReassignOpen(null);
-    setReassignState({ 
-      carrierType: 'OWN', 
-      truckId: '', driverId: '', 
+    setReassignState({
+      carrierType: 'OWN',
+      truckId: '', driverId: '',
       externalCarrierId: '', externalPlateNumber: '', externalDriverName: '', externalDriverPhone: '',
-      loading: false, error: '' 
+      reason: '',
+      loading: false, error: ''
     });
   }, []);
 
@@ -252,6 +255,10 @@ export function useReassignMutations() {
         return;
       }
     }
+    if (!reassignState.reason.trim()) {
+      setReassignState((s) => ({ ...s, error: 'Lý do điều chuyển là bắt buộc' }));
+      return;
+    }
     setReassignState((s) => ({ ...s, loading: true, error: '' }));
     try {
       await tripClient.reassignTrip(tripId, {
@@ -262,6 +269,7 @@ export function useReassignMutations() {
         externalPlateNumber: reassignState.externalPlateNumber,
         externalDriverName: reassignState.externalDriverName,
         externalDriverPhone: reassignState.externalDriverPhone,
+        reason: reassignState.reason.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: qk.trips.dispatch });
       closeReassign();

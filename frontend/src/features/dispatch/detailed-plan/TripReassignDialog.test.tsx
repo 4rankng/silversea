@@ -158,12 +158,48 @@ describe('TripReassignDialog — save primes the trip-detail cache', () => {
     reassignMock.mockResolvedValue(REASSIGNED);
 
     renderDialog();
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'Tai xe xin nghi' } });
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
 
     await waitFor(() => expect(reassignMock).toHaveBeenCalledWith(3, expect.objectContaining({ expectedVersion: 3 })));
     // The fresh trip now rides the detail cache — the next open seeds the
     // SAVED truck/driver immediately, no refetch or reload required.
     await waitFor(() => expect(queryClient.getQueryData(qk.trips.detail('3'))).toEqual(REASSIGNED));
+  });
+});
+
+// Card 20260922_79: the reason is mandatory at the dialog (mirrors the 400
+// contract server-side) and rides the payload into the audit trail.
+describe('TripReassignDialog — reason contract (card 20260922_79)', () => {
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+    reassignMock.mockReset();
+  });
+
+  it('blocks save without a reason and never calls the client', () => {
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Lý do điều chuyển là bắt buộc');
+    expect(reassignMock).not.toHaveBeenCalled();
+  });
+
+  it('sends the trimmed reason in the payload', async () => {
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    reassignMock.mockResolvedValue({ ...TRIP, version: 4 } as unknown as TripDetail);
+    renderDialog();
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: '  Tai xe xin nghi  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
+
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledWith(3, expect.objectContaining({
+      reason: 'Tai xe xin nghi',
+      expectedVersion: 3,
+    })));
   });
 });
 
@@ -214,6 +250,8 @@ describe('TripReassignDialog — acceptance lock', () => {
     } as never);
     reassignMock.mockRejectedValue(new Error('Không thể điều chỉnh tác vụ đã được lái xe nhận việc.'));
     renderDialog();
+    // Reason is mandatory (card 20260922_79) — fill it to reach the conflict path.
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'Tai xe xin nghi' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('đã được lái xe nhận việc');

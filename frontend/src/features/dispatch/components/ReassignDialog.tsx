@@ -127,6 +127,18 @@ export function ReassignDialog({
         </>
       )}
 
+      <label className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+        <span style={{ fontSize: 'var(--control-field-font-size)', color: 'var(--text-2)' }}>Lý do điều chuyển *</span>
+        <textarea
+          value={reassignState.reason}
+          onChange={(e) => setReassignState((s) => ({ ...s, reason: e.target.value }))}
+          disabled={reassignState.loading}
+          rows={2}
+          placeholder="Bắt buộc — ghi vào nhật ký nghiệp vụ cùng người thực hiện và thời gian"
+          aria-label="Lý do điều chuyển"
+        />
+      </label>
+
       {reassignState.error && (
         <div className="err">{reassignState.error}</div>
       )}

@@ -19,6 +19,8 @@ export interface ReassignState {
   externalPlateNumber: string;
   externalDriverName: string;
   externalDriverPhone: string;
+  /** Mandatory per card 20260922_79 — persisted to the audit trail with actor+timestamp. */
+  reason: string;
   loading: boolean;
   error: string;
 }

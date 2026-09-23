@@ -75,6 +75,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const [reassignExternalPlateNumber, setReassignExternalPlateNumber] = useState('');
   const [reassignExternalDriverName, setReassignExternalDriverName] = useState('');
   const [reassignExternalDriverPhone, setReassignExternalDriverPhone] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
   const [reassignLoading, setReassignLoading] = useState(false);
   const [reassignError, setReassignError] = useState('');
 
@@ -101,6 +102,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     reassignExternalPlateNumber,
     reassignExternalDriverName,
     reassignExternalDriverPhone,
+    reassignReason,
     reassignLoading,
     reassignError,
     showAdjust,
@@ -269,6 +271,10 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     } else {
       if (!reassignExternalCarrierId && !reassignExternalPlateNumber) return;
     }
+    if (!reassignReason.trim()) {
+      setReassignError('Lý do điều chuyển là bắt buộc');
+      return;
+    }
     setReassignLoading(true);
     setReassignError('');
     try {
@@ -281,6 +287,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
         externalPlateNumber: reassignExternalPlateNumber,
         externalDriverName: reassignExternalDriverName,
         externalDriverPhone: reassignExternalDriverPhone,
+        reason: reassignReason.trim(),
       });
       setShowReassign(false);
       await refetchTrip();
@@ -376,6 +383,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setReassignExternalPlateNumber,
     setReassignExternalDriverName,
     setReassignExternalDriverPhone,
+    setReassignReason,
     cancelLoading,
     carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
     setShowReassign,

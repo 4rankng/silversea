@@ -46,6 +46,7 @@ const reassignState: ReassignState = {
   externalPlateNumber: '',
   externalDriverName: '',
   externalDriverPhone: '',
+  reason: '',
   loading: false,
   error: '',
 };
