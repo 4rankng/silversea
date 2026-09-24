@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:21a27b52802dff102d1c0bfee957bc532e38a01be71bc0adc554071580491b89",
+  "pageVersion": "sha256:1bd56018ed1bcf3c1b83e97dabe71bdc115d9a8bbe045669f9b32d9c0bb8eb49",
   "claims": [
     {
       "id": "claim_59b73370491448eb9843052fc1370da7",
@@ -17,8 +17,12 @@
       "statement": "Test accounts resolve per environment via testplan/testaccounts.txt with shared password Abc123; local dev holds TWO DB modes — dev-seed (the 13 demo users, default after make dev + make seed) and make stgdb (prod-mirror named staff with the Abc123 reset re-run after every sync) — and the QA harness walks the role list when a login misses. Demo mode is permanently disabled.",
       "evidence": [
         {
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:01642aa32829317c5f9f835c1c78f46cb25725ffadae6bd5d39316584263b8b1"
+        },
+        {
           "resource": "repo://testplan/testaccounts.txt",
-          "version": "repo-file-v1:sha256:5d14ce7dbe8d2618abfaee727cc5484d8b454fc48caf4b569bb54721e3668212"
+          "version": "repo-file-v1:sha256:293a5597871953e2aca168d40a5f44ea9d3e23758d692c941aa8ae4015d921b7"
         }
       ]
     },
@@ -80,7 +84,7 @@
     }
   ],
   "verification": {
-    "by": "openwiki/0.5.0",
-    "at": "2026-09-21T23:41:16.831Z"
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-24T07:05:35.307Z"
   }
 }

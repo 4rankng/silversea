@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4a6f6c7f1c6f6120ca3afdf8679b62ea633d4ac4fa849f01dedae1682f0ba522",
+  "pageVersion": "sha256:68ed82ba6c4ed79bb978a7abfdc4a60ad8d4f6099869ace515b732107c3ece13",
   "claims": [
     {
       "id": "claim_a14c0582dfff450fb754f048a152128f",
@@ -41,8 +41,12 @@
       "statement": "An incomplete fuel contract term (UNSET threshold, unconfirmed lag, missing price/period) never auto-computes: the engine returns source MANUAL with not-applicable zeros and a formula string naming the exact missing item, never substituting 0, an example number, or another route's price.",
       "evidence": [
         {
-          "resource": "repo://backend/src/services/freight-pricing-engine.service.ts#L148-L168",
-          "version": "repo-lines-v1:sha256:5cc84bfa02a84f771559966c92c26bf3135d5699cc2604ee012e82d5880c165c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4NzY1MzcxYWVhMWNjN2Q0NmVjNmVmY2NiYmU5ZTllNzNjOTE4OTRmMGQwNmM3MWYxMjVhYzhiZTI1NWI3YmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZDVjMmE2NTUwMGM0MzBmNTkxOGQzMDI0NDBmMzBlYTE5NzE0YjE1ZDFjMDFjNDFkNmFkZjY4Yzc0OTk1MGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEyMzIxMTg0MjYwNmU0NzM3ODhkYTg4N2UwMTQ2ZTYyYzE1ODMwODljNzg5OTNlZGYwMzYwYzEyMTkwNzVjNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlZWVmZGQ1MTEzZDk5MDU2ZjFlMTlkZTFiN2Q1YmVkZTZlMGEzMDFmOWU4ZjdiZTRlYWQzZjhmOGRhODY2YzgifQ"
+          "resource": "repo://backend/src/services/freight-pricing-engine.service.ts",
+          "version": "repo-file-v1:sha256:a17f5f8155f94b147624af36006b019dd779daa45f57bcce09c73dcc02de6c7e"
+        },
+        {
+          "resource": "repo://docs/prd/PhuongAnTinhCuocTuDong.md",
+          "version": "repo-file-v1:sha256:4edda064c93097752aff174dfb76d0476547abb6b2405ceaff15f8c5154341ac"
         }
       ]
     },
@@ -52,7 +56,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/lib/format.ts",
-          "version": "repo-file-v1:sha256:2f31bb396d5bab7e5e036e651260684cd9371d34abc69202224cb218c3a3cb87"
+          "version": "repo-file-v1:sha256:73d85c88700da146074959542e7f26ad19915386a14318fa6a5931c1041cfb71"
         },
         {
           "resource": "repo://frontend/src/pages/finance-derived.ts#L17-L73",
@@ -66,7 +70,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/seed/seed-demo-freight-pricing.ts",
-          "version": "repo-file-v1:sha256:55115cbc56a541f305485ed8786ff1f085f1f6426a1d64c37d976a56d6792c44"
+          "version": "repo-file-v1:sha256:b426cec66fd5d924ad9a3355b0828d409efcb2236b701de5974ba24d195ce926"
         },
         {
           "resource": "repo://frontend/src/features/trips/tripColumns.tsx#L451-L451",
@@ -142,7 +146,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/services/deposit-refund-tracker.service.ts",
-          "version": "repo-file-v1:sha256:ad92d7269cfcc30f9e8a1c19afda30118ca9f6fba9b8bffef56bf4b45abe4516"
+          "version": "repo-file-v1:sha256:9447ae51ef1dd4ae4efbd0fc8e17cb6f2cf2b721d694ff29fe54ed0d6aa3c24a"
         }
       ]
     },
@@ -156,27 +160,103 @@
         },
         {
           "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
-          "version": "repo-file-v1:sha256:fffea224d54c21c01e5d93cd6011b6277a9938cce221b85746116e0be85a97e1"
+          "version": "repo-file-v1:sha256:02dc2644b9414d65cee6bb35ba3692d1b8db47837b328485a3e88f2908328fce"
         }
       ]
     },
     {
       "id": "claim_6bb6125448f943ee8963df3138c53039",
-      "statement": "Ten financial-write mutations require an Idempotency-Key and replay their first outcome: three chot-debit rate-adjustment commands, three deposit-tracker commands, four phoi-phieu commands. The material-write registry rejects out-of-registry writes, the wrapper refuses keyless requests with 400, and each mutation commits atomically with its idempotency record.",
+      "statement": "Financial-write mutations require an Idempotency-Key and replay their first outcome: the chot-debit rate-adjustment commands, the deposit-tracker commands, the phoi-phieu commands, and since 09-24 the quotation import-commit endpoint — registered with replay returning the STORED response (3a940d0b). The registry (276 endpoint entries after CRUD-spec expansion) rejects out-of-registry writes, sweep tests enforce completeness and exhaustiveness, the key gate runs before auth (400 before 401/403), and each mutation commits atomically with its idempotency record.",
       "evidence": [
         {
           "resource": "repo://backend/src/middleware/material-write.ts",
-          "version": "repo-file-v1:sha256:bfbfa0f146bdd81a8df37ddad3e42e2d89ccf59a053b8ded451659799866f1f0"
+          "version": "repo-file-v1:sha256:2d291a0302a2a2fc41149cb6498fb925ab800e302ed1a9f01cea89bd77f876f6"
         },
         {
-          "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
-          "version": "repo-file-v1:sha256:fffea224d54c21c01e5d93cd6011b6277a9938cce221b85746116e0be85a97e1"
+          "resource": "repo://backend/src/services/idempotency.service.ts",
+          "version": "repo-file-v1:sha256:458d09e482cc149aadd3a362f0d155b086e067be8b4882a64b62430d908b19f0"
+        },
+        {
+          "resource": "repo://backend/src/tests/material-write-registry-completeness.test.ts",
+          "version": "repo-file-v1:sha256:aa691cba556d7f57f8e741bcd51f19a7bc22a71b87245ad9d8f5fa3ae99eaa9f"
+        },
+        {
+          "resource": "repo://backend/src/tests/material-write-registry-exhaustive.test.ts",
+          "version": "repo-file-v1:sha256:177e233e495792dba8fa6ec7cfde35382be35fe3e8fca9f946bfaa015fd92e97"
+        }
+      ]
+    },
+    {
+      "id": "claim_bc4d3a4dfcea4be8ab6f112d40b9bd72",
+      "statement": "Chot-debit settles per đợt through debit_settlement_rounds (high_valkyrie trio): Lần user-chosen (duplicate → 400), Tháng 1–12 + năm, chiều THU/TRA, VAT 0/5/8/10%, Tổng tiền = counterparty amount + VAT; UNIQUE per (customer, period, lần, direction); lot-overlap guard (≤1 round per lot, 400); THU needs no nhà xe; the TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads rounds back.",
+      "evidence": [
+        {
+          "resource": "repo://backend/drizzle/20260924021509_high_valkyrie.sql",
+          "version": "repo-file-v1:sha256:92d1214393a7384f0120b05737bc1acf3e3073864b1a2c328724edecdc433255"
+        },
+        {
+          "resource": "repo://backend/src/routes/accounting-debit.ts",
+          "version": "repo-file-v1:sha256:723871a952ce21f967d122b72354d85831bfa95c7c07a410fe675ac373007c7d"
+        },
+        {
+          "resource": "repo://backend/src/services/debit-settlement-rounds.service.ts",
+          "version": "repo-file-v1:sha256:20ad8417adfaf32bd5af5b2fc70304f1e2f1f268b688b39ce23cf481a29e2311"
+        }
+      ]
+    },
+    {
+      "id": "claim_0dda1bd8c57c4ebb83aadf126d2f29ff",
+      "statement": "Import-commit INHERITS the customer's prior active frame's quotation_fees catalog verbatim (routing + defaultAmount, same tx — ruling ii), first-ever import stays fee-less, copied fees are ordinary-editable; routing keys are facility-neutral (DEDICATED_DEPOT renamed from DEDICATED_LACH_HUYEN — port names never enter identifiers, the fee-name classifier is legal name-matching).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/quotation-import.service.ts",
+          "version": "repo-file-v1:sha256:5d34f2f17772a42db6ee964aec21c681ef0ef6737452b799274f4fa018aad570"
+        },
+        {
+          "resource": "repo://backend/src/tests/import-gia-validation.test.ts",
+          "version": "repo-file-v1:sha256:9fcacd47d7e529d31fd7c14594d461693a3f1f13ca40f30459262dc585b9dcc0"
+        }
+      ]
+    },
+    {
+      "id": "claim_9f014edd5fdc417b9ea30700cae655d8",
+      "statement": "Approval precedes payment on both voucher chains (payer split per ADR 2026-09-24-expense-payer-scope-split): the phoi-phieu voucher consumes ONLY approved (confirmedAt) chi-hộ/OPS sources with remaining>0, counter previews the eligible set; the cash/vouchers DRIVER_PAYOUT chain refuses unapproved DRIVER sources with a 409 naming fees; single payer per source kind.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/expense-accounting-cash.ts",
+          "version": "repo-file-v1:sha256:4718f62848a72bb501ec9500825b9c14374730a9a2696da5b278ac01bc1582a2"
+        },
+        {
+          "resource": "repo://backend/src/services/phoi-phieu-control.service.ts",
+          "version": "repo-file-v1:sha256:68d30cbce67b4a6c6f467dd36f4d5c1735ad94427ffcd0dc84f94e58ff2cde0e"
+        },
+        {
+          "resource": "repo://docs/adr/2026-09-24-expense-payer-scope-split.md",
+          "version": "repo-file-v1:sha256:28c70f337e3b7a4474b7924067fb27af01c812f12b643a8db02b7da34e9c44fe"
+        }
+      ]
+    },
+    {
+      "id": "claim_e3fe911387e74cc6ac07d8015263bc49",
+      "statement": "L1 totals EXCLUDE fulfillment-NULL trips' fees (they can never be chotted) with the excluded money surfaced behind a red shadow line (excludedCount/excludedSum, hidden at 0); L2 renders fulfillment-unattached trips as a display-only section (never in payables totals, per-trip 'Ngoài chốt' markers, business keys only).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/shipment-debit-summary.service.ts",
+          "version": "repo-file-v1:sha256:27518a42df5901c5436f995a9dd1f83c55a6b20c79ec0fb6f0efe8806b1fd3d7"
+        },
+        {
+          "resource": "repo://frontend/src/features/shipments/debit/ShipmentDebitTables.tsx",
+          "version": "repo-file-v1:sha256:9f40e50b8b7a948f8e1da5a33692151a286946560530d81c9d1f5f3ae72a48c8"
+        },
+        {
+          "resource": "repo://frontend/src/features/shipments/debit/ShipmentDebitTables.unattached.tsx",
+          "version": "repo-file-v1:sha256:e44f9ecf7297a4a33e1ce91cf7a663867cca1babe0ed337dd75c8f6446d122d3"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.5.0",
-    "at": "2026-09-22T09:33:28.570Z"
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-24T07:05:35.307Z"
   }
 }

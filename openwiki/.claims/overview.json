@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:539f2730875e1995bf83536559593b9b9d3b6e06e58ab2dd8b28350d4df4856c",
+  "pageVersion": "sha256:bf57ec807326e7f36ebbe86394079eef3aacaadc193fa62a886e7a2411c655bc",
   "claims": [
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
@@ -18,7 +18,7 @@
       "evidence": [
         {
           "resource": "repo://AGENTS.md",
-          "version": "repo-file-v1:sha256:71142829876edd80bcb456861b38f0ac1fc24fd3e0817fbc53741c17c42d8031"
+          "version": "repo-file-v1:sha256:189e3edc7f2d71276e2f542b4cd94122366597f3452830c8779bc1422a24a0d1"
         }
       ]
     },
@@ -42,7 +42,7 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:80487d5805c1ddcce5055e567b922f726b8e9dd6747850b6b5a18524d292fe3f"
+          "version": "repo-file-v1:sha256:81c61ef495b44f826f9bf09029125fb83adf90bbc0fb9dda61f907222d38a42f"
         },
         {
           "resource": "repo://testplan/flows/README.md",
@@ -73,12 +73,8 @@
       "statement": "The CUS settlement screen Chi phí – Quyết toán consolidates a customer's locked lots for debit-note export: top-bar customer filter (required), delivery-date range and lock-status filters, Lớp 1 lot rollups (freight, chi hộ, phải thu, phải trả, lợi nhuận, lock state), Lớp 2 container-keyed freight/chi-hộ tables with editable Phát sinh, and Xuất Debit Note issuing one consolidated note per customer per period, rejecting overlapping selections with a 409 naming the overlapping lot codes.",
       "evidence": [
         {
-          "resource": "repo://backend/src/routes/shipments/core.routes.ts",
-          "version": "repo-file-v1:sha256:22b48996fca5bcbd0a73088e631447cae038a46b0593ec5487610c30c60badb8"
-        },
-        {
           "resource": "repo://frontend/src/pages/ShipmentDebitPage.tsx",
-          "version": "repo-file-v1:sha256:76f8048e4e3a75b50465a5fff4a1cbb1dc696893134486112f298a585d94928e"
+          "version": "repo-file-v1:sha256:d69a55459fc7a826566b7c545f6047a87110bc69f4db708a5e35ddbd5e8a13b4"
         },
         {
           "resource": "repo://shared/src/constants/api-paths.ts",
@@ -88,15 +84,19 @@
     },
     {
       "id": "claim_6f313dc403794228a1a49382e895fb9e",
-      "statement": "Kế toán chốt debit board (/accounting/chot-debit, accountant/admin; 2026-09-22): the per-lot KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP view with the fixed thu/trả column ladder, excel-style filters on customer and nhà xe, and a confirmation-column rate-adjustment flow where a pending request blocks that lot's debit export until kế toán confirms.",
+      "statement": "Kế toán chốt debit board (/accounting/chot-debit, accountant/admin; 2026-09-22, settled per-đợt since 2026-09-24): the per-lot KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP view with the fixed thu/trả column ladder, excel-style filters on customer and nhà xe, a confirmation-column rate-adjustment flow where a pending request blocks that lot's debit export, the Chọn Debit settlement popup (Lần/Tháng/THU-TRA/VAT per đợt, debit_settlement_rounds), and the TỔNG HỢP CÔNG NỢ KHÁCH HÀNG read-back table.",
       "evidence": [
         {
           "resource": "repo://backend/src/routes/accounting-debit.ts",
-          "version": "repo-file-v1:sha256:90659c7a4733e97cd965ba885979963060b5e4779a38e5dd1bf8b98b493f366d"
+          "version": "repo-file-v1:sha256:723871a952ce21f967d122b72354d85831bfa95c7c07a410fe675ac373007c7d"
+        },
+        {
+          "resource": "repo://backend/src/services/debit-settlement-rounds.service.ts",
+          "version": "repo-file-v1:sha256:20ad8417adfaf32bd5af5b2fc70304f1e2f1f268b688b39ce23cf481a29e2311"
         },
         {
           "resource": "repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx",
-          "version": "repo-file-v1:sha256:f2e8fb852395b26d34a1fe66370443eb417cca703f50378c8e04c00d72a36d49"
+          "version": "repo-file-v1:sha256:ce17b0e6c8d72107dd44342f67f51bd0df8e89201546ec15eb3aad4f0526c71f"
         }
       ]
     },
@@ -113,10 +113,60 @@
           "version": "repo-file-v1:sha256:4b530cfac17b1a412f7cff05b07c75041a19c6748ae3e52b6ccee014615b3374"
         }
       ]
+    },
+    {
+      "id": "claim_60c1bae90fbf4c50babc32b572e27b73",
+      "statement": "OPS read-only Sổ quỹ (2026-09-24, card _13): a scoped read-only fund-book section on /ops/wallet shows the OPS caller's own cash events (tạm ứng/hoàn ứng) with closing == wallet balance; full treasury remains ACCOUNTANT/ADMIN (ADR 2026-09-24-ops-fund-book-scoped-read).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/ops.ts",
+          "version": "repo-file-v1:sha256:acf835ae4d2e473ff8791cb65b9dc1b37285c27e72d1d9f2faeecae4dd8d0311"
+        },
+        {
+          "resource": "repo://docs/adr/2026-09-24-ops-fund-book-scoped-read.md",
+          "version": "repo-file-v1:sha256:479235e6c5d542b7556294e8e1d0f75a12f567ac05eb86fff0e527affc773688"
+        },
+        {
+          "resource": "repo://frontend/src/pages/OpsWalletPage.tsx",
+          "version": "repo-file-v1:sha256:faec2cc7d49a80017bfa129e5a7a995459cf1f87ced04779c8d149f67fff6181"
+        }
+      ]
+    },
+    {
+      "id": "claim_c0681c6787d24c2c983b3853b1a0c712",
+      "statement": "Deposit-tracker overdue-CV alert (2026-09-24, card _14): red overdue line ('kiểm tra check cược số lượng: N lô hàng') + persistent money line + once-per-load toast, per-session dismissal, hidden at zero overdue; live-computed with the VN-calendar predicate (Asia/Ho_Chi_Minh), no cron.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/deposit-refund-tracker.service.ts",
+          "version": "repo-file-v1:sha256:9447ae51ef1dd4ae4efbd0fc8e17cb6f2cf2b721d694ff29fe54ed0d6aa3c24a"
+        },
+        {
+          "resource": "repo://frontend/src/pages/accounting/DepositRefundTrackerPage.tsx",
+          "version": "repo-file-v1:sha256:4ca568a103ebee7d201c7a6f997dd0e78a5855c9d5f86adad5edef2b60447181"
+        }
+      ]
+    },
+    {
+      "id": "claim_9c809b6211c548ecbc54d45d9e9798c5",
+      "statement": "Quotation page split + import parity + inherit (2026-09-24): the config page splits route block + fee catalog section; import preview ≡ commit via the shared row validator (empty-giá → row-level error, commit refused); import-commit is idempotent (replay returns the stored response) and the new frame inherits the prior frame's fee catalog (ruling ii).",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/quotation-import.service.ts",
+          "version": "repo-file-v1:sha256:5d34f2f17772a42db6ee964aec21c681ef0ef6737452b799274f4fa018aad570"
+        },
+        {
+          "resource": "repo://frontend/src/pages/config/QuotationConfigPage.tsx",
+          "version": "repo-file-v1:sha256:cbd4c0b649d1314382c66ef45e7a690c542591e484e94b915b21ccd669bcf681"
+        },
+        {
+          "resource": "repo://frontend/src/pages/config/QuotationFeesSection.tsx",
+          "version": "repo-file-v1:sha256:353dd1e3c792539168e3b82cc3aaa0e5e7105bc382d796a411a6b282bff2d339"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.5.0",
-    "at": "2026-09-22T09:33:28.570Z"
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-24T07:05:35.307Z"
   }
 }

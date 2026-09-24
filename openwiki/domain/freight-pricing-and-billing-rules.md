@@ -6,10 +6,16 @@ tags: [pricing, fuel-surcharge, billing, debit-note, display-contracts]
 sources:
   - id: openwiki-source-7d078f7ea54e3537b5202b19
     resource: repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql
+  - id: openwiki-source-26dcfa0e9a4f316c273ca117
+    resource: repo://backend/drizzle/20260924021509_high_valkyrie.sql
   - id: openwiki-source-908be3a6f6197a3e04f3eba1
     resource: repo://backend/src/db/schema/pricing.ts
   - id: openwiki-source-e9e879d7129d1316457b3c7b
     resource: repo://backend/src/middleware/material-write.ts
+  - id: openwiki-source-21e4d97ecfcc42ea0d65f739
+    resource: repo://backend/src/routes/accounting-debit.ts
+  - id: openwiki-source-8a7dc2177b678ba2a25acff4
+    resource: repo://backend/src/routes/expense-accounting-cash.ts
   - id: openwiki-source-22287984c48f175c9111b39c
     resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-6ee9d82604a0a878f2bd4f58
@@ -18,20 +24,42 @@ sources:
     resource: repo://backend/src/services/accounting-debit-close.service.ts
   - id: openwiki-source-10e4db2d245bc653bfb84cab
     resource: repo://backend/src/services/billing-document-governance.service.ts
+  - id: openwiki-source-17ab73c4cfb6d34c142e341d
+    resource: repo://backend/src/services/debit-settlement-rounds.service.ts
   - id: openwiki-source-f182525155ebdf45eaa76a0b
     resource: repo://backend/src/services/deposit-refund-tracker.service.ts
   - id: openwiki-source-a3a0a1921d5309133aa9d113
     resource: repo://backend/src/services/freight-pricing-engine.service.ts
+  - id: openwiki-source-c07f430318fa5af6fcb6c616
+    resource: repo://backend/src/services/idempotency.service.ts
+  - id: openwiki-source-0bfa5874eb237c5148ad9bfc
+    resource: repo://backend/src/services/phoi-phieu-control.service.ts
+  - id: openwiki-source-3785e8f422f1b7b44c467858
+    resource: repo://backend/src/services/quotation-import.service.ts
+  - id: openwiki-source-6bbe3d8292f04ae241cde05c
+    resource: repo://backend/src/services/shipment-debit-summary.service.ts
   - id: openwiki-source-4f38a86b10ebec9affe678df
     resource: repo://backend/src/services/treasury-fund-book.service.ts
   - id: openwiki-source-64f15c4bf2dabd7241f4d7ec
     resource: repo://backend/src/tests/card9-fund-history-merge.test.ts
+  - id: openwiki-source-27e4eca89cf93b6c51539037
+    resource: repo://backend/src/tests/import-gia-validation.test.ts
+  - id: openwiki-source-e1a8489783cd89ef9b97cf8b
+    resource: repo://backend/src/tests/material-write-registry-completeness.test.ts
+  - id: openwiki-source-8a3dca49136c828ae67cfa9c
+    resource: repo://backend/src/tests/material-write-registry-exhaustive.test.ts
   - id: openwiki-source-8038dca02791074513aa5725
     resource: repo://BACKLOG.md
+  - id: openwiki-source-77462bb0fda4fa77f16b69f4
+    resource: repo://docs/adr/2026-09-24-expense-payer-scope-split.md
   - id: openwiki-source-7c110e1f554a6edd95993c36
     resource: repo://docs/prd/PhuongAnTinhCuocTuDong.md
   - id: openwiki-source-5780a594c9de4a6704542afb
     resource: repo://docs/prd/README.md
+  - id: openwiki-source-ee693529d2c4d36566935267
+    resource: repo://frontend/src/features/shipments/debit/ShipmentDebitTables.tsx
+  - id: openwiki-source-4038f9c9623f32060aff331b
+    resource: repo://frontend/src/features/shipments/debit/ShipmentDebitTables.unattached.tsx
   - id: openwiki-source-9f3012bd7b3b7e37fa71ae81
     resource: repo://frontend/src/features/trips/tripColumns.tsx
   - id: openwiki-source-83e07eecdb8292c75c7ec3b7
@@ -40,10 +68,10 @@ sources:
     resource: repo://frontend/src/pages/finance-derived.ts
   - id: openwiki-source-b2fbadbe08a5df4d9cfca2ed
     resource: repo://shared/src/calculations/fuelSurcharge.ts
-generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
+generated: { by: "claude-code", at: "2026-09-24T07:05:35.307Z" }
 verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-22T09:33:28.570Z
+  - by: openwiki/0.5.2
+    at: 2026-09-24T07:05:35.307Z
 ---
 
 # Freight Pricing and Billing Rules
@@ -96,6 +124,16 @@ All internal approval workflows were removed by product ruling (2026-09-15): fin
 - **One live pending request per lot.** While a lot's request is PENDING, that lot cannot be exported to debit — both debit-note issuance paths refuse with 409 "Lô <code> đang chờ đối soát cước". Kế toán clears the gate by confirming (per row or tick-all); withdrawing a request re-opens the lot and any earlier confirmed state shows again; a cost-locked lot is frozen and rejects new requests outright.
 - **Honest money display**: a missing input (Phí RU rate, carrier cost, ops total) renders "Chưa xác định" — never a fabricated 0 — and lợi nhuận stays unknown until every component is known (tổng thu − tổng 1 − phí RU, with tổng 1 excluding phí RU).
 
-## Financial-write idempotency boundary (2026-09-22)
+## Financial-write idempotency boundary (2026-09-22, expanded 09-24)
 
-- **Ten financial-write mutations require an Idempotency-Key** and replay their first outcome on retry: the three chot-debit rate-adjustment commands, the three deposit-tracker commands, and the four phoi-phieu commands (phiếu lập, row void, phôi take-over metadata, truck-accountant assignment). The middleware registry rejects an out-of-registry write, the wrapper refuses a keyless request with 400, and each mutation commits together with its idempotency record so a retried submission can never apply twice.
+## Financial-write idempotency boundary (2026-09-22, expanded 09-24)
+
+- **Financial-write mutations require an Idempotency-Key** and replay their first outcome on retry: the three chot-debit rate-adjustment commands, the three deposit-tracker commands, the four phoi-phieu commands (phiếu lập, row void, phôi take-over metadata, truck-accountant assignment), and since 09-24 the quotation import-commit endpoint — registered, with replay returning the STORED response instead of creating a duplicate frame (3a940d0b). The registry (276 endpoint entries after CRUD-spec expansion) rejects out-of-registry writes, sweep tests enforce completeness (every write route registered or documented-exempt) and exhaustiveness, the wrapper refuses a keyless request with 400 BEFORE auth on registered endpoints (key-gate-first order, `material-write.ts:415`), and each mutation commits together with its idempotency record.
+
+## Chi-phi wave (2026-09-24): settlement rounds, import inherit, voucher approval gates, shadow display
+
+- **Chot-debit settles per đợt through `debit_settlement_rounds`** (high_valkyrie trio): the Chọn Debit popup takes Lần (user-chotten, duplicate → 400), Tháng 1–12 + năm, chiều THU/TRA, VAT 0/5/8/10% — hệ thống tự nhân ra VAT amount and Tổng tiền = counterparty amount + VAT — plus Ghi chú; persisted with UNIQUE per (customer, period, lần, direction) and a lot-overlap guard (a lot joins ≤1 round, 400); THU settles the customer as counterparty (nhà xe not required, MIXED allowed). The TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads the rounds back (kỳ theo dõi = lần+tháng, VAT, ghi chú).
+- **Import-commit INHERITS the fee catalog** (ruling ii, c41c5e74): the new frame copies the customer's PRIOR ACTIVE frame's `quotation_fees` verbatim (routing + defaultAmount, same tx) so `/fees/active` never returns [] on later frames; first-ever import stays fee-less until configured; copied fees are ordinary-editable. Routing keys are facility-neutral (`DEDICATED_DEPOT`, renamed from DEDICATED_LACH_HUYEN — port names never enter identifiers; the fee-name classifier stays legal name-matching).
+- **Approval precedes payment on both voucher chains** (payer split, ADR 2026-09-24-expense-payer-scope-split): the phoi-phieu voucher consumes ONLY approved (confirmedAt) chi-hộ/OPS sources with remaining>0 — the toolbar counter previews exactly the eligible set (cash-adjusted) so preview == voucher contents; the cash/vouchers DRIVER_PAYOUT chain refuses unapproved DRIVER sources with a 409 naming the fees. Single payer per source kind; the phoi-phieu tiền-đường widening was dropped by ruling.
+- **L1 shadow line + L2 unattached section**: L1 totals EXCLUDE fulfillment-NULL trips' fees (they can never be chotted) — the excluded money surfaces behind a red shadow line "N chuyến chưa gán fulfillment — X ₫ chưa vào chốt" (hidden at 0, never silently excluded); L2 renders fulfillment-unattached trips as a display-only section (caption "…chỉ hiển thị, không vào tổng chốt", per-trip "Ngoài chốt" markers, business keys only, never in payables totals).
+- **Overdue-CV alert**: deposit-tracker surfaces a red "N lô hàng" overdue line + persistent money line + once-per-load toast with per-session dismissal, computed live (VN-calendar-day predicate, Asia/Ho_Chi_Minh), no cron.

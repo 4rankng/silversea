@@ -1,22 +1,32 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-22 state of origin/prod (8b26f5a9): the accounting chot-debit board (KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP) with confirmation-column rate adjustments gating debit export, the ten financial-write mutations behind the runIdempotent boundary with mandatory Idempotency-Key, the two-source fund ledger merge, plus the earlier cut-14 contracts (billing readiness gate, two-row filter grid, in-dropdown row creation)."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning, the CUS workspace, shipment settlement and debit notes (Chi phí – Quyết toán) including the shared business-key display layer, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the 2026-09-24 state of origin/prod (c41c5e74): the accounting chot-debit board now settles per-đợt through debit_settlement_rounds (Lần/Tháng/THU-TRA/VAT) with the TỔNG HỢP CÔNG NỢ read model; quotation import-commit shares the preview's row validator, is idempotency-registered, and inherits the prior frame's fee catalog; phoi-phieu vouchers pay only approved chi-hộ/OPS sources (payer split per ADR); L1 debit totals exclude fulfillment-less trips behind a shadow line; the material-write registry carries 276 endpoint entries under completeness+exhaustive sweep tests; and the migration trio coherence gate plus the post-deploy migration gate close the silent-skip class."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-22T09:33:28.570Z
+  - by: openwiki/0.5.2
+    at: 2026-09-24T07:05:35.307Z
 sources:
   - id: openwiki-source-140d3d74c1896e4779866932
     resource: repo://backend/drizzle/0000_flexible-baseline.sql
+  - id: openwiki-source-26dcfa0e9a4f316c273ca117
+    resource: repo://backend/drizzle/20260924021509_high_valkyrie.sql
+  - id: openwiki-source-e7912283bb94a20f5d8a465a
+    resource: repo://backend/drizzle/20260924035509_seed_name_suffix_strip.sql
+  - id: openwiki-source-224ca8b8495f5cd7024c15a4
+    resource: repo://backend/drizzle/20260924115231_strip_residual_disambiguate.sql
   - id: openwiki-source-9a7277933ab0110af5cb7cbe
     resource: repo://backend/package.json
+  - id: openwiki-source-bae35bd689599b03c41f8abf
+    resource: repo://backend/scripts/check-migration-trio.mjs
   - id: openwiki-source-1cda30f997a04679f2c9e592
     resource: repo://backend/src/db/schema/financial.ts
   - id: openwiki-source-e9e879d7129d1316457b3c7b
     resource: repo://backend/src/middleware/material-write.ts
   - id: openwiki-source-21e4d97ecfcc42ea0d65f739
     resource: repo://backend/src/routes/accounting-debit.ts
+  - id: openwiki-source-8a7dc2177b678ba2a25acff4
+    resource: repo://backend/src/routes/expense-accounting-cash.ts
   - id: openwiki-source-22287984c48f175c9111b39c
     resource: repo://backend/src/routes/shipments/core.routes.ts
   - id: openwiki-source-7633dc761224043313afe6c1
@@ -33,6 +43,8 @@ sources:
     resource: repo://backend/src/services/billing-document-governance.service.ts
   - id: openwiki-source-86b278930bf8667e24b587f6
     resource: repo://backend/src/services/cus-workspace-builders.service.ts
+  - id: openwiki-source-17ab73c4cfb6d34c142e341d
+    resource: repo://backend/src/services/debit-settlement-rounds.service.ts
   - id: openwiki-source-b783cbfcbb631c4f9e488edc
     resource: repo://backend/src/services/dispatch-planning-detail-plan.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
@@ -47,8 +59,12 @@ sources:
     resource: repo://backend/src/services/idempotency.service.ts
   - id: openwiki-source-200cd3cf936b00d433e49423
     resource: repo://backend/src/services/ops-settlement-export.service.ts
+  - id: openwiki-source-0bfa5874eb237c5148ad9bfc
+    resource: repo://backend/src/services/phoi-phieu-control.service.ts
   - id: openwiki-source-3aa37080f2fc30dc35478ecb
     resource: repo://backend/src/services/pricing.service.ts
+  - id: openwiki-source-3785e8f422f1b7b44c467858
+    resource: repo://backend/src/services/quotation-import.service.ts
   - id: openwiki-source-277912ce7743608f9e00b0cf
     resource: repo://backend/src/services/shipment-containers.service.ts
   - id: openwiki-source-74f75edc280b913e369ea0fe
@@ -65,12 +81,18 @@ sources:
     resource: repo://backend/src/tests/dispatch-detail-plan.test.ts
   - id: openwiki-source-22f3807e21b8281a0a2994f6
     resource: repo://backend/src/tests/dispatch-task-tags.service.test.ts
+  - id: openwiki-source-27e4eca89cf93b6c51539037
+    resource: repo://backend/src/tests/import-gia-validation.test.ts
+  - id: openwiki-source-e1a8489783cd89ef9b97cf8b
+    resource: repo://backend/src/tests/material-write-registry-completeness.test.ts
+  - id: openwiki-source-8a3dca49136c828ae67cfa9c
+    resource: repo://backend/src/tests/material-write-registry-exhaustive.test.ts
+  - id: openwiki-source-77462bb0fda4fa77f16b69f4
+    resource: repo://docs/adr/2026-09-24-expense-payer-scope-split.md
   - id: openwiki-source-7c110e1f554a6edd95993c36
     resource: repo://docs/prd/PhuongAnTinhCuocTuDong.md
   - id: openwiki-source-0047c2597980e18b4470c62d
     resource: repo://docs/prd/QuyTrinhO2C.md
-  - id: openwiki-source-1047363cf615000e4c9bb694
-    resource: repo://frontend/package.json
   - id: openwiki-source-454c9bcdde0b77b35e0fc994
     resource: repo://frontend/src/App.tsx
   - id: openwiki-source-472ad1b590b610500099dded
@@ -101,6 +123,10 @@ sources:
     resource: repo://frontend/src/features/shipments/create/uui-searchable-field.tsx
   - id: openwiki-source-9b47a81d8349af3735aeaff8
     resource: repo://frontend/src/features/shipments/cus/CusShipmentRow.tsx
+  - id: openwiki-source-ee693529d2c4d36566935267
+    resource: repo://frontend/src/features/shipments/debit/ShipmentDebitTables.tsx
+  - id: openwiki-source-4038f9c9623f32060aff331b
+    resource: repo://frontend/src/features/shipments/debit/ShipmentDebitTables.unattached.tsx
   - id: openwiki-source-a39f35618da371aac500abf1
     resource: repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx
   - id: openwiki-source-9f3012bd7b3b7e37fa71ae81
@@ -109,6 +135,8 @@ sources:
     resource: repo://frontend/src/hooks/useBuildFreshness.ts
   - id: openwiki-source-79395e5dd2432d131123d5c9
     resource: repo://frontend/src/lib/chunk-error.ts
+  - id: openwiki-source-228b2bfa1b61b16f0a31e924
+    resource: repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx
   - id: openwiki-source-a6f1236afb85bf62c18f5389
     resource: repo://frontend/src/pages/config/FuelPricePeriodsConfigPage.tsx
   - id: openwiki-source-e91ca5eb093baa7f2c484a34
@@ -119,6 +147,10 @@ sources:
     resource: repo://frontend/src/styles/font-family-contract.test.ts
   - id: openwiki-source-316dfb4c2b43d4800b46fd34
     resource: repo://frontend/src/tests/structure.guard.test.ts
+  - id: openwiki-source-378e3cf05ab0d05d335c68d5
+    resource: repo://frontend/vite.config.ts
+  - id: openwiki-source-012f2c78e3b1446dfc35803f
+    resource: repo://Makefile
   - id: openwiki-source-15e64fbca55f9b222f340423
     resource: repo://scripts/githooks/pre-commit
   - id: openwiki-source-592889025dfa2f31c9e5bba0
@@ -135,7 +167,7 @@ sources:
     resource: repo://shared/src/schemas/index.ts
   - id: openwiki-source-f89b776b27b18792107af8c0
     resource: repo://shared/src/schemas/shipment-debit-edits.ts
-generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
+generated: { by: "claude-code", at: "2026-09-24T07:05:35.307Z" }
 ---
 
 # Architecture and Codebase Map
@@ -244,7 +276,7 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - **RBAC** is enforced at the route boundary through Casbin; accountants are excluded from operational writes even when the underlying service supports them. The dispatch plan routes strip the dispatcher from `isCombined`, the external-trip close routes guard the dispatcher/CUS/ADMIN/MANAGER roles, and the note composer route mirrors the read mask on the plan.
 - **No internal approval routing.** The former internal approval workflows (approval requests, gate tables, and their FE queues) were removed by product ruling (2026-09-15): finance/ops writes post directly under role checks and audit events instead of an internal approval hop.
 - **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically. Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
-- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in. The 2026-09-20 customers overhaul added `customers.bulk-notify` and `customers.bulk-status` (lock/unlock) as registry entries with Idempotency-Key + in-transaction audit. The 2026-09-22 governance rider added ten financial-write rules — three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu endpoints — all wrapped in `runIdempotent` with mandatory `Idempotency-Key` (`backend/src/middleware/material-write.ts`).
+- **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in. The 2026-09-20 customers overhaul added `customers.bulk-notify` and `customers.bulk-status` (lock/unlock) as registry entries with Idempotency-Key + in-transaction audit. The 2026-09-22 governance rider added ten financial-write rules — three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu endpoints — all wrapped in `runIdempotent` with mandatory `Idempotency-Key` (`backend/src/middleware/material-write.ts`). The 2026-09-24 registry sweep (card _5) added the completeness + exhaustive tests (6405513a, 3a940d0b): every data-writing route must hold a `MATERIAL_WRITE_RULES` entry or a documented exemption, `quotation import-commit` is now registered and truly idempotent (replay returns the stored response), and the registry carries 276 endpoint entries after CRUD-spec expansion. The key gate runs FIRST (400 for a missing `Idempotency-Key` precedes auth 401/403 on those endpoints — documented key-gate-first order at `material-write.ts:415`).
 - **Single empty-state primitive (2026-09-20, card _41):** the app has exactly one EmptyState (the design-system primitive, with compact cards/rows/list preview variants); the parallel `.empty-state` chrome and the dead shared component were consolidated away, and the float animation carries a `prefers-reduced-motion` guard (`frontend/src/design-system/EmptyState.tsx`, `frontend/src/components/UI.css`).
 - **License-expiry risk flags (2026-09-20, card _44):** the fleet driver catalog renders a pure state function over the license expiry date — overdue rows get an oxblood icon+label ("Quá hạn N ngày"), ≤30-day rows bronze ("Còn N ngày"), long-dated/missing rows stay bare — so a compliance-risk field never renders as plain data (`frontend/src/features/dispatch/catalogs/FleetDriversView.tsx:26-40`).
 - **Local date formatters** live in `lib/format`; the structure guard bans bespoke formatters outside an allowlist and names every documented exception.
@@ -276,5 +308,14 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 - **Confirmation columns, not an approval queue** (user ruling on card 20260921_21, 2026-09-21): ticking a lot and sending "gửi yêu cầu điều chỉnh cước" creates ONE live PENDING request per lot (transactional INSERT..WHERE NOT EXISTS on `shipment_rate_adjustment_requests`; no partial unique index). While PENDING, both debit issuance routes (per-lot POST /:id/debit-note and consolidated POST /debit-notes) return 409 naming the lot in business language ("đang chờ đối soát cước"). Kế toán confirms per row or tick-all (guarded UPDATE), withdraw unmasks an earlier CONFIRMED state, and cost-locked lots reject new requests.
 - **Financial-write idempotency boundary**: ten financial-write mutations — three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu — run inside `runIdempotent` with tx threaded so the mutation and its idempotency record commit atomically; `runIdempotent` throws 400 "Idempotency-Key là bắt buộc" when the header is absent, and the material-write middleware registry inventories all ten endpoint rules (`backend/src/middleware/material-write.ts`). The frontend clients send `Idempotency-Key` (UUID) on every one.
 - **Phí RU** reads `pricing_tables` with `rate_key='RU'` (DATA — Chưa xác định until the customer populates rates); Lạch Huyện cells read ops `ZONE_SURCHARGE` rows by expense-type code; lợi nhuận = Tổng thu − Tổng 1 − Phí RU with Tổng 1 excluding RU.
+
+## Chi-phi wave (2026-09-24): settlement rounds, import parity + inherit, voucher approval gates, registry sweep, migration coherence
+
+- **Debit settlement rounds** (`debit_settlement_rounds` table via the high_valkyrie trio; service `backend/src/services/debit-settlement-rounds.service.ts`; popup on the chot-debit surface): chốt settles per đợt — Lần user-chosen (duplicate → 400), Tháng 1–12 + năm, chiều THU/TRA, VAT 0/5/8/10% with Tổng tiền = phải trả + VAT, Ghi chú — persisted (UNIQUE per customer+period+lần+direction) and read back by the TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table. Lot-overlap guard: a lot joins ≤1 round (400). THU settles without a nhà xe requirement (customer is the counterparty; MIXED allowed).
+- **Import parity + INHERIT** (`backend/src/services/quotation-import.service.ts`): preview and commit call the SAME shared row validator (all-✓ preview ⇒ commit cannot reject); empty/null/non-numeric giá = row-level preview error (row + column + expected format), no invented prices, commit keeps its rejection as backstop. Import-commit is registered in the material-write registry and truly idempotent — replay with the same `Idempotency-Key` returns the stored response, never a duplicate frame (3a940d0b). On commit, the new frame INHERITS the customer's prior active frame's `quotation_fees` catalog verbatim (routing + defaultAmount, same tx; ruling ii — first-ever import stays fee-less), guaranteeing `/fees/active` never returns [] on later frames.
+- **Voucher approval guards + payer split** (`phoi-phieu-control.service.ts`, `expense-accounting-cash.ts` chain; ADR 2026-09-24-expense-payer-scope-split): approval precedes payment on both chains — the phoi-phieu voucher consumes ONLY approved (confirmedAt) chi-hộ/OPS sources with remaining>0, counter previews the eligible set (cash-adjusted), and the cash/vouchers DRIVER_PAYOUT chain refuses unapproved DRIVER sources with a 409 naming fees (t5/t6). Port names never enter identifiers: routing keys are facility-neutral (`DEDICATED_DEPOT`, renamed from DEDICATED_LACH_HUYEN).
+- **L1 shadow line + L2 unattached section** (`shipment-debit-summary.service.ts`, `ShipmentDebitTables`): L1 totals EXCLUDE fulfillment-NULL trips' fees (they can never be chotted) and surface behind a red shadow line "N chuyến chưa gán fulfillment — X ₫ chưa vào chốt" (payload excludedCount/excludedSum, hidden at 0); L2 renders fulfillment-unattached trips as a display-only section (caption "…chỉ hiển thị, không vào tổng chốt", per-trip "Ngoài chốt" markers, never in payables totals).
+- **Registry sweep tests** (`material-write-registry-completeness.test.ts` + exhaustive variant): every data-writing route must hold a registry entry or documented exemption; dummy-route red-first proven. 276 endpoint entries post-CRUD-spec-expansion.
+- **Migration coherence + post-deploy gate**: `backend/scripts/check-migration-trio.mjs` (f90a5930) verifies journal/sql/snapshot consistency before any migration landing; the cut runbook adds a post-deploy migration gate (staging journal cursor == freeze journal count AND a newest-migration-backed probe endpoint 200 BEFORE "deployed" is declared). Seed names carry no epoch-id fragments (seeder ordinals; strip+disambiguate migration 19a77628/26f6f41a healed 325+ residual rows).
 
 ## Related pages

@@ -18,10 +18,10 @@ sources:
     resource: repo://shared/package.json
   - id: openwiki-source-2321476aab68e6b1ce6c7ba0
     resource: repo://testplan/testaccounts.txt
-generated: { by: "claude-code", at: "2026-09-21T23:41:16.831Z" }
+generated: { by: "claude-code", at: "2026-09-24T07:05:35.307Z" }
 verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-21T23:41:16.831Z
+  - by: openwiki/0.5.2
+    at: 2026-09-24T07:05:35.307Z
 ---
 
 # Quickstart
@@ -92,3 +92,10 @@ A versioned pre-commit hook (`scripts/githooks/pre-commit`, wired by `git config
 - The isolated backend test runner (`TZ=UTC node backend/scripts/test-isolated.mjs --filter <substr>`) builds a throwaway template DB per run: it applies every drizzle journal migration, so a journal entry whose migration `.sql` file is not tracked breaks every fresh checkout with a silent migrate exit — census `git ls-files backend/drizzle/*.sql` against `ls backend/drizzle/*.sql` first.
 - The accountant phoi-phieu surface needs its routes declared in `middleware/material-write.ts`; an undeclared route 500s on the audit context, not 404s.
 - Seed changes (fee catalog, fee norms) ride the cut's seed step; the seed is fill-only, so admin edits on live rows always win.
+
+## Chi-phi wave (2026-09-24) — validation-path notes
+
+- **Migration trio coherence check BEFORE any migration landing**: `node backend/scripts/check-migration-trio.mjs` (f90a5930) verifies journal/sql/snapshot consistency — run it in the same commit as any `make generate` output; it closes the incomplete-trio class (09-24: a .sql landed without journal/snapshot and the staging migrate silently skipped it).
+- **Post-deploy migration gate on every cut**: staging journal cursor must equal the freeze tree's journal count AND a probe endpoint backed by the newest migration must return 200 BEFORE the cut is declared deployed (runbook rule; today's 130-vs-131 miss is structurally impossible next cut).
+- **BE suites run on the isolation runner** (`TZ=UTC node backend/scripts/test-isolated.mjs --concurrency 4 [--filter substr]`) — throwaway template DB per suite, local :5441 only, never staging; local DATABASE_URL fallback (5441) still applies for un-filtered runs.
+- **Two-checkout port map unchanged** (09-24): `ss-prod-*` containers (Postgres 5441 / Redis 6391 / Adminer 8083), app stack 3002/7175 on this checkout; the sibling `silversea-main` keeps `ss-main-*` (5442/6392/8084, app 3001/7174) — never run both app stacks at once.

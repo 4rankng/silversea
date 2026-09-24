@@ -1,18 +1,22 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1a1ca1a8c2bb75811a17300cdbb0c12078757418b362912f955ac367cdd8cc13",
+  "pageVersion": "sha256:71acd69f6973448d00e5c5b850b796efef96a3f0c49541b19afe06a7e810fc93",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
-      "statement": "SilverSea is a pnpm monorepo: Express+TS backend on port 3001, React 19+Vite frontend on strictPort 7174, shared @tingting/shared package; the layered backend service modules live in backend/src/services on Drizzle/Postgres with JWT+Casbin RBAC.",
+      "statement": "SilverSea is a pnpm monorepo: Express+TS backend and React 19+Vite frontend (vite strictPort 7174 in repo config; this checkout's make dev serves the app stack on 3002/7175 per the Makefile), shared @tingting/shared package; the layered backend service modules live in backend/src/services on Drizzle/Postgres with JWT+Casbin RBAC.",
       "evidence": [
+        {
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:01642aa32829317c5f9f835c1c78f46cb25725ffadae6bd5d39316584263b8b1"
+        },
         {
           "resource": "repo://backend/package.json",
           "version": "repo-file-v1:sha256:32ae111053a8a18afa42c08656a0d514b42e227d14cd24b89c317f3812992630"
         },
         {
-          "resource": "repo://frontend/package.json",
-          "version": "repo-file-v1:sha256:f2cab24ef8f0e31dfdb50c8f92dfd41981566f315600913652e22611e63e89a8"
+          "resource": "repo://frontend/vite.config.ts",
+          "version": "repo-file-v1:sha256:43f79bc00638ee4a06fd2d09b1bedd8b1bc5ac2b21b71f6b93c69dabf7fe5666"
         }
       ]
     },
@@ -22,7 +26,7 @@
       "evidence": [
         {
           "resource": "repo://shared/src/calculations/round.ts",
-          "version": "repo-file-v1:sha256:40a80e09a6d2b081266139c0f111300600ecc06712c44180ab697799014778c2"
+          "version": "repo-file-v1:sha256:4e5c78fb3fd651b5838c7e4884b07691ae946af7af1c3081ef730a048467ef0e"
         },
         {
           "resource": "repo://shared/src/calculations/tripTotals.ts",
@@ -36,7 +40,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
+          "version": "repo-file-v1:sha256:bf0a267525990de495ef31a2ea697fed8fcbe903334c62fc9605d5243333a9a5"
         }
       ]
     },
@@ -74,7 +78,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/index.ts",
-          "version": "repo-file-v1:sha256:7ff42ba93b10eaa3443de648e36d0d2b696c8fc9af02bd92c2b2e45056cee02a"
+          "version": "repo-file-v1:sha256:4a8b7bfd6c7f3a788916245e85cfe5c64041802f453e522485b4210cfc9f1fe4"
         }
       ]
     },
@@ -98,7 +102,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
+          "version": "repo-file-v1:sha256:bf0a267525990de495ef31a2ea697fed8fcbe903334c62fc9605d5243333a9a5"
         },
         {
           "resource": "repo://scripts/githooks/pre-commit",
@@ -120,7 +124,7 @@
         },
         {
           "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
-          "version": "repo-file-v1:sha256:32f0e116a19b7a988c0c4ecfcb416366981bc9fdd8ea1004ecf44f72b00abdd0"
+          "version": "repo-file-v1:sha256:9802c5e3dcafb43a0e05f7db5d807904ab7a33acb94e3970321a80d183515ed1"
         }
       ]
     },
@@ -210,19 +214,19 @@
     },
     {
       "id": "claim_3a6d27005722439a9906eaf3c4d47c84",
-      "statement": "The CUS settlement surface reads consolidated lot money rollups from shipment-debit-summary.service (customer filter required, delivery-date range, lock status) and edits container-keyed freight/chi-hộ tables through shipment-debit-detail.service; the CUS may edit Phát sinh (PS thực tế) and ad-hoc no-invoice fees, while invoice-numbered chi hộ fees stay read-only. The L1 auto-freight rollup reads per-anchor supersede semantics: freight snapshots are INSERT-only, per-trip freezes are additive legs (latest row per (shipment, trip)), an active trip freeze supersedes the trip-NULL intake freeze, an intake-only lot counts once, and superseded freezes count in NO total — L1 equals Bảng 2.1 / debit_note_overrides.final_debit_freight.",
+      "statement": "The CUS settlement surface reads consolidated lot money rollups from shipment-debit-summary.service and edits container-keyed freight/chi-hộ tables through shipment-debit-detail.service; the L1 auto-freight rollup reads per-anchor supersede semantics (INSERT-only snapshots, additive per-trip legs, superseded freezes count in NO total — L1 equals Bảng 2.1 / debit_note_overrides.final_debit_freight), and since 855aef81 the L1 totals EXCLUDE fulfillment-NULL trips' fees — the excluded money surfaces behind a red shadow line (excludedCount/excludedSum) and L2 renders unattached trips display-only (6918e234).",
       "evidence": [
         {
           "resource": "repo://backend/src/services/shipment-debit-detail.service.ts",
-          "version": "repo-file-v1:sha256:90a1fc58d024f914dae54c7ae35025b43dbf05f728e75fee789e010733deef41"
+          "version": "repo-file-v1:sha256:c0436f1adc0391d28013d5e78430c7c89849e9cf56d7215a85205c6fc7907c8c"
         },
         {
-          "resource": "repo://backend/src/services/shipment-debit-summary.service.ts#L65-L99",
-          "version": "repo-lines-v1:sha256:c3306a1aee5c215204afd32c75fd9e932dc6e6665c92010d4c2e56c3b1ee0f7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNDY5ZTRhODY1NWFjZDg1MmUxYWFhODNiYmJhNTQzM2RiODU3YjE4YzJmZTdjMjk5Nzk1NjhjYzgwNmY4MzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmMDE4NWJkYTNhYmM2NzIxZTA5MjBjODlkODA1NTQwNTZmMTJkNzQyMjk1MWJmZGEyMThmNTI5NzFjMjE4OWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImExNGQwZGQ2MGE4YTc1Yjc0MGNlNDcxNGM5MzQxMDJkNzkxOWU0YTk4NGQ5YjNmMmY1ZmNjNDYzZTM1NjY3NmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmYzc0MDIyMzIwYjdhNjc5YjA1ZjRkMjhmMmJiNjA1MGE1NTJjMGQwM2Y1ZjZkYTMzOTNkNjVkN2RiYTE4MjkifQ"
+          "resource": "repo://backend/src/services/shipment-debit-summary.service.ts",
+          "version": "repo-file-v1:sha256:27518a42df5901c5436f995a9dd1f83c55a6b20c79ec0fb6f0efe8806b1fd3d7"
         },
         {
-          "resource": "repo://shared/src/schemas/shipment-debit-edits.ts",
-          "version": "repo-file-v1:sha256:32f0e116a19b7a988c0c4ecfcb416366981bc9fdd8ea1004ecf44f72b00abdd0"
+          "resource": "repo://frontend/src/features/shipments/debit/ShipmentDebitTables.tsx",
+          "version": "repo-file-v1:sha256:9f40e50b8b7a948f8e1da5a33692151a286946560530d81c9d1f5f3ae72a48c8"
         }
       ]
     },
@@ -256,7 +260,7 @@
       "evidence": [
         {
           "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:80487d5805c1ddcce5055e567b922f726b8e9dd6747850b6b5a18524d292fe3f"
+          "version": "repo-file-v1:sha256:81c61ef495b44f826f9bf09029125fb83adf90bbc0fb9dda61f907222d38a42f"
         }
       ]
     },
@@ -324,7 +328,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
-          "version": "repo-file-v1:sha256:92aeb4d09287c3b60985b514cd7c2f5aa8985c5041f1b0f38e56cc1345e88c6c"
+          "version": "repo-file-v1:sha256:ba9bb37b4632c4e6f8d8052084c72c82e6a0586306588d1558e07f67705958ce"
         }
       ]
     },
@@ -358,7 +362,7 @@
         },
         {
           "resource": "repo://docs/prd/PhuongAnTinhCuocTuDong.md",
-          "version": "repo-file-v1:sha256:7ff68a506bb2ca02ff4f524cfc13a04e19d259563f2f92e2a0a92f50d8b61f18"
+          "version": "repo-file-v1:sha256:4edda064c93097752aff174dfb76d0476547abb6b2405ceaff15f8c5154341ac"
         }
       ]
     },
@@ -378,7 +382,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/seed/seed-demo-freight-pricing.ts",
-          "version": "repo-file-v1:sha256:55115cbc56a541f305485ed8786ff1f085f1f6426a1d64c37d976a56d6792c44"
+          "version": "repo-file-v1:sha256:b426cec66fd5d924ad9a3355b0828d409efcb2236b701de5974ba24d195ce926"
         }
       ]
     },
@@ -388,7 +392,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/pages/ShipmentContainersPage.css",
-          "version": "repo-file-v1:sha256:92aeb4d09287c3b60985b514cd7c2f5aa8985c5041f1b0f38e56cc1345e88c6c"
+          "version": "repo-file-v1:sha256:ba9bb37b4632c4e6f8d8052084c72c82e6a0586306588d1558e07f67705958ce"
         }
       ]
     },
@@ -426,7 +430,7 @@
         },
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:744a10d2189205a761881331e77106864bf8da7656b40b78e4dc018d900cdadb"
+          "version": "repo-file-v1:sha256:bf0a267525990de495ef31a2ea697fed8fcbe903334c62fc9605d5243333a9a5"
         }
       ]
     },
@@ -440,7 +444,7 @@
         },
         {
           "resource": "repo://frontend/src/design-system/EmptyState.tsx",
-          "version": "repo-file-v1:sha256:2f60edd27940674ba46dcd9f850dc38b2655e570f7bb74c5c0240c90cbc3a941"
+          "version": "repo-file-v1:sha256:45f299ab8c6ce5fc827bd64db45a99c28a6eee61a6b852f300c2052fb4a2cc89"
         }
       ]
     },
@@ -492,7 +496,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/services/expense-owner-scope.service.ts#L12-L34",
-          "version": "repo-lines-v1:sha256:8982dba9618ea6920526450b135c214b84761e5a44e14bb5a3b681c3c629df5c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMzFkNzZhYmYzZDNjYTU3ZTJmZWYwOTY4MjJmZGIwMDMzOThkODFiMmQ2MWRjOTkxM2UzNjU4YTlhYWIyMjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmMjNjMzliYzFlYjE2Y2U2NzU5NGY3ZDNhNDJlODFkOGU3YWJhMDVmYjBjMDk5ZDAxYzZkOGRiOTE0NDllNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMyNjRhOTBkZTY1YTdlNTllZTk2YmYwNzk0M2M3OGYwYzdlYTM1YzFiNDVhNGJlNGRkZjkyMmQxYzNkNjI0YmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1OTcwNjRlMjFlZjQ1OTFiY2U0YzFkNDRlYzAyODk0ZDQzM2YwNDY3MTViNjA0MDZjODlkOWJkOThiNjlhODkifQ"
+          "version": "repo-lines-v1:sha256:09f2c1f86e2a66c33b92ff1655afe72804178dca069973e345ad0279050b0e86:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMzFkNzZhYmYzZDNjYTU3ZTJmZWYwOTY4MjJmZGIwMDMzOThkODFiMmQ2MWRjOTkxM2UzNjU4YTlhYWIyMjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmMjNjMzliYzFlYjE2Y2U2NzU5NGY3ZDNhNDJlODFkOGU3YWJhMDVmYjBjMDk5ZDAxYzZkOGRiOTE0NDllNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMyNjRhOTBkZTY1YTdlNTllZTk2YmYwNzk0M2M3OGYwYzdlYTM1YzFiNDVhNGJlNGRkZjkyMmQxYzNkNjI0YmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1OTcwNjRlMjFlZjQ1OTFiY2U0YzFkNDRlYzAyODk0ZDQzM2YwNDY3MTViNjA0MDZjODlkOWJkOThiNjlhODkifQ"
         }
       ]
     },
@@ -516,7 +520,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/services/freight-rate-snapshot-lifecycle.service.ts#L106-L124",
-          "version": "repo-lines-v1:sha256:c261efa49f31d4b34a7aea4c9eb3fb0540362722c6e4dbdd781f32759a27e719:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNGI4MDJjY2I3YWY3OWY3ZDVhNjE5NTQxOTBlNjRhNGM4NzdlZjAyMmQxZmEzY2ZjZTc0MjlhM2IwNDEwNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzAzZTQzMTJmYjI0ZjVjMjE5OTEyNzJmYmY5ZWM5OGRmNzgwNjc4YzZlZWUyZTMyMzNlMzJiOTdkMDgwZTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyZDU2OGViZTM5N2RmM2FmZTZkYTlkODk0Njc4Mzg2YmE4MGRiNWZlNDc3ODE0MzBiZDRiYTQ1Yzg5ODVmMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3NTFjZjhmYmZlYzIyZDNlZmQ2MDg2MDRiOWEyMGRiZDE2ZmVjMDc2ZjVjODk0ZmE1NDkzNTIxNDFlZmMzMGYifQ"
+          "version": "repo-lines-v1:sha256:ce5637838b4d2db54b4ecb786d647b1d63ee752ba21d2779d15ba7492a3d73f3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNGI4MDJjY2I3YWY3OWY3ZDVhNjE5NTQxOTBlNjRhNGM4NzdlZjAyMmQxZmEzY2ZjZTc0MjlhM2IwNDEwNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzAzZTQzMTJmYjI0ZjVjMjE5OTEyNzJmYmY5ZWM5OGRmNzgwNjc4YzZlZWUyZTMyMzNlMzJiOTdkMDgwZTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyZDU2OGViZTM5N2RmM2FmZTZkYTlkODk0Njc4Mzg2YmE4MGRiNWZlNDc3ODE0MzBiZDRiYTQ1Yzg5ODVmMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3NTFjZjhmYmZlYzIyZDNlZmQ2MDg2MDRiOWEyMGRiZDE2ZmVjMDc2ZjVjODk0ZmE1NDkzNTIxNDFlZmMzMGYifQ"
         }
       ]
     },
@@ -526,7 +530,7 @@
       "evidence": [
         {
           "resource": "repo://backend/src/routes/accounting-debit.ts",
-          "version": "repo-file-v1:sha256:23bfe81a2554837613b1ef61b3519444e16040c838ce1ff7a9358ead8676bb5e"
+          "version": "repo-file-v1:sha256:723871a952ce21f967d122b72354d85831bfa95c7c07a410fe675ac373007c7d"
         }
       ]
     },
@@ -536,11 +540,11 @@
       "evidence": [
         {
           "resource": "repo://backend/src/db/schema/financial.ts",
-          "version": "repo-file-v1:sha256:b361a333aaa19ff76040de0d490d843f8f569177cdfcf86651bc4da383a39cf1"
+          "version": "repo-file-v1:sha256:898e1d0394ccbae976cda6a45051e0c64a184f31d2618a215f473f1dff706dd3"
         },
         {
           "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
-          "version": "repo-file-v1:sha256:913995f7298486960190d9d8aaacede7a1cf5f813f6802c61086a18aa2be30ad"
+          "version": "repo-file-v1:sha256:02dc2644b9414d65cee6bb35ba3692d1b8db47837b328485a3e88f2908328fce"
         }
       ]
     },
@@ -554,27 +558,123 @@
         },
         {
           "resource": "repo://backend/src/services/accounting-debit-close.service.ts",
-          "version": "repo-file-v1:sha256:913995f7298486960190d9d8aaacede7a1cf5f813f6802c61086a18aa2be30ad"
+          "version": "repo-file-v1:sha256:02dc2644b9414d65cee6bb35ba3692d1b8db47837b328485a3e88f2908328fce"
         }
       ]
     },
     {
       "id": "claim_015094227a8741ec902813d0a9d0abbc",
-      "statement": "Ten financial-write mutations run through runIdempotent (three chot-debit rate-adjustment, three deposit-tracker, four phoi-phieu); the wrapper throws 400 when the Idempotency-Key header is absent, the material-write middleware inventories all ten endpoint rules, and tx threading makes each mutation commit atomically with its idempotency record.",
+      "statement": "The material-write registry carries 276 endpoint entries after CRUD-spec expansion; every data-writing route must hold a MATERIAL_WRITE_RULES entry or a documented exemption, enforced by the material-write-registry-completeness and exhaustive sweep tests (6405513a, 3a940d0b). quotation import-commit is registered and truly idempotent — replay with the same Idempotency-Key returns the stored response (3a940d0b). The key gate runs FIRST: a missing Idempotency-Key 400s before auth 401/403 (documented key-gate-first order at material-write.ts:415).",
       "evidence": [
         {
           "resource": "repo://backend/src/middleware/material-write.ts",
-          "version": "repo-file-v1:sha256:bfbfa0f146bdd81a8df37ddad3e42e2d89ccf59a053b8ded451659799866f1f0"
+          "version": "repo-file-v1:sha256:2d291a0302a2a2fc41149cb6498fb925ab800e302ed1a9f01cea89bd77f876f6"
         },
         {
+          "resource": "repo://backend/src/tests/material-write-registry-completeness.test.ts",
+          "version": "repo-file-v1:sha256:aa691cba556d7f57f8e741bcd51f19a7bc22a71b87245ad9d8f5fa3ae99eaa9f"
+        },
+        {
+          "resource": "repo://backend/src/tests/material-write-registry-exhaustive.test.ts",
+          "version": "repo-file-v1:sha256:177e233e495792dba8fa6ec7cfde35382be35fe3e8fca9f946bfaa015fd92e97"
+        }
+      ]
+    },
+    {
+      "id": "claim_a911af6f1ca34e5480f00b00cf770fe1",
+      "statement": "Chot-debit settles per đợt through debit_settlement_rounds (high_valkyrie trio, journal idx 127): Lần user-chosen (duplicate → 400), Tháng 1–12 + year, direction THU/TRA, VAT 0/5/8/10%, Tổng tiền = counterparty amount + VAT, Ghi chú; UNIQUE per customer+period+lần+direction; lot-overlap guard (a lot joins ≤1 round); THU needs no nhà xe; the TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads the rounds back (920a2078, 5c8e668e, c41c5e74).",
+      "evidence": [
+        {
+          "resource": "repo://backend/drizzle/20260924021509_high_valkyrie.sql",
+          "version": "repo-file-v1:sha256:92d1214393a7384f0120b05737bc1acf3e3073864b1a2c328724edecdc433255"
+        },
+        {
+          "resource": "repo://backend/src/services/debit-settlement-rounds.service.ts",
+          "version": "repo-file-v1:sha256:20ad8417adfaf32bd5af5b2fc70304f1e2f1f268b688b39ce23cf481a29e2311"
+        },
+        {
+          "resource": "repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx",
+          "version": "repo-file-v1:sha256:ce17b0e6c8d72107dd44342f67f51bd0df8e89201546ec15eb3aad4f0526c71f"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a57f01447c04f2d88904081a321c9d2",
+      "statement": "Quotation import-commit shares the preview's row validator (preview ≡ commit; all-✓ preview ⇒ commit cannot reject; empty/null/non-numeric giá = row-level error naming row/column/format), is registry-idempotent (replay returns the stored response), and the new frame INHERITS the prior active frame's quotation_fees catalog verbatim (routing + defaultAmount; first-ever import stays fee-less) — c41c5e74.",
+      "evidence": [
+        {
           "resource": "repo://backend/src/services/idempotency.service.ts",
-          "version": "repo-file-v1:sha256:9111844efd0499ab61467cb6eb61be869081e5ef9f867df06fab68cbcacd6a39"
+          "version": "repo-file-v1:sha256:458d09e482cc149aadd3a362f0d155b086e067be8b4882a64b62430d908b19f0"
+        },
+        {
+          "resource": "repo://backend/src/services/quotation-import.service.ts",
+          "version": "repo-file-v1:sha256:5d34f2f17772a42db6ee964aec21c681ef0ef6737452b799274f4fa018aad570"
+        },
+        {
+          "resource": "repo://backend/src/tests/import-gia-validation.test.ts",
+          "version": "repo-file-v1:sha256:9fcacd47d7e529d31fd7c14594d461693a3f1f13ca40f30459262dc585b9dcc0"
+        }
+      ]
+    },
+    {
+      "id": "claim_f02f388ed9a7478e821d9cfd83984cff",
+      "statement": "Payer scope split + approval-precedes-payment (ADR 2026-09-24-expense-payer-scope-split): the phoi-phieu voucher consumes ONLY approved (confirmedAt) chi-hộ/OPS sources with remaining>0 — counter previews the eligible set (cash-adjusted); the cash/vouchers DRIVER_PAYOUT chain refuses unapproved DRIVER sources with a 409 naming fees; single payer per source kind.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/expense-accounting-cash.ts",
+          "version": "repo-file-v1:sha256:4718f62848a72bb501ec9500825b9c14374730a9a2696da5b278ac01bc1582a2"
+        },
+        {
+          "resource": "repo://backend/src/services/phoi-phieu-control.service.ts",
+          "version": "repo-file-v1:sha256:68d30cbce67b4a6c6f467dd36f4d5c1735ad94427ffcd0dc84f94e58ff2cde0e"
+        },
+        {
+          "resource": "repo://docs/adr/2026-09-24-expense-payer-scope-split.md",
+          "version": "repo-file-v1:sha256:28c70f337e3b7a4474b7924067fb27af01c812f12b643a8db02b7da34e9c44fe"
+        }
+      ]
+    },
+    {
+      "id": "claim_5cb81d27b1a5400eb2858db0130850e6",
+      "statement": "Migration trio coherence gate: backend/scripts/check-migration-trio.mjs (f90a5930) verifies journal/sql/snapshot consistency before any migration landing, and the cut runbook adds a post-deploy migration gate (staging journal cursor == freeze journal count AND a newest-migration probe endpoint 200 before a cut is declared deployed) — closing the silent-skip class that shipped cut #2 without the high_valkyrie migration.",
+      "evidence": [
+        {
+          "resource": "repo://backend/scripts/check-migration-trio.mjs",
+          "version": "repo-file-v1:sha256:333449983be193b9e589de4d39ee853063df02b2cfc84651e38c2605a4c390fb"
+        }
+      ]
+    },
+    {
+      "id": "claim_a32984b702f94f698b58563917e52528",
+      "statement": "Seed names carry no epoch-id fragments: seeders emit unique-index-safe human ordinals (never <epoch-ms>-<rand>), and idempotent strip migrations (19a77628, 26f6f41a) disambiguated residual rows — customers/routes/drivers — after backup, eliminating the seed-name id-leak class at the data layer.",
+      "evidence": [
+        {
+          "resource": "repo://backend/drizzle/20260924035509_seed_name_suffix_strip.sql",
+          "version": "repo-file-v1:sha256:85daafbabfc1199f2b352a27ac65604a4fe8ab4b3021ae66e1fcf10c965a9d36"
+        },
+        {
+          "resource": "repo://backend/drizzle/20260924115231_strip_residual_disambiguate.sql",
+          "version": "repo-file-v1:sha256:f2806e0a37a0eaaf30813cba5364e3567151fc39f0fc29b2eb001d58f2892114"
+        },
+        {
+          "resource": "repo://backend/src/services/phoi-phieu-control.service.ts",
+          "version": "repo-file-v1:sha256:68d30cbce67b4a6c6f467dd36f4d5c1735ad94427ffcd0dc84f94e58ff2cde0e"
+        }
+      ]
+    },
+    {
+      "id": "claim_31ff78cb386e4b5dbf481e333e68b88b",
+      "statement": "L2 renders fulfillment-unattached trips as a display-only section under Bảng 2.3 (caption '…chỉ hiển thị, không vào tổng chốt', per-trip 'Ngoài chốt' markers, business keys only, hidden at empty) — never in payables totals; the L1 side surfaces the excluded money behind the shadow line — c4ecda9d, 6918e234.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/shipments/debit/ShipmentDebitTables.unattached.tsx",
+          "version": "repo-file-v1:sha256:e44f9ecf7297a4a33e1ce91cf7a663867cca1babe0ed337dd75c8f6446d122d3"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.5.0",
-    "at": "2026-09-22T09:33:28.570Z"
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-24T07:05:35.307Z"
   }
 }

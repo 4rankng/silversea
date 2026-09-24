@@ -10,22 +10,38 @@ sources:
     resource: repo://backend/drizzle/20260922124500_card9_merge_legacy_fund_history.sql
   - id: openwiki-source-21e4d97ecfcc42ea0d65f739
     resource: repo://backend/src/routes/accounting-debit.ts
-  - id: openwiki-source-22287984c48f175c9111b39c
-    resource: repo://backend/src/routes/shipments/core.routes.ts
+  - id: openwiki-source-ccd10fa3c81f9282c9fbba70
+    resource: repo://backend/src/routes/ops.ts
   - id: openwiki-source-7633dc761224043313afe6c1
     resource: repo://backend/src/routes/shipments/dispatch-planning.routes.ts
+  - id: openwiki-source-17ab73c4cfb6d34c142e341d
+    resource: repo://backend/src/services/debit-settlement-rounds.service.ts
+  - id: openwiki-source-f182525155ebdf45eaa76a0b
+    resource: repo://backend/src/services/deposit-refund-tracker.service.ts
   - id: openwiki-source-07d8d0b4bd1aa611aec4651d
     resource: repo://backend/src/services/dispatch-task-tags.service.ts
+  - id: openwiki-source-3785e8f422f1b7b44c467858
+    resource: repo://backend/src/services/quotation-import.service.ts
   - id: openwiki-source-4f38a86b10ebec9affe678df
     resource: repo://backend/src/services/treasury-fund-book.service.ts
   - id: openwiki-source-0c106052b3286e779bed85e7
     resource: repo://docker-compose.dev.yml
+  - id: openwiki-source-1f16d61e8b7f4fbf2f0814bf
+    resource: repo://docs/adr/2026-09-24-ops-fund-book-scoped-read.md
   - id: openwiki-source-0047c2597980e18b4470c62d
     resource: repo://docs/prd/QuyTrinhO2C.md
   - id: openwiki-source-f2f111426b499e3847bd2369
     resource: repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx
   - id: openwiki-source-228b2bfa1b61b16f0a31e924
     resource: repo://frontend/src/pages/accounting/AccountingDebitClosePage.tsx
+  - id: openwiki-source-2c43e77409d87a44a06be360
+    resource: repo://frontend/src/pages/accounting/DepositRefundTrackerPage.tsx
+  - id: openwiki-source-60afb03bb7e56c4c0b7fb7c7
+    resource: repo://frontend/src/pages/config/QuotationConfigPage.tsx
+  - id: openwiki-source-540be0ca5a412767671abb8d
+    resource: repo://frontend/src/pages/config/QuotationFeesSection.tsx
+  - id: openwiki-source-b9e40203a934ff5904155589
+    resource: repo://frontend/src/pages/OpsWalletPage.tsx
   - id: openwiki-source-b393e30a884bdab2b871670a
     resource: repo://frontend/src/pages/ShipmentDebitPage.tsx
   - id: openwiki-source-012f2c78e3b1446dfc35803f
@@ -34,10 +50,10 @@ sources:
     resource: repo://shared/src/constants/api-paths.ts
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "claude-code", at: "2026-09-22T09:33:28.570Z" }
+generated: { by: "claude-code", at: "2026-09-24T07:05:35.307Z" }
 verified:
-  - by: openwiki/0.5.0
-    at: 2026-09-22T09:33:28.570Z
+  - by: openwiki/0.5.2
+    at: 2026-09-24T07:05:35.307Z
 ---
 
 # SilverSea System Overview
@@ -99,3 +115,12 @@ GPS/telemetry tracking and the AI-assistant feature were removed entirely (2026-
 - **Ops fee catalog** (`/config/forwarder-expense-types`): the customer's chi-hộ fee list seeded as data — 12 invoice-bearing fee types in three families (Nâng / Hạ / Phí khác) derived from the structural category; admin CRUD adds/edits/deprecates rows.
 - **Phoi-phieu control board** (`/accounting/phoi-phieu`, accountant): per-trip rows with the customer's full column set, filters, checkbox selection → consolidated phiếu thu/chi per customer against a chosen STK; Chi hộ / Tiền đường detail dialogs with accountant edit/confirm; monthly Phải thu / Phải trả report tabs.
 - **Debit reconciliation** (`/shipments-debit`): Lớp 1 receivable now counts only the negotiated customer charge; Lớp 2 gained the Phí chung lô row for lot-level ops fees.
+
+## Chi-phi wave (2026-09-24) — surfaces added or refreshed
+
+- **Chot-debit settlement popup + TỔNG HỢP CÔNG NỢ** (`/accounting/chot-debit`): Chọn Debit opens the settlement popup (Lần user-chosen, Tháng + năm, chiều THU/TRA with counterparty + amount, VAT 0/5/8/10% auto-multiplied, Tổng tiền, Ghi chú); the new TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads the persisted rounds back.
+- **OPS read-only Sổ quỹ** (`/ops/wallet`): a scoped read-only fund-book section for the OPS role — own cash events only (tạm ứng/hoàn ứng), closing balance reconciled to the wallet, full treasury untouched for accountant.
+- **Deposit-tracker overdue-CV alert** (`/accounting/deposit-tracker`): red overdue line + persistent money line + once-per-load toast, per-session dismissal; live-computed (VN-calendar predicate), no cron.
+- **Quotation page split + import parity + inherit** (`/config/quotations`): route block + fee catalog section split; import preview ≡ commit via the shared row validator (empty-giá → row-level error, commit refused); import-commit is idempotent (replay returns the stored response) and the new frame inherits the prior frame's fee catalog (ruling ii).
+- **L1/L2 debit display semantics** (`/shipments-debit`): L1 totals exclude fulfillment-less trips' fees behind a red shadow line (hidden at 0); L2 renders fulfillment-unattached trips as a display-only section ("Ngoài chốt", never in payables).
+- **Audit-fix sweep** (ops-orders AddChiPhi, phoi-phieu display): business-keys-only labels, VN placeholder fallbacks, dropdown width floors, honest zero-states.

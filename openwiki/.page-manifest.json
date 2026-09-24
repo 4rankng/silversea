@@ -2,32 +2,32 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture.md": {
-      "pageVersion": "sha256:1a1ca1a8c2bb75811a17300cdbb0c12078757418b362912f955ac367cdd8cc13",
+      "pageVersion": "sha256:71acd69f6973448d00e5c5b850b796efef96a3f0c49541b19afe06a7e810fc93",
       "completedBy": "claude-code",
-      "completedRunId": "e5c308bd-1f18-4543-ac7a-d87b664ebb01",
-      "gitHead": "6113f7cef08c94f7552d7c02cf23c926c121ec48",
-      "sourceFingerprint": "sha256:4e54ba0fc19cf32432d7ec5bbdc75965b3a52eb4c4cad75b44636de335716745"
+      "completedRunId": "7f9a7a6f-2317-4b1a-9aa9-8f29032bcdbd",
+      "gitHead": "f90a5930c6d69f539735f91ea8e1416a294abfcf",
+      "sourceFingerprint": "sha256:8deedfc0f56464eb6f8207df85c29531711536ba4609f8596378b7965008e052"
     },
     "/openwiki/domain/freight-pricing-and-billing-rules.md": {
-      "pageVersion": "sha256:4a6f6c7f1c6f6120ca3afdf8679b62ea633d4ac4fa849f01dedae1682f0ba522",
+      "pageVersion": "sha256:68ed82ba6c4ed79bb978a7abfdc4a60ad8d4f6099869ace515b732107c3ece13",
       "completedBy": "claude-code",
-      "completedRunId": "e5c308bd-1f18-4543-ac7a-d87b664ebb01",
-      "gitHead": "6113f7cef08c94f7552d7c02cf23c926c121ec48",
-      "sourceFingerprint": "sha256:4e54ba0fc19cf32432d7ec5bbdc75965b3a52eb4c4cad75b44636de335716745"
+      "completedRunId": "7f9a7a6f-2317-4b1a-9aa9-8f29032bcdbd",
+      "gitHead": "f90a5930c6d69f539735f91ea8e1416a294abfcf",
+      "sourceFingerprint": "sha256:8deedfc0f56464eb6f8207df85c29531711536ba4609f8596378b7965008e052"
     },
     "/openwiki/overview.md": {
-      "pageVersion": "sha256:539f2730875e1995bf83536559593b9b9d3b6e06e58ab2dd8b28350d4df4856c",
+      "pageVersion": "sha256:bf57ec807326e7f36ebbe86394079eef3aacaadc193fa62a886e7a2411c655bc",
       "completedBy": "claude-code",
-      "completedRunId": "e5c308bd-1f18-4543-ac7a-d87b664ebb01",
-      "gitHead": "6113f7cef08c94f7552d7c02cf23c926c121ec48",
-      "sourceFingerprint": "sha256:4e54ba0fc19cf32432d7ec5bbdc75965b3a52eb4c4cad75b44636de335716745"
+      "completedRunId": "7f9a7a6f-2317-4b1a-9aa9-8f29032bcdbd",
+      "gitHead": "f90a5930c6d69f539735f91ea8e1416a294abfcf",
+      "sourceFingerprint": "sha256:8deedfc0f56464eb6f8207df85c29531711536ba4609f8596378b7965008e052"
     },
     "/openwiki/quickstart.md": {
-      "pageVersion": "sha256:21a27b52802dff102d1c0bfee957bc532e38a01be71bc0adc554071580491b89",
+      "pageVersion": "sha256:1bd56018ed1bcf3c1b83e97dabe71bdc115d9a8bbe045669f9b32d9c0bb8eb49",
       "completedBy": "claude-code",
-      "completedRunId": "e31d1ddc-6ae2-4e6c-9596-4286d70a1b9e",
-      "gitHead": "6113f7cef08c94f7552d7c02cf23c926c121ec48",
-      "sourceFingerprint": "sha256:4e54ba0fc19cf32432d7ec5bbdc75965b3a52eb4c4cad75b44636de335716745"
+      "completedRunId": "7f9a7a6f-2317-4b1a-9aa9-8f29032bcdbd",
+      "gitHead": "f90a5930c6d69f539735f91ea8e1416a294abfcf",
+      "sourceFingerprint": "sha256:8deedfc0f56464eb6f8207df85c29531711536ba4609f8596378b7965008e052"
     }
   }
 }
