@@ -1,8 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as SharedModule from '../../components/shared';
 const api = vi.hoisted(() => ({ listDepositTrackers: vi.fn(), createDepositTracker: vi.fn(), updateDepositTrackerDates: vi.fn(), markDepositRefunded: vi.fn() }));
 vi.mock('../../api/depositRefundClient', () => api);
+// Card 20260923_14 put useToast on this page; the render harness supplies no
+// ToastProvider, so mock it exactly as alerts.test.tsx does (test-only fix).
+vi.mock('../../components/shared', async (importOriginal) => ({
+  ...(await importOriginal<typeof SharedModule>()),
+  useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
+}));
 import DepositRefundTrackerPage from './DepositRefundTrackerPage';
 import { ApiError } from '../../lib/api';
 const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', note: null, createdAt: '2026-08-01' };

@@ -1,5 +1,14 @@
 .deposit-tracker-page { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+/* Card 20260924_13 (CHIEF 15:45, law §5 filter row-pack): the date root's
+   w-full chain and .ds-uui-select's width:100% each forced one control per
+   full-width row on desktop. Content-size every control like ListFilterBar —
+   Từ/Đến ngày ride one row as a pair, Trạng thái sits beside them (or wraps
+   next row with Lọc / Thêm dòng); no control goes full-width. */
 .deposit-tracker-filters { display: flex; flex-wrap: wrap; gap: var(--space-3, 12px); align-items: end; }
+.deposit-tracker-filters > * { flex: 0 1 auto; min-width: 0; }
+.deposit-tracker-filters > .btn { flex: 0 0 auto; }
+.deposit-tracker-filters [data-input-wrapper] { flex: 0 0 auto; width: 168px; min-width: 149px; }
+.deposit-tracker-filters .ds-uui-select { width: auto; min-width: 240px; max-width: 280px; }
 .deposit-tracker-warnings { position: relative; border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .deposit-tracker-warnings__item { margin: 0; color: var(--color-warning-text, #92400e); overflow-wrap: anywhere; }
 .deposit-tracker-warnings__item--danger { color: var(--danger-text, #7F2D37); }
@@ -30,6 +39,16 @@
 .deposit-tracker-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted, #64748b); }
 .deposit-tracker-table tr.is-refunded { opacity: 0.72; }
+/* Card 20260924_13: phones keep the standing 1-column stack (law hiện hành,
+   _14 QA'd) — the desktop width floors/caps above yield to full-row cells. */
 @media (max-width: 900px) {
   .deposit-tracker-filters { align-items: stretch; flex-direction: column; }
+  .deposit-tracker-filters > *,
+  .deposit-tracker-filters [data-input-wrapper],
+  .deposit-tracker-filters .ds-uui-select {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
 }

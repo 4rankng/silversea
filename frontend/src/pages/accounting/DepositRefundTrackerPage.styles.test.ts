@@ -52,3 +52,36 @@ describe('deposit tracker table — scroll + token integrity (card 20260922_53)'
     expect(tsx).not.toMatch(/deposit-tracker-warnings__item"><CalendarClock/);
   });
 });
+
+describe('deposit tracker filter row-packing (card 20260924_13, law §5)', () => {
+  it('bar children are content-sized — no control stretches to a full row', () => {
+    expect(ruleFor('\\.deposit-tracker-filters > \\*')).toMatch(/flex:\s*0 1 auto/);
+    expect(ruleFor('\\.deposit-tracker-filters > \\.btn')).toMatch(/flex:\s*0 0 auto/);
+  });
+
+  it('the date pair shares fixed compact widths (ListFilterBar parity: 168px, 149 floor)', () => {
+    expect(ruleFor('\\.deposit-tracker-filters \\[data-input-wrapper\\]')).toMatch(/width:\s*168px/);
+    expect(ruleFor('\\.deposit-tracker-filters \\[data-input-wrapper\\]')).toMatch(/min-width:\s*149px/);
+  });
+
+  it('Trạng thái sits in a 240–280px slot — auto width, never width:100%', () => {
+    const select = ruleFor('\\.deposit-tracker-filters \\.ds-uui-select');
+    expect(select).toMatch(/width:\s*auto/);
+    expect(select).toMatch(/min-width:\s*240px/);
+    expect(select).toMatch(/max-width:\s*280px/);
+    expect(select).not.toMatch(/width:\s*100%/);
+  });
+
+  it('mobile keeps the standing 1-column stack with full-row cells (law hiện hành, _14 QA)', () => {
+    const mobile = css.match(/@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/flex-direction:\s*column/);
+    expect(mobile).toMatch(/\.deposit-tracker-filters \[data-input-wrapper\]/);
+    expect(mobile).toMatch(/\.deposit-tracker-filters \.ds-uui-select/);
+    expect(mobile).toMatch(/width:\s*100%/);
+    expect(mobile).toMatch(/max-width:\s*none/);
+  });
+
+  it('the filter bar stays flat — no shadow or 3D surface (§3)', () => {
+    expect(ruleFor('\\.deposit-tracker-filters')).not.toMatch(/box-shadow|gradient/);
+  });
+});
