@@ -70,7 +70,6 @@
   padding: 8px 10px;
   text-align: right;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 .quotation-grid th.quotation-grid__row-label,
@@ -92,7 +91,6 @@
   color: var(--ink);
   font: inherit;
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Missing price (ruling 2): plain italic text names the missing data —
