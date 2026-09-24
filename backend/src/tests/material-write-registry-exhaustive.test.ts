@@ -26,6 +26,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['auth.ts|POST|/login', 'Authentication session creation; no business entity mutation.'],
   ['auth.ts|POST|/logout', 'Authentication session revocation; independently token-bound and replay-safe.'],
   ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
+  ['config/quotations.routes.ts|POST|/import', 'Read-only xlsx parse/validate preview — "Preview never writes" (landed contract, card 20260922_57); no DB write.'],
   ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
   ['forwarder/advances.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
   ['shipments/core.routes.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],

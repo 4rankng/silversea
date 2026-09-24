@@ -101,6 +101,10 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt) — one more
   // financial write in the runIdempotent family.
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_SETTLEMENT_ROUND_CREATE, pattern: /^\/api\/accounting\/debit-board\/settlement-rounds$/ },
+  // Card 20260922_57 quotation xlsx import commit — the route already demanded
+  // an Idempotency-Key; the durable boundary makes the key real (replays
+  // return the stored response instead of always creating a new frame).
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.QUOTATION_IMPORT_COMMIT, pattern: /^\/api\/quotations\/import\/commit$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_CREATE, pattern: /^\/api\/accounting\/deposits$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES, pattern: /^\/api\/accounting\/deposits\/[^/]+\/dates$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND, pattern: /^\/api\/accounting\/deposits\/[^/]+\/refund$/ },

@@ -17,7 +17,7 @@ import { previewQuotationImport, commitQuotationImport } from '../../services/qu
 import { buildQuotationExport } from '../../services/quotation-export.service';
 
 const quotationImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
-import { runIdempotent } from '../../services/idempotency.service';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
   listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations, updateQuotation,
@@ -187,8 +187,20 @@ router.post('/import/commit', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotati
   if (!req.file) throw new ApiError(400, 'Chưa chọn tệp xlsx.');
   const idempotencyKey = getRequestIdempotencyKey(req);
   if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
-  const results = await commitQuotationImport(req.file.buffer, actor.userId);
-  res.json({ results });
+  // The durable command boundary: the file buffer is the payload (not
+  // hashed — the key distinguishes uploads), commitQuotationImport keeps
+  // its own per-sheet transactions inside, and the idempotency row + audit
+  // persist in the boundary transaction. A replay returns the stored
+  // response instead of always creating a new quotation frame.
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.QUOTATION_IMPORT_COMMIT,
+    idempotencyKey,
+    payload: { userId: actor.userId },
+    createdBy: actor.userId,
+    responseStatusCode: 200,
+    create: async () => ({ results: await commitQuotationImport(req.file!.buffer, actor.userId) }),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 router.get('/:id/export', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
