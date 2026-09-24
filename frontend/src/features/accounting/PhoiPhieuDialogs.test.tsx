@@ -44,6 +44,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       liftSite: 'Đình Vũ', dropSite: 'Bắc Giang', plateNumber: '29K-123.45', driverName: 'Tuấn',
       departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'IN_TRANSIT',
       chiHoThu: null, chiHoTra: null, tienDuong: null,
+      eligibleIn: 0, eligibleOut: 2,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
     },
     {
@@ -53,6 +54,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       liftSite: 'Đình Vũ', dropSite: 'Quảng Ninh', plateNumber: '29K-678.90', driverName: 'Thắng',
       departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'COMPLETED',
       chiHoThu: 1_350_000, chiHoTra: 1_350_000, tienDuong: 2_000_000,
+      eligibleIn: 1, eligibleOut: 0,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
     },
     {
@@ -205,18 +207,19 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 
-  // Standing law internal-ids-never-user-facing (case QA-2026-09-24-01): the
-  // board rows render customers.name / routes.name verbatim, and QA seed
-  // fixtures stamp a trailing `<epoch-ms>-<rand>` onto those names — the row
-  // then reads "ADC P 1790089547534-zcain7 · ADC route P …" and the operator
-  // annotation calls it meaningless. Rows show business names only.
-  it('board rows show business names only — seed id suffixes never render (case QA-2026-09-24-01)', async () => {
+  // Case QA-2026-09-24-01 (director ruling): names are data — the fix lives
+  // in the seeder + a strip migration, and the render layer must NEVER
+  // launder them (an interim sanitiser was deleted; this fence keeps it
+  // deleted, so display-layer stripping cannot ossify or mask regressions).
+  it('render layer never launders display names (case QA-2026-09-24-01)', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuControlPage.tsx'), 'utf8');
+    expect(source).not.toContain('business-label');
+    expect(source).not.toContain('businessName(');
+  });
+  it('board rows render stored names verbatim (names are data)', async () => {
     renderBoard();
     const row = await findRow('ST-2609-0103');
-    expect(row.textContent).not.toContain('1790089547534-zcain7');
-    expect(row.textContent).not.toContain('1790004852053-9kzgw8-26');
-    expect(row.textContent).toContain('ADC P');
-    expect(row.textContent).toContain('ADC route P');
+    expect(row.textContent).toContain('ADC P 1790089547534-zcain7');
     expect(row.textContent).toContain('card6 driver');
   });
 
@@ -231,7 +234,20 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     const button = screen.getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).not.toContain('(0 dòng)');
     expect(button.textContent).toContain('chọn dòng đã duyệt');
+    // The selected state is pinned by the eligible-counter test below — this
+    // test only asserts the false-zero is gone.
+  });
+
+  // Case QA-2026-09-24-01: the toolbar counter previews the voucher's
+  // eligible set (approved ∧ remaining>0), in khoản units, per direction —
+  // the button says exactly what pressing it will issue.
+  it('toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)', async () => {
+    renderBoard();
+    const row = await findRow('ST-2609-0101');
+    await screen.findByText('ST-2609-0102');
     fireEvent.click(within(row).getByRole('checkbox'));
-    expect(button.textContent).toContain('(1 dòng)');
+    const button = screen.getByRole('button', { name: /Lập phiếu/ });
+    expect(button.textContent).toContain('(2 khoản)');
+    expect(button.textContent).not.toContain('dòng');
   });
 });

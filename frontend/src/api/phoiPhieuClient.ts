@@ -21,6 +21,10 @@ export interface PhoiPhieuRow {
   chiHoThu: number | null;
   chiHoTra: number | null;
   tienDuong: number | null;
+  /** Per-direction eligible-entry counts (approved ∧ remaining>0) — the
+   *  toolbar counter previews exactly what the voucher will consume. */
+  eligibleIn: number;
+  eligibleOut: number;
   cusDispatchNotes: string[];
   driverNote: string | null;
   confirmable: boolean;

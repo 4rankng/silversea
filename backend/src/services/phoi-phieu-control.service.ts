@@ -48,6 +48,11 @@ export interface PhoiPhieuRow {
   /** Chi hộ Phải thu = what is collected from the customer (Σ charges). */
   chiHoThu: number | null;
   tienDuong: number | null;
+  /** Case QA-2026-09-24-01: per-direction eligible-entry counts (approved ∧
+   *  remaining>0) — the toolbar counter previews exactly what the voucher
+   *  will consume. */
+  eligibleIn: number;
+  eligibleOut: number;
   cusDispatchNotes: string[];
   driverNote: string | null;
   confirmable: boolean;
@@ -158,6 +163,35 @@ export async function listPhoiPhieuRows(query: {
     if (row.tripId == null) continue;
     confirmedRoadByTrip.set(row.tripId, (confirmedRoadByTrip.get(row.tripId) ?? 0) + Number(row.amount));
   }
+  // Eligible-set preview (case QA-2026-09-24-01): the per-source cash ledger
+  // grouped once for the listed rows, mirroring getExpenseCashTotals.
+  const driverSources = await db.select({
+    id: s.expenseAccountingSources.id,
+    legTripId: s.expenseAccountingSources.tripId,
+    amount: s.driverIncidentalCosts.amount,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds), eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
+      eq(s.expenseAccountingSources.status, 'RECORDED'), isNotNull(s.expenseAccountingSources.confirmedAt)));
+  const boardSourceIds = [...sources.map((source) => source.id), ...driverSources.map((source) => source.id)];
+  const cashRows = boardSourceIds.length > 0 ? await db.select({
+    sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
+    direction: s.treasuryMovements.direction,
+    paid: sql<string>`sum(${s.expenseCashAllocations.amount})`,
+  })
+    .from(s.expenseCashAllocations)
+    .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
+    .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+    .where(inArray(s.expenseCashAllocations.expenseAccountingSourceId, boardSourceIds))
+    .groupBy(s.expenseCashAllocations.expenseAccountingSourceId, s.treasuryMovements.direction) : [];
+  const cashBySource = new Map<number, { IN: number; OUT: number }>();
+  for (const row of cashRows) {
+    const slot = cashBySource.get(row.sourceId) ?? { IN: 0, OUT: 0 };
+    if (row.direction === 'IN') slot.IN += Number(row.paid);
+    else slot.OUT += Number(row.paid);
+    cashBySource.set(row.sourceId, slot);
+  }
   const dispatchNotes = await loadDispatchExpenseNotes(shipmentIds);
   const shipDispatchNotes = dispatchNotes;
 
@@ -195,6 +229,21 @@ export async function listPhoiPhieuRows(query: {
     const cusDispatchNotes = [row.customerNote, row.operationalNotes, ...(shipDispatchNotes.get(row.shipmentId) ?? [])]
       .filter((value): value is string => Boolean(value && value.trim()));
     const dropName = row.dropSite;
+    // Eligible-set preview counts (case QA-2026-09-24-01): approved ∧
+    // remaining>0 per direction — the same set the consolidated voucher
+    // consumes, so the toolbar preview equals the voucher contents.
+    let eligibleIn = 0;
+    let eligibleOut = 0;
+    for (const source of shipmentSources) {
+      const cash = cashBySource.get(source.id) ?? { IN: 0, OUT: 0 };
+      if (source.confirmedAt == null) continue;
+      if (Math.max(Number(source.customerChargeAmount ?? 0) - cash.IN, 0) > 0) eligibleIn += 1;
+      if (Math.max(Number(source.amount ?? 0) - Number(source.allocatedAdvanceAmount ?? 0) - cash.OUT, 0) > 0) eligibleOut += 1;
+    }
+    for (const source of driverSources.filter((source) => source.legTripId === row.tripId)) {
+      const cash = cashBySource.get(source.id) ?? { IN: 0, OUT: 0 };
+      if (Math.max(Number(source.amount) - cash.OUT, 0) > 0) eligibleOut += 1;
+    }
     out.push({
       tripId: row.tripId,
       tripCode: row.tripCode,
@@ -214,6 +263,8 @@ export async function listPhoiPhieuRows(query: {
       tripStatus: row.tripStatus,
       chiHoTra,
       chiHoThu,
+      eligibleIn,
+      eligibleOut,
       tienDuong: confirmedRoadByTrip.has(row.tripId)
         ? confirmedRoadByTrip.get(row.tripId) ?? 0
         : row.tienDuong == null ? null : Number(row.tienDuong),
@@ -268,7 +319,28 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       .from(s.expenseAccountingSources)
       .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
       .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
-        eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+        // Case QA-2026-09-24-01: only APPROVED (confirmedAt) chi-hộ sources
+        // enter the consolidated phiếu — the contract wording is verbatim
+        // ("Chỉ những khoản ĐÃ DUYỆT mới đủ điều kiện được đưa vào phiếu chi").
+        isNotNull(s.expenseAccountingSources.confirmedAt)));
+    // Approved DRIVER (tiền đường) sources of the selected trips join OUT
+    // phiếu with their own counterparty — the driver being paid. Driver
+    // payouts are inherently an OUT movement, so an IN phiếu never carries
+    // them; remaining reads the same per-source cash ledger the engine does.
+    const driverSources = await tx.select({
+      id: s.expenseAccountingSources.id,
+      nativeId: s.expenseAccountingSources.sourceId,
+      tripId: s.expenseAccountingSources.tripId,
+      version: s.expenseAccountingSources.version,
+      costAmount: s.driverIncidentalCosts.amount,
+      driverId: s.driverIncidentalCosts.driverId,
+    })
+      .from(s.expenseAccountingSources)
+      .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+      .where(and(inArray(s.expenseAccountingSources.tripId, tripRows.map((row) => row.tripId)),
+        eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+        isNotNull(s.expenseAccountingSources.confirmedAt)));
     // The voucher engine is one-counterparty-per-phiếu: group the selection by
     // customer and issue one consolidated voucher per group.
     const customerIdByShipment = new Map<number, number>();
@@ -278,18 +350,23 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     for (const row of tripCustomer) {
       if (row.shipmentId != null && row.customerId != null) customerIdByShipment.set(row.shipmentId, row.customerId);
     }
-    const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
+    const groups = new Map<string, Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<string, number>();
     let skipped = 0;
     const seenSourceIds = new Set<number>();
     for (const trip of tripRows) {
       const shipmentId = trip.shipmentId as number;
       const customerId = customerIdByShipment.get(shipmentId);
-      if (customerId == null) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khách hàng.`);
       const shipmentSources = sources.filter((source) => source.shipmentId === shipmentId);
-      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
-      const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
+      // A trip qualifies only when it carries approved money in at least one
+      // leg; the customer/chi-hộ throws stay scoped to the OPS leg so a
+      // driver-only trip can still issue its payout phiếu.
+      if (shipmentSources.length === 0 && driverSources.length === 0) {
+        throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
+      }
+      const entries: Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
+        if (customerId == null) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
           skipped += 1;
           continue;
@@ -305,14 +382,36 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         }
         entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining });
       }
-      if (entries.length === 0) continue;
-      // R3: the fan-out key is counterparty × fund kind — a mixed selection
-      // produces one phiếu per kind, never one movement across kinds. The
-      // fund kind rides the chosen account today; card 9 deepens it.
-      const groupKey = `${customerId}`;
-      const bucket = groups.get(groupKey) ?? [];
-      groups.set(groupKey, [...bucket, ...entries]);
-      totalsByGroup.set(groupKey, (totalsByGroup.get(groupKey) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
+      // Chi hộ leg groups by its counterparty — the customer (the engine is
+      // one-counterparty-per-phiếu).
+      if (entries.length > 0 && customerId != null) {
+        const key = `ops:${customerId}`;
+        const bucket = groups.get(key) ?? [];
+        groups.set(key, [...bucket, ...entries]);
+        totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
+      }
+      // Tiền đường leg: approved driver costs pay OUT to their own
+      // counterparty — the driver read from the native cost row; an IN phiếu
+      // never carries driver payouts.
+      if (args.direction === 'OUT') {
+        for (const source of driverSources.filter((source) => source.tripId === trip.tripId)) {
+          if (seenSourceIds.has(source.id)) {
+            skipped += 1;
+            continue;
+          }
+          seenSourceIds.add(source.id);
+          const cash = await getExpenseCashTotals(tx, source.id);
+          const remaining = Math.max(Number(source.costAmount) - cash.OUT, 0);
+          if (remaining <= 0) {
+            skipped += 1;
+            continue;
+          }
+          const key = `driver:${source.driverId}`;
+          const bucket = groups.get(key) ?? [];
+          groups.set(key, [...bucket, { sourceKind: 'DRIVER', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining }]);
+          totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + remaining);
+        }
+      }
     }
     let grandTotal = 0;
     const issued: Array<{ id: number; code: string; total: number }> = [];

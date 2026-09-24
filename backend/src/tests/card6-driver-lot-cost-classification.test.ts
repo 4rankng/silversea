@@ -47,11 +47,11 @@ async function mkDriverTrip() {
     username: `card6-${suffix}-${cleanup.length}`, passwordHash: 'x', role: 'DRIVER',
   }).returning();
   track(async () => { await db.delete(s.users).where(eq(s.users.id, u.id)); });
-  const [d] = await db.insert(s.drivers).values({ name: `card6 driver ${suffix}-${cleanup.length}`, userId: u.id }).returning();
+  const [d] = await db.insert(s.drivers).values({ name: 'card6 driver', userId: u.id }).returning();
   track(async () => { await db.delete(s.drivers).where(eq(s.drivers.id, d.id)); });
-  const [customer] = await db.insert(s.customers).values({ name: `card6 cust ${suffix}-${cleanup.length}` }).returning();
+  const [customer] = await db.insert(s.customers).values({ name: `card6 cust ${cleanup.length}` }).returning();
   track(async () => { await db.delete(s.customers).where(eq(s.customers.id, customer.id)); });
-  const [route] = await db.insert(s.routes).values({ name: `card6 route ${suffix}-${cleanup.length}` }).returning();
+  const [route] = await db.insert(s.routes).values({ name: 'card6 route' }).returning();
   track(async () => { await db.delete(s.routes).where(eq(s.routes.id, route.id)); });
   const [cargoType] = await db.insert(s.cargoTypes).values({ name: `card6 cargo ${suffix}-${cleanup.length}` }).returning();
   track(async () => { await db.delete(s.cargoTypes).where(eq(s.cargoTypes.id, cargoType.id)); });

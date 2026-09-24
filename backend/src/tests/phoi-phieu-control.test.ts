@@ -7,6 +7,7 @@ import * as s from '../db/schema';
 import { Role, TxnType } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 import { listPhoiPhieuRows, createPhoiPhieuVoucher } from '../services/phoi-phieu-control.service';
+import { LedgerService } from '../services/ledger.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const cleanup: Array<{ table: any; id: number }> = [];
@@ -21,9 +22,9 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   }).returning({ id: s.users.id });
   track(s.users, user.id);
   if (accountantId === 0) accountantId = user.id;
-  const [customer] = await db.insert(s.customers).values({ name: `C12 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
+  const [customer] = await db.insert(s.customers).values({ name: `C12 customer ${cleanup.length}` }).returning({ id: s.customers.id });
   track(s.customers, customer.id);
-  const [route] = await db.insert(s.routes).values({ name: `C12 route ${suffix}-${cleanup.length}` }).returning({ id: s.routes.id });
+  const [route] = await db.insert(s.routes).values({ name: 'C12 route' }).returning({ id: s.routes.id });
   track(s.routes, route.id);
   const [shipment] = await db.insert(s.shipments).values({
     customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
@@ -152,7 +153,7 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
     const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
     const fixture = await mkBoardFixture();
     const [driver] = await db.insert(s.drivers).values({
-      name: `Tài xế C14 ${suffix}`, userId: accountantId, status: 'ACTIVE',
+      name: 'Tài xế C14', userId: accountantId, status: 'ACTIVE',
     }).returning({ id: s.drivers.id });
     track(s.drivers, driver.id);
     const [cost] = await db.insert(s.driverIncidentalCosts).values({
@@ -191,9 +192,9 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
 describe('card 20260921_16 — same-truck rows group consecutively', () => {
   test('grouped mode lands paired trips of one truck adjacent; date sort overrides', async () => {
     const mk = async (plate: string | null, day: string) => {
-      const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
+      const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${cleanup.length}` }).returning({ id: s.customers.id });
       track(s.customers, customer.id);
-      const [route] = await db.insert(s.routes).values({ name: `C16 route ${suffix}-${cleanup.length}` }).returning({ id: s.routes.id });
+      const [route] = await db.insert(s.routes).values({ name: 'C16 route' }).returning({ id: s.routes.id });
       track(s.routes, route.id);
       const [shipment] = await db.insert(s.shipments).values({
         customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
@@ -232,13 +233,17 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
     const a2 = await mk(truckA, '2026-09-22');
     void b1;
 
-    const grouped = await listPhoiPhieuRows({ search: `C16 customer ${suffix}` });
+    // Names carry no run token (internal-ids-never-user-facing); scope the
+    // assertion to this run's tracked trips instead of a name fragment.
+    const grouped = (await listPhoiPhieuRows({ search: 'C16 customer' }))
+      .filter((row) => [a1, b1, a2].includes(row.tripId));
     const plates = grouped.map((row) => row.plateNumber);
     const aIndexes = plates.map((plate, index) => (plate === truckA ? index : -1)).filter((index) => index >= 0);
     assert.equal(aIndexes.length, 2);
     assert.equal(aIndexes[1]! - aIndexes[0]!, 1, 'paired trips of one truck land adjacent in grouped mode');
 
-    const byDate = await listPhoiPhieuRows({ search: `C16 customer ${suffix}`, sortBy: 'date' });
+    const byDate = (await listPhoiPhieuRows({ search: 'C16 customer', sortBy: 'date' }))
+      .filter((row) => [a1, b1, a2].includes(row.tripId));
     const datePlates = byDate.map((row) => row.plateNumber);
     assert.equal(datePlates[0], truckA, 'the explicit date sort wins over the truck grouping');
   });
@@ -433,9 +438,13 @@ describe('card 20260922_2 rework — over-pay report honesty + voucher id space'
       .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source2.id));
     assert.notEqual(src.sourceId, src.id, 'fixture guarantees distinct native and source-row IDs');
 
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK3-${suffix}`, name: 'STK quỹ 3', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, account.id);
     const result = await createPhoiPhieuVoucher({
       tripIds: [fixture.trip.id], direction: 'IN',
-      treasuryAccountId: 1, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+      treasuryAccountId: account.id, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
     });
     assert.ok(result.entries >= 1, 'voucher issued with at least one entry');
     const allocation = await db.select({ sourceRowId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount })
@@ -444,5 +453,116 @@ describe('card 20260922_2 rework — over-pay report honesty + voucher id space'
     const onFixtureRow = allocation.find((a) => a.sourceRowId === source2.id);
     assert.ok(onFixtureRow, 'allocation lands on the fixture source row, not a dummy-native-id lookalike');
     assert.equal(String(onFixtureRow?.amount), String(100000), 'remaining = charge side 100000');
+  });
+});
+
+// Case QA-2026-09-24-01 (director ruling round 2): the consolidated voucher
+// consumes ONLY approved sources — confirmedAt gates both money legs, and
+// approved driver costs (tiền đường) pay OUT to their own counterparty.
+describe('voucher consumes the approved set across chi hộ and tiền đường (case QA-2026-09-24-01)', () => {
+  test('t1: an unapproved chi-hộ source is excluded from the phiếu', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    const [entry2] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.shipment.id, shipmentContainerId: fixture.container.id, expenseTypeCode: 'OTHER',
+      amount: '70000', customerChargeAmount: '70000', costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
+      paidById: accountantId, paidAt: '2026-09-22',
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, entry2.id);
+    const [source2] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'OPS', sourceId: entry2.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id,
+      confirmedAt: null, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source2.id);
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK4-${suffix}`, name: 'STK quỹ 4', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, account.id);
+    const result = await createPhoiPhieuVoucher({
+      tripIds: [fixture.trip.id], direction: 'IN',
+      treasuryAccountId: account.id, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+    });
+    assert.equal(result.total, 100000, 'only the approved source joins the phiếu — the unapproved 70000 never counts');
+    const allocations = await db.select({ sourceRowId: s.expenseCashAllocations.expenseAccountingSourceId })
+      .from(s.expenseCashAllocations).innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
+      .where(eq(s.expenseCashVouchers.code, result.code as unknown as string));
+    assert.ok(!allocations.some((a) => a.sourceRowId === source2.id), 'the unapproved source row is not allocated');
+  });
+
+  async function mkDriverOnlyFixture(approved: boolean) {
+    const [customer] = await db.insert(s.customers).values({ name: `C12 driver-only customer ${cleanup.length}` }).returning({ id: s.customers.id });
+    track(s.customers, customer.id);
+    const [route] = await db.insert(s.routes).values({ name: 'C12 driver-only route' }).returning({ id: s.routes.id });
+    track(s.routes, route.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+    }).returning({ id: s.shipments.id });
+    track(s.shipments, shipment.id);
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1,
+    }).returning({ id: s.shipmentFulfillments.id });
+    track(s.shipmentFulfillments, fulfillment.id);
+    const [trip] = await db.insert(s.trips).values({
+      fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+      tripCode: `TRP-C12D-${cleanup.length}-${suffix}`, departureDate: '2026-09-22', status: 'IN_TRANSIT',
+    }).returning({ id: s.trips.id });
+    track(s.trips, trip.id);
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c12d-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({ name: 'Tài xế C12D', userId: driverUser.id, status: 'ACTIVE' }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: trip.id, driverId: driver.id, costType: 'OTHER',
+      amount: '300000', driverEnteredAmount: '300000', occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const [source] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'DRIVER', sourceId: cost.id, shipmentId: shipment.id, tripId: trip.id,
+      confirmedAt: approved ? new Date() : null, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source.id);
+    if (approved) {
+      // A driver payout is capped at the company's ledger payable to the
+      // driver — seed the payable the phiếu will settle.
+      await LedgerService.postEntry(db, {
+        txnType: TxnType.DRIVER_SALARY, entityType: 'DRIVER', entityId: driver.id,
+        debit: 0, credit: 300000, note: 'fixture payable for the tien-duong payout',
+      });
+    }
+    return { trip, driver, cost, source };
+  }
+
+  test('t3: an approved tiền đường entry is paid by the phiếu, to the driver, at its amount', async () => {
+    const { trip } = await mkDriverOnlyFixture(true);
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK5-${suffix}`, name: 'STK quỹ 5', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, account.id);
+    const result = await createPhoiPhieuVoucher({
+      tripIds: [trip.id], direction: 'OUT',
+      treasuryAccountId: account.id, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+    });
+    assert.equal(result.total, 300000, 'the approved driver cost pays at its amount');
+    const [voucher] = await db.select({ id: s.expenseCashVouchers.id, counterpartyType: s.expenseCashVouchers.counterpartyType, counterpartyId: s.expenseCashVouchers.counterpartyId })
+      .from(s.expenseCashVouchers).where(eq(s.expenseCashVouchers.code, result.code as unknown as string));
+    assert.equal(voucher.counterpartyType, 'DRIVER', 'the phiếu counterparty is the driver');
+    assert.ok(voucher.counterpartyId > 0);
+  });
+
+  test('t4: an unapproved tiền đường entry is excluded from the phiếu', async () => {
+    const { trip } = await mkDriverOnlyFixture(false);
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK6-${suffix}`, name: 'STK quỹ 6', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, account.id);
+    await assert.rejects(
+      () => createPhoiPhieuVoucher({
+        tripIds: [trip.id], direction: 'OUT',
+        treasuryAccountId: account.id, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+      }),
+      /chưa có khoản|không còn khoản/,
+      'nothing approved means nothing issues',
+    );
   });
 });
