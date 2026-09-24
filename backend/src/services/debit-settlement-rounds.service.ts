@@ -126,12 +126,18 @@ export async function createDebitSettlementRound(input: {
       if (keys.length === 0) noCarrier.push(lot.code ?? `#${lot.id}`);
       for (const key of keys) unionSet.add(key);
     }
-    if (noCarrier.length > 0) {
-      throw new ApiError(400, `Lô ${noCarrier.join(', ')} chưa có phân xe (chưa xác định được nhà xe).`);
-    }
+    // Chốt PHẢI THU settles with the CUSTOMER — the nhà xe side is not the
+    // counterparty, so a lot without any identifiable nhà xe is fine here
+    // (carrier_key MIXED). Chốt PHẢI TRẢ settles with the nhà xe, which must
+    // exist and be ONE across the selection.
     const union = [...unionSet];
-    if (input.direction === 'TRA' && union.length !== 1) {
-      throw new ApiError(400, 'Chốt phải trả yêu cầu các lô cùng một nhà xe (hiện có nhiều nhà xe trong lựa chọn).');
+    if (input.direction === 'TRA') {
+      if (noCarrier.length > 0) {
+        throw new ApiError(400, `Lô ${noCarrier.join(', ')} chưa có phân xe (chưa xác định được nhà xe).`);
+      }
+      if (union.length !== 1) {
+        throw new ApiError(400, 'Chốt phải trả yêu cầu các lô cùng một nhà xe (hiện có nhiều nhà xe trong lựa chọn).');
+      }
     }
     const carrierKey = input.direction === 'THU' ? (union.length === 1 ? union[0]! : 'MIXED') : union[0]!;
     // ── 3. VAT set guard ──

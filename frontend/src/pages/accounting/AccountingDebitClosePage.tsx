@@ -136,7 +136,8 @@ export default function AccountingDebitClosePage() {
   const settlementMutation = useMutation({
     mutationFn: createSettlementRound,
     onSuccess: (round) => {
-      setMessage({ kind: 'ok', text: `Đã chốt đợt: Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')} — ${formatCurrency(Number(round.totalAmount))} (đã gồm VAT).` });
+      const total = Number(round.amount) + Math.round(Number(round.amount) * round.vatRate) / 100;
+      setMessage({ kind: 'ok', text: `Đã chốt đợt: Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')} — ${formatCurrency(total)} (đã gồm VAT).` });
       setSettlementOpen(false);
       refresh();
     },
@@ -334,6 +335,7 @@ export default function AccountingDebitClosePage() {
         rows={selectedRows}
         defaultDateFrom={filters.dateFrom}
         defaultDateTo={filters.dateTo}
+        serverError={settlementMutation.error instanceof Error ? settlementMutation.error.message : null}
         onSubmit={(body) => settlementMutation.mutate(body)}
         onClose={() => setSettlementOpen(false)}
         isPending={settlementMutation.isPending}

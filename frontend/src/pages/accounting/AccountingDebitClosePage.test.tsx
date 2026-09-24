@@ -174,7 +174,8 @@ describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 2
     fireEvent.click(screen.getByRole('radio', { name: 'Phải thu (từ khách hàng)' }));
     fireEvent.click(screen.getByRole('radio', { name: '0%' }));
     fireEvent.click(screen.getByRole('button', { name: 'Chốt đợt' }));
-    expect(await screen.findByText(/đã thuộc một đợt chốt/)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getAllByText(/đã thuộc một đợt chốt/).length).toBeGreaterThan(0);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 

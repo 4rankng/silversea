@@ -54,12 +54,16 @@ interface DebitSettlementRoundDialogProps {
   rows: AccountingDebitBoardRow[];
   defaultDateFrom: string;
   defaultDateTo: string;
+  serverError: string | null;
   onSubmit: (body: CreateSettlementRoundBody) => void;
   onClose: () => void;
   isPending: boolean;
 }
 
-export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defaultDateTo, onSubmit, onClose, isPending }: DebitSettlementRoundDialogProps) {
+export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defaultDateTo, serverError, onSubmit, onClose, isPending }: DebitSettlementRoundDialogProps) {
+  // A server 400/409 must be readable INSIDE the popup — the page-level
+  // status line sits behind the overlay while the dialog stays open.
+  const errorLine = serverError;
   const portalTarget = typeof document === 'undefined' ? null : document.body;
   const overlayRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -89,6 +93,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
     setDirection(null);
     setVatRate(null);
     setGhiChu('');
+    setRoundNo(1);
   }, [isOpen, rows, defaultDateFrom, defaultDateTo]);
 
   const customerNames = useMemo(
@@ -171,6 +176,9 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
           )}
           {direction === 'TRA' && carrierKeyCount !== 1 && (
             <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>Chốt phải trả yêu cầu các lô cùng một nhà xe.</p>
+          )}
+          {errorLine && (
+            <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>{errorLine}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
             <label style={fieldStyle}>

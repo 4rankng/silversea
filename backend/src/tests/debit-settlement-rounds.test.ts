@@ -196,6 +196,23 @@ describe('debit settlement rounds (card 20260923_12 Chọn Debit)', () => {
     assert.equal(row?.carrierLabel, 'XX-ABC-1234');
   });
 
+  test('THU with a carrier-less lot is allowed (chốt với khách hàng không cần nhà xe)', async () => {
+    const userId = await mkUser(Role.ACCOUNTANT);
+    const customer = await mkCustomer(`DSR NCL ${suffix}`);
+    const route = await mkRoute(`DSR route NCL ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+    // trip without truck and without any carrier info → no nhà xe identity
+    const trip = await mkTrip(lot.id, customer.id, route.id);
+    await mkFreight(lot.id, trip.id, '300000');
+    const created = await createDebitSettlementRound({
+      shipmentIds: [lot.id],
+      dateFrom: '2026-09-01', dateTo: '2026-09-30',
+      roundNo: 1, month: 9, year: 2026, direction: 'THU', vatRate: 0, userId,
+    });
+    assert.equal(created.carrierKey, 'MIXED');
+    assert.equal(created.amount, '300000');
+  });
+
   test('guard: mixed customers → 400', async () => {
     const userId = await mkUser(Role.ACCOUNTANT);
     const custA = await mkCustomer(`DSR X1 ${suffix}`);

@@ -98,6 +98,9 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/confirm$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/withdraw$/ },
+  // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt) — one more
+  // financial write in the runIdempotent family.
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_SETTLEMENT_ROUND_CREATE, pattern: /^\/api\/accounting\/debit-board\/settlement-rounds$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_CREATE, pattern: /^\/api\/accounting\/deposits$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES, pattern: /^\/api\/accounting\/deposits\/[^/]+\/dates$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND, pattern: /^\/api\/accounting\/deposits\/[^/]+\/refund$/ },
