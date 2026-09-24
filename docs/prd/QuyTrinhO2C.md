@@ -288,6 +288,14 @@ Quỹ phản ánh tiền đã giao/nhận thực tế. Nhập chi phí, đối c
 
 **Cột phụ phí vùng** (Bảng 2.3, cột riêng đối xứng với cột thu ở Bảng 2.1) lấy số theo bậc nguồn: điều vận nhập/chỉnh trực tiếp (khoản chi ops loại phụ phí vùng) › tổng chi phí lái xe ứng trước cho chuyến trong lô › cấu hình phụ thu theo cảng; không có nguồn nào thì hiển thị "—", **không bao giờ tự điền 0**. Nhãn cột đọc từ cấu hình danh mục (cảng/vùng là dữ liệu — xem tài liệu Nhà máy §8); lô đã khóa giữ đúng số trong snapshot khóa, đổi cấu hình sau khóa không đổi chứng từ. Dòng **Phí khác (không hóa đơn)** mang **hai số tách biệt** — số chi hộ (thực chi) và số thu khách — nhập riêng từng bên, phục vụ đối soát thu-vs-trả theo từng thành phần; bên chưa nhập hiển thị "—".
 
+**Chuyến ngoài chốt** (chưa gắn công việc vận chuyển): chuyến chưa gắn công việc vận chuyển
+không được tính vào tổng của các bảng quyết toán; thay vào đó hiển thị thành mục riêng chỉ đọc
+dưới Bảng 2.3 — mỗi chuyến gồm mã chuyến, ngày, trạng thái, từng khoản phí (thiếu hiển thị
+"—") và tổng tiền chuyến, kèm nhãn **Ngoài chốt**. Mục này để đối soát; không vào bất kỳ tổng
+phải trả nào và không được dùng để chốt. Ẩn khi lô không có chuyến nào như vậy. Bảng theo lô
+(màn chốt debit) áp cùng quy tắc loại trừ khỏi tổng và hiển thị dòng tổng tiền bị loại — xem
+mục Kế toán chốt debit.
+
 Các con số chưa xác định hiển thị **Chưa xác định**, không tự thành 0. Loại chi phí chưa được phân nhóm quyết toán hiển thị trong nhóm **Chưa phân loại** và tổng các nhóm luôn khớp tổng chi phí lô — không mất đồng nào khỏi bảng. Luồng hải quan là thuộc tính tờ khai của **lô**, hiển thị thống nhất trên bảng quyết toán; chưa khai báo hiển thị "—". Khoảng ngày trên bảng kê theo **ngày giao của các lô được chọn** vào đợt phát hành, không phải ngày xử lý; một lô chỉ nằm trong một bảng kê đang hiệu lực — chọn lại lô đã thuộc bảng kê khác bị chặn và nêu rõ số lô.
 
 **Khóa hiển thị trên mọi màn hình**: hồ sơ lô, chuyến, tạm ứng và chứng từ được nhận diện bằng khóa nghiệp vụ — **Số Bill/Số Booking** trước hết, số tờ khai thứ hai, rồi tên khách + ngày chi khi không có chứng từ nào; vắng hết thì hiển thị "—". Mã nội bộ của hệ thống (mã lô dạng SHP-*, mã chuyến TRP-*, mã chứng từ, số # thứ tự) chỉ là khóa kỹ thuật phục vụ liên kết và lưu trữ, **không bao giờ hiển thị** cho người dùng; thiếu khóa nghiệp vụ là thiếu thông tin, không tự chế số thay thế. Tiêu đề và thông báo sinh lại theo khóa nghiệp vụ của hồ sơ được tham chiếu bằng một bộ sinh dùng chung.
@@ -342,7 +350,7 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 | AC-CP-KT-21 | 390px/820px/desktop: bộ lọc và trường tiền cùng cỡ điều khiển, tổng/hành động dễ thấy, không tràn ngang toàn trang; chi tiết mở gọn, thao tác bàn phím được, không thẻ lồng thẻ. |
 | AC-CP-KT-22 | Mất mạng giữ nội dung chưa lưu trong màn hình khi còn có thể; không báo thành công giả, không xếp hàng hoặc tự gửi lại khi mạng về/đổi tài khoản. |
 
-**Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. Phần **chốt debit vendor** được khách ghi rõ chưa hoàn thiện: giữ quy tắc hiện hành cho tới khi phạm vi mới được xác nhận, không tự áp các mô tả VAT/thời điểm ghi AP còn tạm thời.
+**Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. VAT trên chốt debit đã có quy tắc hiệu lực (chốt PM 24/09): VAT 0/5/8/10% gắn với từng đợt chốt qua popup Chọn Debit — xem mục Kế toán chốt debit bên dưới. Riêng **thời điểm ghi công nợ phải trả (AP) trên chuỗi debit vendor** vẫn chưa có đặc tả: giữ quy tắc hiện hành cho tới khi khách xác nhận, không tự áp mô tả còn tạm thời.
 
 ### Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (bổ sung 22/09)
 
@@ -356,11 +364,22 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
   và trạng thái đã xác nhận trước đó hiện ra; lô đã khóa số liệu không nhận yêu cầu mới. Xác nhận/rút
   không bao giờ làm thay đơn giá.
 - Phí RU tự động từ bảng giá (bảng giá RU) — chưa có dữ liệu giá thì hiển thị "Chưa xác định".
-  Phần **Chọn Debit** (popup chốt đợt: lần 1,2,3…, tháng, chiều phải thu/phải trả, VAT 0/5/8/10%
-  với tiền VAT và tổng tiền tự tính, ghi chú; dữ liệu tự điền bảng **TỔNG HỢP CÔNG NỢ KHÁCH HÀNG**,
-  kỳ theo dõi = lần + tháng) đã **LANDED 24/09** theo đặc tả khách hàng (chốt theo đợt, VAT gắn với
-  đợt, popup là hành động chốt chứ không phải bộ lọc; một lô chỉ thuộc một đợt chốt). Phần chốt debit
-  chi tiết còn lại (Debit tab, xuất biểu mẫu) vẫn **ĐỂ LẠI** chờ bản đặc tả hoàn chỉnh của khách hàng.
+  Phần **Chọn Debit** là popup chốt đợt: lần 1,2,3…, tháng, chiều phải thu/phải trả, VAT 0/5/8/10%
+  với tiền VAT và tổng tiền tự tính, ghi chú. Popup là hành động chốt chứ không phải bộ lọc; một lô
+  chỉ thuộc một đợt chốt. Một đợt chốt theo một khách hàng, một tháng, một chiều (thu/trả) và một
+  số lần. Các lô trong đợt phải cùng khách hàng và có ngày giao trong khoảng đã chọn. Tổng đợt tự
+  tính theo bảng theo lô: phải thu = tổng cột Tổng thu; phải trả = tổng cột Tổng 1 (không gồm
+  Phí RU). Chiều phải trả yêu cầu các lô cùng một nhà xe; chiều phải thu không đòi nhà xe (bên
+  chốt là khách hàng). Chốt bị chặn và nêu rõ lô khi: lô chưa có ngày giao; chưa xác định được số
+  tiền thu/trả của lô; còn yêu cầu điều chỉnh cước đang chờ; số lần đã dùng trong cùng tháng và
+  chiều của khách hàng; hoặc lô đã thuộc một đợt chốt khác. Sau khi chốt, bảng
+  **TỔNG HỢP CÔNG NỢ KHÁCH HÀNG** tự liệt kê lại các đợt đã chốt (kỳ theo dõi = lần + tháng).
+  Phần chốt debit chi tiết còn lại (Debit tab, xuất biểu mẫu) vẫn **ĐỂ LẠI** chờ bản đặc tả
+  hoàn chỉnh của khách hàng.
+- **Chuyến ngoài chốt:** chuyến chưa gắn công việc vận chuyển không vào tổng của bảng theo lô —
+  tổng các cột chỉ tính chuyến đã gắn công việc. Số chuyến và tổng tiền bị loại hiển thị thành
+  một dòng riêng trên bảng; dòng ẩn khi không còn chuyến nào bị loại. Trên bảng quyết toán của
+  lô, các chuyến này hiển thị thành mục chỉ đọc dưới Bảng 2.3 — quy tắc định nghĩa tại §7.9.
 
 ## 8. Trải nghiệm chung và độ tin cậy
 

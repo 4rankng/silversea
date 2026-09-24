@@ -4,6 +4,41 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-24 — Đợt 24/09: chốt debit theo đợt, sổ quỹ Ops chỉ-đọc, báo giá nhập/xuất, guard phôi phiếu
+
+- **Chọn Debit — chốt công nợ theo đợt, VAT gắn từng đợt** (QuyTrinhO2C.md §7): popup "Chọn Debit"
+  trên màn hình kế toán chốt đợt lần 1, 2, 3… theo cặp khách hàng + nhà xe, riêng chiều phải thu /
+  phải trả; VAT 0/5/8/10% gắn với từng đợt, tiền VAT và tổng tiền tự tính, kèm ghi chú; kỳ theo dõi =
+  lần + tháng; dữ liệu tự điền bảng TỔNG HỢP CÔNG NỢ KHÁCH HÀNG; một lô chỉ thuộc một đợt chốt —
+  popup là hành động chốt, không phải bộ lọc. (card 20260923_12)
+- **Sổ quỹ cho tài khoản Ops — chỉ-đọc, đúng phạm vi của mình** (OpsVanHanh.md §5.2): Ops thấy một
+  mục sổ quỹ chỉ-đọc trên trang Quỹ tạm ứng, chỉ gồm dòng tiền của chính mình (tạm ứng đã nhận, chi
+  đã ghi, hoàn trả, phiếu thu/chi liên quan) — không mở quyền quỹ công ty, máy chủ tự thu hẹp phạm vi,
+  không nhận tham số định danh từ client. (card 20260923_13; ADR 2026-09-24-ops-fund-book-scoped-read)
+- **Theo dõi hoàn cược: cảnh báo quá hạn công văn có hình thức rõ** (OpsVanHanh.md §9.6): dòng đếm lô
+  quá 7 ngày chưa có ngày nộp công văn hiển thị đỏ kèm số lượng, báo ngay bằng toast, cho phép tắt
+  trong phiên làm việc; hai cảnh báo song song (quá hạn CV, tổng chưa hoàn cược) giữ nguyên. (card 20260923_14)
+- **Báo giá: nhập file Excel = đúng lần ghi thật, khung phí kế thừa, định tuyến trung tính cơ sở**
+  (BaoGia.md — trang PRD mới của báo giá): bản xem trước nhập file chạy đúng bộ kiểm chứng của lần
+  ghi thật (preview = commit); lần ghi kế thừa danh mục phí Chi-phí-khác của khung giá trước (ruling
+  INHERIT); cột lít xuất không còn đuôi thập phân; mã định tuyến tuyến chuyên dụng bỏ định danh một
+  cơ sở cụ thể — Lạch Huyện chỉ còn là dữ liệu cơ sở, không còn trong mã. (cards 20260922_57, 20260922_62, _64)
+- **Phôi phiếu: phiếu quỹ chỉ trả nguồn đã duyệt, mỗi chuỗi trả một phạm vi** (OpsVanHanh.md §9.2):
+  phiếu thu/chi gộp trên bảng phôi phiếu chỉ tiêu nguồn chi hộ (OPS); chuỗi phiếu quỹ tiền mặt chỉ
+  tiêu nguồn tiền đường (DRIVER); chi trả chỉ tính nguồn đã duyệt — máy chủ từ chối khoản chưa duyệt
+  kèm **tên khoản phí**, không nêu mã nội bộ. (audit c12 cluster B; ADR 2026-09-24-expense-payer-scope-split)
+- **Chốt debit: tiền không gắn chuyến hiển thị minh bạch** (QuyTrinhO2C.md §7): màn L1 tách các khoản
+  phí không gắn chuyến thành dòng bóng riêng — không lẫn vào tổng cước; L2 (workspace đợt chốt) thêm
+  mục chỉ-đọc liệt kê các chuyến chưa gắn lô. (cards 20260924_2, 20260924_3)
+- **Sửa lỗi theo audit chi phí 24/09** (Lead phê duyệt bổ sung): các mặt tài chính áp đúng quy tắc
+  hiển thị hiện hành sau audit — nút xóa/xử lý nêu đúng tên nghiệp vụ thay mã nội bộ, dòng chi đã hủy
+  hiển thị đúng trạng thái với hành động bị vô hiệu, và các nút xóa khoản tài chính luôn đi kèm lý do
+  bắt buộc. (audit c12 cluster A/B — không sinh quy tắc mới, chỉ áp đúng quy tắc đang hiệu lực)
+- **Ràng buộc kỹ thuật phục vụ nghiệp vụ**: mọi lệnh ghi tài chính bắt buộc khai báo trong sổ lệnh ghi
+  (material-write registry) — kiểm tra tự động chặn endpoint thiếu khai báo (card 20260924_5); bộ ba
+  migration journal + snapshot + .sql phải landed cùng lúc và nhật ký drizzle phải khớp tên file .sql
+  (restamp coherence, strip-collision heal).
+
 ## 2026-09-22 — Giao diện đồng bộ: quản lý container ngay tại danh sách lô, bảng lọc và hiển thị trạng thái thống nhất
 
 Đợt 22/09 đồng bộ hóa trải nghiệm hiển thị toàn ứng dụng: dữ liệu trong bảng hiển thị
