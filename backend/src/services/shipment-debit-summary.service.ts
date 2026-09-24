@@ -8,7 +8,7 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { aliasedTable, and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
@@ -60,7 +60,7 @@ export async function getShipmentDebitSummary(query: {
   .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .where(and(...conditions))
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
-  if (lots.length === 0) return { items: [], total: 0 };
+  if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0' };
   const lotIds = lots.map((lot) => lot.id);
 
   const declarations = await db.select({
@@ -95,7 +95,7 @@ export async function getShipmentDebitSummary(query: {
       inArray(s.freightRateSnapshots.shipmentId, lotIds),
       or(
         isNull(s.freightRateSnapshots.tripId),
-        and(...activeTripConditions()),
+        and(...activeTripConditions(), isNotNull(s.trips.fulfillmentId)),
       ),
       sql`(${s.freightRateSnapshots.id}) = (
         select max(latest.id) from ${s.freightRateSnapshots} latest
@@ -134,6 +134,9 @@ export async function getShipmentDebitSummary(query: {
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
+      // Card 20260924_2: fulfillment-NULL trips render nowhere in Lớp 2 —
+      // their fees are shadow money, out of the chốt-able totals.
+      isNotNull(s.trips.fulfillmentId),
     ))
     .groupBy(s.trips.shipmentId);
   const chiHoByLot = new Map(chiHoRows.map((row) => [row.shipmentId, toNumber(row.total)]));
@@ -182,6 +185,8 @@ export async function getShipmentDebitSummary(query: {
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
+      // Same shadow exclusion as chi hộ: unrevenuedable in Lớp 2.
+      isNotNull(s.trips.fulfillmentId),
     ));
   const revenueByLot = new Map<number, { hasRows: boolean; otherSell: number; derived: number }>();
   for (const row of revenueRows) {
@@ -258,6 +263,27 @@ export async function getShipmentDebitSummary(query: {
     total: toNumber(row.total),
   }]));
 
+  // Card 20260924_2 — shadow totals: fees on trips with fulfillment_id NULL
+  // render nowhere in Lớp 2 (lotTrips join shipment_fulfillments), so they
+  // stay OUT of the chốt-able totals above. Silent exclusion is banned —
+  // the excluded money surfaces as one explicit line over the same filtered
+  // lot scope: N = trips, X = the excluded fees' buy-sum.
+  const [shadow] = await db.select({
+    trips: sql<number>`count(distinct ${s.trips.id})::int`,
+    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)::text`,
+  }).from(s.tripExpenses)
+    .innerJoin(s.trips, and(
+      eq(s.trips.id, s.tripExpenses.tripId),
+      liveDebitTripExpense(),
+      inArray(s.trips.shipmentId, lotIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+      isNull(s.trips.fulfillmentId),
+    ));
+
+  /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
+   *  before this landing) read null — Chưa xác định, never a fabricated 0. */
+
   /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
    *  before this landing) read null — Chưa xác định, never a fabricated 0. */
   const frozenNumber = (snapshot: unknown, key: string): number | null => {
@@ -321,5 +347,5 @@ export async function getShipmentDebitSummary(query: {
   const visible = query.lockStatus === 'ALL'
     ? items
     : items.filter((item) => item.lockStatus === query.lockStatus);
-  return { items: visible, total: visible.length };
+  return { items: visible, total: visible.length, excludedCount: shadow?.trips ?? 0, excludedSum: String(shadow?.total ?? '0') };
 }

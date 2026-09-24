@@ -30,23 +30,36 @@ async function mkRoute(name: string) {
   const [row] = await db.insert(s.routes).values({ name }).returning();
   return track(s.routes, row);
 }
-async function mkTrip(shipmentId: number, customerId: number, routeId: number, fulfillmentId?: number) {
-  const [row] = await db.insert(s.trips).values({
-    shipmentId, customerId, routeId, status: 'CREATED', departureDate: '2026-09-20',
-    ...(fulfillmentId != null ? { fulfillmentId } : {}),
-  }).returning();
-  return track(s.trips, row);
-}
-async function mkFulfillment(shipmentId: number, version: number) {
+async function mkFulfillment(shipmentId: number, version: number, opts?: { type?: 'LCL_SHIPMENT' | 'FCL_CONTAINER' }) {
   const [row] = await db.insert(s.shipmentFulfillments).values({
     shipmentId,
-    fulfillmentType: 'LCL_SHIPMENT',
-    cargoMode: 'LCL',
-    dispatchClassification: 'LCL',
+    fulfillmentType: opts?.type ?? 'LCL_SHIPMENT',
+    cargoMode: opts?.type ? 'FCL' : 'LCL',
+    dispatchClassification: opts?.type ? 'SINGLE' : 'LCL',
     sourceShipmentVersion: version,
     siteSnapshot: {},
   }).returning();
   return track(s.shipmentFulfillments, row);
+}
+async function mkTrip(shipmentId: number, customerId: number, routeId: number, fulfillmentId?: number | null) {
+  // Production trips carry a fulfillment link (Lớp 2's lotTrips join keys on
+  // it) — auto-link one per trip. A lot allows ONE active LCL fulfillment
+  // (shipment_fulfillments_active_lcl_uniq_idx) and ONE live trip per
+  // fulfillment (trips_fulfillment_id_live_uniq), so trips after the first
+  // ride an FCL-type fulfillment. Explicit `null` inserts the
+  // fulfillment-NULL trip — the shadow-total fixture (card 20260924_2).
+  let resolved = fulfillmentId;
+  if (resolved === undefined) {
+    const existing = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipmentId));
+    resolved = (await mkFulfillment(shipmentId, 1, existing.length > 0 ? { type: 'FCL_CONTAINER' } : undefined)).id;
+  }
+  const [row] = await db.insert(s.trips).values({
+    shipmentId, customerId, routeId, status: 'CREATED', departureDate: '2026-09-20',
+    fulfillmentId: resolved,
+  }).returning();
+  return track(s.trips, row);
 }
 async function mkExpense(tripId: number, buy: string, sell = '0', expenseType = 'PHI_CHI_HO') {
   const [row] = await db.insert(s.tripExpenses).values({
@@ -63,6 +76,43 @@ async function mkFreight(shipmentId: number, tripId: number, total: string) {
   }).returning();
   return track(s.freightRateSnapshots, row);
 }
+
+describe('card 20260924_2 — L1 shadow totals (fulfillment-less trips)', () => {
+  test('totals exclude fulfillment-less fees; excludedCount/excludedSum surface them', async () => {
+    const customer = await mkCustomer(`Debit shadow ${suffix}`);
+    const route = await mkRoute(`Debit shadow route ${suffix}`);
+    const linkedLot = await mkLot(customer.id, '2026-09-25');
+    const linkedTrip = await mkTrip(linkedLot.id, customer.id, route.id);
+    await mkFreight(linkedLot.id, linkedTrip.id, '1000000');
+    await mkExpense(linkedTrip.id, '300000');
+    const shadowLot = await mkLot(customer.id, '2026-09-25');
+    const shadowTrip = await mkTrip(shadowLot.id, customer.id, route.id, null);
+    await mkExpense(shadowTrip.id, '123000');
+    await mkExpense(shadowTrip.id, '7000', '5000', 'OTHER');
+
+    const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const linked = result.items.find((row) => row.shipmentId === linkedLot.id)!;
+    assert.equal(linked.chiHoTotal, '300000', 'linked fees unchanged (AC3)');
+    assert.equal(linked.receivableTotal, '1300000', 'linked revenue unchanged');
+    const shadow = result.items.find((row) => row.shipmentId === shadowLot.id)!;
+    assert.equal(shadow.chiHoTotal, '0', 'the lot carries zero chốt-able chi hộ — truthful 0, not fabricated');
+    assert.equal(shadow.receivableTotal, null, 'no chốt-able revenue stays null');
+    assert.equal(result.excludedCount, 1, 'N counts trips, not fees');
+    assert.equal(result.excludedSum, '130000', 'X = the excluded fees buy-sum (123000 + 7000)');
+  });
+
+  test('no shadow → excludedCount 0 / excludedSum "0" (the summary line hides)', async () => {
+    const customer = await mkCustomer(`Debit no-shadow ${suffix}`);
+    const route = await mkRoute(`Debit no-shadow route ${suffix}`);
+    const lot = await mkLot(customer.id, '2026-09-25');
+    const trip = await mkTrip(lot.id, customer.id, route.id);
+    await mkExpense(trip.id, '300000');
+    const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    assert.equal(result.excludedCount, 0);
+    assert.equal(result.excludedSum, '0');
+    assert.equal(result.items.find((row) => row.shipmentId === lot.id)!.chiHoTotal, '300000');
+  });
+});
 
 describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
   test('shows each saved declaration once in stable order without leaking other lots', async () => {
@@ -152,11 +202,11 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     // Intake-only lot (not dispatched yet): the single freeze still counts.
     const lotC = await mkLot(customer.id, '2026-09-27');
     await mkFreight(lotC.id, null as unknown as number, '1000');
-    // Multi-trip lot: per-trip freezes are separate legs — both latest rows sum.
+    // Multi-trip lot: two live trips = two fulfillments (one live trip each,
+    // one active LCL per lot) — per-trip freezes are separate legs.
     const lotD = await mkLot(customer.id, '2026-09-28');
     const tripD1 = await mkTrip(lotD.id, customer.id, route.id);
-    const fulfillmentD2 = await mkFulfillment(lotD.id, lotD.version);
-    const tripD2 = await mkTrip(lotD.id, customer.id, route.id, fulfillmentD2.id);
+    const tripD2 = await mkTrip(lotD.id, customer.id, route.id);
     await mkFreight(lotD.id, tripD1.id, '3000');
     await mkFreight(lotD.id, tripD1.id, '3100');
     await mkFreight(lotD.id, tripD2.id, '500');

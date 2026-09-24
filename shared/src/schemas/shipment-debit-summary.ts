@@ -45,6 +45,12 @@ export const shipmentDebitSummaryItemSchema = z.object({
 export const shipmentDebitSummaryResponseSchema = z.object({
   items: z.array(shipmentDebitSummaryItemSchema),
   total: z.number().int().nonnegative(),
+  // Card 20260924_2 — shadow totals: fees on trips with fulfillment_id NULL
+  // render nowhere in Lớp 2 (lotTrips join shipment_fulfillments), so they
+  // stay OUT of the chốt-able totals. Silent exclusion is banned — the
+  // excluded money surfaces as this one explicit line (N trips + X ₫).
+  excludedCount: z.number().int().nonnegative(),
+  excludedSum: moneyString,
 });
 
 export type ShipmentDebitSummaryQuery = z.infer<typeof shipmentDebitSummaryQuerySchema>;
