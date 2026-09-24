@@ -6,7 +6,7 @@
 // Ruling 6: commit creates a NEW quotation frame — never overwrites.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -321,6 +321,44 @@ export async function commitQuotationImport(
         effectiveDate: today,
         surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
       }).returning({ id: s.quotations.id });
+      // Ruling (ii) INHERIT (card _57 follow-up, 2026-09-24): the import file
+      // is the customer's CƯỚC document — the fee catalog is our management
+      // construct that carries contract-to-contract. The new frame inherits
+      // the customer's prior frame's quotation_fees verbatim (routing +
+      // defaultAmount), editable via the config page thereafter; /fees/active
+      // therefore never regresses to [] on re-import. A FIRST-EVER import
+      // (no prior frame) stays fee-less until configured.
+      const [priorFrame] = await tx.select({ id: s.quotations.id })
+        .from(s.quotations)
+        .where(and(
+          eq(s.quotations.customerId, enriched.customerId),
+          ne(s.quotations.id, frame.id),
+        ))
+        .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+        .limit(1);
+      if (priorFrame) {
+        const priorFees = await tx.select({
+          feeName: s.quotationFees.feeName,
+          subType: s.quotationFees.subType,
+          defaultAmount: s.quotationFees.defaultAmount,
+          routing: s.quotationFees.routing,
+          note: s.quotationFees.note,
+          sortOrder: s.quotationFees.sortOrder,
+        })
+          .from(s.quotationFees)
+          .where(eq(s.quotationFees.quotationId, priorFrame.id));
+        if (priorFees.length > 0) {
+          await tx.insert(s.quotationFees).values(priorFees.map((fee) => ({
+            quotationId: frame.id,
+            feeName: fee.feeName,
+            subType: fee.subType,
+            defaultAmount: fee.defaultAmount,
+            routing: fee.routing,
+            note: fee.note,
+            sortOrder: fee.sortOrder,
+          })));
+        }
+      }
       for (const route of enriched.routes) {
         const routeId = route.routeId!;
         const preparedRows: Array<{ row: (typeof route.rows)[number]; km: number; classId: number }> = [];

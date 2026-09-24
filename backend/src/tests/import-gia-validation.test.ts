@@ -9,11 +9,12 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { previewQuotationImport, commitQuotationImport } from '../services/quotation-import.service';
+import { updateQuotation } from '../services/quotation.service';
 
 const suffix = `c57d1-${Date.now().toString(36)}`;
 const CUSTOMER = `C57D1 customer ${suffix}`;
@@ -144,5 +145,67 @@ describe('import row validation — single source of truth (card _57 D1)', () =>
     assert.ok(result.quotationId, 'a clean commit creates the frame');
     assert.deepEqual(result.errors, []);
     created.quotationIds.push(result.quotationId!);
+  });
+});
+
+describe('import-commit fee-catalog inheritance (ruling ii INHERIT)', () => {
+  test('second import inherits the prior frame fee catalog verbatim; copied rows stay editable', async () => {
+    const buffer = await mkWorkbook(4500000);
+    const first = await commitQuotationImport(buffer, created.userIds[0]!);
+    const firstFrame = first.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(firstFrame.quotationId, 'first import creates the frame');
+    created.quotationIds.push(firstFrame.quotationId!);
+    // The operator configures the fee catalog on the first frame (config-page
+    // edit path) — the second import must inherit THIS state verbatim.
+    await db.insert(s.quotationFees).values([
+      { quotationId: firstFrame.quotationId!, feeName: 'Hải quan giám sát', routing: 'DEDICATED_CUSTOMS', defaultAmount: '500000', sortOrder: 1 },
+      { quotationId: firstFrame.quotationId!, feeName: 'Nâng/Hạ Lạch Huyện', routing: 'DEDICATED_DEPOT', defaultAmount: '750000', sortOrder: 2 },
+    ]);
+    const second = await commitQuotationImport(buffer, created.userIds[0]!);
+    const secondFrame = second.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(secondFrame.quotationId, 'second import creates its own frame');
+    created.quotationIds.push(secondFrame.quotationId!);
+    assert.notEqual(secondFrame.quotationId, firstFrame.quotationId, 'ruling 6: a new frame, never an overwrite');
+    const inherited = await db.select()
+      .from(s.quotationFees)
+      .where(eq(s.quotationFees.quotationId, secondFrame.quotationId!));
+    assert.equal(inherited.length, 2, 'both configured fees inherit');
+    const customs = inherited.find((fee) => fee.feeName === 'Hải quan giám sát')!;
+    assert.equal(customs.routing, 'DEDICATED_CUSTOMS', 'routing inherits verbatim');
+    assert.equal(customs.defaultAmount, '500000', 'defaultAmount inherits verbatim');
+    // Copied rows are plain rows — the config edit path applies to them.
+    const [target] = inherited;
+    await updateQuotation(secondFrame.quotationId!, {
+      effectiveDate: '2026-09-24', templateName: `C57D1 fee edit ${suffix}`, surchargeRoundingMode: 'NONE' as const, cells: [],
+      fees: [
+      { feeName: target.feeName, routing: 'OTHER_COSTS', defaultAmount: 1 },
+      ...inherited.slice(1).map((fee) => ({ feeName: fee.feeName, routing: fee.routing as 'DEDICATED_CUSTOMS' | 'DEDICATED_DEPOT' | 'OTHER_COSTS', defaultAmount: Number(fee.defaultAmount) })),
+    ] }, db);
+    const [afterEdit] = await db.select()
+      .from(s.quotationFees)
+      .where(and(eq(s.quotationFees.quotationId, secondFrame.quotationId!), eq(s.quotationFees.feeName, target.feeName)));
+    assert.equal(afterEdit!.routing, 'OTHER_COSTS', 'inherited rows are editable through the config path');
+  });
+
+  test('first-ever import stays fee-less until configured', async () => {
+    const freshCustomer = `C57D1 first-import ${suffix}`;
+    const [customer] = await db.insert(s.customers).values({ name: freshCustomer, taxCode: `9${Date.now()}`.slice(0, 11) }).returning();
+    created.customerIds.push(customer.id);
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('BÁO GIÁ 1');
+    sheet.addRow(['Khách hàng', freshCustomer, 'MST', '']);
+    sheet.addRow(['Giá dầu tham chiếu', 17842.593, 'Lag Day n', 2, 'Phụ phí làm tròn', 3]);
+    sheet.addRow(['Nhà máy', FACTORY]);
+    sheet.addRow(['Nội dung', 'Xe 1.25T']);
+    sheet.addRow(['Hệ số', 1]);
+    sheet.addRow(['Tổng lít dầu/chuyến', 20]);
+    sheet.addRow(['Giá cos', 1248000]);
+    const out = await wb.xlsx.writeBuffer();
+    const results = await commitQuotationImport(Buffer.from(out), created.userIds[0]!);
+    const frame = results.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(frame.quotationId, 'first import creates the frame');
+    created.quotationIds.push(frame.quotationId!);
+    const fees = await db.select().from(s.quotationFees).where(eq(s.quotationFees.quotationId, frame.quotationId!));
+    assert.equal(fees.length, 0, 'no prior frame — the new frame is fee-less until configured');
   });
 });
