@@ -55,6 +55,15 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       chiHoThu: 1_350_000, chiHoTra: 1_350_000, tienDuong: 2_000_000,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
     },
+    {
+      tripId: 103, tripCode: 'ST-2609-0103', shipmentId: 9003, shipmentCode: 'SHP-9003',
+      billOrBooking: null, customerName: 'ADC P 1790089547534-zcain7', routeName: 'ADC route P 1790089547534-zcain7',
+      containerNumber: 'GHIZ0001111', containerTypeLabel: '40HC', cargoWeightKg: null,
+      liftSite: 'Đình Vũ', dropSite: 'Hải Phòng', plateNumber: '30K-111.22', driverName: 'card6 driver 1790004852053-9kzgw8-26',
+      departureDate: '2026-09-23T00:00:00.000Z', tripStatus: 'CREATED',
+      chiHoThu: null, chiHoTra: null, tienDuong: null,
+      cusDispatchNotes: [], driverNote: null, confirmable: false,
+    },
   ] }),
   listPhoiPhieuStk: vi.fn().mockResolvedValue({ items: [] }),
   listPhoiPhieuTruckAssignments: vi.fn().mockResolvedValue({ assignments: [], unassignedTrucks: [], accountants: [] }),
@@ -194,5 +203,35 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     expect(await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Chi tiết tiền đường' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  // Standing law internal-ids-never-user-facing (case QA-2026-09-24-01): the
+  // board rows render customers.name / routes.name verbatim, and QA seed
+  // fixtures stamp a trailing `<epoch-ms>-<rand>` onto those names — the row
+  // then reads "ADC P 1790089547534-zcain7 · ADC route P …" and the operator
+  // annotation calls it meaningless. Rows show business names only.
+  it('board rows show business names only — seed id suffixes never render (case QA-2026-09-24-01)', async () => {
+    renderBoard();
+    const row = await findRow('ST-2609-0103');
+    expect(row.textContent).not.toContain('1790089547534-zcain7');
+    expect(row.textContent).not.toContain('1790004852053-9kzgw8-26');
+    expect(row.textContent).toContain('ADC P');
+    expect(row.textContent).toContain('ADC route P');
+    expect(row.textContent).toContain('card6 driver');
+  });
+
+  // Case QA-2026-09-24-01: with nothing checked the toolbar read "(0 dòng)"
+  // while approved entries existed in the modal — a false zero that reads as
+  // "nothing approved". Zero state instructs instead; the count appears only
+  // when it is truthful (a row is actually checked).
+  it('phiếu toolbar zero state instructs instead of showing a false "(0 dòng)" (case QA-2026-09-24-01)', async () => {
+    renderBoard();
+    const row = await findRow('ST-2609-0101');
+    await screen.findByText('ST-2609-0102');
+    const button = screen.getByRole('button', { name: /Lập phiếu/ });
+    expect(button.textContent).not.toContain('(0 dòng)');
+    expect(button.textContent).toContain('chọn dòng đã duyệt');
+    fireEvent.click(within(row).getByRole('checkbox'));
+    expect(button.textContent).toContain('(1 dòng)');
   });
 });

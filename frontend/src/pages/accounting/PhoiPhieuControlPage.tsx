@@ -5,6 +5,7 @@ import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, listPhoiPhieuRo
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
+import { businessName } from '../../lib/business-label';
 import { UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
@@ -191,7 +192,11 @@ export default function PhoiPhieuControlPage() {
         <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
           options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} wrapperClassName="phoi-phieu-filter" />
         <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} onClick={() => void issueVoucher()}>
-          {issuing ? 'Đang lập…' : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selected.size} dòng)`}
+          {issuing
+            ? 'Đang lập…'
+            : selected.size === 0
+              ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} — chọn dòng đã duyệt`
+              : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selected.size} dòng)`}
         </button>
       </div>
 
@@ -217,10 +222,10 @@ export default function PhoiPhieuControlPage() {
               <tr key={row.tripId}>
                 <td><input type="checkbox" aria-label={`Chọn chuyến ${row.tripCode ?? ''} container ${row.containerNumber ?? ''}`} disabled={!canSelect(row)} checked={selected.has(row.tripId)} onChange={() => toggleRow(row)} /></td>
                 <td>{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
-                <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
+                <td>{businessName(row.customerName) || '—'}<br /><small>{businessName(row.routeName)}</small></td>
                 <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
                 <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
-                <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
+                <td>{row.plateNumber ?? '—'}<br /><small>{businessName(row.driverName)}</small></td>
                 <td className="ppc-col--chiho">
                   <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
                   <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>
