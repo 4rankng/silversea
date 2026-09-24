@@ -122,3 +122,17 @@ that became the second pass:
 Verifying the modal headers on the live stack (vite :7175): open Kiểm soát phôi phiếu → "Xem chi
 tiết" on a trip with cost entries → headers read whole at 1280×800; screenshot to this case's
 evidence. The board-row label check (B1) can ride the same session.
+
+## Correction (2026-09-24, director round 3 — payer scope split)
+
+LaneB's interim widening (88b5d2d0: approved DRIVER sources paid OUT by the phoi-phieu
+voucher) was superseded per the option-B ruling: the phoi-phieu voucher pays chi-hộ/OPS
+sources ONLY (approved ∧ remaining>0, counter previews the same set); driver money pays
+exclusively via the cash/vouchers DRIVER_PAYOUT chain with approval-precedes-payment.
+Landed: dc9f44ee (service + engine fee-name refusal + authority t5/t6), 3b4736f5 (ADR),
+2bb1eded (sanitiser retirement). BE-verified: payer-split pin observed RED against the
+pre-correction service (88b5d2d0 behavior drove the driver payout through the phiếu) and
+GREEN at HEAD; authority suite green; debit-close seeder discipline applied (ordinal
+names, epoch tags only on usernames); strip-collision heal = migration trio
+20260924115231_strip_residual_disambiguate (strip + "Base (2)" disambiguator, 50-attempt
+cap, (name, tax_code) guard, skip+WARNING log; runs dev first, staging/prod at cut #2).
