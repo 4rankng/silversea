@@ -75,9 +75,24 @@ export const debitDetailChiHoRowSchema = z.object({
   opsDocsStatus: z.enum(['READY', 'PENDING']),
 });
 
+/** Card 20260924_3 — trips whose fulfillment_id is NULL render their own
+ *  Lớp-2 section. Their fees are VISIBLE but never chốt-able: L1 excludes
+ *  their money from the chốt totals (same Director ruling) and this section
+ *  is display-only — chotIncluded is false by construction. */
+export const debitDetailUnattachedTripSchema = z.object({
+  tripId: z.number().int(),
+  tripCode: z.string().nullable(),
+  departureDate: z.string().nullable(),
+  status: z.string().nullable(),
+  chotIncluded: z.literal(false),
+  items: z.array(debitDetailExpenseItemSchema),
+  feeTotal: nullableMoney,
+});
+
 export const shipmentDebitDetailSchema = z.object({
   freightRows: z.array(debitDetailFreightRowSchema),
   chiHoRows: z.array(debitDetailChiHoRowSchema),
+  unattachedTrips: z.array(debitDetailUnattachedTripSchema),
   payables: z.object({
     chiHoTotal: nullableMoney,
     /** Card _19 snapshot composition (Bảng 2.3) — key names exactly as the

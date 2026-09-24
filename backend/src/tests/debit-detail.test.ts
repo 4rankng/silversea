@@ -642,3 +642,53 @@ describe('20260919 freight scope parity: canceled legs leave L1 like they leave 
     }
   });
 });
+
+describe('20260924_3 — fulfillment-unattached trips render their own L2 section', () => {
+  test('unattached trip fees render visible but never chốt-able; linked totals unchanged', async () => {
+    const lot = await mkShipmentWithTrip({ linkTripToShipment: true });
+    // Linked trip carries the chốt-able money.
+    await mkExpense(lot.trip.id, { expenseType: 'CUSTOMS', buyAmount: '400000', sellAmount: '0' });
+    // An unattached trip (fulfillment_id NULL) with its own fee.
+    const [unattachedTrip] = await db.insert(s.trips).values({
+      shipmentId: lot.shipment.id,
+      customerId: lot.customer.id,
+      routeId: lot.route.id,
+      departureDate: '2026-01-03',
+      status: 'COMPLETED',
+      // fulfillment_id stays NULL — the unattached fixture.
+    }).returning({ id: s.trips.id });
+    createdTripIds.push(unattachedTrip.id);
+    const unattachedExpenseId = await mkExpense(unattachedTrip.id, {
+      expenseType: 'OTHER', feeName: 'Phí chưa gắn chuyến', buyAmount: '250000', sellAmount: '300000',
+    });
+
+    const detail = await api('GET', `/api/shipments/${lot.shipment.id}/debit-detail`, accountantId);
+    assert.equal(detail.status, 200, JSON.stringify(detail.body).slice(0, 200));
+    const payload = detail.body as unknown as {
+      unattachedTrips?: Array<{
+        tripId: number; tripCode: string | null; chotIncluded: boolean;
+        feeTotal: number | null; items: Array<{ id: number; amount: number | null; thuKhach: number | null }>;
+      }>;
+      chiHoRows: Array<{ items: Array<{ id: number }> }>;
+      payables: { chiHoTotal: number | null };
+      thuKhachTotal: number | null;
+    };
+    const section = payload.unattachedTrips ?? [];
+    assert.equal(section.length, 1, 'the unattached trip renders its own section');
+    const row = section.find((entry) => entry.tripId === unattachedTrip.id)!;
+    assert.ok(row, 'the section names the unattached trip');
+    assert.equal(row.chotIncluded, false, 'chốt semantics: unattached work is never chốt-able');
+    assert.ok(row.items.some((item) => item.id === unattachedExpenseId), 'the unattached fee renders in the section');
+    assert.equal(row.feeTotal, 250000, 'the section total reads the unattached buy-sum');
+    // Chốt totals stay scoped to linked work.
+    assert.equal(
+      payload.payables.chiHoTotal,
+      400000,
+      'the chốt-able chi hộ total excludes the unattached fee',
+    );
+    assert.ok(
+      payload.chiHoRows.every((row2) => !row2.items.some((item) => item.id === unattachedExpenseId)),
+      'the unattached fee never leaks into the linked chi-hộ rows',
+    );
+  });
+});

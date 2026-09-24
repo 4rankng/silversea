@@ -357,6 +357,62 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     chiHoRows.push(built.chiHoRow);
   }
 
+  // Card 20260924_3 — fulfillment-unattached trips render their own section:
+  // fees are visible but never chốt-able (L1 excludes their money from the
+  // chốt totals by the same ruling; chốt stays scoped to fulfillment-linked
+  // work — chotIncluded is false by construction).
+  const unattachedTripRows = await db.select({
+    id: s.trips.id,
+    code: s.trips.tripCode,
+    departureDate: s.trips.departureDate,
+    status: s.trips.status,
+  })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.shipmentId, shipmentId),
+      ...activeTripConditions(),
+      isNull(s.trips.fulfillmentId),
+    ));
+  const unattachedExpenseRows = unattachedTripRows.length === 0 ? [] : await db.select({
+    tripId: s.tripExpenses.tripId,
+    id: s.tripExpenses.id,
+    expenseType: s.tripExpenses.expenseType,
+    feeName: s.tripExpenses.feeName,
+    buyAmount: s.tripExpenses.buyAmount,
+    sellAmount: s.tripExpenses.sellAmount,
+    note: s.tripExpenses.recoveryNote,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+  })
+    .from(s.tripExpenses)
+    .where(and(
+      inArray(s.tripExpenses.tripId, unattachedTripRows.map((trip) => trip.id)),
+      liveDebitTripExpense(),
+    ));
+  const unattachedSections: ShipmentDebitDetail['unattachedTrips'] = unattachedTripRows.map((trip) => {
+    const rows = unattachedExpenseRows.filter((row) => row.tripId === trip.id);
+    return {
+      tripId: trip.id,
+      tripCode: trip.code,
+      departureDate: trip.departureDate,
+      status: trip.status,
+      chotIncluded: false as const,
+      items: rows.map((expense) => ({
+        id: expense.id,
+        expenseType: expense.expenseType,
+        feeName: expense.feeName,
+        amount: Number(expense.buyAmount),
+        // The same recharge semantics as the linked chi-hộ rows: invoiced
+        // rows recharge at cost; Phí khác carries the typed sell.
+        thuKhach: expense.expenseType === 'OTHER'
+          ? (expense.sellAmount == null ? null : Number(expense.sellAmount))
+          : Number(expense.buyAmount),
+        note: expense.note,
+        invoiceNumber: expense.invoiceNumber,
+      })),
+      feeTotal: rows.reduce((sum, expense) => sum + Number(expense.buyAmount), 0),
+    };
+  });
+
   const hasChiHoData = chiHoRows.some((row) => row.items.length > 0 || row.otherFees.length > 0);
   const chiHoTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.amount ?? 0), 0)), 0);
   const thuKhachTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.thuKhach ?? 0), 0)), 0);
@@ -391,6 +447,7 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   return {
     freightRows,
     chiHoRows,
+    unattachedTrips: unattachedSections,
     payables,
     thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
     customsChannel,
