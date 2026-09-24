@@ -88,31 +88,33 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 11px;
-  border-radius: 999px;
+  padding: 0;
+  border-radius: 0;
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: var(--surface-2, #F7F8FA);
+  letter-spacing: 0.02em;
+  background: transparent;
   color: var(--fg-2);
-  border: 1px solid var(--line);
+  border: 0;
   line-height: 1.35;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .tc-status-pill::before {
   content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
   background: var(--fg-3);
+  flex-shrink: 0;
 }
 .tc-status-pill--draft::before { background: var(--slate-1); }
 .tc-status-pill--in-transit::before { background: var(--slate-2); }
 .tc-status-pill--completed::before { background: var(--slate-3); }
 .tc-status-pill--locked::before { background: var(--slate-4); }
 .tc-status-pill--canceled::before { background: var(--danger); }
-.tc-status-pill--locked { color: var(--slate-4); background: var(--slate-5); border-color: var(--slate-6); }
-.tc-status-pill--canceled { color: var(--danger); background: var(--danger-soft); border-color: #f3c6c6; }
+.tc-status-pill--locked { color: var(--slate-4); }
+.tc-status-pill--canceled { color: var(--danger); }
 
 /* ── Bento grid shell ── */
 .tc-content {

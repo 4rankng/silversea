@@ -133,7 +133,7 @@
   color: var(--fc-green, #005a2d);
   background: rgba(0, 90, 45, .08);
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   white-space: nowrap;
   cursor: help;
 }

@@ -326,7 +326,7 @@
   gap: 4px;
   width: max-content;
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;

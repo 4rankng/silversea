@@ -51,7 +51,7 @@
 .salary-summary-dark__status {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 3px 8px;
   background: var(--warning-soft);
   color: var(--warning-text);

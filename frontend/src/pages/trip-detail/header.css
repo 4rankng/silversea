@@ -184,7 +184,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);

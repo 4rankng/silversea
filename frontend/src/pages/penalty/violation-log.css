@@ -169,7 +169,7 @@
   padding: 4px 10px;
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
-  border-radius: 999px;
+  border-radius: 6px;
   color: var(--accent-ink);
   font-size: var(--fs-2xs);
   font-weight: 700;
@@ -281,7 +281,7 @@
   font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-3);
   color: var(--ink-2);
 }
@@ -473,7 +473,7 @@
   justify-content: center;
   min-width: 44px;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.6px;
@@ -605,7 +605,7 @@
   min-height: 36px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
   font-size: var(--fs-xs);
   font-weight: 600;

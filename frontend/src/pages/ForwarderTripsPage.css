@@ -226,7 +226,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--border-2));
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--brand-subtle);
   color: var(--fg-2);
   font-size: var(--text-caption-size);
@@ -269,7 +269,7 @@
   flex: none;
   padding: 4px 8px;
   border: 1px solid var(--border-2);
-  border-radius: 999px;
+  border-radius: 6px;
   color: var(--fg-2);
   font-size: var(--text-caption-size);
   font-weight: 800;
@@ -458,7 +458,7 @@
     align-items: center;
     min-height: 24px;
     padding: 3px 8px;
-    border-radius: 999px;
+    border-radius: 6px;
     background: var(--ops-surface-muted);
     color: var(--fg-2);
     font-size: var(--text-caption-size);

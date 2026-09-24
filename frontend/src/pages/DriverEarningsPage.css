@@ -551,7 +551,7 @@
 .driver-earnings-page .vehicle-alerts-strip__days {
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   white-space: nowrap;
 }
 .driver-earnings-page .vehicle-alerts-strip__item--overdue .vehicle-alerts-strip__days {
