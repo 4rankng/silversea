@@ -52,3 +52,82 @@
 .ppc-report thead th:last-child {
   border-right: none;
 }
+
+/* ============================================================================
+ * Filter bar (card 20260924_12, filter-bar law §5 — Director 2026-09-24).
+ *
+ * The bespoke bar used to ride inline flex-wrap plus the borrowed
+ * .shipments-detail-filters class; the shared .ds-uui-select { width: 100% }
+ * then handed every dropdown a full-row flex basis (CHIEF 15:40: "Trạng thái"
+ * / "Sắp xếp" each ate the whole ~1100px row). Page-owned auto-fit grid:
+ * tracks band 220–320px, so controls pack along the row, wrap only when
+ * genuinely out of space, and no cell can ever stretch full-width — the
+ * select's width:100% is now bounded by its ≤320px track.
+ * ========================================================================== */
+.ppc-filters,
+.ppc-filter-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+  gap: 12px 24px; /* ListFilterBar rhythm: 12px row / 24px column */
+  align-items: end;
+}
+.ppc-filters { margin: 12px 0; }
+.ppc-filter-actions { margin: 8px 0; }
+
+/* Labels stack above their control (label-trên/control-dưới) at every width —
+   the UUI selects beside them already render label-above, and this mirrors
+   the AccountingDebitClosePage date-row pattern. */
+.ppc-filters > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* One control height per context (card 20260920_19): the house .input chrome
+   at the bar's --filter-control-h (30px desktop, 44px phone via tokens). */
+.ppc-filters input {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  font-size: var(--filter-control-font-size);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Pull the selects onto the same bar height. Specificity (0,3,0) beats
+   control-geometry's size rules (0,2,0) regardless of import order — the
+   documented ListFilterBar technique. */
+.ppc-filters [data-uui-control][data-control-size] { --uui-control-h: var(--filter-control-h); }
+.ppc-filter-actions [data-uui-control][data-control-size] { --uui-control-h: var(--filter-control-h); }
+
+@media (pointer: coarse) {
+  .ppc-filters,
+  .ppc-filter-actions {
+    --filter-control-h: var(--control-touch-h);
+  }
+}
+
+/* Voucher button: own full row, right-aligned — never overlaps the selects
+   (card rule 2: "hàng riêng hoặc canh phải hàng cuối"). */
+.ppc-filter-actions > .btn {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+/* Phone ≤480 (ListFilterBar mobile law, card 20260924_6): collapse to the
+   standing one-column label-above stack; tracks stop banding so cells run
+   the full row. */
+@media (max-width: 480px) {
+  .ppc-filters {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .ppc-filter-actions {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .ppc-filters > label {
+    gap: 4px;
+  }
+}

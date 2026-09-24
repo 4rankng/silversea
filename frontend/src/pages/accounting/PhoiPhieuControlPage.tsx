@@ -175,21 +175,27 @@ export default function PhoiPhieuControlPage() {
   return (
     <div className="page-shell">
       <h1>Kiểm soát phơi phiếu - Tiền đường</h1>
-      <div className="shipments-detail-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end', margin: '12px 0' }}>
-        <label>Từ ngày <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
-        <label>Đến ngày <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
-        <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} wrapperClassName="phoi-phieu-filter" />
-        <label>Tìm kiếm <input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Mã chuyến, container, khách" /></label>
-        <UuiSelectField label="Sắp xếp" value={filters.sortBy} onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'grouped' | 'date' })} options={[{ value: 'grouped', label: 'Gom theo số xe' }, { value: 'date', label: 'Theo ngày' }]} wrapperClassName="phoi-phieu-filter" />
+      {/* Card 20260924_12: page-owned auto-fit grid (filter-bar law §5) —
+          tracks band 220–320px pack every control along one row and wrap only
+          when out of space; the shared .ds-uui-select width:100% now fills a
+          ≤320px cell instead of claiming the whole row. */}
+      <div className="ppc-filters">
+        <label>Từ ngày <input className="input" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
+        <label>Đến ngày <input className="input" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
+        <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} />
+        <label>Tìm kiếm <input className="input" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Mã chuyến, container, khách" /></label>
+        <UuiSelectField label="Sắp xếp" value={filters.sortBy} onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'grouped' | 'date' })} options={[{ value: 'grouped', label: 'Gom theo số xe' }, { value: 'date', label: 'Theo ngày' }]} />
       </div>
 
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
       {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'end', margin: '8px 0' }}>
+      {/* Voucher bar keeps its own row; the button rides a right-aligned
+          full row below the two selects — never over them (card 20260924_12). */}
+      <div className="ppc-filter-actions">
         <UuiSelectField label="Loại phiếu" value={direction} onChange={(e) => setDirection(e.target.value as 'IN' | 'OUT')}
-          options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} wrapperClassName="phoi-phieu-filter" />
+          options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} />
         <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
-          options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} wrapperClassName="phoi-phieu-filter" />
+          options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} />
         <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} onClick={() => void issueVoucher()}>
           {issuing
             ? 'Đang lập…'
