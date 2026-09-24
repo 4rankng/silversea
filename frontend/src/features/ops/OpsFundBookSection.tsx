@@ -41,7 +41,7 @@ export function OpsFundBookSection() {
                 const value = Number(item.amount);
                 const running = items.slice(0, index + 1).reduce((sum, entry) => sum + Number(entry.amount), 0);
                 return (
-                  <tr key={item.key}>
+                  <tr key={item.key} className="ops-wallet__row ops-wallet__row--fund-book">
                     <td data-label="Ngày">{formatDate(item.date)}</td>
                     <td className="ops-wallet__wide" data-label="Diễn giải">{item.label}</td>
                     <td data-label="Chứng từ">{item.reference ?? '—'}</td>
