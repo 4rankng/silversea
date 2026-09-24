@@ -11,8 +11,14 @@
 // no place-named identifiers, config-sourced heading pending its producer);
 // Customer charges and actual OPS costs remain separate on their own wires.
 import { AlertTriangle, Paperclip } from 'lucide-react';
+import { defaultFeeRouting } from '@tingting/shared';
 import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
+import type { QuotationFeeRow } from '../../../api/quotationClient';
+import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './ShipmentDebitTables.routing';
+import { buildDraft, num, type DraftState } from './ShipmentDebitTables.draft';
 import { formatMoney } from '../../../lib/format';
+
+export { DRAFT_EMPTY, buildDraft, deltaIsEmpty, buildDelta, type DraftState } from './ShipmentDebitTables.draft';
 
 /** Luồng hải quan labels (card _5): Customs assigns the channel per tờ khai;
  *  every container row of the lot renders the same one. */
@@ -20,10 +26,7 @@ const CHANNEL_LABELS: Record<string, string> = { RED: 'Luồng đỏ', YELLOW: '
 
 const money = (value: number | null | undefined) => (value == null || Number.isNaN(value) ? 'Chưa xác định' : formatMoney(value));
 
-const num = (value: string): number => {
-  const parsed = Number(value.replace(/[^0-9.-]/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+
 
 /** Canonical Ops-fee columns for Bảng 2.2 (Nâng/Hạ/CSHT), bucketed by
  * expense-type keyword. Unmapped non-OTHER items stay visible read-only in
@@ -43,68 +46,13 @@ const bracketMoney = (value: number | null | undefined): { text: string; warn: b
   return { text: `[ ${formatMoney(value)} đ ]`, warn: value > 0 };
 };
 
-/** CUS draft: per-expense sell/note edits, other-fee amount edits, and the
- * Phí khác add/remove lists. Pure delta — untouched cells never travel. */
-export interface DraftState {
-  freight: Record<string, { psActual: string; note: string }>;
-  feeAmounts: Record<number, string>;
-  addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
-  removedFeeIds: number[];
-}
 
-export const DRAFT_EMPTY: DraftState = { freight: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
 
-export const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
-  freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
-  feeAmounts: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.amount == null ? '' : String(fee.amount)]))),
-  addedFees: [],
-  removedFeeIds: [],
-});
 
-/** True when the draft carries no travel-worthy change — the contextual save
- *  bar hides while nothing would be sent. */
-export const deltaIsEmpty = (delta: ShipmentDebitEditsBody): boolean =>
-  (delta.edits?.length ?? 0) === 0
-  && (delta.addOtherFees?.length ?? 0) === 0
-  && (delta.removeExpenseIds?.length ?? 0) === 0
-  && (delta.freightEdits?.length ?? 0) === 0;
 
-export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): ShipmentDebitEditsBody => {
-  const edits: NonNullable<ShipmentDebitEditsBody['edits']> = [];
-  const readOnlyIds = new Set<number>();
-  for (const row of detail.chiHoRows) {
-    for (const item of row.items) if (item.readOnly) readOnlyIds.add(item.id);
-    for (const fee of row.otherFees) {
-      if (fee.readOnly) { readOnlyIds.add(fee.id); continue; }
-      const raw = draft.feeAmounts[fee.id];
-      if (raw == null) continue;
-      const amount = num(raw);
-      if (amount !== (fee.amount ?? 0)) edits.push({ expenseId: fee.id, buyAmount: amount });
-    }
-  }
-  const freightEdits: NonNullable<ShipmentDebitEditsBody['freightEdits']> = [];
-  for (const row of detail.freightRows) {
-    const key = row.containerNumber;
-    if (key == null) continue;
-    const cells = draft.freight[key];
-    if (!cells) continue;
-    const ps = cells.psActual.trim() === '' ? null : num(cells.psActual);
-    const note = cells.note;
-    const changed = ps !== (row.psActual ?? null) || note !== (row.psActualNote ?? '');
-    if (changed) {
-      const edit: NonNullable<ShipmentDebitEditsBody['freightEdits']>[number] = { containerNumber: key };
-      if (ps !== (row.psActual ?? null)) edit.psActual = ps ?? undefined;
-      if (note !== (row.psActualNote ?? '')) edit.note = note;
-      freightEdits.push(edit);
-    }
-  }
-  return {
-    edits,
-    addOtherFees: draft.addedFees.filter((fee) => fee.name.trim() !== '').map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount) })),
-    removeExpenseIds: draft.removedFeeIds.filter(id => !readOnlyIds.has(id)),
-    freightEdits,
-  };
-};
+
+
+
 
 /** Bảng 2.1 — auto freight per container + the CUS-entered actual PS. */
 export function FreightTable({ detail, draft, frozen, setFreight }: {
@@ -175,7 +123,10 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
  * read-only; the Phí khác cell keeps unmapped non-OTHER lines visible
  * read-only beside the CUS-managed OTHER rows; hold amounts render in the
  * bracketed format, armed orange above zero. */
-export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, removeFee, setAddedFee }: {
+export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmount, addFee, removeFee, setAddedFee }: {
+  /** Card _64: the customer's active-frame Chi-phí-khác catalog — drives the
+   *  dedicated routing columns (headers = the customer's own fee names). */
+  feeCatalog?: QuotationFeeRow[];
   detail: ShipmentDebitDetail;
   draft: DraftState;
   frozen: boolean;
@@ -184,6 +135,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
   removeFee: (feeId: number) => void;
   setAddedFee: (key: string, patch: Partial<{ name: string; amount: string }>) => void;
 }) {
+  const columns = dedicatedColumns(feeCatalog);
   const roItem = (item: ShipmentDebitDetail['chiHoRows'][number]['items'][number]) => (
     <div className="csc-debit-item csc-debit-item--ro" key={item.id}>
       <span className="csc-debit-item__amount">{money(item.amount)}</span>
@@ -198,6 +150,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
         <th scope="col">Phí Nâng</th>
         <th scope="col">Phí Hạ</th>
         <th scope="col">Phí cơ sở hạ tầng</th>
+        {columns.map((col) => <th key={col.key} scope="col">{col.label}</th>)}
         <th scope="col">Phí khác (không hđ)</th>
         <th scope="col">Cược Hãng Tàu (Tiền treo)</th>
         <th scope="col">Tạm thu sửa chữa</th>
@@ -211,37 +164,72 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
           const otherItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === null && item.expenseType.toUpperCase() !== 'OTHER');
           const detention = bracketMoney(row.carrierDetention);
           const repair = bracketMoney(row.repairAdvance);
+          // Card _64 partition: each CUS fee lands in its dedicated routing
+          // column by name match; the rest stay in Phí khác. Draft fees with
+          // an empty name stay put (unclassifiable = other).
+          const columnOf = (name: string) => matchDedicatedColumn(name, columns);
+          const managedOf = (colKey: string) => row.otherFees.filter((fee) => columnOf(fee.name)?.key === colKey);
+          const draftsOf = (colKey: string) => draft.addedFees.filter((fee) => fee.tripId === row.tripId && columnOf(fee.name)?.key === colKey);
+          const otherManaged = row.otherFees.filter((fee) => columnOf(fee.name) == null);
+          const otherDrafts = draft.addedFees.filter((fee) => fee.tripId === row.tripId && columnOf(fee.name) == null);
           return (
             <tr key={row.containerNumber ?? `row-${chiIdx}`}>
               <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
               <td>{liftItems.length === 0 ? <span>—</span> : liftItems.map(roItem)}</td>
               <td>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</td>
               <td>{cshtItems.length === 0 ? <span>—</span> : cshtItems.map(roItem)}</td>
+              {columns.map((col) => (
+                <td key={col.key}>
+                  {managedOf(col.key).map((fee) => (
+                    <div className={`csc-debit-otherfee${fee.readOnly ? ' csc-debit-otherfee--managed' : ''}`} key={fee.id}>
+                      <span className="csc-debit-item__name">{fee.name}</span>
+                      <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
+                      <input
+                        className="csc-debit-input csc-debit-input--amount"
+                        aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
+                        value={draft.feeAmounts[fee.id] ?? ''}
+                        disabled={frozen || fee.readOnly === true}
+                        onChange={(event) => setFeeAmount(fee.id, event.target.value)}
+                      />
+                      <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
+                      {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
+                    </div>
+                  ))}
+                  {draftsOf(col.key).map((fee) => (
+                    <div className="csc-debit-otherfee" key={fee.key}>
+                      <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.name} disabled={frozen}
+                        onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
+                      <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.amount} disabled={frozen}
+                        onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
+                    </div>
+                  ))}
+                </td>
+              ))}
               <td>
                 {otherItems.map(roItem)}
-                {row.otherFees.map((fee) => (
-                  <div className={`csc-debit-otherfee${fee.readOnly ? ' csc-debit-otherfee--managed' : ''}`} key={fee.id}>
-                    <span className="csc-debit-item__name">{fee.name}</span>
-                    <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
-                    <input
-                      className="csc-debit-input csc-debit-input--amount"
-                      aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
-                      value={draft.feeAmounts[fee.id] ?? ''}
-                      disabled={frozen || fee.readOnly === true}
-                      onChange={(event) => setFeeAmount(fee.id, event.target.value)}
-                    />
-                    <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
-                    {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
-                  </div>
-                ))}
-                {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (
-                  <div className="csc-debit-otherfee" key={fee.key}>
-                    <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.name} disabled={frozen}
-                      onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
-                    <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.amount} disabled={frozen}
-                      onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
-                  </div>
-                ))}
+                {otherManaged.map((fee) => (
+                    <div className={`csc-debit-otherfee${fee.readOnly ? ' csc-debit-otherfee--managed' : ''}`} key={fee.id}>
+                      <span className="csc-debit-item__name">{fee.name}</span>
+                      <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
+                      <input
+                        className="csc-debit-input csc-debit-input--amount"
+                        aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
+                        value={draft.feeAmounts[fee.id] ?? ''}
+                        disabled={frozen || fee.readOnly === true}
+                        onChange={(event) => setFeeAmount(fee.id, event.target.value)}
+                      />
+                      <button type="button" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
+                      {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
+                    </div>
+                  ))}
+                {otherDrafts.map((fee) => (
+                    <div className="csc-debit-otherfee" key={fee.key}>
+                      <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.name} disabled={frozen}
+                        onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
+                      <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.amount} disabled={frozen}
+                        onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
+                    </div>
+                  ))}
                 <button type="button" className="csc-debit-addfee" aria-label="+ Thêm chi phí" disabled={frozen}
                   onClick={() => { if (row.tripId != null) addFee(row.tripId); }}>+ THÊM CHI PHÍ</button>
               </td>
@@ -310,6 +298,12 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
  * read the wire's per-container fields (card _62): null stays "Chưa xác
  * định", never 0; the note column renders the container's freight note. */
 export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
+  // Card _64 AC4 — the bảng kê note carries the container's other-costs fee
+  // names (deterministic stored order) appended to the user's note.
+  const otherFeeNamesByContainer = new Map(detail.chiHoRows.map((row) => [
+    row.containerNumber ?? `trip-${row.tripId}`,
+    row.otherFees.filter((fee) => defaultFeeRouting(fee.name) === 'OTHER_COSTS').map((fee) => fee.name),
+  ]));
   return (
     <table className="csc-debit-table csc-debit-table--payables">
       <caption>Bảng 2.3 — Phí Phải trả (chỉ xem)</caption>
@@ -332,7 +326,7 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
             <td>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</td>
             <td>{money(row.customsFee)}</td>
             <td>{money(row.phatSinhFee)}</td>
-            <td>{row.psActualNote ?? '—'}</td>
+            <td>{buildDebitNote(row.psActualNote, otherFeeNamesByContainer.get(row.containerNumber ?? `trip-${row.tripId}`) ?? [])}</td>
           </tr>
         ))}
         {payablesCommonRow(detail.payables)}

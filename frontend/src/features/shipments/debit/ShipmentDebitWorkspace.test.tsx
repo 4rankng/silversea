@@ -60,11 +60,11 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
   ...over,
 });
 
-function renderWorkspace(props: Partial<{ shipmentId: number; locked: boolean; onSaved: () => void }> = {}) {
+function renderWorkspace(props: Partial<{ shipmentId: number; customerId: number; locked: boolean; onSaved: () => void }> = {}) {
   const onSaved = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <ShipmentDebitWorkspace shipmentId={101} locked={false} onSaved={onSaved} {...props} />
+      <ShipmentDebitWorkspace shipmentId={101} customerId={7} locked={false} onSaved={onSaved} {...props} />
     </QueryClientProvider>,
   );
   return { onSaved };

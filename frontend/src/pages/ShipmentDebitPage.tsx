@@ -50,9 +50,10 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
  *  wire field — null stays "Chưa xác định", never derived, never 0. */
 function DebitLotRow({
-  row, expanded, onToggle, onSaved, selected, onSelect, canManage,
+  row, customerId, expanded, onToggle, onSaved, selected, onSelect, canManage,
 }: {
   row: ShipmentDebitLotRow;
+  customerId: number;
   canManage: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -106,7 +107,7 @@ function DebitLotRow({
       {canManage && expanded && (
         <tr className="shipment-debit-expand">
           <td colSpan={9}>
-            <ShipmentDebitWorkspace shipmentId={row.shipmentId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
+            <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={Number(customerId)} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
           </td>
         </tr>
       )}
@@ -269,9 +270,9 @@ export function ShipmentDebitPage() {
             {/* Card 20260924_2 F1 shadow line (BE 855aef81; FE half per BE spec):
                 fees on fulfillment-NULL trips stay out of chốt — say so plainly
                 instead of a silent gap. Hidden at zero, red needs-attention ink. */}
-            {summary.data.excludedCount > 0 && (
+            {(summary.data?.excludedCount ?? 0) > 0 && (
               <p className="shipment-debit-shadow-line" role="status" style={{ color: 'var(--danger, #b91c1c)', fontWeight: 600 }}>
-                {summary.data.excludedCount} chuyến chưa gán fulfillment — {formatMoney(Number(summary.data.excludedSum))} ₫ chưa vào chốt
+                {summary.data?.excludedCount} chuyến chưa gán fulfillment — {formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫ chưa vào chốt
               </p>
             )}
             <table className="shipment-debit-table">
@@ -293,6 +294,7 @@ export function ShipmentDebitPage() {
                   <DebitLotRow
                     key={row.shipmentId}
                     row={row}
+                    customerId={Number(customerId)}
                     canManage={canManage}
                     expanded={canManage && expandedId === row.shipmentId}
                     onToggle={() => toggleExpandedLot(row.shipmentId)}

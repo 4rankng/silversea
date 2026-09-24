@@ -8,6 +8,7 @@ import {
   saveShipmentDebitEdits,
 } from '../../../api/shipmentClient';
 import { useAuth } from '../../../hooks/useAuth';
+import { useActiveQuotationFees } from '../../../hooks/useQuotationQueries';
 import { useReasonPrompt } from '../../../components/reason-prompt';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
@@ -15,8 +16,11 @@ import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buil
 import './ShipmentDebitWorkspace.css';
 
 
-export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
+export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved }: {
   shipmentId: number;
+  /** Card _64: the L1 filter's customer — keys the active-frame fee catalog
+   *  (dedicated routing columns + the ghi chú aggregation). */
+  customerId: number;
   locked: boolean;
   onSaved: () => void;
 }) {
@@ -90,6 +94,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   }
 
   const auth = useAuth();
+  const feeCatalog = useActiveQuotationFees(customerId).data ?? [];
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const role = auth?.user?.role;
   const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
@@ -131,7 +136,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, onSaved }: {
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
-      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
+      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
       <PayablesTable detail={detail.data} />
       {adjustOpen && (
         <AdjustPanel
