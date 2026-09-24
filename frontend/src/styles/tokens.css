@@ -59,6 +59,18 @@
   --noise: 0;
 }
 
+/* Design law §1 (docs/design-guidelines.md): buttons/badges are small-radius
+   rectangles, never pills. The daisyUI `d-badge` primitive ships a
+   fully-round stock radius (computed 20px on a 20px-tall d-badge-sm), which
+   made every consumer read as a pill — the dashboard trend chips (dashboard-
+   presenters) and the severity badges (DashboardPage wf-severity). The
+   primitive itself now wears the house badge radius fixed for
+   `.kpi__trend-badge` (a729f139): 6px. Sweep 2026-09-24 found no other
+   d-badge consumers; the rule covers future ones too. */
+.d-badge.d-badge {
+  border-radius: 6px;
+}
+
 /* ============================================================================
  * TransTing -- Wireframe Design System
  * Be Vietnam Pro is the single Vietnamese-aware UI family.

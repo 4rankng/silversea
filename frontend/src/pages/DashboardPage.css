@@ -402,7 +402,10 @@
 .dash-wf .wf-kpi .delta {
   font-family: var(--font-data); font-size: var(--text-caption-size); font-weight: var(--fw-semibold);
   display: inline-flex; align-items: center; gap: 3px;
-  padding: 2px 7px; border-radius: 20px;
+  /* §1 pill ban: the 20px fully-round radius read as a pill on the trend
+     chips (prod-gating QA delta spot 2026-09-24) — house badge radius per
+     a729f139/.d-badge override. */
+  padding: 2px 7px; border-radius: 6px;
   white-space: nowrap;
 }
 .dash-wf .wf-kpi .delta.up { color: var(--wf-green-700); background: var(--wf-green-soft); }
@@ -782,7 +785,7 @@
   align-items: center;
   min-height: 24px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-bold);
