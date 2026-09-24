@@ -339,6 +339,16 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     // Unknown container id → 404 (resource semantics); a container from
     // another shipment would be the 400 case.
     assert.equal(badContainer.status, 404);
+
+    // Audit c12 A2: a non-positive container id trips the schema's
+    // positive() — the message must name the container field, not the
+    // generic "Giá trị phải lớn hơn 0".
+    const zeroContainer = await api('/expenses', {
+      method: 'POST', token: opsToken,
+      body: { shipmentId, shipmentContainerId: 0, expenseTypeCode: noInvoiceCode, amount: '1000', paidAt: isoDate },
+    });
+    assert.equal(zeroContainer.status, 400);
+    assert.match(String(zeroContainer.body.error), /Dòng cont không hợp lệ/);
   });
 
   test('recorded expenses retain receipt visibility and are editable by the owner until settled', async () => {

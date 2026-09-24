@@ -145,7 +145,9 @@ const expenseCreateSchema = z.object({
   // rows keep the charge=amount invariant regardless of any override.
   customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
   shipmentId: z.number().int().positive(),
-  shipmentContainerId: z.number().int().positive().nullable().optional(),
+  // Audit c12 A2: name the field — the generic "Giá trị phải lớn hơn 0"
+  // misled operators when the container selection dropped to 0.
+  shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50),
   amount: z.union([z.number(), z.string()]),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -160,7 +162,7 @@ const expensePatchSchema = z.object({
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
-  shipmentContainerId: z.number().int().positive().nullable().optional(),
+  shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
