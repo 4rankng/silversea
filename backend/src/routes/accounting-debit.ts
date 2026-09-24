@@ -17,6 +17,10 @@ import {
   confirmRateAdjustmentRequests,
   withdrawRateAdjustmentRequests,
 } from '../services/accounting-debit-close.service';
+import {
+  createDebitSettlementRound,
+  listDebitSettlementRounds,
+} from '../services/debit-settlement-rounds.service';
 
 const accountingDebitRoutes = Router();
 
@@ -34,6 +38,21 @@ const adjustmentRequestSchema = z.object({
 
 const decisionSchema = z.object({
   requestIds: z.array(z.number().int().positive()).min(1).max(200),
+});
+
+// Card 20260923_12 — Chọn Debit settlement round: lần/tháng are the accountant's
+// free choices (PDF); vatRate is the 0/5/8/10 set; the carrier + customer sides
+// are DERIVED server-side from the selected lots' active trips.
+const settlementRoundSchema = z.object({
+  shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô.').max(200),
+  dateFrom: z.string().date(),
+  dateTo: z.string().date(),
+  roundNo: z.number().int().min(1, 'Lần phải từ 1 trở lên.').max(99),
+  month: z.number().int().min(1, 'Tháng phải từ 1 đến 12.').max(12, 'Tháng phải từ 1 đến 12.'),
+  year: z.number().int().min(2000).max(2100),
+  direction: z.enum(['THU', 'TRA']),
+  vatRate: z.union([z.literal(0), z.literal(5), z.literal(8), z.literal(10)]),
+  ghiChu: z.string().trim().max(500).optional(),
 });
 
 accountingDebitRoutes.get('/debit-board', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
@@ -90,6 +109,26 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', OFFICE_ROLE
     createdBy: user.userId,
     responseStatusCode: 200,
     create: (tx) => withdrawRateAdjustmentRequests({ requestIds: parsed.data.requestIds, userId: user.userId }, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
+}));
+
+accountingDebitRoutes.get('/debit-board/settlement-rounds', OFFICE_ROLES, asyncHandler(async (_req: Request, res: Response) => {
+  res.json(await listDebitSettlementRounds());
+}));
+
+accountingDebitRoutes.post('/debit-board/settlement-rounds', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const parsed = settlementRoundSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_SETTLEMENT_ROUND_CREATE,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { ...parsed.data, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 201,
+    create: (tx) => createDebitSettlementRound({ ...parsed.data, userId: user.userId }, tx),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

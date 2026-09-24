@@ -264,3 +264,40 @@ after(async () => {
   } catch { /* best-effort cleanup */ }
 });
 
+
+
+describe('accounting debit board rows — customer + carrier keys (card 20260923_12)', () => {
+  test('rows carry customerId + derived carrierKeys (own, subcontracted, external plate)', async () => {
+    const customer = await mkCustomer(`ADC CK ${suffix}`);
+    const carrier = await mkCustomer(`ADC carrier CK ${suffix}`);
+    const route = await mkRoute(`ADC route CK ${suffix}`);
+    const lotOwn = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+    const lotC = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+    const lotPlate = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+    const lotBare = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+    const plate = `ADC-OWN-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const [truckOwn] = await db.insert(s.trucks).values({ licensePlate: plate, carrierId: null }).returning();
+    cleanup.unshift({ table: s.trucks, id: truckOwn.id });
+    const plateC = `ADC-CUS-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const [truckC] = await db.insert(s.trucks).values({ licensePlate: plateC, carrierId: carrier.id }).returning();
+    cleanup.unshift({ table: s.trucks, id: truckC.id });
+    const tripOwn = await mkTrip(lotOwn.id, customer.id, route.id);
+    await db.update(s.trips).set({ truckId: truckOwn.id }).where(eq(s.trips.id, tripOwn.id));
+    const tripC = await mkTrip(lotC.id, customer.id, route.id);
+    await db.update(s.trips).set({ truckId: truckC.id }).where(eq(s.trips.id, tripC.id));
+    const tripPlate = await mkTrip(lotPlate.id, customer.id, route.id);
+    const [info] = await db.insert(s.tripCarrierInfo).values({ tripId: tripPlate.id, carrierType: 'EXTERNAL', externalPlateNumber: 'ab-12-x9' }).returning();
+    cleanup.unshift({ table: s.tripCarrierInfo, id: info.id });
+    const result = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
+    const rowOwn = result.items.find((r) => r.shipmentId === lotOwn.id)!;
+    const rowC = result.items.find((r) => r.shipmentId === lotC.id)!;
+    const rowPlate = result.items.find((r) => r.shipmentId === lotPlate.id)!;
+    const rowBare = result.items.find((r) => r.shipmentId === lotBare.id)!;
+    assert.deepEqual(rowOwn.carrierKeys, ['OWN']);
+    assert.deepEqual(rowC.carrierKeys, [`CUST:${carrier.id}`]);
+    assert.deepEqual(rowPlate.carrierKeys, ['PLATE:AB-12-X9']);
+    assert.deepEqual(rowBare.carrierKeys, []);
+    assert.equal(rowOwn.customerId, customer.id);
+    assert.equal(rowC.customerId, customer.id);
+  });
+});

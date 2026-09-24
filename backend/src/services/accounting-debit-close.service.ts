@@ -26,6 +26,7 @@ import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
+import { carrierKeysForLot } from './debit-settlement-shared';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -39,6 +40,8 @@ export interface AccountingDebitBoardRow {
   shipmentId: number;
   code: string | null;
   customerName: string | null;
+  customerId: number | null;
+  carrierKeys: string[];
   ngay: string | null;
   billOrBooking: string | null;
   containers: string[];
@@ -391,6 +394,8 @@ export async function getAccountingDebitBoard(query: {
       shipmentId: lot.id,
       code: lot.code,
       customerName: lot.customerName,
+      customerId: lot.customerId,
+      carrierKeys: carrierKeysForLot(phanXeRaw.get(lot.id) ?? []),
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],

@@ -5,11 +5,15 @@ import {
   sendRateAdjustmentRequests,
   confirmRateAdjustments,
   withdrawRateAdjustments,
+  listSettlementRounds,
+  createSettlementRound,
+  DEBIT_SETTLEMENT_ROUNDS_KEY,
   type AccountingDebitBoardRow,
 } from '../../api/accountingDebitClient';
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
+import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 
 const money = (value: string | null) => {
   if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>Chưa xác định</span>;
@@ -67,11 +71,16 @@ export default function AccountingDebitClosePage() {
   const [customerFilter, setCustomerFilter] = useState<Set<string>>(new Set());
   const [truckFilter, setTruckFilter] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [settlementOpen, setSettlementOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
     queryKey: qk.accounting.debitBoard(filters.dateFrom, filters.dateTo),
     queryFn: () => listAccountingDebitBoard({ dateFrom: filters.dateFrom || undefined, dateTo: filters.dateTo || undefined }),
+  });
+  const roundsQuery = useQuery({
+    queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY,
+    queryFn: listSettlementRounds,
   });
   const rows = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);
 
@@ -98,6 +107,7 @@ export default function AccountingDebitClosePage() {
   const refresh = () => {
     setSelected(new Set());
     void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+    void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
   };
 
   const sendMutation = useMutation({
@@ -123,6 +133,20 @@ export default function AccountingDebitClosePage() {
     onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã rút yêu cầu.' }); refresh(); },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
+  const settlementMutation = useMutation({
+    mutationFn: createSettlementRound,
+    onSuccess: (round) => {
+      setMessage({ kind: 'ok', text: `Đã chốt đợt: Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')} — ${formatCurrency(Number(round.totalAmount))} (đã gồm VAT).` });
+      setSettlementOpen(false);
+      refresh();
+    },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
+
+  const selectedRows = useMemo(
+    () => rows.filter((row) => selected.has(row.shipmentId)),
+    [rows, selected],
+  );
 
   const visiblePendingCount = pendingIds.length;
   const allSelected = visibleRows.some(selectable) && visibleRows.filter(selectable).every((row) => selected.has(row.shipmentId));
@@ -176,6 +200,14 @@ export default function AccountingDebitClosePage() {
           selected={truckFilter}
           onChange={(next) => { setTruckFilter(next); setSelected(new Set()); }}
         />
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={selected.size === 0 || settlementMutation.isPending}
+          onClick={() => setSettlementOpen(true)}
+        >
+          Chọn Debit ({selected.size} dòng)
+        </button>
         <button type="button" className="btn btn--primary" disabled={selected.size === 0 || sendMutation.isPending} onClick={() => void sendRequest()}>
           {sendMutation.isPending ? 'Đang gửi…' : `Gửi yêu cầu điều chỉnh cước (${selected.size} dòng)`}
         </button>
@@ -297,6 +329,58 @@ export default function AccountingDebitClosePage() {
           </tbody>
         </table>
       </div>
+      <DebitSettlementRoundDialog
+        isOpen={settlementOpen}
+        rows={selectedRows}
+        defaultDateFrom={filters.dateFrom}
+        defaultDateTo={filters.dateTo}
+        onSubmit={(body) => settlementMutation.mutate(body)}
+        onClose={() => setSettlementOpen(false)}
+        isPending={settlementMutation.isPending}
+      />
+      <section aria-label="Tổng hợp công nợ khách hàng" style={{ marginTop: 16 }}>
+        <h2 style={{ fontSize: 'var(--text-body-size, 1rem)', margin: '0 0 8px' }}>TỔNG HỢP CÔNG NỢ KHÁCH HÀNG</h2>
+        <div className="shipment-container-ledger" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0} style={{ overflowX: 'auto' }}>
+          <table className="tt-table">
+            <caption>TỔNG HỢP CÔNG NỢ KHÁCH HÀNG — các đợt chốt (kỳ theo dõi = lần + tháng)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Kỳ theo dõi</th>
+                <th scope="col">Khách hàng</th>
+                <th scope="col">Đối tượng</th>
+                <th scope="col">Chiều</th>
+                <th scope="col">Từ ngày</th>
+                <th scope="col">Đến ngày</th>
+                <th scope="col">Số tiền (chưa VAT)</th>
+                <th scope="col">VAT</th>
+                <th scope="col">Tiền VAT</th>
+                <th scope="col">Tổng tiền (gồm VAT)</th>
+                <th scope="col">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roundsQuery.data?.items.length === 0 && (
+                <tr><td colSpan={10}>Chưa có đợt chốt nào.</td></tr>
+              )}
+              {(roundsQuery.data?.items ?? []).map((round) => (
+                <tr key={round.id}>
+                  <td>{`Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')}`}</td>
+                  <td>{round.customerName ?? '—'}</td>
+                  <td>{round.carrierLabel ?? '—'}</td>
+                  <td>{round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}</td>
+                  <td>{round.dateFrom}</td>
+                  <td>{round.dateTo}</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(Number(round.amount))}</td>
+                  <td>{`${round.vatRate}%`}</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(round.vatAmount)}</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(round.totalAmount)}</td>
+                  <td>{round.ghiChu ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

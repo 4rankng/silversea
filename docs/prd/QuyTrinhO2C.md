@@ -355,9 +355,12 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
   từ chối nêu rõ mã lô). Kế toán xác nhận từng dòng hoặc tích tất cả để mở khóa; rút yêu cầu thì lô mở lại
   và trạng thái đã xác nhận trước đó hiện ra; lô đã khóa số liệu không nhận yêu cầu mới. Xác nhận/rút
   không bao giờ làm thay đơn giá.
-- Phí RU tự động từ bảng giá (rate RU) — chưa có dữ liệu giá thì hiển thị "Chưa xác định". Riêng phần
-  chốt debit chi tiết (Debit tab, VAT, Lần/Tháng, TỔNG HỢP CÔNG NỢ) vẫn **ĐỂ LẠI** chờ bản đặc tả hoàn
-  chỉnh của khách hàng.
+- Phí RU tự động từ bảng giá (bảng giá RU) — chưa có dữ liệu giá thì hiển thị "Chưa xác định".
+  Phần **Chọn Debit** (popup chốt đợt: lần 1,2,3…, tháng, chiều phải thu/phải trả, VAT 0/5/8/10%
+  với tiền VAT và tổng tiền tự tính, ghi chú; dữ liệu tự điền bảng **TỔNG HỢP CÔNG NỢ KHÁCH HÀNG**,
+  kỳ theo dõi = lần + tháng) đã **LANDED 24/09** theo đặc tả khách hàng (chốt theo đợt, VAT gắn với
+  đợt, popup là hành động chốt chứ không phải bộ lọc; một lô chỉ thuộc một đợt chốt). Phần chốt debit
+  chi tiết còn lại (Debit tab, xuất biểu mẫu) vẫn **ĐỂ LẠI** chờ bản đặc tả hoàn chỉnh của khách hàng.
 
 ## 8. Trải nghiệm chung và độ tin cậy
 

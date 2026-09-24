@@ -2,7 +2,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  boolean, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { BillingDocumentOfficialIdentitySnapshot, DebitNoteTemplateSnapshot } from '@tingting/shared';
@@ -825,8 +825,50 @@ export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_
   withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
 }, (table) => [
   // Lookup index for the debit-export guard. At-most-one-PENDING-per-lot is
-  // enforced TRANSACTIONALLY in the create path — deliberately NOT a partial
-  // unique index (drizzle-kit mangles partial-index predicates when
-  // applying; 2026-09-19 _32 war story).
+  // enforced TRANSACTIONALLY inside the chốt transaction (drizzle-kit mangles
+  // partial-index predicates when applying; 2026-09-19 _32 war story).
   index('shipment_rate_adjustment_requests_shipment_idx').on(table.shipmentId),
+]);
+
+// ─── Card 20260923_12 — Chọn Debit: settlement rounds (đợt chốt debit) ──────
+// Kế toán ticks rows on the chot-debit board and opens "Chọn Debit": one
+// settlement act persists one đợt per (customer, lần, tháng, chiều) with the
+// direction (phải thu from the customer / phải trả to the nhà xe), the
+// server-derived amount (THU = Σ Tổng thu, TRA = Σ Tổng 1 — Phí RU excluded,
+// board P1 arithmetic), VAT 0/5/8/10 chosen at chốt time, and ghi chú. The
+// TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads these rows back. Append-only
+// ledger: no edit/reopen in scope.
+export const debitSettlementRounds = pgTable('debit_settlement_rounds', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull(),
+  direction: varchar('direction', { length: 3 }).notNull(), // 'THU' (phải thu) | 'TRA' (phải trả)
+  // Informational identity of the nhà xe side, derived from the selection's
+  // active trips ('OWN' own fleet | 'CUST:<id>' carrier customer |
+  // 'PLATE:<plate>' external plate-only | 'MIXED'). Not part of the unique
+  // key: THU rounds may legitimately span carriers.
+  carrierKey: varchar('carrier_key', { length: 60 }).notNull(),
+  periodKey: varchar('period_key', { length: 7 }).notNull(), // 'YYYY-MM'
+  roundNo: integer('round_no').notNull(),
+  dateFrom: date('date_from').notNull(),
+  dateTo: date('date_to').notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  vatRate: integer('vat_rate').notNull(), // percent, one of 0/5/8/10
+  ghiChu: text('ghi_chu'),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  // One lần per (customer, month, direction): a second chốt reusing the lần → 400.
+  uniqueIndex('debit_settlement_rounds_pair_unq').on(table.customerId, table.periodKey, table.roundNo, table.direction),
+  index('debit_settlement_rounds_period_idx').on(table.periodKey),
+]);
+
+export const debitSettlementRoundLots = pgTable('debit_settlement_round_lots', {
+  roundId: integer('round_id').notNull(),
+  shipmentId: integer('shipment_id').notNull(),
+}, (table) => [
+  // The lot-overlap guard's DB backstop: a lot belongs to at most one
+  // settlement round — a second chốt containing it → 400 naming the round.
+  primaryKey({ columns: [table.roundId, table.shipmentId] }),
+  uniqueIndex('debit_settlement_round_lots_shipment_unq').on(table.shipmentId),
 ]);

@@ -23,6 +23,8 @@ export interface AccountingDebitBoardRow {
   shipmentId: number;
   code: string | null;
   customerName: string | null;
+  customerId: number | null;
+  carrierKeys: string[];
   ngay: string | null;
   billOrBooking: string | null;
   containers: string[];
@@ -47,6 +49,50 @@ export async function listAccountingDebitBoard(params: {
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
   return api.get(`/accounting/debit-board?${query.toString()}`);
+}
+
+// Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt). Query key lives
+// HERE, not in api/keys.ts, while that file is another lane's WIP surface.
+export const DEBIT_SETTLEMENT_ROUNDS_KEY = ['accounting-debit-settlement-rounds'] as const;
+
+export interface DebitSettlementRoundRow {
+  id: number;
+  customerId: number;
+  customerName: string | null;
+  direction: 'THU' | 'TRA';
+  carrierKey: string;
+  carrierLabel: string | null;
+  periodKey: string;
+  roundNo: number;
+  dateFrom: string;
+  dateTo: string;
+  amount: string;
+  vatRate: number;
+  vatAmount: number;
+  totalAmount: number;
+  ghiChu: string | null;
+  lotCount: number;
+  createdAt: string;
+}
+
+export interface CreateSettlementRoundBody {
+  shipmentIds: number[];
+  dateFrom: string;
+  dateTo: string;
+  roundNo: number;
+  month: number;
+  year: number;
+  direction: 'THU' | 'TRA';
+  vatRate: 0 | 5 | 8 | 10;
+  ghiChu?: string;
+}
+
+export async function listSettlementRounds(): Promise<{ items: DebitSettlementRoundRow[] }> {
+  return api.get('/accounting/debit-board/settlement-rounds');
+}
+
+export async function createSettlementRound(body: CreateSettlementRoundBody): Promise<DebitSettlementRoundRow> {
+  return api.post('/accounting/debit-board/settlement-rounds', body);
 }
 
 export async function sendRateAdjustmentRequests(body: {

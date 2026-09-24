@@ -148,6 +148,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST: 'accounting.debit-board.rate-adjustment.request',
   DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM: 'accounting.debit-board.rate-adjustment.confirm',
   DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW: 'accounting.debit-board.rate-adjustment.withdraw',
+  DEBIT_BOARD_SETTLEMENT_ROUND_CREATE: 'accounting.debit-board.settlement-round.create',
   DEPOSIT_TRACKER_CREATE: 'accounting.deposit-tracker.create',
   DEPOSIT_TRACKER_DATES: 'accounting.deposit-tracker.dates',
   DEPOSIT_TRACKER_REFUND: 'accounting.deposit-tracker.refund',
