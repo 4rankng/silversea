@@ -32,6 +32,8 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => authState }));
 import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
+const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 // 2026-09-19: the flat filter rail wave extracted the filter controls into
 // the shared WorkboardFilters component — source assertions follow the markup into that file.
@@ -1213,6 +1215,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // The row summary reflects the new composition immediately.
     expect(await within(masterRow()).findByText('1x20DC')).toBeTruthy();
     expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
+    // D3 (case QA-2026-09-23-01): the customer's own checkpoint is the open
+    // drawer — "Lưu → dòng mới hiện". The returned line must render in the
+    // ledger, not only in the list's summary chip.
+    expect(await within(drawer).findByText('MSKU7654321')).toBeTruthy();
   });
 
   it('removes an unattached container from the drawer (card 20260923_1)', async () => {
@@ -1372,6 +1378,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const table = within(ledger).getByRole('table');
     const addButton = within(ledger).getByRole('button', { name: 'Thêm container' });
     expect(table.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('add-container form: the Loại cont select fills its column cell, never a sliver (QA-2026-09-23-02, card 20260923_9)', () => {
+    // The form's UuiSelectField used to carry width="content": with hideLabel
+    // and react-aria's search-text-sized input, fit-content resolved to ~2px
+    // and the MatchWidth option list to 0 — the control existed but nobody
+    // could see it. It now lives in the ledger's LOẠI CONT cell and fills it
+    // (the width="content" variant is gone), which is what keeps it visible
+    // once the add row rides the table grid; a fixed 150px floor cannot co-exist
+    // with that 7% column (it would overflow into the next cell). jsdom has no
+    // layout to measure, so the owned-width contract itself is the fence.
+    const floors = [...css.matchAll(/\.cus-container-ledger__add-select\s*\{([^}]*)}/g)]
+      .map((match) => Number(/min-width:\s*(\d+)px/.exec(match[1])?.[1] ?? 0));
+    expect(Math.max(0, ...floors)).toBe(0);
+    expect(addRowSource).not.toContain('width="content"');
+    expect(addRowSource).toContain('wrapperClassName="cus-container-ledger__add-select"');
   });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {

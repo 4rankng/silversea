@@ -206,17 +206,23 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       const carrierVehicles = line.externalCarrierId && line.externalCarrierVehicleId && line.plateNumber && !detail.selectors.carrierVehicles.some((vehicle) => vehicle.id === line.externalCarrierVehicleId)
         ? [...detail.selectors.carrierVehicles, { id: line.externalCarrierVehicleId, carrierId: line.externalCarrierId, licensePlate: line.plateNumber, label: line.plateNumber }]
         : detail.selectors.carrierVehicles;
+      // Case QA-2026-09-23-01 D3: a map alone replaces a matching id and
+      // otherwise keeps the same set — a brand-new line (container ADD) would
+      // never reach the open ledger. Append when the id is not present yet.
+      const matched = detail.containers.some((currentLine) => currentLine.id === line.id);
+      const containers = detail.containers.map((currentLine) => (
+        currentLine.id === line.id
+          ? line
+          : { ...currentLine, shipmentVersion: line.shipmentVersion }
+      ));
+      if (!matched) containers.push(line);
       return {
         ...current,
         [shipmentId]: {
           ...detail,
           summary: { ...detail.summary, version: line.shipmentVersion },
           selectors: { ...detail.selectors, externalCarriers, carrierVehicles },
-          containers: detail.containers.map((currentLine) => (
-            currentLine.id === line.id
-              ? line
-              : { ...currentLine, shipmentVersion: line.shipmentVersion }
-          )),
+          containers,
         },
       };
     });

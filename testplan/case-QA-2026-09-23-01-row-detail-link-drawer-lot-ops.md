@@ -63,6 +63,7 @@ drawer-motion defects that the jsdom suite could not see. Both are reworked and 
 |---|---|---|---|---|
 | **D1** | MEDIUM | 2560×1440: after "Chi tiết" the drawer is logically open (`aria-hidden="false"`, Xóa lô reachable) but never moves — `rect.x === viewport.width` (fully off the right edge). Forcing `transform: translateX(0%) !important` was the only way to screenshot it. | Reopen landing mid-exit. The entrance/exit are separate `animate()` calls and anime.js v4 does **not** cancel tweens across calls, so the *stale exit* kept ticking, finished **last**, and wrote `translateX(100%)` after the fresh entrance had already settled. The close-generation guard only suppresses the late `setVisible(false)`; it never stopped the animation. | `frontend/src/components/UI.drawer-animation.test.tsx` → "D1: reopening mid-exit still leaves the open panel at rest" |
 | **D2** | LOW | 390px: the panel took ~3s to arrive, the first ~500ms showing an empty screen behind it. | `duration: 420` was passed **with** a `spring()` ease — in anime.js v4 a spring ease *overrides* `duration` and drives the timeline from its own `settlingDuration` (≈860ms in / ≈1020ms out for the old 200/24 and 180/20 pairs; ~460ms floor at any stiffness). The declared 420ms never applied. | same file → "D2: the panel reaches rest within the slide budget" (budget 700ms; measured 859ms before, 300ms after) |
+| **D3** | HIGH | Acceptance drive (2026-09-23, doc lane): `POST …/containers` answers **201**, the DB row exists, the form closes and toasts success — but the open drawer's ledger still shows the old rows and `N cont`; the new line appears only after the drawer is closed and reopened. The customer's *"Lưu → dòng mới hiện"* step reads as failure. | `applySavedContainerLine` (use-cus-workspace-state.ts) ends in `containers: detail.containers.map(…)`, which **replaces a matching id and otherwise returns the same set** — a brand-new line id matches nothing, so the append never happens; the success path only calls `loadList()` (list summary), never `loadDetail()`. The old test asserted the list summary only, so jsdom stayed green. | `frontend/src/pages/ShipmentsPage.test.tsx` → "adds a container from the drawer…" extended with the ledger-row assertion — RED pre-fix (row absent after201), GREEN post-fix (appended line renders). |
 
 Repro (both defects, one run): open /shipments → press "Chi tiết" → close the drawer → press "Chi tiết" again
 before the exit slide finishes. Pre-fix the panel ends off-screen at any width ≥1280 (worst observed at 2560);
@@ -82,9 +83,12 @@ post-fix it settles at `translateX(0%)` with `rect.right === viewport.width`.
     is visible and the `.cus-dashboard-detail` rule carries no border/background chrome.
   - `keeps Xóa lô reachable and states why a dispatched lot cannot be deleted (card 20260923_1)`.
   - `keeps the container remove icon reachable on touch and blocks trip-attached rows (card 20260923_1)`.
+  - D3 fence: `adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)`
+    now also requires the **ledger row itself** (`MSKU7654321` inside the drawer) after the POST resolves —
+    RED pre-fix (applySavedContainerLine mapped without appending), GREEN post-fix. Rung-3 evidence:
+    `plans/reports/doc1-work/shots/raw/p1d.png` (new row boxed) + `shipment_containers` id row in the task report.
   - `places Thêm container directly below the last container row (card 20260923_1)`.
   - `blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)`.
-  - `adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)`.
   - `surfaces the 409 guard on a trip-attached container removal (card 20260923_1)`.
 - Evidence: `qa/2026-09-23_c1-drawer-ops_red-first.log` (RED before the fix, GREEN after),
   `qa/2026-09-23_c1-drawer-ops_frontend-vitest.log`.
