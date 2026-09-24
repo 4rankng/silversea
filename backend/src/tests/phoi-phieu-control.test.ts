@@ -487,4 +487,64 @@ describe('voucher consumes the approved chi-hộ set only (case QA-2026-09-24-01
       .where(eq(s.expenseCashVouchers.code, result.code as unknown as string));
     assert.ok(!allocations.some((a) => a.sourceRowId === source2.id), 'the unapproved source row is not allocated');
   });
+
+  async function mkDriverOnlyFixture(approved: boolean) {
+    const [customer] = await db.insert(s.customers).values({ name: `C12 driver-only customer ${cleanup.length}` }).returning({ id: s.customers.id });
+    track(s.customers, customer.id);
+    const [route] = await db.insert(s.routes).values({ name: 'C12 driver-only route' }).returning({ id: s.routes.id });
+    track(s.routes, route.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+    }).returning({ id: s.shipments.id });
+    track(s.shipments, shipment.id);
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1,
+    }).returning({ id: s.shipmentFulfillments.id });
+    track(s.shipmentFulfillments, fulfillment.id);
+    const [trip] = await db.insert(s.trips).values({
+      fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+      tripCode: `TRP-C12D-${cleanup.length}-${suffix}`, departureDate: '2026-09-22', status: 'IN_TRANSIT',
+    }).returning({ id: s.trips.id });
+    track(s.trips, trip.id);
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c12d-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({ name: 'Tài xế C12D', userId: driverUser.id, status: 'ACTIVE' }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: trip.id, driverId: driver.id, costType: 'OTHER',
+      amount: '300000', driverEnteredAmount: '300000', occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const [source] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'DRIVER', sourceId: cost.id, shipmentId: shipment.id, tripId: trip.id,
+      confirmedAt: approved ? new Date() : null, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source.id);
+    return { trip, driver, cost, source };
+  }
+
+  test('t3: an APPROVED tiền đường source is NEVER consumed by the phiếu — DRIVER_PAYOUT owns driver money (payer split)', async () => {
+    const { trip, source } = await mkDriverOnlyFixture(true);
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK5-${suffix}`, name: 'STK quỹ 5', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, account.id);
+    await assert.rejects(
+      () => createPhoiPhieuVoucher({
+        tripIds: [trip.id], direction: 'OUT',
+        treasuryAccountId: account.id, actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+      }),
+      /chưa có khoản chi hộ/,
+      'a driver-only trip issues no chi-hộ phiếu — driver money rides the DRIVER_PAYOUT surface',
+    );
+    const [fresh] = await db.select({ status: s.expenseAccountingSources.status, confirmedAt: s.expenseAccountingSources.confirmedAt })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+    assert.equal(fresh!.status, 'RECORDED', 'the approved driver source is untouched');
+    assert.ok(fresh!.confirmedAt, 'approval state intact');
+    const allocations = await db.select({ id: s.expenseCashAllocations.id })
+      .from(s.expenseCashAllocations).where(eq(s.expenseCashAllocations.expenseAccountingSourceId, source.id));
+    assert.equal(allocations.length, 0, 'no cash was ever allocated against the driver source');
+  });
 });

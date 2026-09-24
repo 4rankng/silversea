@@ -28,13 +28,19 @@ async function mkUser(role: Role) {
   return (await track(s.users, user)).id;
 }
 
-async function mkCustomer(name: string) {
-  const [row] = await db.insert(s.customers).values({ name }).returning();
+// Seeder discipline (88b5d2d0): display names carry a unique-index-safe
+// human ordinal — never an <epoch-ms>-<rand> fragment that would re-expose
+// the id leak once the sanitiser is gone. Usernames keep their run tags.
+let nameOrdinal = 0;
+async function mkCustomer(base: string) {
+  nameOrdinal += 1;
+  const [row] = await db.insert(s.customers).values({ name: `${base} ${nameOrdinal}` }).returning();
   return track(s.customers, row);
 }
 
-async function mkRoute(name: string) {
-  const [row] = await db.insert(s.routes).values({ name }).returning();
+async function mkRoute(base: string) {
+  const ordinal = ++nameOrdinal;
+  const [row] = await db.insert(s.routes).values({ name: `${base} ${ordinal}` }).returning();
   return track(s.routes, row);
 }
 
@@ -105,8 +111,8 @@ async function mkRuRate(customerId: number, routeId: number, price: string, effe
 describe('accounting debit-close board (card 20260921_21 CORE)', () => {
   test('worked numbers: full column ladder per lot — RU excluded from Tổng 1 (P1)', async () => {
     const userId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC W1 ${suffix}`);
-    const route = await mkRoute(`ADC route W1 ${suffix}`);
+    const customer = await mkCustomer('ADC W1');
+    const route = await mkRoute('ADC route W1');
     const lot = await mkLot(customer.id, '2026-09-25', { routeId: route.id });
     const trip = await mkTrip(lot.id, customer.id, route.id);
     await mkFreight(lot.id, trip.id, '1000000', '200000');
@@ -133,7 +139,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
 
   test('null propagation: a bare lot reads Chưa xác định everywhere', async () => {
     const userId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC N ${suffix}`);
+    const customer = await mkCustomer('ADC N');
     const lot = await mkLot(customer.id, '2026-09-26');
     await mkUser(Role.ADMIN); // keep user counter exercised; unused otherwise
     const result = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
@@ -150,8 +156,8 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
   });
 
   test('partial-known: freight alone → tongThu known, RU absent → lợi nhuận null', async () => {
-    const customer = await mkCustomer(`ADC P ${suffix}`);
-    const route = await mkRoute(`ADC route P ${suffix}`);
+    const customer = await mkCustomer('ADC P');
+    const route = await mkRoute('ADC route P');
     const lot = await mkLot(customer.id, '2026-09-27', { routeId: route.id });
     const trip = await mkTrip(lot.id, customer.id, lot.routeId ?? route.id);
     await mkFreight(lot.id, trip.id, '777000');
@@ -164,8 +170,8 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
   });
 
   test('RU pick: latest effectiveDate ≤ lot delivery date wins', async () => {
-    const customer = await mkCustomer(`ADC RU ${suffix}`);
-    const route = await mkRoute(`ADC route RU ${suffix}`);
+    const customer = await mkCustomer('ADC RU');
+    const route = await mkRoute('ADC route RU');
     const lot = await mkLot(customer.id, '2026-09-27', { routeId: route.id });
     await mkRuRate(customer.id, route.id, '100000', '2026-09-01');
     await mkRuRate(customer.id, route.id, '200000', '2026-09-20');
@@ -177,7 +183,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
 
   test('adjustment lifecycle: create → guard 409 → withdraw clears; re-create → confirm clears', async () => {
     const accountantId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC A ${suffix}`);
+    const customer = await mkCustomer('ADC A');
     const lot = await mkLot(customer.id, '2026-09-28');
     const first = await createRateAdjustmentRequests({ shipmentIds: [lot.id], userId: accountantId });
     assert.deepEqual(first, { requested: [lot.id], alreadyPending: [], locked: [] });
@@ -198,7 +204,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
 
   test('a withdrawn re-request unmasks the earlier CONFIRMED state on the board', async () => {
     const accountantId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC W ${suffix}`);
+    const customer = await mkCustomer('ADC W');
     const lot = await mkLot(customer.id, '2026-09-28');
     await createRateAdjustmentRequests({ shipmentIds: [lot.id], userId: accountantId });
     await confirmRateAdjustmentRequests({ requestIds: [await livePendingId(lot.id)], userId: accountantId });
@@ -211,7 +217,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
 
   test('P2: a cost-locked lot rejects new requests and the export guard stays clear', async () => {
     const accountantId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC L ${suffix}`);
+    const customer = await mkCustomer('ADC L');
     const lot = await mkLot(customer.id, '2026-09-29');
     await mkCostLock(lot.id, accountantId);
     const outcome = await createRateAdjustmentRequests({ shipmentIds: [lot.id], userId: accountantId });
@@ -223,7 +229,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
 
   test('tick-all: confirming several pending requests in one call', async () => {
     const accountantId = await mkUser(Role.ACCOUNTANT);
-    const customer = await mkCustomer(`ADC T ${suffix}`);
+    const customer = await mkCustomer('ADC T');
     const lotA = await mkLot(customer.id, '2026-09-29');
     const lotB = await mkLot(customer.id, '2026-09-29');
     await createRateAdjustmentRequests({ shipmentIds: [lotA.id, lotB.id], userId: accountantId });
@@ -234,7 +240,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
   });
 
   test('date range filter: lots outside the window stay off the board', async () => {
-    const customer = await mkCustomer(`ADC D ${suffix}`);
+    const customer = await mkCustomer('ADC D');
     const lotSep = await mkLot(customer.id, '2026-09-10');
     const lotOct = await mkLot(customer.id, '2026-10-10');
     const result = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
