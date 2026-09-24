@@ -10,16 +10,24 @@
   border-block: 1px solid var(--line);
   padding: 12px 0;
   margin-bottom: 12px;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* Filter-bar law (2026-09-24): row-packing, not an equal-stretch grid —
+     controls pack at content width within the 220–320px band; only the
+     primary search may take full width. */
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 12px;
   transition: box-shadow 0.2s ease;
 }
 
-.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; }
+.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; max-width: 320px; }
 .expense-filter-bar__field > span { color: var(--ink-2); font-size: var(--text-label-size); font-weight: 600; }
-.expense-filter-bar__reset { justify-self: start; }
+/* Select wrappers are direct bar children (div.ds-uui-select) — they ride the
+   same 220–320px band as the __field date pair. */
+.expense-filter-bar > .ds-uui-select { flex: 1 1 220px; max-width: 320px; min-width: 0; }
+.expense-filter-bar__select,
+.expense-filter-bar__date { width: 100%; }
+.expense-filter-bar__reset { flex: 0 0 auto; align-self: end; }
 
 .expense-filter-bar__select,
 .expense-filter-bar__date {
@@ -290,7 +298,13 @@
   .expense-filter-bar {
     padding: 10px 0;
     gap: 10px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Filter-bar law, mobile: stack one column — each field takes a full row. */
+  .expense-filter-bar__field,
+  .expense-filter-bar > .ds-uui-select {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
   .expense-filter-bar__select,
@@ -302,10 +316,8 @@
     display: none;
   }
 
-  .expense-filter-bar > .ds-uui-select:first-child { grid-column: 1 / -1; }
-
   .expense-filter-bar__reset {
-    justify-content: center;
+    margin-inline: auto;
   }
 }
 

@@ -258,13 +258,13 @@
   transform: rotate(180deg);
 }
 
-/* Popover dropdown for multi-select facets */
+/* Popover dropdown for multi-select facets — sizes 260–320px per the
+   filter-bar law (dropdown cap ~320px); no stretch pattern. */
 .master-plan-filters__facet-picker {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   z-index: 10;
-  width: 100%;
   min-width: 260px;
   max-width: 320px;
   background: var(--surface);
@@ -489,8 +489,7 @@
   .master-plan-filters__search { grid-column: 1 / -1; }
   .master-plan-filters__direction { grid-column: 1; }
   .master-plan-filters__advanced-trigger { grid-column: 2; }
-  .master-plan-filters__actions { grid-column: 3; justify-self: stretch; min-width: 0; }
-  .master-plan-filters__actions > .btn { width: 100%; }
+  .master-plan-filters__actions { grid-column: 3; justify-self: end; min-width: 0; }
 }
 
 @media (max-width: 767px) {

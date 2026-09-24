@@ -39,8 +39,10 @@
 /* UuiSelectField nests its own label/control stack at gap-1.5; the input fields
    stack at 4px. Match them or the select labels ride 2px above the rest. */
 .shipments-detail-filter .ds-uui-select__control { gap: 4px; }
-.shipments-detail-filter { width: 100%; min-width: 0; gap: 6px; }
-.shipments-detail-filter > *,
+.shipments-detail-filter { flex: 1 1 220px; max-width: 320px; min-width: 0; gap: 6px; }
+/* Controls fill their wrapper (≤320px per the filter-bar law); children keep
+   the wrapper's min-width guard without a blanket stretch. */
+.shipments-detail-filter > * { min-width: 0; }
 .shipments-detail-filter input { width: 100%; min-width: 0; }
 .shipments-detail-filter [data-label],
 .shipments-detail-filter label { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); font-size: 12px; white-space: nowrap; }

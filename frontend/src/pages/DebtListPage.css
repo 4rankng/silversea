@@ -242,7 +242,10 @@
 }
 
 .debt-filter-search input {
+  /* Fills the search pill (primary search keeps full-width rights under the
+     filter-bar law); min-width: 0 guards the padded box against overflow. */
   width: 100%;
+  min-width: 0;
   padding: 0 10px 0 32px;
   background: transparent;
   border: none;

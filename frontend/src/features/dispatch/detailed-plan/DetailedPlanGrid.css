@@ -71,8 +71,8 @@
 
 .detailed-plan-filters__date-mode {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-width: 234px;
+  grid-template-columns: repeat(3, auto);
+  min-width: 0;
   gap: 4px;
 }
 
@@ -108,7 +108,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
-  width: 100%;
   min-width: 0;
 }
 
@@ -118,7 +117,6 @@
 
 .detailed-plan-filters__hour {
   min-width: 0;
-  width: 100%;
 }
 
 .detailed-plan-filters__hour-inputs {
