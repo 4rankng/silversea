@@ -46,6 +46,31 @@
   border-radius: 8px;
 }
 
+/* Card 20260924_9: the red exclusion line sits BESIDE the scroll box —
+   inside the overflow-x wrap it rode the table's sideways scroll and its tail
+   clipped at the right edge ("tràn/cắn mép phải"). Full wrap width, wraps at
+   word level so a long line runs over two lines without eating a word; the
+   danger ink and weight moved here from the inline style (single source).
+   Flat: padding + tokens only, no shadow/3D. */
+.shipment-debit-shadow-line {
+  margin: 0;
+  padding: 6px 2px;
+  color: var(--danger, #b91c1c);
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Scroll cue for the L1 table (card 20260924_9): silent on desktop, revealed
+   inside the phone media block at the end of this sheet. */
+.shipment-debit-scroll-hint {
+  display: none;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+
 /* Fixed layout hands every unmeasured column to the identity column: the
    seven measured columns hold their content, and ALL surplus width lands in
    THÔNG TIN LÔ HÀNG — full-width rows with roomy identity cells instead of
@@ -55,12 +80,28 @@
   table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--text-caption-size);
+  /* Card 20260924_9: the global table rail floors every table at 900px
+     (components/Table.css), and the identity column is this table's only
+     unmeasured column — at a 390px viewport it inherited just
+     900 − 840 = 60px, so the QA0915-138-EXC chip shattered per character
+     into a vertical sliver. Floor the table at the honest sum of its nine
+     columns (840 measured + 224 identity = 1064): the identity cell always
+     gets a word-wrap floor, and the overflow-x wrap scrolls sideways
+     (with the phone-visible hint below) instead of shredding content. */
+  min-width: 1064px;
 }
 
 .shipment-debit-table th {
   text-align: left;
   padding: 8px 10px;
-  white-space: nowrap;
+  /* Card 20260924_9: nowrap clipped headers mid-word at 390 ("THÔNG" with
+     THÔNG TIN LÔ HÀNG lost, "TỔ…" at the cell edge). Headers now wrap — at
+     WORD boundaries only: keep-all holds Vietnamese tokens whole and
+     overflow-wrap: normal refuses the inherited emergency break (law §4;
+     house pattern ppc-board / invoice-tracking thead, card 20260922_54). */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
   color: var(--ink-2);
   font-weight: 600;
   border-bottom: 1px solid var(--border-1);
@@ -120,11 +161,18 @@
   display: block;
   width: fit-content;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  /* Word-level only (card 20260924_9): the previous per-character break mode
+     let fixed layout size each child's min-content down to one character, so
+     the code chip stacked QA0915-138-EXC as a per-character sliver.
+     break-word wraps at spaces first and only breaks a token that genuinely
+     cannot fit (law §4). */
+  overflow-wrap: break-word;
 }
 
 /* Business keys may contain long unbroken segments. Keep them inside their
-   fixed-layout cell even when the table is viewed on a narrow screen. */
+   fixed-layout cell — but wrap at word level (card 20260924_9): the chip
+   reads as one horizontal token wherever the column allows, and only a true
+   overflow breaks it, never per character. */
 .shipment-debit-row__code {
   justify-self: start;
   font-weight: 600;
@@ -135,14 +183,14 @@
   border-radius: 6px;
   padding: 1px 6px;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .shipment-debit-row__customer {
   font-weight: 700;
   letter-spacing: 0.01em;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .shipment-debit-row__factory {
@@ -162,12 +210,18 @@
   display: block;
   width: fit-content;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  /* Word-level wrap (card 20260924_9): `anywhere` broke the pair mid-token —
+     "QA0915- / 138-EXC", "Chưa / có". The label owns its own line (rule
+     below), so the value now reads whole beneath it in clear order. */
+  overflow-wrap: break-word;
 }
 
 /* 9.6px inherited small rendered the metadata unreadable — the label sits
-   at 11px on the mid ink token (AA ≈ 7.4:1 on the surface). */
+   at 11px on the mid ink token (AA ≈ 7.4:1 on the surface). It also takes
+   its own line (card 20260924_9): "Số Bill:" above the value instead of
+   riding a wrap that split the pair across lines mid-word. */
 .shipment-debit-row__docs small {
+  display: block;
   color: var(--ink-2);
   font-size: 11px;
 }
@@ -201,3 +255,31 @@
    in the drawing — a locked row highlights instead of a tick. */
 .shipment-debit-row[data-locked] { cursor: pointer; }
 .shipment-debit-row[data-selected] { background: rgba(37, 99, 235, 0.08); box-shadow: inset 2px 0 0 #2563eb; }
+
+/* ============================================================================
+ * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
+ *
+ * The L1 table keeps its 1064px floor so the identity cell never slivers
+ * (the 900px rail inherited from components/Table.css shredded the
+ * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
+ * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
+ * give the leading expand control a 44px touch floor. Lead cell widens to
+ * 56px so the 44px button sits with its 6px cell padding on each side.
+ *
+ * Match the project's house media syntax (responsive.css + debit's own
+ * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.
+ * ========================================================================== */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .shipment-debit-scroll-hint {
+    display: block;
+  }
+
+  .shipment-debit-col--lead {
+    width: 56px;
+  }
+
+  .shipment-debit-row__expand-button {
+    width: 44px;
+    height: 44px;
+  }
+}

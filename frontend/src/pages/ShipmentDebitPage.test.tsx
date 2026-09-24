@@ -332,3 +332,70 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     expect(screen.queryByText(/chưa gán fulfillment/)).toBeNull();
   });
 });
+
+describe('L1 mobile-390 presentation (card 20260924_9)', () => {
+  const cssSource = () => readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+  const rule = (re: RegExp) => cssSource().match(re)?.[1] ?? '';
+
+  it('keeps the red shadow line out of the horizontal-scroll wrap', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1, excludedCount: 2, excludedSum: '1150000' });
+    const { container } = renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText(/2 chuyến chưa gán fulfillment/)).toBeTruthy();
+    const wrap = container.querySelector('.shipment-debit-table-wrap');
+    const line = container.querySelector('.shipment-debit-shadow-line');
+    expect(wrap).not.toBeNull();
+    expect(line).not.toBeNull();
+    // Inside the wrap the line is sized to the scroll box and rides away with
+    // the table — it now lives beside the wrap and keeps its own rule.
+    expect(wrap!.contains(line!)).toBe(false);
+    const r = rule(/\.shipment-debit-shadow-line\s*\{([^}]*)\}/);
+    expect(r).toMatch(/white-space:\s*normal/);
+    expect(r).toMatch(/overflow-wrap:\s*break-word/);
+    expect(r).toMatch(/padding:/);
+    expect(r).toMatch(/color:\s*var\(--danger/);
+    expect(r).toMatch(/font-weight:\s*600/);
+  });
+
+  it('cues the sideways scroll on phones only', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1 });
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    expect(screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.')).toBeTruthy();
+    // Hidden at desktop widths; revealed inside the phone media block, which
+    // is the LAST block of the sheet (the pin spans from @media to the rule).
+    expect(rule(/\.shipment-debit-scroll-hint\s*\{([^}]*)\}/)).toMatch(/display:\s*none/);
+    const source = cssSource();
+    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+  });
+
+  it('wraps headers by whole word — never clipped mid-word', () => {
+    const r = rule(/\.shipment-debit-table th\s*\{([^}]*)\}/);
+    expect(r).toMatch(/white-space:\s*normal/);
+    expect(r).toMatch(/word-break:\s*keep-all/);
+    expect(r).toMatch(/overflow-wrap:\s*normal/);
+  });
+
+  it('holds a word-wrap floor under the identity column so the code chip never slivers', () => {
+    // The identity cell is the table's only unmeasured column: at 390 the old
+    // 900px floor left it ~60px and overflow-wrap:anywhere shredded
+    // QA0915-138-EXC into a per-character column.
+    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1064px/);
+    const chip = rule(/\.shipment-debit-row__code\s*\{([^}]*)\}/);
+    expect(chip).toMatch(/overflow-wrap:\s*break-word/);
+    expect(chip).not.toMatch(/anywhere/);
+    expect(rule(/\.shipment-debit-row__identity > \*\s*\{([^}]*)\}/)).not.toMatch(/anywhere/);
+  });
+
+  it('puts each docs label on its own line so the value reads whole', () => {
+    expect(rule(/\.shipment-debit-row__docs small\s*\{([^}]*)\}/)).toMatch(/display:\s*block/);
+    expect(rule(/\.shipment-debit-row__docs > span\s*\{([^}]*)\}/)).toMatch(/overflow-wrap:\s*break-word/);
+  });
+
+  it('meets the 44px touch floor on the expand control', () => {
+    const source = cssSource();
+    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-row__expand-button\s*\{[^}]*width:\s*44px/);
+    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-row__expand-button\s*\{[^}]*height:\s*44px/);
+    // The 56px lead row gives the 44px button its 6px cell padding on each side.
+    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-col--lead\s*\{[^}]*width:\s*56px/);
+  });
+});

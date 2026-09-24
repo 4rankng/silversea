@@ -266,15 +266,19 @@ export function ShipmentDebitPage() {
         ) : items.length === 0 && !summary.isError ? (
           <EmptyState illustration="finance" title="Không có lô nào" description="Không có lô nào khớp bộ lọc hiện tại." />
         ) : (
-          <div className="shipment-debit-table-wrap">
+          <>
             {/* Card 20260924_2 F1 shadow line (BE 855aef81; FE half per BE spec):
                 fees on fulfillment-NULL trips stay out of chốt — say so plainly
-                instead of a silent gap. Hidden at zero, red needs-attention ink. */}
+                instead of a silent gap. Hidden at zero; red needs-attention ink
+                now lives in the class rule. It sits BESIDE the scroll box
+                (card 20260924_9): inside the overflow-x wrap the line rode the
+                table's sideways scroll and its tail clipped at the right edge. */}
             {(summary.data?.excludedCount ?? 0) > 0 && (
-              <p className="shipment-debit-shadow-line" role="status" style={{ color: 'var(--danger, #b91c1c)', fontWeight: 600 }}>
+              <p className="shipment-debit-shadow-line" role="status">
                 {summary.data?.excludedCount} chuyến chưa gán fulfillment — {formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫ chưa vào chốt
               </p>
             )}
+            <div className="shipment-debit-table-wrap">
             <table className="shipment-debit-table">
               <thead>
                 <tr>
@@ -309,7 +313,12 @@ export function ShipmentDebitPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+            {/* Scroll cue (card 20260924_9): the table's word-wrap min-width
+                floor makes the wrap scroll sideways on phones — say so plainly;
+                the hint stays hidden at desktop widths (page CSS). */}
+            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+          </>
         )}
       </section>
     </div>
