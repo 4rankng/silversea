@@ -45,6 +45,7 @@ beforeEach(() => {
     if (path === '/quotations/1') return Promise.resolve({
       id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
       cells: gridCells,
+      fees: [],
     });
     return Promise.reject(new Error(`unexpected ${path}`));
   });
@@ -137,6 +138,7 @@ describe('QuotationConfigPage version history (card 20260922_62)', () => {
       if (path === '/quotations/1') return Promise.resolve({
         id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
         cells: gridCells,
+        fees: [],
       });
       // Order matters: the frozen-payload route must win over the list prefix.
       if (path === '/quotations/1/versions/2') return Promise.resolve(versionPayload);
@@ -168,5 +170,96 @@ describe('QuotationConfigPage version history (card 20260922_62)', () => {
     expect(screen.getByText('CONT20.LIGHT')).toBeTruthy();
     fireEvent.click(within(history).getAllByRole('button', { name: 'Xuất xlsx' })[0]);
     await waitFor(() => expect(apiGetBlob).toHaveBeenCalledWith('/quotations/1/export?version=2'));
+  });
+});
+describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
+  const feeCatalog = [
+    { id: 91, feeName: 'Phí mở tờ khai', subType: 'Hàng thông thường', defaultAmount: 500000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 },
+    { id: 92, feeName: 'Hải quan giám sát', subType: 'Luồng xanh/vàng', defaultAmount: 150000, routing: 'DEDICATED_CUSTOMS', note: null, sortOrder: 1 },
+    { id: 93, feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: 500000, routing: 'DEDICATED_LACH_HUYEN', note: null, sortOrder: 2 },
+    { id: 94, feeName: 'Kiểm hóa', subType: null, defaultAmount: null, routing: 'OTHER_COSTS', note: null, sortOrder: 3 },
+  ];
+
+  function mockView(fees: unknown[]) {
+    apiGet.mockReset();
+    apiGetBlob.mockReset();
+    apiPut.mockClear();
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(frames);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: gridCells,
+        fees,
+      });
+      if (path === '/quotations/1/versions') return Promise.resolve({ items: [], total: 0 });
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+  }
+
+  it('renders the catalog verbatim with TẠM amounts, routing labels, and pending-empty rows', async () => {
+    mockView(feeCatalog);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));  // open frame 1
+    const feesRegion = await screen.findByRole('region', { name: 'Danh mục chi phí khác' });
+
+    expect(await within(feesRegion).findByText('Phí mở tờ khai')).toBeTruthy();
+    expect(within(feesRegion).getByText('Hàng thông thường')).toBeTruthy();
+    expect(within(feesRegion).getAllByText('Cột riêng — Hải quan giám sát').length).toBeGreaterThan(0);
+    expect(within(feesRegion).getAllByText('Cột riêng — Nâng/Hạ Lạch Huyện').length).toBeGreaterThan(0);
+    // TẠM defaults render in the inputs; pending-empty rows show no autofill.
+    expect(within(feesRegion).getByLabelText('Số tiền mặc định Phí mở tờ khai · Hàng thông thường')).toHaveValue('500000');
+    expect(within(feesRegion).getByLabelText('Số tiền mặc định Kiểm hóa')).toHaveValue('');
+    expect(within(feesRegion).getAllByText('Cột chi phí khác').length).toBeGreaterThan(0);
+  });
+
+  it('saves the catalog through the frame PUT with schema-clean fees and the FULL cells list', async () => {
+    mockView(feeCatalog);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));  // open frame 1
+    await screen.findByRole('region', { name: 'Danh mục chi phí khác' });
+
+    fireEvent.change(screen.getByLabelText('Số tiền mặc định Kiểm hóa'), { target: { value: '250000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu danh mục' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    const [path, body] = apiPut.mock.calls[0];
+    expect(path).toBe('/quotations/1');
+    expect(body.fees).toHaveLength(4);
+    expect(body.fees[0]).toEqual({ feeName: 'Phí mở tờ khai', subType: 'Hàng thông thường', defaultAmount: 500000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 });
+    expect(body.fees[3]).toEqual({ feeName: 'Kiểm hóa', subType: null, defaultAmount: 250000, routing: 'OTHER_COSTS', note: null, sortOrder: 3 });
+    // Replace-all: the PUT carries the full cells list untouched.
+    expect(body.cells).toHaveLength(QUOTATION_GRID_COLUMNS.length);
+    // No view-only ids ride the payload.
+    expect(body.fees.some((f: { id?: number }) => 'id' in f)).toBe(false);
+  });
+
+  it('heSo edit with fees present: PUT stays schema-clean (regression for the id-carrying 400)', async () => {
+    mockView(feeCatalog);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));  // open frame 1
+    await screen.findByRole('region', { name: 'Danh mục chi phí khác' });
+
+    fireEvent.change(screen.getByLabelText('Hệ số KCN Quế Võ – ASKEY 1.25T'), { target: { value: '1.5' } });
+    fireEvent.blur(screen.getByLabelText('Hệ số KCN Quế Võ – ASKEY 1.25T'));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    const [path, body] = apiPut.mock.calls[0];
+    expect(path).toBe('/quotations/1');
+    expect(body.cells[0]).toEqual({ routeId: 3, vehicleSizeClassCode: '1.25T', heSo: 1.5 });
+    expect(body.fees).toHaveLength(4);
+    expect(body.fees.some((f: { id?: number }) => 'id' in f)).toBe(false);
+  });
+
+  it('add-row appends an unsaved draft row and Lưu persists it with derived routing', async () => {
+    mockView([]);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));  // open frame 1
+    await screen.findByRole('region', { name: 'Danh mục chi phí khác' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
+    fireEvent.change(screen.getByLabelText('Nội dung'), { target: { value: 'Lưu ca xe' } });
+    fireEvent.change(screen.getByLabelText('Số tiền mặc định Lưu ca xe'), { target: { value: '1000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu danh mục' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    const [path, body] = apiPut.mock.calls[0];
+    expect(body.fees[0]).toEqual({ feeName: 'Lưu ca xe', subType: null, defaultAmount: 1000000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 });
   });
 });

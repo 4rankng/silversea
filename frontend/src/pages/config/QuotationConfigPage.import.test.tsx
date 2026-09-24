@@ -83,6 +83,7 @@ beforeEach(() => {
     if (path === '/quotations/5') return Promise.resolve({
       id: 5, customerId: 7, customerName: LONG_MINH, templateName: 'Mẫu báo giá 1',
       effectiveDate: '2026-09-01', surchargeRoundingMode: 'THOUSAND', note: null, cells: [],
+      fees: [],
     });
     return Promise.reject(new Error(`unexpected ${path}`));
   });
@@ -171,6 +172,33 @@ describe('quotation xlsx import preview (card 20260922_57, TC-BG-13/14/15)', () 
     const preview = previewRegion();
 
     expect(within(preview).getByText(/✗ Không tìm thấy tuyến đường cho nhà máy "XƯỞNG KHÔNG CÓ TRONG DANH MỤC"\./)).toBeTruthy();
+    expect(within(preview).getByRole('button', { name: 'Ghi nhận nhập file' })).toBeDisabled();
+  });
+
+  it('D1: a blank Giá cos cell is a blocking preview error — no ✓, banner counts it, commit locked (preview ≡ commit)', async () => {
+    apiUpload.mockResolvedValueOnce({
+      ...cleanPreview,
+      totalErrors: 0, // BE backstop still reports 0 — the preview must catch it locally
+      sheets: [{
+        ...cleanPreview.sheets[0],
+        routes: [{
+          ...cleanPreview.sheets[0].routes[0],
+          rows: [
+            { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: null, basePrice: null, billingKmOneWay: 100, error: null },
+            ...cleanPreview.sheets[0].routes[0].rows.slice(1),
+          ],
+        }],
+      }],
+    } satisfies ImportPreviewPayload);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    await selectFixture();
+    const preview = previewRegion();
+
+    // The blank-price row renders ✗ naming the cell — never "✓ … ? ₫".
+    expect(within(preview).getByText(/✗ Xe 1\.25T: thiếu Giá cos/)).toBeTruthy();
+    expect(within(preview).queryByText(/✓ Xe 1\.25T/)).toBeNull();
+    // The banner counts the locally-caught error and locks the commit.
+    expect(within(preview).getByText(/1 lỗi ánh xạ/)).toBeTruthy();
     expect(within(preview).getByRole('button', { name: 'Ghi nhận nhập file' })).toBeDisabled();
   });
 

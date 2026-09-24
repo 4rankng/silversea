@@ -5,12 +5,17 @@ import { EmptyState, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { ListFilterBar } from '../../components/ListFilterBar';
-import { QUOTATION_GRID_COLUMNS, type QuotationCellView } from '@tingting/shared';
+import {
+  type QuotationFeeInput,
+  type QuotationView,
+} from '@tingting/shared';
 import { useQuotation, useQuotations, useUpdateQuotation } from '../../hooks/useQuotationQueries';
+import { qk } from '../../api/keys';
 import { quotationClient, triggerKindLabel, type ImportPreviewPayload } from '../../api/quotationClient';
-import type { QuotationView } from '@tingting/shared';
 import { formatCurrency, formatDate } from '../../lib/format';
+import { RouteBlock, fmtLiters, type RouteBlockData } from './QuotationRouteBlock';
 import { QuotationImportPreview } from './QuotationImportPreview';
+import { QuotationFeesSection } from './QuotationFeesSection';
 import './QuotationConfigPage.css';
 
 // ─── Báo giá (card 20260922_56) — quotation live-view screen ───────────────
@@ -23,111 +28,6 @@ import './QuotationConfigPage.css';
 // Hệ số / Tổng lít / Giá cos / Phụ phí / Tổng, columns = the 10 classes
 // under HÀNG LẺ / HÀNG CONTAINER (labels from QUOTATION_GRID_COLUMNS).
 
-const ROW_LABELS = ['Hệ số', 'Tổng lít dầu/chuyến', 'Giá cos', 'Phụ phí', 'Tổng'] as const;
-
-function fmt(value: number | null | undefined): string {
-  return value == null ? '—' : formatCurrency(value);
-}
-
-// Card 20260923_10 D5: liters are a count, not money — the row label already
-// names the unit, so the cell carries the bare number (1dp cap for the raw
-// float tails km × norm × 2 produces), never the đồng formatter's suffix.
-const LITERS_FORMAT = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
-
-interface RouteBlockData {
-  routeId: number;
-  routeName: string;
-  cells: QuotationCellView[];
-}
-
-function cellKey(cell: { routeId: number; vehicleSizeClassCode: string }): string {
-  return `${cell.routeId}:${cell.vehicleSizeClassCode}`;
-}
-
-function RouteBlock({
-  block,
-  saving,
-  onSaveHeSo,
-}: {
-  block: RouteBlockData;
-  saving: boolean;
-  onSaveHeSo: (cells: Array<{ routeId: number; vehicleSizeClassCode: string; heSo: number }>) => void;
-}) {
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const head = block.cells[0];
-  const baseFuel = head?.baseFuelPrice ?? null;
-  const lag = head?.fuelLagDays ?? null;
-
-  function commitHeSo() {
-    const cells = block.cells.map((cell) => {
-      const raw = drafts[cellKey(cell)];
-      const parsed = raw === undefined ? NaN : Number(raw.replace(',', '.'));
-      const heSo = Number.isFinite(parsed) && parsed >= 0 ? parsed : cell.heSo;
-      return { routeId: cell.routeId, vehicleSizeClassCode: cell.vehicleSizeClassCode, heSo };
-    });
-    onSaveHeSo(cells);
-  }
-
-  return (
-    <section className="quotation-route-block" data-route-id={block.routeId}>
-      <div className="quotation-route-block__head">
-        <h3>{block.routeName}</h3>
-        <p className="quotation-route-block__params">
-          Giá dầu tham chiếu {fmt(baseFuel)} đ/lít · Lag {lag ?? '—'} ngày · Làm tròn: HALF_UP từng thành phần (cố định)
-        </p>
-        <p className="quotation-route-block__link">
-          <a href="/config/freight-rate-terms">Sửa tham số giá dầu/lag tại Bảng điều kiện giá</a>
-        </p>
-      </div>
-      <div className="quotation-route-block__table-wrap">
-        <table className="quotation-grid tt-table">
-          <thead>
-            <tr>
-              <th rowSpan={2} scope="col" className="quotation-grid__row-label">Nội dung</th>
-              <th colSpan={6} scope="colgroup">HÀNG LẺ</th>
-              <th colSpan={4} scope="colgroup">HÀNG CONTAINER</th>
-            </tr>
-            <tr>
-              {QUOTATION_GRID_COLUMNS.map((column) => (
-                <th scope="col" key={column.vehicleSizeClassCode}>{column.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ROW_LABELS.map((label, rowIndex) => (
-              <tr key={label}>
-                <th scope="row" className="quotation-grid__row-label">{label}</th>
-                {block.cells.map((cell, _cellIndex) => {
-                  const key = cellKey(cell);
-                  if (rowIndex === 0) {
-                    return (
-                      <td key={key}>
-                        <input
-                          aria-label={`Hệ số ${block.routeName} ${cell.vehicleSizeClassCode}`}
-                          value={drafts[key] ?? String(cell.heSo ?? 1)}
-                          onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))}
-                          onBlur={commitHeSo}
-                          disabled={saving}
-                          inputMode="decimal"
-                        />
-                      </td>
-                    );
-                  }
-                  if (rowIndex === 1) return <td key={key}>{cell.liters == null ? '—' : LITERS_FORMAT.format(cell.liters)}</td>;
-                  if (rowIndex === 2) {
-                    return <td key={key} className={cell.missingPrice ? 'is-missing' : undefined}>{cell.missingPrice ? 'Thiếu giá' : fmt(cell.giaCos)}</td>;
-                  }
-                  if (rowIndex === 3) return <td key={key}>{fmt(cell.surcharge)}</td>;
-                  return <td key={key}>{fmt(cell.total)}</td>;
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
 
 export default function QuotationConfigPage() {
   // Card 20260922_57: xlsx import (preview → commit) + export.
@@ -143,7 +43,7 @@ export default function QuotationConfigPage() {
   const [viewingVersion, setViewingVersion] = useState<{ version: number; payload: QuotationView | null } | null>(null);
   // Card _62: version history for the selected quotation (newest first).
   const versionsQuery = useQuery({
-    queryKey: ['quotation-versions', selectedId, versionFilterFrom, versionFilterTo],
+    queryKey: qk.catalogs.quotationVersions(selectedId!, versionFilterFrom || undefined, versionFilterTo || undefined),
     queryFn: () => quotationClient.listVersions(selectedId!, {
       from: versionFilterFrom || undefined,
       to: versionFilterTo || undefined,
@@ -239,6 +139,13 @@ export default function QuotationConfigPage() {
     return Array.from(byRoute.values());
   }, [detail.data]);
 
+  // Every save path sends the FULL schema-clean payload: the update is
+  // replace-all on both cells and fees, and the .strict() schema rejects the
+  // view-only `id` field — with fees present, an id-carrying payload 400s.
+  function schemaCleanFees(fees: QuotationView['fees']): QuotationFeeInput[] {
+    return fees.map(({ id: _droppedViewId, ...rest }) => rest);
+  }
+
   function saveHeSo(cells: Array<{ routeId: number; vehicleSizeClassCode: string; heSo: number }>) {
     update.mutate({
       id: selectedId!,
@@ -248,7 +155,25 @@ export default function QuotationConfigPage() {
         surchargeRoundingMode: detail.data!.surchargeRoundingMode,
         note: detail.data!.note,
         cells,
-        fees: detail.data!.fees,
+        fees: schemaCleanFees(detail.data!.fees),
+      },
+    });
+  }
+
+  function saveFees(fees: QuotationFeeInput[]) {
+    update.mutate({
+      id: selectedId!,
+      body: {
+        templateName: detail.data!.templateName,
+        effectiveDate: detail.data!.effectiveDate,
+        surchargeRoundingMode: detail.data!.surchargeRoundingMode,
+        note: detail.data!.note,
+        cells: detail.data!.cells.map((cell) => ({
+          routeId: cell.routeId,
+          vehicleSizeClassCode: cell.vehicleSizeClassCode,
+          heSo: cell.heSo,
+        })),
+        fees,
       },
     });
   }
@@ -355,6 +280,14 @@ export default function QuotationConfigPage() {
         </section>
       </div>
 
+      {selectedId != null && detail.data && (
+        <QuotationFeesSection
+          fees={detail.data.fees}
+          saving={update.isPending}
+          onSaveFees={saveFees}
+        />
+      )}
+
       {selectedId != null && (
         <section className="quotation-versions" aria-label="Lịch sử phiên bản báo giá">
           <h3>Lịch sử phiên bản</h3>
@@ -409,7 +342,7 @@ export default function QuotationConfigPage() {
                       <td>{cell.routeName}</td>
                       <td>{cell.vehicleSizeClassCode}</td>
                       <td>{cell.heSo}</td>
-                      <td>{cell.liters != null ? cell.liters : '—'}</td>
+                      <td>{cell.liters != null ? fmtLiters(cell.liters) : '—'}</td>
                       <td>{cell.giaCos != null ? formatCurrency(cell.giaCos) : '—'}</td>
                       <td>{cell.surcharge != null ? formatCurrency(cell.surcharge) : '—'}</td>
                     </tr>

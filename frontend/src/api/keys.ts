@@ -82,6 +82,8 @@ export const qk = {
     // Quotation live-view frames (card 20260922_66) — the Báo giá screen.
     quotations: ['quotations'],
     quotation: (id: number) => ['quotations', id] as const,
+    quotationVersions: (id: number, from?: string, to?: string) =>
+      [...qk.catalogs.quotations, id, 'versions', from, to] as const,
     debitNoteOverride: (snapshotId: number | string | null | undefined) =>
       ['debit-note-override', snapshotId] as const,
     allSuppliers: ['all-suppliers'],
