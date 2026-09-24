@@ -6,15 +6,24 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-fe=0; be=0
+fe=0; be=0; journal=0
 while IFS= read -r f; do
   case "$f" in
     frontend/src/*.ts|frontend/src/*.tsx) fe=1 ;;
     backend/src/*.ts|backend/src/*.tsx) be=1 ;;
+    backend/drizzle/meta/_journal.json) journal=1 ;;
   esac
 done < <(git -C "$root" diff --cached --name-only)
 
 fail=0
+# Journal append-only law (card 20260924_25): any staged _journal.json change
+# must be a pure trailing append. Renumber/delete/reorder of shipped entries
+# is refused here — the 09-24 alarm class had no other tripwire. Lead-signed
+# repairs carry the "Journal-Repair: signed-by <lead>" commit trailer.
+if [ "$journal" -eq 1 ]; then
+  echo "[pre-commit] journal append-only guard…"
+  (cd "$root/backend" && node scripts/guard-journal-append-only.mjs) || fail=1
+fi
 if [ "$fe" -eq 1 ]; then
   echo "[pre-commit] typechecking frontend…"
   (cd "$root/frontend" && pnpm exec tsc --noEmit) || fail=1
