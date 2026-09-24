@@ -46,7 +46,7 @@ Excel của khách — nhập tay từng ô, không có phiên bản, không có
   mang số liệu cước; danh mục phí là cấu trúc quản lý mang theo giữa các hợp đồng, không reset về
   rỗng mỗi lần nhập. Lần nhập đầu tiên bắt đầu với danh mục rỗng; cấu hình phí sau đó như bình
   thường, thiếu cấu hình không tự thay giá minh họa. Phí kế thừa là phí bình thường — sửa được,
-  áp dụng và lưu lịch sử theo khung.
+  áp dụng và lưu lịch sử theo khung. Chi tiết quy tắc kế thừa: [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) §4.4.
 - **Xem trước = lần ghi thật**: bảng ánh xạ hiện đúng những gì lần ghi sẽ tạo; bộ kiểm chứng của
   lần xem trước chính là bộ kiểm chứng của lần ghi thật (preview = commit). Hủy trước khi ghi không
   để lại vết.
