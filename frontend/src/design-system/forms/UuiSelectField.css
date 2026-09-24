@@ -39,6 +39,17 @@
   font-weight: 600;
 }
 
+/*
+ * Dropdown-list-only skin (audit c12 cluster A): the portalled listbox keeps
+ * a readable width floor no matter how narrow its trigger — long option
+ * labels wrap (design law §4 no-truncation doctrine; ellipsis on values is
+ * banned outright), and the list never spills past the phone viewport.
+ */
+.ds-uui-select__popover {
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+}
+
 .ds-uui-select__hint,
 .ds-uui-select__error {
   font-size: var(--text-label-size);
@@ -138,4 +149,17 @@
 .ds-uui-boundary:has(:disabled) textarea {
   border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
   background: var(--surface-2, #f8fafc);
+}
+
+/*
+ * Card 20260924_1 (image1, HIGH) — the shared untitled-ui Popover pins its
+ * box to the trigger width (w-(--trigger-width)) with overflow-x-hidden, so
+ * an option longer than a narrow trigger clipped mid-word with no ellipsis
+ * ("Có hóa đơn · Nâ" at the ops-orders cost-group picker). min-width floors
+ * the trigger width for short options and lets long options size the popover
+ * (max-content of the nowrap option rows), so no label is ever cut — design
+ * law §4, docs/design-guidelines.md. CSS-only: no select logic touched.
+ */
+.ds-uui-select__popover {
+  min-width: max-content;
 }

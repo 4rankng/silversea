@@ -23,6 +23,16 @@ interface PendingPhoto {
   name: string;
 }
 
+/** Số Cont choice → payload container id. The shared-lot choice and an empty
+ *  choice both mean "no container row" — an empty string must never reach
+ *  `Number()` and serialize as container 0 (audit c12 A2: the backend zod
+ *  schema `shipmentContainerId: z.number().int().positive()` rejects 0 with
+ *  the default message the UI translates to "Giá trị phải lớn hơn 0"). */
+export function opsContainerId(containerChoice: string): number | null {
+  if (containerChoice === 'LOT' || containerChoice === '') return null;
+  return Number(containerChoice);
+}
+
 /**
  * "Khai báo chi phí" (OpsVanHanh §3.3): context-first form — mã lô + số bill
  * tự điền readonly, số cont chọn từ vỏ của lô, loại phí nhóm theo
@@ -103,7 +113,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     event.preventDefault();
     if (!canSubmit || savingRef.current) return;
     savingRef.current = true;
-    const containerId = containerChoice === 'LOT' ? null : Number(containerChoice);
+    const containerId = opsContainerId(containerChoice);
     try {
       await createExpense.mutateAsync({
         shipmentId: order.id,

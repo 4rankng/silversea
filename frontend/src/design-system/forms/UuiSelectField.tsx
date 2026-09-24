@@ -149,8 +149,16 @@ export function UuiSelectField({
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
+          placeholder={placeholder ?? options.find((option) => option.value === '')?.label ?? '— Chọn —'}
           selectedKey={value || EMPTY_SELECT_KEY}
-          onSelectionChange={(key) => onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)))}
+          onSelectionChange={(key) => {
+            // React Aria can clear the selection (null key) when the option
+            // list rebuilds; mapping it to String(null) would strand the
+            // control on a key that matches no option and strand the form on
+            // a value the owner never chose.
+            if (key == null) return;
+            onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)));
+          }}
           items={items}
           isDisabled={disabled}
           isRequired={required}
