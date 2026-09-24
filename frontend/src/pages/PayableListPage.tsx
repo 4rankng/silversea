@@ -135,7 +135,7 @@ export function CommissionModal({
           <button className="btn btn--secondary btn--sm" onClick={onClose} disabled={isPending}>
             Hủy bỏ
           </button>
-          <button className="btn btn--primary btn--sm" onClick={handleSubmit} disabled={!canSubmit}>
+          <button className="btn btn--primary btn--sm" onClick={handleSubmit} disabled={!canSubmit} title={canSubmit ? undefined : 'Nhập đủ nhà cung cấp và số tiền hợp lệ để ghi hoa hồng'}>
             {isPending ? 'Đang ghi...' : 'Ghi nhận'}
           </button>
         </>

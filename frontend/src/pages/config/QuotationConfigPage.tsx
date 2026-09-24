@@ -203,6 +203,7 @@ export default function QuotationConfigPage() {
             type="button"
             className="btn btn--secondary"
             disabled={selectedId == null}
+            title={selectedId == null ? 'Chọn một khung báo giá để xuất xlsx' : undefined}
             onClick={() => selectedId != null && void handleExport(selectedId)}
           >
             Xuất xlsx

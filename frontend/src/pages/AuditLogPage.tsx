@@ -294,6 +294,7 @@ fontSize: 'var(--text-data-size)',
           <button
             className="btn btn--secondary"
             disabled={entries.length === 0}
+            title={entries.length === 0 ? 'Nhật ký trống — không có gì để xuất' : undefined}
             onClick={async () => {
               const headers = isAdmin
                 ? ['#', 'Thời gian', 'Người dùng', 'Hành động', 'Nội dung', 'Địa chỉ IP']
