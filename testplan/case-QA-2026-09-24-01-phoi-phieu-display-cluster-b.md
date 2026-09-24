@@ -16,7 +16,7 @@
 | # | Symptom | Root cause (verified in source) | Verdict |
 |---|---------|-------------------------------|---------|
 | B1 | Board rows read `ADC P 1790089547534-zcain7` / `ADC route P 1790089547534-zcain7` under KHÁCH HÀNG / route (image11). Operator annotation: "không rõ ý nghĩa". | The strings are the seed fixtures' literal `customers.name` / `routes.name` values (dev DB rows 436/437: `ADC P 1790089547534-zcain7`), rendered verbatim by `PhoiPhieuControlPage.tsx:220` from `phoi-phieu-control.service.ts:97,100`. Naming pattern `<label> <epoch-ms>-<rand>` comes from backend test fixtures (cf. `accounting-debit-close.test.ts:153-154`). NOT a raw DB id column rendering — it is id-like seed *names* flowing into the row. | LANDED (ruled shapes) — seeder suites stop baking fragments into the three name fields (`88b5d2d0`); strip migration cleans stored rows (`19a77628` + collision-safe fixup `c41022b9`, applied to the dev DB after backup, idempotent re-run verified); render-layer fences pin that cells render stored names verbatim — no display laundering. |
-| B2-counter | Toolbar button "Lập phiếu chi (0 dòng)" while approved entries exist in the modal (image13, annotation 4). | The button is the PAGE toolbar (`PhoiPhieuControlPage.tsx:194`), not the modal: it counts checked trips (`selected.size`); the modal (`PhoiPhieuTienDuongDialog`) has no voucher button. Approving entries in the modal cannot move that counter. Counter is truthful for what the button does, but disconnected from approval state. | LANDED (both legs) — service-side approval guard: createPhoiPhieuVoucher consumes only confirmedAt sources per leg, and approved tiền đường (DRIVER) costs pay OUT to their driver counterparty (`88b5d2d0`); the toolbar counter previews the eligible set (approved ∧ remaining>0, per direction, cash-adjusted) so preview == voucher contents. |
+| B2-counter | Toolbar button "Lập phiếu chi (0 dòng)" while approved entries exist in the modal (image13, annotation 4). | The button is the PAGE toolbar (`PhoiPhieuControlPage.tsx:194`), not the modal: it counts checked trips (`selected.size`); the modal (`PhoiPhieuTienDuongDialog`) has no voucher button. Approving entries in the modal cannot move that counter. Counter is truthful for what the button does, but disconnected from approval state. | LANDED (re-ruled shapes) — phoi-phieu voucher consumes approved chi-hộ/OPS sources ONLY (`88b5d2d0` guard, OPS-only re-affirmed in `dc9f44ee`); the toolbar counter previews the eligible OPS set (approved ∧ remaining>0, per direction, cash-adjusted) so preview == voucher contents; approved tiền đường payouts ride the cash/vouchers chain, whose approval gate now refuses with a fee-name row list and whose allocations decrement the cash-adjusted remaining (`dc9f44ee`, t5/t6). Payer scope split recorded in docs/adr/2026-09-24-expense-payer-scope-split.md. |
 | B2-headers | "LÁI XE NHẬP BAN ĐẦU (Đ)" and "THỰC CHI HI..." clip mid-token in the modal table (image13). | `.tt-table` is `table-layout: fixed` (`Table.css:489`) + `thead th { white-space: nowrap }` (`Table.css:503`): 7 equal-share ~91px columns inside the 640px modal shell clip the two longest headers. | FIXED — modal widened 640→760px; headers wrap at spaces (`white-space: normal; word-break: keep-all; overflow-wrap: normal`) mirroring the board's pinned thead contract (card 20260922_54, design law §4). |
 
 ## Business-semantics flag (Director ruling needed before B2-counter fix)
@@ -78,6 +78,16 @@ was escalated, not unilaterally redefined.
 - Note: the voucher consumes OPS (chi hộ) sources; the chi-hộ approval flow sets their
   `confirmedAt`. The previously-flagged gap "approved DRIVER (tiền đường) entries are never paid
   by this button" remains OUT of the ruling's scope and stays flagged for Director.
+
+## Re-rule (2026-09-24, later) — payer scope split
+
+The second GO's DRIVER-leg widening (t3/t4) was **dropped by re-rule**: phoi-phieu pays
+chi-hộ/OPS only; approved tiền đường payouts ride the cash/vouchers chain (whose approval gate
+lists fees, never ids — t5/t6 in expense-cash-authority.test.ts). The interim widening landed in
+`88b5d2d0` and was removed in `dc9f44ee`. Landed series: `195601d6` (debit tripId aria-labels),
+`dc9f44ee` (OPS-only voucher + named-fee approval gate), ADR
+`docs/adr/2026-09-24-expense-payer-scope-split.md`. Migration runs LOCAL-only; the staging run is
+a cut-runbook step (backup-first), not a lane action.
 
 ## Collision note (mid-run event, resolved)
 
