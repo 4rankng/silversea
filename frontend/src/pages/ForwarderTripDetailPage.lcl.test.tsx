@@ -370,12 +370,12 @@ describe('ForwarderTripDetailPage voided fee rows', () => {
     expect(voidedRow.getByText(/Lý do hủy: Sai khoản — kê trùng cước lift up/)).toBeTruthy();
     expect(voidedRow.getByText(/Nguyễn Văn Dũng/)).toBeTruthy();
     expect((voidedRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(true);
-    expect((voidedRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((voidedRow.getByRole('button', { name: /^Xóa chi phí/ }) as HTMLButtonElement).disabled).toBe(true);
 
     expect(activeRow.queryByText('Đã hủy')).toBeNull();
     expect(activeRow.queryByText(/Lý do hủy:/)).toBeNull();
     expect((activeRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(false);
-    expect((activeRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((activeRow.getByRole('button', { name: /^Xóa chi phí/ }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('renders a legacy REJECTED row with the refused label and the same disabled-actions treatment', () => {
@@ -387,6 +387,6 @@ describe('ForwarderTripDetailPage voided fee rows', () => {
     const voidedRow = within(rows[0] as HTMLElement);
     expect(voidedRow.getByText('Đã từ chối')).toBeTruthy();
     expect((voidedRow.getByRole('button', { name: /Điều chỉnh/ }) as HTMLButtonElement).disabled).toBe(true);
-    expect((voidedRow.getByRole('button', { name: 'Xóa chi phí' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((voidedRow.getByRole('button', { name: /^Xóa chi phí/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

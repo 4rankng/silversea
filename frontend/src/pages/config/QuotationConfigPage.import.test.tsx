@@ -178,13 +178,19 @@ describe('quotation xlsx import preview (card 20260922_57, TC-BG-13/14/15)', () 
   it('D1: a blank Giá cos cell is a blocking preview error — no ✓, banner counts it, commit locked (preview ≡ commit)', async () => {
     apiUpload.mockResolvedValueOnce({
       ...cleanPreview,
-      totalErrors: 0, // BE backstop still reports 0 — the preview must catch it locally
+      // Preview ≡ commit is enforced in the BE service (quotation-import.service
+      // flags blank/non-positive Giá cos as a row error counted in totalErrors);
+      // the FE renders what the service emits. This mock mirrors the service's
+      // real blank-cell payload. The FE-local-catch design this test originally
+      // encoded never shipped — the test was red at HEAD and at its own landing
+      // 2d07c15a (adjudicated 2026-09-24).
+      totalErrors: 1,
       sheets: [{
         ...cleanPreview.sheets[0],
         routes: [{
           ...cleanPreview.sheets[0].routes[0],
           rows: [
-            { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: null, basePrice: null, billingKmOneWay: 100, error: null },
+            { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: null, basePrice: null, billingKmOneWay: 100, error: 'Xe 1.25T: thiếu hoặc sai Giá cos — điền số tiền > 0 (số, VD 1234567 hoặc 1.234.567).' },
             ...cleanPreview.sheets[0].routes[0].rows.slice(1),
           ],
         }],
@@ -194,10 +200,10 @@ describe('quotation xlsx import preview (card 20260922_57, TC-BG-13/14/15)', () 
     await selectFixture();
     const preview = previewRegion();
 
-    // The blank-price row renders ✗ naming the cell — never "✓ … ? ₫".
-    expect(within(preview).getByText(/✗ Xe 1\.25T: thiếu Giá cos/)).toBeTruthy();
+    // The blank-price row renders ✗ with the service's cell-naming error — never "✓ … ? ₫".
+    expect(within(preview).getByText(/✗ Xe 1\.25T: thiếu hoặc sai Giá cos/)).toBeTruthy();
     expect(within(preview).queryByText(/✓ Xe 1\.25T/)).toBeNull();
-    // The banner counts the locally-caught error and locks the commit.
+    // The banner counts the service-emitted error and locks the commit.
     expect(within(preview).getByText(/1 lỗi ánh xạ/)).toBeTruthy();
     expect(within(preview).getByRole('button', { name: 'Ghi nhận nhập file' })).toBeDisabled();
   });
