@@ -113,7 +113,6 @@ export default function AccountingInvoiceTrackingPage() {
       {reasonDialog}
       <p className="invoice-tracking-page__intro">
         Quản lý số hóa đơn, số tiền hóa đơn và số tiền trả nhà cung cấp theo từng lô hàng.
-        Vai trò Chứng từ chỉ xem, mọi thay đổi do kế toán thực hiện.
       </p>
 
       <section className="invoice-tracking-period" aria-label="Kỳ theo dõi">

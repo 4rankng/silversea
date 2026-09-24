@@ -11,7 +11,6 @@ import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
-import { businessDateISO } from '../../../lib/format';
 import './MasterPlanGrid.css';
 
 interface MasterPlanFiltersProps {
@@ -44,64 +43,6 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
   { id: 'PARTIALLY_ALLOCATED', label: 'Đang phân xe' },
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
 ];
-
-function toISODate(d: Date): string {
-  // Pin the business timezone — "Hôm nay/Hôm sau" must follow the Vietnam
-  // calendar day the CUS-entered delivery dates compare against, not the
-  // viewer machine's day.
-  return businessDateISO(d);
-}
-
-function addDays(d: Date, n: number): Date {
-  const result = new Date(d);
-  result.setUTCDate(result.getUTCDate() + n);
-  return result;
-}
-
-function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'filters' | 'onChange'>) {
-  const now = new Date();
-  const today = toISODate(now);
-  const tomorrow = toISODate(addDays(now, 1));
-  const isAllDates = !filters.deliveryDateFrom && !filters.deliveryDateTo;
-  const isToday = filters.deliveryDateFrom === today && filters.deliveryDateTo === today;
-  const isTomorrow = filters.deliveryDateFrom === tomorrow && filters.deliveryDateTo === tomorrow;
-
-  return (
-    <div className="master-plan-filters__date-actions">
-      <UUIButton
-        className={`master-plan-filters__date-action${isAllDates ? ' is-active' : ''}`}
-        size="sm"
-        color="secondary"
-        onPress={() => onChange({ deliveryDateFrom: '', deliveryDateTo: '' })}
-        aria-pressed={isAllDates}
-      >
-        Tất cả các ngày
-      </UUIButton>
-      <UUIButton
-        className={`master-plan-filters__date-action${isToday ? ' is-active' : ''}`}
-        size="sm"
-        color="secondary"
-        onPress={() => {
-          onChange({ deliveryDateFrom: today, deliveryDateTo: today });
-        }}
-        aria-pressed={isToday}
-      >
-        Hôm nay
-      </UUIButton>
-      <UUIButton
-        className={`master-plan-filters__date-action${isTomorrow ? ' is-active' : ''}`}
-        size="sm"
-        color="secondary"
-        onPress={() => {
-          onChange({ deliveryDateFrom: tomorrow, deliveryDateTo: tomorrow });
-        }}
-        aria-pressed={isTomorrow}
-      >
-        Hôm sau
-      </UUIButton>
-    </div>
-  );
-}
 
 /**
  * Searchable multi-select facet picker backed by the shared
@@ -234,7 +175,6 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const [zonesError, setZonesError] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const drawerContentRef = useRef<HTMLDivElement>(null);
-  const [dateResetKey, setDateResetKey] = useState(0);
   const applyDrawerFilters = () => {
     const invalid = drawerContentRef.current?.querySelector<HTMLInputElement>('input:invalid');
     if (invalid) {
@@ -243,10 +183,6 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       return;
     }
     setIsFilterDrawerOpen(false);
-  };
-  const changeDatePreset = (patch: Partial<FilterState>) => {
-    setDateResetKey((key) => key + 1);
-    onChange(patch);
   };
   const activeDrawerFilterCount = [
     filters.allocationStatus,
@@ -257,7 +193,6 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   ].filter(Boolean).length;
 
   const clearDrawerFilters = () => {
-    setDateResetKey((key) => key + 1);
     onChange({
       allocationStatus: '',
       deliveryDateFrom: '',
@@ -347,7 +282,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 className="master-plan-filters__date-input"
                 inputClassName="master-plan-filters__control"
                 size="sm"
-                key={`from-${dateResetKey}`} max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom}
+                 max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom}
                 onChange={(value) => onChange({ deliveryDateFrom: value })}
                 inputProps={{ 'aria-label': 'Từ ngày giao' }}
               />
@@ -356,12 +291,11 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 className="master-plan-filters__date-input"
                 inputClassName="master-plan-filters__control"
                 size="sm"
-                key={`to-${dateResetKey}`} min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo}
+                 min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo}
                 onChange={(value) => onChange({ deliveryDateTo: value })}
                 inputProps={{ 'aria-label': 'Đến ngày giao' }}
               />
             </div>
-            <QuickDateActions filters={filters} onChange={changeDatePreset} />
           </div>
         </div>
         <UUIButton
@@ -410,11 +344,10 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
               <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
                 <span className="master-plan-filters__label">Ngày giao</span>
                 <div className="master-plan-filters__date-inputs">
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" key={`from-${dateResetKey}`} max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom} onChange={(value) => onChange({ deliveryDateFrom: value })} inputProps={{ 'aria-label': 'Từ ngày giao' }} />
+                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm"  max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom} onChange={(value) => onChange({ deliveryDateFrom: value })} inputProps={{ 'aria-label': 'Từ ngày giao' }} />
                   <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" key={`to-${dateResetKey}`} min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
+                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm"  min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
                 </div>
-                <QuickDateActions filters={filters} onChange={changeDatePreset} />
               </div>
             </div>
           </section>

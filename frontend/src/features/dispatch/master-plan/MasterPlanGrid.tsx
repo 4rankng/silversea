@@ -263,7 +263,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   ))}
                   {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
                     <div
-                      className="master-plan-grid__line master-plan-grid__line--urgent"
+                      className="master-plan-grid__line master-plan-grid__line--warning"
                       role="status"
                     >
                       Cảnh báo: Còn {item.containersMissingAppointment}/{item.containerTotal} cont chưa chốt ngày đóng trả

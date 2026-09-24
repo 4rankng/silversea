@@ -79,15 +79,18 @@ export default function MasterPlanPage() {
           </div>
         )}
 
+        {/* Filter-bar law §5: the page's primary action sits top-right above
+            the filter row, never stranded below it. */}
+        <div className="dispatch-plan-page__toolbar">
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
+            <Plus size={16} aria-hidden="true" />
+            Tạo lô hàng
+          </button>
+        </div>
+
         <MasterPlanFilters
           filters={masterPlan.filters}
           onChange={masterPlan.updateFilters}
-          action={(
-            <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
-              <Plus size={16} aria-hidden="true" />
-              Tạo lô hàng
-            </button>
-          )}
         />
 
         {masterPlan.dispatchSummary && (

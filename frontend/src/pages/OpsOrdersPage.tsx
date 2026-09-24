@@ -144,7 +144,7 @@ export default function OpsOrdersPage() {
                   <td data-label="Bill / Booking">{order.billRef ?? '—'}</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="col-actions">
-                    <button type="button" className="btn btn--secondary btn--sm ops-orders__expense" onClick={() => setExpenseFor(order)}>
+                    <button type="button" className="btn btn--primary btn--sm ops-orders__expense" onClick={() => setExpenseFor(order)}>
                       <Plus size={14} /> Khai chi phí
                     </button>
                   </td>

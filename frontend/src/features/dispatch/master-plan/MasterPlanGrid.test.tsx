@@ -638,11 +638,9 @@ describe('MasterPlanFilters', () => {
       <MasterPlanFilters
         filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
         onChange={vi.fn()}
-        action={<button type="button">Tạo lô hàng</button>}
       />,
     );
     expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
-    expect(container.querySelector('.master-plan-filters__actions')?.textContent).toBe('Tạo lô hàng');
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
@@ -651,8 +649,8 @@ describe('MasterPlanFilters', () => {
     expect(toolbar).toContain('align-items: end');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
     expect(css).toContain('grid-template-columns: minmax(0, 320px) max-content');
-    expect(css).toContain('.master-plan-filters__date-action');
-    expect(css).toContain('.master-plan-filters__actions');
+    expect(css).not.toContain('.master-plan-filters__date-action');
+    expect(css).not.toContain('.master-plan-filters__actions');
     expect(css).toContain('.drawer.master-plan-filters__drawer');
     expect(css).toContain('max-width: 100%');
     expect(css).toContain('padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;');
@@ -673,9 +671,9 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
 
     expect(page).not.toContain('Tải lại');
-    expect(page).not.toContain('dispatch-plan-page__toolbar');
+    expect(page).toContain('dispatch-plan-page__toolbar');
     expect(page).not.toContain('<PageHeader');
-    expect(page).toContain('action={(');
+    expect(page).not.toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
     expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');

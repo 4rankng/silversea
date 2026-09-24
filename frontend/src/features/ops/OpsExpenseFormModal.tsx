@@ -239,7 +239,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 ))}
               </ul>
             )}
-            <p className="ops-form-photos__hint">Có thể lưu trước và bổ sung ảnh sau — khoản chi sẽ bị đánh dấu “Nợ chứng từ” cho tới khi đủ ảnh.</p>
           </div>
         </div>
 

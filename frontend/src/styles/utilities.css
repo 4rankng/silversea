@@ -190,6 +190,7 @@
 .m-card__row-label { color: var(--ink-3); }
 .m-card__row-value { font-weight: 600; color: var(--ink); font-family: var(--font-data); font-size: var(--fs-xs); }
 .m-card__row-value--danger { color: var(--danger); }
+.m-card__row-value--warning { color: var(--warning-text); }
 .m-card__row-value--success { color: var(--success); }
 
 /* Aging bar inside mobile card */

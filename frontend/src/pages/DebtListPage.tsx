@@ -415,7 +415,7 @@ export default function DebtListPage() {
                               <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
                             )}
                           </span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value debt-list-page__amount`}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--warning' : '--success'} m-card__row-value debt-list-page__amount`}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -494,7 +494,7 @@ export default function DebtListPage() {
 
                           <td data-label="Tổng nợ" className="num typo-mono" style={{
                             fontWeight: 700,
-                            color: d.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)'
+                            color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
                           }}>
                             {formatCurrency(d.totalOutstanding)}
                           </td>
@@ -503,7 +503,7 @@ export default function DebtListPage() {
                             fontWeight: 600,
                             color: d.linkedSupplierId == null
                               ? 'var(--fg-3)'
-                              : (d.netBalance > 0 ? 'var(--danger)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
+                              : (d.netBalance > 0 ? 'var(--warning-text)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
                           }}>
                             {d.linkedSupplierId == null
                               ? <span style={{ color: 'var(--fg-3)' }}>&mdash;</span>

@@ -42,9 +42,9 @@ describe('MasterPlanFilters', () => {
     const drawer = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
     expect(within(drawer).getByRole('heading', { name: 'Phân xe và ngày giao' })).toBeTruthy();
     expect(within(drawer).getByRole('heading', { name: 'Nhà xe' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Tất cả các ngày' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
+    expect(within(drawer).queryByRole('button', { name: 'Tất cả các ngày' })).toBeNull();
+    expect(within(drawer).queryByRole('button', { name: 'Hôm nay' })).toBeNull();
+    expect(within(drawer).queryByRole('button', { name: 'Hôm sau' })).toBeNull();
     expect(within(drawer).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Xem kết quả' })).toBeTruthy();
 
@@ -58,12 +58,12 @@ describe('MasterPlanFilters', () => {
     });
   });
 
-  it('renders date shortcuts as explicit pressed buttons', () => {
+  it('drops the redundant date preset shortcuts (filter-bar law §5 — the date inputs cover them)', () => {
     render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: 'Tất cả các ngày' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Hôm nay' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'Hôm sau' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Tất cả các ngày' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hôm nay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hôm sau' })).toBeNull();
   });
 
   it('uses the compact control tokens for the bespoke desktop carrier facet', () => {

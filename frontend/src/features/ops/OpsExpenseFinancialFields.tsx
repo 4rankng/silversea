@@ -79,14 +79,14 @@ export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = 
       </>}
       {!invoiced && <TextField controlSize="sm" label="Thực thu (thu khách)" value={value.customerChargeAmount} disabled={disabled}
         onChange={(event) => patch({ customerChargeAmount: event.target.value })} inputMode="decimal"
-        placeholder="Để trống nếu chưa thu khách"
-        helpText="Thực chi là số tiền thật đã chi; Thực thu là số sẽ thu của khách — hai số độc lập." />}
+        placeholder="Để trống nếu chưa thu khách" />}
     </div>
     <ExpenseNameSuggestions group={value.costGroup} disabled={disabled} onChoose={feeName => patch({ feeName })} />
-    <p className="ops-form-photos__hint">
-      {invoiced ? `Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.` : 'Cặp Thực chi / Thực thu độc lập: thu thêm khách chỉ khi đã thỏa thuận.'}
-      {' '}Ghi chi phí không có nghĩa khách đã trả tiền.
-    </p>
+    {invoiced && (
+      <p className="ops-form-photos__hint">
+        {`Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.`}
+      </p>
+    )}
     <TextField controlSize="sm" label="Ghi chú thu khách" value={value.recoveryNote} disabled={disabled}
       onChange={(event) => patch({ recoveryNote: event.target.value })} maxLength={1000}
       placeholder="Đã gồm trong giá trọn gói / đề nghị thu thêm…" />

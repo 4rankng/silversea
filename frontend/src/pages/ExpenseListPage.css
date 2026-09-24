@@ -208,7 +208,9 @@
 }
 
 .expense-amount--unpaid {
-  color: var(--danger);
+  /* §2 color law: unpaid = owed/pending → amber, not danger red (red is for
+     errors/blocked). Paid keeps success green. */
+  color: var(--warning-text);
 }
 
 .expense-amount--paid {

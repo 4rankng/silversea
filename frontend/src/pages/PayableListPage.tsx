@@ -538,7 +538,7 @@ export default function PayableListPage() {
                       <ClickableCard key={`${d.kind ?? 'vendor'}-${d.supplier.id}`} to={rowHref(d)} className="m-card">
                         <div className="m-card__top">
                           <span className="m-card__title">{d.supplier.name}</span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--warning' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -604,7 +604,7 @@ export default function PayableListPage() {
                         </td>
                         <td data-label="Tổng nợ" className="num typo-mono" style={{
                           fontWeight: 700,
-                          color: d.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)'
+                          color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>

@@ -85,40 +85,6 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-.master-plan-filters__date-actions {
-  display: flex;
-  gap: 6px;
-  grid-column: 2;
-  grid-row: 2;
-  align-items: stretch;
-  white-space: nowrap;
-}
-
-.master-plan-filters__date-action {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--fg-2);
-}
-
-.master-plan-filters__date-action:hover {
-  border-color: var(--fg-3);
-  background: var(--surface-2);
-  color: var(--fg-1);
-}
-
-.master-plan-filters__date-action.is-active {
-  border-color: var(--fg-1);
-  background: var(--surface-2);
-  color: var(--fg-1);
-}
-
-.master-plan-filters__actions {
-  grid-column: span 3;
-  justify-self: end;
-  align-self: end;
-  white-space: nowrap;
-}
-
 .master-plan-filters__advanced-fields {
   display: contents;
 }
@@ -174,12 +140,6 @@
 .master-plan-filters__drawer-fields .master-plan-filters__date-range {
   grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.master-plan-filters__drawer-fields .master-plan-filters__date-actions {
-  grid-column: 1;
-  grid-row: auto;
-  flex-wrap: wrap;
 }
 
 /* Multi-select facet controls for ports and carriers */
@@ -450,7 +410,6 @@
 
   .master-plan-filters__search,
   .master-plan-filters__direction,
-  .master-plan-filters__actions,
   .master-plan-filters__advanced-trigger {
     grid-column: auto;
   }
@@ -489,7 +448,6 @@
   .master-plan-filters__search { grid-column: 1 / -1; }
   .master-plan-filters__direction { grid-column: 1; }
   .master-plan-filters__advanced-trigger { grid-column: 2; }
-  .master-plan-filters__actions { grid-column: 3; justify-self: end; min-width: 0; }
 }
 
 @media (max-width: 767px) {
@@ -679,6 +637,13 @@
 
 .master-plan-grid__line--urgent {
   color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.master-plan-grid__line--warning {
+  /* §2 color law: "Cảnh báo" (containers missing appointment lock) is a
+     needs-attention warning — amber, not danger red (red = error/blocked). */
+  color: var(--warning-text, #b45309);
   font-weight: var(--fw-semibold);
 }
 
