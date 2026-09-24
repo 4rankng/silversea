@@ -180,7 +180,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
           {errorLine && (
             <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>{errorLine}</p>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             <label style={fieldStyle}>
               <span style={labelStyle}>Từ ngày</span>
               <input className="input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
@@ -189,6 +189,8 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
               <span style={labelStyle}>Đến ngày</span>
               <input className="input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </label>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             <label style={fieldStyle}>
               <span style={labelStyle}>Lần</span>
               <select className="input" value={roundNo} onChange={(e) => setRoundNo(Number(e.target.value))}>

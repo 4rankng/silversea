@@ -204,6 +204,9 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
           <FormGroup label="Số hóa đơn" htmlFor="ivt-invoice-number">
             <input id="ivt-invoice-number" className="input" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
           </FormGroup>
+          <FormGroup label="Ngày" htmlFor="ivt-expense-date">
+            <input id="ivt-expense-date" className="input" type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
+          </FormGroup>
           <FormGroup label="Số tiền hóa đơn (₫)" htmlFor="ivt-invoice-amount">
             <input id="ivt-invoice-amount" className="input" type="number" min="0" step="1" value={invoiceAmount} onChange={(event) => setInvoiceAmount(event.target.value)} />
           </FormGroup>
@@ -219,9 +222,6 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
           <FormGroup label="COM" htmlFor="ivt-com-note">
             <input id="ivt-com-note" className="input" value={comNote} onChange={(event) => setComNote(event.target.value)} />
           </FormGroup>
-          <FormGroup label="Ngày" htmlFor="ivt-expense-date">
-            <input id="ivt-expense-date" className="input" type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
-          </FormGroup>
           <UuiSelectField
             id="ivt-progress"
             label="Tiến độ"
@@ -229,9 +229,11 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
             onChange={(event) => setProgress(event.target.value as InvoiceTrackingProgress)}
             options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
           />
-          <FormGroup label="Ghi chú" htmlFor="ivt-note">
-            <input id="ivt-note" className="input" value={note} onChange={(event) => setNote(event.target.value)} />
-          </FormGroup>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <FormGroup label="Ghi chú" htmlFor="ivt-note">
+              <input id="ivt-note" className="input" value={note} onChange={(event) => setNote(event.target.value)} />
+            </FormGroup>
+          </div>
         </div>
 
         {formError && <p className="ivt-hint ivt-hint--error" role="alert">{formError}</p>}

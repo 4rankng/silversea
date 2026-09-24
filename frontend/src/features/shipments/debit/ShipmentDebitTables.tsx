@@ -10,7 +10,7 @@
 // Port-fee columns render the interim '—' in both tables (port-names ruling:
 // no place-named identifiers, config-sourced heading pending its producer);
 // Customer charges and actual OPS costs remain separate on their own wires.
-import { AlertTriangle, Paperclip } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { defaultFeeRouting } from '@tingting/shared';
 import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
 import type { QuotationFeeRow } from '../../../api/quotationClient';
@@ -92,7 +92,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
                 <input
                   className="csc-debit-input"
                   aria-label={`PS thực tế ${row.containerNumber}`}
-                  placeholder="✏️ PS thực tế"
+                  placeholder="PS thực tế"
                   value={cells.psActual}
                   disabled={frozen}
                   onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { psActual: event.target.value }); }}
@@ -103,7 +103,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
                 <input
                   className="csc-debit-input"
                   aria-label={`Ghi chú PS ${row.containerNumber}`}
-                  placeholder="✏️ (ghi chú theo tên phí PS)"
+                  placeholder="Ghi chú phí PS"
                   value={cells.note}
                   disabled={frozen}
                   onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { note: event.target.value }); }}
@@ -259,7 +259,7 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
               <td className={repair.warn ? 'csc-debit-warn-cell csc-debit-warn-cell--armed' : 'csc-debit-warn-cell'}>
                 {repair.warn && <AlertTriangle aria-hidden="true" size={13} />}{repair.text}
               </td>
-              <td><span className="csc-debit-docs"><Paperclip aria-hidden="true" size={13} />{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
+              <td><span className="csc-debit-docs">{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
             </tr>
           );
         })}

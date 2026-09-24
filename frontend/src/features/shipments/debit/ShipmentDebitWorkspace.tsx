@@ -163,8 +163,8 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
         </div>
       )}
       <div className="csc-debit-actions">
-        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" onClick={() => setAdjustOpen((open) => !open)}>✏️ ĐIỀU CHỈNH CƯỚC</button>
-        <button type="button" className="csc-debit-actions__lock" disabled={settled || !canLock} aria-label="Khóa lô hàng" onClick={() => lockCost.mutate()}>🔒 KHÓA LÔ HÀNG</button>
+        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" title={!settled ? 'Chốt số liệu quyết toán trước khi điều chỉnh cước' : !canAdjust ? 'Lô đã khóa hoặc ngoài phạm vi được sửa' : undefined} onClick={() => setAdjustOpen((open) => !open)}>ĐIỀU CHỈNH CƯỚC</button>
+        <button type="button" className="csc-debit-actions__lock" disabled={settled || !canLock} aria-label="Khóa lô hàng" title={settled ? 'Quyết toán đã khóa' : !canLock ? 'Cần quyền khóa lô hàng' : undefined} onClick={() => lockCost.mutate()}>KHÓA LÔ HÀNG</button>
         {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
         {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
       </div>

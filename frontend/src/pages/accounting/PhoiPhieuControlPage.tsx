@@ -5,6 +5,7 @@ import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, listPhoiPhieuRo
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
+import { PageHeader } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
@@ -174,7 +175,7 @@ export default function PhoiPhieuControlPage() {
 
   return (
     <div className="page-shell">
-      <h1>Kiểm soát phơi phiếu - Tiền đường</h1>
+      <PageHeader title="Kiểm soát phơi phiếu - Tiền đường" />
       {/* Card 20260924_12: page-owned auto-fit grid (filter-bar law §5) —
           tracks band 220–320px pack every control along one row and wrap only
           when out of space; the shared .ds-uui-select width:100% now fills a
@@ -196,7 +197,7 @@ export default function PhoiPhieuControlPage() {
           options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} />
         <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
           options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} />
-        <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} onClick={() => void issueVoucher()}>
+        <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
           {issuing
             ? 'Đang lập…'
             : selected.size === 0

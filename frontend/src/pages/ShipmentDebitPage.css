@@ -237,18 +237,17 @@
 }
 
 .shipment-debit-row__lock {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
+  display: inline-block;
   white-space: nowrap;
-  border-radius: 8px;
-  padding: 2px 6px;
-  border: 1px solid var(--border-1);
+  font-weight: 500;
 }
 
 .shipment-debit-row__lock--locked {
   color: var(--ink-1);
-  background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+}
+
+.shipment-debit-row__lock--open {
+  color: var(--ink-3);
 }
 
 /* Row-click selection (user ruling 2026-09-19): the checkbox never existed

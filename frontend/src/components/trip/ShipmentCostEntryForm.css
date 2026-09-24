@@ -25,5 +25,5 @@
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }
   .shipment-cost-entry__head > div { flex: 1 1 200px; }
-  .shipment-cost-entry__fields > :nth-child(-n + 2) { grid-column: 1 / -1; }
+  .shipment-cost-entry__fields { grid-template-columns: 1fr; gap: 12px; }
 }

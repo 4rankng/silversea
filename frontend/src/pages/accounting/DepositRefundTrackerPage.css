@@ -18,24 +18,28 @@
 .deposit-tracker-warnings__dismiss { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 0; border: none; background: transparent; color: var(--danger-text, #7F2D37); border-radius: 8px; cursor: pointer; }
 .deposit-tracker-warnings__dismiss:hover { background: rgba(127, 45, 55, 0.08); }
 @media (pointer: coarse) { .deposit-tracker-warnings__dismiss { min-width: 44px; min-height: 44px; } }
-.deposit-tracker-totals__tile { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; padding: 10px 14px; width: fit-content; }
+.deposit-tracker-totals__tile { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--border-1, #e2e8f0); background: var(--surface-1, #fff); border-radius: 8px; padding: 8px 14px; width: fit-content; }
+.deposit-tracker-totals__tile span { font-size: var(--text-caption-size, 12px); color: var(--ink-2, #64748b); }
 .deposit-tracker-totals__tile strong { font-size: 1.05rem; }
 /* Card 20260922_53 (TC-CCP-03): the 11-column table's intrinsic width
-   (~1280px) exceeds the viewport lane at 1440×900 — the global .table-wrap
+   exceeds the viewport lane at 1440×900 — the global .table-wrap
    clips (overflow: hidden), which beheaded the action column. Scroll
    horizontally instead (house .table-scroll idiom, page-scoped). */
 .deposit-tracker-page .table-wrap { overflow-x: auto; overflow-y: hidden; }
-.deposit-tracker-table { min-width: 1080px; }
+.deposit-tracker-table { min-width: 1220px; }
 .deposit-tracker-table th, .deposit-tracker-table td { padding: 8px 10px; text-align: left; vertical-align: middle; }
 .deposit-tracker-table .num { text-align: right; }
 .deposit-tracker-table .bill { font-weight: 600; white-space: nowrap; }
 .deposit-tracker-table .date-cell { white-space: nowrap; }
 .deposit-tracker-table .note { max-width: 220px; overflow-wrap: anywhere; }
-.deposit-tracker-table .actions { white-space: nowrap; padding-right: 14px; }
+.deposit-tracker-table .actions { width: 250px; min-width: 250px; white-space: nowrap; padding-right: 14px; }
 .deposit-tracker-table .actions .btn + .btn { margin-left: 6px; }
-.deposit-status { display: inline-flex; padding: 2px 8px; border-radius: 8px; font-size: 0.8rem; white-space: nowrap; }
-.deposit-status--pending { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning-text, #92400e); }
-.deposit-status--done { background: var(--color-success-bg, #dcfce7); color: var(--color-success-text, #166534); }
+.deposit-status { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.deposit-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.deposit-status--pending { color: var(--warning-text, #b45309); }
+.deposit-status--pending::before { background: var(--warning, #f59e0b); }
+.deposit-status--done { color: var(--success-text, #15803d); }
+.deposit-status--done::before { background: var(--success, #22c55e); }
 .deposit-tracker-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted, #64748b); }
 .deposit-tracker-table tr.is-refunded { opacity: 0.72; }

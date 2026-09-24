@@ -24,29 +24,27 @@
 
 .ops-wallet__cards {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
-  overflow: hidden;
-  border-block: 1px solid var(--line);
-  background: var(--surface);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .ops-wallet-card {
   min-width: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
-.ops-wallet-card + .ops-wallet-card { border-inline-start: 1px solid var(--line); }
 .ops-wallet-card small { color: var(--ink-3); font-size: var(--text-caption-size); }
 .ops-wallet-card strong { overflow-wrap: anywhere; }
 
-@media (max-width: 560px) {
-  .ops-wallet__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ops-wallet-card { padding: 8px; }
-  .ops-wallet-card--balance { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
-  .ops-wallet-card--balance + .ops-wallet-card { border-inline-start: 0; }
+@media (max-width: 640px) {
+  .ops-wallet__cards { grid-template-columns: 1fr; }
+  .ops-wallet-card { padding: 10px 12px; }
 }
 
 .ops-wallet-card__label {

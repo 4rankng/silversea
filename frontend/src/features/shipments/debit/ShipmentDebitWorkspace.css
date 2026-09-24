@@ -8,6 +8,7 @@
   border-radius: 8px;
   background: var(--surface-1);
   min-width: 0;
+  overflow-x: auto;
 }
 
 .csc-debit-workspace[data-locked] {
@@ -43,6 +44,7 @@
   border-bottom: 1px solid var(--border-1);
   text-align: left;
   vertical-align: top;
+  min-width: 80px;
 }
 
 .csc-debit-table thead th {
@@ -63,7 +65,18 @@
    keeps a floor so codes never wrap mid-word when the panel narrows. */
 .csc-debit-table th:first-child,
 .csc-debit-table td:first-child {
-  min-width: 100px;
+  min-width: 120px;
+}
+
+/* Fee columns keep sensible min-widths to prevent 1-2 character crushing */
+.csc-debit-table--chiho th,
+.csc-debit-table--chiho td {
+  min-width: 90px;
+}
+
+.csc-debit-table--chiho th:nth-child(4),
+.csc-debit-table--chiho td:nth-child(4) {
+  min-width: 115px; /* Phí cơ sở hạ tầng */
 }
 
 /* Two-line container cells: number on top, type label beneath. */

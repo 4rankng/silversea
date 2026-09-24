@@ -18,7 +18,6 @@ import { EmptyState, BufferedUuiDateInput, UuiSelectField } from '../design-syst
 import { PageHeader } from '../components/UI';
 import { USearchableField } from '../features/shipments/create/uui-searchable-field';
 import { ListFilterBar } from '../components/ListFilterBar';
-import { Lock, Unlock } from 'lucide-react';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
 
@@ -100,8 +99,8 @@ function DebitLotRow({
       <td className="shipment-debit-row__money">{row.profit == null ? 'Chưa xác định' : formatMoney(row.profit)}</td>
       <td>
         {row.lockStatus === 'LOCKED'
-          ? <span className="shipment-debit-row__lock shipment-debit-row__lock--locked"><Lock size={13} aria-hidden="true" />Đã khóa</span>
-          : <span className="shipment-debit-row__lock shipment-debit-row__lock--open"><Unlock size={13} aria-hidden="true" />Đang mở</span>}
+          ? <span className="shipment-debit-row__lock shipment-debit-row__lock--locked">Đã khóa</span>
+          : <span className="shipment-debit-row__lock shipment-debit-row__lock--open">Đang mở</span>}
       </td>
     </tr>
       {canManage && expanded && (

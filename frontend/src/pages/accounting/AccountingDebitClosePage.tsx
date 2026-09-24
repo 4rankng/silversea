@@ -192,7 +192,7 @@ export default function AccountingDebitClosePage() {
   return (
     <div className="page-shell">
       <PageHeader title="Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP" />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end', margin: '12px 0' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', margin: '12px 0 8px' }}>
         <label style={{ display: 'grid', gap: 4 }}>Từ ngày <input className="input" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
         <label style={{ display: 'grid', gap: 4 }}>Đến ngày <input className="input" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
         <DebitFilterDropdown
@@ -207,21 +207,25 @@ export default function AccountingDebitClosePage() {
           selected={truckFilter}
           onChange={(next) => { setTruckFilter(next); setSelected(new Set()); }}
         />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '0 0 12px' }}>
         <button
           type="button"
           className="btn btn--primary"
           disabled={selected.size === 0 || settlementMutation.isPending}
+          title={selected.size === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
           onClick={() => setSettlementOpen(true)}
         >
           Chọn Debit ({selected.size} dòng)
         </button>
-        <button type="button" className="btn btn--primary" disabled={selected.size === 0 || sendMutation.isPending} onClick={() => void sendRequest()}>
+        <button type="button" className="btn btn--primary" disabled={selected.size === 0 || sendMutation.isPending} title={selected.size === 0 ? 'Chọn ít nhất một dòng lô để gửi yêu cầu điều chỉnh cước' : undefined} onClick={() => void sendRequest()}>
           {sendMutation.isPending ? 'Đang gửi…' : `Gửi yêu cầu điều chỉnh cước (${selected.size} dòng)`}
         </button>
         <button
           type="button"
           className="btn btn--secondary"
           disabled={visiblePendingCount === 0 || confirmMutation.isPending}
+          title={visiblePendingCount === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
           onClick={() => confirmMutation.mutate(pendingIds)}
         >
           {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận đối soát (${visiblePendingCount})`}
@@ -297,8 +301,8 @@ export default function AccountingDebitClosePage() {
                   {selectable(row) && (
                     <input type="checkbox" aria-label={`Chọn lô ${row.code ?? row.shipmentId}`} checked={selected.has(row.shipmentId)} onChange={() => toggleRow(row)} />
                   )}
-                  {row.adjustment.status === 'PENDING' && <span title="Chờ đối soát">⏳</span>}
-                  {row.adjustment.status === 'CONFIRMED' && <span title="Đã đối soát">✅</span>}
+                  {row.adjustment.status === 'PENDING' && <small style={{ color: 'var(--warn, #d97706)', fontWeight: 600 }}>Chờ</small>}
+                  {row.adjustment.status === 'CONFIRMED' && <small style={{ color: 'var(--ok, #16a34a)', fontWeight: 600 }}>Khớp</small>}
                 </td>
                 <td>{row.ngay ?? '—'}</td>
                 <td>
@@ -324,10 +328,10 @@ export default function AccountingDebitClosePage() {
                 <td>{row.ghiChu ?? '—'}</td>
                 <td>
                   {row.adjustment.status === 'PENDING' && (
-                    <>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <button type="button" className="btn btn--secondary btn--sm" onClick={() => confirmMutation.mutate([row.adjustment.requestId!])}>Xác nhận</button>
                       <button type="button" className="btn btn--secondary btn--sm" onClick={() => withdrawMutation.mutate([row.adjustment.requestId!])}>Rút</button>
-                    </>
+                    </div>
                   )}
                   {row.adjustment.status === 'CONFIRMED' && <small>Đã đối soát</small>}
                 </td>
