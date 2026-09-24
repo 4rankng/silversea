@@ -6,6 +6,23 @@
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .section-gap { margin-bottom: 16px; }
 
+/* Visually hide while keeping the element in the a11y tree. The PageHeader
+ * component renders its <h1> with this class on every page that has no
+ * onBack/action slot; without a global rule the H1 was visible (a duplicate
+ * of the breadcrumb trail — chief flag 2026-09-24 card 6). Local copy in
+ * SalaryPeriodConfigPage.css predates this rule and now lives here. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ─── Shared breadcrumb trail ─────────────────────────────────────────────
  * Any page that mounts <Breadcrumbs className="<page>__crumbs"> picks up
  * this consistent "you are here" spacing without needing its own CSS rule.

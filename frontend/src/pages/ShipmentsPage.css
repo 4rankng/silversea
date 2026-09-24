@@ -240,13 +240,63 @@
 }
 
 @media (max-width: 480px) {
-  .cus-workspace-summary dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* 2026-09-24 (card 6, chief ruling): the summary rail collapses from a
+   * one-line 4-tile strip to a 2×2 grid (so 390px viewports don't squeeze
+   * four tiles into a ~95px-each row), the XLSX button takes its own row
+   * below the tiles, and the whole rail is flat (no shadow). */
+  .cus-workspace-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-inline: 12px;
+    border: 0;
+    border-block: 1px solid var(--line);
+    box-shadow: none;
+  }
+
+  .cus-workspace-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 0 0 auto;
+  }
+
   .cus-workspace-summary__item {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-end;
-    gap: 4px;
-    padding: 7px 8px;
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 10px 12px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+  }
+
+  .cus-workspace-summary__item:first-child { padding-left: 12px; }
+  .cus-workspace-summary__item:last-child {
+    padding-right: 12px;
+    border-right: 0;
+  }
+
+  /* 2×2 grid → 4 tiles share 2 rows × 2 cols; reset the right edge between
+   * the first/second columns so the inner divider doesn't double up. */
+  .cus-workspace-summary__item:nth-child(2n) { border-right: 0; }
+  .cus-workspace-summary__item:nth-child(n+3) { border-top: 1px solid var(--line); }
+
+  /* XLSX button rides below the tiles, full-width, 44px touch, flat. */
+  .cus-workspace-summary__export {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0;
+    min-height: 44px;
+    border: 1px solid var(--line-2);
+    border-radius: 6px;
+    box-shadow: none;
+  }
+
+  .cus-workspace-summary dt {
+    font-size: 12px;
+  }
+
+  .cus-workspace-summary dd {
+    font-size: 18px;
   }
 }
 

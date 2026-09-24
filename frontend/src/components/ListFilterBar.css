@@ -90,3 +90,57 @@
     --filter-control-h: var(--control-touch-h);
   }
 }
+
+/* 2026-09-24 (card 6, chief ruling): phones collapse the filter rail to a
+ * one-column stack so labels stay above their controls, every cell takes the
+ * full row, and the surface stays flat. The shared `.filter-bar` already
+ * wraps on narrow viewports — we just forbid the multi-control row from
+ * fighting for space here. Authority: docs/design-guidelines.md § 3 (flat
+ * by contract) + card 20260924_6 mobile filter pattern. */
+@media (max-width: 480px) {
+  .list-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px 0;
+    margin: 0 12px 12px;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .list-filter-bar > * {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .list-filter-bar__quick {
+    width: 100%;
+  }
+
+  .list-filter-bar [data-input-wrapper],
+  .list-filter-bar .ds-uui-select,
+  .list-filter-bar .csc-searchable-field,
+  .list-filter-bar [data-uui-control='combobox'] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* Field label sits on its own line above the control. The shared UUI
+   * control chrome owns the label typography already; we only fix the
+   * spacing so the label never floats beside the input. */
+  .list-filter-bar [data-label],
+  .list-filter-bar > label {
+    display: block;
+    margin: 0 0 4px;
+  }
+
+  /* Belt-and-braces flat-surface rule on the shared filter bar: no shadow,
+   * no gradient, no elevated chrome at mobile widths. Focus rings stay as
+   * outline (a11y). */
+  .list-filter-bar [data-uui-control] {
+    box-shadow: none;
+  }
+}
