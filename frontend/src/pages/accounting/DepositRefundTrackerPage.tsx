@@ -4,11 +4,12 @@
 // two standing warnings always run. Display keys are BILL + names — never a
 // bare internal id.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { expenseVndSchema } from '@tingting/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { CalendarClock, Plus } from 'lucide-react';
+import { CalendarClock, Plus, X } from 'lucide-react';
+import { useToast } from '../../components/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -40,6 +41,17 @@ export function nextExpectedRefundDefault(cvIso: string | null): string | null {
   date.setUTCDate(date.getUTCDate() + 14);
   return date.toISOString().slice(0, 10);
 }
+
+/** Work order c12 _14: the overdue count renders zero-padded, matching the
+ *  acceptance doc's own example ("01 lô hàng"). */
+export function formatOverdueCount(count: number): string {
+  return String(count).padStart(2, '0');
+}
+
+// Per-session dismissal (PM ruling via lead): hides the overdue ALERT line and
+// its toast until the session ends. The unrefunded-total line stays visible —
+// work order line 2 runs continuously per status.
+const CV_ALERT_DISMISS_KEY = 'deposit-cv-overdue-alert-dismissed';
 
 const STATUS_LABELS: Record<DepositStatus, string> = {
   CHUA_HOAN_CUOC: 'Chưa hoàn cược',
@@ -75,6 +87,31 @@ export default function DepositRefundTrackerPage() {
   const rows = query.data?.items ?? [];
   const warnings = query.data?.warnings;
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.depositTracker.all });
+
+  // Card 20260923_14: the overdue-CV alert is dismissible per session; the
+  // unrefunded-total line runs continuously (work order c12 _14 line 2).
+  const { toast } = useToast();
+  const [cvAlertDismissed, setCvAlertDismissed] = useState(() => {
+    try { return sessionStorage.getItem(CV_ALERT_DISMISS_KEY) === '1'; } catch { return false; }
+  });
+  const cvOverdueCount = warnings?.cvOverdueCount ?? 0;
+  const unrefundedTotal = warnings?.unrefundedTotal ?? 0;
+  const showCvAlert = cvOverdueCount > 0 && !cvAlertDismissed;
+
+  // Toast once per page load when the alert is live; suppressed once the
+  // alert is dismissed for this session.
+  const cvAlertToastedRef = useRef(false);
+  useEffect(() => {
+    if (showCvAlert && !cvAlertToastedRef.current) {
+      cvAlertToastedRef.current = true;
+      toast({ kind: 'warning', message: `kiểm tra check cược số lượng: ${formatOverdueCount(cvOverdueCount)} lô hàng` });
+    }
+  }, [showCvAlert, cvOverdueCount, toast]);
+
+  const dismissCvAlert = () => {
+    try { sessionStorage.setItem(CV_ALERT_DISMISS_KEY, '1'); } catch { /* private mode */ }
+    setCvAlertDismissed(true);
+  };
 
   const refundMutation = useMutation({
     mutationFn: (row: DepositTrackerRow) => markDepositRefunded(row.id, Number(row.depositAmount)),
@@ -121,17 +158,22 @@ export default function DepositRefundTrackerPage() {
         <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm dòng</Btn>
       </section>
 
-      {warnings && (warnings.cvOverdueCount > 0 || warnings.unrefundedTotal > 0) && (
+      {(showCvAlert || unrefundedTotal > 0) && (
         <section className="deposit-tracker-warnings" role="alert">
-          {warnings.cvOverdueCount > 0 && (
-            <p className="deposit-tracker-warnings__item">
-              <CalendarClock size={14} /> Kiểm tra check cược: <strong>{warnings.cvOverdueCount}</strong> lô hàng quá 7 ngày chưa có ngày nộp công văn.
+          {showCvAlert && (
+            <p className="deposit-tracker-warnings__item deposit-tracker-warnings__item--danger">
+              kiểm tra check cược số lượng: <strong>{formatOverdueCount(cvOverdueCount)} lô hàng</strong>
             </p>
           )}
-          {warnings.unrefundedTotal > 0 && (
+          {unrefundedTotal > 0 && (
             <p className="deposit-tracker-warnings__item">
-              Chưa hoàn cược số tiền: <strong>{formatMoney(warnings.unrefundedTotal)} ₫</strong> — Vui lòng kiểm tra lại!
+              Chưa hoàn cược số tiền: <strong>{formatMoney(unrefundedTotal)} ₫</strong> — Vui lòng kiểm tra lại!
             </p>
+          )}
+          {showCvAlert && (
+            <button type="button" className="deposit-tracker-warnings__dismiss" onClick={dismissCvAlert} aria-label="Ẩn cảnh báo quá 7 ngày chưa nộp công văn">
+              <X size={14} aria-hidden="true" />
+            </button>
           )}
         </section>
       )}

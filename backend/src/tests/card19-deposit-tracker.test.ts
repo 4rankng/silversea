@@ -22,6 +22,7 @@ import * as s from '../db/schema';
 import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded,
   recordDepositFromIntake, normalizeDepositDate,
+  isCvOverdue, vnCalendarDate, CV_OVERDUE_DAYS,
 } from '../services/deposit-refund-tracker.service';
 import { listFundBook } from '../services/treasury-fund-book.service';
 import { Role } from '@tingting/shared';
@@ -177,5 +178,54 @@ describe('card 20260921_19 - deposit refund tracker', () => {
     assert.equal(none.length, 1);
     assert.equal(none[0]!.depositAmount, '0');
     track(async () => { await db.delete(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.shipmentId, shipment.id + 1000000)); });
+  });
+});
+
+describe('card 20260923_14 — VN-calendar CV-overdue predicate', () => {
+  const overdueBase = { status: 'CHUA_HOAN_CUOC', cvSubmittedDate: null };
+
+  test('quiet through VN day 7, flags on VN day 8 — the old UTC-rolling window flags day 7', () => {
+    // 2026-09-17T20:00:00Z = 2026-09-18 03:00 VN. On VN day 09-25 (08:30 VN =
+    // 01:30Z): calendar day-diff 7 → quiet. The previous rolling-window math
+    // (createdAt + 7*24h < now) already flagged this instant.
+    const row = { ...overdueBase, createdAt: new Date('2026-09-17T20:00:00Z') };
+    assert.equal(isCvOverdue(row, new Date('2026-09-25T01:30:00Z')), false, 'VN day-diff 7 stays quiet');
+    assert.equal(isCvOverdue(row, new Date('2026-09-26T01:30:00Z')), true, 'VN day-diff 8 flags');
+    assert.equal(CV_OVERDUE_DAYS, 7);
+  });
+
+  test('the +07 day shift decides at the VN midnight boundary (staging containers run UTC)', () => {
+    // 16:59:59Z on 09-17 is still VN day 09-17; 17:00:00Z is already VN 09-18.
+    const lateSep17 = { ...overdueBase, createdAt: new Date('2026-09-17T16:59:59Z') };
+    const sep18 = { ...overdueBase, createdAt: new Date('2026-09-17T17:00:00Z') };
+    assert.equal(vnCalendarDate(new Date('2026-09-17T16:59:59Z')), '2026-09-17');
+    assert.equal(vnCalendarDate(new Date('2026-09-17T17:00:00Z')), '2026-09-18');
+    // On VN day 09-25: day-diff 8 vs 7.
+    assert.equal(isCvOverdue(lateSep17, new Date('2026-09-25T01:30:00Z')), true, 'row from VN 09-17 flags on VN 09-25');
+    assert.equal(isCvOverdue(sep18, new Date('2026-09-25T01:30:00Z')), false, 'row from VN 09-18 stays quiet on VN 09-25');
+  });
+
+  test('CV date set or refunded rows never flag', () => {
+    const created = new Date('2026-09-01T00:00:00Z');
+    assert.equal(
+      isCvOverdue({ status: 'CHUA_HOAN_CUOC', cvSubmittedDate: '2026-09-20', createdAt: created }, new Date('2026-10-05T00:00:00Z')),
+      false,
+    );
+    assert.equal(
+      isCvOverdue({ status: 'DA_HOAN_CUOC', cvSubmittedDate: null, createdAt: created }, new Date('2026-10-05T00:00:00Z')),
+      false,
+    );
+  });
+
+  test('list warnings count by the current filter, VN-calendar based (endpoint rung)', async () => {
+    await mkActor();
+    // 9 rolling days back spans VN calendar day-diff 8–10 — overdue under the
+    // pinned contract under any current time of day.
+    await mkTracker({ billNumber: 'OLD2', createdAt: new Date(Date.now() - 9 * 86400000) });
+    const actor = { userId: actorId, role: Role.ACCOUNTANT };
+    const all = await listDepositTrackers(actor, {});
+    assert.ok(all.warnings.cvOverdueCount >= 1, 'OLD2 counts when unfiltered');
+    const refundedOnly = await listDepositTrackers(actor, { status: 'DA_HOAN_CUOC' });
+    assert.equal(refundedOnly.warnings.cvOverdueCount, 0, 'counts follow the current filter');
   });
 });

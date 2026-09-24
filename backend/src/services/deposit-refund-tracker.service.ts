@@ -55,6 +55,37 @@ export interface DepositTrackerWarningState {
   unrefundedTotal: number;
 }
 
+/** Asia/Ho_Chi_Minh is fixed UTC+7 with no DST — the VN calendar day of an
+ *  instant is a constant +7h shift. Staging containers run UTC, so the
+ *  7-day boundary must be pinned to VN calendar days, never a rolling UTC
+ *  window (the old math flagged lots up to ~7h early/late). */
+export function vnCalendarDate(instant: Date): string {
+  return new Date(instant.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
+}
+
+/** "Quá 7 ngày chưa nộp công văn" (card 20260923_14, MỤC 03): a lot with no
+ *  CV date flags when TODAY (VN) is past the deposit day + 7 — from the 8th
+ *  VN calendar day after the tracker row landed. */
+export const CV_OVERDUE_DAYS = 7;
+
+export interface CvOverdueRow {
+  status: string;
+  cvSubmittedDate: string | null;
+  createdAt: Date;
+}
+
+export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean {
+  if (row.status !== 'CHUA_HOAN_CUOC' || row.cvSubmittedDate != null) return false;
+  const createdDay = vnCalendarDate(row.createdAt);
+  const todayDay = vnCalendarDate(now);
+  const diff = Math.round((Date.UTC(
+    Number(todayDay.slice(0, 4)), Number(todayDay.slice(5, 7)) - 1, Number(todayDay.slice(8, 10)),
+  ) - Date.UTC(
+    Number(createdDay.slice(0, 4)), Number(createdDay.slice(5, 7)) - 1, Number(createdDay.slice(8, 10)),
+  )) / 86_400_000);
+  return diff > CV_OVERDUE_DAYS;
+}
+
 export async function listDepositTrackers(actor: ExpenseActor, filters: DepositTrackerFilters): Promise<{
   items: Array<typeof s.depositRefundTrackers.$inferSelect>;
   total: number;
@@ -84,13 +115,11 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
 
 /** The two standing warnings: (1) lots older than 7 days without a CV date
  *  and still unrefunded — the COUNT of such lots; (2) the total money still
- *  unrefunded. Both are computed over the FILTERED set. */
+ *  unrefunded. Both are computed over the FILTERED set (work order c12 _14:
+ *  "N đếm theo lọc hiện tại"). */
 function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>): DepositTrackerWarningState {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
-  const cvOverdue = rows.filter((row) =>
-    row.status === 'CHUA_HOAN_CUOC'
-    && row.cvSubmittedDate == null
-    && new Date(`${row.createdAt.toISOString().slice(0, 10)}T00:00:00Z`) < sevenDaysAgo);
+  const now = new Date();
+  const cvOverdue = rows.filter((row) => isCvOverdue(row, now));
   const unrefunded = rows.filter((row) => row.status === 'CHUA_HOAN_CUOC');
   return {
     cvOverdueCount: cvOverdue.length,

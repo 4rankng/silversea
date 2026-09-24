@@ -39,4 +39,16 @@ describe('deposit tracker table — scroll + token integrity (card 20260922_53)'
     expect(css.includes('999px')).toBe(false);
     expect(ruleFor('.deposit-status')).toMatch(/border-radius:\s*8px/);
   });
+
+  it('overdue alert line renders danger ink and the dismiss control clears the §5 hit-area law', () => {
+    expect(ruleFor('\\.deposit-tracker-warnings__item--danger')).toMatch(/color:\s*var\(--danger-text/);
+    expect(ruleFor('\\.deposit-tracker-warnings__dismiss')).toMatch(/min-width:\s*24px/);
+    expect(ruleFor('\\.deposit-tracker-warnings__dismiss')).toMatch(/min-height:\s*24px/);
+    expect(css).toMatch(/pointer:\s*coarse/);
+  });
+
+  it('the verbatim alert line renders plain text — no decorative icons (§1)', () => {
+    expect(tsx).toMatch(/kiểm tra check cược số lượng: <strong>/);
+    expect(tsx).not.toMatch(/deposit-tracker-warnings__item"><CalendarClock/);
+  });
 });

@@ -1,8 +1,14 @@
 .deposit-tracker-page { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
 .deposit-tracker-filters { display: flex; flex-wrap: wrap; gap: var(--space-3, 12px); align-items: end; }
-.deposit-tracker-warnings { border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.deposit-tracker-warnings { position: relative; border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .deposit-tracker-warnings__item { margin: 0; color: var(--color-warning-text, #92400e); overflow-wrap: anywhere; }
+.deposit-tracker-warnings__item--danger { color: var(--danger-text, #7F2D37); }
 .deposit-tracker-warnings__item svg { vertical-align: text-bottom; margin-right: 6px; }
+/* Card 20260923_14 dismiss control: clears §5 hit-area law (24px desktop,
+   44px coarse pointer); icon-only with aria-label per §4. */
+.deposit-tracker-warnings__dismiss { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 0; border: none; background: transparent; color: var(--danger-text, #7F2D37); border-radius: 8px; cursor: pointer; }
+.deposit-tracker-warnings__dismiss:hover { background: rgba(127, 45, 55, 0.08); }
+@media (pointer: coarse) { .deposit-tracker-warnings__dismiss { min-width: 44px; min-height: 44px; } }
 .deposit-tracker-totals__tile { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px; padding: 10px 14px; width: fit-content; }
 .deposit-tracker-totals__tile strong { font-size: 1.05rem; }
 /* Card 20260922_53 (TC-CCP-03): the 11-column table's intrinsic width
