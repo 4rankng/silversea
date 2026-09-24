@@ -52,4 +52,10 @@ describe('expense charge correction', () => {
     expect(screen.getByLabelText(/Thực thu — thu khách/)).toHaveValue(300000);
     expect(close).not.toHaveBeenCalled();
   });
+  it('labels the equal-amount checkbox with the unified chi-hộ wording (card 20260924_1, image10)', () => {
+    // One concept, one term app-wide (law §8) — matches PhoiPhieuChiHoDialog.
+    show(false);
+    expect(screen.getByLabelText('Nhập Thu và Trả bằng nhau')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Thu bằng trả')).not.toBeInTheDocument();
+  });
 });

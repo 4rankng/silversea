@@ -47,4 +47,16 @@ describe('ops modal shell stylesheet ownership', () => {
     expect(pageCss).not.toMatch(/\.ops-modal-backdrop/);
     expect(pageCss).not.toMatch(/\.ops-form-grid/);
   });
+
+  it('the backdrop centers its surface on both axes so a dialog never hugs the top or shifts left (card 20260924_1, image10)', () => {
+    // Image10: "Chi tiết chi hộ" showed off-centre — justify-content already
+    // centers horizontally for the single surviving surface (card
+    // 20260923_11 removed the second stacked surface); align-items must
+    // center vertically so the dialog sits mid-viewport ("căn giữa
+    // viewport"). The surface max-height (100dvh - 48px) always fits the
+    // 24px-padded backdrop box, so centering never clips — the body scrolls.
+    const backdrop = css.match(/\.ops-modal-backdrop\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(backdrop).toContain('justify-content: center');
+    expect(backdrop).toContain('align-items: center');
+  });
 });

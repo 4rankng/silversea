@@ -88,7 +88,10 @@
 
 .csc-debit-item__name {
   color: var(--ink-2);
-  white-space: nowrap;
+  /* Card 20260924_1 (image7): long fee names clipped at the edge of the
+     narrow Phí khác column — wrap instead; law book §4 no-truncation. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .csc-debit-item__amount {
@@ -102,6 +105,7 @@
 
 .csc-debit-otherfee {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
   margin-bottom: 4px;

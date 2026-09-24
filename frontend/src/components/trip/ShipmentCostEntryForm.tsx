@@ -68,7 +68,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         <UuiSelectField label="Loại chi phí" value={state.draft.option} disabled={disabled} onChange={(event) => state.chooseOption(event.target.value)}
           options={state.options.filter(option => option.group === selected.group).map(option => ({ value: option.code, label: option.label }))} />
         <TextField controlSize="sm" label="Tên khoản chi" value={state.draft.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => state.patch({ feeName: event.target.value })} />
-        <NumberField controlSize="sm" label="Thực chi (VND)" value={state.draft.amount} onChange={(amount) => state.patch({ amount })} min={1} step={1} max={999_999_999_999_999} required disabled={disabled}
+        <NumberField controlSize="sm" label="Thực chi (VND)" grouped value={state.draft.amount} onChange={(amount) => state.patch({ amount })} min={1} step={1} max={999_999_999_999_999} required disabled={disabled}
           helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
         <UuiSelectField label="Người chi" value={state.draft.payerKind} disabled={disabled} onChange={event => state.patch({ payerKind: event.target.value as 'USER' | 'COMPANY' })} options={[{ value: 'USER', label: 'Tôi chi' }, { value: 'COMPANY', label: 'Công ty đã trả' }]} />
         <DateField controlSize="sm" label="Ngày chi" value={state.draft.occurredAt} onChange={(occurredAt) => state.patch({ occurredAt })} required disabled={disabled} />

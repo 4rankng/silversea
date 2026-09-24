@@ -98,3 +98,12 @@ it('keeps canonical fee copies read-only and drops their stale draft changes, pr
   draft.feeAmounts = { 1: '999', 2: '300' }; draft.removedFeeIds = [1, 2];
   expect(buildDelta(value, draft)).toMatchObject({ edits: [{ expenseId: 2, buyAmount: 300 }], removeExpenseIds: [2] });
 });
+
+it('names the CSHT column in full in Bảng 2.2 (card 20260924_1, image6)', () => {
+  // "Phí CSHT" was an opaque abbreviation; the column now spells the name
+  // out — the header wraps under .csc-debit-table (law §4), no tooltip needed.
+  const value = detail();
+  render(<ChiHoTable detail={value} draft={buildDraft(value)} frozen setFeeAmount={vi.fn()} removeFee={vi.fn()} addFee={() => {}} setAddedFee={vi.fn()} />);
+  expect(screen.getByRole('columnheader', { name: 'Phí cơ sở hạ tầng' })).toBeInTheDocument();
+  expect(screen.queryByRole('columnheader', { name: 'Phí CSHT' })).not.toBeInTheDocument();
+});

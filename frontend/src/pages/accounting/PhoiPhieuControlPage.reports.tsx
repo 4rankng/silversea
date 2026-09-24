@@ -16,12 +16,27 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
   const rows = report.data?.rows ?? [];
   const grand = report.data?.grand;
   return (
-    <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)' }}>
+    <table className="tt-table ppc-report" style={{ fontSize: 'var(--text-caption-size)' }}>
       <caption>{kind === 'THU' ? 'Báo cáo Phải thu (theo khách hàng)' : 'Báo cáo Phải trả (theo nhà xe)'}</caption>
-      <thead><tr>
-        <th>STT</th><th>{kind === 'THU' ? 'Khách hàng' : 'Nhà xe'}</th><th>Tiền nâng</th><th>Tiền hạ</th>
-        <th>PS khác</th><th>Tổng phải thu|trả</th><th>Đã thu|trả</th><th>Còn phải thu|trả</th><th>Ghi chú</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th scope="col" rowSpan={2}>STT</th>
+          <th scope="col" rowSpan={2}>{kind === 'THU' ? 'Khách hàng' : 'Nhà xe'}</th>
+          <th scope="col" rowSpan={2}>Tiền nâng</th>
+          <th scope="col" rowSpan={2}>Tiền hạ</th>
+          <th scope="col" rowSpan={2}>PS khác</th>
+          {/* Card 20260924_1 (image11): one direction per table — a tier-1
+              group spans three tier-2 sub-columns; the old "thu|trả" cells
+              crammed both directions into a single header. */}
+          <th scope="col" colSpan={3}>{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</th>
+          <th scope="col" rowSpan={2}>Ghi chú</th>
+        </tr>
+        <tr>
+          <th scope="col">Tổng</th>
+          <th scope="col">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</th>
+          <th scope="col">{kind === 'THU' ? 'Còn phải thu' : 'Còn phải trả'}</th>
+        </tr>
+      </thead>
       <tbody>
         {rows.map((row, index) => (
           <tr key={row.party}>

@@ -63,7 +63,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'INVOICED_OT
         <NumberField controlSize="sm" label="Thực chi (VND)" required value={amount} disabled={busy} min={1} step={1} onChange={next => { setAmount(next); if (equal) setCharge(next); }} />
         <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={charge} disabled={busy || equal || group === 'DRIVER_ROAD'} min={0} step={1} onChange={setCharge} />
       </div>
-      <label className="expense-accounting-check"><input type="checkbox" checked={equal} disabled={busy || group === 'DRIVER_ROAD'} onChange={event => { setEqual(event.target.checked); if (event.target.checked) setCharge(amount); }} /> Thu bằng trả</label>
+      <label className="expense-accounting-check"><input type="checkbox" checked={equal} disabled={busy || group === 'DRIVER_ROAD'} onChange={event => { setEqual(event.target.checked); if (event.target.checked) setCharge(amount); }} /> Nhập Thu và Trả bằng nhau</label>
       <TextField controlSize="sm" label="Tên khoản chi" value={name} required maxLength={200} disabled={busy} onChange={event => setName(event.target.value)} />
       <ExpenseNameSuggestions group={group} disabled={busy} onChoose={setName} />
       <div className="expense-accounting-fields">

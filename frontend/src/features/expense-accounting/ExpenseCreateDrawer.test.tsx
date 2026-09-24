@@ -44,3 +44,10 @@ it('OPS context requires a selected configured payer and preserves separate cost
   expect(create.mock.calls[0][0]).toMatchObject({ tripId: 10, costGroup: 'OPS_INCIDENTAL', expenseTypeCode: 'OTHER', amount: 1000, customerChargeAmount: 7000, payerKind: 'USER', payerUserId: 15 });
   expect(onSaved).toHaveBeenCalledTimes(1); expect(onClose).toHaveBeenCalledTimes(1);
 });
+it('labels the equal-amount checkbox with the unified chi-hộ wording (card 20260924_1, image10)', () => {
+  // One concept, one term app-wide (law §8): the chi-hộ dialog says
+  // "Nhập Thu và Trả bằng nhau"; this panel's "Thu bằng trả" variant is gone.
+  render(<QueryClientProvider client={new QueryClient()}><ExpenseCreateDrawer work={work} catalog={catalog} initialGroup="INVOICED_OTHER" onClose={vi.fn()} /></QueryClientProvider>);
+  expect(screen.getByLabelText('Nhập Thu và Trả bằng nhau')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Thu bằng trả')).not.toBeInTheDocument();
+});

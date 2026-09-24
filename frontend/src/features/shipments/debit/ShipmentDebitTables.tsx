@@ -197,7 +197,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
         <th scope="col">Số Container</th>
         <th scope="col">Phí Nâng</th>
         <th scope="col">Phí Hạ</th>
-        <th scope="col">Phí CSHT</th>
+        <th scope="col">Phí cơ sở hạ tầng</th>
         <th scope="col">Phí khác (không hđ)</th>
         <th scope="col">Cược Hãng Tàu (Tiền treo)</th>
         <th scope="col">Tạm thu sửa chữa</th>

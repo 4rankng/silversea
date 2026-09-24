@@ -14,7 +14,19 @@ export interface NumberFieldProps
   placeholder?: string;
   /** Allow empty string as a valid value (default: true). */
   allowEmpty?: boolean;
+  /**
+   * Display-only vi-VN thousand grouping ("1.200.000") for money amounts
+   * (card 20260924_1, image12). A number input cannot render separators, so
+   * the field switches to text, re-derives the digits on every entry, and
+   * still emits `number | ''` — the stored contract never changes. Typed
+   * separators are stripped and re-derived from the value; bounds stay the
+   * caller's contract (save-side validation), so min/max/step never reach the
+   * text input where they would be meaningless.
+   */
+  grouped?: boolean;
 }
+
+const viVn = new Intl.NumberFormat('vi-VN');
 
 /**
  * Numeric input that always emits a number (or empty string) to its
@@ -31,10 +43,11 @@ export function NumberField({
   suffix,
   placeholder = '0',
   allowEmpty = true,
+  grouped = false,
   ...rest
 }: NumberFieldProps) {
   const handleChange: NonNullable<InputHTMLAttributes<HTMLInputElement>['onChange']> = (e) => {
-    const raw = e.target.value;
+    const raw = grouped ? e.target.value.replace(/\D/g, '') : e.target.value;
     if (raw === '') {
       if (allowEmpty) onChange('');
       return;
@@ -45,20 +58,22 @@ export function NumberField({
 
   const display = value === '' || value === null || value === undefined
     ? ''
-    : String(value);
+    : grouped
+      ? viVn.format(Number(value))
+      : String(value);
 
   return (
     <TextField
-      type="number"
+      type={grouped ? 'text' : 'number'}
       value={display}
       onChange={handleChange}
-      min={min}
-      max={max}
-      step={step}
+      min={grouped ? undefined : min}
+      max={grouped ? undefined : max}
+      step={grouped ? undefined : step}
       prefix={prefix}
       suffix={suffix}
       placeholder={placeholder}
-      inputMode="decimal"
+      inputMode={grouped ? 'numeric' : 'decimal'}
       {...rest}
     />
   );

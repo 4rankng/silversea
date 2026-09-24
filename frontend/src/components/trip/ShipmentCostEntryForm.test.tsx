@@ -58,7 +58,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Trả đêm');
-    expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('100000');
+    expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('100.000');
     expect(screen.getByText(/Gợi ý 100.000/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '120000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
@@ -90,7 +90,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('uses a configured custom fee and amount while preserving its authoritative code', async () => {
     api.getFeeNorms.mockResolvedValue({ items: [{ code: 'CUSTOM_HARBOR', label: 'Phụ cấp bãi kiểm thử mới', amount: '73000' }] });
     setup(); await open(); fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' })); await choose('Phụ cấp bãi kiểm thử mới');
-    expect(screen.getByLabelText(/Thực chi/)).toHaveValue(73000);
+    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('73.000');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '75000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
     await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
@@ -135,7 +135,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     const file = new File(['photo'], 'receipt.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Chọn ảnh biên lai'), { target: { files: [file] } });
     expect(await screen.findByRole('alert')).toHaveTextContent('Ảnh chưa tải');
-    expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('35000');
+    expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('35.000');
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại ảnh' }));
     await screen.findByAltText('Biên lai đã chọn');
     expect(api.uploadReceiptPhoto.mock.calls[1][0].file).toBe(file);
@@ -158,9 +158,23 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
     await screen.findByText('Máy chủ chưa trả lời');
     expect(api.createIncidentalCost).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/Thực chi/)).toHaveValue(99000);
+    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('99.000');
     window.dispatchEvent(new Event('online'));
     expect(api.createIncidentalCost).toHaveBeenCalledTimes(1);
+  });
+
+  it('displays Thực chi with vi-VN grouping while the saved amount stays a plain integer (card 20260924_1, image12)', async () => {
+    setup(); await open();
+    const field = screen.getByLabelText(/Thực chi/);
+    fireEvent.change(field, { target: { value: '1200000' } });
+    expect(field).toHaveValue('1.200.000');
+    // Pasting the formatted text back parses to the same integer — the
+    // display format never leaks into the data contract.
+    fireEvent.change(field, { target: { value: '1.200.000' } });
+    expect(field).toHaveValue('1.200.000');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: 1200000 });
   });
 
   it('keeps cancelled/locked trip expenses read-only', async () => {

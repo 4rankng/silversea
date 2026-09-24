@@ -110,4 +110,15 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     const css = read('src/pages/config/customer-config-density.css');
     expectNoClip(rules(css, /\.cfg-customer-full-name/));
   });
+
+  it('debit Bảng 2.2 fee names wrap in the narrow Phí khác column (card 20260924_1, image7)', () => {
+    // The fee-name value carried white-space: nowrap inside an auto-layout
+    // column narrower than the name, so long names clipped at the cell edge
+    // ("111.000 HỘP ĐỊNH ĐIỆN"). Names wrap; the other-fee row wraps its
+    // controls beside them — law book §4 no-truncation.
+    const css = read('src/features/shipments/debit/ShipmentDebitWorkspace.css');
+    expect(css).toMatch(/\.csc-debit-item__name\s*\{[^}]*white-space:\s*normal/);
+    expect(css).not.toMatch(/\.csc-debit-item__name\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.csc-debit-otherfee\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
 });

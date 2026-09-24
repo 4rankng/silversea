@@ -13,7 +13,10 @@
   inset: 0;
   background: rgba(15, 15, 15, 0.45);
   display: flex;
-  align-items: flex-start;
+  /* Card 20260924_1 (image10): center on both axes — the dialog sits
+     mid-viewport; .ops-modal's max-height (100dvh - 48px) always fits the
+     24px-padded box, so centering never clips (the body scrolls internally). */
+  align-items: center;
   justify-content: center;
   padding: 24px 12px;
   overflow-y: auto;

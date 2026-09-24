@@ -35,3 +35,20 @@
   cursor: pointer;
 }
 .ppc-board .ppc-icon-btn:hover { border-color: var(--accent); }
+
+/* Báo cáo tháng report tables (card 20260924_1, image11). tt-table ships
+   white-space: nowrap under table-layout: fixed — the long mixed headers
+   painted across neighbouring columns, which the audit read as "merged cells,
+   no line". Wrap at spaces like .ppc-board and draw the vertical separator
+   between header cells so every sub-column keeps a visible boundary;
+   law book §4 (docs/design-guidelines.md). */
+.ppc-report thead th {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  border-right: 1px solid var(--line-2);
+}
+.ppc-report thead th:last-child {
+  border-right: none;
+}
