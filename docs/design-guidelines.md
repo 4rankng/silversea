@@ -103,6 +103,8 @@
 - **Data-dense rows.** Prefer data-dense rows over spacious cards for list surfaces; the QA sweep confirms space-waste
   reads as unfinished to the operator.
   *Source:* operator review (intake "The UI waste lots of space — data-intensive design"); sweep set 20260922_20–23 (2026-09-22).
+- **Filter bar: desktop = row-packing, dropdown tối đa ~320px, full-width chỉ dành cho search chính; mobile = stack 1 cột.**
+  *Source:* 2026-09-24 Director systemic filter order (LAW).
 
 ## 6. Empty states
 
