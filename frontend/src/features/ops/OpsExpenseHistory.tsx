@@ -147,7 +147,7 @@ export function OpsExpenseHistory() {
                     <button
                       type="button"
                       className="btn-secondary"
-                      aria-label={`Sửa khoản chi ${row.shipmentCode ?? row.id}`}
+                      aria-label={`Sửa khoản chi ${row.shipmentCode ?? row.expenseTypeName ?? 'khoản chi'}`}
                       onClick={() => setEditing(row)}
                     >
                       <Pencil size={13} />
@@ -158,7 +158,7 @@ export function OpsExpenseHistory() {
                     <button
                       type="button"
                       className="btn-secondary ops-danger"
-                      aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.id}`}
+                      aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.expenseTypeName ?? 'khoản chi'}`}
                       disabled={deleting}
                       onClick={() => void handleDelete(row)}
                     >

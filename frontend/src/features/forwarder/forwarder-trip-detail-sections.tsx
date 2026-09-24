@@ -265,6 +265,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       className="icon-btn fwd-expense-action"
                       onClick={() => void handleDeleteExpense(exp.id)}
                       disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit || isVoided}
+                      aria-label={`Xóa chi phí ${OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
                       title="Xóa chi phí"
                       style={{ color: 'var(--danger)', opacity: 0.6, padding: 4 }}
                     >
