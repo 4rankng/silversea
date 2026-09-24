@@ -225,7 +225,7 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
                     <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
                     <input
                       className="csc-debit-input csc-debit-input--amount"
-                      aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? row.tripId}`}
+                      aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
                       value={draft.feeAmounts[fee.id] ?? ''}
                       disabled={frozen || fee.readOnly === true}
                       onChange={(event) => setFeeAmount(fee.id, event.target.value)}
@@ -236,9 +236,9 @@ export function ChiHoTable({ detail, draft, frozen, setFeeAmount, addFee, remove
                 ))}
                 {draft.addedFees.filter((fee) => fee.tripId === row.tripId).map((fee) => (
                   <div className="csc-debit-otherfee" key={fee.key}>
-                    <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? row.tripId}`} value={fee.name} disabled={frozen}
+                    <input className="csc-debit-input" placeholder="Tên phí (nếu được)" aria-label={`Tên phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.name} disabled={frozen}
                       onChange={(event) => setAddedFee(fee.key, { name: event.target.value })} />
-                    <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? row.tripId}`} value={fee.amount} disabled={frozen}
+                    <input className="csc-debit-input csc-debit-input--amount" placeholder="Số tiền:" aria-label={`Số tiền phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.amount} disabled={frozen}
                       onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
                   </div>
                 ))}

@@ -107,3 +107,18 @@ it('names the CSHT column in full in Bảng 2.2 (card 20260924_1, image6)', () =
   expect(screen.getByRole('columnheader', { name: 'Phí cơ sở hạ tầng' })).toBeInTheDocument();
   expect(screen.queryByRole('columnheader', { name: 'Phí CSHT' })).not.toBeInTheDocument();
 });
+
+// LaneA's sweep flagged the conditional trip-id leak in the fee affordances
+// (audit O4 pattern, a0e0c18c): aria-labels announce a business key + human
+// row position — never the DB trip id (internal-ids-never-user-facing).
+it('fee affordances announce business keys, never the DB trip id', () => {
+  const value = detail();
+  value.chiHoRows = [{
+    tripId: 601, containerNumber: null, containerTypeLabel: null,
+    items: [], otherFees: [{ id: 7, name: 'Phí lái xe kiểm thử', amount: 50000, thuKhach: null, readOnly: false }],
+    carrierDetention: null, repairAdvance: null, opsDocsStatus: 'READY' as const,
+  }];
+  render(<ChiHoTable detail={value} draft={buildDraft(value)} frozen setFeeAmount={vi.fn()} removeFee={vi.fn()} addFee={() => {}} setAddedFee={vi.fn()} />);
+  expect(screen.getByLabelText(/Số tiền chi hộ phí khác Phí lái xe kiểm thử hàng 1/)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/601/)).not.toBeInTheDocument();
+});
