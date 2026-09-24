@@ -488,10 +488,45 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     const statusCell = within(masterRow()).getByText('Sẵn sàng điều xe').closest('td');
     expect(statusCell).toBeTruthy();
-    expect(statusCell?.querySelector('.cus-row-actions__summary')).toBeTruthy();
+    expect(statusCell?.querySelector('.cus-row-actions__status')).toBeTruthy();
     expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Chi tiết');
     expect(css).toContain('.cus-dashboard-detail {');
     expect(recordCss).toMatch(/\.cus-row-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*space-between;/);
+  });
+
+  // Card 20260924_21 (BATCH A, item 8): the compound Trạng thái cell must
+  // split the lifecycle badge from the missing-data warning into separate
+  // slots (§1 "One concept, one place per row"). The default row carries
+  // `isLoss: true` so it exercises both halves of the split.
+  it('splits the compound Trạng thái cell into a lifecycle slot and a signal slot', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    const statusCell = within(masterRow()).getByText('Sẵn sàng điều xe').closest('td');
+    expect(statusCell).toBeTruthy();
+
+    // Lifecycle badge owns its own slot — the badge is wrapped in
+    // `.cus-row-actions__lifecycle`, a child of the status slot.
+    const lifecycle = statusCell?.querySelector('.cus-row-actions__lifecycle');
+    expect(lifecycle).toBeTruthy();
+    expect(within(lifecycle as HTMLElement).getByText('Sẵn sàng điều xe')).toBeTruthy();
+
+    // Missing-data warning owns its own slot — a sibling of the lifecycle
+    // slot, NOT a child. Both are children of the status slot.
+    const signal = statusCell?.querySelector('.cus-row-actions__signal');
+    expect(signal).toBeTruthy();
+    // The default row carries `isLoss: true`, so the primary danger signal
+    // is "Lỗ"; that label is now its own slot, separate from the lifecycle
+    // badge above it.
+    expect(within(signal as HTMLElement).getByText('Lỗ')).toBeTruthy();
+
+    // Sanity: the lifecycle and signal slots are SIBLINGS, not nested — one
+    // concept, one place.
+    const status = statusCell?.querySelector('.cus-row-actions__status');
+    const kids = status ? [...status.children] : [];
+    expect(kids.length).toBe(2);
+    expect(kids[0]?.classList.contains('cus-row-actions__lifecycle')).toBe(true);
+    expect(kids[1]?.classList.contains('cus-row-actions__signal')).toBe(true);
   });
 
   it('uses the package authority instead of claiming zero containers and exports that same value', async () => {

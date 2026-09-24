@@ -23,3 +23,6 @@ export type { CommandPaletteProps, CommandItem } from './CommandPalette';
 export { SortHeader } from './SortHeader';
 // Semantic badge pill for status indicators, tags, and labels.
 export { Badge } from './Badge';
+// Canonical text+dot status treatment (card 20260924_21 — pill-badge purge).
+export { StatusText } from './StatusText';
+export type { StatusVariant } from './StatusText';

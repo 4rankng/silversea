@@ -68,11 +68,22 @@ describe('AccountingDebitClosePage', () => {
     expect(screen.getByText('1.160.000 ₫')).toBeInTheDocument();
   });
 
-  it('shows Chưa xác định for null money cells (never a fabricated 0)', async () => {
+  it('names the missing field on PHẢI THU/PHẢI TRẢ cells (card 20260924_21, item 7)', async () => {
     boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null }, loiNhuan: null })]);
     renderPage();
-    const cells = await screen.findAllByText('Chưa xác định');
-    expect(cells.length).toBeGreaterThanOrEqual(5);
+    // Each PHẢI THU column carries its own field-specific copy (never the
+    // generic "Chưa xác định" — that one repeats 3× per row in surface 08/11).
+    expect(await screen.findByText('Thiếu cước thu')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu lạch huyền')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu phụ PS')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu phát sinh (cus)')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu tổng thu')).toBeInTheDocument();
+    expect(screen.getByText('Thiếu lợi nhuận')).toBeInTheDocument();
+    // The PHẢI TRẢ cells stay populated from the default row above, so they
+    // do NOT render the placeholder for this fixture.
+    expect(screen.queryByText('Thiếu cước trả ĐV')).not.toBeInTheDocument();
+    // …but the generic placeholder is gone from the visible row.
+    expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
   it('excel-style filter narrows rows by customer and clears via Xóa lọc', async () => {

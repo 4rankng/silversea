@@ -484,10 +484,20 @@ describe('DriverTripsPage', () => {
     expect(running.querySelector('.ds-tabs__count')).toBeNull();
     const label = running.querySelector('.ds-tabs__label')!;
     expect(label.textContent).toBe('Đã nhận1');
-    // The count is a shared Badge pill (inline-styled, caption-size, bold).
+    // The count rides the shared text+dot treatment (card 20260924_21,
+    // BATCH A): inline-flex, bold via the --status-text-weight token.
     const badge = label.querySelector('span') as HTMLElement;
     expect(badge.style.display).toBe('inline-flex');
-    expect(badge.style.fontWeight).toBe('700');
+    expect(badge.style.fontWeight).toContain('700');
+    // The legacy pill chrome is gone (card 20260924_21): no background fill,
+    // no border on any side, no rounded bubble — just text + dot.
+    expect(badge.style.background).toBe('transparent');
+    expect(badge.style.borderTopStyle).toBe('none');
+    expect(badge.style.borderRightStyle).toBe('none');
+    expect(badge.style.borderBottomStyle).toBe('none');
+    expect(badge.style.borderLeftStyle).toBe('none');
+    expect(['0', '0px']).toContain(badge.style.borderRadius);
+    expect(['0', '0px']).toContain(badge.style.padding);
   });
 
   // Card 20260922_30(a): one small line on a blank page gave the driver no

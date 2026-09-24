@@ -763,7 +763,13 @@
 .cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; }
 
 .cus-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.cus-row-actions__summary { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Card 20260924_21 (BATCH A, item 8): the compound Trạng thái cell now
+   stacks the lifecycle badge and the missing-data warning in separate
+   vertical slots. The status slot owns two child slots (`__lifecycle`
+   + optional `__signal`); buttons stay beside it via the row flex. */
+.cus-row-actions__status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.cus-row-actions__lifecycle { display: inline-flex; align-items: center; min-width: 0; }
+.cus-row-actions__signal { display: inline-flex; align-items: center; min-width: 0; }
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
 .cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
@@ -872,7 +878,7 @@
     justify-content: space-between;
     gap: 6px;
   }
-  .cus-dashboard-table .cus-row-actions__summary { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  .cus-dashboard-table .cus-row-actions__status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
   .cus-dashboard-table .cus-row-actions__buttons { margin: 0 0 0 auto; padding: 0; border: 0; }
 }
 

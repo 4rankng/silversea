@@ -185,11 +185,19 @@ export function CusShipmentRow({
       </td>
       <td data-label="Trạng thái">
         <div className="cus-row-actions">
-          <div className="cus-row-actions__summary">
-            <WorkflowBadge item={item} />
+          {/* Card 20260924_21 (BATCH A, item 8): split the compound cell so the
+              lifecycle state and the missing-data warning occupy SEPARATE
+              slots per §1 "One concept, one place per row". The badge owns
+              the status slot; the signal (when present) owns a dedicated
+              slot beneath it. The detail-action buttons stay beside the
+              status slot, visually attached to the badge they describe. */}
+          <div className="cus-row-actions__status">
+            <span className="cus-row-actions__lifecycle">
+              <WorkflowBadge item={item} />
+            </span>
             {primarySignal && (
               <span
-                className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}
+                className={`cus-row-actions__signal cus-attention-label cus-attention-label--${primarySignal.tone}`}
                 title={primarySignal.label}
               >
                 {/* Card 20260922_27 (operator): TEXT ONLY in data cells — the

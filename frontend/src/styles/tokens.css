@@ -280,6 +280,27 @@
   --status-strip-height: 20px;
   --status-strip-radius: 0 999px 999px 0;
 
+  /* --- Canonical status text+dot (card 20260924_21, batch A, §1 purge) ---
+   * The shared Badge / StatusText rendering contract: plain text in the
+   * house compact style, preceded by a single house color-dot. NO pill
+   * bubble, NO rounded background fill, NO border. Color comes from the
+   * existing semantic triad (success-text/warning-text/danger-text/info-text)
+   * and the dot color from the matching fill (--success/--warning/etc.).
+   * Card 20260922_27 (operator): status cells are TEXT ONLY in data cells.
+   * Card 20260924_21: the legacy pill-shaped .pill / .badge bubble is the
+   * anti-pattern this treatment replaces app-wide.
+   *
+   * Re-renders an inline span; layout: `dot text` (gap = --status-text-gap),
+   * dot is a 7px circle (status tabs' reference size), text matches the
+   * compact caption scale already used by the status strip headers. The
+   * neutral variant uses --ink-2 + --ink-3 so it never reads as a pill. */
+  --status-text-font-size: var(--text-caption-size);
+  --status-text-line-height: 1.35;
+  --status-text-gap: 6px;
+  --status-text-dot-size: 7px;
+  --status-text-weight: 700;
+  --status-text-letter-spacing: 0.02em;
+
   /* --- Motion --- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);

@@ -1,33 +1,26 @@
+// Card 20260924_21 (BATCH A — systemic UX purge).
+// The shared Badge component used to render a coloured rounded box
+// (borderRadius 4 + background fill + 1px border) — the pill-bubble
+// anti-pattern that design law §1 bans. It now delegates to StatusText,
+// the canonical text+dot treatment. The legacy `<Badge variant="…">`
+// API is preserved so the three existing callers (DriverTripsPage,
+// DebtListPage, CustomersPage) automatically pick up the new treatment
+// without per-page edits — the purge happens at the SHARED layer.
+
 import React from 'react';
+import { StatusText, type StatusVariant } from './StatusText';
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'outline';
 
-const VARIANT_STYLES: Record<BadgeVariant, React.CSSProperties> = {
-  success: {
-    color: 'var(--success-text, #16a34a)',
-    background: 'var(--success-soft, #dcfce7)',
-    border: '1px solid var(--success, #bbf7d0)',
-  },
-  warning: {
-    color: 'var(--warning-text, #D97706)',
-    background: 'var(--warning-soft, #fef3c7)',
-    border: '1px solid var(--warning, #fde68a)',
-  },
-  danger: {
-    color: 'var(--danger-text, #dc2626)',
-    background: 'var(--danger-soft, #fee2e2)',
-    border: '1px solid var(--danger, #fecaca)',
-  },
-  info: {
-    color: 'var(--info-text, #2563eb)',
-    background: 'var(--info-soft, #dbeafe)',
-    border: '1px solid var(--info, #bfdbfe)',
-  },
-  neutral: {
-    color: 'var(--ink-2, #6b7280)',
-    background: 'var(--surface-3, #f3f4f6)',
-    border: '1px solid var(--line, #e5e7eb)',
-  },
+// `outline` is a legacy alias for `neutral`; the new contract has no
+// bordered variant (the §1 rule bans decorative borders on data cells).
+const LEGACY_VARIANT_MAP: Record<BadgeVariant, StatusVariant> = {
+  success: 'success',
+  warning: 'warning',
+  danger: 'danger',
+  info: 'info',
+  neutral: 'neutral',
+  outline: 'neutral',
 };
 
 interface BadgeProps {
@@ -38,32 +31,22 @@ interface BadgeProps {
 }
 
 /**
- * Semantic badge pill for status indicators, tags, and labels.
- * Uses CSS variables with hardcoded fallbacks for backward compatibility.
+ * Legacy semantic badge — now the text+dot SHARED treatment (card
+ * 20260924_21). Plain text in the house compact style + a single house
+ * color-dot. NO pill bubble, NO rounded background fill, NO border.
  *
  * @example
- * <Badge variant="success">2 chiều</Badge>
- * <Badge variant="warning">Chưa hoàn tất</Badge>
+ *   <Badge variant="success">2 chiều</Badge>
+ *   <Badge variant="warning">Đang mở</Badge>
  */
 export function Badge({ variant = 'neutral', children, style, className }: BadgeProps) {
   return (
-    <span
+    <StatusText
+      variant={LEGACY_VARIANT_MAP[variant]}
       className={className}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        fontSize: 'var(--text-caption-size)',
-        fontWeight: 700,
-        borderRadius: 4,
-        padding: '1px 5px',
-        letterSpacing: '0.02em',
-        verticalAlign: 'middle',
-        lineHeight: 1.35,
-        ...VARIANT_STYLES[variant],
-        ...style,
-      }}
+      style={style}
     >
       {children}
-    </span>
+    </StatusText>
   );
 }

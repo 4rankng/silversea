@@ -15,8 +15,14 @@ import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 
-const money = (value: string | null) => {
-  if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>Chưa xác định</span>;
+const money = (value: string | null, missingLabel: string) => {
+  // Card 20260924_21 (BATCH A, item 7): the PHẢI THU / PHẢI TRẢ columns name
+  // the missing field on the wire (e.g. "Thiếu cước thu", "Thiếu lạch
+  // huyền") instead of repeating the generic "Chưa xác định" three times per
+  // row (surface 08/11 §1). The summary / settle-dialog paths keep the
+  // generic "Chưa xác định" because they have no specific field name to
+  // attribute the gap to.
+  if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>{missingLabel}</span>;
   return formatCurrency(Number(value));
 };
 
@@ -179,8 +185,8 @@ export default function AccountingDebitClosePage() {
     sendMutation.mutate({ shipmentIds: [...selected] });
   }
 
-  const moneyCell = (value: string | null) => (
-    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{money(value)}</td>
+  const moneyCell = (value: string | null, missingLabel: string) => (
+    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{money(value, missingLabel)}</td>
   );
 
   return (
@@ -304,17 +310,17 @@ export default function AccountingDebitClosePage() {
                   <span key={i}>{label}<br /></span>
                 ))}</td>
                 <td>{row.phanXe.length > 0 ? row.phanXe.join(', ') : '—'}</td>
-                {moneyCell(row.thu.cuocThu)}
-                {moneyCell(row.thu.lachHuyen)}
-                {moneyCell(row.thu.phuPs)}
-                {moneyCell(row.thu.phatSinhCus)}
-                {moneyCell(row.thu.tongThu)}
-                {moneyCell(row.tra.cuocTraDv)}
-                {moneyCell(row.tra.lachHuyenDv)}
-                {moneyCell(row.tra.phatSinhDv)}
-                {moneyCell(row.tra.tong1)}
-                {moneyCell(row.tra.phiRu)}
-                <td style={{ textAlign: 'right' }}>{money(row.loiNhuan)}</td>
+                {moneyCell(row.thu.cuocThu, 'Thiếu cước thu')}
+                {moneyCell(row.thu.lachHuyen, 'Thiếu lạch huyền')}
+                {moneyCell(row.thu.phuPs, 'Thiếu phụ PS')}
+                {moneyCell(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)')}
+                {moneyCell(row.thu.tongThu, 'Thiếu tổng thu')}
+                {moneyCell(row.tra.cuocTraDv, 'Thiếu cước trả ĐV')}
+                {moneyCell(row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV')}
+                {moneyCell(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV')}
+                {moneyCell(row.tra.tong1, 'Thiếu tổng 1')}
+                {moneyCell(row.tra.phiRu, 'Thiếu phí RU')}
+                <td style={{ textAlign: 'right' }}>{money(row.loiNhuan, 'Thiếu lợi nhuận')}</td>
                 <td>{row.ghiChu ?? '—'}</td>
                 <td>
                   {row.adjustment.status === 'PENDING' && (
