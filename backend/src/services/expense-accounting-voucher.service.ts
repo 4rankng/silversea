@@ -43,10 +43,14 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
   const keys = input.entries.map(e => `${e.sourceKind}:${e.sourceId}`);
   if (new Set(keys).size !== keys.length) throw new ApiError(400, 'Không chọn trùng nguồn chi phí.');
   const items: Array<{ source: ExpenseAccountingSource; amount: number }> = [];
+  // Approval-precedes-payment (case QA-2026-09-24-01): every source in a cash
+  // voucher must be accountant-approved. Refusals list the offending rows by
+  // fee name — never a bare kind-id.
+  const unapproved: string[] = [];
   for (const ref of [...input.entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`))) {
     const source = await getExpenseForCommand(tx, actor, ref);
     if (source.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không được đoán số tiền còn lại.');
-    if (!source.confirmedAt) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} chưa hoàn thiện đối chiếu.`);
+    if (!source.confirmedAt) { unapproved.push(source.feeName || `khoản ${ref.sourceKind}`); continue; }
     if (input.direction === 'OUT' && (!source.payableEntityType || !source.payableEntityId)) throw new ApiError(409, 'Khoản công ty trả trực tiếp không phải tiền hoàn cho người khai báo.');
     if (input.direction === 'OUT' && source.payableEntityType === 'FORWARDER' && !source.reconciliationId) throw new ApiError(409, 'Lập bảng hoàn ứng trước để trừ đúng tiền ứng đã nhận.');
     const cash = await getExpenseCashTotals(tx, source.id);
@@ -55,6 +59,7 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
     if (!Number.isSafeInteger(ref.amount) || ref.amount <= 0 || ref.amount > remaining) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} chỉ còn ${remaining}đ.`);
     items.push({ source, amount: ref.amount });
   }
+  if (unapproved.length > 0) throw new ApiError(409, `Các khoản chưa được duyệt: ${[...new Set(unapproved)].join(', ')}`);
   const first = items[0].source;
   const entityType = input.direction === 'IN' ? 'CUSTOMER' : first.payableEntityType!;
   const entityId = input.direction === 'IN' ? first.customerId : first.payableEntityId!;

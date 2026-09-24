@@ -153,3 +153,133 @@ test('driver reimbursement uses the driver payable command and restores it on re
     assert.equal((await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.tripId, trip.id))).length, 1);
   });
 });
+
+// Case QA-2026-09-24-01 (approval-precedes-payment, payer scope split): the
+// cash-voucher chain pays APPROVED sources only — the refusal names the
+// unapproved fees, never a bare kind-id, and allocations decrement the
+// source's remaining to the đồng.
+test('t5: the cash voucher refuses an unapproved DRIVER source and names the fee, not the id', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA driver unapproved payout probe' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING', amount: '200000',
+      occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0', feeName: 'Phí giữ xe kiểm thử' }).returning();
+    const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+      tripId: trip.id, confirmedAt: null, recordedById: actor.userId }).returning();
+    await assert.rejects(
+      () => createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+        entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: 1, amount: 100000 }] }),
+      (error: unknown) => {
+        assert.match((error as Error).message, /Phí giữ xe kiểm thử/);
+        assert.doesNotMatch((error as Error).message, /DRIVER-\d/);
+        return true;
+      },
+      'the refusal names the unapproved fee, never a bare kind-id',
+    );
+  });
+});
+
+test('t6: the payout consumes approved-only money — allocations decrement the remaining', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA driver approved payout' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING', amount: '300000',
+      occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0', feeName: 'Phí đường kiểm thử' }).returning();
+    const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+      tripId: trip.id, confirmedAt: new Date(), confirmedById: actor.userId, recordedById: actor.userId }).returning();
+    await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, entityType: 'DRIVER', entityId: driver.id, debit: 0, credit: 300000, receiptId: `EXPENSE_SOURCE:${source.id}` });
+    const voucher = await createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+      entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: 1, amount: 100000 }] });
+    const allocations = await tx.select({ amount: s.expenseCashAllocations.amount }).from(s.expenseCashAllocations)
+      .where(eq(s.expenseCashAllocations.expenseAccountingSourceId, source.id));
+    assert.equal(String(allocations[0]!.amount), '100000', 'the allocation lands at the paid amount');
+    await assert.rejects(
+      createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+        entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: source.version + 1, amount: 250000 }] }),
+      /chỉ còn 200000/,
+      'the second payout caps at the cash-adjusted remaining',
+    );
+  });
+});
+
+// Case QA-2026-09-24-01 correction (Director payer-split ruling round 3):
+// the voucher engine is approval-gated with a full row list — EVERY
+// unapproved source is named in one refusal, and approved-only consumption
+// decrements the per-source cash remaining.
+test('t5: unapproved sources are refused with the full row list, no override', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA t5 unapproved driver' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const mkExpense = async (amount: string) => {
+      const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING',
+        amount, occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0' }).returning();
+      const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+        tripId: trip.id, confirmedAt: null, recordedById: actor.userId }).returning();
+      return { expense, source };
+    };
+    const a = await mkExpense('100000');
+    const b = await mkExpense('200000');
+    await assert.rejects(
+      () => createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+        entries: [
+          { sourceKind: 'DRIVER', sourceId: a.expense.id, expectedVersion: 1, amount: 50000 },
+          { sourceKind: 'DRIVER', sourceId: b.expense.id, expectedVersion: 1, amount: 50000 },
+        ] }),
+      (error: unknown) => {
+        const message = String((error as Error).message ?? '');
+        return message.includes(`DRIVER-${a.expense.id}`) && message.includes(`DRIVER-${b.expense.id}`);
+      },
+      'the refusal must list EVERY unapproved row, not just the first',
+    );
+  });
+});
+
+test('t6: payout consumes approved sources only — the allocation decrements remaining', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA t6 driver' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const [approved] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING',
+      amount: '300000', occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0' }).returning();
+    const [approvedSource] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: approved.id,
+      shipmentId: shipment.id, tripId: trip.id, confirmedAt: new Date(), confirmedById: actor.userId, recordedById: actor.userId }).returning();
+    const [unapprovedCost] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'TOLL',
+      amount: '200000', occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0' }).returning();
+    const [unapprovedSource] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: unapprovedCost.id,
+      shipmentId: shipment.id, tripId: trip.id, confirmedAt: null, recordedById: actor.userId }).returning();
+    await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, entityType: 'DRIVER', entityId: driver.id,
+      debit: 0, credit: 300000, receiptId: `EXPENSE_SOURCE:${approvedSource.id}` });
+    const voucher = await createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16',
+      physicalReference: crypto.randomUUID(),
+      entries: [{ sourceKind: 'DRIVER', sourceId: approved.id, expectedVersion: 1, amount: 120000 }] });
+    const allocations = await tx.select({ amount: s.expenseCashAllocations.amount })
+      .from(s.expenseCashAllocations).where(eq(s.expenseCashAllocations.expenseAccountingSourceId, approvedSource.id));
+    assert.equal(allocations.length, 1);
+    assert.equal(Number(allocations[0]!.amount), 120000);
+    const totals = await getExpenseCashTotals(tx, approvedSource.id);
+    assert.equal(totals.OUT, 120000, 'the allocation decrements the source remaining');
+    const leaked = await tx.select({ id: s.expenseCashAllocations.id })
+      .from(s.expenseCashAllocations).where(eq(s.expenseCashAllocations.expenseAccountingSourceId, unapprovedSource.id));
+    assert.equal(leaked.length, 0, 'the unapproved source is never allocated');
+    void voucher;
+  });
+});

@@ -165,16 +165,7 @@ export async function listPhoiPhieuRows(query: {
   }
   // Eligible-set preview (case QA-2026-09-24-01): the per-source cash ledger
   // grouped once for the listed rows, mirroring getExpenseCashTotals.
-  const driverSources = await db.select({
-    id: s.expenseAccountingSources.id,
-    legTripId: s.expenseAccountingSources.tripId,
-    amount: s.driverIncidentalCosts.amount,
-  })
-    .from(s.expenseAccountingSources)
-    .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
-    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds), eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
-      eq(s.expenseAccountingSources.status, 'RECORDED'), isNotNull(s.expenseAccountingSources.confirmedAt)));
-  const boardSourceIds = [...sources.map((source) => source.id), ...driverSources.map((source) => source.id)];
+  const boardSourceIds = [...sources.map((source) => source.id)];
   const cashRows = boardSourceIds.length > 0 ? await db.select({
     sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
     direction: s.treasuryMovements.direction,
@@ -239,10 +230,6 @@ export async function listPhoiPhieuRows(query: {
       if (source.confirmedAt == null) continue;
       if (Math.max(Number(source.customerChargeAmount ?? 0) - cash.IN, 0) > 0) eligibleIn += 1;
       if (Math.max(Number(source.amount ?? 0) - Number(source.allocatedAdvanceAmount ?? 0) - cash.OUT, 0) > 0) eligibleOut += 1;
-    }
-    for (const source of driverSources.filter((source) => source.legTripId === row.tripId)) {
-      const cash = cashBySource.get(source.id) ?? { IN: 0, OUT: 0 };
-      if (Math.max(Number(source.amount) - cash.OUT, 0) > 0) eligibleOut += 1;
     }
     out.push({
       tripId: row.tripId,
@@ -324,23 +311,6 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         // enter the consolidated phiếu — the contract wording is verbatim
         // ("Chỉ những khoản ĐÃ DUYỆT mới đủ điều kiện được đưa vào phiếu chi").
         isNotNull(s.expenseAccountingSources.confirmedAt)));
-    // Approved DRIVER (tiền đường) sources of the selected trips join OUT
-    // phiếu with their own counterparty — the driver being paid. Driver
-    // payouts are inherently an OUT movement, so an IN phiếu never carries
-    // them; remaining reads the same per-source cash ledger the engine does.
-    const driverSources = await tx.select({
-      id: s.expenseAccountingSources.id,
-      nativeId: s.expenseAccountingSources.sourceId,
-      tripId: s.expenseAccountingSources.tripId,
-      version: s.expenseAccountingSources.version,
-      costAmount: s.driverIncidentalCosts.amount,
-      driverId: s.driverIncidentalCosts.driverId,
-    })
-      .from(s.expenseAccountingSources)
-      .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
-      .where(and(inArray(s.expenseAccountingSources.tripId, tripRows.map((row) => row.tripId)),
-        eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
-        isNotNull(s.expenseAccountingSources.confirmedAt)));
     // The voucher engine is one-counterparty-per-phiếu: group the selection by
     // customer and issue one consolidated voucher per group.
     const customerIdByShipment = new Map<number, number>();
@@ -350,7 +320,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     for (const row of tripCustomer) {
       if (row.shipmentId != null && row.customerId != null) customerIdByShipment.set(row.shipmentId, row.customerId);
     }
-    const groups = new Map<string, Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }>>();
+    const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<string, number>();
     let skipped = 0;
     const seenSourceIds = new Set<number>();
@@ -358,13 +328,8 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       const shipmentId = trip.shipmentId as number;
       const customerId = customerIdByShipment.get(shipmentId);
       const shipmentSources = sources.filter((source) => source.shipmentId === shipmentId);
-      // A trip qualifies only when it carries approved money in at least one
-      // leg; the customer/chi-hộ throws stay scoped to the OPS leg so a
-      // driver-only trip can still issue its payout phiếu.
-      if (shipmentSources.length === 0 && driverSources.length === 0) {
-        throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
-      }
-      const entries: Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }> = [];
+      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
+      const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
         if (customerId == null) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
@@ -389,28 +354,6 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         const bucket = groups.get(key) ?? [];
         groups.set(key, [...bucket, ...entries]);
         totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
-      }
-      // Tiền đường leg: approved driver costs pay OUT to their own
-      // counterparty — the driver read from the native cost row; an IN phiếu
-      // never carries driver payouts.
-      if (args.direction === 'OUT') {
-        for (const source of driverSources.filter((source) => source.tripId === trip.tripId)) {
-          if (seenSourceIds.has(source.id)) {
-            skipped += 1;
-            continue;
-          }
-          seenSourceIds.add(source.id);
-          const cash = await getExpenseCashTotals(tx, source.id);
-          const remaining = Math.max(Number(source.costAmount) - cash.OUT, 0);
-          if (remaining <= 0) {
-            skipped += 1;
-            continue;
-          }
-          const key = `driver:${source.driverId}`;
-          const bucket = groups.get(key) ?? [];
-          groups.set(key, [...bucket, { sourceKind: 'DRIVER', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining }]);
-          totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + remaining);
-        }
       }
     }
     let grandTotal = 0;
