@@ -6,7 +6,7 @@
  * view so an old version renders its own figures; xlsx export rides _57's
  * exporter on this payload.
  */
-import { and, desc, eq, gte, lte, max } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, max } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -52,7 +52,13 @@ export async function listQuotationVersions(
 ): Promise<{ items: QuotationVersionRow[]; total: number }> {
   const conditions = [eq(s.quotationVersionSnapshots.quotationId, quotationId)];
   if (filter.from) conditions.push(gte(s.quotationVersionSnapshots.releasedAt, new Date(filter.from)));
-  if (filter.to) conditions.push(lte(s.quotationVersionSnapshots.releasedAt, new Date(filter.to)));
+  if (filter.to) {
+    // Inclusive to-date: 'YYYY-MM-DD' parses as midnight, so releases made
+    // DURING the to-day were cut off — bound to the next midnight instead.
+    const toExclusive = new Date(filter.to);
+    toExclusive.setDate(toExclusive.getDate() + 1);
+    conditions.push(lt(s.quotationVersionSnapshots.releasedAt, toExclusive));
+  }
   const rows = await db.select({
     version: s.quotationVersionSnapshots.version,
     triggerKind: s.quotationVersionSnapshots.triggerKind,

@@ -70,7 +70,10 @@ export async function buildQuotationExport(quotationId: number, version?: number
       cursor += 1;
       const gridRows: Array<[string, (cell: QuotationViewShape['cells'][number]) => number | string | null]> = [
         ['Hệ số', (cell) => cell.heSo],
-        ['Tổng lít dầu/chuyến', (cell) => cell.liters],
+        // D4 (card _57/_62 finish-out): liters derive as km × norm × 2 and
+        // raw floats leak tails ("33.800000000000004") into the file — cap
+        // at one decimal, which is the true value's precision.
+        ['Tổng lít dầu/chuyến', (cell) => (cell.liters == null ? null : Math.round(cell.liters * 10) / 10)],
         ['Giá cos', (cell) => cell.giaCos],
         ['Phụ phí', (cell) => cell.surcharge],
       ];

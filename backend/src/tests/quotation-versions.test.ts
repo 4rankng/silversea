@@ -133,4 +133,13 @@ describe('quotation version history (card 20260922_62)', () => {
     assert.equal(all.total >= 1, true);
     assert.equal(futureOnly.total, 0);
   });
+
+  test('date window includes releases made ON the to-day (inclusive to-date)', async () => {
+    const qid = await mkQuotation();
+    const view = await getQuotation(qid);
+    await releaseQuotationVersion(view, { triggerKind: 'MANUAL_EDIT', actorId: ACTOR });
+    const today = new Date().toISOString().slice(0, 10);
+    const sameDay = await listQuotationVersions(qid, { from: today, to: today });
+    assert.equal(sameDay.total, 1, `a release made today must appear when filtering to=today, got ${sameDay.total}`);
+  });
 });
