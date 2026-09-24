@@ -194,7 +194,7 @@
 .invoice-tracking-table thead th:nth-child(7) { min-width: 184px; }  /* Thông tin hđ */
 .invoice-tracking-table thead th:nth-child(8) { min-width: 124px; }  /* Số tiền trả */
 .invoice-tracking-table thead th:nth-child(9) { min-width: 96px; }   /* COM */
-.invoice-tracking-table thead th:nth-child(10) { min-width: 116px; } /* Chênh lệch */
+.invoice-tracking-table thead th:nth-child(10) { min-width: 130px; } /* Chênh lệch */
 .invoice-tracking-table thead th:nth-child(11) { min-width: 100px; } /* Ngày gửi hđ */
 .invoice-tracking-table thead th:nth-child(12) { min-width: 96px; }  /* Ghi chú */
 .invoice-tracking-table thead th:nth-child(13) { min-width: 116px; } /* Tiến độ */

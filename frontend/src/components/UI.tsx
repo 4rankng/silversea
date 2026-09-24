@@ -334,6 +334,8 @@ export function FilterPill({ active, onClick, children, icon, count }: FilterPil
   );
 }
 
+import { StatusText, type StatusVariant } from './shared/StatusText';
+
 /* ─── Status Pill ───────────────────────────────────────────────────────── */
 
 export type PillVariant = 'success' | 'warn' | 'danger' | 'info' | 'neutral';
@@ -344,25 +346,19 @@ interface StatusPillProps {
   dot?: boolean;
 }
 
-/** Wireframe pill variant → UUI badge color. */
-const PILL_COLOR_MAP: Record<PillVariant, 'success' | 'warning' | 'error' | 'gray'> = {
+const PILL_STATUS_VARIANT_MAP: Record<PillVariant, StatusVariant> = {
   success: 'success',
   warn: 'warning',
-  danger: 'error',
-  info: 'gray',
-  neutral: 'gray',
+  danger: 'danger',
+  info: 'info',
+  neutral: 'neutral',
 };
 
 export function StatusPill({ variant, children, dot = true }: StatusPillProps) {
-  const color = PILL_COLOR_MAP[variant];
-  return dot ? (
-    <UIBadgeWithDot type="pill-color" size="sm" color={color}>
+  return (
+    <StatusText variant={PILL_STATUS_VARIANT_MAP[variant] || 'neutral'} dot={dot}>
       {children}
-    </UIBadgeWithDot>
-  ) : (
-    <UIBadge type="pill-color" size="sm" color={color}>
-      {children}
-    </UIBadge>
+    </StatusText>
   );
 }
 
@@ -372,13 +368,23 @@ interface BadgeProps {
   variant?: 'success' | 'warning' | 'danger' | 'info' | 'outline' | 'neutral';
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Badge({ variant = 'neutral', children, className = '' }: BadgeProps) {
+const BADGE_STATUS_VARIANT_MAP: Record<NonNullable<BadgeProps['variant']>, StatusVariant> = {
+  success: 'success',
+  warning: 'warning',
+  danger: 'danger',
+  info: 'info',
+  neutral: 'neutral',
+  outline: 'neutral',
+};
+
+export function Badge({ variant = 'neutral', children, className = '', style }: BadgeProps) {
   return (
-    <UIBadge type="color" size="sm" color={BADGE_COLOR_MAP[variant]} className={className}>
+    <StatusText variant={BADGE_STATUS_VARIANT_MAP[variant]} className={className} style={style}>
       {children}
-    </UIBadge>
+    </StatusText>
   );
 }
 

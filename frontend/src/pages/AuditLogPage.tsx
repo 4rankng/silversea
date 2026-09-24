@@ -380,7 +380,6 @@ fontSize: 'var(--text-data-size)',
                 setFilter(cat.key);
               }}
             >
-              <Icon size={14} />
               {cat.label}
               {filter === cat.key && (
                 <span className="filter-chip__count">{total}</span>
@@ -484,7 +483,6 @@ fontSize: 'var(--text-data-size)',
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                               <div className="audit-event-tag">
                                 <span className={`audit-dot ${categoryDotClass(entry.category)}`} />
-                                {categoryIcon(entry.category)}
                                 <span style={{ fontWeight: 600, fontSize: 'var(--text-body-size)', lineHeight: 1.35, color: 'var(--ink-2)' }}>
                                   {ACTION_LABELS[entry.action] || entry.action}
                                 </span>

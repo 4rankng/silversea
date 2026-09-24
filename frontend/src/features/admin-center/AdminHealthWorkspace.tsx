@@ -14,6 +14,16 @@ const HEALTH_LABELS: Record<AdminHealthInboxItem['healthState'], string> = {
   UNAVAILABLE: 'Không khả dụng',
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  customer_email_logs: 'Email khách hàng',
+  database: 'Cơ sở dữ liệu',
+  setup: 'Thiết lập ban đầu',
+  users_permissions: 'Người dùng & phân quyền',
+  configuration: 'Cấu hình hệ thống',
+  audit: 'Nhật ký kiểm toán',
+  durable_effect_jobs: 'Tác vụ nền',
+};
+
 export function AdminHealthWorkspace() {
   const query = useQuery({
     queryKey: qk.configCounts.adminHealth,
@@ -56,7 +66,7 @@ export function AdminHealthWorkspace() {
                 </div>
                 <p>{item.subtitle}</p>
                 <footer>
-                  <small>{item.source} · {formatDateTimeShort(item.freshnessAt)}</small>
+                  <small>{SOURCE_LABELS[item.source] ?? item.source} · {formatDateTimeShort(item.freshnessAt)}</small>
                   {(item.nextAction || item.targetRoute) && <Link to={item.nextAction?.targetRoute ?? item.targetRoute}>{item.nextAction?.label ?? 'Mở chi tiết'}</Link>}
                 </footer>
               </article>

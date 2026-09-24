@@ -108,7 +108,7 @@ export default function AccountingInvoiceTrackingPage() {
 
   return (
     <div className="invoice-tracking-page">
-      <PageHeader title="Theo dõi hóa đơn kết hợp" description="Kế toán quản lý hóa đơn kết hợp theo lô hàng; chứng từ xem chỉ-đọc." />
+      <PageHeader title="Theo dõi hóa đơn kết hợp" description="Quản lý hóa đơn kết hợp theo từng lô hàng." />
       {dialog}
       {reasonDialog}
       <p className="invoice-tracking-page__intro">

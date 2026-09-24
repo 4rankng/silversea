@@ -16,9 +16,9 @@
 .admin-health-workspace article.is-unavailable::before { background: var(--warning); }
 .admin-health-workspace__card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .admin-health-workspace__card-head strong { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: var(--text-data-size); }
-.admin-health-workspace__card-head span { flex: 0 0 auto; border-radius: 999px; background: var(--success-soft); padding: 2px 6px; color: var(--success); font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
-.admin-health-workspace .is-failed .admin-health-workspace__card-head span { background: var(--danger-soft); color: var(--danger); }
-.admin-health-workspace .is-unavailable .admin-health-workspace__card-head span { background: var(--warning-soft); color: var(--warning); }
+.admin-health-workspace__card-head span { flex: 0 0 auto; border-radius: 0; background: transparent; padding: 0; color: var(--success); font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
+.admin-health-workspace .is-failed .admin-health-workspace__card-head span { background: transparent; color: var(--danger); }
+.admin-health-workspace .is-unavailable .admin-health-workspace__card-head span { background: transparent; color: var(--warning); }
 .admin-health-workspace article p { min-height: 36px; margin: 6px 0 9px; color: var(--ink-2); font-size: var(--text-body-size); }
 .admin-health-workspace article footer { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; padding-top: 4px; }
 .admin-health-workspace article small { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }

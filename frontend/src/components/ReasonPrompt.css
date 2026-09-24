@@ -16,7 +16,20 @@
 }
 .confirm-prompt__textarea {
   width: 100%;
+  box-sizing: border-box;
   /* rows=3 + padding — never the 69.7px squeeze inside the flex row. */
   min-height: 84px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-family: inherit;
   resize: vertical;
+}
+.confirm-prompt__textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 1px;
 }

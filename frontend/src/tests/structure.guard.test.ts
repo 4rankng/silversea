@@ -153,7 +153,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // gains the shared datetime adapter wiring.
   'src/components/trip/TripPodSubmission.tsx': 423,
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
-  'src/components/UI.tsx': 665,
+  // 2026-09-24 card _24 sweep part 2: +3 for disabled-button reason captions (silent-disable anti-pattern)
+  'src/components/UI.tsx': 668,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
   'src/components/untitled-ui/base/select/tag-select.tsx': 405,
   // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail

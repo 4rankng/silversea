@@ -147,7 +147,7 @@ export default function ExpenseListPage() {
       return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Cần hoàn thiện</span>;
     }
     if (approval === 'VOIDED' || approval === 'REJECTED') {
-      return <span className="expense-status expense-status--paid"><span className="expense-status__dot" /> Không ghi sổ</span>;
+      return <span className="expense-status expense-status--neutral"><span className="expense-status__dot" /> Không ghi sổ</span>;
     }
     return expense.paymentStatus === 'PAID' ? (
       <span className="expense-status expense-status--paid">

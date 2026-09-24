@@ -79,7 +79,7 @@
   flex-shrink: 0;
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: var(--app-radius-full);
+  border-radius: 6px;
   background: var(--surface-2);
   color: var(--ink-2);
   font-family: var(--font-data);

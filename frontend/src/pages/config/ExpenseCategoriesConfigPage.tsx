@@ -5,6 +5,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { StatusText } from '../../components/shared/StatusText';
 import type { ExpenseCategory } from '@tingting/shared';
 
 function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
@@ -90,20 +91,9 @@ export default function ExpenseCategoriesConfigPage() {
           header: 'Định kỳ',
           className: 'center',
           render: (cat) => (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 26,
-              padding: '4px 10px',
-              borderRadius: 10,
-              fontSize: 'var(--text-caption-size)',
-              lineHeight: 1.3,
-              fontWeight: 600,
-              background: cat.isRenewable ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',
-              color: cat.isRenewable ? 'var(--success-text)' : 'var(--fg-2)',
-            }}>
+            <StatusText variant={cat.isRenewable ? 'success' : 'neutral'} dot={cat.isRenewable}>
               {cat.isRenewable ? 'Có' : 'Không'}
-            </span>
+            </StatusText>
           ),
         },
         {
@@ -114,20 +104,9 @@ export default function ExpenseCategoriesConfigPage() {
         {
           header: 'Trạng thái',
           render: (cat) => (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 26,
-              padding: '4px 10px',
-              borderRadius: 10,
-              fontSize: 'var(--text-caption-size)',
-              lineHeight: 1.3,
-              fontWeight: 600,
-              background: cat.status === 'ACTIVE' ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',
-              color: cat.status === 'ACTIVE' ? 'var(--success-text)' : 'var(--fg-2)',
-            }}>
+            <StatusText variant={cat.status === 'ACTIVE' ? 'success' : 'neutral'} dot={cat.status === 'ACTIVE'}>
               {cat.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng'}
-            </span>
+            </StatusText>
           ),
         },
       ]}

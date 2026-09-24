@@ -584,7 +584,7 @@
   min-height: 22px;
   max-width: 100%;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size)!important;
   font-weight: var(--fw-bold);
   line-height: 1.35;

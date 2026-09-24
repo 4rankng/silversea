@@ -126,7 +126,7 @@ function CustomerDrawerHistories({ customerId }: { customerId: number }) {
     <>
       <dl className="customers-drawer__section">
         <dt>Công nợ phải thu (AR)</dt>
-        <dd style={outstanding != null && outstanding > 0 ? { color: 'var(--danger)' } : undefined}>
+        <dd style={outstanding != null && outstanding > 0 ? { color: 'var(--warning-text)' } : undefined}>
           {outstanding != null ? <Money value={outstanding} /> : '…'}
         </dd>
       </dl>
@@ -650,7 +650,7 @@ export default function CustomersPage() {
                 )}
                 <div className="m-card__row">
                   <span className="m-card__row-label">Công nợ</span>
-                  <span className="m-card__row-value" style={debtMap.get(c.id) ? { color: 'var(--danger)' } : undefined}>
+                  <span className="m-card__row-value" style={debtMap.get(c.id) ? { color: 'var(--warning-text)' } : undefined}>
                     <Money value={debtMap.get(c.id) ?? 0} />
                   </span>
                 </div>
@@ -917,7 +917,7 @@ export default function CustomersPage() {
                   <dt>Hạn mức tín dụng</dt>
                   <dd>{c.creditLimit ? formatCurrency(c.creditLimit) : '—'}</dd>
                   <dt>Công nợ hiện tại</dt>
-                  <dd style={debt > 0 ? { color: 'var(--danger)' } : undefined}>
+                  <dd style={debt > 0 ? { color: 'var(--warning-text)' } : undefined}>
                     <Money value={debt} />
                   </dd>
                 </dl>
