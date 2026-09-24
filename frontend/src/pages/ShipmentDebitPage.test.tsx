@@ -318,4 +318,17 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Không xuất được Debit Note. Vui lòng thử lại.')).toBeTruthy();
   });
+
+  it('F1 (card 20260924_2): renders the shadow line with count and sum in the filtered scope', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1, excludedCount: 2, excludedSum: '1150000' });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText(/2 chuyến chưa gán fulfillment — 1\.150\.000 ₫ chưa vào chốt/)).toBeTruthy();
+  });
+
+  it('F1 (card 20260924_2): keeps the shadow line hidden when nothing is excluded', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1, excludedCount: 0, excludedSum: '0' });
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    expect(screen.queryByText(/chưa gán fulfillment/)).toBeNull();
+  });
 });

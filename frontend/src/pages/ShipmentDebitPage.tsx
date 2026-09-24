@@ -266,6 +266,14 @@ export function ShipmentDebitPage() {
           <EmptyState illustration="finance" title="Không có lô nào" description="Không có lô nào khớp bộ lọc hiện tại." />
         ) : (
           <div className="shipment-debit-table-wrap">
+            {/* Card 20260924_2 F1 shadow line (BE 855aef81; FE half per BE spec):
+                fees on fulfillment-NULL trips stay out of chốt — say so plainly
+                instead of a silent gap. Hidden at zero, red needs-attention ink. */}
+            {summary.data.excludedCount > 0 && (
+              <p className="shipment-debit-shadow-line" role="status" style={{ color: 'var(--danger, #b91c1c)', fontWeight: 600 }}>
+                {summary.data.excludedCount} chuyến chưa gán fulfillment — {formatMoney(Number(summary.data.excludedSum))} ₫ chưa vào chốt
+              </p>
+            )}
             <table className="shipment-debit-table">
               <thead>
                 <tr>

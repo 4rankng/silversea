@@ -32,6 +32,10 @@ export interface ShipmentDebitLotRow {
 export interface ShipmentDebitSummary {
   items: ShipmentDebitLotRow[];
   total: number;
+  /** Card 20260924_2 F1 shadow totals (BE 855aef81): fulfillment-NULL trips
+   *  excluded from chốt — count of CHUYẾN and their chi-hộ buy-sum. */
+  excludedCount: number;
+  excludedSum: string;
 }
 
 /** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate. */
