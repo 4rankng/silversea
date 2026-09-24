@@ -135,6 +135,20 @@ Nếu còn quyền sửa ngày, sản phẩm cho thấy giá cũ/mới và lưu 
 đã khóa, giải thích vì sao không được sửa và cách điều chỉnh hợp lệ theo quyền;
 không thêm bước xin duyệt.
 
+### 4.4. Nhập file cước của khách hàng
+
+1. Kế toán/CUS có quyền nhập file cước (Excel) của khách hàng. Sản phẩm đọc tuyến và giá từ
+   file, tạo một bản khung báo giá mới hiệu lực từ ngày nhập — không ghi đè bản khung cũ; bản
+   cũ giữ nguyên để đối soát.
+2. Danh mục phí của bản khung mới kế thừa nguyên vẹn danh mục phí của bản khung trước của cùng
+   khách hàng: tên phí, loại phụ, số tiền mặc định, gán cột riêng, ghi chú và thứ tự. File cước
+   chỉ mang số liệu cước; danh mục phí là cấu trúc quản lý mang theo giữa các hợp đồng, không
+   reset về rỗng mỗi lần nhập.
+3. Lần nhập đầu tiên (chưa có bản khung trước) bắt đầu không có phí trong danh mục; người có
+   quyền cấu hình phí sau đó như bình thường. Thiếu cấu hình không tự thay bằng giá minh họa.
+4. Phí kế thừa là phí bình thường: sửa được trên trang cấu hình, áp dụng và lưu lịch sử theo
+   quy tắc chung.
+
 ## 5. Đối soát và giá cuối trên Bảng kê / Debit Note
 
 Cước tự tính là giá chuẩn theo hợp đồng. Kế toán có quyền được nhập **giá cuối
