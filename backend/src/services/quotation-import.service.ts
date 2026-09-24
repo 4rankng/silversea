@@ -52,6 +52,9 @@ export interface ImportPreviewRow {
   classCode: string; classLabel: string;
   heSo: number | null; liters: number | null; giaCos: number | null;
   basePrice: number | null; billingKmOneWay: number | null; error: string | null;
+  /** Source location in the uploaded sheet (Giá cos grid row / sheet column)
+   *  — row-level errors name the exact cell per the D1 ruling. */
+  sourceRow: number | null; sourceCol: number | null;
 }
 
 export interface ImportPreviewRoute {
@@ -132,6 +135,7 @@ function parseSheet(sheet: ExcelJS.Worksheet): ImportPreviewSheet {
       route.rows.push({
         classCode: column.classCode, classLabel: column.label,
         heSo, liters, giaCos, basePrice: null, billingKmOneWay: null, error: null,
+        sourceRow: parsed.labelRow.get('Giá cos') ?? null, sourceCol: column.col,
       });
     }
     preview.routes.push(route);
@@ -159,6 +163,37 @@ export async function previewQuotationImport(buffer: Buffer): Promise<ImportPrev
 }
 function normalizeName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** D1 single source of truth (card _57, Director ruling 2026-09-24): THE one
+ *  row-level validator — the preview AND the commit both call it, so an
+ *  all-✓ preview can never be refused by the commit for these checks (the
+ *  defect class is divergence itself). A quotation engine never invents
+ *  prices: missing/null/non-numeric/non-positive liters or Giá cos is a
+ *  row-level error naming the factory, the class label, the source row and
+ *  column in the sheet, and the expected format — never a silent zero or
+ *  skip. Returns one issue per failing check; `row` lets callers attach the
+ *  message to the rendered row. */
+export interface ImportRowIssue {
+  row: ImportPreviewRow;
+  message: string;
+}
+
+export function validateImportRows(route: ImportPreviewRoute): ImportRowIssue[] {
+  const issues: ImportRowIssue[] = [];
+  for (const row of route.rows) {
+    const where = `${route.factoryName} · ${row.classLabel}`;
+    const at = row.sourceRow != null && row.sourceCol != null
+      ? ` (hàng ${row.sourceRow}, cột ${row.sourceCol})`
+      : '';
+    if (row.liters == null || row.liters <= 0) {
+      issues.push({ row, message: `${where}${at}: thiếu hoặc sai Tổng lít dầu/chuyến — điền số lít > 0 cho từng hạng.` });
+    }
+    if (row.giaCos == null || row.giaCos <= 0) {
+      issues.push({ row, message: `${where}${at}: thiếu hoặc sai Giá cos — điền số tiền > 0 (số, VD 1234567 hoặc 1.234.567).` });
+    }
+  }
+  return issues;
 }
 
 /** Resolve catalog rows for a parsed sheet (customer + routes + norms). */
@@ -203,6 +238,12 @@ async function enrichPreview(preview: ImportPreviewSheet): Promise<ImportPreview
       .orderBy(desc(s.freightRateTerms.effectiveDate))
       .limit(1);
     route.sharePct = terms ? Number(terms.sharePct) : 2;
+    // D1: the preview runs the SAME row validator the commit runs — a row
+    // that would be refused at commit carries its row-level error here, so
+    // the preview can never promise "khớp toàn bộ" over a refused row.
+    for (const issue of validateImportRows(route)) {
+      if (issue.row.error == null) issue.row.error = issue.message;
+    }
   }
   return preview;
 }
@@ -257,13 +298,13 @@ export async function commitQuotationImport(
   for (const sheet of preview.sheets) {
     const enriched = await enrichPreview(sheet);
     const errors: string[] = [...enriched.errors];
-    for (const route of enriched.routes) errors.push(...route.errors);
     for (const route of enriched.routes) {
-      for (const row of route.rows) {
-        const where = `${route.factoryName} · ${row.classLabel}`;
-        if (row.liters == null || row.liters <= 0) errors.push(`${where}: thiếu hoặc sai Tổng lít dầu/chuyến.`);
-        if (row.giaCos == null || row.giaCos <= 0) errors.push(`${where}: thiếu hoặc sai Giá cos.`);
-      }
+      errors.push(...route.errors);
+      // D1 single source of truth: the commit's row checks ARE the preview's
+      // row checks — same function, same messages. (The norm/catalog
+      // resolution below stays a commit-side backstop: the catalog can
+      // change between preview and commit.)
+      errors.push(...validateImportRows(route).map((issue) => issue.message));
     }
     if (errors.length > 0 || enriched.routes.length === 0) {
       results.push({ sheet: enriched.sheet, quotationId: null, customerName: enriched.customerName ?? '(không rõ khách hàng)', errors });
