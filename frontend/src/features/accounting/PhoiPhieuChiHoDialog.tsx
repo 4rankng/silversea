@@ -32,6 +32,17 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
   const { confirm, dialog } = useConfirm();
 
+  // Card 20260923_11: this dialog and the "Thêm khoản chi" panel are two
+  // aria-modal surfaces. `adding` used to mount the drawer *beside* the still
+  // rendered OpsModalBackdrop, so both bodies shared the viewport (the P3
+  // screenshot: the "Nhập Thu và Trả bằng nhau" checkbox sat inside the
+  // overlap). Exactly one surface is active at a time: once the panel has its
+  // catalog and is therefore on screen, this dialog's surface is not rendered
+  // at all. The component stays mounted, so row edits survive the round trip,
+  // and the panel's own loading/error feedback still lands in this dialog
+  // because the panel only exists after `catalog.data` arrives.
+  const addPanelOpen = adding && Boolean(catalog.data);
+
   const rows = detail.data?.rows ?? [];
   const totals = useMemo(() => {
     const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
@@ -113,7 +124,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
           document.body + fixed backdrop + scroll lock + Escape + focus return.
           The backdrop carries the dialog role; the inner .ops-modal stays a
           plain surface. */}
-      <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết chi hộ">
+      {/* Card 20260923_11: suppressed while the add panel owns the screen. */}
+      {!addPanelOpen && <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết chi hộ">
         <div className="ops-modal" style={{ maxWidth: 720 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết chi hộ {detail.data?.tripCode ?? ''}</h2>
@@ -168,8 +180,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
         {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
       </div>
         </div>
-      </OpsModalBackdrop>
-      {adding && catalog.data && <ExpenseCreateDrawer
+      </OpsModalBackdrop>}
+      {addPanelOpen && catalog.data && <ExpenseCreateDrawer
       work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
       catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
       onClose={() => setAdding(false)}

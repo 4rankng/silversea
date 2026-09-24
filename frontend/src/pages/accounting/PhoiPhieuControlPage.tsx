@@ -116,6 +116,8 @@ export default function PhoiPhieuControlPage() {
   const [issuing, setIssuing] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [chiHoTripId, setChiHoTripId] = useState<number | null>(null);
+  // Card 20260923_11: the board owns two detail surfaces — exactly one may be
+  // open at a time, so each trigger clears the other's state.
   const [tienDuongTripId, setTienDuongTripId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
@@ -223,12 +225,12 @@ export default function PhoiPhieuControlPage() {
                   <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
                   <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>
                   <span className="ppc-cell-actions">
-                    <button type="button" className="ppc-icon-btn" aria-label={`Chi tiết chi hộ ${row.tripCode ?? ''}`} title="Chi tiết chi hộ" onClick={() => setChiHoTripId(row.tripId)}><ReceiptText size={14} aria-hidden="true" /></button>
+                    <button type="button" className="ppc-icon-btn" aria-label={`Chi tiết chi hộ ${row.tripCode ?? ''}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
                   </span>
                 </td>
                 <td className="ppc-col--money">
                   <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setTienDuongTripId(row.tripId)}>Xem chi tiết</button>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
                 </td>
                 <td className="ppc-col--status">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
                 <td className="ppc-col--date">{formatDate(row.departureDate)}</td>

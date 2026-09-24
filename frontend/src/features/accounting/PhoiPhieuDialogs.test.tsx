@@ -180,4 +180,19 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
       expect(cell.closest('td')?.className).toContain('ppc-col--date');
     }
   });
+
+  // Card 20260923_11 — the board holds BOTH detail surfaces' state. The rule is
+  // absolute ("chỉ 1 surface active tại một thời điểm"), so a request for one
+  // surface must retire the other rather than stacking on it.
+  it('retires the open detail surface when another is requested — never two board dialogs at once', async () => {
+    renderBoard();
+    const row = await findRow('ST-2609-0101');
+    fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
+    expect(await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' })).toBeInTheDocument();
+
+    fireEvent.click(within(row).getByRole('button', { name: /Chi tiết chi hộ/ }));
+    expect(await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Chi tiết tiền đường' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
 });
