@@ -422,3 +422,44 @@ describe('Bảng 2.2 shipped layout contract (card _7)', () => {
     expect(thRule).toContain('white-space: normal');
   });
 });
+
+// Card 20260924_11 (CHIEF, Hình 02.3): Bảng 2.2 headers fractured per
+// character ("PHÍ NÂNG" → PH/Í/NÃ/NG) because overflow-wrap is INHERITED —
+// the workspace renders inside the L1 lot row's <td>, whose global
+// `tbody td { overflow-wrap: anywhere }` (components/Table.css) reached every
+// nested header and business key, so auto layout could crush a column to
+// character width. The inline fee editor stacked its children by flex-wrap:
+// the × dropped onto its own line under the input and the name ran into the
+// Thu khách readout. Red-first contract for the presentation fix.
+describe('Bảng 2.2 word-level headers + fee editor grid (card 20260924_11)', () => {
+  const css = readFileSync(
+    resolve(process.cwd(), 'src/features/shipments/debit/ShipmentDebitWorkspace.css'),
+    'utf8',
+  );
+
+  it('withdraws the inherited anywhere break at the table root; headers wrap at words only', () => {
+    const tableRule = css.match(/\.csc-debit-table\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(tableRule).toContain('overflow-wrap: normal');
+    const thRule = css.match(/\.csc-debit-table thead th\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(thRule).toContain('overflow-wrap: normal');
+    expect(thRule).toContain('word-break: keep-all');
+  });
+
+  it('gives the editor a control row (input | ×) and a 2-column label-over-control draft grid', () => {
+    expect(css).toMatch(/\.csc-debit-otherfee__control\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+    expect(css).toMatch(/\.csc-debit-otherfee__grid\s*\{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.csc-debit-otherfee__field\s*\{/);
+    expect(css).toMatch(/\.csc-debit-otherfee__label\s*\{/);
+  });
+
+  it('meets the house target sizes: 34px control row on desktop, 44px touch floor (law §5)', () => {
+    const controlRule = css.match(/\.csc-debit-otherfee__control\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(controlRule).toContain('min-height: var(--control-default-h)');
+    const removeRule = css.match(/\.csc-debit-otherfee__remove\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(removeRule).toContain('min-width: var(--control-default-h)');
+    const touch = css.match(/@media \(max-width: 640px\), \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(touch).toContain('.csc-debit-otherfee__remove');
+    expect(touch).toContain('min-height: var(--control-touch-h)');
+    expect(touch).toContain('min-width: var(--control-touch-h)');
+  });
+});

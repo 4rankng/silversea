@@ -18,6 +18,16 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-caption-size);
+  /* The workspace renders INSIDE the L1 lot row's <td>, and that cell carries
+     the global unscoped `tbody td` rule's `overflow-wrap: anywhere`
+     (components/Table.css). overflow-wrap is inherited, so every nested
+     header and business key inherited the emergency break and auto layout
+     crushed the Bảng 2.2 columns to character width: "PHÍ NÂNG" stacked as
+     PH/Í/NÃ/NG, the container code broke as QATU092100/8 (card 20260924_11,
+     Hình 02.3). Withdraw it at the table root: Vietnamese wraps at WORD
+     boundaries (law §4), while fee names keep their explicit anywhere rule
+     on .csc-debit-item__name — a direct declaration beats inheritance. */
+  overflow-wrap: normal;
 }
 
 .csc-debit-table caption {
@@ -39,8 +49,14 @@
   color: var(--ink-2);
   /* Headers may wrap to a second line so the auto-layout table compresses
      into narrow panels (1280 sidebar-open) instead of clipping its last
-     columns at first paint. */
+     columns at first paint — but at WORD boundaries only (card 20260924_11:
+     "PHÍ CƠ SỞ HẠ TẦNG" reads as words over two lines, never the
+     PH/Í/NÃ/NG char-stack). keep-all + overflow-wrap normal restate the
+     table-root reset right where the headers live; house pattern =
+     ppc-board / invoice-tracking thead (card 20260922_54, law §4). */
   white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 /* Container codes and their header are business keys: the first column
@@ -103,47 +119,82 @@
   color: var(--ink-3);
 }
 
+/* Inline fee editor (card 20260924_11 — CHIEF Hình 02.3): each fee is a
+   stack of full-width rows — name, Thu khách readout, then ONE control row
+   (input | × in a 2-column grid), then the read-only source note. Draft fees
+   lay out as a 2-column field grid, label above control. The old per-child
+   flex wrapping dropped the × onto its own line under the input ("nút × nhỏ
+   lệch") and ran the fee name into the Thu khách readout ("label wrap lạ"). */
 .csc-debit-otherfee {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-.csc-debit-otherfee--managed {
-  flex-wrap: wrap;
-}
-
-.csc-debit-otherfee--managed .csc-debit-item__name,
+/* Name and source note each own a full-width line above the controls.
+   Scoped to the block so unattached-trip item lines keep their inline flow. */
+.csc-debit-otherfee .csc-debit-item__name,
 .csc-debit-otherfee__source {
   flex: 0 0 100%;
   white-space: normal;
 }
 
-.csc-debit-otherfee--managed .csc-debit-input {
-  flex: 1 1 72px;
-  width: auto;
+/* The control row: amount input and remove button side by side on ONE row —
+   the × can no longer wrap below the input. Equal stretch keeps both boxes
+   the same height; the row floor is the house control geometry (34px ≥ the
+   32px desktop target, law §5). */
+.csc-debit-otherfee__control {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+  min-height: var(--control-default-h);
 }
 
-.csc-debit-otherfee--managed button {
-  flex: 0 0 24px;
+/* Draft fee: two fields side by side, label above control, equal widths. */
+.csc-debit-otherfee__grid {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
-/* The sell side reads from the wire — a muted readout beside the editable
-   chi-hộ input so the two numbers never blur into one. */
+.csc-debit-otherfee__field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.csc-debit-otherfee__label {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+/* The sell side reads from the wire — a muted readout on its own line above
+   the amount input so the two numbers never blur into one. Wraps at the
+   space instead of overflowing the narrow cell (law §4). */
 .csc-debit-otherfee__sell {
   flex: 0 0 auto;
   font-size: 11px;
   color: var(--ink-2);
-  white-space: nowrap;
 }
 
-.csc-debit-otherfee button {
+.csc-debit-otherfee__remove {
   border: 1px solid var(--border-1);
   border-radius: 8px;
   background: var(--surface);
-  width: 24px;
+  /* Square with the 34px control row — the old 24px sliver was under the
+     WCAG-plus house target. */
+  min-width: var(--control-default-h);
+  cursor: pointer;
+}
+
+.csc-debit-otherfee__remove:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .csc-debit-addfee {
@@ -151,7 +202,23 @@
   border-radius: 8px;
   background: transparent;
   padding: 3px 8px;
+  min-height: var(--control-default-h);
   cursor: pointer;
+}
+
+/* Touch floor (card 20260924_11; law §5): editor controls rise to the
+   shared 44px target on coarse pointers and phone widths. */
+@media (max-width: 640px), (pointer: coarse) {
+  .csc-debit-otherfee__control,
+  .csc-debit-otherfee__grid .csc-debit-input,
+  .csc-debit-otherfee__remove,
+  .csc-debit-addfee {
+    min-height: var(--control-touch-h);
+  }
+
+  .csc-debit-otherfee__remove {
+    min-width: var(--control-touch-h);
+  }
 }
 
 .csc-debit-addfee:disabled {

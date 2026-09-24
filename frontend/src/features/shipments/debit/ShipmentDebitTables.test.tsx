@@ -123,3 +123,40 @@ it('fee affordances announce business keys, never the DB trip id', () => {
   expect(screen.getByLabelText(/Số tiền chi hộ phí khác Phí lái xe kiểm thử hàng 1/)).toBeInTheDocument();
   expect(screen.queryByLabelText(/601/)).not.toBeInTheDocument();
 });
+
+// Card 20260924_11 (CHIEF, Hình 02.3): the inline fee editor stacked its
+// children by flex-wrap — the × dropped onto its own line under the input
+// ("nút × nhỏ lệch") and the fee name ran into the Thu khách readout
+// ("label wrap lạ"). Presentation-only restructure: name + sell readout as
+// full-width label rows above ONE control row (input | × side by side), and
+// draft fees as a 2-column field grid with the label above each control.
+// Data flow — value/onChange/aria-labels — is byte-identical.
+it('stacks the fee editor label-over-control: control row (input + ×) and a 2-field draft grid (card 20260924_11)', () => {
+  const value = detail();
+  value.chiHoRows = [{
+    tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null,
+    items: [], otherFees: [{ id: 31, name: 'Phí kiểm thử giao diện', amount: 1000, thuKhach: 2000 }],
+    carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' as const,
+  }];
+  const draft = { ...buildDraft(value), addedFees: [{ key: 'new-1', tripId: 601, name: '', amount: '' }] };
+  render(<ChiHoTable detail={value} draft={draft} frozen={false} setFeeAmount={vi.fn()} removeFee={vi.fn()} addFee={() => {}} setAddedFee={vi.fn()} />);
+
+  const control = document.querySelector('.csc-debit-otherfee__control');
+  expect(control).not.toBeNull();
+  expect(control!.querySelector('input.csc-debit-input--amount')).not.toBeNull();
+  expect(control!.querySelector('button[aria-label="Xóa phí khác Phí kiểm thử giao diện"]')).not.toBeNull();
+
+  // Label rows sit ABOVE the control row (label trên, control dưới).
+  const managed = control!.closest('.csc-debit-otherfee')!;
+  const kids = [...managed.children];
+  expect(kids.indexOf(managed.querySelector('.csc-debit-item__name')!)).toBeLessThan(kids.indexOf(control!));
+  expect(kids.indexOf(managed.querySelector('.csc-debit-otherfee__sell')!)).toBeLessThan(kids.indexOf(control!));
+
+  const grid = document.querySelector('.csc-debit-otherfee__grid');
+  expect(grid).not.toBeNull();
+  const fields = [...grid!.querySelectorAll('label.csc-debit-otherfee__field')];
+  expect(fields).toHaveLength(2);
+  expect(fields.map((field) => field.querySelector('.csc-debit-otherfee__label')?.textContent)).toEqual(['Tên phí', 'Số tiền']);
+  expect(fields[0]!.querySelector('input[aria-label^="Tên phí mới"]')).not.toBeNull();
+  expect(fields[1]!.querySelector('input[aria-label^="Số tiền phí mới"]')).not.toBeNull();
+});
