@@ -53,17 +53,23 @@
 .date-seg-group .date-seg-wrapper .date-seg {
   /* Letter placeholders run wider than the ch metric: 'DD' at 2ch overflows
      ~1.3px and the centered clip shaves each D into an E-like sliver. em
-     measures the actual glyph set — 'MM' (the widest pair) is ~1.71em, so
-     the slot carries headroom for any two-letter placeholder. */
-  width: 1.8em;
+     measures the actual glyph set. Card 20260924_10: the shared 1.8em box
+     read "DD /MM/ YYYY" — 'DD' (17.47px @12px) left ~2.07px slack per side
+     while 'MM' (20.47px) left 0.57px, so each slash hugged MM. Each box now
+     sizes to its own glyphs plus 0.125em slack per side (measured in
+     DateTimeSegments.styles.test.ts's header), keeping every separator
+     visually centered between its neighbors' glyphs. */
   padding-inline: 1px;
   text-align: center;
 }
 
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.8em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.706em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm2'] { width: 1.956em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.91em; }
 
 .date-sep {
   flex: 0 0 auto;
+  margin-inline: 2px;
   color: var(--fg-3);
   user-select: none;
 }
