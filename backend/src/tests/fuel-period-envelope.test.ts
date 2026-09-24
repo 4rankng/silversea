@@ -5,10 +5,14 @@
  * real mount (bootstrap at /api, then configRoutes) with the audit
  * middleware ACTIVE.
  *
- * The keyed-201 arm lives in q61-fuel-period-guard.test.ts ("ketoan can
- * POST a fuel period"): in THIS harness variant the keyed POST returns 201
- * but the process then hangs post-response (kept from the original probe,
- * lead-owned test-infra note), so the arm is asserted where it runs green.
+ * The keyed-201 arm lives HERE again (card 20260924_4 root-cause): the
+ * original "hang post-response" was the harness, not the app. The keyed arm
+ * is the only one that reaches the service layer, whose write path calls
+ * cacheInvalidate('config:fuel') (config.service.ts) -> getRedis() lazily
+ * opens the process-wide ioredis client, and the old teardown (postgres +
+ * server only) never released it — the node:test child's event loop never
+ * drained, so the runner waited forever AFTER the green 201. Teardown now
+ * releases Redis (disconnectRedis) alongside postgres and the server.
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,6 +24,8 @@ import bcrypt from 'bcryptjs';
 
 import { eq } from 'drizzle-orm';
 import { db, client } from '../db';
+import { disconnectRedis } from '../lib/redis';
+import { fuelPricePeriods } from '../db/schema/pricing';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
@@ -36,6 +42,7 @@ let server: http.Server;
 let baseUrl = '';
 let accountantToken = '';
 let accountantUserId = 0;
+let createdPeriodId = 0;
 
 before(async () => {
   await initAuditService();
@@ -71,19 +78,37 @@ before(async () => {
       baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
       resolve();
     });
+    // The in-process server must never hold the test child's event loop: the
+    // fetch client's pooled keep-alive socket can race server.close() and pin
+    // the loop forever (the residual-handle finding, card 20260924_4).
+    server.unref();
   });
 });
 
 after(async () => {
-  if (server.listening) {
-    server.closeAllConnections();
-    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  // The keyed arm's write spawns quotation_fuel_approvals rows referencing
+  // the period (spawnQuotationFuelApprovals: every ACTIVE-quotation customer
+  // gets a PENDING row) and lazily opens the process-wide ioredis client
+  // (cacheInvalidate in config.service) — clear the approvals first, then
+  // release Redis and postgres, or the node:test child never exits
+  // (the original "keyed POST hangs post-response" root cause, card 20260924_4).
+  // The fetch client's pooled keep-alive socket must also go: undici's global
+  // dispatcher holds it against this process's own in-process server, whose
+  // close() then never resolves.
+  try {
+    if (createdPeriodId) {
+      await db.delete(s.quotationFuelApprovals).where(eq(s.quotationFuelApprovals.fuelPricePeriodId, createdPeriodId));
+      await db.delete(fuelPricePeriods).where(eq(fuelPricePeriods.id, createdPeriodId));
+    }
+    await db.delete(s.users).where(eq(s.users.id, accountantUserId));
+  } catch (error) {
+    console.error('teardown cleanup error (releases still run):', error);
   }
-  await db.delete(s.users).where(eq(s.users.id, accountantUserId));
+  await disconnectRedis();
   await client.end();
 });
 
-describe('fuel-price-period create envelopefuel-price-period create envelope (card _61 rung)', () => {
+describe('fuel-price-period create envelope (card _61 rung)', () => {
   test('POST without Idempotency-Key → 400 (VN), never a masked 500', async () => {
     const res = await fetch(`${baseUrl}/api/fuel-price-periods`, {
       method: 'POST',
@@ -93,5 +118,17 @@ describe('fuel-price-period create envelopefuel-price-period create envelope (ca
     const body = await res.json() as { error?: string };
     assert.equal(res.status, 400, `key-less write must 400, got ${res.status}: ${JSON.stringify(body).slice(0, 200)}`);
     assert.match(body.error ?? '', /Idempotency-Key/);
+  });
+
+  test('ketoan can POST a fuel period with an Idempotency-Key → 201', async () => {
+    const res = await fetch(`${baseUrl}/api/fuel-price-periods`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accountantToken}`, 'Idempotency-Key': `qfp-keyed-${suffix}` },
+      body: JSON.stringify({ unitPrice: '29940.00', effectiveFrom: '2026-10-01' }),
+    });
+    const body = await res.json() as { id?: number; error?: string };
+    assert.equal(res.status, 201, `keyed write must 201, got ${res.status}: ${JSON.stringify(body).slice(0, 200)}`);
+    assert.ok(body.id, 'created fuel-price-period id returned');
+    createdPeriodId = body.id!;
   });
 });
