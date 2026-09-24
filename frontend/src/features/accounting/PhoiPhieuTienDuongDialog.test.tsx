@@ -35,3 +35,26 @@ describe('driver cost confirmation uses current source version', () => {
     fireEvent.click(button); fireEvent.click(button); expect(api.confirm).toHaveBeenCalledOnce(); expect(button).toBeDisabled();
   });
 });
+
+// Inside the 640px modal the tt-table's fixed layout equal-shares 7 columns
+// and thead th pins nowrap, so "LÁI XE NHẬP BAN ĐẦU (Đ)" and "THỰC CHI HIỆN
+// (Đ)" clip mid-token (case QA-2026-09-24-01). Design law §4: table text wraps
+// at spaces or the column expands — it never clips. Mirrors the board's pinned
+// thead contract (PhoiPhieuControlPage.styles.test.ts, card 20260922_54).
+describe('modal table headers never clip (case QA-2026-09-24-01; design law §4)', () => {
+  beforeEach(() => { vi.clearAllMocks(); api.get.mockResolvedValue(detail); api.confirm.mockResolvedValue({}); });
+  it('long money headers wrap at spaces instead of clipping', async () => {
+    mount();
+    await screen.findByRole('columnheader', { name: 'STT' });
+    for (const name of ['Lái xe nhập ban đầu (đ)', 'Thực chi hiện tại (đ)', 'Kế toán duyệt']) {
+      expect(screen.getByRole('columnheader', { name })).toHaveStyle({ whiteSpace: 'normal' });
+    }
+  });
+  it('the modal shell budgets the 7-column table — no 640px equal-share squeeze', async () => {
+    mount();
+    await screen.findByRole('columnheader', { name: 'Thực chi hiện tại (đ)' });
+    const modal = screen.getByRole('dialog', { name: 'Chi tiết tiền đường' }).querySelector('.ops-modal');
+    expect(modal).not.toBeNull();
+    expect(modal).toHaveStyle({ maxWidth: '760px' });
+  });
+});

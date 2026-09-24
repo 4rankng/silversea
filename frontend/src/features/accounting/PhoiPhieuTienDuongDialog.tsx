@@ -13,6 +13,11 @@ interface Props {
   onSaved: () => void;
 }
 
+/** Headers wrap at spaces only (keep-all) — table text never clips mid-token
+ *  (design law §4; board thead contract, card 20260922_54). */
+const th = (extra: React.CSSProperties): React.CSSProperties =>
+  ({ whiteSpace: 'normal', wordBreak: 'keep-all', overflowWrap: 'normal', ...extra });
+
 export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
@@ -55,7 +60,10 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
     <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết tiền đường">
       {/* Card 20260922_67: house modal shell — portal + backdrop + Escape +
           focus return. The backdrop carries the dialog role. */}
-      <div className="ops-modal" style={{ maxWidth: 640 }}>
+      {/* 7 fixed-layout columns need budgeted widths: the old 640px shell
+          equal-shared them to ~91px and nowrap headers clipped mid-token.
+          Wider shell + wrap-at-spaces headers (design law §4). */}
+      <div className="ops-modal" style={{ maxWidth: 760 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết tiền đường {detail.data?.tripCode ?? ''}</h2>
         <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
@@ -66,8 +74,16 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
         {detail.data && (
           <>
             <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)' }}>
+              {/* Widths sum to 100% so the fixed layout never equal-shares
+                  the money columns into clip territory (law §4). */}
               <thead><tr>
-                <th>STT</th><th>Khoản lái xe nhập</th><th>Ngày</th><th>Lái xe</th><th>Lái xe nhập ban đầu (đ)</th><th>Thực chi hiện tại (đ)</th><th>Kế toán duyệt</th>
+                <th style={th({ width: '5%' })}>STT</th>
+                <th style={th({ width: '20%' })}>Khoản lái xe nhập</th>
+                <th style={th({ width: '11%' })}>Ngày</th>
+                <th style={th({ width: '17%' })}>Lái xe</th>
+                <th style={th({ width: '16%' })}>Lái xe nhập ban đầu (đ)</th>
+                <th style={th({ width: '15%' })}>Thực chi hiện tại (đ)</th>
+                <th style={th({ width: '16%' })}>Kế toán duyệt</th>
               </tr></thead>
               <tbody>
                 {rows.map((row, index) => (
