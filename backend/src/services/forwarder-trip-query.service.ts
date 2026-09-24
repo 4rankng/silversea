@@ -438,7 +438,13 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     approvalStatus: s.tripExpenses.approvalStatus,
     deletionReason: s.tripExpenses.deletionReason,
     deletedAt: s.tripExpenses.deletedAt,
-    deletedByName: sql<string | null>`(SELECT u.full_name FROM users u WHERE u.id = ${s.tripExpenses.deletedBy})`,
+    // Display name follows the house fallback: the full name when set, else
+    // the username (ops-reconciliation-report.service pattern) — a voided
+    // row must never announce a blank actor.
+    // Display name follows the house fallback: the full name when set, else
+    // the username (ops-reconciliation-report.service pattern) — a voided
+    // row must never announce a blank actor.
+    deletedByName: sql<string | null>`(SELECT COALESCE(NULLIF(u.full_name, ''), u.username) FROM users u WHERE u.id = ${s.tripExpenses.deletedBy})`,
     note: s.tripExpenses.note,
     noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
     noInvoicePolicySnapshot: s.tripExpenses.noInvoicePolicySnapshot,

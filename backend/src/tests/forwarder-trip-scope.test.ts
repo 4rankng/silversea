@@ -319,6 +319,32 @@ describe('forwarder shipment scope', () => {
     assert.equal(voided.deletedByName, `Nguyễn Kiểm Thử ${suffix}`);
   });
 
+  test('voided rows fall back to the username when the actor full name is empty (QA-2026-09-24-09 F5)', async () => {
+    const [voider] = await db.insert(s.users).values({
+      username: `forwarder-scope-voider-blank-${suffix}`,
+      passwordHash: 'test-only',
+      role: Role.OPS,
+      status: 'ACTIVE',
+      fullName: '',
+    }).returning({ id: s.users.id });
+    ids.users.push(voider.id);
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: tripA,
+      expenseType: 'LIFTING',
+      buyAmount: '123000',
+      approvalStatus: 'VOIDED',
+      deletionReason: `Lý do kiểm thử ${suffix}`,
+      deletedBy: voider.id,
+      deletedAt: new Date(),
+    }).returning({ id: s.tripExpenses.id });
+
+    const detail = await getForwarderTripDetail(tripA, forwarderA);
+    assert.ok(detail);
+    const voided = detail.expenses.find((row) => row.id === expense.id);
+    assert.ok(voided);
+    assert.equal(voided.deletedByName, `forwarder-scope-voider-blank-${suffix}`);
+  });
+
   test('scope revocation and terminal shipment state deny mutations immediately', async () => {
     await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA]));
     await assert.rejects(
