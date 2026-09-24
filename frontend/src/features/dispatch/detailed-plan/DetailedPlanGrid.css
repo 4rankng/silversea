@@ -445,7 +445,7 @@
   margin-top: 4px;
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--ops-table-supporting-size);
   background: var(--background-color-success-primary, #ecfdf5);
   color: var(--color-fg-success-primary, #065f46);
@@ -454,7 +454,7 @@
 .detailed-plan-grid__vendor {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--ops-table-supporting-size);
   background: var(--background-color-brand-primary, #f2faf5);
   color: var(--color-fg-brand-primary, #005a2d);
@@ -463,7 +463,7 @@
 .detailed-plan-grid__unassigned {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--ops-table-supporting-size);
   background: var(--warning-soft);
   color: var(--warning-text);

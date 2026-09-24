@@ -557,7 +557,7 @@
   border: 1px solid var(--border, #d0d5dd);
   background: var(--surface, #fff);
   color: var(--text-primary, #101828);
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 4px 12px;
   font-size: var(--ops-table-supporting-size, 12px);
   line-height: 1.4;
@@ -724,7 +724,7 @@
 .dispatch-tag-manager__count {
   min-width: 20px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-muted, #f2f4f7);
   color: var(--text-secondary, #475467);
   font-size: var(--text-caption-size);
