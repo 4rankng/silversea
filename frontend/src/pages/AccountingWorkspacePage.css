@@ -84,7 +84,7 @@
 .accounting-register__table .record-table__action { text-align: right; }
 .accounting-register__table .record-table__action a { display: inline-flex; align-items: center; min-height: var(--control-compact-h); color: var(--brand); font-weight: 700; }
 
-.accounting-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: var(--fs-status-pill); font-weight: 800; white-space: nowrap; }
+.accounting-status { display: inline-flex; padding: 3px 7px; border-radius: 6px; font-size: var(--text-caption-size); font-weight: 600; white-space: nowrap; }
 .accounting-status--ready { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .accounting-status--missing { background: color-mix(in srgb, var(--warning) 13%, transparent); color: var(--fg-1); }
 

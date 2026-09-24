@@ -17,7 +17,7 @@
 .accounting-work-inbox__lane { min-width: 0; overflow: hidden; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
 .accounting-work-inbox__lane > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border-1); }
 .accounting-work-inbox__lane > header h2 { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); }
-.accounting-work-inbox__lane > header h2 span { display: inline-flex; min-width: 20px; justify-content: center; margin-left: 4px; border-radius: 999px; background: var(--bg-3); padding: 2px 6px; font-size: var(--text-caption-size); }
+.accounting-work-inbox__lane > header h2 span { display: inline-flex; min-width: 20px; justify-content: center; margin-left: 4px; border-radius: 6px; background: var(--bg-3); padding: 2px 6px; font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane > header p { margin: 3px 0 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane > header button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-2); }
 .accounting-work-inbox__notice { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-bottom: 1px solid var(--border-1); color: var(--warning-text, #785000); font-size: var(--text-caption-size); }
