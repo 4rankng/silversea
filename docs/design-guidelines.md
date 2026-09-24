@@ -171,6 +171,9 @@
   1280/1440/1920/2560 per reachable state class; a screenshot contradicting the claim auto-fails the card; shared
   components re-sweep every hosting screen.
   *Source:* operator hard gate 2026-09-19/2026-09-20 (kanban-work skill, QA evidence section).
+- **Driver-role surfaces verify mobile-first.** Driver-facing surfaces (my-trips and future driver flows) verify at
+  mobile viewports first; desktop evidence is secondary for driver-facing roles.
+  *Source:* 2026-09-24 Director ruling (LAW).
 
 ## 10. Parity conventions (shared with the sibling TransTing codebases)
 
