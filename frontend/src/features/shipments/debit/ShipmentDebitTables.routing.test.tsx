@@ -11,8 +11,9 @@ import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './Shipme
 const catalog: QuotationFeeRow[] = [
   { id: 1, feeName: 'Phí mở tờ khai', subType: 'Hàng thông thường', defaultAmount: 500000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 },
   { id: 2, feeName: 'Hải quan giám sát', subType: 'Luồng xanh/vàng', defaultAmount: 150000, routing: 'DEDICATED_CUSTOMS', note: null, sortOrder: 1 },
-  { id: 3, feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: 500000, routing: 'DEDICATED_DEPOT', note: null, sortOrder: 2 },
-  { id: 4, feeName: 'Kiểm hóa', subType: null, defaultAmount: null, routing: 'OTHER_COSTS', note: null, sortOrder: 3 },
+  { id: 3, feeName: 'Hải quan giám sát', subType: 'Luồng đỏ', defaultAmount: 250000, routing: 'DEDICATED_CUSTOMS', note: null, sortOrder: 2 },
+  { id: 4, feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: 500000, routing: 'DEDICATED_DEPOT', note: null, sortOrder: 3 },
+  { id: 5, feeName: 'Kiểm hóa', subType: null, defaultAmount: null, routing: 'OTHER_COSTS', note: null, sortOrder: 4 },
 ];
 
 const detail = (): ShipmentDebitDetail => ({
@@ -104,6 +105,7 @@ describe('Bảng 2.2 dedicated routing columns (card _64 Phase B)', () => {
   it('matches names: exact beats containment beats routing fallback, else null', () => {
     const cols = dedicatedColumns(catalog);
     expect(cols.map((col) => col.label)).toEqual(['Hải quan giám sát', 'Nâng/Hạ Lạch Huyện']);
+    expect(cols).toHaveLength(2); // sub-type rows of one fee share ONE column
     expect(matchDedicatedColumn('Hải quan giám sát', cols)?.label).toBe('Hải quan giám sát');
     expect(matchDedicatedColumn('Nâng/Hạ Lạch Huyện 16/08', cols)?.label).toBe('Nâng/Hạ Lạch Huyện');
     expect(matchDedicatedColumn('Kiểm hóa', cols)).toBeNull();

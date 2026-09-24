@@ -6,13 +6,21 @@ import type { QuotationFeeRow } from '../../../api/quotationClient';
 
 export interface DedicatedColumn { key: string; label: string; routing: 'DEDICATED_CUSTOMS' | 'DEDICATED_DEPOT'; }
 
-/** One column per distinct catalog fee name, in the catalog's own
- *  (sortOrder, id) order; headers are the customer's fee names verbatim —
- *  data, never identifiers. */
+/** One column per DISTINCT catalog fee name (sub-type rows share their
+ *  column, like the customer's own bảng), in the catalog's (sortOrder, id)
+ *  order; headers are the customer's fee names verbatim — data, never
+ *  identifiers. */
 export function dedicatedColumns(feeCatalog: QuotationFeeRow[]): DedicatedColumn[] {
-  return feeCatalog
-    .filter((fee) => fee.routing === 'DEDICATED_CUSTOMS' || fee.routing === 'DEDICATED_DEPOT')
-    .map((fee) => ({ key: `fee-${fee.id}`, label: fee.feeName, routing: fee.routing as DedicatedColumn['routing'] }));
+  const seen = new Set<string>();
+  const columns: DedicatedColumn[] = [];
+  for (const fee of feeCatalog) {
+    if (fee.routing !== 'DEDICATED_CUSTOMS' && fee.routing !== 'DEDICATED_DEPOT') continue;
+    const key = fee.feeName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    columns.push({ key: `fee-${fee.id}`, label: fee.feeName, routing: fee.routing as DedicatedColumn['routing'] });
+  }
+  return columns;
 }
 
 /** A lot fee joins a dedicated column when its name matches the catalog
