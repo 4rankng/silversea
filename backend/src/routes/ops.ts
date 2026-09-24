@@ -22,7 +22,7 @@ import { formatLocalDate, sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
 import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
 import { listOpsOrders, setShipmentPin } from '../services/ops-orders.service';
-import { getOpsWalletSummary } from '../services/ops-wallet.service';
+import { getOpsWalletSummary, getOpsFundBook } from '../services/ops-wallet.service';
 import {
   attachOpsExpensePhoto,
   createOpsExpense,
@@ -86,6 +86,13 @@ router.put('/orders/shipment-pins/:shipmentId', OPS_ONLY, asyncHandler(async (re
 
 router.get('/wallet/summary', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   res.json(await getOpsWalletSummary(getUser(req).userId));
+}));
+
+// Card 20260923_13 — read-only Sổ quỹ scoped to the caller's own tạm ứng/
+// hoàn ứng cash events (ADR 2026-09-24-ops-fund-book-scoped-read). Identity
+// comes only from the session; full treasury stays ACCOUNTANT/ADMIN.
+router.get('/wallet/fund-book', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  res.json(await getOpsFundBook(getUser(req).userId));
 }));
 
 router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {

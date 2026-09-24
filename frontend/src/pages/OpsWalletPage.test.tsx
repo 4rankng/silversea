@@ -47,6 +47,12 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
         });
       }
       if (url.startsWith('/ops/wallet/expenses')) return Promise.resolve({ items: [expense()] });
+      if (url.startsWith('/ops/wallet/fund-book')) {
+        return Promise.resolve({
+          items: [], closing: '0', walletBalance: '0',
+          outstandingAdvanceBalance: '0', matches: true,
+        });
+      }
       if (url.startsWith('/ops/settlements')) return Promise.resolve({ items: [] });
       if (url === '/ops/expense-types') return Promise.resolve({ items: [{ code: 'CANXE', name: 'Cân xe', requiresInvoice: false, isActive: true }] });
       return Promise.resolve({ items: [] });
@@ -177,7 +183,8 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
   it('reports query failures instead of empty money/history and lets the user retry', async () => {
     apiGet.mockRejectedValue(new Error('Unavailable'));
     renderPage();
-    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(5));
+    // 5 sections + the new Sổ quỹ section (card 20260923_13) each report the failure.
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(6));
     expect(screen.queryByText('Chưa có khoản chi nào.')).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa có phiếu nào.')).not.toBeInTheDocument();
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('/summary')

@@ -34,6 +34,25 @@ export interface OpsWalletSummary {
   balance: string;
 }
 
+export interface OpsFundBookEntry {
+  key: string;
+  date: string;
+  kind: 'ADVANCE' | 'EXPENSE' | 'REFUND' | 'REFUND_REVERSAL' | 'REIMBURSEMENT';
+  label: string;
+  /** Mã chứng từ hiển thị (phiếu quyết toán / phiếu thu chi) hoặc null. */
+  reference: string | null;
+  /** Số tiền có dấu góc nhìn quỹ nhân viên: + nhận, − chi/hoàn. */
+  amount: string;
+}
+
+export interface OpsFundBook {
+  items: OpsFundBookEntry[];
+  closing: string;
+  walletBalance: string;
+  outstandingAdvanceBalance: string;
+  matches: boolean;
+}
+
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface OpsExpenseRow {
@@ -157,6 +176,7 @@ export const opsClient = {
 
   // ── Ví ──
   getWalletSummary: () => api.get<OpsWalletSummary>('/ops/wallet/summary'),
+  getFundBook: () => api.get<OpsFundBook>('/ops/wallet/fund-book'),
   getWalletExpenses: (status?: OpsExpenseStatus) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>

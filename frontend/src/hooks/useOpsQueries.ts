@@ -11,6 +11,7 @@ import {
   type OpsExpenseRow,
   type OpsExpenseStatus,
   type OpsFleetTruck,
+  type OpsFundBook,
   type OpsOrderItem,
   type OpsSettlementDetail,
   type OpsSettlementListItem,
@@ -21,6 +22,7 @@ export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
+  fundBook: () => ['ops', 'fund-book'] as const,
   walletAdvanceRequests: (status?: string) => ['ops', 'wallet-advance-requests', status ?? 'all'] as const,
   walletExpenses: (status?: OpsExpenseStatus) => ['ops', 'wallet-expenses', status ?? 'all'] as const,
   expensePhotos: (id: number) => ['ops', 'expense-photos', id] as const,
@@ -73,6 +75,13 @@ export function useOpsWalletSummary() {
   return useQuery<OpsWalletSummary>({
     queryKey: opsKeys.walletSummary(),
     queryFn: () => opsClient.getWalletSummary(),
+  });
+}
+
+export function useOpsFundBook() {
+  return useQuery<OpsFundBook>({
+    queryKey: opsKeys.fundBook(),
+    queryFn: () => opsClient.getFundBook(),
   });
 }
 

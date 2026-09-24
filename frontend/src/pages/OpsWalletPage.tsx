@@ -6,6 +6,7 @@ import { OpsAdvanceRequestModal } from '../features/ops/OpsAdvanceRequestModal';
 import { ExpenseReconciliationHistory } from '../features/expense-accounting/ExpenseReconciliationHistory';
 import { OpsExpenseHistory } from '../features/ops/OpsExpenseHistory';
 import { OpsSettlementsPanel } from '../features/ops/OpsSettlementsPanel';
+import { OpsFundBookSection } from '../features/ops/OpsFundBookSection';
 import { formatVnd } from '../features/ops/opsStatus';
 import './OpsWalletPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
@@ -80,6 +81,8 @@ export default function OpsWalletPage() {
           <strong>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
         </div>
       </section>
+
+      <OpsFundBookSection />
 
       {/* KP-125: compact status on every advance request row */}
       {(advanceItems.length > 0 || advanceLoading || advancesQuery.isError) && (
