@@ -75,14 +75,14 @@ export type SurchargeRoundingMode = (typeof SURCHARGE_ROUNDING_MODES)[number];
  * bảng kê. Amounts are TẠM defaults (ruling 9a) — stored as data, never
  * code constants.
  */
-export const FEE_ROUTING_MODES = ['DEDICATED_CUSTOMS', 'DEDICATED_LACH_HUYEN', 'OTHER_COSTS'] as const;
+export const FEE_ROUTING_MODES = ['DEDICATED_CUSTOMS', 'DEDICATED_DEPOT', 'OTHER_COSTS'] as const;
 export type FeeRoutingMode = (typeof FEE_ROUTING_MODES)[number];
 
 /** Entry-time classification default — stored on the row, then editable data. */
 export function defaultFeeRouting(feeName: string): FeeRoutingMode {
   const text = feeName.toLowerCase();
   if (text.includes('hải quan giám sát')) return 'DEDICATED_CUSTOMS';
-  if (text.includes('lạch huyện')) return 'DEDICATED_LACH_HUYEN';
+  if (text.includes('lạch huyện')) return 'DEDICATED_DEPOT';
   return 'OTHER_COSTS';
 }
 

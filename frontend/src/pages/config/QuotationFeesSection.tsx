@@ -16,7 +16,7 @@ import { EmptyState, UuiSelectField } from '../../design-system';
 
 export const FEE_ROUTING_LABELS: Record<FeeRoutingMode, string> = {
   DEDICATED_CUSTOMS: 'Cột riêng — Hải quan giám sát',
-  DEDICATED_LACH_HUYEN: 'Cột riêng — Nâng/Hạ Lạch Huyện',
+  DEDICATED_DEPOT: 'Cột riêng — Nâng/Hạ Lạch Huyện',
   OTHER_COSTS: 'Cột chi phí khác',
 };
 

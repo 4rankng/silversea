@@ -3,7 +3,7 @@
  *
  * Contract: catalog rows ride the quotation frame (verbatim names + sub-
  * classifications + TẠM default amounts, Kiểm hóa pending-null); routing is
- * data (DEDICATED_CUSTOMS / DEDICATED_LACH_HUYEN / OTHER_COSTS) classified
+ * data (DEDICATED_CUSTOMS / DEDICATED_DEPOT / OTHER_COSTS) classified
  * at entry by defaultFeeRouting; edits are per-customer isolated; the _57
  * importer upserts through upsertQuotationFees.
  */
@@ -85,7 +85,7 @@ describe('quotation fee catalog (card 20260922_64)', () => {
 
   test('A2 routing defaults classify the two dedicated fees, others ride other-costs', () => {
     assert.equal(defaultFeeRouting('Hải quan giám sát'), 'DEDICATED_CUSTOMS');
-    assert.equal(defaultFeeRouting('Nâng/Hạ Lạch Huyện'), 'DEDICATED_LACH_HUYEN');
+    assert.equal(defaultFeeRouting('Nâng/Hạ Lạch Huyện'), 'DEDICATED_DEPOT');
     assert.equal(defaultFeeRouting('Lưu ca xe'), 'OTHER_COSTS');
     assert.equal(defaultFeeRouting('Phí mở tờ khai'), 'OTHER_COSTS');
   });

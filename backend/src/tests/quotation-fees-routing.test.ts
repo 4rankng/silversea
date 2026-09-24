@@ -43,7 +43,7 @@ test('active-frame fee catalog: selection rule, scoping, order, and the đồng'
   await insertFees(frameNew.id, [
     { feeName: 'Phí mở tờ khai', subType: 'Hàng thông thường', defaultAmount: '500000', routing: 'OTHER_COSTS' },
     { feeName: 'Hải quan giám sát', subType: 'Luồng xanh/vàng', defaultAmount: '150000', routing: 'DEDICATED_CUSTOMS' },
-    { feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: '500000', routing: 'DEDICATED_LACH_HUYEN' },
+    { feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: '500000', routing: 'DEDICATED_DEPOT' },
     { feeName: 'Soi chiếu', subType: 'Thủ tục soi', defaultAmount: '500000', routing: 'OTHER_COSTS' },
     { feeName: 'Kẹp chì hải quan', subType: null, defaultAmount: '100000', routing: 'OTHER_COSTS' },
     { feeName: 'Kiểm hóa', subType: null, defaultAmount: null, routing: 'OTHER_COSTS' },
@@ -56,7 +56,7 @@ test('active-frame fee catalog: selection rule, scoping, order, and the đồng'
     'Phí mở tờ khai', 'Hải quan giám sát', 'Nâng/Hạ Lạch Huyện', 'Soi chiếu', 'Kẹp chì hải quan', 'Kiểm hóa',
   ], 'active frame = latest effective ≤ today, deterministic catalog order');
   assert.deepEqual(items.map((fee) => fee.routing), [
-    'OTHER_COSTS', 'DEDICATED_CUSTOMS', 'DEDICATED_LACH_HUYEN', 'OTHER_COSTS', 'OTHER_COSTS', 'OTHER_COSTS',
+    'OTHER_COSTS', 'DEDICATED_CUSTOMS', 'DEDICATED_DEPOT', 'OTHER_COSTS', 'OTHER_COSTS', 'OTHER_COSTS',
   ], 'routing travels opaque');
   assert.equal(items.find((fee) => fee.feeName === 'Kiểm hóa')?.defaultAmount, null, 'ruling 9b: null default stays null (never 0)');
 

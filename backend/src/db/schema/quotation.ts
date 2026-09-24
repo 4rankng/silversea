@@ -98,7 +98,7 @@ export const quotationFuelApprovals = pgTable('quotation_fuel_approvals', {
 // quotation frame. Amounts are TẠM defaults (ruling 9a — editable data,
 // never hardcoded); null defaultAmount = pending-empty (Kiểm hóa) or manual
 // per lot (ruling 9b/9c). Routing carries the customer's column semantics:
-// DEDICATED_CUSTOMS / DEDICATED_LACH_HUYEN go to their own columns; OTHER_
+// DEDICATED_CUSTOMS / DEDICATED_DEPOT go to their own columns; OTHER_
 // COSTS rides the chi-phí-khác column with the fee name noted into bảng kê.
 export const quotationFees = pgTable('quotation_fees', {
   id: serial('id').primaryKey(),

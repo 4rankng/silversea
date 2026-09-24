@@ -176,7 +176,7 @@ describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
   const feeCatalog = [
     { id: 91, feeName: 'Phí mở tờ khai', subType: 'Hàng thông thường', defaultAmount: 500000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 },
     { id: 92, feeName: 'Hải quan giám sát', subType: 'Luồng xanh/vàng', defaultAmount: 150000, routing: 'DEDICATED_CUSTOMS', note: null, sortOrder: 1 },
-    { id: 93, feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: 500000, routing: 'DEDICATED_LACH_HUYEN', note: null, sortOrder: 2 },
+    { id: 93, feeName: 'Nâng/Hạ Lạch Huyện', subType: null, defaultAmount: 500000, routing: 'DEDICATED_DEPOT', note: null, sortOrder: 2 },
     { id: 94, feeName: 'Kiểm hóa', subType: null, defaultAmount: null, routing: 'OTHER_COSTS', note: null, sortOrder: 3 },
   ];
 

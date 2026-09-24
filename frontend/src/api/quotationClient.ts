@@ -29,7 +29,7 @@ export interface QuotationFeeRow {
   feeName: string;
   subType: string | null;
   defaultAmount: number | null;
-  routing: 'OTHER_COSTS' | 'DEDICATED_CUSTOMS' | 'DEDICATED_LACH_HUYEN';
+  routing: 'OTHER_COSTS' | 'DEDICATED_CUSTOMS' | 'DEDICATED_DEPOT';
   note: string | null;
   sortOrder: number;
 }
