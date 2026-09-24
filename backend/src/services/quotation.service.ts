@@ -430,3 +430,27 @@ export async function decideQuotationFuelApprovals(actorId: number, ids: number[
     .returning({ id: s.quotationFuelApprovals.id, quotationId: s.quotationFuelApprovals.quotationId, customerId: s.quotationFuelApprovals.customerId, status: s.quotationFuelApprovals.status });
   return { updated };
 }
+
+// ─── Card _64 Phase A: active-frame fee catalog for lô-level intake ──────────
+// The customer's CURRENT frame (latest effectiveDate ≤ today;Lead-approved
+// selection rule, pinned by the scoping test) with its Chi-phí-khác rows.
+// Routing enum values travel opaque — column labels stay data-driven
+// (port-names-are-data), never resolved from these keys.
+
+export async function listActiveQuotationFeesForCustomer(
+  customerId: number,
+  ex: DbOrTx = db,
+): Promise<QuotationFeeView[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const [frame] = await ex.select({ id: s.quotations.id })
+    .from(s.quotations)
+    .where(and(
+      eq(s.quotations.customerId, customerId),
+      isNull(s.quotations.deletedAt),
+      lte(s.quotations.effectiveDate, today),
+    ))
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+    .limit(1);
+  if (!frame) return [];
+  return loadFees(frame.id, ex);
+}

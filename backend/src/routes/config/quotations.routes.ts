@@ -20,7 +20,7 @@ const quotationImportUpload = multer({ storage: multer.memoryStorage(), limits: 
 import { runIdempotent } from '../../services/idempotency.service';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
-  listQuotationFuelApprovals, listQuotations, updateQuotation,
+  listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations, updateQuotation,
 } from '../../services/quotation.service';
 import {
   getQuotationVersionPayload, listQuotationVersions, releaseQuotationVersion,
@@ -60,6 +60,18 @@ router.get('/:id/versions/:version', asyncHandler(async (req: Request, res: Resp
 
 // NOTE: '/:id' param routes register AFTER the literal paths above so the
 // list/version routes are never swallowed by an :id match.
+
+// Card _64 Phase A — the customer's active-frame Chi-phí-khác catalog for
+// lô-level intake (feeName/subType/defaultAmount/routing). Routing enum
+// values travel opaque; display labels stay data-driven. Literal path,
+// registered before '/:id'.
+const activeFeesQuerySchema = z.object({ customerId: z.coerce.number().int().positive() });
+router.get('/fees/active', asyncHandler(async (req: Request, res: Response) => {
+  const parsed = activeFeesQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'customerId không hợp lệ');
+  res.json({ items: await listActiveQuotationFeesForCustomer(parsed.data.customerId) });
+}));
+
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');

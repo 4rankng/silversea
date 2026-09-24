@@ -23,6 +23,17 @@ export function triggerKindLabel(kind: string): string {
 // are root-relative — the api client prefixes /api.
 
 /** Frame row from LIST (no cells — the grid assembles per detail fetch). */
+/** Card _64 Phase A — one Chi-phí-khác catalog row (routing opaque; labels data-driven). */
+export interface QuotationFeeRow {
+  id: number;
+  feeName: string;
+  subType: string | null;
+  defaultAmount: number | null;
+  routing: 'OTHER_COSTS' | 'DEDICATED_CUSTOMS' | 'DEDICATED_LACH_HUYEN';
+  note: string | null;
+  sortOrder: number;
+}
+
 export interface QuotationFrame {
   id: number;
   customerId: number;
@@ -39,6 +50,10 @@ function withIdempotencyKey(): { headers: Record<string, string> } {
 export const quotationClient = {
   list(): Promise<QuotationFrame[]> {
     return api.get<QuotationFrame[]>(QUOTATION_PATHS.LIST);
+  },
+  /** Card _64 Phase A — active frame's Chi-phí-khác catalog (routing opaque). */
+  getActiveFees(customerId: number): Promise<{ items: QuotationFeeRow[] }> {
+    return api.get<{ items: QuotationFeeRow[] }>(`/quotations/fees/active?customerId=${customerId}`);
   },
   get(id: number): Promise<QuotationView> {
     return api.get<QuotationView>(QUOTATION_PATHS.DETAIL(id));

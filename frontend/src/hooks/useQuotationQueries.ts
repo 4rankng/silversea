@@ -1,13 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { quotationClient, type QuotationFrame } from '../api/quotationClient';
+import { quotationClient, type QuotationFeeRow, type QuotationFrame } from '../api/quotationClient';
 import { qk } from '../api/keys';
 import type { QuotationCreateInput, QuotationUpdateInput } from '@tingting/shared';
+
+/** Card _64 Phase A — local key factory (api/keys.ts is outside this lane's file set). */
+const quotationKeys = {
+  activeFees: (customerId: number) => ['quotations', 'active-fees', customerId] as const,
+};
 
 /** Quotation frames — the Báo giá screen's list (no cells; grid per detail). */
 export function useQuotations() {
   return useQuery({
     queryKey: qk.catalogs.quotations,
     queryFn: quotationClient.list,
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Card _64 Phase A — the customer's active-frame Chi-phí-khác catalog. */
+export function useActiveQuotationFees(customerId: number | null) {
+  return useQuery<QuotationFeeRow[]>({
+    queryKey: quotationKeys.activeFees(customerId ?? 0),
+    queryFn: async () => (await quotationClient.getActiveFees(customerId ?? 0)).items,
+    enabled: customerId != null,
     staleTime: 60 * 1000,
   });
 }
