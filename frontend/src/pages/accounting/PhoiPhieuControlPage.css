@@ -15,7 +15,7 @@
    narrow/atomic columns; single-token cells expand (nowrap, no clip) per
    design law §4; the two ghi chú columns keep wrapping (long text). */
 .ppc-board th.ppc-col--select { width: 3%; min-width: 32px; }
-.ppc-board th.ppc-col--customer-route { width: 12%; min-width: 140px; }
+.ppc-board th.ppc-col--customer-route { width: 13%; min-width: 150px; }
 .ppc-board th.ppc-col--chiho { width: 14%; min-width: 130px; }
 .ppc-board th.ppc-col--money { width: 11%; min-width: 100px; }
 .ppc-board th.ppc-col--status { width: 8%; min-width: 90px; }

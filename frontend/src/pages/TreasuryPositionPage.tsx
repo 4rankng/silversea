@@ -17,6 +17,10 @@ import './TreasuryPositionPage.css';
 const COVERAGE = { COMPLETE: 'Đầy đủ', PARTIAL: 'Một phần', UNAVAILABLE: 'Chưa khả dụng' } as const;
 const COVERAGE_VARIANT = { COMPLETE: 'success', PARTIAL: 'warn', UNAVAILABLE: 'neutral' } as const;
 
+function sanitizeAccountDisplayName(name: string): string {
+  return name.replace(/\s*\((?:COMPANY|TM|NULL,\s*pre-merge)\)/gi, '').trim();
+}
+
 export default function TreasuryPositionPage() {
   const { user } = useAuth();
   const canConfigure = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
@@ -54,7 +58,7 @@ export default function TreasuryPositionPage() {
           <SortHeader label="Trạng thái" sortKey="completeness" sort={sort} onSortChange={handleSortChange} />
         </tr></thead>
         <tbody>{data?.accounts.map((account) => <tr key={account.accountId}>
-          <td data-label="Tài khoản"><div className="treasury-table__account"><strong>{account.name}</strong><span>{account.code} · {account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng'}</span><span>{account.fundCode === 'COMPANY' ? 'Quỹ công ty' : account.fundCode === 'TM' ? 'Quỹ TM' : 'Chưa phân nguồn quỹ'}</span>{canConfigure && <button type="button" className="btn btn--ghost btn--sm" aria-label={`Phân nguồn quỹ · ${account.name}`} onClick={() => setEditing(account)}>Phân nguồn quỹ</button>}<small>{account.cutoverAt ? `Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}` : 'Chưa chuyển đổi đầy đủ'}</small></div></td>
+          <td data-label="Tài khoản"><div className="treasury-table__account"><strong>{sanitizeAccountDisplayName(account.name)}</strong><span>{account.code} · {account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng'}</span><span>{account.fundCode === 'COMPANY' ? 'Quỹ công ty' : account.fundCode === 'TM' ? 'Quỹ TM' : 'Chưa phân nguồn quỹ'}</span>{canConfigure && <button type="button" className="btn btn--ghost btn--sm" aria-label={`Phân nguồn quỹ · ${sanitizeAccountDisplayName(account.name)}`} onClick={() => setEditing(account)}>Phân nguồn quỹ</button>}<small>{account.cutoverAt ? `Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}` : 'Chưa chuyển đổi đầy đủ'}</small></div></td>
           <td data-label="Đầu kỳ" className="num">{formatCurrency(account.openingBalance)}</td>
           <td data-label="Thu" className="num">{formatCurrency(account.totalIn)}</td>
           <td data-label="Chi" className="num">{formatCurrency(account.totalOut)}</td>

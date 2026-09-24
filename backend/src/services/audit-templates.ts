@@ -9,6 +9,7 @@ const ENTITY_LABELS: Record<string, string> = {
   routes: 'tuyến đường',
   'cargo-types': 'loại hàng hóa',
   'pricing-tables': 'bảng giá',
+  quotations: 'báo giá',
   'road-allowances': 'tiền đi đường',
   'fuel-config': 'cấu hình nhiên liệu',
   'penalty-reasons': 'lý do kỷ luật',

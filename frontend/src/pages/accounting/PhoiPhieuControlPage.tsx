@@ -215,7 +215,7 @@ export default function PhoiPhieuControlPage() {
           <thead><tr>
             <th scope="col" className="ppc-col--select"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
             <th scope="col">Lịch trình</th>
-            <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến đường</th>
+            <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến</th>
             <th scope="col">Thông số container</th>
             <th scope="col">Địa điểm nâng / hạ</th>
             <th scope="col">Thông tin xe</th>
