@@ -18,6 +18,7 @@ const detail = (rowOver: Record<string, unknown> = {}, payablesOver: Record<stri
     ...rowOver,
   }],
   chiHoRows: [],
+  unattachedTrips: [],
   payables: { chiHoTotal: null, ...payablesOver },
   thuKhachTotal: null,
 });

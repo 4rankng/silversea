@@ -13,6 +13,7 @@ import { useReasonPrompt } from '../../../components/reason-prompt';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
 import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
+import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 import './ShipmentDebitWorkspace.css';
 
 
@@ -138,6 +139,9 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
       <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
       <PayablesTable detail={detail.data} />
+      {/* Card 20260924_3 — display-only section for unattached fulfillment
+          work; renders nothing when the lot has none (never zero-render). */}
+      <UnattachedTripsTable trips={detail.data.unattachedTrips ?? []} />
       {adjustOpen && (
         <AdjustPanel
           detail={detail.data}

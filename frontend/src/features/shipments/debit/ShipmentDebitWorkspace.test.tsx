@@ -42,6 +42,7 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
     psActual: null,
     psActualNote: null,
   }],
+  unattachedTrips: [],
   chiHoRows: [{
     tripId: 601,
     containerNumber: 'CONT-001',
@@ -293,6 +294,7 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
   // total is derived from components — the fixture deliberately makes the
   // two disagree so the test proves the derivation, not a wire pass-through.
   const wireDetail: ShipmentDebitDetail = {
+    unattachedTrips: [],
     freightRows: [{
       containerNumber: 'CONT-001',
       containerTypeLabel: '20DC',
