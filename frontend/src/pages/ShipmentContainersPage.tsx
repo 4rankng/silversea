@@ -239,8 +239,20 @@ export default function ShipmentContainersPage() {
                 </UUIButton>
               )}
             >
-              <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
-              <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
+              {/* Card 20260925_6 (site sweep, Từ/Đến pair): the two date inputs are
+                  one logical cell in the ListFilterBar flex row — one shared
+                  label, one row of two inputs separated by an arrow, sharing
+                  the bar's baseline and surface. They no longer render as
+                  two independent flex children that float up beside the
+                  selects. */}
+              <div className="shipments-detail-filters__date-pair" role="group" aria-label="Khoảng ngày vận chuyển">
+                <span className="shipments-detail-filters__date-pair-label">Từ ngày — Đến ngày vận chuyển</span>
+                <div className="shipments-detail-filters__date-pair-row">
+                  <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
+                  <span className="shipments-detail-filters__date-pair-sep" aria-hidden="true">→</span>
+                  <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
+                </div>
+              </div>
               <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
               <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
               <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />

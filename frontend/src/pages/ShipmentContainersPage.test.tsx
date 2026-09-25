@@ -283,13 +283,16 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(todayBtn).toHaveAttribute('aria-pressed', 'false');
     expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
     // Even when the URL is unfiltered, reset must clear a local invalid draft.
-    const from = screen.getByLabelText('Từ ngày vận chuyển');
+    // Card 20260925_6: the per-input labels trimmed to "Từ ngày" / "Đến ngày"
+    // (the combined "Từ ngày vận chuyển" / "Đến ngày vận chuyển" label now
+    // lives on the pair shell — the inputs themselves are short).
+    const from = screen.getByLabelText('Từ ngày');
     fireEvent.change(from, { target: { value: '31/02/2026' } });
     fireEvent.blur(from);
     expect(from).toBeInvalid();
     fireEvent.click(resetBtn);
-    await waitFor(() => expect(screen.getByLabelText('Từ ngày vận chuyển')).toHaveValue(''));
-    expect(screen.getByLabelText('Từ ngày vận chuyển')).toBeValid();
+    await waitFor(() => expect(screen.getByLabelText('Từ ngày')).toHaveValue(''));
+    expect(screen.getByLabelText('Từ ngày')).toBeValid();
     for (const button of [todayBtn, tomorrowBtn, allBtn, resetBtn]) expect(button).toBeEnabled();
   });
 
@@ -575,7 +578,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '15/08/2026' } });
+    // Card 20260925_6: pair inputs are individually labelled "Từ ngày" /
+    // "Đến ngày" — the pair shell carries the combined label.
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/08/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
 
     const filtersRegion2 = document.querySelector('.shipments-detail-filters') as HTMLElement;
