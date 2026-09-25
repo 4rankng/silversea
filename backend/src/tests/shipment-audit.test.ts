@@ -316,8 +316,10 @@ async function createAcceptedFulfillment() {
     closingAt: '2026-08-04T08:00:00.000Z',
   });
   const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
+  // Dispatch prices the anchor container (freight-rate freeze requires a
+  // booking weight) — 20t keeps the fixture inside the CONT40 class.
   await batchUpsertShipmentContainers(shipment.id, null, [
-    { containerTypeId, containerNumber: 'MSKU1234565', operationalSiteId: factory.id, routeId },
+    { containerTypeId, containerNumber: 'MSKU1234565', operationalSiteId: factory.id, routeId, cargoWeightKg: '20000' },
   ]);
   const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
   await assignShipmentCarriers({

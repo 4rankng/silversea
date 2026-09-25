@@ -1045,9 +1045,9 @@ export async function seedShipments(passwordHash: string) {
     fullName: string;
     customerId: number;
   }> = [
-    { username: 'customer', email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
-    { username: 'samsung-cs', email: 'samsung.cs@nepo.vn', phone: '0900000021', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
-    { username: 'canon-cs', email: 'canon.cs@nepo.vn', phone: '0900000022', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
+    { username: 'customer', email: 'customer@nepo.vn', phone: '0900000030', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
+    { username: 'samsung-cs', email: 'samsung.cs@nepo.vn', phone: '0900000031', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
+    { username: 'canon-cs', email: 'canon.cs@nepo.vn', phone: '0900000032', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
   ];
   for (const seed of customerPortalSeeds) {
     const [existing] = await db.select({ id: schema.users.id })

@@ -592,7 +592,9 @@ async function createAcceptedFulfillmentFixture(overrides: {
   if ((overrides.cargoMode ?? 'FCL') === 'FCL') {
     const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
     await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId, containerNumber: 'MSKU1234565', routeId },
+      // Dispatch prices the anchor container (freight-rate freeze requires a
+      // booking weight) — 20t keeps the fixture inside the CONT40 class.
+      { containerTypeId, containerNumber: 'MSKU1234565', routeId, cargoWeightKg: '20000' },
     ]);
     const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
     await assignShipmentCarriers({
@@ -3489,7 +3491,9 @@ describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () =>
       blNumber: `SR-REC-B-${suffix}`,
     });
     await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId, containerNumber: 'MSKU1234565', routeId },
+      // Dispatch prices the anchor container (freight-rate freeze requires a
+      // booking weight) — 20t keeps the fixture inside the CONT40 class.
+      { containerTypeId, containerNumber: 'MSKU1234565', routeId, cargoWeightKg: '20000' },
     ]);
     const [afterContainers] = await db.select().from(s.shipments)
       .where(eq(s.shipments.id, shipment.id)).limit(1);
