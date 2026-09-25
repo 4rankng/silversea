@@ -123,10 +123,32 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(pageStyles).not.toMatch(/min-width:\s*960px/);
     expect(pageStyles).toContain('@container (max-width: 900px)');
     expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
-    expect(pageStyles).toMatch(/\.ops-orders__controls\s*\{[^}]*grid-template-columns:\s*minmax\(0, 148px\) minmax\(0, 1fr\);/);
+    // Card frame: full border + radius + surface, no border-bottom slice
+    // that would let the row bleed past the card boundary.
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border:\s*1px solid var\(--line\);[^}]*border-radius:\s*12px;/s);
+    // Mobile controls grid lives inside the @media (max-width: 640px) block.
+    expect(pageStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.ops-orders__controls\s*\{[^}]*grid-template-columns:\s*minmax\(0, 148px\) minmax\(0, 1fr\)/);
     expect(pageStyles).toContain('.ops-orders__search:focus-within');
     expect(pageStyles).toContain('@media (pointer: coarse)');
+  });
+
+  it('keeps every mobile row-card liền khối with at most one accent (card _2 mandate)', () => {
+    // Card frame: full border around each row, not just border-bottom.
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border:\s*1px solid var\(--line\);[^}]*border-radius:\s*12px;/s);
+    // Field-group cells carry no background tint — gaps would otherwise read
+    // as separate "block xám".
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row > td\s*\{[^}]*background:\s*transparent;/s);
+    // Pinned state is a SINGLE brand accent on the leading edge, not a row
+    // background tint that bleeds across the card boundary.
+    expect(pageStyles).toMatch(/\.ops-orders__table tbody tr\.is-pinned\s*\{[^}]*box-shadow:\s*inset 3px 0 0 var\(--brand\);/s);
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\.is-pinned::before\s*\{[^}]*background:\s*var\(--brand\);/s);
+    // The legacy warn background tint on pinned rows is gone — it painted
+    // gaps as isolated bands and broke the card frame.
+    expect(pageStyles).not.toMatch(/\.ops-orders__table tbody tr\.is-pinned\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--warn/);
+    // Hover wash is a quiet neutral scan-aid on fine pointers only — never
+    // paints field-group cells.
+    expect(pageStyles).toContain('@media (hover: hover) and (pointer: fine)');
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row:not\(\.is-pinned\):hover\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--fg-1\) 2%, var\(--surface\)\);/s);
   });
 
   it('preserves debounced search and selected-date filtering', async () => {

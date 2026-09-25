@@ -1,5 +1,9 @@
-/* Keep comparison columns where they fit; narrow workspaces use labelled,
-   divider-separated records so the expense action never leaves the screen. */
+/* Keep comparison columns where they fit; narrow workspaces collapse the
+   table into bordered, labelled cards so the expense action never leaves
+   the screen. Every mobile card keeps its frame (1 border + radius) and
+   the pinned state uses ONE brand accent on the leading edge — no
+   field-group fills, no gap bleed, no per-card background tints (card _2
+   mandate, matches the canonical trip-list / wallet mobile contract). */
 
 .ops-orders {
   display: flex;
@@ -99,16 +103,28 @@
   overflow-wrap: anywhere;
 }
 
+/* Pinned row uses ONE brand accent on the leading edge; the card surface
+   stays neutral so the highlight never bleeds across the card boundary or
+   paints individual field-groups (card _2 mandate — card liền khối + 1
+   accent duy nhất; replaces the prior warn bg tint that broke the card
+   into "block xám rời rạc" on the mobile container collapse). */
 .ops-orders__table tbody tr.is-pinned {
-  background: color-mix(in srgb, var(--warn, #d97706) 7%, transparent);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 .ops-orders__table tbody tr {
   cursor: default;
+  transition: background-color 120ms var(--ease);
 }
 
-.ops-orders__table tbody tr:not(.is-pinned):hover {
-  background: transparent;
+/* Quiet scan-aid wash for fine pointers only — never a brand or warn
+   fill, never on touch devices (a sticky hover while scrolling reads as
+   "selected"). Mirrors the shared record-table contract. */
+@media (hover: hover) and (pointer: fine) {
+  .ops-orders__table tbody tr:not(.is-pinned):hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 .ops-orders__table .col-pin {
@@ -213,9 +229,18 @@
 }
 
 @container (max-width: 900px) {
-  .ops-orders__table,
-  .ops-orders__table tbody {
+  /* Each tr is its own card. Stacking them in a grid with `gap` keeps the
+     scroll wrapper as the only inner-frame holder; the rows stay liền khối
+     because they carry their own border, radius and surface. */
+  .ops-orders__table {
     display: block;
+    width: 100%;
+  }
+
+  .ops-orders__table tbody {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
     width: 100%;
   }
 
@@ -232,13 +257,38 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 12px;
-    padding: 10px;
-    border-bottom: 1px solid var(--line);
+    gap: 6px 12px;
+    /* Card frame: full border + radius + surface so the row never bleeds
+       across its boundary and the inner gap never reads as "block xám". */
+    padding: 12px 14px 12px 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transition: border-color 120ms var(--ease), background-color 120ms var(--ease);
   }
 
-  .ops-orders__table .ops-orders__row:last-child {
-    border-bottom: 0;
+  /* Brand left accent — single accent for the pinned state on the card.
+     Canonical 3x20px status strip (tokens.css) so the highlighted row
+     matches the trip-list / wallet / fleet mobile contract exactly. */
+  .ops-orders__table .ops-orders__row.is-pinned::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: var(--status-strip-width);
+    height: var(--status-strip-height);
+    border-radius: var(--status-strip-radius);
+    background: var(--brand);
+  }
+
+  /* Quiet scan-aid on fine pointers only — never paints field-group cells
+     and never bleeds past the card boundary. */
+  @media (hover: hover) and (pointer: fine) {
+    .ops-orders__table .ops-orders__row:not(.is-pinned):hover {
+      background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+      border-color: var(--line-strong);
+    }
   }
 
   .ops-orders__table .ops-orders__row > td {
@@ -247,6 +297,7 @@
     width: auto;
     padding: 0;
     border: 0;
+    background: transparent;
   }
 
   .ops-orders__table .ops-orders__row > td[data-label]::before {

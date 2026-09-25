@@ -77,12 +77,43 @@
 }
 
 @container (max-width: 700px) {
-  .ops-fleet__table, .ops-fleet__table tbody { display: block; width: 100%; }
+  .ops-fleet__table { display: block; width: 100%; }
+  .ops-fleet__table tbody {
+    /* Stack each tr as its own bordered card. Gap between cards lives on
+       tbody; the rows never bleed across their card boundary (card _2
+       mandate — matches OpsOrdersPage / trip-list mobile contract). */
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    width: 100%;
+  }
   .ops-fleet__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .ops-fleet__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 10px; border-bottom: 1px solid var(--line); }
-  .ops-fleet__row:last-child { border-bottom: 0; }
-  .ops-fleet__table .ops-fleet__row > td { display: block; min-width: 0; padding: 0; border: 0; }
+  .ops-fleet__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transition: border-color 120ms var(--ease), background-color 120ms var(--ease);
+  }
+  .ops-fleet__table .ops-fleet__row > td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
   .ops-fleet__row > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--ink-3); font-size: var(--text-label-size); font-weight: 500; }
   .ops-fleet__row > .ops-fleet__wide { grid-column: 1 / -1; }
   .ops-fleet__empty { display: block; width: 100%; }
+  /* Quiet scan-aid wash on fine pointers only — never paints field-group
+     cells, never bleeds past the card boundary. */
+  @media (hover: hover) and (pointer: fine) {
+    .ops-fleet__row:hover {
+      background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+      border-color: var(--line-strong);
+    }
+  }
 }
