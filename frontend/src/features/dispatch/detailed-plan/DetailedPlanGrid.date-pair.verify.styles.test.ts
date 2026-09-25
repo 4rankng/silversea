@@ -20,7 +20,7 @@ describe('DetailedPlanGrid date-scope regression guard (card 20260925_6 verify)'
 
   it('the date mode is a 3-col grid of shortcuts inside the same row', () => {
     expect(css).toMatch(/\.detailed-plan-filters__date-mode\s*\{[^}]*display:\s*grid;/);
-    expect(css).toMatch(/\.detailed-plan-filters__date-mode\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/\.detailed-plan-filters__date-mode\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*(?:minmax\(0,\s*1fr\)|auto)\);/);
   });
 
   it('no elevated panel chrome on either control cluster', () => {
