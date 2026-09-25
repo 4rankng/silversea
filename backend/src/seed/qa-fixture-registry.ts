@@ -54,10 +54,18 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'deposit_refund_trackers',
     label: 'QA deposit-refund tracker rows',
-    predicate: `bill_number ILIKE 'QA%' OR customer_name ILIKE 'QA%' OR note ILIKE 'QA%'`,
+    predicate: `bill_number ILIKE 'QA%' OR bill_number ILIKE 'CARD226-QA-%' OR customer_name ILIKE 'QA%'`,
     action: 'hard-delete-guarded',
     guards: [],
     selfGuard: 'refund_posted_movement_id IS NOT NULL',
+  },
+  {
+    table: 'deposit_refund_trackers',
+    label: 'QA-authored notes on surviving tracker rows',
+    predicate: `note ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['note'],
   },
   {
     table: 'invoice_tracking',
