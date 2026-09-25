@@ -175,6 +175,14 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
     scrubColumns: ['notes'],
   },
+  {
+    table: 'operational_sites',
+    label: 'QA-named operational sites (FK-pinned master data - renamed in place)',
+    predicate: `name ILIKE 'QA%' OR short_name ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['name', 'short_name'],
+  },
 ];
 
 /** Surfaces whose purge must run before this surface, by table name. */
