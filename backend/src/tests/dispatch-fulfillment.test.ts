@@ -156,7 +156,10 @@ async function createShipmentFixture(args: {
     routeId: args.routeId,
     containerTypeId: containerType.id,
     containerNumber: `MSCU${String(100000 + shipment.id).slice(-6)}1`,
-    cargoWeightKg: args.containerCargoWeightKg ?? null,
+    // Dispatch prices the anchor container (freight-rate freeze) — default
+    // fixtures to a 1t booking weight (non-null for the price guard, inside
+    // every fixture truck's capacity).
+    cargoWeightKg: args.containerCargoWeightKg ?? '1000',
     createdBy: args.createdBy,
   }).returning();
 
@@ -1978,7 +1981,7 @@ describe('dispatch fulfillment workflow routes', () => {
           Authorization: `Bearer ${dispatcherToken}`,
           'Idempotency-Key': `reassign-invalid-${suffix}-${accepted.fulfillmentId}`,
         },
-        body: JSON.stringify({ expectedVersion: first.data.trip.version, carrierType: 'EXTERNAL' }),
+        body: JSON.stringify({ reason: 'qa: fixture reassignment', expectedVersion: first.data.trip.version, carrierType: 'EXTERNAL' }),
       });
       const invalidData = await invalid.json() as { error?: string };
       assert.equal(invalid.status, 400, JSON.stringify(invalidData));
@@ -1995,6 +1998,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-own-to-external-${suffix}-${accepted.fulfillmentId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           expectedVersion: first.data.trip.version,
           carrierType: 'EXTERNAL',
           externalCarrierId: carrier.id,
@@ -2249,6 +2253,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-unacked-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2304,6 +2309,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-created-${suffix}-${issue.data.trip.id}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2337,6 +2343,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-ext-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'EXTERNAL',
           externalCarrierId: carrier.id,
           externalPlateNumber: '51H-69999',
@@ -2361,6 +2368,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-ext-back-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2390,6 +2398,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-truckonly-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacementTruck.truck.id,
           driverId: resources.driver.id,
@@ -2425,6 +2434,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-fallback-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2467,6 +2477,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-acked-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2519,6 +2530,7 @@ describe('dispatch fulfillment workflow routes', () => {
           'Idempotency-Key': `reassign-done-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
+          reason: 'qa: fixture reassignment',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,

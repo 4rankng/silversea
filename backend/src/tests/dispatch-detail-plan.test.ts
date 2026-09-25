@@ -176,6 +176,7 @@ async function createAllocatedLot(args: {
       routeId: route.id,
       pickupPortId: pickupPort.id,
       dropoffPortId: dropoffPort.id,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     }).returning();
@@ -447,6 +448,7 @@ describe('dispatch detail plan rows', () => {
       containerTypeId: containerType.id,
       containerNumber: `MSCU${String(310000 + shipment.id).slice(-6)}`,
       // Deliberately NO container routeId — the lot-level route must surface.
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     }).returning();
@@ -2849,6 +2851,7 @@ describe('planning remaining containers after partial dispatch', () => {
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipmentB.id, containerTypeId: containerType.id,
       containerNumber: (() => { const p = `MSKU${String(500000 + shipmentB.id).slice(-6)}`; return `${p}${calculateCheckDigit(p)}`; })(),
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });
@@ -2948,6 +2951,7 @@ describe('planning remaining containers after partial dispatch', () => {
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id, containerTypeId: ct.id,
       containerNumber: `UNION${String(800000 + shipment.id).slice(-6)}`,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });
@@ -2979,6 +2983,7 @@ describe('planning remaining containers after partial dispatch', () => {
       // Deliberately NO container routeId — the lot-level route must surface
       // on the branch row exactly as CUS shows it.
       containerNumber: `UNIONR${String(810000 + shipment.id).slice(-6)}`,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });
