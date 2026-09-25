@@ -62,11 +62,16 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // Quick filters stay one wrapping group.
     expect(componentCss).toMatch(/\.list-filter-bar__quick\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
   });
-  it('never grows a bar child — content-sized controls (case QA-2026-09-22-01)', () => {
+  it('never grows a bar child — grid cells shrink, floors hold (case QA-2026-09-22-01)', () => {
     // The operator-reported stacking defect: the date root flex-grew to the
     // full row (1145px for DD/MM/YYYY) and forced one-control-per-row wrap.
-    expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:\s*0 1 auto;/);
-    expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*flex:\s*0 0 auto;[^}]*width:\s*168px;/);
+    // Card 20260925_8: the bar is a real grid now — no child can flex-grow
+    // (inert flex pins removed); the invariant that remains is min-width:0
+    // (a cell shrinks inside its track instead of overflowing a neighbour)
+    // plus the per-family width floors below.
+    expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*min-width:\s*0;/);
+    expect(componentCss).not.toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:/);
+    expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
   });
 
   // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): phones expose a
@@ -74,7 +79,8 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
   // share one row instead of stacking every control full-width. The shared
   // component defines the contract; every host inherits the same pair rule.
   it('phones pair short-value controls on a 2-column grid (card 20260925_1 short-value pairing)', () => {
-    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // Card 20260925_8: the mobile break moved 480 → 767 (mandate <768 stack).
+    const mobile = componentCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     // The pair wrapper exists and lays out as a 2-column grid on phones.
     expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
     expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
@@ -82,16 +88,17 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // each one to its 1/2 track.
     expect(mobile).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][\s\S]*?max-width:\s*none/);
     expect(mobile).toMatch(/\.list-filter-bar__pair \.ds-uui-select[\s\S]*?max-width:\s*none/);
-    // Spacer is desktop-only (pushes actions right on the row); on phones it
+    // Spacer is desktop-only (pins actions to the row end); on phones it
     // must collapse so the column stack puts actions on their own row.
-    expect(mobile).toMatch(/\.list-filter-bar__spacer\s*\{\s*display:\s*none/);
+    expect(mobile).toMatch(/\.list-filter-bar \.filter-bar__spacer\s*\{\s*display:\s*none/);
   });
 
   // Card 20260925_1: every hosted control surface reads --filter-control-h
   // on phones so search, date, select, native input all share one height
   // token (44px, the touch floor) — no more 64/80/72 mis-matches.
   it('phones pin every hosted control to the chosen --filter-control-h token (card 20260925_1 one-height)', () => {
-    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // Card 20260925_8: mobile break 480 → 767.
+    const mobile = componentCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     // Search input shell + data-uui-control + date wrapper + select all read the token.
     expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
     // No shadow on any control at mobile (flat law, design §3).
@@ -104,11 +111,13 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
   // two stacked labelled controls floated as a chunky block on a row of
   // their own while the search / Xuất-Nhập / Kế hoạch sat in the bar's
   // flex row, reading as two different filter bars on the same page.
-  // The desktop pair is one inline flex-cell of the bar, baseline-aligned
-  // with the rest of the row, no panel chrome (bg transparent, border 0,
-  // border-radius 0, no shadow). The mobile ≤480 rule below switches to a
-  // grid-2 layout — that contract is unchanged by this card.
-  it('desktop pair is one inline flex-cell of the bar — no detached panel (card 20260925_5 wide-pair)', () => {
+  // Card 20260925_8 (REBUILD): the desktop pair is one 2-col GRID cell of
+  // the bar's grid row (the old inline flex-cell could still re-wrap and
+  // break the column rhythm), baseline-aligned with the rest of the row,
+  // no panel chrome (bg transparent, border 0, border-radius 0, no
+  // shadow). The mobile ≤767 rule below re-states the same 2-col layout
+  // for the phone stack.
+  it('desktop pair is one 2-col grid cell of the bar — no detached panel (cards 20260925_5 / 20260925_8)', () => {
     // Pull the desktop-default rule (the one OUTSIDE any @media block) so
     // a future regression that moved the rule into a media condition would
     // also fail this assertion.
@@ -116,10 +125,11 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
       /\.list-filter-bar__pair\s*\{([^}]*)\}/,
     )?.[1] ?? '';
     expect(desktopBlock, 'pair has a top-level default rule').not.toBe('');
-    // The pair rows its two children horizontally (no vertical stacking).
-    expect(desktopBlock).toMatch(/display:\s*flex/);
-    expect(desktopBlock).toMatch(/flex-wrap:\s*wrap/);
-    expect(desktopBlock).toMatch(/align-items:\s*flex-end/);
+    // The pair rows its two children horizontally via a 2-col grid (no
+    // vertical stacking, no flex re-wrap).
+    expect(desktopBlock).toMatch(/display:\s*grid/);
+    expect(desktopBlock).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(desktopBlock).toMatch(/align-items:\s*end/);
     expect(desktopBlock).toMatch(/gap:\s*12px/);
     // Flat sheet: no panel chrome (the default `box-shadow: none` covers
     // that side — the rule never pins one explicitly so the page-level
@@ -129,14 +139,14 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     expect(desktopBlock).toMatch(/border-radius:\s*0/);
     // The desktop rule must precede the mobile @media block so the grid
     // rule still wins on phones via source order. Catch a regression that
-    // flips the order, which would let mobile grid leak onto desktop.
+    // flips the order, which would let mobile layout leak onto desktop.
     const desktopIdx = componentCss.search(/\.list-filter-bar__pair\s*\{/);
-    const mobileIdx = componentCss.search(/@media \(max-width: 480px\)/);
+    const mobileIdx = componentCss.search(/@media \(max-width: 767px\)/);
     expect(desktopIdx).toBeGreaterThan(-1);
     expect(mobileIdx).toBeGreaterThan(desktopIdx);
     // Mobile contract (card 20260925_1) is preserved: pair is a 2-col
-    // grid at ≤480, with width floors released so tracks size each cell.
-    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // grid at <768, with width floors released so tracks size each cell.
+    const mobile = componentCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
     expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   });
@@ -164,7 +174,11 @@ describe('ListFilterBar control integration', () => {
     expect(screen.getByRole('combobox', { name: 'Trạng thái' })).toBe(kids[1]);
     expect(bar.querySelector('.list-filter-bar__quick')).toBe(kids[2]);
     expect(bar.querySelector('.filter-bar__spacer')).toBe(kids[3]);
-    expect(screen.getByRole('button', { name: 'Đặt lại' })).toBe(kids[4]);
+    // Card 20260925_8: actions ride as ONE grid item (.filter-bar__actions)
+    // so multi-element fragments don't scatter into stray grid cells.
+    const actions = bar.querySelector('.filter-bar__actions');
+    expect(actions).toBe(kids[4]);
+    expect(actions?.contains(screen.getByRole('button', { name: 'Đặt lại' }))).toBe(true);
   });
 
   it('passes typed search text through unmodified', () => {

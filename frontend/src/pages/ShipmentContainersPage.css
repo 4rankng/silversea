@@ -49,51 +49,6 @@
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
 
-/* Card 20260925_6 (site sweep, Từ/Đến pair): the date pair is ONE flex item
-   inside ListFilterBar — one shared label above + one row of two
-   BufferedUuiDateInputs (an arrow separator between them). It shares the
-   bar's flex item geometry (content-sized, no elevated chrome, no panel
-   shadow) and aligns its row baseline with the selects beside it via the
-   shared align-items:end of .filter-bar. The internal row uses a 2-col
-   grid so the two inputs read as one logical unit, not two independent
-   flex children fighting for row width. */
-.shipments-detail-filters__date-pair {
-  display: grid;
-  grid-template-rows: auto auto;
-  gap: 4px;
-  min-width: 0;
-  flex: 0 1 auto;
-  width: auto;
-}
-
-.shipments-detail-filters__date-pair-label {
-  color: var(--ink-2);
-  font-size: 12px;
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-  line-height: 1.4;
-}
-
-.shipments-detail-filters__date-pair-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: 6px;
-  min-width: 0;
-}
-
-.shipments-detail-filters__date-pair-row .shipments-detail-filter {
-  min-width: 0;
-}
-
-.shipments-detail-filters__date-pair-sep {
-  display: inline-flex;
-  align-items: center;
-  color: var(--ink-4);
-  font-size: var(--text-caption-size);
-  line-height: 1;
-}
-
 /* Date presets: ONE connected segmented group (owner spec) riding the shared
    bar's control row — compact geometry survives the ListFilterBar adoption. */
 .shipments-detail-presets { display: inline-flex; align-items: stretch; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); overflow: hidden; }
@@ -486,17 +441,6 @@
 }
 
 @media (max-width: 760px) {
-  /* Card 20260925_6 (site sweep): on phones the date pair owns the whole
-     row width inside the ListFilterBar so the two inputs have room to
-     breathe; the separator hides when the row gets crowded. */
-  .shipments-detail-filters__date-pair {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-  .shipments-detail-filters__date-pair-sep {
-    display: none;
-  }
   .shipments-detail-page { gap: 10px; }
   .shipments-detail-workspace { border: 0; border-radius: 0; }
   .shipments-detail-workspace__header { padding: 0; }

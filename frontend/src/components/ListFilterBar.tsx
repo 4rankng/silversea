@@ -62,8 +62,11 @@ export function ListFilterBar({ search, children, quickFilters, quickFiltersLabe
           {quickFilters}
         </div>
       )}
+      {/* Actions are one grid item (auto/-1 + justify-self:end pins the
+          cluster at the bar's right edge); multi-element fragments row up
+          inside .filter-bar__actions instead of becoming stray grid cells. */}
       {actions && <div className="filter-bar__spacer" />}
-      {actions}
+      {actions && <div className="filter-bar__actions">{actions}</div>}
     </div>
   );
 }
