@@ -374,7 +374,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       pairStatus: s.tripPairs.status,
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
-      .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
       .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
@@ -402,7 +402,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       tx.select({ total: sql<number>`count(*)` })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
-        .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
         .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
         .where(filters),
     ]);
