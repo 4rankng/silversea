@@ -57,7 +57,8 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     predicate: `bill_number ILIKE 'QA%' OR bill_number ILIKE 'CARD226-QA-%' OR customer_name ILIKE 'QA%'`,
     action: 'hard-delete-guarded',
     guards: [],
-    selfGuard: 'refund_posted_movement_id IS NOT NULL',
+    // Posted rows purge too when their movement carries the fixture signature.
+    selfGuard: "refund_posted_movement_id IS NOT NULL AND refund_posted_movement_id NOT IN (SELECT id FROM treasury_movements WHERE physical_reference ILIKE 'QA%' OR external_reference ILIKE 'QA%')",
   },
   {
     table: 'deposit_refund_trackers',
@@ -80,6 +81,13 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     predicate: `expense_type ILIKE 'QA%' OR note ILIKE 'QA%' OR ${QA_TRIPS_SQL}`,
     action: 'soft-delete',
     guards: [],
+  },
+  {
+    table: 'ledger',
+    label: 'QA-signed ledger adjustments (QA0922 fixture family in note)',
+    predicate: `note ILIKE '%QA0922-%'`,
+    action: 'hard-delete-guarded',
+    guards: [{ table: 'treasury_movements', column: 'ledger_entry_id' }],
   },
   {
     table: 'treasury_movements',
