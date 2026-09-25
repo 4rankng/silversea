@@ -170,6 +170,7 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
   const onSaveNotes = vi.fn(async () => {});
   const onSaveSchedule = vi.fn(async () => {});
   const onSaveIdentity = vi.fn(async () => {});
+  const onSaveVehicle = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -183,7 +184,7 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
       onStartEdit={vi.fn()}
       onCancelEdit={onCancelEdit}
       onSaveRoute={vi.fn(async () => {})}
-      onSaveVehicle={vi.fn(async () => {})}
+      onSaveVehicle={onSaveVehicle}
       onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
       onSaveIdentity={onSaveIdentity}
@@ -191,7 +192,7 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity, onSaveVehicle };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
@@ -581,5 +582,58 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   it('does not offer the clear action when no plate is assigned', () => {
     renderVehicleEditor({ plateNumber: null });
     expect(screen.queryByRole('button', { name: 'Xóa biển số' })).toBeNull();
+  });
+});
+
+describe('external-vendor plate quick-select (card 20260925_6)', () => {
+  const vendorDetail = () => {
+    const detail = baseDetail();
+    (detail.selectors as { externalCarriers: unknown[]; carrierVehicles: unknown[] }).externalCarriers = [
+      { id: 91, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null },
+    ];
+    (detail.selectors as { carrierVehicles: unknown[] }).carrierVehicles = [
+      { id: 9001, carrierId: 91, licensePlate: '29H-123.45', label: '29H-123.45' },
+    ];
+    return detail;
+  };
+
+  it('NEW_EXTERNAL renders a plate field; free typing saves the new vendor with its plate', async () => {
+    const { onSaveVehicle } = renderLedger('vehicle', baseRow(), vendorDetail());
+    const carrierTrigger = screen.getAllByRole('button').find((b) => b.textContent === 'Đội xe SilverSea');
+    expect(carrierTrigger).toBeTruthy();
+    fireEvent.click(carrierTrigger!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhập nhà xe mới' }));
+    // THE REGRESSION: the plate entry vanished from the new-external flow
+    // (16fc0d89 gated the combined field to non-NEW_EXTERNAL and deleted the
+    // always-visible free input; the save guard still demands the plate).
+    const plate = screen.getByLabelText('Biển số xe') as HTMLInputElement;
+    fireEvent.change(plate, { target: { value: '29H-123.45' } });
+    const name = screen.getByLabelText('Tên nhà xe mới');
+    fireEvent.change(name, { target: { value: 'Nhà xe Năm Troc' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveVehicle).toHaveBeenCalledTimes(1));
+    expect(onSaveVehicle).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      carrierType: 'EXTERNAL',
+      newExternalCarrier: { name: 'Nhà xe Năm Troc', plateNumber: '29H-123.45' },
+    }));
+  });
+
+  it('externalVendorPlateOptions matches the typed vendor by name or short name', async () => {
+    const { externalVendorPlateOptions } = await import('../external-plate-options');
+    const carriers = [
+      { id: 91, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null },
+      { id: 92, label: 'Năm Troc', name: null, shortName: 'Năm Troc' },
+    ];
+    const vehicles = [
+      { carrierId: 91, licensePlate: '29H-123.45', label: '29H-123.45' },
+      { carrierId: 92, licensePlate: '29H-999.99', label: '29H-999.99' },
+      { carrierId: 55, licensePlate: '30F-000.00', label: '30F-000.00' },
+    ];
+    const byName = externalVendorPlateOptions(carriers, vehicles, 'nhà xe năm troc');
+    expect(byName.map((option) => option.value)).toEqual(['29H-123.45']);
+    const byShort = externalVendorPlateOptions(carriers, vehicles, 'năm troc');
+    expect(byShort.map((option) => option.value)).toEqual(['29H-999.99']);
+    expect(externalVendorPlateOptions(carriers, vehicles, 'Nhà xe khác')).toEqual([]);
+    expect(externalVendorPlateOptions(carriers, vehicles, '')).toEqual([]);
   });
 });

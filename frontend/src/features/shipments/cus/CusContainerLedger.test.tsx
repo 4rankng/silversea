@@ -529,3 +529,50 @@ describe('silent-409 surfacing on last-container delete (20260923_5)', () => {
     expect(screen.queryByText('Lô hàng phải có ít nhất một container.')).toBeNull();
   });
 });
+
+describe('vendor-scoped plate datalist (card 20260925_6 sweep)', () => {
+  const vendorDetail = {
+    ...detail,
+    selectors: {
+      externalCarriers: [{ id: 9, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null }],
+      ports: [], containerTypes: [], routes: [],
+      carrierVehicles: [
+        { id: 1, carrierId: 9, licensePlate: '15C-184.62', label: '15C-184.62' },
+        { id: 2, carrierId: 77, licensePlate: '30F-999.99', label: '30F-999.99' },
+      ],
+    },
+    containers: [{ ...detail.containers[0] }],
+  } as unknown as ShipmentCusWorkspaceDetail;
+
+  function renderVendors() {
+    return render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={vendorDetail}
+          onLineSaved={vi.fn()}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="test"
+        />
+      </ToastProvider>,
+    );
+  }
+
+  it('an existing external carrier offers only that vendor\'s plates', () => {
+    const { container } = renderVendors();
+    const datalist = container.querySelector('datalist[id$="-plates-10"]');
+    expect(datalist).toBeTruthy();
+    expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
+      .toEqual(['15C-184.62']);
+  });
+
+  it('NEW_EXTERNAL: typing the vendor name scopes the datalist to that vendor', () => {
+    const { container } = renderVendors();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà xe' }));
+    const name = screen.getByLabelText('Tên nhà xe mới');
+    fireEvent.change(name, { target: { value: 'Nhà xe Năm Troc' } });
+    const datalist = container.querySelector('datalist[id$="-plates-10"]');
+    expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
+      .toEqual(['15C-184.62']);
+  });
+});

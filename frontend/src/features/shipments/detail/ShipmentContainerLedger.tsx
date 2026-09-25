@@ -17,6 +17,7 @@ import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/te
 import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { USearchableField } from '../create/uui-fields';
+import { externalVendorPlateOptions } from '../external-plate-options';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
@@ -230,6 +231,13 @@ function InlineEditor({
     .filter((vehicle) => vehicle.carrierId === Number(carrierId))
     .map((vehicle) => ({ value: String(vehicle.id), label: vehicle.label, searchText: vehicle.licensePlate })),
   [carrierId, detail.selectors.carrierVehicles]);
+  // Card 20260925_6: on the new-external-vendor path the typed name selects
+  // the quick-select source — plates already used with THAT vendor (matched
+  // by name or short name), restored after 16fc0d89 dropped the field.
+  const newVendorPlateOptions = useMemo(
+    () => externalVendorPlateOptions(detail.selectors.externalCarriers, detail.selectors.carrierVehicles, newCarrierName),
+    [detail.selectors.externalCarriers, detail.selectors.carrierVehicles, newCarrierName],
+  );
   const matchedVehicle = detail.selectors.carrierVehicles.find((vehicle) => (
     vehicle.carrierId === Number(carrierId)
     && vehicle.licensePlate.localeCompare(plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
@@ -475,6 +483,7 @@ function InlineEditor({
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={vehicleOptions.map((vehicle) => ({ value: vehicle.label, label: vehicle.label, searchText: vehicle.searchText }))} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
+          {carrierId === 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-new-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={newVendorPlateOptions} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && line.plateNumber && line.permissions.plateEditable && (
             <small className="shipment-container-ledger__plate-clear">
               <button type="button" disabled={saving} onClick={() => { setPlateNumber(''); setClearVehicleRequested(true); }}>Xóa biển số</button>

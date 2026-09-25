@@ -329,7 +329,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 859 -> 866: 2026-09-22 card-22 family — the ledger's post-Thao-tac
   // growth (48beaea0 territory, 863L actual) refrozen so the next lane's
   // commit is not blocked; split candidate stands.
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 866,
+  // Bumped 866 -> 872: 2026-09-25 card 20260925_6 — the ledger vehicle editor
+  // regains the NEW_EXTERNAL plate branch (quick-select restore); extraction
+  // candidate stands (externalVendorPlateOptions already moved to its own lib).
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 872,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T

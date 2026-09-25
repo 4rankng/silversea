@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Copy, Trash2 } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
@@ -7,6 +7,7 @@ import {
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
+import { externalVendorPlateOptions } from '../external-plate-options';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
@@ -60,6 +61,25 @@ export function ContainerLineRow({
   onCopyAppointmentToEmpty?: () => void;
 }) {
   const [, setSelectOpen] = useState(false);
+
+  // Card 20260925_6 sweep: the plate datalist follows the picked vendor — an
+  // existing carrier offers its own plates; a typed NEW_EXTERNAL name matches
+  // that vendor's used plates; nothing picked keeps the full list.
+  const plateOptions = useMemo<Array<{ id: number | string; licensePlate: string; label: string }>>(() => {
+    const vehicles = detail.selectors.carrierVehicles;
+    if (draft.carrierKey === 'NEW_EXTERNAL') {
+      return externalVendorPlateOptions(detail.selectors.externalCarriers, vehicles, draft.newCarrierName)
+        .map((option) => ({ id: option.value, licensePlate: option.value, label: option.label }));
+    }
+    if (draft.carrierKey === 'OWN') return [];
+    if (draft.carrierKey) {
+      const raw = draft.carrierKey.startsWith('EXTERNAL:') ? draft.carrierKey.slice('EXTERNAL:'.length) : draft.carrierKey;
+      const id = Number(raw);
+      if (!Number.isFinite(id)) return [];
+      return vehicles.filter((vehicle) => vehicle.carrierId === id);
+    }
+    return vehicles;
+  }, [detail.selectors.carrierVehicles, detail.selectors.externalCarriers, draft.carrierKey, draft.newCarrierName]);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const appointmentTriggerRef = useRef<HTMLButtonElement>(null);
   const p = line.permissions;
@@ -177,7 +197,7 @@ export function ContainerLineRow({
         <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
           <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
           <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
-          <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+          <datalist id={`${idPrefix}-plates-${line.id}`}>{plateOptions.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
           {line.plateNumber && (
             <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
           )}
