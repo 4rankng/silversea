@@ -78,7 +78,7 @@
   font-weight: 500;
 }
 a.tdp-instructions-value {
-  color: var(--brand, #00B14F);
+  color: var(--brand, #005a2d);
   text-decoration: none;
 }
 a.tdp-instructions-value:hover {
@@ -144,7 +144,7 @@ a.tdp-instructions-value:hover {
   font-family: var(--font-data);
   white-space: nowrap;
 }
-.tdp-adjustment-amount--pos { color: var(--success, #00B14F); }
+.tdp-adjustment-amount--pos { color: var(--success-text, #0f6d4b); }
 .tdp-adjustment-amount--neg { color: var(--danger, #E32434); }
 
 /* ── Bridge the action buttons to the edit page's brass/amber palette ── */

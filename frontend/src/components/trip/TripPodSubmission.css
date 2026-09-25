@@ -40,7 +40,7 @@
   justify-content: center;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;
@@ -142,7 +142,7 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(220, 38, 38, 0.08);
   color: var(--danger);
   font-size: var(--text-caption-size);
@@ -167,7 +167,7 @@
   gap: 6px;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
 }
@@ -314,7 +314,7 @@
  * button unlocks — both required photos uploaded. */
 .trip-pod__progress {
   height: 6px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--surface-3, rgba(0, 0, 0, 0.08));
   overflow: hidden;
   margin-top: 2px;
@@ -322,13 +322,13 @@
 
 .trip-pod__progress-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--ink-3);
   transition: width 0.25s ease;
 }
 
 .trip-pod__progress-fill.is-complete {
-  background: var(--brand, #00b14f);
+  background: var(--brand, #005a2d);
 }
 
 .trip-pod__submit {

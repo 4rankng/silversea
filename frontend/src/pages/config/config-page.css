@@ -39,7 +39,7 @@
 }
 
 /* Subtle row hover — keep readable density */
-.cfg-page .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.035); }
+.cfg-page .tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 
 /* ── Toolbar refinement: tighter, no border separation under it ── */
 .cfg-page .toolbar {
@@ -89,7 +89,7 @@
   min-height: 26px;
   padding: 4px 9px;
   margin-left: 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-bold);
@@ -194,7 +194,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--accent-soft);
   color: var(--accent);
 }

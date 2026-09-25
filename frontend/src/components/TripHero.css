@@ -67,7 +67,7 @@
   padding: 5px 10px 5px 8px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   color: var(--ink-2);
   font-weight: 500;
@@ -111,7 +111,7 @@
   padding: 4px 8px;
   background: var(--warning-soft);
   border: 1px solid rgba(245, 166, 35, 0.2);
-  border-radius: 999px;
+  border-radius: 6px;
   white-space: nowrap;
 }
 .trip-hero__warn svg { width: 13px; height: 13px; color: var(--warning); }

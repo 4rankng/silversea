@@ -42,7 +42,7 @@
   color: var(--text-primary, #101828);
   background: var(--surface-white, #fff);
   border: 1px solid var(--border-medium, #d0d5dd);
-  border-radius: 9999px;
+  border-radius: 6px;
   cursor: pointer;
   transition: border-color 120ms ease;
 }
@@ -60,7 +60,7 @@
   font-weight: 500;
   color: var(--text-secondary, #475467);
   border: 1px solid var(--border-subtle, #eaecf0);
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 1px 8px;
   white-space: nowrap;
 }

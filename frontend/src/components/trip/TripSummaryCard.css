@@ -246,7 +246,7 @@
   display: block;
   transition: width var(--t-normal, 180ms);
 }
-.tc-totals__alloc-seg--fuel   { background: var(--accent, #00B14F); }
+.tc-totals__alloc-seg--fuel   { background: var(--accent, #005a2d); }
 .tc-totals__alloc-seg--road   { background: #1D4ED8; }
 .tc-totals__alloc-seg--salary { background: #B45309; }
 .tc-totals__alloc-seg--other  { background: var(--ink-4, #BABDC3); }
@@ -273,7 +273,7 @@
   display: inline-block;
   flex: 0 0 auto;
 }
-.tc-totals__alloc-legend .tc-totals__legend-dot--fuel   { background: var(--accent, #00B14F); }
+.tc-totals__alloc-legend .tc-totals__legend-dot--fuel   { background: var(--accent, #005a2d); }
 .tc-totals__alloc-legend .tc-totals__legend-dot--road   { background: #1D4ED8; }
 .tc-totals__alloc-legend .tc-totals__legend-dot--salary { background: #B45309; }
 .tc-totals__alloc-legend .tc-totals__legend-dot--other  { background: var(--ink-4, #BABDC3); }
@@ -312,7 +312,7 @@
   min-width: 0;
 }
 .tc-totals-row__lbl svg {
-  color: var(--accent, #00B14F);
+  color: var(--brand, #005a2d);
   flex: 0 0 auto;
 }
 .tc-totals-row__val {
@@ -332,7 +332,7 @@
 .tc-totals-row__adjusted-pill {
   font-size: var(--fs-xs);
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-weight: var(--fw-semibold);
@@ -429,7 +429,7 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--accent-soft);
   color: var(--accent);
   flex: 0 0 auto;

@@ -385,8 +385,7 @@
 .profit-table__pct { color: var(--fg-3); }
 .profit-table__amount { color: var(--brand); font-weight: var(--fw-bold); }
 
-/* Compact driver-contributor role tag — pill, 999px radius is intentional
-   (no token encodes a full-pill radius; keep raw). */
+/* Compact driver-contributor role tag — 6px radius token per design law §1. */
 .profit-role-tag {
   margin-left: var(--space-xs);
   font-size: var(--fs-xs);
@@ -394,7 +393,7 @@
   color: var(--warn);
   background: var(--warn-soft);
   padding: 1px var(--space-xs);
-  border-radius: 999px;
+  border-radius: 6px;
   letter-spacing: var(--tracking-wide);
   vertical-align: middle;
 }

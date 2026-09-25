@@ -140,7 +140,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     width: '100%', minHeight: 44, borderTop: 0, borderLeft: 0, borderRight: 0,
                     appearance: 'none', borderRadius: 0,
                     color: 'inherit', font: 'inherit', textAlign: 'left',
-                    background: isActive ? 'var(--brand-subtle, rgba(0,177,79,0.08))' : 'transparent',
+                    background: isActive ? 'var(--brand-subtle, rgba(0,90,45,0.08))' : 'transparent',
                     boxShadow: isActive ? 'inset 3px 0 0 var(--brand)' : undefined,
                   }}
                   onClick={() => onSelectContainer(String(c.id))}

@@ -7,7 +7,7 @@
 
   /* Fleet-scoped color tokens — keeps gradient/border stops themeable
      without polluting the global token sheet. */
-  --fleet-glow: #00B14F;
+  --fleet-glow: var(--brand, #005a2d);
   --fleet-green-end: #DDF7E8;
   --fleet-blue-start: #EFF6FF;
   --fleet-blue-mid: #E6F0FF;
@@ -566,7 +566,7 @@
   gap: 14px;
 
   /* Mirror fleet-scoped tokens for portaled detail modal */
-  --fleet-glow: #00B14F;
+  --fleet-glow: var(--brand, #005a2d);
   --fleet-green-end: #DDF7E8;
   --fleet-blue-start: #EFF6FF;
   --fleet-blue-mid: #E6F0FF;

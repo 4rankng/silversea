@@ -339,7 +339,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: var(--brand-subtle, rgba(0, 177, 79, 0.08));
+  background: var(--brand-subtle, rgba(0, 90, 45, 0.08));
   border-color: var(--brand-border, rgba(0, 107, 63, 0.22));
 }
 
@@ -471,7 +471,7 @@
 }
 
 .fwd-instructions__link {
-  color: var(--brand, #00B14F);
+  color: var(--brand, #005a2d);
   text-decoration: none;
   font-weight: 500;
 }

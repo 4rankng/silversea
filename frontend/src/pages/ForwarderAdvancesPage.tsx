@@ -150,10 +150,10 @@ export default function ForwarderAdvancesPage() {
             <Wallet size={72} className="hero-kpi-card__watermark" aria-hidden />
           </div>
           <div className="hero-kpi-stack">
-            <div className="hero-kpi-mini hero-kpi-mini--accent">
+            <div className={`hero-kpi-mini ${outstanding < 0 ? 'hero-kpi-mini--danger' : 'hero-kpi-mini--accent'}`}>
               <div className="hero-kpi-mini__body">
-                <span className="hero-kpi-mini__value" ref={heroOutstandingRef}>{Math.round(outstanding).toLocaleString('vi-VN')}</span>
-                <span className="hero-kpi-mini__label">tồn tạm ứng (₫)</span>
+                <span className="hero-kpi-mini__value" ref={heroOutstandingRef} style={outstanding < 0 ? { color: 'var(--danger)' } : undefined}>{Math.round(outstanding).toLocaleString('vi-VN')}</span>
+                <span className="hero-kpi-mini__label">{outstanding < 0 ? 'chi vượt tạm ứng (₫)' : 'tồn tạm ứng (₫)'}</span>
               </div>
               <Wallet size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
             </div>

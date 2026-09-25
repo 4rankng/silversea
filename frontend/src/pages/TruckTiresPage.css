@@ -672,7 +672,7 @@
   gap: 14px;
   padding: 18px 20px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent, #00B14F) 7%, white) 0%, rgba(255, 255, 255, 0.94) 62%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent, #005a2d) 7%, white) 0%, rgba(255, 255, 255, 0.94) 62%),
     var(--surface, #fff);
 }
 
@@ -683,7 +683,7 @@
 .ttp-position-kicker {
   display: inline-flex;
   margin-bottom: 5px;
-  color: var(--accent, #00B14F);
+  color: var(--accent-ink, #004D22);
   font-size: var(--text-caption-size);
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -825,7 +825,7 @@
   width: 3px;
   height: 20px;
   border-radius: 0 2px 2px 0;
-  background: var(--accent, #00B14F);
+  background: var(--accent, #005a2d);
   transform: translateY(-50%);
 }
 
@@ -836,7 +836,7 @@
 .ttp-position-row--editing {
   grid-template-columns: minmax(0, 1fr) auto;
   background: color-mix(in srgb, var(--accent-soft, #E6F7EE) 48%, white);
-  border-color: color-mix(in srgb, var(--accent, #00B14F) 22%, var(--line, #EAECEF));
+  border-color: color-mix(in srgb, var(--accent, #005a2d) 22%, var(--line, #EAECEF));
 }
 
 .ttp-position-name {
@@ -894,7 +894,7 @@
   border: 1px dashed var(--line-2, var(--border-2));
   border-radius: 14px;
   background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #00B14F) 9%, transparent), transparent 46%),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #005a2d) 9%, transparent), transparent 46%),
     var(--surface, #fff);
   text-align: center;
 }
@@ -905,10 +905,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--accent, #00B14F) 22%, white);
+  border: 1px solid color-mix(in srgb, var(--accent, #005a2d) 22%, white);
   border-radius: 12px;
   background: var(--accent-soft, #E6F7EE);
-  color: var(--accent, #00B14F);
+  color: var(--brand, #005a2d);
 }
 
 .ttp-position-empty strong {
@@ -1123,7 +1123,7 @@
 
 .ttp-unmount-choice input[type='radio'] {
   margin-top: 3px;
-  accent-color: #00B14F;
+  accent-color: var(--brand, #005a2d);
 }
 
 .ttp-unmount-choice__main {

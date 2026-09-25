@@ -516,7 +516,7 @@ tbody tr:last-child td { border-bottom: none; }
   overflow-wrap: anywhere;
 }
 .tt-table tbody tr { cursor: pointer; transition: background 0.2s ease; }
-.tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.04); }
+.tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 .tt-table tbody tr:last-child td { border-bottom: none; }
 .tt-table td.num {
   font-family: var(--font-data);

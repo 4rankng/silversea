@@ -111,9 +111,6 @@ export default function AccountingInvoiceTrackingPage() {
       <PageHeader title="Theo dõi hóa đơn kết hợp" description="Quản lý hóa đơn kết hợp theo từng lô hàng." />
       {dialog}
       {reasonDialog}
-      <p className="invoice-tracking-page__intro">
-        Quản lý số hóa đơn, số tiền hóa đơn và số tiền trả nhà cung cấp theo từng lô hàng.
-      </p>
 
       <section className="invoice-tracking-period" aria-label="Kỳ theo dõi">
         <div className="invoice-tracking-period__fields">

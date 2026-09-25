@@ -84,7 +84,7 @@
   position: absolute;
   right: 18px;
   bottom: 10px;
-  color: rgba(0, 177, 79, 0.10);
+  color: rgba(0, 90, 45, 0.10);
   pointer-events: none;
 }
 
@@ -150,7 +150,7 @@
   opacity: 0.18;
 }
 
-.hero-kpi-mini--accent .hero-kpi-mini__watermark { color: rgba(0, 177, 79, 0.14); }
+.hero-kpi-mini--accent .hero-kpi-mini__watermark { color: rgba(0, 90, 45, 0.14); }
 .hero-kpi-mini--danger .hero-kpi-mini__watermark { color: rgba(227, 36, 52, 0.14); }
 .hero-kpi-mini--warn   .hero-kpi-mini__watermark { color: rgba(217, 119, 6, 0.14); }
 

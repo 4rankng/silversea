@@ -1270,7 +1270,7 @@
 
 .debit-editor-column-card > div:nth-child(2) span {
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-3);
   color: var(--ink-2);
   font-size: var(--text-caption-size);

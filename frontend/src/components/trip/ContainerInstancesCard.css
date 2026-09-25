@@ -322,7 +322,7 @@
   max-width: calc(100% - 8px);
   padding: 2px 5px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--warning);
   color: var(--warning-text);
   font-size: var(--text-caption-size);
