@@ -17,10 +17,12 @@ export interface QaFixtureSurface {
   table: string;
   label: string;
   predicate: string;
-  action: 'soft-delete' | 'hard-delete' | 'hard-delete-guarded' | 'deactivate' | 'deactivate-plus-soft-delete';
+  action: 'soft-delete' | 'hard-delete' | 'hard-delete-guarded' | 'deactivate' | 'deactivate-plus-soft-delete' | 'scrub';
   guards: Array<{ table: string; column: string }>;
   /** Optional predicate on the row itself; true rows are skipped as guarded. */
   selfGuard?: string;
+  /** For 'scrub': columns NULLed on matching rows (QA-authored text fields). */
+  scrubColumns?: string[];
 }
 
 export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%'`;
@@ -141,12 +143,36 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     action: 'deactivate-plus-soft-delete',
     guards: [],
   },
+  {
+    table: 'trips',
+    label: 'QA text fields on trips (references, notes, factory names)',
+    predicate: `customer_reference ILIKE 'QA%' OR notes ILIKE 'QA%' OR factory_site_address ILIKE 'QA%' OR factory_site_name ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['customer_reference', 'notes', 'factory_site_address', 'factory_site_name'],
+  },
+  {
+    table: 'shipments',
+    label: 'QA text fields on shipments (notes, factory name)',
+    predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['operational_notes', 'customer_notes', 'factory_name'],
+  },
+  {
+    table: 'trip_containers',
+    label: 'QA notes on trip containers',
+    predicate: `notes ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['notes'],
+  },
 ];
 
 /** Surfaces whose purge must run before this surface, by table name. */
 export const PURGE_ORDER_NOTE = 'children before parents; see array order';
 
-/** Count rows matching each registry surface (read-only census). */
+/** Table names in registry order. */
 export function registryTables(): string[] {
   return QA_FIXTURE_REGISTRY.map((surface) => surface.table);
 }

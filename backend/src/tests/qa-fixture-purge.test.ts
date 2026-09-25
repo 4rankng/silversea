@@ -8,8 +8,15 @@ import { censusSurface, purgeSurface } from '../seed/purge-qa-fixtures.js';
 describe('QA fixture purge', () => {
   it('registry integrity: unique tables, valid actions, guarded hard-deletes', () => {
     const tables = registryTables();
-    strict.equal(new Set(tables).size, tables.length, 'duplicate registry table');
-    const validActions = ['soft-delete', 'hard-delete', 'hard-delete-guarded', 'deactivate', 'deactivate-plus-soft-delete'];
+    const pairs = QA_FIXTURE_REGISTRY.map((surface) => `${surface.table}:${surface.action}`);
+    strict.equal(new Set(pairs).size, pairs.length, 'duplicate registry table+action pair');
+    for (const [index, surface] of QA_FIXTURE_REGISTRY.entries()) {
+      const firstAt = tables.indexOf(surface.table);
+      if (surface.action === 'scrub') {
+        strict.equal(firstAt, index - 1 >= 0 && QA_FIXTURE_REGISTRY[index - 1]!.table === surface.table ? index - 1 : firstAt, 'scrub stage must directly follow the row stage of its table');
+      }
+    }
+    const validActions = ['soft-delete', 'hard-delete', 'hard-delete-guarded', 'deactivate', 'deactivate-plus-soft-delete', 'scrub'];
     for (const surface of QA_FIXTURE_REGISTRY) {
       strict.ok(surface.predicate.includes("ILIKE 'QA%'"), `predicate not QA-gated: ${surface.table}`);
       strict.ok(validActions.includes(surface.action), `invalid action: ${surface.table}`);

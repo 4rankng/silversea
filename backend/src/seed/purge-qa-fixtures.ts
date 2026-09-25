@@ -80,6 +80,12 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
   } else if (surface.action === 'deactivate') {
     const res = await rows(`UPDATE ${surface.table} SET status = 'INACTIVE' WHERE ${surface.predicate} AND status <> 'INACTIVE' RETURNING id`);
     deleted = res.length;
+  } else if (surface.action === 'scrub') {
+    for (const column of surface.scrubColumns ?? []) {
+      if (!(await columnExists(surface.table, column))) continue;
+      const res = await rows(`UPDATE ${surface.table} SET ${column} = NULL WHERE ${surface.predicate} RETURNING id`);
+      deleted += res.length;
+    }
   } else {
     // Hard delete, row by row, guards first; reversal rows before originals.
     const idRows = await rows(`SELECT id FROM ${surface.table} WHERE ${surface.predicate} ORDER BY id DESC`);
