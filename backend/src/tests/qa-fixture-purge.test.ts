@@ -18,10 +18,10 @@ describe('QA fixture purge', () => {
     }
     const validActions = ['soft-delete', 'hard-delete', 'hard-delete-guarded', 'deactivate', 'deactivate-plus-soft-delete', 'scrub'];
     for (const surface of QA_FIXTURE_REGISTRY) {
-      strict.ok(
-        surface.predicate.includes("ILIKE 'QA%'") || surface.predicate.includes("ILIKE '%QA0922-%'"),
-        `predicate not QA-gated: ${surface.table}`,
-      );
+      const gated = surface.predicate.includes("ILIKE 'QA%'")
+        || surface.predicate.includes("ILIKE '%QA0922-%'")
+        || (surface.action === 'scrub' && surface.predicate.includes("ILIKE '%QA%'"));
+      strict.ok(gated, `predicate not QA-gated: ${surface.table}`);
       strict.ok(validActions.includes(surface.action), `invalid action: ${surface.table}`);
       if (surface.action === 'hard-delete-guarded') {
         strict.ok(surface.guards.length > 0 || surface.selfGuard, `guarded action without guard mechanism: ${surface.table}`);

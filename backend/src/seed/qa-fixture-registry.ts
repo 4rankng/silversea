@@ -191,6 +191,14 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
     scrubColumns: ['name', 'short_name'],
   },
+  {
+    table: 'ports',
+    label: 'QA-named ports and dispatch zones (FK-pinned master data - renamed in place)',
+    predicate: `name ILIKE '%QA%' OR code ILIKE '%QA%' OR dispatch_zone ILIKE '%QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['name', 'dispatch_zone'],
+  },
 ];
 
 /** Surfaces whose purge must run before this surface, by table name. */
