@@ -31,4 +31,11 @@ describe('ForwarderTripsPage operations inbox', () => {
     expect(apiGet).toHaveBeenCalledWith('/forwarder/me/work-inbox?view=ACTION&page=1&limit=100');
     expect(screen.queryByText('Tìm Bill, Booking hoặc tờ khai...')).toBeNull();
   });
+
+  it('spells the inbox subtitle with the correct "hồ sơ" copy', async () => {
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><ForwarderTripsPage /></MemoryRouter></QueryClientProvider>);
+    const subtitle = await screen.findByText(/hồ sơ chuyến vẫn là nơi xử lý chi tiết/);
+    expect(subtitle.textContent).toContain('hồ sơ');
+    expect(screen.queryByText(/hỗ sơ/)).toBeNull();
+  });
 });
