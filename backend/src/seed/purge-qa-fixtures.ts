@@ -47,8 +47,15 @@ export async function censusSurface(surface: QaFixtureSurface): Promise<number> 
 }
 
 /** Referencing rows that block a guarded delete of `id`. */
+/** The referencing column may not exist on older schema versions - inert then. */
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const check = await rows(`SELECT 1 AS hit FROM information_schema.columns WHERE table_name = '${table}' AND column_name = '${column}'`);
+  return check.length > 0;
+}
+
 async function isGuarded(surface: QaFixtureSurface, id: number): Promise<boolean> {
   for (const guard of surface.guards) {
+    if (!(await columnExists(guard.table, guard.column))) continue;
     const check = await rows(`SELECT 1 AS hit FROM ${guard.table} WHERE ${guard.column} = ${id} LIMIT 1`);
     if (check.length > 0) return true;
   }
