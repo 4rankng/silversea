@@ -73,7 +73,12 @@ export async function listPhoiPhieuRows(query: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
   sortBy?: 'grouped' | 'date';
 }): Promise<PhoiPhieuRow[]> {
-  const tripConditions: (SQL | undefined)[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
+  // A live trip of a soft-deleted shipment is orphaned data - never listed.
+  const tripConditions: (SQL | undefined)[] = [
+    isNull(s.trips.deletedAt),
+    isNull(s.shipments.deletedAt),
+    ne(s.trips.status, 'CANCELED'),
+  ];
   if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));

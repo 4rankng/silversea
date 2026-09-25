@@ -548,3 +548,15 @@ describe('voucher consumes the approved chi-hộ set only (case QA-2026-09-24-01
     assert.equal(allocations.length, 0, 'no cash was ever allocated against the driver source');
   });
 });
+
+describe('soft-deleted shipments never surface on the phoi-phieu board (QA-fixture family _42)', () => {
+  test('a live trip whose shipment is soft-deleted is not listed', async () => {
+    const marker = `QADEL-ORPHAN-${Date.now()}`;
+    const fixture = await mkBoardFixture();
+    await db.update(s.shipments).set({ deletedAt: new Date() }).where(eq(s.shipments.id, fixture.shipment.id));
+    const visible = await listPhoiPhieuRows({ search: suffix });
+    assert.ok(!visible.some((row) => row.shipmentId === fixture.shipment.id), 'orphaned trip of a deleted shipment must not render');
+    const markerRows = await listPhoiPhieuRows({ search: marker });
+    assert.equal(markerRows.length, 0);
+  });
+});
