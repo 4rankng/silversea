@@ -118,3 +118,68 @@ describe('shipment container editor density', () => {
     );
   });
 });
+
+// Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot "Tổng quan lô hàng"):
+// the XLSX button was a full-width white slab between the stats grid and the
+// table, sitting on top of the first table row. Make it compact (fit-content
+// with the shared filter-control height token), canh phải hàng stats or hàng
+// riêng sát — never full-width, never overlapping the table header.
+describe('shipment worksheet export button — non-fighting compact (card 20260925_1)', () => {
+  it('drops the full-width slab at ≤480 — fit-content + 44px token, no border chrome', () => {
+    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const exportRule = mobile.match(/\.cus-workspace-summary__export\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(exportRule).not.toMatch(/width:\s*100%/);
+    expect(exportRule).toMatch(/width:\s*fit-content/);
+    expect(exportRule).toMatch(/min-height:\s*var\(--filter-control-h\)/);
+    expect(exportRule).not.toMatch(/border:\s*1px\s+solid\s+var\(--line-2\)/);
+    expect(exportRule).toMatch(/border:\s*0(?:;|$)/);
+    // Right-aligned within the row it sits on (canh phải hàng stats / hàng riêng sát).
+    expect(exportRule).toMatch(/margin:\s*0\s+0\s+0\s+auto|align-self:\s*flex-end/);
+  });
+
+  it('export sits in the same summary row or its own right-aligned row — never stretches to claim the table lane', () => {
+    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // The 4-tile summary still renders as a 2×2 grid (existing rule).
+    expect(mobile).toMatch(/\.cus-workspace-summary dl\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // No full-width button in the slot between the summary and the table —
+    // the export must NOT own the row it sits on.
+    expect(mobile).not.toMatch(/\.cus-workspace-summary__export\s*\{[^}]*width:\s*100%/);
+  });
+});
+
+// Card 20260925_1: the shared ListFilterBar must (a) pin every control to
+// one height token (44px on phones, the touch floor) and (b) expose a
+// `.list-filter-bar__pair` 2-column grid for short-value pairs so Workboard
+// filters render date-pair + dropdown-pair on one row each at 390px.
+describe('shipment worksheet — mobile filter inheritance (card 20260925_1)', () => {
+  it('ListFilterBar carries a `.list-filter-bar__pair` 2-column grid for short-value pairing on phones', () => {
+    const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
+    const mobile = listCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  });
+
+  it('ListFilterBar pins every hosted control to --filter-control-h (44px) on phones — one height token', () => {
+    const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
+    const mobile = listCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // The phone rule pin height on every control surface the bar hosts
+    // (search, native input, date wrapper, uui select).
+    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
+  });
+
+  it('WorkboardFilters markup wraps the date pair and the short-select pair in `.list-filter-bar__pair`', () => {
+    const wfSource = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
+    // Two pair wrappers — one for the date pair, one for the short dropdown pair.
+    const wrappers = wfSource.match(/className="list-filter-bar__pair"/g) ?? [];
+    expect(wrappers.length).toBeGreaterThanOrEqual(2);
+    // Date pair is the first wrapper (Từ ngày + Đến ngày).
+    const firstPair = wfSource.match(/<div className="list-filter-bar__pair"[\s\S]*?<\/div>\s*\n/)?.[0] ?? '';
+    expect(firstPair).toContain('Từ ngày giao');
+    expect(firstPair).toContain('Đến ngày giao');
+    // Short-select pair is the second wrapper (Xuất/Nhập + Loại lô).
+    const secondPairStart = wfSource.indexOf('<div className="list-filter-bar__pair"', wfSource.indexOf('<div className="list-filter-bar__pair"') + 1);
+    const secondPair = secondPairStart >= 0 ? wfSource.slice(secondPairStart, wfSource.indexOf('</div>', secondPairStart) + 6) : '';
+    expect(secondPair).toContain('Xuất / Nhập');
+    expect(secondPair).toContain('Loại lô');
+  });
+});

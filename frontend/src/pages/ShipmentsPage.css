@@ -280,13 +280,19 @@
   .cus-workspace-summary__item:nth-child(2n) { border-right: 0; }
   .cus-workspace-summary__item:nth-child(n+3) { border-top: 1px solid var(--line); }
 
-  /* XLSX button rides below the tiles, full-width, 44px touch, flat. */
+  /* XLSX button rides below the tiles, compact (fit-content + 44px touch,
+     * no border slab — the shared UUI control chrome owns the surface).
+   * Card 20260925_1 (CHIEF 09:50): the button was a full-width white slab
+   * between the stats grid and the table, sitting on top of the first row.
+   * Now: width:fit-content, hàng riêng sát dưới tiles, canh phải — never
+   * owns a whole row, never overlaps the table header. */
   .cus-workspace-summary__export {
     flex: 0 0 auto;
-    width: 100%;
-    margin: 0;
-    min-height: 44px;
-    border: 1px solid var(--line-2);
+    align-self: flex-end;
+    width: fit-content;
+    margin: 0 0 0 auto;
+    min-height: var(--filter-control-h);
+    border: 0;
     border-radius: 6px;
     box-shadow: none;
   }

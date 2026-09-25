@@ -102,6 +102,17 @@ describe('shared control density', () => {
       // form aligns them to the dense 12/18 semibold cadence. Scope is
       // the CUS form's own `.csc-uui-field` wrapper, not a bare `ds-uui-*`.
       '.csc-uui-field label',
+      // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): the mobile
+      // filter surfaces pin every UUI field to the chosen 44px height token
+      // so search/date/select all read the same row height. Each scope is a
+      // named filter surface (not a bare `ds-uui-*`), confined to the
+      // page-owned filter skin that ships with the mobile pair layout.
+      '.deposit-tracker-filters [data-input-wrapper]',
+      '.deposit-tracker-filters [data-uui-control]',
+      '.deposit-tracker-filters .ds-uui-select',
+      '.ppc-filters input',
+      '.ppc-filters [data-uui-control]',
+      '.ppc-filter-actions [data-uui-control]',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 

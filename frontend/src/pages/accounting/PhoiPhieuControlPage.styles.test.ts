@@ -84,9 +84,20 @@ describe('phôi phiếu filter row-packing (card 20260924_12, filter-bar law §5
     expect(label).toContain('display: grid');
   });
 
-  it('mobile ≤480 collapses to the standing 1-column label-above stack (law hiện hành)', () => {
+  it('mobile ≤480 — Từ/Đến pair on one row, Trạng thái + Sắp xếp pair on one row (card 20260925_1 short-value pairing)', () => {
     const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.ppc-filters\s*\{[^}]*grid-template-columns:\s*1fr/);
+    // The date pair rides the pair wrapper: 2-column grid, not 1fr stack.
+    // (Selector may be combined with .ppc-filter-actions__pair.)
+    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?display:\s*grid/);
+    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // Mark-up: date pair wrapper carries Từ ngày + Đến ngày.
+    expect(source).toMatch(/className="ppc-filters__pair"[\s\S]*?Từ ngày[\s\S]*?Đến ngày/);
+    // The filter-actions bar (Loại phiếu + STK) pairs the two short selects too.
+    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?display:\s*grid/);
+    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(source).toMatch(/className="ppc-filter-actions__pair"[\s\S]*?Loại phiếu[\s\S]*?Số tài khoản quỹ/);
+    // One control height per context — coarse pointer rises to 44px touch floor.
+    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
   });
 
   it('one control height per context: inputs and UUI selects both read --filter-control-h, coarse rises to 44px', () => {

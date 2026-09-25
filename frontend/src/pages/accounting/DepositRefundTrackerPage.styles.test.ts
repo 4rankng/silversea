@@ -72,13 +72,20 @@ describe('deposit tracker filter row-packing (card 20260924_13, law §5)', () =>
     expect(select).not.toMatch(/width:\s*100%/);
   });
 
-  it('mobile keeps the standing 1-column stack with full-row cells (law hiện hành, _14 QA)', () => {
+  it('mobile ≤900 — Từ/Đến pair on one row, Trạng thái full row, action buttons row (card 20260925_1 short-value pairing)', () => {
     const mobile = css.match(/@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/flex-direction:\s*column/);
-    expect(mobile).toMatch(/\.deposit-tracker-filters \[data-input-wrapper\]/);
+    // The date pair rides the pair wrapper: 2-column grid, not a column stack.
+    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // Mark-up: date pair wrapper carries Từ ngày + Đến ngày.
+    expect(tsx).toMatch(/className="deposit-tracker-filters__pair"[\s\S]*?Từ ngày[\s\S]*?Đến ngày/);
+    // Select + buttons keep their full row under the pair (the direct-child
+    // selector above covers both `.ds-uui-select` and `.btn` siblings).
     expect(mobile).toMatch(/\.deposit-tracker-filters \.ds-uui-select/);
-    expect(mobile).toMatch(/width:\s*100%/);
-    expect(mobile).toMatch(/max-width:\s*none/);
+    // One control height per context — phones rise to 44px touch floor.
+    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
+    // The standing flat law carries over: no shadow, no gradient.
+    expect(mobile).not.toMatch(/box-shadow|gradient/);
   });
 
   it('the filter bar stays flat — no shadow or 3D surface (§3)', () => {

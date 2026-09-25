@@ -68,6 +68,35 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:\s*0 1 auto;/);
     expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*flex:\s*0 0 auto;[^}]*width:\s*168px;/);
   });
+
+  // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): phones expose a
+  // 2-column pair wrapper so short-value controls (date pair, dropdown pair)
+  // share one row instead of stacking every control full-width. The shared
+  // component defines the contract; every host inherits the same pair rule.
+  it('phones pair short-value controls on a 2-column grid (card 20260925_1 short-value pairing)', () => {
+    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // The pair wrapper exists and lays out as a 2-column grid on phones.
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // Pair descendants release the desktop width floors so the grid can size
+    // each one to its 1/2 track.
+    expect(mobile).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][\s\S]*?max-width:\s*none/);
+    expect(mobile).toMatch(/\.list-filter-bar__pair \.ds-uui-select[\s\S]*?max-width:\s*none/);
+    // Spacer is desktop-only (pushes actions right on the row); on phones it
+    // must collapse so the column stack puts actions on their own row.
+    expect(mobile).toMatch(/\.list-filter-bar__spacer\s*\{\s*display:\s*none/);
+  });
+
+  // Card 20260925_1: every hosted control surface reads --filter-control-h
+  // on phones so search, date, select, native input all share one height
+  // token (44px, the touch floor) — no more 64/80/72 mis-matches.
+  it('phones pin every hosted control to the chosen --filter-control-h token (card 20260925_1 one-height)', () => {
+    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    // Search input shell + data-uui-control + date wrapper + select all read the token.
+    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
+    // No shadow on any control at mobile (flat law, design §3).
+    expect(mobile).toMatch(/\.list-filter-bar \[data-uui-control\]\s*\{[^}]*box-shadow:\s*none/);
+  });
 });
 
 describe('ListFilterBar control integration', () => {

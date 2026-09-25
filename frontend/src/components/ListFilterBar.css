@@ -96,7 +96,17 @@
  * full row, and the surface stays flat. The shared `.filter-bar` already
  * wraps on narrow viewports — we just forbid the multi-control row from
  * fighting for space here. Authority: docs/design-guidelines.md § 3 (flat
- * by contract) + card 20260924_6 mobile filter pattern. */
+ * by contract) + card 20260924_6 mobile filter pattern.
+ *
+ * 2026-09-25 (card 20260925_1, CHIEF 09:46, 390px screenshot): the one-column
+ * stack above stacked every short-value control (date input, narrow select)
+ * onto its own row — DD/MM/YYYY sat at 390px wide while the four selects ate
+ * four more rows. Pair short-value controls on the same row (search +
+ * long-content selects keep their full row) and pin every control surface to
+ * one height token (--filter-control-h — 44px on phones via the coarse /
+ * ≤640px rules in tokens.css). DD/MM/YYYY reads cleanly at half a 390px
+ * track minus 12px gap and 12px page margin (~177px).
+ * ------------------------------------------------------------------------- */
 @media (max-width: 480px) {
   .list-filter-bar {
     flex-direction: column;
@@ -109,23 +119,64 @@
     background: transparent;
   }
 
-  .list-filter-bar > * {
+  /* Direct children keep their full row: search, the long-content "Kế hoạch"
+     select, quick filters, actions. Pair wrappers also take a full row each
+     and lay their two children on a 2-column grid inside. */
+  .list-filter-bar > *:not(.list-filter-bar__pair) {
     flex: 0 0 auto;
     width: 100%;
     min-width: 0;
+  }
+
+  .list-filter-bar > .list-filter-bar__pair {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .list-filter-bar__quick {
     width: 100%;
   }
 
-  .list-filter-bar [data-input-wrapper],
-  .list-filter-bar .ds-uui-select,
-  .list-filter-bar .csc-searchable-field,
-  .list-filter-bar [data-uui-control='combobox'] {
+  /* The flex spacer is desktop-only (pushes actions right of the row); on
+     phones the column stack puts actions on their own row regardless. */
+  .list-filter-bar__spacer { display: none; }
+
+  /* Release the desktop width floors inside a pair so the 2-column grid can
+     size each one to its 1/2 track — a 168px date or 240px searchable field
+     would blow past the half-track and break the layout. */
+  .list-filter-bar__pair [data-input-wrapper],
+  .list-filter-bar__pair .ds-uui-select,
+  .list-filter-bar__pair .csc-searchable-field,
+  .list-filter-bar__pair [data-uui-control='combobox'] {
     width: 100%;
     min-width: 0;
     max-width: none;
+  }
+
+  /* Bare UUI controls passed as direct children (e.g. the long-content
+     "Kế hoạch" select) take their full row at phone widths. */
+  .list-filter-bar > [data-uui-control],
+  .list-filter-bar > .ds-uui-select,
+  .list-filter-bar > [data-input-wrapper] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* One height token (card 20260925_1): search input shell, the UUI control
+     boundary, the segmented date wrapper, and the design-system select all
+     share --filter-control-h. At phones that's 44px (the touch floor); at
+     coarse pointers (mobile devices) tokens.css pins the same value. */
+  .list-filter-bar .filter-bar__search,
+  .list-filter-bar [data-uui-control],
+  .list-filter-bar [data-input-wrapper],
+  .list-filter-bar .ds-uui-select {
+    --uui-control-h: var(--filter-control-h);
+    min-height: var(--filter-control-h);
   }
 
   /* Field label sits on its own line above the control. The shared UUI

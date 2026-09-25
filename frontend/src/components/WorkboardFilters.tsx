@@ -23,54 +23,66 @@ export interface WorkboardFiltersProps {
 export function WorkboardFilters({ dateFrom, dateTo, direction, adHoc, bucket, dateResetKey, updateParam }: WorkboardFiltersProps) {
   return (
     <>
-      <BufferedUuiDateInput
-        id="cus-filter-date-from"
-        key={`from-${dateResetKey}`}
-        label="Từ ngày giao"
-        size="sm"
-        value={dateFrom}
-        onChange={(value) => updateParam('transportDateFrom', value || null)}
-        max={dateTo || undefined}
-        className="shipment-uui-field"
-        wrapperClassName="shipment-uui-control"
-        inputClassName="shipment-uui-control__input"
-      />
-      <BufferedUuiDateInput
-        id="cus-filter-date-to"
-        key={`to-${dateResetKey}`}
-        label="Đến ngày giao"
-        size="sm"
-        value={dateTo}
-        onChange={(value) => updateParam('transportDateTo', value || null)}
-        min={dateFrom || undefined}
-        className="shipment-uui-field"
-        wrapperClassName="shipment-uui-control"
-        inputClassName="shipment-uui-control__input"
-      />
-      <UuiSelectField
-        label="Xuất / Nhập"
-        value={direction}
-        onChange={(event) => updateParam('direction', event.target.value || null)}
-        options={[
-          { value: '', label: 'Tất cả' },
-          { value: 'EXPORT', label: 'Xuất' },
-          { value: 'IMPORT', label: 'Nhập' },
-        ]}
-        wrapperClassName="shipment-uui-field"
-        controlClassName="shipment-uui-select"
-      />
-      <UuiSelectField
-        label="Loại lô"
-        value={adHoc}
-        onChange={(event) => updateParam('adHoc', event.target.value || null)}
-        options={[
-          { value: '', label: 'Tất cả' },
-          { value: 'true', label: 'Lệnh chạy ngoài' },
-          { value: 'false', label: 'Thường' },
-        ]}
-        wrapperClassName="shipment-uui-field"
-        controlClassName="shipment-uui-select"
-      />
+      {/* Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): short-value
+       * controls must pair on one row at phone widths instead of stacking
+       * every control full-width. The two date inputs ride the pair wrapper
+       * together (Từ ngày + Đến ngày); the two short dropdowns pair below
+       * them (Xuất / Nhập + Loại lô). The long-content "Kế hoạch" stays a
+       * direct child of ListFilterBar and takes its full row. The pair class
+       * is a ListFilterBar contract — every host that mounts WorkboardFilters
+       * inherits the same phone layout. */}
+      <div className="list-filter-bar__pair" data-pair="dates">
+        <BufferedUuiDateInput
+          id="cus-filter-date-from"
+          key={`from-${dateResetKey}`}
+          label="Từ ngày giao"
+          size="sm"
+          value={dateFrom}
+          onChange={(value) => updateParam('transportDateFrom', value || null)}
+          max={dateTo || undefined}
+          className="shipment-uui-field"
+          wrapperClassName="shipment-uui-control"
+          inputClassName="shipment-uui-control__input"
+        />
+        <BufferedUuiDateInput
+          id="cus-filter-date-to"
+          key={`to-${dateResetKey}`}
+          label="Đến ngày giao"
+          size="sm"
+          value={dateTo}
+          onChange={(value) => updateParam('transportDateTo', value || null)}
+          min={dateFrom || undefined}
+          className="shipment-uui-field"
+          wrapperClassName="shipment-uui-control"
+          inputClassName="shipment-uui-control__input"
+        />
+      </div>
+      <div className="list-filter-bar__pair" data-pair="short-selects">
+        <UuiSelectField
+          label="Xuất / Nhập"
+          value={direction}
+          onChange={(event) => updateParam('direction', event.target.value || null)}
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'EXPORT', label: 'Xuất' },
+            { value: 'IMPORT', label: 'Nhập' },
+          ]}
+          wrapperClassName="shipment-uui-field"
+          controlClassName="shipment-uui-select"
+        />
+        <UuiSelectField
+          label="Loại lô"
+          value={adHoc}
+          onChange={(event) => updateParam('adHoc', event.target.value || null)}
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'true', label: 'Lệnh chạy ngoài' },
+            { value: 'false', label: 'Thường' },
+          ]}
+          wrapperClassName="shipment-uui-field"
+          controlClassName="shipment-uui-select"
+        />
+      </div>
       <UuiSelectField
         label="Kế hoạch"
         value={bucket}

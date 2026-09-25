@@ -115,9 +115,12 @@
   justify-self: end;
 }
 
-/* Phone ≤480 (ListFilterBar mobile law, card 20260924_6): collapse to the
-   standing one-column label-above stack; tracks stop banding so cells run
-   the full row. */
+/* Phone ≤480 (ListFilterBar mobile law, card 20260924_6 + 20260925_1): the
+   standing one-column label-above stack stays — but pair wrappers give short
+   controls (date pair, dropdown pair) a 2-column grid on the same row, so
+   Từ/Đến ngày and Trạng thái/Sắp xếp share a row each instead of stacking
+   four full rows. The long-content search and the Lập phiếu button keep
+   their own row; tracks stop banding so cells run the full row. */
 @media (max-width: 480px) {
   .ppc-filters {
     grid-template-columns: 1fr;
@@ -129,7 +132,25 @@
     gap: 12px;
     margin: 0 0 12px;
   }
-  .ppc-filters > label {
+  /* Card 20260925_1: pair short-value controls on a 2-column grid. The
+     wrapper itself takes its own full row (the parent's 1fr column), then
+     lays its two children side-by-side. */
+  .ppc-filters__pair,
+  .ppc-filter-actions__pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    min-width: 0;
+  }
+  /* Every filter surface rides the chosen height token — 44px phone touch
+     floor (card 20260925_1 one-height contract). */
+  .ppc-filters input,
+  .ppc-filters [data-uui-control],
+  .ppc-filter-actions [data-uui-control] {
+    min-height: var(--filter-control-h);
+  }
+  .ppc-filters > label,
+  .ppc-filters__pair > label {
     gap: 4px;
   }
 }

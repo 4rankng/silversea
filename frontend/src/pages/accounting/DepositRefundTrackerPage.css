@@ -44,15 +44,41 @@
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted, #64748b); }
 .deposit-tracker-table tr.is-refunded { opacity: 0.72; }
 /* Card 20260924_13: phones keep the standing 1-column stack (law hiện hành,
-   _14 QA'd) — the desktop width floors/caps above yield to full-row cells. */
+   _14 QA'd) — the desktop width floors/caps above yield to full-row cells.
+   Card 20260925_1 (sweep mandate): pair the date pair on one 2-column grid
+   row so DD/MM/YYYY fits half a 390px track minus the page margin, while the
+   Trạng thái select and the two action buttons keep their full rows under
+   it. Every control surface reads `--filter-control-h` so all heights match
+   the chosen 44px phone token. The flat law (no shadow, no gradient) carries
+   over. */
 @media (max-width: 900px) {
   .deposit-tracker-filters { align-items: stretch; flex-direction: column; }
-  .deposit-tracker-filters > *,
-  .deposit-tracker-filters [data-input-wrapper],
+  .deposit-tracker-filters > *:not(.deposit-tracker-filters__pair),
   .deposit-tracker-filters .ds-uui-select {
     flex: 0 0 auto;
     width: 100%;
     min-width: 0;
     max-width: none;
+  }
+  /* The pair wrapper itself takes its own full row, then lays its two
+     children side-by-side. Pair children release the desktop 168/149 floor
+     so the grid can size each one to its 1/2 track. */
+  .deposit-tracker-filters__pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+  }
+  .deposit-tracker-filters__pair [data-input-wrapper] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  /* One height token — every filter surface pins to --filter-control-h. */
+  .deposit-tracker-filters [data-input-wrapper],
+  .deposit-tracker-filters [data-uui-control],
+  .deposit-tracker-filters .ds-uui-select {
+    min-height: var(--filter-control-h);
   }
 }
