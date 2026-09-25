@@ -33,17 +33,20 @@ const created = {
 
 /** Minimal layout-contract workbook (the contract parseSheet implements):
  *  rows 1-2 identity/fuel, 3 factory, 4 class labels, 5 He so,
- *  6 Tong lit, 7 Gia cos. `heavyGiaCos` null = the D1 blank cell. */
-async function mkWorkbook(heavyGiaCos: number | null): Promise<Buffer> {
+ *  6 Tong lit, 7 Gia cos. `heavyGiaCos` null = the D1 blank cell.
+ *  `phuPhi` (card _8) appends the grid's Phụ phí row — per-class values,
+ *  the only fee data real customer files carry. */
+async function mkWorkbook(heavyGiaCos: number | null, phuPhi?: Array<number | null>, factoryName = FACTORY): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet('BÁO GIÁ 1');
   sheet.addRow(['Khách hàng', CUSTOMER, 'MST', TAXCODE]);
   sheet.addRow(['Giá dầu tham chiếu', 17842.593, 'Lag Day n', 2, 'Phụ phí làm tròn', 3]);
-  sheet.addRow(['Nhà máy', FACTORY]);
+  sheet.addRow(['Nhà máy', factoryName]);
   sheet.addRow(['Nội dung', 'Xe 1.25T', 'Cont20 >20t']);
   sheet.addRow(['Hệ số', 1, 1]);
   sheet.addRow(['Tổng lít dầu/chuyến', 20, 64]);
   sheet.addRow(['Giá cos', 1248000, heavyGiaCos]);
+  if (phuPhi) sheet.addRow(['Phụ phí', ...phuPhi]);
   const out = await wb.xlsx.writeBuffer();
   return Buffer.from(out);
 }
@@ -207,5 +210,82 @@ describe('import-commit fee-catalog inheritance (ruling ii INHERIT)', () => {
     created.quotationIds.push(frame.quotationId!);
     const fees = await db.select().from(s.quotationFees).where(eq(s.quotationFees.quotationId, frame.quotationId!));
     assert.equal(fees.length, 0, 'no prior frame — the new frame is fee-less until configured');
+  });
+});
+
+describe('import file-as-fee-source (card _8 — the Phụ phí grid row is the fee catalog)', () => {
+  test('preview surfaces per-class surcharge values from the file', async () => {
+    const buffer = await mkWorkbook(4500000, [241948, 846818]);
+    const preview = await previewQuotationImport(buffer);
+    const rows = preview.sheets[0]!.routes[0]!.rows;
+    assert.equal(rows[0]!.surcharge, 241948, 'light class reads its Phụ phí cell');
+    assert.equal(rows[1]!.surcharge, 846818, 'heavy class reads its Phụ phí cell');
+    const noFee = await previewQuotationImport(await mkWorkbook(4500000));
+    assert.equal(noFee.sheets[0]!.routes[0]!.rows[0]!.surcharge, null, 'file without the row reads null');
+  });
+
+  test('file-carried Phụ phí SUPERSEDES inheritance — fee rows built from the file, _64-routed', async () => {
+    const freshCustomer = `C57D1 file-fee ${suffix}`;
+    const [customer] = await db.insert(s.customers).values({ name: freshCustomer, taxCode: `7${Date.now()}`.slice(0, 11) }).returning();
+    created.customerIds.push(customer.id);
+    // Frame A from a fee-less file, then a configured fee the file import must NOT copy.
+    const feeless = await commitQuotationImport(await mkWorkbook(4500000), created.userIds[0]!);
+    const frameA = feeless.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(frameA.quotationId);
+    created.quotationIds.push(frameA.quotationId!);
+    await db.insert(s.quotationFees).values([{
+      quotationId: frameA.quotationId!, feeName: 'Hải quan giám sát',
+      routing: 'DEDICATED_CUSTOMS', defaultAmount: '500000', sortOrder: 1,
+    }]);
+    // Import #2 carries Phụ phí values → the FILE is the fee source.
+    const withFees = await commitQuotationImport(await mkWorkbook(4500000, [241948, 846818]), created.userIds[0]!);
+    const frameB = withFees.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(frameB.quotationId);
+    created.quotationIds.push(frameB.quotationId!);
+    const fees = await db.select().from(s.quotationFees)
+      .where(eq(s.quotationFees.quotationId, frameB.quotationId!))
+      .orderBy(s.quotationFees.sortOrder);
+    assert.equal(fees.length, 2, 'one fee row per class, built from the file');
+    assert.ok(fees.every((fee) => fee.feeName === 'Phụ phí'), 'the grid fee name');
+    assert.deepEqual(fees.map((fee) => fee.subType), ['Xe 1.25T', 'Cont20 >20t'], 'subType = class label');
+    assert.deepEqual(fees.map((fee) => Number(fee.defaultAmount)), [241948, 846818], 'amounts verbatim from the file');
+    assert.ok(fees.every((fee) => fee.routing === 'OTHER_COSTS'), 'defaultFeeRouting(Phụ phí) — the _64 rule');
+    assert.equal(fees.filter((fee) => fee.feeName === 'Hải quan giám sát').length, 0,
+      'inheritance superseded — the prior catalog does not copy');
+  });
+
+  test('multi-factory sheet keys fee subTypes as factory · class', async () => {
+    for (const name of ['C57D1 factory A', 'C57D1 factory B']) {
+      const [route] = await db.insert(s.routes).values({ name }).returning();
+      created.routeIds.push(route.id);
+    }
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('BÁO GIÁ 1');
+    sheet.addRow(['Khách hàng', CUSTOMER, 'MST', TAXCODE]);
+    sheet.addRow(['Giá dầu tham chiếu', 17842.593, 'Lag Day n', 2, 'Phụ phí làm tròn', 3]);
+    sheet.addRow(['Nhà máy', 'C57D1 factory A']);
+    sheet.addRow(['Nội dung', 'Xe 1.25T']);
+    sheet.addRow(['Hệ số', 1]);
+    sheet.addRow(['Tổng lít dầu/chuyến', 20]);
+    sheet.addRow(['Giá cos', 1248000]);
+    sheet.addRow(['Phụ phí', 111111]);
+    sheet.addRow([]);
+    sheet.addRow(['Nhà máy', 'C57D1 factory B']);
+    sheet.addRow(['Nội dung', 'Xe 1.25T']);
+    sheet.addRow(['Hệ số', 1]);
+    sheet.addRow(['Tổng lít dầu/chuyến', 20]);
+    sheet.addRow(['Giá cos', 2248000]);
+    sheet.addRow(['Phụ phí', 222222]);
+    const out = await wb.xlsx.writeBuffer();
+    const results = await commitQuotationImport(Buffer.from(out), created.userIds[0]!);
+    const frame = results.find((entry) => entry.sheet === 'BÁO GIÁ 1')!;
+    assert.ok(frame.quotationId);
+    created.quotationIds.push(frame.quotationId!);
+    const fees = await db.select().from(s.quotationFees)
+      .where(eq(s.quotationFees.quotationId, frame.quotationId!))
+      .orderBy(s.quotationFees.sortOrder);
+    assert.deepEqual(fees.map((fee) => fee.subType), ['C57D1 factory A · Xe 1.25T', 'C57D1 factory B · Xe 1.25T'],
+      'factory · class keys prevent collisions');
+    assert.deepEqual(fees.map((fee) => Number(fee.defaultAmount)), [111111, 222222]);
   });
 });

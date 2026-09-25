@@ -110,6 +110,8 @@ export interface ImportPreviewRowPayload {
   classCode: string; classLabel: string;
   heSo: number | null; liters: number | null; giaCos: number | null;
   basePrice: number | null; billingKmOneWay: number | null; error: string | null;
+  /** Card _8: the file's Phụ phí cell for this class — becomes a catalog fee. */
+  surcharge: number | null;
 }
 export interface ImportPreviewSheetPayload {
   sheet: string; customerName: string | null; customerId: number | null;

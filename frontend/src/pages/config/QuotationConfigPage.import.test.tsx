@@ -57,8 +57,8 @@ const cleanPreview: ImportPreviewPayload = {
       sharePct: 4,
       errors: [],
       rows: [
-        { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: 1248000, basePrice: 1200000, billingKmOneWay: 100, error: null },
-        { classCode: 'CONT20.LIGHT', classLabel: 'Cont20 <20t', heSo: 1, liters: 64, giaCos: 3952000, basePrice: 3800000, billingKmOneWay: 100, error: null },
+        { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: 1248000, basePrice: 1200000, billingKmOneWay: 100, error: null, surcharge: null },
+        { classCode: 'CONT20.LIGHT', classLabel: 'Cont20 <20t', heSo: 1, liters: 64, giaCos: 3952000, basePrice: 3800000, billingKmOneWay: 100, error: null, surcharge: null },
       ],
     }],
     errors: [],
@@ -190,7 +190,7 @@ describe('quotation xlsx import preview (card 20260922_57, TC-BG-13/14/15)', () 
         routes: [{
           ...cleanPreview.sheets[0].routes[0],
           rows: [
-            { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: null, basePrice: null, billingKmOneWay: 100, error: 'Xe 1.25T: thiếu hoặc sai Giá cos — điền số tiền > 0 (số, VD 1234567 hoặc 1.234.567).' },
+            { classCode: '1.25T', classLabel: 'Xe 1.25T', heSo: 1, liters: 20, giaCos: null, basePrice: null, billingKmOneWay: 100, error: 'Xe 1.25T: thiếu hoặc sai Giá cos — điền số tiền > 0 (số, VD 1234567 hoặc 1.234.567).', surcharge: null },
             ...cleanPreview.sheets[0].routes[0].rows.slice(1),
           ],
         }],

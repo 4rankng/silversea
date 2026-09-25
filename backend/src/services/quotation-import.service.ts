@@ -52,6 +52,9 @@ export interface ImportPreviewRow {
   classCode: string; classLabel: string;
   heSo: number | null; liters: number | null; giaCos: number | null;
   basePrice: number | null; billingKmOneWay: number | null; error: string | null;
+  /** Card _8: the grid's Phụ phí cell for this class — the file-carried fee
+   *  amount (null when the file has no Phụ phí row for the column). */
+  surcharge: number | null;
   /** Source location in the uploaded sheet (Giá cos grid row / sheet column)
    *  — row-level errors name the exact cell per the D1 ruling. */
   sourceRow: number | null; sourceCol: number | null;
@@ -132,9 +135,14 @@ function parseSheet(sheet: ExcelJS.Worksheet): ImportPreviewSheet {
         ? cellNumber(sheet, parsed.labelRow.get('Tổng lít dầu/chuyến')!, column.col) : null;
       const giaCos = parsed.labelRow.has('Giá cos')
         ? cellNumber(sheet, parsed.labelRow.get('Giá cos')!, column.col) : null;
+      // Card _8: the grid's Phụ phí row carries the file's per-class fee
+      // amounts — the only fee data real customer files embed.
+      const surcharge = parsed.labelRow.has('Phụ phí')
+        ? cellNumber(sheet, parsed.labelRow.get('Phụ phí')!, column.col) : null;
       route.rows.push({
         classCode: column.classCode, classLabel: column.label,
         heSo, liters, giaCos, basePrice: null, billingKmOneWay: null, error: null,
+        surcharge,
         sourceRow: parsed.labelRow.get('Giá cos') ?? null, sourceCol: column.col,
       });
     }
@@ -321,21 +329,43 @@ export async function commitQuotationImport(
         effectiveDate: today,
         surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
       }).returning({ id: s.quotations.id });
-      // Ruling (ii) INHERIT (card _57 follow-up, 2026-09-24): the import file
-      // is the customer's CƯỚC document — the fee catalog is our management
-      // construct that carries contract-to-contract. The new frame inherits
-      // the customer's prior frame's quotation_fees verbatim (routing +
-      // defaultAmount), editable via the config page thereafter; /fees/active
-      // therefore never regresses to [] on re-import. A FIRST-EVER import
-      // (no prior frame) stays fee-less until configured.
-      const [priorFrame] = await tx.select({ id: s.quotations.id })
-        .from(s.quotations)
-        .where(and(
-          eq(s.quotations.customerId, enriched.customerId),
-          ne(s.quotations.id, frame.id),
-        ))
-        .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
-        .limit(1);
+      // Card _8 (Director ruling, 2026-09-25): the file's Phụ phí grid row is
+      // the fee catalog when the customer embeds it — one quotation_fees row
+      // per class (feeName 'Phụ phí', subType = class label, amount verbatim,
+      // routing via defaultFeeRouting — the _64 name-based rule). File-carried
+      // fees SUPERSEDE inheritance; with no Phụ phí values the ruled (ii)
+      // INHERIT stays the default: the import file is the customer's CƯỚC
+      // document, the fee catalog is our management construct that carries
+      // contract-to-contract; /fees/active never regresses to [] on re-import.
+      const feeRows = enriched.routes.flatMap((route, routeIndex) =>
+        route.rows
+          .filter((row) => row.surcharge != null)
+          .map((row, index) => ({
+            quotationId: frame.id,
+            feeName: 'Phụ phí',
+            subType: enriched.routes.length > 1
+              ? `${route.factoryName} · ${row.classLabel}`
+              : row.classLabel,
+            defaultAmount: String(row.surcharge),
+            routing: 'OTHER_COSTS' as const,
+            note: null,
+            sortOrder: routeIndex * 100 + index,
+          })));
+      if (feeRows.length > 0) {
+        await tx.insert(s.quotationFees).values(feeRows);
+      } else {
+        // Ruling (ii) INHERIT (card _57 follow-up, 2026-09-24): the new frame
+        // inherits the customer's prior frame's quotation_fees verbatim
+        // (routing + defaultAmount), editable via the config page thereafter.
+        // A FIRST-EVER import (no prior frame) stays fee-less until configured.
+        const [priorFrame] = await tx.select({ id: s.quotations.id })
+          .from(s.quotations)
+          .where(and(
+            eq(s.quotations.customerId, enriched.customerId),
+            ne(s.quotations.id, frame.id),
+          ))
+          .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+          .limit(1);
       if (priorFrame) {
         const priorFees = await tx.select({
           feeName: s.quotationFees.feeName,
@@ -358,6 +388,7 @@ export async function commitQuotationImport(
             sortOrder: fee.sortOrder,
           })));
         }
+      }
       }
       for (const route of enriched.routes) {
         const routeId = route.routeId!;

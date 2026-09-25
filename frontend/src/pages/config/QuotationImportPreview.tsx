@@ -38,7 +38,7 @@ export function QuotationImportPreview({ preview, committing, onCommit, onCancel
                 <div key={row.classCode} style={{ paddingLeft: 12, color: row.error ? 'var(--danger)' : undefined }}>
                   {row.error
                     ? `✗ ${row.error}`
-                    : `✓ ${row.classLabel}: ${row.liters ?? '?'} lít · ${row.giaCos != null ? formatCurrency(row.giaCos) : '? ₫'}`}
+                    : `✓ ${row.classLabel}: ${row.liters ?? '?'} lít · ${row.giaCos != null ? formatCurrency(row.giaCos) : '? ₫'}${row.surcharge != null ? ` · Phụ phí ${formatCurrency(row.surcharge)}` : ''}`}
                 </div>
               ))}
             </div>
