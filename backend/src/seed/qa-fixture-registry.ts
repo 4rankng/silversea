@@ -23,8 +23,9 @@ export interface QaFixtureSurface {
   selfGuard?: string;
 }
 
-export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%')`;
-const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE s.bl_number ILIKE 'QA%' OR s.booking_ref ILIKE 'QA%')`;
+export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%'`;
+export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE ${QA_SHIPMENT_FIELDS_SQL})`;
+const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE s.bl_number ILIKE 'QA%' OR s.booking_ref ILIKE 'QA%' OR s.shipment_code ILIKE 'QA%' OR s.bl_number ILIKE 'CARD226-QA-%' OR s.bl_number ILIKE 'BILL-QAC1%' OR s.operational_notes ILIKE 'QA-BUG3%')`;
 
 export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
@@ -101,7 +102,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'shipments',
     label: 'QA shipments (QA bill/booking refs)',
-    predicate: `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%'`,
+    predicate: QA_SHIPMENT_FIELDS_SQL,
     action: 'soft-delete',
     guards: [],
   },
