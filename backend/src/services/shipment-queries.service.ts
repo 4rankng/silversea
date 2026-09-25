@@ -1157,7 +1157,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (options.allocationStatus) {
     const idRows = await db.select({ id: s.shipments.id, expectedDeliveryDate: s.shipments.expectedDeliveryDate })
       .from(s.shipments)
-      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
       .where(and(...conditions))
       .orderBy(desc(s.shipments.createdAt));
     const aggregatesById = await loadShipmentDispatchAggregates(idRows.map((row) => row.id));
@@ -1203,7 +1203,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // "Ghi chú nhà máy": the factory's operating notes (strict rules).
     factoryNotes: s.operationalSites.strictRules,
   }).from(s.shipments)
-    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
     .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
     .where(and(...conditions))
@@ -1233,7 +1233,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
         routeName: ROUTE_OPERATIONAL_NAME,
         factoryNotes: s.operationalSites.strictRules,
       }).from(s.shipments)
-        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
         .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
         .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
         .where(and(...conditions))
@@ -1241,10 +1241,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       const [pageRows, totalRows, filteredIdRows] = await Promise.all([
         paginatedByIds ? pageQuery : pageQuery.limit(limit).offset(offset),
         tx.select({ value: count() }).from(s.shipments)
-          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+          .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
           .where(and(...conditions)),
         tx.select({ id: s.shipments.id }).from(s.shipments)
-          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+          .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
           .where(and(...conditions)),
       ]);
       items = pageRows;
@@ -1265,7 +1265,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     const [pageRows, totalRows] = await Promise.all([
       paginatedByIds ? rowsQuery : rowsQuery.limit(limit).offset(offset),
       db.select({ value: count() }).from(s.shipments)
-        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
         .where(and(...conditions)),
     ]);
     items = pageRows;
