@@ -267,7 +267,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     cargoTypeName: s.cargoTypes.name,
   })
     .from(s.shipments)
-    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .where(eq(s.shipments.id, id));
   const shipmentWithCustomer = {

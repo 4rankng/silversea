@@ -118,7 +118,7 @@ export async function listPhoiPhieuRows(query: {
   })
     .from(s.trips)
     .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
-    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
     .leftJoin(s.routes, eq(s.routes.id, s.trips.routeId))
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id,
