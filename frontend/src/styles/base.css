@@ -77,3 +77,19 @@ img { display: block; }
 #root .app :where(button, a, [role='button']):not(.csc-container-row__copy):not(.shipment-container-ledger__copy):hover {
   transform: none;
 }
+
+/* ============================================================================
+ * Control surface contract (card 20260925_3, CHIEF 25/09 — "fix the whole
+ * site"): every input control sits on an opaque --surface fill. The InputBase
+ * wrapper ships a `bg-primary` utility that never resolves in this app's
+ * Tailwind build, so date/search/text controls rendered see-through on every
+ * host page; the 5537316a "dtp input surface fill" pattern was the earlier
+ * page-local instance. The wrappers are the fill layer (the inner <input> is
+ * bg-transparent by design); page-hosted controls take --surface, and the
+ * picker-hosted inset fill (.dtp-time__exact > input, surface-2) still wins
+ * inside the floating picker via its own rule.
+ * ========================================================================== */
+[data-uui-control='input'],
+[data-input-wrapper] {
+  background: var(--surface);
+}

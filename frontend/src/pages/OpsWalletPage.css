@@ -78,6 +78,17 @@
   flex-wrap: wrap;
 }
 
+/* Card 20260925_3 (CHIEF): the fund-book closing/outstanding figures group
+   into one solid, bordered block — right-aligned but never floating text on
+   the page canvas. (The TSX keeps its inline grid/alignment; this rule adds
+   the surface, border and padding around it.) */
+.ops-fund-book__summary {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
 .ops-wallet__section-head h2 {
   font-size: var(--text-section-size);
   margin: 0;
@@ -186,6 +197,13 @@
   text-align: center;
   color: var(--fg-3, #6b7280);
   padding: 24px 0 !important;
+  /* Card 20260925_3 (CHIEF): the empty-state box reads as solid white across
+     its full width — no half-transparent straddle against the page canvas.
+     display:block beats the collapsed table-cell width in the mobile
+     block-table layout. */
+  background: var(--surface);
+  display: block;
+  width: 100%;
 }
 
 .ops-wallet__loading {
@@ -338,6 +356,9 @@
 }
 @container (max-width: 700px) {
   .ops-wallet__table, .ops-wallet__table tbody { display: block; width: 100%; }
+  /* Card 20260925_3: rows collapse to blocks too — without it an empty row's
+     tr shrink-wraps and the empty-state box renders half-width. */
+  .ops-wallet__table tr { display: block; width: 100%; }
   .ops-wallet__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ops-wallet__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 10px; border-bottom: 1px solid var(--line); }
   .ops-wallet__row:last-child { border-bottom: 0; }

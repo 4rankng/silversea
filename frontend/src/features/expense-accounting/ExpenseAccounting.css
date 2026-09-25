@@ -63,6 +63,8 @@
 .expense-accounting-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .expense-accounting-file > span { overflow-wrap: anywhere; }
 .expense-history-filters { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(2, minmax(120px, 1fr)) auto; gap: 8px; align-items: end; }
+/* Card 20260925_3: action buttons stay compact fit-content — no full-width slab. */
+.expense-history-filters > .btn { justify-self: start; width: fit-content; }
 .expense-work-road-breakdown { margin: 0; }
 .expense-work-road-breakdown > div { display: flex; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--line); }
 .expense-work-road-breakdown dd { margin: 0; }
