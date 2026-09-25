@@ -106,6 +106,32 @@ describe('phôi phiếu filter row-packing (card 20260924_12, filter-bar law §5
     expect(css).toMatch(/pointer:\s*coarse[\s\S]*?--filter-control-h:\s*var\(--control-touch-h\)/);
   });
 
+  // Card 20260925_5 (CHIEF 19:09, wide viewport, class sweep mandate): on
+  // accounting boards that borrow the date-pair pattern, the pair wrapper
+  // defaulted to `display: block` so the two stacked labelled fields read
+  // as a detached panel. Each pair is one inline flex-cell of the bar at
+  // every pre-mobile breakpoint — flat (transparent bg, 0 border / radius
+  // / shadow) so the wrapper never promotes to a card. The mobile ≤480
+  // grid rule still owns phone pairing.
+  it('desktop pair wrapper is one inline flex-cell of the bar — flat, not a panel (card 20260925_5 wide-pair)', () => {
+    // The desktop default has to be a top-level rule that the mobile @media
+    // block can override via source order.
+    const ppcBlock = css.match(/\.ppc-filters__pair,\s*\.ppc-filter-actions__pair\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(ppcBlock, 'ppc pair default rule present at top level').not.toBe('');
+    expect(ppcBlock).toMatch(/display:\s*flex/);
+    expect(ppcBlock).toMatch(/align-items:\s*flex-end/);
+    expect(ppcBlock).toMatch(/gap:\s*12px/);
+    expect(ppcBlock).toMatch(/background:\s*transparent/);
+    expect(ppcBlock).toMatch(/border:\s*0/);
+    expect(ppcBlock).toMatch(/border-radius:\s*0/);
+    // Mobile grid contract intact (card 20260925_1).
+    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?display:\s*grid/);
+    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?display:\s*grid/);
+    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  });
+
   it('flat sheet — no shadow, gradient, or 3D anywhere (design law §3)', () => {
     expect(css).not.toMatch(/box-shadow|gradient|perspective|rotate3d/);
   });

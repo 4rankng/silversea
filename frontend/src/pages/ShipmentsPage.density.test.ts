@@ -183,3 +183,42 @@ describe('shipment worksheet — mobile filter inheritance (card 20260925_1)', (
     expect(secondPair).toContain('Loại lô');
   });
 });
+
+// Card 20260925_5 (CHIEF 19:09, 1920px screenshot 'Tổng quan lô hàng'): on
+// the worksheet the date pair and the short-select pair used to render as
+// a detached white panel — the `.list-filter-bar__pair` wrapper defaulted
+// to `display: block`, so the two stacked labelled inputs floated as a
+// chunky block on a row of their own, reading as a separate filter bar.
+// At any viewport wider than the phone break the pair must sit inline as
+// one flex-cell of the bar's flex row, baseline-aligned with the search /
+// Xuất-Nhập / Kế hoạch controls beside it, with zero panel chrome (no
+// background, no border, no border-radius, no shadow — flat law §3).
+describe('shipment worksheet — wide-pair inheritance (card 20260925_5)', () => {
+  it('ListFilterBar pair is one inline flex-cell of the bar at desktop — no detached panel', () => {
+    const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
+    // Top-level default rule (the one OUTSIDE any @media block) carries
+    // the desktop pair cell, so a regression that hid it in a media query
+    // would also fail this test.
+    const desktopBlock = listCss.match(/\.list-filter-bar__pair\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(desktopBlock, 'pair default rule present at top level').not.toBe('');
+    expect(desktopBlock).toMatch(/display:\s*flex/);
+    expect(desktopBlock).toMatch(/align-items:\s*flex-end/);
+    expect(desktopBlock).toMatch(/gap:\s*12px/);
+    // Flat surface — never a panel (default `box-shadow: none` covers
+    // the shadow side; the rule never pins one explicitly so the page
+    // "no-shadow anywhere" assertion still holds).
+    expect(desktopBlock).toMatch(/background:\s*transparent/);
+    expect(desktopBlock).toMatch(/border:\s*0/);
+    expect(desktopBlock).toMatch(/border-radius:\s*0/);
+    // Source order: desktop default first, mobile @media below so the grid
+    // rule still wins on phones and never leaks up.
+    const desktopIdx = listCss.search(/\.list-filter-bar__pair\s*\{/);
+    const mobileIdx = listCss.search(/@media \(max-width: 480px\)/);
+    expect(desktopIdx).toBeGreaterThan(-1);
+    expect(mobileIdx).toBeGreaterThan(desktopIdx);
+    // Mobile grid contract preserved (card 20260925_1): no rule regression.
+    const mobile = listCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  });
+});

@@ -97,6 +97,49 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // No shadow on any control at mobile (flat law, design §3).
     expect(mobile).toMatch(/\.list-filter-bar \[data-uui-control\]\s*\{[^}]*box-shadow:\s*none/);
   });
+
+  // Card 20260925_5 (CHIEF 25/09 19:09, 1920px screenshot 'Tổng quan lô
+  // hàng'): the date pair and the short-select pair used to render as a
+  // detached white panel — the wrapper defaulted to `display: block`, so the
+  // two stacked labelled controls floated as a chunky block on a row of
+  // their own while the search / Xuất-Nhập / Kế hoạch sat in the bar's
+  // flex row, reading as two different filter bars on the same page.
+  // The desktop pair is one inline flex-cell of the bar, baseline-aligned
+  // with the rest of the row, no panel chrome (bg transparent, border 0,
+  // border-radius 0, no shadow). The mobile ≤480 rule below switches to a
+  // grid-2 layout — that contract is unchanged by this card.
+  it('desktop pair is one inline flex-cell of the bar — no detached panel (card 20260925_5 wide-pair)', () => {
+    // Pull the desktop-default rule (the one OUTSIDE any @media block) so
+    // a future regression that moved the rule into a media condition would
+    // also fail this assertion.
+    const desktopBlock = componentCss.match(
+      /\.list-filter-bar__pair\s*\{([^}]*)\}/,
+    )?.[1] ?? '';
+    expect(desktopBlock, 'pair has a top-level default rule').not.toBe('');
+    // The pair rows its two children horizontally (no vertical stacking).
+    expect(desktopBlock).toMatch(/display:\s*flex/);
+    expect(desktopBlock).toMatch(/flex-wrap:\s*wrap/);
+    expect(desktopBlock).toMatch(/align-items:\s*flex-end/);
+    expect(desktopBlock).toMatch(/gap:\s*12px/);
+    // Flat sheet: no panel chrome (the default `box-shadow: none` covers
+    // that side — the rule never pins one explicitly so the page-level
+    // "no-shadow anywhere" assertion still holds).
+    expect(desktopBlock).toMatch(/background:\s*transparent/);
+    expect(desktopBlock).toMatch(/border:\s*0/);
+    expect(desktopBlock).toMatch(/border-radius:\s*0/);
+    // The desktop rule must precede the mobile @media block so the grid
+    // rule still wins on phones via source order. Catch a regression that
+    // flips the order, which would let mobile grid leak onto desktop.
+    const desktopIdx = componentCss.search(/\.list-filter-bar__pair\s*\{/);
+    const mobileIdx = componentCss.search(/@media \(max-width: 480px\)/);
+    expect(desktopIdx).toBeGreaterThan(-1);
+    expect(mobileIdx).toBeGreaterThan(desktopIdx);
+    // Mobile contract (card 20260925_1) is preserved: pair is a 2-col
+    // grid at ≤480, with width floors released so tracks size each cell.
+    const mobile = componentCss.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  });
 });
 
 describe('ListFilterBar control integration', () => {

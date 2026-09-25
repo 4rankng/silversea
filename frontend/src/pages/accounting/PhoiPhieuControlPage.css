@@ -76,6 +76,29 @@
 .ppc-filters { margin: 12px 0; }
 .ppc-filter-actions { margin: 8px 0; }
 
+/* 2026-09-25 (card 20260925_5, CHIEF 19:09, 1920px screenshot): the
+ * `.ppc-filters__pair` (Từ/Đến ngày + Trạng thái/Sắp xếp) and
+ * `.ppc-filter-actions__pair` (Loại phiếu + STK) wrappers default to
+ * display: block, so each pair sits as a separate vertically-stacked cell
+ * inside the auto-fit grid while the surrounding selects run on the grid's
+ * row — the pair becomes a tall floating panel detached from the rest.
+ *
+ * At any pre-mobile breakpoint the pair is one inline grid-cell (and flex-
+ * cell once the bar uses flex) — flex-row of its two labelled controls,
+ * baseline-aligned, no panel chrome. The ≤480 @media below switches the
+ * same wrappers to the 2-column grid so phones pair on stacked tracks. */
+.ppc-filters__pair,
+.ppc-filter-actions__pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 /* Labels stack above their control (label-trên/control-dưới) at every width —
    the UUI selects beside them already render label-above, and this mirrors
    the AccountingDebitClosePage date-row pattern. */

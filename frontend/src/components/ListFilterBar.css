@@ -85,6 +85,32 @@
   min-width: 0;
 }
 
+/* 2026-09-25 (card 20260925_5, CHIEF 19:09, 1920px screenshot "Tổng quan
+ * lô hàng"): the date pair and the short-select pair used to render as a
+ * detached white panel — the wrapper defaulted to `display: block`, so its
+ * two stacked labelled inputs floated as a chunky block on its own row while
+ * search / Xuất-Nhập / Kế hoạch stayed in the .filter-bar row, reading as
+ * two different filter bars on the same page.
+ *
+ * The pair is a single inline cell of the bar's flex row at viewport-wide
+ * (and any pre-mobile breakpoint): flex-row of its two labelled controls,
+ * bottom-aligned with the bar's other items (the bar's `align-items: end`
+ * carries the column-stacked labels up to the row baseline), no panel
+ * chrome — background transparent, border 0, border-radius 0, no shadow.
+ * The mobile ≤480 rule below keeps its grid-2 layout, so phones pair on
+ * two stacked tracks but never own a panel surface either.
+ * --------------------------------------------------------------------- */
+.list-filter-bar__pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 @media (pointer: coarse) {
   .list-filter-bar {
     --filter-control-h: var(--control-touch-h);

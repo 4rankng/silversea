@@ -9,6 +9,26 @@
 .deposit-tracker-filters > .btn { flex: 0 0 auto; }
 .deposit-tracker-filters [data-input-wrapper] { flex: 0 0 auto; width: 168px; min-width: 149px; }
 .deposit-tracker-filters .ds-uui-select { width: auto; min-width: 240px; max-width: 280px; }
+
+/* 2026-09-25 (card 20260925_5, CHIEF 19:09, 1920px screenshot): the
+ * date-pair wrapper `.deposit-tracker-filters__pair` defaults to display:
+ * block, so the Từ/Đến ngày fields stack vertically inside one chunky box
+ * that floats above the Trạng thái / Lọc / Thêm dòng row — reading as a
+ * detached panel. The bar's flex layout already owns the row's cell
+ * positions; we just need the pair to be one inline flex-cell of it, not
+ * a separate floating block. Mobile @media below keeps the 2-column grid.
+ * Belt-and-braces: no chrome (transparent bg, 0 border / radius / shadow) —
+ * the flat law on this surface stays a flat surface. */
+.deposit-tracker-filters__pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
 .deposit-tracker-warnings { position: relative; border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .deposit-tracker-warnings__item { margin: 0; color: var(--color-warning-text, #92400e); overflow-wrap: anywhere; }
 .deposit-tracker-warnings__item--danger { color: var(--danger-text, #7F2D37); }

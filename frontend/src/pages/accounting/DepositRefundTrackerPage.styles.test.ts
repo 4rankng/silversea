@@ -91,4 +91,33 @@ describe('deposit tracker filter row-packing (card 20260924_13, law §5)', () =>
   it('the filter bar stays flat — no shadow or 3D surface (§3)', () => {
     expect(ruleFor('\\.deposit-tracker-filters')).not.toMatch(/box-shadow|gradient/);
   });
+
+  // Card 20260925_5 (CHIEF 19:09, wide viewport, class sweep mandate): the
+  // date pair wrapper `.deposit-tracker-filters__pair` defaulted to
+  // display: block, so the two stacked labelled fields read as a detached
+  // panel above the Trạng thái / Lọc / Thêm dòng row. At every pre-mobile
+  // breakpoint the pair is one inline flex-cell of the bar's flex row —
+  // flat (transparent bg, 0 border / radius / shadow) so it never promotes
+  // to a card. The mobile ≤900 grid rule still owns phone pairing.
+  it('desktop pair wrapper is one inline flex-cell of the bar — flat, not a panel (card 20260925_5 wide-pair)', () => {
+    const depositPairRule = ruleFor('\\.deposit-tracker-filters__pair');
+    // The rule must be at top level (NOT inside the ≤900 media block).
+    expect(depositPairRule, 'pair default rule present at top level').not.toBe('');
+    expect(depositPairRule).toMatch(/display:\s*flex/);
+    expect(depositPairRule).toMatch(/align-items:\s*flex-end/);
+    expect(depositPairRule).toMatch(/gap:\s*var\(--space-3, 12px\)/);
+    expect(depositPairRule).toMatch(/background:\s*transparent/);
+    expect(depositPairRule).toMatch(/border:\s*0/);
+    expect(depositPairRule).toMatch(/border-radius:\s*0/);
+    // Source order: desktop default first, mobile @media below so the grid
+    // rule still wins on phones and never leaks above the breakpoint.
+    const desktopIdx = css.search(/\.deposit-tracker-filters__pair\s*\{/);
+    const mobileIdx = css.search(/@media \(max-width: 900px\)/);
+    expect(desktopIdx).toBeGreaterThan(-1);
+    expect(mobileIdx).toBeGreaterThan(desktopIdx);
+    // Mobile grid contract preserved (card 20260925_1).
+    const mobile = css.match(/@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  });
 });
