@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ShipmentStatus } from '@tingting/shared';
 import {
   listShipments,
-  type ShipmentAllocationStatus,
+  type ShipmentAllocationFilter,
   type ShipmentListItem,
   type ShipmentListResponse,
 } from '../../../api/shipmentClient';
@@ -19,7 +19,7 @@ const PAGE_SIZE = 20;
 export interface MasterPlanFilters {
   q: string;
   tradeDirection: 'IMPORT' | 'EXPORT' | '';
-  allocationStatus: ShipmentAllocationStatus | '';
+  allocationStatus: ShipmentAllocationFilter | '';
   deliveryDateFrom: string;
   deliveryDateTo: string;
   portIds: number[];

@@ -1032,7 +1032,12 @@ export interface ListShipmentsOptions {
   /** Dispatch master-plan filter: upper bound on expectedDeliveryDate. */
   deliveryDateTo?: string;
   /** Dispatch master-plan filter: derived carrier-allocation coverage. */
-  allocationStatus?: AllocationStatus;
+  /** Card 20260925_5: filter-only buckets. NOT_ALLOCATED is the merged
+   * "Chờ phân xe" bucket (zero + partial); PENDING_CARRIER = date locked
+   * (expectedDeliveryDate set) but zero carriers; FULLY_ALLOCATED unchanged.
+   * PARTIALLY_ALLOCATED stays accepted server-side as the legacy merged-bucket
+   * alias for stale clients; the derived ROW status wire contract is unchanged. */
+  allocationStatus?: AllocationStatus | 'PENDING_CARRIER';
   /** Dispatch master-plan filter: OR-within pickup/dropoff port ids
    *  matched against active fulfillments' containers. */
   portIds?: number[];
@@ -1150,13 +1155,34 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   let derivedTotal: number | null = null;
   let paginatedByIds = false;
   if (options.allocationStatus) {
-    const idRows = await db.select({ id: s.shipments.id }).from(s.shipments)
+    const idRows = await db.select({ id: s.shipments.id, expectedDeliveryDate: s.shipments.expectedDeliveryDate })
+      .from(s.shipments)
       .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
       .where(and(...conditions))
       .orderBy(desc(s.shipments.createdAt));
     const aggregatesById = await loadShipmentDispatchAggregates(idRows.map((row) => row.id));
-    const matching = idRows.filter((row) =>
-      (aggregatesById.get(row.id)?.allocationStatus ?? 'NOT_ALLOCATED') === options.allocationStatus);
+    // One lot, one bucket — mutually exclusive by allocation state (lead
+    // ruling on card 20260925_5): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY;
+    // PARTIALLY → Chờ phân xe ONLY (it has carriers); full → Đã phân xong.
+    const matching = idRows.filter((row) => {
+      const status = aggregatesById.get(row.id)?.allocationStatus ?? 'NOT_ALLOCATED';
+      // One lot, one bucket — mutually exclusive by allocation state (lead
+      // ruling on card 20260925_5): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY;
+      // PARTIALLY → Chờ phân xe ONLY (it has carriers); NOT_ALLOCATED without
+      // a date → Chờ phân xe (date not locked); full → Đã phân xong.
+      switch (options.allocationStatus) {
+        case 'PENDING_CARRIER':
+          return status === 'NOT_ALLOCATED' && row.expectedDeliveryDate != null;
+        case 'FULLY_ALLOCATED':
+          return status === 'FULLY_ALLOCATED';
+        case 'PARTIALLY_ALLOCATED': // legacy alias → same membership as below
+        case 'NOT_ALLOCATED':
+          return status === 'PARTIALLY_ALLOCATED'
+            || (status === 'NOT_ALLOCATED' && row.expectedDeliveryDate == null);
+        default:
+          return false;
+      }
+    });
     derivedTotal = matching.length;
     const pageIds = matching.slice(offset, offset + limit).map((row) => row.id);
     conditions.push(inArray(s.shipments.id, pageIds.length > 0 ? pageIds : [-1]));

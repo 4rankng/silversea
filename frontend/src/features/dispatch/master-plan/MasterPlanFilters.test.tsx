@@ -22,6 +22,23 @@ const EMPTY_FILTERS = {
 
 const NFD_PORT_LABEL = 'Ca\u0309ng Hải Phòng';
 
+describe('dispatch allocation filter buckets (card 20260925_5)', () => {
+  const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanFilters.tsx'), 'utf8');
+  const hookSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/useDispatchMasterPlan.ts'), 'utf8');
+
+  it('drops Đang phân xe and offers the merged buckets in customer order', () => {
+    expect(filtersSource).toContain("label: 'Chờ phân xe'");
+    expect(filtersSource).toContain("label: 'Chờ phân nhà xe'");
+    expect(filtersSource).toContain("label: 'Đã phân xong'");
+    expect(filtersSource).not.toContain("label: 'Đang phân xe'");
+  });
+
+  it('sends the filter-only PENDING_CARRIER bucket and never the dropped status', () => {
+    expect(hookSource).toContain('ShipmentAllocationFilter');
+    expect(filtersSource).toContain('PENDING_CARRIER');
+  });
+});
+
 describe('MasterPlanFilters', () => {
   it('keeps search and cargo direction in the phone toolbar while opening advanced filters in a drawer', () => {
     const onChange = vi.fn();

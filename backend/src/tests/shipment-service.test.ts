@@ -1049,10 +1049,12 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
 
     const unallocated: number[] = [];
     for (let i = 0; i < 2; i += 1) {
+      // No expectedDeliveryDate: under the 20260925_5 bucket exclusivity a
+      // date-set zero-allocation lot belongs to "Chờ phân nhà xe", so this
+      // pagination fixture pins "Chờ phân xe" with date-less lots.
       const shipment = await createShipment({
         customerId: customer.id,
         cargoMode: 'FCL',
-        expectedDeliveryDate: '2026-08-15',
       });
       createdShipmentIds.push(shipment.id);
       unallocated.push(shipment.id);
@@ -1097,6 +1099,78 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     });
     assert.deepEqual(allocatedOnly.items.map((row) => row.id), [allocated.id]);
     assert.equal(allocatedOnly.total, 1);
+  });
+
+  test('allocation buckets are mutually exclusive after the 20260925_5 merge (one lot, one bucket)', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const ct20 = await mkContainerType(`20DC${tag}`, "20'DC");
+    const ct40 = await mkContainerType(`40HC${tag}`, "40'HC");
+
+    // Date set + zero allocations → the only member of Chờ phân nhà xe.
+    const pendingCarrier = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+    });
+    createdShipmentIds.push(pendingCarrier.id);
+    await mkContainer(pendingCarrier.id, ct20.id);
+
+    // Date set + partial allocation → Chờ phân xe ONLY (has carriers; the
+    // 2026-09-25 ruling: buckets stay mutually exclusive by allocation state).
+    const partialWithDate = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+    });
+    createdShipmentIds.push(partialWithDate.id);
+    const partialContainers = [
+      await mkContainer(partialWithDate.id, ct40.id),
+      await mkContainer(partialWithDate.id, ct40.id),
+    ];
+    await mkCarrierFulfillment(partialWithDate.id, partialContainers[0]!.id, partialWithDate.version);
+
+    // No date + zero allocations → Chờ phân xe only (date not locked).
+    const noDate = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+    });
+    createdShipmentIds.push(noDate.id);
+    await mkContainer(noDate.id, ct20.id);
+
+    const pendingCarrierOnly = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'PENDING_CARRIER',
+      page: 1,
+      limit: 10,
+    });
+    assert.deepEqual(pendingCarrierOnly.items.map((row) => row.id), [pendingCarrier.id]);
+    assert.equal(pendingCarrierOnly.total, 1);
+
+    const waitingCarrier = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'NOT_ALLOCATED',
+      page: 1,
+      limit: 10,
+    });
+    assert.equal(waitingCarrier.total, 2, 'Chờ phân xe absorbs zero- and partially-allocated lots');
+    assert.ok(waitingCarrier.items.some((row) => row.id === partialWithDate.id));
+    assert.ok(waitingCarrier.items.some((row) => row.id === noDate.id));
+
+    // One lot, one bucket: the date-set partial lot appears under Chờ phân xe
+    // and under NO other bucket.
+    const inPendingCarrier = pendingCarrierOnly.items.some((row) => row.id === partialWithDate.id);
+    assert.equal(inPendingCarrier, false);
+
+    // Legacy tolerance: a stale client sending PARTIALLY_ALLOCATED gets the
+    // merged bucket, not an error.
+    const legacy = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'PARTIALLY_ALLOCATED',
+      page: 1,
+      limit: 10,
+    });
+    assert.equal(legacy.total, 2);
   });
 });
 

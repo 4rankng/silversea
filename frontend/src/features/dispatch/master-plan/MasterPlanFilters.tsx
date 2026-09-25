@@ -1,6 +1,6 @@
 import { FilterLines, SearchLg } from '@untitledui/icons';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
+import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
@@ -37,10 +37,14 @@ const TRADE_DIRECTION_OPTIONS = [
   { id: 'EXPORT', label: 'Xuất' },
 ];
 
-const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; label: string }[] = [
+/* Card 20260925_5 (PM/customer, lead ruling): "Đang phân xe" is dropped —
+   partially-allocated lots wait in "Chờ phân xe"; "Chờ phân nhà xe" carries
+   date-locked lots with zero carriers. Buckets are mutually exclusive (one
+   lot, one bucket) so counts match grid rows exactly. */
+const ALLOCATION_OPTIONS: { id: ShipmentAllocationFilter | 'ALL_ALLOCATIONS'; label: string }[] = [
   { id: 'ALL_ALLOCATIONS', label: 'Tất cả trạng thái' },
   { id: 'NOT_ALLOCATED', label: 'Chờ phân xe' },
-  { id: 'PARTIALLY_ALLOCATED', label: 'Đang phân xe' },
+  { id: 'PENDING_CARRIER', label: 'Chờ phân nhà xe' },
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
 ];
 

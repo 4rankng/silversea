@@ -126,7 +126,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // row clients beside the CUS workspace line-update call.
   // Bumped 1143 -> 1146: 2026-09-22 lint rider (LEAD) — residual growth
   // swept in with the 22_4 wave's client work; shrink candidate.
-  'src/api/shipmentClient.ts': 1146,
+  // Bumped 1146 -> 1154: 2026-09-25 card 20260925_5 (FE) — the allocation
+  // filter contract gains the ShipmentAllocationFilter type + doc comment;
+  // shrink candidate.
+  'src/api/shipmentClient.ts': 1154,
   // Bumped 717 -> 784: 2026-09-20 card _37/_43 billing-gate scope — the
   // document builder grew with the billing readiness gate work.
   'src/components/billing/BillingDocumentBuilder.tsx': 784,

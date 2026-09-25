@@ -561,6 +561,14 @@ export interface CancelShipmentFulfillmentResponse {
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 
+/** Card 20260925_5: dispatch master-plan FILTER buckets — mutually exclusive
+ * (one lot, one bucket, lead ruling). NOT_ALLOCATED = "Chờ phân xe" (zero
+ * allocations without a locked date, plus partially-allocated lots);
+ * PENDING_CARRIER = "Chờ phân nhà xe" (date locked, zero carriers);
+ * FULLY_ALLOCATED = "Đã phân xong". The ROW payload keeps the derived
+ * ShipmentAllocationStatus wire enum — this type is the filter contract only. */
+export type ShipmentAllocationFilter = 'NOT_ALLOCATED' | 'FULLY_ALLOCATED' | 'PENDING_CARRIER';
+
 /** Per-carrier 20'/40' planned allocation counts (dispatch master-plan chips). */
 export interface ShipmentCarrierAllocationSummaryEntry {
   carrierType: 'OWN' | 'EXTERNAL';
@@ -944,7 +952,7 @@ export async function listShipments(params?: {
   /** Dispatch master-plan: filters on expectedDeliveryDate. */
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
-  allocationStatus?: ShipmentAllocationStatus;
+  allocationStatus?: ShipmentAllocationFilter;
   /** Dispatch master-plan Lạch Huyện: OR within ports, AND with other facets. */
   portIds?: number[];
   /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
