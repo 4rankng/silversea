@@ -79,6 +79,10 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
     for (const row of idRows) {
       const id = Number(row.id);
       try {
+        if (surface.action === 'hard-delete-guarded' && surface.selfGuard) {
+          const selfHit = await rows(`SELECT 1 AS hit FROM ${surface.table} WHERE id = ${id} AND ${surface.selfGuard} LIMIT 1`);
+          if (selfHit.length > 0) { skipped += 1; continue; }
+        }
         if (surface.action === 'hard-delete-guarded' && await isGuarded(surface, id)) { skipped += 1; continue; }
         await rows(`DELETE FROM ${surface.table} WHERE id = ${id}`);
         deleted += 1;

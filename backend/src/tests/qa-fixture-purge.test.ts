@@ -14,7 +14,7 @@ describe('QA fixture purge', () => {
       strict.ok(surface.predicate.includes("ILIKE 'QA%'"), `predicate not QA-gated: ${surface.table}`);
       strict.ok(validActions.includes(surface.action), `invalid action: ${surface.table}`);
       if (surface.action === 'hard-delete-guarded') {
-        strict.ok(surface.guards.length > 0, `guarded action without guards: ${surface.table}`);
+        strict.ok(surface.guards.length > 0 || surface.selfGuard, `guarded action without guard mechanism: ${surface.table}`);
       }
     }
   });

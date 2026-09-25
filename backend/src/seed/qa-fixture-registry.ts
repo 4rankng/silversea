@@ -19,6 +19,8 @@ export interface QaFixtureSurface {
   predicate: string;
   action: 'soft-delete' | 'hard-delete' | 'hard-delete-guarded' | 'deactivate' | 'deactivate-plus-soft-delete';
   guards: Array<{ table: string; column: string }>;
+  /** Optional predicate on the row itself; true rows are skipped as guarded. */
+  selfGuard?: string;
 }
 
 export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%')`;
@@ -51,7 +53,8 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     label: 'QA deposit-refund tracker rows',
     predicate: `bill_number ILIKE 'QA%' OR customer_name ILIKE 'QA%' OR note ILIKE 'QA%'`,
     action: 'hard-delete-guarded',
-    guards: [{ table: 'treasury_movements', column: 'refund_posted_movement_id' }],
+    guards: [],
+    selfGuard: 'refund_posted_movement_id IS NOT NULL',
   },
   {
     table: 'invoice_tracking',
