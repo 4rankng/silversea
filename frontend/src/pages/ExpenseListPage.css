@@ -115,6 +115,54 @@
   background: var(--danger-soft);
 }
 
+/* Card 20260925_6 (site sweep, Từ/Đến pair): the pair is one filter cell.
+   It occupies exactly two track-cells of the 5-col bar grid (so the 3
+   selects sit columns 1–3 and the pair spans 4–5), shares the surface
+   chrome with its siblings (no white panel, no shadow), aligns its row
+   baseline on the same align-items:end rhythm as the selects, and never
+   leaks a label past the row edge. The internal row uses a 2-col grid
+   with an arrow separator so the two inputs read as one logical unit. */
+.expense-filter-bar__date-pair {
+  grid-column: span 2;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 4px;
+  min-width: 0;
+}
+
+.expense-filter-bar__date-pair-label {
+  color: var(--ink-2);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  line-height: 1.4;
+  /* nowrap keeps the combined label from wrapping past the cell edge — at
+     1023px the bar switches to 2-col grid and the pair can shrink; the
+     single-line label is the contract that lets the row stay aligned. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.expense-filter-bar__date-pair-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.expense-filter-bar__date-pair-row .expense-filter-bar__date {
+  width: 100%;
+  min-width: 0;
+}
+
+.expense-filter-bar__date-pair-sep {
+  color: var(--ink-4);
+  font-size: var(--text-caption-size);
+  line-height: 1;
+  text-align: center;
+}
+
 /* ── Data Table ─────────────────────────────────────────────────────────── */
 
 .expense-table-wrap {
@@ -408,6 +456,19 @@
     padding: 0 11px;
     font-size: var(--filter-control-font-size);
     grid-column: 1 / -1;
+  }
+
+  /* Card 20260925_6 (site sweep): the Từ/Đến pair stays one inline row on
+     phones (not stacked). Keeping both on one row saves ~32px vertical
+     against the 150px → ~110px tightening; stacking would push the bar
+     back to 3 wrap rows. The arrow separator hides when the row gets
+     crowded. */
+  .expense-list-page .expense-filter-bar__date-pair {
+    grid-column: 1 / -1;
+  }
+
+  .expense-list-page .expense-filter-bar__date-pair-sep {
+    display: none;
   }
 
   .expense-list-page .mobile-table-wrap {

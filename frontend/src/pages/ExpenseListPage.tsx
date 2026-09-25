@@ -245,28 +245,37 @@ export default function ExpenseListPage() {
           ]}
         />
 
-        <label className="expense-filter-bar__field">
-          <span>Từ ngày</span>
-        <DateInput
-          name="expenseDateFrom"
-          aria-label="Từ ngày"
-          className="expense-filter-bar__date"
-          value={filters.fromDate ?? ''}
-          onChange={(value) => setFilter('fromDate', value || undefined)}
-          placeholder="Từ ngày"
-        />
-        </label>
-        <label className="expense-filter-bar__field">
-          <span>Đến ngày</span>
-        <DateInput
-          name="expenseDateTo"
-          aria-label="Đến ngày"
-          className="expense-filter-bar__date"
-          value={filters.toDate ?? ''}
-          onChange={(value) => setFilter('toDate', value || undefined)}
-          placeholder="Đến ngày"
-        />
-        </label>
+        {/* Card 20260925_6 (site sweep, Từ/Đến pair): the two date fields are
+            one filter cell — one shared label + one row of two date inputs
+            in an internal 2-col grid, sharing the surface and baseline with
+            the selects. They no longer render as two separate grid items
+            that float up beside the selects. */}
+        <div className="expense-filter-bar__date-pair" role="group" aria-label="Khoảng ngày">
+          <span id="expense-filter-bar__date-pair-label" className="expense-filter-bar__date-pair-label">Từ ngày — Đến ngày</span>
+          <div className="expense-filter-bar__date-pair-row">
+            <DateInput
+              name="expenseDateFrom"
+              aria-labelledby="expense-filter-bar__date-pair-label expense-filter-bar__date-from-label"
+              aria-label="Từ ngày"
+              className="expense-filter-bar__date"
+              value={filters.fromDate ?? ''}
+              onChange={(value) => setFilter('fromDate', value || undefined)}
+              placeholder="Từ ngày"
+            />
+            <span id="expense-filter-bar__date-from-label" hidden>Từ ngày</span>
+            <span className="expense-filter-bar__date-pair-sep" aria-hidden="true">→</span>
+            <DateInput
+              name="expenseDateTo"
+              aria-labelledby="expense-filter-bar__date-pair-label expense-filter-bar__date-to-label"
+              aria-label="Đến ngày"
+              className="expense-filter-bar__date"
+              value={filters.toDate ?? ''}
+              onChange={(value) => setFilter('toDate', value || undefined)}
+              placeholder="Đến ngày"
+            />
+            <span id="expense-filter-bar__date-to-label" hidden>Đến ngày</span>
+          </div>
+        </div>
 
         {hasFilters && (
           <button className="expense-filter-bar__reset" onClick={resetFilters}>

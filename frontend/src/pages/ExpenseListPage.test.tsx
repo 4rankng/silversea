@@ -230,11 +230,20 @@ describe('ExpenseListPage direct records', () => {
 });
 
 // FIN-POL-01a: empty date fields still have visible context and reversible filters.
+// Card 20260925_6: Từ/Đến now ship as ONE paired cell (one shared label
+// "Từ ngày — Đến ngày", one grid row of two date inputs). The contract is
+// preserved — both inputs are still empty by default, still individually
+// keyboard-addressable, and the reset still wipes both.
 it('keeps visible date labels and clears the selected date range', async () => {
   renderPage();
   await screen.findByText('Garage Auto 123');
-  expect(screen.getByText('Từ ngày').closest('label')).toContainElement(screen.getByLabelText('Từ ngày'));
-  expect(screen.getByText('Đến ngày').closest('label')).toContainElement(screen.getByLabelText('Đến ngày'));
+  // The single shared pair label sits above both inputs.
+  expect(screen.getByText('Từ ngày — Đến ngày')).toBeTruthy();
+  // Both inputs are individually addressable via aria-label inside the
+  // role="group" pair container.
+  const pairGroup = screen.getByRole('group', { name: 'Khoảng ngày' });
+  expect(pairGroup).toContainElement(screen.getByLabelText('Từ ngày'));
+  expect(pairGroup).toContainElement(screen.getByLabelText('Đến ngày'));
   fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
   fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));
