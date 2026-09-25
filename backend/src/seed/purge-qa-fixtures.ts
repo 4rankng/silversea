@@ -46,6 +46,15 @@ export async function censusSurface(surface: QaFixtureSurface): Promise<number> 
   return Number(found[0].count);
 }
 
+/** Census filtered to APP-VISIBLE rows: soft-deleted rows still match the
+ *  identifier predicate but no page renders them, so counting them made the
+ *  re-census report purged surfaces as remaining (cut #9 deploy log). */
+export async function censusVisible(surface: QaFixtureSurface): Promise<number> {
+  if (!(await columnExists(surface.table, 'deleted_at'))) return censusSurface(surface);
+  const found = await rows(`SELECT count(*)::int AS count FROM ${surface.table} WHERE ${surface.predicate} AND deleted_at IS NULL`);
+  return Number(found[0].count);
+}
+
 /** Referencing rows that block a guarded delete of `id`. */
 /** The referencing column may not exist on older schema versions - inert then. */
 async function columnExists(table: string, column: string): Promise<boolean> {
@@ -114,7 +123,7 @@ export async function purgeAll(dryRun: boolean): Promise<Array<{ table: string; 
   const report: Array<{ table: string; label: string; action: string; matched: number; deleted: number; skipped: number; remaining: number }> = [];
   for (const surface of QA_FIXTURE_REGISTRY) {
     const result = await purgeSurface(surface, dryRun);
-    const remaining = await censusSurface(surface);
+    const remaining = await censusVisible(surface);
     report.push({ table: surface.table, label: surface.label, action: surface.action, ...result, remaining });
     console.log(`SURFACE ${surface.table} [${surface.action}] matched=${result.matched} deleted=${result.deleted} skipped=${result.skipped} remaining=${remaining}`);
   }
