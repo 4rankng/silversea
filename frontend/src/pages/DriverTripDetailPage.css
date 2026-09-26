@@ -95,26 +95,12 @@
   font-size: var(--text-data-size);
 }
 
-/* 2a618442: collapsed-header Tuyến line + 44px expand/collapse toggle. */
+/* 20260926_20: header route line — the expand/collapse toggle is gone. */
 .driver-task-header__route {
   margin: 4px 0 0;
   font-size: var(--text-data-size);
   color: var(--ink-3);
   overflow-wrap: anywhere;
-}
-
-.driver-task-header__toggle {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-  cursor: pointer;
 }
 
 .driver-task-section {

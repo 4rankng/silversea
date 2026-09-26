@@ -863,8 +863,8 @@ describe('DriverTripDetailPage', () => {
     await screen.findByTestId('operation-chips');
     let chips = screen.getAllByTestId('operation-chip');
     expect(chips).toHaveLength(4);
-    // Scope to the chips region: the 2a618442 header toggle's accessible name
-    // also contains "Mở rộng", so a page-wide query would be ambiguous.
+    // Scope to the chips region — page-wide role queries stay scoped to the
+    // surface under test even after the 20260926_20 header-toggle removal.
     const chipsRegion = screen.getByTestId('operation-chips');
     const toggle = within(chipsRegion).getByRole('button', { name: /Mở rộng/ });
     fireEvent.click(toggle);
@@ -893,8 +893,8 @@ describe('DriverTripDetailPage', () => {
 
     await screen.findByTestId('operation-chips');
     expect(screen.getAllByTestId('operation-chip')).toHaveLength(3);
-    // No chips toggle here — and the header toggle (also matching "Mở rộng")
-    // lives OUTSIDE the chips region, so scoping keeps this assertion honest.
+    // No chips toggle for short lists — scoped to the chips region so the
+    // assertion reads only that surface.
     expect(within(screen.getByTestId('operation-chips')).queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
   });
 
@@ -946,10 +946,10 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(['KIỂM HÓA', 'QUAY ĐẦU']);
   });
 
-  // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
-  // subordinate route line + customer; collapsing only hides the customer
-  // name. Status pill + Đóng/Trả chip stay visible in both states.
-  it('2a618442: collapses to factory short name + route line on toggle, expanding restores route + customer', async () => {
+  // 20260926_20: the TÁC VỤ TÀI XẾ header ALWAYS shows fully — the collapse
+  // chevron is removed (it hid only the customer name: no real space saving).
+  // Status pill + Đóng/Trả chip + customer render unconditionally.
+  it('20260926_20: header renders fully — collapse toggle gone, customer always visible', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -965,28 +965,21 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Default EXPANDED: factory title + route-line text (route summary — the
-    // factory address never rides this line) + customer.
-    const toggle = screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' });
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    // No expand/collapse affordance exists on the header — neither by
+    // accessible name nor by the old class hook.
+    expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
+    expect(document.querySelector('.driver-task-header__toggle')).toBeNull();
+    // Full header content renders without any toggle interaction.
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
     expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
     expect(screen.getByText('SilverSea')).toBeTruthy();
-
-    fireEvent.click(toggle);
-    // Collapsed: same factory title + route line; only the customer hides.
-    // (BUG 5: the expanded grid below also shows the short name, so scope the
-    // assertion to the header title element.)
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
-    expect(screen.queryByText('SilverSea')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeTruthy();
   });
 
-  // 2a618442: without factory data the title falls back to the route name in
-  // both states and the redundant route line stays hidden (it belongs under a
-  // factory title only).
-  it('2a618442: falls back to the route title and hides the route line without factory name', async () => {
+  // 20260926_20: without factory data the title falls back to the route name
+  // and the redundant route line stays hidden (it belongs under a factory
+  // title only). No collapse toggle — the header is static.
+  it('20260926_20: falls back to the route title and hides the route line without factory name', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -1002,12 +995,11 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // No factory → route title in BOTH states, route line hidden.
+    // No factory → route title, route line hidden, and no toggle exists.
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
     expect(document.querySelector('.driver-task-header__route')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' }));
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
   });
 
   // 40f3ae15 + photo-block unification: biên bản giao hàng capture lives in
