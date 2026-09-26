@@ -5,6 +5,7 @@ import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { createInvoiceTracking, updateInvoiceTracking } from '../../api/invoiceTrackingClient';
 import { getShipmentDetail, listShipments } from '../../api/shipmentClient';
 import { businessDateISO } from '../../lib/format';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 
 interface LotOption {
   id: number;
@@ -205,7 +206,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
             <input id="ivt-invoice-number" className="input" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
           </FormGroup>
           <FormGroup label="Ngày" htmlFor="ivt-expense-date">
-            <input id="ivt-expense-date" className="input" type="date" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} />
+            <BufferedUuiDateInput id="ivt-expense-date" value={expenseDate} onChange={setExpenseDate} />
           </FormGroup>
           <FormGroup label="Số tiền hóa đơn (₫)" htmlFor="ivt-invoice-amount">
             <input id="ivt-invoice-amount" className="input" type="number" min="0" step="1" value={invoiceAmount} onChange={(event) => setInvoiceAmount(event.target.value)} />

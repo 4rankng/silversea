@@ -8,6 +8,7 @@ import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import '../ops/ops-modal.css';
 import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
@@ -29,6 +30,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [ngayLayPhoi, setNgayLayPhoi] = useState<string | null>(null);
+  const [trangThaiLay, setTrangThaiLay] = useState<string | null>(null);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
   const { confirm, dialog } = useConfirm();
 
@@ -167,8 +170,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
               Nhập Thu và Trả bằng nhau
             </label>
             <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
-              <label>Ngày lấy phơi <input type="date" defaultValue={detail.data.ngayLayPhoi ?? ''} onChange={(e) => void saveMeta(e.target.value, detail.data?.trangThaiLay ?? '')} /></label>
-              <label>Trạng thái lấy <input defaultValue={detail.data.trangThaiLay ?? ''} onBlur={(e) => void saveMeta(detail.data?.ngayLayPhoi ?? '', e.target.value)} /></label>
+              <BufferedUuiDateInput label="Ngày lấy phơi" size="sm" value={ngayLayPhoi ?? (detail.data.ngayLayPhoi ?? '')} onChange={(next) => { setNgayLayPhoi(next); void saveMeta(next, trangThaiLay ?? detail.data?.trangThaiLay ?? ''); }} />
+              <label>Trạng thái lấy <input defaultValue={detail.data.trangThaiLay ?? ''} onBlur={(e) => void saveMeta(ngayLayPhoi ?? detail.data?.ngayLayPhoi ?? '', e.target.value)} /></label>
               <button type="button" className="btn btn--secondary btn--sm" disabled={saving || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</button>
               <button type="button" className="btn btn--primary btn--sm" disabled={saving} onClick={() => void saveAll()}>Lưu</button>
               <button type="button" className="btn btn--secondary btn--sm" disabled={saving} onClick={onClose}>Hủy</button>

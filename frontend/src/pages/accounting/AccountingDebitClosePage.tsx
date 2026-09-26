@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 
 const money = (value: string | null, missingLabel: string) => {
@@ -193,8 +194,8 @@ export default function AccountingDebitClosePage() {
     <div className="page-shell">
       <PageHeader title="Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP" />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', margin: '12px 0 8px' }}>
-        <label style={{ display: 'grid', gap: 4 }}>Từ ngày <input className="input" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
-        <label style={{ display: 'grid', gap: 4 }}>Đến ngày <input className="input" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
+        <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
+        <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
         <DebitFilterDropdown
           label="Lọc khách hàng (Thông tin lô hàng)"
           values={customerValues}

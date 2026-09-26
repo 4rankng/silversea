@@ -4,6 +4,7 @@ import { animate, spring, utils } from 'animejs';
 import { useAnimatedOverlay, type EntranceFn, type ExitFn } from '../../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { formatCurrency } from '../../lib/format';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   type AccountingDebitBoardRow,
   type CreateSettlementRoundBody,
@@ -181,14 +182,8 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
             <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>{errorLine}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            <label style={fieldStyle}>
-              <span style={labelStyle}>Từ ngày</span>
-              <input className="input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            </label>
-            <label style={fieldStyle}>
-              <span style={labelStyle}>Đến ngày</span>
-              <input className="input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </label>
+            <BufferedUuiDateInput label="Từ ngày" value={dateFrom} onChange={setDateFrom} />
+            <BufferedUuiDateInput label="Đến ngày" value={dateTo} onChange={setDateTo} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             <label style={fieldStyle}>

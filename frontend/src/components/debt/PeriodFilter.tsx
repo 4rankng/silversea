@@ -5,7 +5,7 @@ import { UuiSelectField } from '../../design-system';
 /**
  * Period filter for the AR/AP detail ledger tab. Two modes:
  *   - "month": pick a month (T1–T12) and year; resolves to [first day, last day].
- *   - "range": two <input type="date"> (Từ ngày / Đến ngày).
+ *   - "range": two design-system DateInput fields (Từ ngày / Đến ngày).
  *
  * Both modes emit a { dateFrom, dateTo } range via `onChange` so the parent can
  * feed it directly into `useCustomerStatement(id, range)` /

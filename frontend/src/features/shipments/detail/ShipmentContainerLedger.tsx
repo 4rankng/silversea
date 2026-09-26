@@ -26,6 +26,7 @@ import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shi
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
+import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import '../../../styles/table-sort.css';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
@@ -573,7 +574,7 @@ function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, 
       <label><span>Số container *</span><input aria-label="Số container mới" value={number} onChange={(event) => setNumber(event.target.value.toUpperCase())} maxLength={20} disabled={busy} /></label>
       <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={weight} onChange={(event) => setWeight(event.target.value)} disabled={busy} /></label>
       <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={volume} onChange={(event) => setVolume(event.target.value)} disabled={busy} /></label>
-      <label><span>Ngày đóng/trả</span><input aria-label="Ngày đóng/trả mới" type="date" value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} disabled={busy} /></label>
+      <BufferedUuiDateInput label="Ngày đóng/trả" value={appointmentDate} onChange={setAppointmentDate} isDisabled={busy} />
       <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
       {error && <span role="alert">{error}</span>}
       <div>

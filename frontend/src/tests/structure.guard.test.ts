@@ -332,7 +332,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 866 -> 872: 2026-09-25 card 20260925_6 — the ledger vehicle editor
   // regains the NEW_EXTERNAL plate branch (quick-select restore); extraction
   // candidate stands (externalVendorPlateOptions already moved to its own lib).
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 872,
+  // Bumped 872 -> 873: 2026-09-26 card 20260925_9 — the add-container row's
+  // native date input swaps to the shared BufferedUuiDateInput (import line);
+  // net +1. Split candidate stands.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 873,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T
