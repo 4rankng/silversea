@@ -27,8 +27,10 @@ export const appSettingsClient = {
     api.put<EmailSettingsResponse>(EMAIL_SETTINGS_PATHS.base, settings),
   getFinancialReportingPolicy: () =>
     api.get<FinancialReportingPolicyState>(FINANCIAL_REPORTING_POLICY_PATH),
+  // KP-147: the policy applies immediately — the retired /requests path
+  // answers with the global 404 body ('Không tìm thấy API').
   requestFinancialReportingPolicy: (payload: FinancialReportingPolicyRequest) =>
-    api.post(`${FINANCIAL_REPORTING_POLICY_PATH}/requests`, payload),
+    api.post(FINANCIAL_REPORTING_POLICY_PATH, payload),
   getTruckFinancialProfiles: (truckId: number | null) =>
     api.get<TruckFinancialProfileState>(
       `${TRUCK_FINANCIAL_PROFILE_PATH}${toQuery({ truckId: truckId ?? undefined })}`,

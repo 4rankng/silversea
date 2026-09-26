@@ -205,7 +205,9 @@ export default function AppSettingsConfigPage() {
       setPolicyError(
         message.includes('đã có phiên bản')
           ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử phiên bản hoặc chọn tháng khác.'
-          : message,
+          : message.includes('Không tìm thấy API') || message.includes('404')
+            ? 'Không kết nối được API lưu chính sách. Vui lòng tải lại trang và thử lại; nếu vẫn lỗi, báo quản trị hệ thống.'
+            : message,
       );
     }
   };
