@@ -116,7 +116,7 @@ export function DispatchContainerDetailDrawer({
     <Drawer
       isOpen={shipment != null}
       onClose={close}
-      title="Chi tiết cont"
+      title="Chi tiết container"
       subtitle={shipment ? `${label}${shipment.customerName ? ` · ${shipment.customerName}` : ''}` : undefined}
       className="dispatch-container-detail-drawer"
     >
