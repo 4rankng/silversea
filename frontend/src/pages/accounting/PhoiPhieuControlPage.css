@@ -15,11 +15,20 @@
    narrow/atomic columns; single-token cells expand (nowrap, no clip) per
    design law §4; the two ghi chú columns keep wrapping (long text). */
 .ppc-board th.ppc-col--select { width: 3%; min-width: 32px; }
-.ppc-board th.ppc-col--customer-route { width: 13%; min-width: 150px; }
-.ppc-board th.ppc-col--chiho { width: 14%; min-width: 130px; }
-.ppc-board th.ppc-col--money { width: 11%; min-width: 100px; }
-.ppc-board th.ppc-col--status { width: 8%; min-width: 90px; }
-.ppc-board th.ppc-col--date { width: 10%; min-width: 85px; }
+/* Card 20260925_47: track shares rebalanced — the fixed 13-track layout
+   squeezed unbreakable header tokens below their glyph floor ('Địa điểm nâng
+   / hạ' fell to three ragged lines; 'CONTAINER' painted over its neighbour
+   once a min-width rescue was tried — min-width is inert under
+   table-layout: fixed, only width sizes tracks). Explicit shares hold every
+   header at its longest word, ≤2 even lines. */
+.ppc-board th.ppc-col--customer-route { width: 12%; }
+.ppc-board th.ppc-col--thongso { width: 8%; }
+.ppc-board th.ppc-col--diadiem { width: 11%; }
+.ppc-board th.ppc-col--chiho { width: 12%; }
+.ppc-board th.ppc-col--money { width: 10%; }
+.ppc-board th.ppc-col--status { width: 8%; }
+.ppc-board th.ppc-col--date { width: 9%; }
+.ppc-board th.ppc-col--ghichu { width: 7%; }
 .ppc-board td.ppc-col--date { white-space: nowrap; }
 .ppc-board td.ppc-col--money .btn { margin-top: 4px; }
 .ppc-board .ppc-line { display: block; }

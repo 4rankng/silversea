@@ -68,6 +68,11 @@
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   line-height: var(--ops-table-header-line-height);
+  /* Wrapped headers read as one even band (audit 20260925_47): greedy fill
+     left 'HẠN THANH / TOÁN CHI HỘ / (NGÀY)' ragged next to neighbours'
+     single lines. balance re-distributes the SAME line count evenly —
+     one-line headers are untouched, nowrap systems are no-ops. */
+  text-wrap: balance;
 }
 
 :where(table tbody td) {

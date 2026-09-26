@@ -230,15 +230,15 @@ export default function PhoiPhieuControlPage() {
             <th scope="col" className="ppc-col--select"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
             <th scope="col">Lịch trình</th>
             <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến</th>
-            <th scope="col">Thông số container</th>
-            <th scope="col">Địa điểm nâng / hạ</th>
+            <th scope="col" className="ppc-col--thongso">Thông số container</th>
+            <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>
             <th scope="col">Thông tin xe</th>
             <th scope="col" className="ppc-col--chiho">Chi hộ (Phải thu / Phải trả)</th>
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
             <th scope="col" className="ppc-col--date">Ngày</th>
-            <th scope="col">Ghi chú vận đơn</th>
-            <th scope="col">Ghi chú lái xe</th>
+            <th scope="col" className="ppc-col--ghichu">Ghi chú vận đơn</th>
+            <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>
           </tr></thead>
           <tbody>
             {rows.map((row) => (

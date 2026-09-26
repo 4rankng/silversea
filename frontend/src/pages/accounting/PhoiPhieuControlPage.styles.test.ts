@@ -23,10 +23,16 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
 
   it('atomic columns are budgeted explicitly — the fixed-layout board no longer equal-shares every column', () => {
     expect(css).toMatch(/\.ppc-board th\.ppc-col--select\s*\{[^}]*width:\s*3%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--chiho\s*\{[^}]*width:\s*14%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--money\s*\{[^}]*width: 11%/);
+    // Card 20260925_47: shares rebalanced so unbreakable header tokens hold
+    // their longest word at ≤2 even lines (fixed layout honours width only).
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--customer-route\s*\{[^}]*width:\s*12%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--thongso\s*\{[^}]*width:\s*8%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--diadiem\s*\{[^}]*width:\s*11%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--chiho\s*\{[^}]*width:\s*12%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--money\s*\{[^}]*width: 10%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--status\s*\{[^}]*width:\s*8%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--date\s*\{[^}]*width:\s*10%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--date\s*\{[^}]*width:\s*9%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu\s*\{[^}]*width:\s*7%/);
   });
 
   it('chi hộ affordance is an icon-only button with a ≥24px hit area (09-18 icon-action ruling, §5)', () => {
