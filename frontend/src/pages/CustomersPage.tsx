@@ -519,6 +519,7 @@ export default function CustomersPage() {
                 subtitle: `${filtered.length} khách hàng đang quản lý`,
                 columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text'],
               });
+              toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
             }}>
               <Download size={14} /> Xuất Excel
             </button>
@@ -682,6 +683,7 @@ export default function CustomersPage() {
               await downloadCSV(`khach-hang-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, chosen.map(c => [
                 c.name, c.shortName || '', c.taxCode || '', c.contactPerson || '', c.phone || '', STATUS_LABELS[c.status] || c.status,
               ]), { title: 'KHÁCH HÀNG ĐÃ CHỌN' });
+              toast({ kind: 'success', message: 'Đã xuất khách hàng đã chọn' });
             }}
           >
             <Download size={14} /> Xuất CSV đã chọn
