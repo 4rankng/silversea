@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download, Search,
@@ -210,6 +211,13 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
 export default function SupplierListPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterKey>('all');
+  // Card 20260926_58 (CHIEF): status pills count the WHOLE dataset, never
+  // the loaded pagination chunk ('TRANG NÀY' anti-pattern).
+  const statusCountsQuery = useQuery({
+    queryKey: ['suppliers', 'status-counts'],
+    queryFn: () => api.get<{ all: number; active: number; inactive: number; vehicles: Record<string, number> }>('/suppliers/status-counts'),
+  });
+  const vehicleCounts = statusCountsQuery.data?.vehicles ?? {};
   const [typeFilter, setTypeFilter] = useState<'all' | 'carrier' | 'other'>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -261,8 +269,8 @@ export default function SupplierListPage() {
   const error = queryError ? 'Không thể tải dữ liệu' : mutationError;
 
   const { activeCount, inactiveCount, filtered } = useMemo(() => {
-    const activeCount = suppliers.filter(s => s.status === 'ACTIVE').length;
-    const inactiveCount = suppliers.filter(s => s.status !== 'ACTIVE').length;
+    const activeCount = statusCountsQuery.data?.active ?? suppliers.filter(s => s.status === 'ACTIVE').length;
+    const inactiveCount = statusCountsQuery.data?.inactive ?? suppliers.filter(s => s.status !== 'ACTIVE').length;
     const filtered = suppliers.filter(s => {
       if (typeFilter === 'carrier' && !s.types?.includes(SupplierType.CARRIER)) return false;
       if (typeFilter === 'other' && s.types?.includes(SupplierType.CARRIER)) return false;
@@ -271,7 +279,7 @@ export default function SupplierListPage() {
       return true;
     });
     return { activeCount, inactiveCount, filtered };
-  }, [suppliers, filter, typeFilter]);
+  }, [suppliers, filter, typeFilter, statusCountsQuery.data]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -367,7 +375,7 @@ export default function SupplierListPage() {
       </div>
 
       <div className="filter-bar">
-        <button className={`filter-tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {total}</button>
+        <button className={`filter-tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {statusCountsQuery.data?.all ?? total}</button>
         <button className={`filter-tab${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
           <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
           Hoạt động · {activeCount}
@@ -386,7 +394,7 @@ export default function SupplierListPage() {
             type="text"
             name="supplierSearch"
             aria-label="Tìm nhà cung cấp theo tên"
-            placeholder="Tìm theo tên…"
+            placeholder="Tên nhà thầu, MST, người liên hệ, SĐT…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -431,6 +439,12 @@ export default function SupplierListPage() {
                   <span>Công nợ</span>
                   <Money value={payableBySupplier.get(s.id) ?? 0} />
                 </div>
+                {s.linkedCustomerId != null && (
+                  <div className="m-card__meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span>Xe đang gán</span>
+                    <span style={{ fontFamily: 'var(--font-data)' }}>{vehicleCounts[String(s.linkedCustomerId)] ?? 0}</span>
+                  </div>
+                )}
                 {s.taxCode && (
                   <div className="m-card__meta" style={{ fontFamily: 'var(--font-data)' }}>
                     MST {s.taxCode}

@@ -919,6 +919,39 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
     reasonLabel: 'tỷ lệ phân chia theo xe',
   },
 }));
+// Card 20260926_58 (CHIEF): the subcontractor directory's status pills must
+// count the WHOLE filtered dataset, never the current pagination chunk
+// ('ĐANG HOẠT ĐỘNG (TRANG NÀY)' was the reported anti-pattern). One grouped
+// census + per-carrier assigned-vehicle counts (trucks.carrier_id = the
+// supplier's linked customer), both scoped to live rows.
+router.get(
+  '/suppliers/status-counts',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const [statusRows, vehicleRows] = await Promise.all([
+      db.select({ status: s.suppliers.status, count: sql<number>`count(*)::int` })
+        .from(s.suppliers)
+        .where(isNull(s.suppliers.deletedAt))
+        .groupBy(s.suppliers.status),
+      db.select({ carrierId: s.trucks.carrierId, count: sql<number>`count(*)::int` })
+        .from(s.trucks)
+        .where(and(isNull(s.trucks.deletedAt), isNotNull(s.trucks.carrierId)))
+        .groupBy(s.trucks.carrierId),
+    ]);
+    const byStatus: Record<string, number> = {};
+    let all = 0;
+    for (const row of statusRows) {
+      byStatus[row.status] = row.count;
+      all += row.count;
+    }
+    const vehicles: Record<string, number> = {};
+    for (const row of vehicleRows) {
+      if (row.carrierId != null) vehicles[String(row.carrierId)] = row.count;
+    }
+    res.json({ all, active: byStatus['ACTIVE'] ?? 0, inactive: (byStatus['INACTIVE'] ?? 0) + (byStatus['SUSPENDED'] ?? 0), vehicles });
+  }),
+);
+
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   // Same identifier-search gap as /customers (taxCode/phone were sortable
   // but not searchable) — see the 2026-09-10 customer report.
