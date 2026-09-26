@@ -56,7 +56,7 @@ staging:
     DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
     OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008),
-                 vanchuyen (QA fixture, card 20260922_49)
+                 vanchuyen (QA fixture, card 20260922_49 — PURGED 26/09: QA-named account removed by the qa-fixture purge per the data class; use a named-role account instead)
     DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
                  (no Mã NV); every one logs in with username + Abc123
   # API notes for scripted testing (learned 2026-09-06):
