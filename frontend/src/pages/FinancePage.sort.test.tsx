@@ -117,6 +117,44 @@ beforeEach(() => {
   useCapTableMock.mockReturnValue({ data: [] });
 });
 
+describe('FinancePage top-trucks chart plate labels', () => {
+  it('renders full plates untruncated and starts bars past the longest label gutter', () => {
+    const longPlate = 'QA-C17-3-veuqu2'; // 15 chars — worst-case fixture plate
+    const labeledReport = {
+      ...report,
+      trucks: [
+        pnlTruck(21, longPlate, 4_000_000),
+        pnlTruck(22, '30H-888.88', 2_000_000),
+      ],
+    };
+    usePnlReportMock.mockImplementation((_month: number, year: number) => (
+      year === 2026
+        ? { data: labeledReport, isLoading: false, error: null }
+        : { data: undefined, isLoading: false, error: null }
+    ));
+
+    const { container } = renderPage();
+    const svg = container.querySelector('svg[aria-label^="Top xe theo lợi nhuận"]');
+    expect(svg).not.toBeNull();
+    const rows = [...svg!.querySelectorAll('g')];
+    const rowFor = (plate: string) => rows.find(g => g.querySelector('text')?.textContent?.startsWith(plate));
+
+    // Full plates, never truncated to '…'.
+    for (const plate of [longPlate, '30H-888.88']) {
+      const label = rowFor(plate)!.querySelector('text')!;
+      expect(label.textContent!.startsWith(plate)).toBe(true);
+      expect(label.textContent).not.toContain('…');
+    }
+
+    // The bar track starts after a gutter wide enough for the longest label:
+    // every rect sits at zeroX = plateW + 5 ≥ longestLen × 7.8 (units/char at 12px).
+    const longestLen = longPlate.length;
+    for (const rect of [...svg!.querySelectorAll('rect')]) {
+      expect(parseFloat(rect.getAttribute('x')!)).toBeGreaterThanOrEqual(longestLen * 7.8);
+    }
+  });
+});
+
 describe('FinancePage top-trucks chart zero-value bars', () => {
   it('renders no bar tick for a zero-profit row and keeps non-zero bars', () => {
     const zeroReport = {

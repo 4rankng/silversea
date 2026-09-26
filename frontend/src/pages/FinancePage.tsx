@@ -371,9 +371,14 @@ export default function FinancePage() {
                 const minProfit = Math.min(...topTrucks.map(t => t['LN gộp']), 0);
                 const totalRange = maxProfit - minProfit;
                 const svgH = topTrucks.length * 32;
-                const plateW = 65;
+                // Fixed label gutter sized to the LONGEST plate (no truncation):
+                // measured 69–74 units for 10-char plates at 12px in Be Vietnam Pro,
+                // so 7.8 units/char + 6 padding reserves it without colliding with
+                // the bar track. Track shrinks for outlier-long fixture plates.
+                const maxPlateLen = Math.max(...topTrucks.map(t => t.name.length));
+                const plateW = Math.max(65, maxPlateLen * 7.8 + 6);
                 const valW = 75;
-                const barTrackW = 280 - plateW - valW - 10;
+                const barTrackW = Math.max(40, 280 - plateW - valW - 10);
                 const zeroX = minProfit < 0 ? (plateW + 5) + (Math.abs(minProfit) / totalRange) * barTrackW : (plateW + 5);
                 return (
                   <svg width="100%" height={svgH} viewBox={`0 0 280 ${svgH}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Top xe theo lợi nhuận tháng ${month}/${year}`}>
@@ -383,10 +388,9 @@ export default function FinancePage() {
                       const w = Math.max(2, (Math.abs(val) / totalRange) * barTrackW);
                       const barX = isNegative ? zeroX - w : zeroX;
                       const fill = isNegative ? 'var(--danger)' : 'var(--success, #177448)';
-                      const label = t.name.length > 10 ? `${t.name.slice(0, 9)}…` : t.name;
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>
-                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{label}<title>{t.name}</title></text>
+                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{t.name}<title>{t.name}</title></text>
                           {/* Zero-value rows show label + 0₫ only — a min-width tick here
                               reads as a stray mark glued to the plate label. */}
                           {val !== 0 && (
