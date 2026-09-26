@@ -248,7 +248,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('Tác vụ tài xế');
+    await screen.findByText('FUL-88');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
@@ -259,7 +259,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status: TripStatus.CANCELED }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('Tác vụ tài xế');
+    await screen.findByText('FUL-88');
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
@@ -477,17 +477,16 @@ describe('DriverTripDetailPage', () => {
   });
 
   // 20260911_3 BUG 5 (supersedes the 365943ea order), restated 26/09 after
-  // 1af13d12 + dc1b1cba: the fact grid now leads with the business key
-  // (Số Bill / Booking — internal TRP codes never render), then the factory
-  // block with both phone rows (liên hệ + kho), then the working facts
-  // (container, ports) — the Tuyến address line is demoted below them.
-  it('renders the customer field order: bill, factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
+  // 1af13d12 + dc1b1cba; amended 26/09 card _26: the bill/booking code moved
+  // into the header title (item 4), so the grid leads with the factory block
+  // + kho phone, then the working facts (container, ports) — the Tuyến
+  // address line is demoted below them.
+  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
-      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
@@ -659,8 +658,10 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
     expect(valueOf('Tuyến')).toBeUndefined();
-    expect(screen.getAllByText('Cát Lái → Bình Dương')).toHaveLength(1);
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+    // Card _26: the route line retired from the header — the ports in the
+    // grid carry the route; the header shows location, not route text.
+    expect(screen.queryByText('Cát Lái → Bình Dương')).toBeNull();
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
   });
 
   it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
@@ -970,15 +971,17 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
     expect(document.querySelector('.driver-task-header__toggle')).toBeNull();
     // Full header content renders without any toggle interaction.
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+    // Card _26: the bill/booking code leads the title; the factory short
+    // name renders as the line-2 location.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('FUL-88');
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     expect(screen.getByText('SilverSea')).toBeTruthy();
   });
 
-  // 20260926_20: without factory data the title falls back to the route name
-  // and the redundant route line stays hidden (it belongs under a factory
-  // title only). No collapse toggle — the header is static.
-  it('20260926_20: falls back to the route title and hides the route line without factory name', async () => {
+  // 20260926_20 + card _26: without factory data the line-2 location falls
+  // back to the route name; the title keeps leading with the code. No
+  // collapse toggle — the header is static.
+  it('20260926_20: falls back to the route location while the code still leads', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -994,9 +997,9 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // No factory → route title, route line hidden, and no toggle exists.
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+    // No factory → the route summary becomes the location; no toggle exists.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('FUL-88');
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Cát Lái → Bình Dương');
     expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
   });

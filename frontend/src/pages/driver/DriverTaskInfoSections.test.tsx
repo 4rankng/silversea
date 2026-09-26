@@ -93,7 +93,6 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
-      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
@@ -303,7 +302,6 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
-      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',

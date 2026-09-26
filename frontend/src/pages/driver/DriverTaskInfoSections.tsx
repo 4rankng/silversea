@@ -19,14 +19,18 @@ import { driverLocationLabels } from '../../features/driver/driver-display';
  * to the task header, not a second fact row. ĐẦU KÉO and RƠ MOÓC are OFF this surface: the wire fields
  * stay, only the rows are dropped.
  */
+/**
+ * Card 20260926_26 item 1: one settings row — icon | label left | value
+ * right on a single line (44-52px tall, hairline divider underneath). Long
+ * values wrap inside the value column, right-aligned settings-list style;
+ * the row grows, the structure never changes.
+ */
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
     <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
       <span className="driver-task-fact__icon">{icon}</span>
-      <div className="driver-task-fact__body">
-        <div className="driver-task-fact__label">{label}</div>
-        <div className="driver-task-fact__value">{value}</div>
-      </div>
+      <span className="driver-task-fact__label">{label}</span>
+      <div className="driver-task-fact__value">{value}</div>
     </div>
   );
 }
@@ -142,12 +146,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           onToggle={() => setInfoOpen((v) => !v)}
         />
         <div className="driver-task-grid" id="driver-task-info-grid" hidden={!infoOpen}>
-          {/* CHIEF 26/09 (internal-ids law): the bill/booking code leads the
-              detail the same way it leads the journey card. */}
-          <TaskFact icon={<FileText size={16} />} label="Số Bill / Booking" value={valueOrDash(fulfillment?.code)} fullWidth />
-          {/* Row 1 — NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY (short name), per the
-              mobile target sketch: the plan time pairs with the destination
-              the driver scans for first. */}
+          {/* Card 20260926_26 item 4: the bill/booking code (internal-ids law:
+              the driver's display key) moved into the header title — one
+              place, not two. */}
           <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={plannedAt ? formatDateTime(plannedAt) : 'Chưa chốt lịch'} />
           <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} />
           {/* Full factory name: canonical site name from the container

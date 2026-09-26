@@ -38,9 +38,11 @@
   color: var(--ink-3);
 }
 
+/* Card 20260926_26 item 4: back + mã on line 1, location + status pill on
+   line 2 — the block stays ~120px regardless of content. */
 .driver-task-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -95,11 +97,12 @@
   font-size: var(--text-data-size);
 }
 
-/* 20260926_20: header route line — the expand/collapse toggle is gone. */
-.driver-task-header__route {
-  margin: 4px 0 0;
-  font-size: var(--text-data-size);
-  color: var(--ink-3);
+/* Line-2 location (factory short name / fallback): reads as emphasized
+   metadata — slightly larger than the caption row it sits in. */
+.driver-task-header__location {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2, #4a5550);
   overflow-wrap: anywhere;
 }
 
@@ -198,7 +201,9 @@
 .driver-task-grid,
 .driver-task-finance {
   display: grid;
-  gap: 10px;
+  /* Card 20260926_26 item 3: the hairline divider replaces the whitespace —
+     rows carry their own 12px vertical padding. */
+  gap: 0;
 }
 
 /* Layout declarations otherwise override the browser's native [hidden]
@@ -207,32 +212,39 @@
   display: none;
 }
 
-/* Flat fact row — no tile chrome; the section card is the elevation. */
+/* Card 20260926_26 items 1+3: one settings row — icon | label left | value
+   right on a single line, 44-52px tall, hairline divider underneath instead
+   of whitespace gaps. Long values wrap inside the value column; the row
+   grows, the structure never changes. No tile chrome; the card is the
+   elevation. */
 .driver-task-fact {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
+  min-height: 48px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.driver-task-fact:last-child {
+  border-bottom: 0;
 }
 
 .driver-task-fact__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   width: 20px;
   height: 20px;
   color: var(--ink);
   flex-shrink: 0;
 }
 
-.driver-task-fact__body {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
 .driver-task-fact__label {
-  font-size: var(--text-label-size);
-  font-weight: 700;
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0;
   color: var(--ink-3);
 }
@@ -242,22 +254,29 @@
    the factory site has no invoice configuration (never a customer fallback). */
 .driver-task-invoice-party {
   grid-column: 1 / -1;
-  margin: 4px 0 0;
+  margin: 8px 0 0;
   font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--ink-3);
 }
 
+/* With the grid gap retired (hairlines replace whitespace), the empty note
+   needs its own breathing room between divider rows. */
 .driver-task-invoice-empty {
   grid-column: 1 / -1;
-  margin: 0;
+  margin: 8px 0;
   font-size: var(--text-data-size);
   color: var(--ink-3);
 }
 
+/* Card 20260926_26 item 2: value 15px primary — the data size the driver
+   reads; the old 11/12px pair read as one undifferentiated mass. */
 .driver-task-fact__value {
-  font-size: var(--text-data-size);
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--ink);
   overflow-wrap: anywhere;
@@ -819,10 +838,10 @@
   }
 }
 
-/* Two columns from phone width up — only the narrowest tier (<360px, see the
-   max-width rules below) keeps the single implicit column. */
+/* Card 20260926_26: the ≥360px / ≥641px two-column bento belonged to the
+   label-above-value structure and is retired with it — the settings-row
+   list is full-width at every viewport (same idiom as the fuel facts). */
 @media (min-width: 360px) {
-  .driver-task-grid,
   .driver-task-finance {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -869,11 +888,10 @@
    only leaves half-empty rows. Reset to auto placement for a clean 2×N grid.
    Must sit AFTER the base rule above: a media query adds no specificity, so
    source order is the only thing deciding the winner. */
-/* Card 20260926_25 (CHIEF): at >=641px the fact grid becomes 2 columns —
-   short facts pair up instead of burning a whole row each. Long values keep
-   the full-row span so addresses never wrap in a half column. */
+/* Card 20260926_25's ≥641px two-column fact grid is retired with the
+   label-above-value row structure it served (card 20260926_26 item 1:
+   settings rows span the card at every viewport). */
 @media (min-width: 641px) {
-  .driver-task-grid,
   .driver-task-finance {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
