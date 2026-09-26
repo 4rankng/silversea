@@ -127,7 +127,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       return;
     }
     if (endAt.getTime() <= startAt.getTime()) {
-      setIssueError('Giờ kết thúc phải sau giờ chạy.');
+      setIssueError('Giờ trả hàng phải sau giờ chạy.');
       return;
     }
     const isOwn = row.dispatch.carrierType === 'OWN';

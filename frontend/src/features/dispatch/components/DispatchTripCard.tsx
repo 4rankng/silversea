@@ -209,7 +209,7 @@ export function DispatchTripCard({
             <div key={section.title} style={{ padding: 14, borderRadius: 12, background: '#fff', border: '1px solid var(--border-1)', display: 'grid', gap: 10 }}>
               <div style={{ fontWeight: 700 }}>{section.title}</div>
               <SplitDateTimeField label={`Giờ bắt đầu — ${section.title}`} value={section.value.plannedStartAt} onChange={(next) => updatePairField(section.target, 'plannedStartAt', next)} disabled={pairingState.loading} />
-              <SplitDateTimeField label={`Giờ kết thúc — ${section.title}`} value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} disabled={pairingState.loading} />
+              <SplitDateTimeField label={`Giờ trả hàng — ${section.title}`} value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} disabled={pairingState.loading} />
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Điểm đi</span>
                 <input type="text" className="input" value={section.value.canonicalOrigin} onChange={(event) => updatePairField(section.target, 'canonicalOrigin', event.target.value)} />
