@@ -389,14 +389,16 @@ async function assertActiveCarrier(tx: H.CrudTx, carrierId: number | null | unde
 // a soft-deleted tombstone so the plate stays reserved — the re-add 409's
 // business message promises "khôi phục"; this endpoint IS that promise.
 // ADMIN/MANAGER only (symmetric with retire: dispatchers add but never retire
-// or restore). The plate's UNIQUE column means the tombstone still owns the
-// plate, so no live-conflict check is possible or needed.
+// or restore). Restore is PLATE-based: the operator hits the tombstone 409
+// right after typing the plate, so the remedy takes the plate directly. The
+// plate's UNIQUE column means the tombstone still owns the plate, so no
+// live-conflict check is possible or needed.
 router.post(
-  '/trucks/:id/restore',
+  '/trucks/restore',
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
-    const truckId = Number(req.params.id);
-    if (!Number.isInteger(truckId) || truckId <= 0) throw new ApiError(400, 'ID xe không hợp lệ.');
+    const rawPlate = typeof req.body?.licensePlate === 'string' ? req.body.licensePlate.trim() : '';
+    if (!rawPlate) throw new ApiError(400, 'Biển số xe là bắt buộc.');
     const user = getUser(req);
     const idempotencyKey = req.get('Idempotency-Key');
     if (!idempotencyKey) {
@@ -405,20 +407,24 @@ router.post(
     const { result, replayed } = await runIdempotent<Record<string, unknown>>({
       endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_RESTORE,
       idempotencyKey,
-      payload: { truckId },
+      payload: { licensePlate: rawPlate },
       createdBy: user.userId,
       entityType: 'trucks',
       responseStatusCode: 200,
       getEntityId: (truck) => (truck as { id?: number } | null)?.id ?? null,
       getEntityKey: (truck) => (truck as { licensePlate?: string } | null)?.licensePlate ?? null,
       create: async (tx) => {
+        const key = rawPlate.toUpperCase().replace(/[^A-Z0-9]/g, '');
         const [tombstoned] = await tx.select().from(s.trucks)
-          .where(and(eq(s.trucks.id, truckId), isNotNull(s.trucks.deletedAt)))
+          .where(and(
+            sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${key}`,
+            isNotNull(s.trucks.deletedAt),
+          ))
           .limit(1);
-        if (!tombstoned) throw new ApiError(404, 'Xe không nằm trong thùng rác.');
+        if (!tombstoned) throw new ApiError(404, 'Không tìm thấy xe đã xóa nào giữ biển số này.');
         const [restored] = await tx.update(s.trucks)
           .set({ deletedAt: null, updatedAt: new Date() })
-          .where(and(eq(s.trucks.id, truckId), isNotNull(s.trucks.deletedAt)))
+          .where(and(eq(s.trucks.id, tombstoned.id), isNotNull(s.trucks.deletedAt)))
           .returning();
         return restored;
       },

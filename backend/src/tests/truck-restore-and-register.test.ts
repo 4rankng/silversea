@@ -128,12 +128,12 @@ describe('truck tombstone restore (card 20260926_18 R1)', () => {
     assert.equal(retired.status, 200, JSON.stringify(retired.data));
     assert.ok((await truckRow(created.id))?.deletedAt, 'retire tombstones the row');
 
-    const restored = await api(`/${created.id}/restore`, { method: 'POST', body: {} });
+    const restored = await api('/restore', { method: 'POST', body: { licensePlate: plate } });
     assert.equal(restored.status, 200, JSON.stringify(restored.data));
     assert.equal((await truckRow(created.id))?.deletedAt, null, 'restore revives the row');
 
-    const again = await api(`/${created.id}/restore`, { method: 'POST', body: {} });
-    assert.equal(again.status, 404, 'restoring a LIVE truck 404s');
+    const again = await api('/restore', { method: 'POST', body: { licensePlate: plate } });
+    assert.equal(again.status, 404, 'restoring a plate with no tombstone 404s');
   });
 
   test('dispatcher is refused restore (symmetry with retire)', async () => {
@@ -141,7 +141,7 @@ describe('truck tombstone restore (card 20260926_18 R1)', () => {
     const created = await createTruckViaApi(plate);
     createdTruckIds.push(created.id);
     await api(`/${created.id}`, { method: 'DELETE', body: {}, extraHeaders: { 'If-Unmodified-Since': created.updatedAt } });
-    const refused = await api(`/${created.id}/restore`, { method: 'POST', body: {}, token: dispatcherToken });
+    const refused = await api('/restore', { method: 'POST', body: { licensePlate: plate }, token: dispatcherToken });
     assert.equal(refused.status, 403);
   });
 });
