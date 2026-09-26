@@ -863,7 +863,7 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('SĐT kho')).toBe('0909000001');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
-    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Gọi kho/ })).toBeTruthy();
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact

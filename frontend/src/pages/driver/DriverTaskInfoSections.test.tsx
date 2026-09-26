@@ -169,27 +169,26 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     const kho = screen.getByText('SĐT kho');
     expect(kho).not.toBeNull();
-    // The LEADING icon is the call affordance (one glyph, no trailing button);
-    // the number renders as plain selectable text.
-    const call = screen.getByRole('link', { name: /Gọi điện thoại kho/ });
-    expect(call.querySelector('svg')).not.toBeNull();
-    expect(call.getAttribute('href')).toBe('tel:0901234567');
-    expect(screen.queryByText('Gọi')).toBeNull();
-    // The number is plain text — no second tel link on the row.
-    expect(document.querySelector('a.driver-task-link[href="tel:0901234567"]')).toBeNull();
+    // V2 (card _41): the info grid is pure data — no tel links inside; the
+    // call affordance is the Gọi kho bar link BELOW the card.
+    expect(screen.queryByRole('link', { name: /Gọi điện thoại kho/ })).toBeNull();
+    expect(screen.getByText('0901234567')).toBeTruthy();
+    const bar = screen.getByRole('link', { name: /Gọi kho/ });
+    expect(bar.getAttribute('href')).toBe('tel:0901234567');
   });
 
   it('QA-2026-09-26-27 renders TWO phone rows when the kho and contact numbers differ', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
 
-    const khoCall = screen.getByRole('link', { name: 'Gọi điện thoại kho 0901234567' });
-    expect(khoCall.getAttribute('href')).toBe('tel:0901234567');
-    const contactCall = screen.getByRole('link', { name: 'Gọi điện thoại liên hệ 0909000001' });
-    expect(contactCall.getAttribute('href')).toBe('tel:0909000001');
+    // V2: both rows are plain data; the single Gọi kho bar dials the kho number.
+    expect(screen.getByText('0909000001')).toBeTruthy();
+    const bar = screen.getByRole('link', { name: /Gọi kho/ });
+    expect(bar.getAttribute('href')).toBe('tel:0901234567');
     expect(valueOf('SĐT kho')).toBe('0901234567');
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
     // Exactly one tel link per distinct number — no duplication.
-    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /Gọi kho/ })).toHaveLength(1);
+    expect(screen.queryByText('SĐT liên hệ')).not.toBeNull();
   });
 
   it('QA-2026-09-26-27 renders the contact row when only contactPhone exists', () => {
@@ -304,7 +303,8 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
     // One tel link per distinct number — the trim is comparison-only; the
     // rendered value stays the trimmed contact number.
-    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /Gọi kho/ })).toHaveLength(1);
+    expect(screen.queryByText('SĐT liên hệ')).not.toBeNull();
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {

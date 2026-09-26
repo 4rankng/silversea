@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Phone } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
@@ -135,38 +135,14 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} />
           {/* Card 20260926_25/_27: the kho phone always renders (KP-010);
               the call affordance is the row's leading phone icon. */}
-          <TaskFact
-            icon={khoPhone
-              ? (
-                <a
-                  href={`tel:${khoPhone}`}
-                  className="driver-task-fact__call"
-                  aria-label={`Gọi điện thoại kho ${khoPhone}`}
-                >
-                  <Phone size={18} aria-hidden="true" />
-                </a>
-              )
-              : <Phone size={16} aria-hidden="true" />}
-            label="SĐT kho"
-            value={khoPhone ?? '—'}
-          />
+          {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
+              call affordance lives in the action bar beneath the card. */}
+          <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT kho" value={khoPhone ?? '—'} />
           {/* Card 20260926_27 item 7: the named-contact number renders only
               when it DIFFERS from the kho number — identical numbers never
               render twice. */}
           {showContactPhoneRow ? (
-            <TaskFact
-              icon={(
-                <a
-                  href={`tel:${contactPhone}`}
-                  className="driver-task-fact__call"
-                  aria-label={`Gọi điện thoại liên hệ ${contactPhone}`}
-                >
-                  <Phone size={18} aria-hidden="true" />
-                </a>
-              )}
-              label="SĐT liên hệ"
-              value={contactPhone}
-            />
+            <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={contactPhone} />
           ) : null}
           <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
           {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
@@ -183,6 +159,16 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           ) : null}
         </div>
       </section>
+
+      {/* Card 20260926_41 V2 (CHIEF): the call affordance lives OUTSIDE the
+          info card — one green Gọi kho button, tel: the site phone. */}
+      {khoPhone ? (
+        <div className="driver-task-call-bar">
+          <a href={`tel:${khoPhone}`} className="driver-task-call-bar__btn">
+            <PhoneCall size={16} aria-hidden="true" /> Gọi kho
+          </a>
+        </div>
+      ) : null}
 
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}

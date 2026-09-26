@@ -471,20 +471,27 @@
 /* Card 20260926_25 amendment (CHIEF): the row's leading phone icon IS the
    call affordance — a 44px round tap target spanning the label+value rows.
    The number itself stays plain, selectable text. One glyph, one target. */
-.driver-task-fact__call {
+/* Card 20260926_41 V2 (CHIEF): the call affordance is one green filled
+   button BELOW the info card — the card itself stays pure data. */
+.driver-task-call-bar {
+  display: flex;
+  justify-content: stretch;
+  margin-top: -4px;
+}
+
+.driver-task-call-bar__btn {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-touch-h, 44px);
-  height: var(--control-touch-h, 44px);
-  margin: -8px;
-  border-radius: 999px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.driver-task-fact__call:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  gap: 8px;
+  min-height: var(--control-touch-h, 44px);
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--accent, #1b7a4a);
+  color: #fff;
+  font-weight: var(--fw-semibold, 600);
+  text-decoration: none;
 }
 
 .driver-task-sync {
