@@ -23004,85 +23004,85 @@ replacements for the most-copied snippets, not a full rewrite.
 <file path="frontend/public/assets/illustrations/bg-transport-world.svg">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 180" fill="none">
   <defs>
-    
+
     <linearGradient id="tw-sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5"></stop>
       <stop offset="100%" stop-color="#F0FDF4"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-ground" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#D1FAE5"></stop>
       <stop offset="100%" stop-color="#A7F3D0"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-road" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#6EE7B7" stop-opacity="0.25"></stop>
       <stop offset="100%" stop-color="#059669" stop-opacity="0.12"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-haze" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#ECFDF5" stop-opacity="0.55"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-bldA" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#D1FAE5"></stop>
       <stop offset="100%" stop-color="#A7F3D0"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-bldB" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5"></stop>
       <stop offset="100%" stop-color="#D1FAE5"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-crane" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#059669" stop-opacity="0.5"></stop>
       <stop offset="100%" stop-color="#059669" stop-opacity="0.2"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-cab" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5"></stop>
       <stop offset="100%" stop-color="#D1FAE5"></stop>
     </linearGradient>
-    
+
     <linearGradient id="tw-trailer" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#F0FDF4"></stop>
       <stop offset="100%" stop-color="#E8FDF2"></stop>
     </linearGradient>
-    
+
     <filter id="tw-soft" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#059669" flood-opacity="0.10"></feDropShadow>
     </filter>
-    
+
     <filter id="tw-mist" x="-5%" y="-5%" width="110%" height="110%">
       <feGaussianBlur stdDeviation="2"></feGaussianBlur>
     </filter>
   </defs>
 
-  
+
   <rect width="900" height="180" fill="url(#tw-sky)"></rect>
 
-  
+
   <circle cx="450" cy="38" r="26" fill="#059669" fill-opacity="0.07"></circle>
   <circle cx="450" cy="38" r="16" fill="#059669" fill-opacity="0.09"></circle>
   <circle cx="450" cy="38" r="8" fill="#059669" fill-opacity="0.14"></circle>
 
-  
+
   <g filter="url(#tw-mist)" opacity="0.30">
     <path d="M0 110 L28 74 L56 105 L80 68 L108 100 L0 100 Z" fill="#059669"></path>
     <path d="M60 110 L88 78 L116 100 Z" fill="#047857"></path>
   </g>
-  
+
   <g filter="url(#tw-mist)" opacity="0.28">
     <path d="M900 110 L872 76 L844 105 L820 70 L792 102 L900 102 Z" fill="#059669"></path>
     <path d="M840 110 L812 80 L784 102 Z" fill="#047857"></path>
   </g>
 
-  
 
-  
+
+
   <rect x="22" y="88" width="28" height="62" rx="2" fill="url(#tw-bldA)" stroke="#059669" stroke-width="0.8" stroke-opacity="0.3"></rect>
-  
+
   <rect x="27" y="93" width="5" height="5" rx="1" fill="#059669" fill-opacity="0.18"></rect>
   <rect x="35" y="93" width="5" height="5" rx="1" fill="#059669" fill-opacity="0.18"></rect>
   <rect x="27" y="102" width="5" height="5" rx="1" fill="#059669" fill-opacity="0.14"></rect>
@@ -23090,7 +23090,7 @@ replacements for the most-copied snippets, not a full rewrite.
   <rect x="27" y="111" width="5" height="5" rx="1" fill="#059669" fill-opacity="0.10"></rect>
   <rect x="35" y="111" width="5" height="5" rx="1" fill="#059669" fill-opacity="0.10"></rect>
 
-  
+
   <rect x="52" y="72" width="22" height="78" rx="2" fill="url(#tw-bldB)" stroke="#059669" stroke-width="0.8" stroke-opacity="0.25"></rect>
   <rect x="57" y="78" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.2"></rect>
   <rect x="64" y="78" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.2"></rect>
@@ -23098,40 +23098,40 @@ replacements for the most-copied snippets, not a full rewrite.
   <rect x="64" y="86" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.15"></rect>
   <rect x="57" y="94" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="64" y="94" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
-  
+
   <line x1="63" y1="72" x2="63" y2="60" stroke="#059669" stroke-width="1" stroke-opacity="0.35"></line>
   <circle cx="63" cy="59" r="2" fill="#059669" fill-opacity="0.25"></circle>
 
-  
+
   <rect x="78" y="100" width="48" height="50" rx="2" fill="#ECFDF5" stroke="#059669" stroke-width="0.8" stroke-opacity="0.2"></rect>
   <path d="M78 100 L102 88 L126 100 Z" fill="#D1FAE5" stroke="#059669" stroke-width="0.8" stroke-opacity="0.2"></path>
-  
+
   <rect x="96" y="120" width="12" height="30" rx="1" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-width="0.6" stroke-opacity="0.2"></rect>
 
-  
+
   <g filter="url(#tw-soft)">
-    
+
     <rect x="134" y="52" width="8" height="98" rx="2" fill="url(#tw-crane)"></rect>
-    
+
     <rect x="104" y="52" width="80" height="7" rx="2" fill="url(#tw-crane)"></rect>
-    
+
     <rect x="179" y="52" width="24" height="5" rx="1" fill="#059669" fill-opacity="0.22"></rect>
     <rect x="197" y="46" width="6" height="12" rx="1" fill="#059669" fill-opacity="0.28"></rect>
-    
+
     <rect x="126" y="56" width="8" height="4" rx="1" fill="#059669" fill-opacity="0.4"></rect>
     <line x1="130" y1="60" x2="130" y2="82" stroke="#059669" stroke-width="1" stroke-opacity="0.35"></line>
     <path d="M126 82 Q130 88 134 82" stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none" stroke-opacity="0.4"></path>
-    
+
     <line x1="136" y1="150" x2="124" y2="180" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-opacity="0.25"></line>
-    
+
     <line x1="140" y1="150" x2="152" y2="180" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-opacity="0.25"></line>
-    
+
     <line x1="124" y1="170" x2="152" y2="160" stroke="#059669" stroke-width="1" stroke-opacity="0.18"></line>
     <line x1="152" y1="170" x2="124" y2="160" stroke="#059669" stroke-width="1" stroke-opacity="0.18"></line>
   </g>
 
-  
-  
+
+
   <rect x="240" y="62" width="18" height="88" rx="2" fill="url(#tw-bldB)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.2"></rect>
   <rect x="244" y="67" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.18"></rect>
   <rect x="251" y="67" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.18"></rect>
@@ -23139,19 +23139,19 @@ replacements for the most-copied snippets, not a full rewrite.
   <rect x="251" y="75" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.14"></rect>
   <rect x="244" y="83" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="251" y="83" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
-  
+
   <line x1="249" y1="62" x2="249" y2="50" stroke="#059669" stroke-width="1.5" stroke-opacity="0.3"></line>
 
-  
+
   <rect x="262" y="78" width="14" height="72" rx="2" fill="url(#tw-bldA)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.2"></rect>
   <rect x="265" y="83" width="3" height="3" rx="0.5" fill="#059669" fill-opacity="0.16"></rect>
   <rect x="271" y="83" width="3" height="3" rx="0.5" fill="#059669" fill-opacity="0.16"></rect>
   <rect x="265" y="90" width="3" height="3" rx="0.5" fill="#059669" fill-opacity="0.13"></rect>
   <rect x="271" y="90" width="3" height="3" rx="0.5" fill="#059669" fill-opacity="0.13"></rect>
 
-  
+
   <rect x="280" y="54" width="16" height="96" rx="1" fill="#ECFDF5" stroke="#059669" stroke-width="0.7" stroke-opacity="0.18"></rect>
-  
+
   <line x1="288" y1="54" x2="288" y2="150" stroke="#059669" stroke-width="0.5" stroke-opacity="0.12"></line>
   <rect x="282" y="60" width="4" height="7" rx="0.5" fill="#059669" fill-opacity="0.1"></rect>
   <rect x="290" y="60" width="4" height="7" rx="0.5" fill="#059669" fill-opacity="0.1"></rect>
@@ -23160,99 +23160,99 @@ replacements for the most-copied snippets, not a full rewrite.
   <rect x="282" y="84" width="4" height="7" rx="0.5" fill="#059669" fill-opacity="0.06"></rect>
   <rect x="290" y="84" width="4" height="7" rx="0.5" fill="#059669" fill-opacity="0.06"></rect>
 
-  
+
   <rect x="300" y="82" width="12" height="68" rx="2" fill="url(#tw-bldB)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.18"></rect>
 
-  
-  
+
+
   <rect x="340" y="112" width="220" height="10" rx="3" fill="#D1FAE5" stroke="#059669" stroke-width="0.8" stroke-opacity="0.3"></rect>
-  
+
   <rect x="344" y="122" width="212" height="4" rx="1" fill="#059669" fill-opacity="0.06"></rect>
-  
+
   <rect x="364" y="122" width="8" height="38" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.6" stroke-opacity="0.25"></rect>
   <rect x="418" y="122" width="8" height="38" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.6" stroke-opacity="0.25"></rect>
   <rect x="472" y="122" width="8" height="38" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.6" stroke-opacity="0.25"></rect>
   <rect x="526" y="122" width="8" height="38" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.6" stroke-opacity="0.25"></rect>
-  
+
   <rect x="361" y="158" width="14" height="5" rx="1" fill="#A7F3D0" fill-opacity="0.5"></rect>
   <rect x="415" y="158" width="14" height="5" rx="1" fill="#A7F3D0" fill-opacity="0.5"></rect>
   <rect x="469" y="158" width="14" height="5" rx="1" fill="#A7F3D0" fill-opacity="0.5"></rect>
   <rect x="523" y="158" width="14" height="5" rx="1" fill="#A7F3D0" fill-opacity="0.5"></rect>
-  
+
   <line x1="340" y1="112" x2="560" y2="112" stroke="#059669" stroke-width="1.2" stroke-opacity="0.25"></line>
   <line x1="340" y1="108" x2="560" y2="108" stroke="#059669" stroke-width="0.7" stroke-opacity="0.15"></line>
-  
+
   <line x1="370" y1="117" x2="390" y2="117" stroke="#059669" stroke-width="1" stroke-opacity="0.2" stroke-dasharray="8 6"></line>
   <line x1="424" y1="117" x2="444" y2="117" stroke="#059669" stroke-width="1" stroke-opacity="0.2" stroke-dasharray="8 6"></line>
   <line x1="478" y1="117" x2="498" y2="117" stroke="#059669" stroke-width="1" stroke-opacity="0.2" stroke-dasharray="8 6"></line>
 
-  
+
   <g filter="url(#tw-soft)" transform="translate(388 97)">
-    
+
     <rect x="0" y="4" width="52" height="15" rx="2" fill="url(#tw-trailer)" stroke="#059669" stroke-width="0.9" stroke-opacity="0.3"></rect>
-    
+
     <rect x="2" y="7" width="48" height="3" rx="1" fill="#059669" fill-opacity="0.12"></rect>
-    
+
     <rect x="52" y="2" width="20" height="17" rx="3" fill="url(#tw-cab)" stroke="#059669" stroke-width="1" stroke-opacity="0.35"></rect>
-    
+
     <rect x="55" y="4" width="12" height="7" rx="1.5" fill="#059669" fill-opacity="0.15"></rect>
-    
+
     <line x1="70" y1="2" x2="70" y2="-4" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.3"></line>
     <circle cx="70" cy="-5" r="2" fill="#059669" fill-opacity="0.1"></circle>
-    
+
     <circle cx="10" cy="19" r="4" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-width="1" stroke-opacity="0.3"></circle>
     <circle cx="42" cy="19" r="4" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-width="1" stroke-opacity="0.3"></circle>
     <circle cx="63" cy="19" r="4" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-width="1" stroke-opacity="0.3"></circle>
   </g>
 
-  
-  
+
+
   <rect x="580" y="70" width="16" height="80" rx="2" fill="url(#tw-bldB)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.2"></rect>
   <rect x="583" y="76" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.15"></rect>
   <rect x="590" y="76" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.15"></rect>
   <rect x="583" y="84" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="590" y="84" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
-  
+
   <path d="M588 70 L592 62 L596 70 Z" fill="#059669" fill-opacity="0.2"></path>
 
-  
+
   <rect x="600" y="82" width="14" height="68" rx="2" fill="url(#tw-bldA)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.18"></rect>
-  
+
   <rect x="618" y="58" width="20" height="92" rx="2" fill="#ECFDF5" stroke="#059669" stroke-width="0.7" stroke-opacity="0.18"></rect>
   <line x1="628" y1="58" x2="628" y2="150" stroke="#059669" stroke-width="0.5" stroke-opacity="0.1"></line>
   <rect x="621" y="64" width="4" height="6" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="629" y="64" width="4" height="6" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="621" y="74" width="4" height="6" rx="0.5" fill="#059669" fill-opacity="0.1"></rect>
   <rect x="629" y="74" width="4" height="6" rx="0.5" fill="#059669" fill-opacity="0.1"></rect>
-  
+
   <line x1="628" y1="58" x2="628" y2="44" stroke="#059669" stroke-width="1.2" stroke-opacity="0.28"></line>
   <circle cx="628" cy="43" r="2" fill="#059669" fill-opacity="0.2"></circle>
 
-  
+
   <rect x="642" y="95" width="12" height="55" rx="2" fill="url(#tw-bldB)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.16"></rect>
 
-  
+
   <g filter="url(#tw-soft)">
-    
+
     <rect x="756" y="46" width="8" height="104" rx="2" fill="url(#tw-crane)"></rect>
-    
+
     <rect x="718" y="46" width="80" height="6" rx="2" fill="url(#tw-crane)"></rect>
-    
+
     <rect x="764" y="46" width="26" height="5" rx="1" fill="#059669" fill-opacity="0.2"></rect>
     <rect x="784" y="40" width="6" height="12" rx="1" fill="#059669" fill-opacity="0.25"></rect>
-    
+
     <rect x="730" y="50" width="8" height="4" rx="1" fill="#059669" fill-opacity="0.38"></rect>
     <line x1="734" y1="54" x2="734" y2="80" stroke="#059669" stroke-width="1" stroke-opacity="0.3"></line>
     <path d="M730 80 Q734 86 738 80" stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none" stroke-opacity="0.35"></path>
-    
+
     <line x1="758" y1="150" x2="746" y2="180" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-opacity="0.2"></line>
     <line x1="762" y1="150" x2="774" y2="180" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-opacity="0.2"></line>
-    
+
     <line x1="746" y1="168" x2="774" y2="158" stroke="#059669" stroke-width="1" stroke-opacity="0.15"></line>
     <line x1="774" y1="168" x2="746" y2="158" stroke="#059669" stroke-width="1" stroke-opacity="0.15"></line>
   </g>
 
-  
+
   <rect x="800" y="92" width="30" height="58" rx="2" fill="url(#tw-bldA)" stroke="#059669" stroke-width="0.7" stroke-opacity="0.22"></rect>
   <rect x="805" y="98" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.16"></rect>
   <rect x="813" y="98" width="4" height="4" rx="0.5" fill="#059669" fill-opacity="0.16"></rect>
@@ -23268,12 +23268,12 @@ replacements for the most-copied snippets, not a full rewrite.
   <rect x="845" y="91" width="4" height="5" rx="0.5" fill="#059669" fill-opacity="0.12"></rect>
   <rect x="838" y="100" width="4" height="5" rx="0.5" fill="#059669" fill-opacity="0.10"></rect>
   <rect x="845" y="100" width="4" height="5" rx="0.5" fill="#059669" fill-opacity="0.10"></rect>
-  
+
   <line x1="845" y1="76" x2="845" y2="62" stroke="#059669" stroke-width="1" stroke-opacity="0.28"></line>
 
-  
+
   <rect x="0" y="150" width="900" height="30" fill="url(#tw-road)" rx="0"></rect>
-  
+
   <g stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.18">
     <line x1="0" y1="165" x2="28" y2="165"></line>
     <line x1="44" y1="165" x2="72" y2="165"></line>
@@ -23298,67 +23298,67 @@ replacements for the most-copied snippets, not a full rewrite.
     <line x1="880" y1="165" x2="900" y2="165"></line>
   </g>
 
-  
+
   <g filter="url(#tw-soft)" transform="translate(60 148)">
-    
+
     <rect x="0" y="-18" width="76" height="22" rx="3" fill="url(#tw-trailer)" stroke="#059669" stroke-width="1" stroke-opacity="0.28"></rect>
-    
+
     <rect x="3" y="-13" width="70" height="4" rx="1.5" fill="#059669" fill-opacity="0.14"></rect>
-    
+
     <rect x="58" y="-16" width="14" height="10" rx="1.5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-width="0.6" stroke-opacity="0.2"></rect>
-    
+
     <rect x="76" y="-22" width="30" height="26" rx="4" fill="url(#tw-cab)" stroke="#059669" stroke-width="1.2" stroke-opacity="0.35"></rect>
-    
+
     <rect x="80" y="-19" width="18" height="10" rx="2" fill="#059669" fill-opacity="0.16"></rect>
-    
+
     <rect x="102" y="-8" width="4" height="4" rx="1" fill="#059669" fill-opacity="0.2"></rect>
-    
+
     <line x1="104" y1="-22" x2="104" y2="-30" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-opacity="0.25"></line>
     <ellipse cx="104" cy="-31" rx="3" ry="2" fill="#059669" fill-opacity="0.08"></ellipse>
-    
+
     <circle cx="16" cy="6" r="7" fill="#D1FAE5" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></circle>
     <circle cx="16" cy="6" r="3" fill="#059669" fill-opacity="0.15"></circle>
     <circle cx="60" cy="6" r="7" fill="#D1FAE5" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></circle>
     <circle cx="60" cy="6" r="3" fill="#059669" fill-opacity="0.15"></circle>
-    
+
     <circle cx="90" cy="6" r="7" fill="#D1FAE5" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></circle>
     <circle cx="90" cy="6" r="3" fill="#059669" fill-opacity="0.15"></circle>
-    
+
     <line x1="-8" y1="-10" x2="-24" y2="-10" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.18"></line>
     <line x1="-8" y1="-5" x2="-20" y2="-5" stroke="#059669" stroke-width="1" stroke-linecap="round" stroke-opacity="0.12"></line>
     <line x1="-8" y1="-16" x2="-16" y2="-16" stroke="#059669" stroke-width="1" stroke-linecap="round" stroke-opacity="0.10"></line>
   </g>
 
-  
+
   <g filter="url(#tw-soft)" transform="translate(760 148) scale(-1,1)">
-    
+
     <rect x="0" y="-16" width="48" height="20" rx="3" fill="url(#tw-cab)" stroke="#059669" stroke-width="1" stroke-opacity="0.28"></rect>
-    
+
     <rect x="34" y="-14" width="10" height="8" rx="1.5" fill="#059669" fill-opacity="0.15"></rect>
-    
+
     <rect x="8" y="-13" width="8" height="6" rx="1" fill="#059669" fill-opacity="0.1"></rect>
     <rect x="20" y="-13" width="8" height="6" rx="1" fill="#059669" fill-opacity="0.1"></rect>
-    
+
     <rect x="44" y="-8" width="4" height="4" rx="1" fill="#059669" fill-opacity="0.2"></rect>
-    
+
     <circle cx="10" cy="6" r="6" fill="#D1FAE5" stroke="#059669" stroke-width="1" stroke-opacity="0.28"></circle>
     <circle cx="10" cy="6" r="2.5" fill="#059669" fill-opacity="0.15"></circle>
     <circle cx="38" cy="6" r="6" fill="#D1FAE5" stroke="#059669" stroke-width="1" stroke-opacity="0.28"></circle>
     <circle cx="38" cy="6" r="2.5" fill="#059669" fill-opacity="0.15"></circle>
-    
+
     <line x1="-6" y1="-8" x2="-18" y2="-8" stroke="#059669" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.18"></line>
     <line x1="-6" y1="-3" x2="-14" y2="-3" stroke="#059669" stroke-width="0.8" stroke-linecap="round" stroke-opacity="0.12"></line>
   </g>
 
-  
-  
+
+
   <g fill="#059669" fill-opacity="0.18">
     <ellipse cx="212" cy="138" rx="10" ry="14"></ellipse>
     <rect x="210" y="148" width="4" height="12" rx="1"></rect>
     <ellipse cx="228" cy="142" rx="7" ry="10"></ellipse>
     <rect x="226" y="150" width="4" height="8" rx="1"></rect>
   </g>
-  
+
   <g fill="#059669" fill-opacity="0.16">
     <ellipse cx="668" cy="140" rx="9" ry="12"></ellipse>
     <rect x="666" y="149" width="4" height="11" rx="1"></rect>
@@ -23368,27 +23368,27 @@ replacements for the most-copied snippets, not a full rewrite.
     <rect x="692" y="150" width="4" height="10" rx="1"></rect>
   </g>
 
-  
-  
+
+
   <g fill="#059669" fill-opacity="0.06">
     <ellipse cx="80" cy="32" rx="24" ry="8"></ellipse>
     <ellipse cx="95" cy="28" rx="16" ry="6"></ellipse>
     <ellipse cx="64" cy="30" rx="14" ry="5"></ellipse>
   </g>
-  
+
   <g fill="#059669" fill-opacity="0.05">
     <ellipse cx="450" cy="22" rx="30" ry="9"></ellipse>
     <ellipse cx="468" cy="18" rx="18" ry="6"></ellipse>
     <ellipse cx="432" cy="20" rx="16" ry="6"></ellipse>
   </g>
-  
+
   <g fill="#059669" fill-opacity="0.06">
     <ellipse cx="820" cy="30" rx="22" ry="7"></ellipse>
     <ellipse cx="835" cy="26" rx="14" ry="5"></ellipse>
     <ellipse cx="806" cy="28" rx="12" ry="5"></ellipse>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.3">
     <line x1="210" y1="54" x2="216" y2="60"></line>
     <line x1="216" y1="54" x2="210" y2="60"></line>
@@ -23402,7 +23402,7 @@ replacements for the most-copied snippets, not a full rewrite.
   <circle cx="340" cy="62" r="1.5" fill="#059669" fill-opacity="0.14"></circle>
   <circle cx="564" cy="60" r="2" fill="#059669" fill-opacity="0.12"></circle>
 
-  
+
   <rect x="0" y="120" width="900" height="60" fill="url(#tw-haze)" rx="0"></rect>
 </svg>
 </file>
@@ -23537,78 +23537,78 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <ellipse cx="120" cy="172" rx="78" ry="8" fill="url(#ec-shadow)"></ellipse>
 
-  
+
   <g opacity="0.38">
-    
+
     <circle cx="163" cy="70" r="17" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1.5"></circle>
-    
+
     <path d="M148 68 Q148 55 163 53 Q178 55 178 68" fill="#D4D4D8" fill-opacity="0.6"></path>
-    
+
     <path d="M134 148 Q136 112 163 112 Q190 112 192 148 Z" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1.5" stroke-linejoin="round"></path>
-    
+
     <path d="M155 112 L163 120 L171 112" stroke="#D4D4D8" stroke-width="1.5" stroke-linejoin="round" fill="none"></path>
   </g>
 
-  
+
   <g filter="url(#ec-drop)">
-    
+
     <path d="M65 156 Q67 112 98 112 Q129 112 131 156 Z" fill="url(#ec-body)" stroke="#059669" stroke-width="2" stroke-linejoin="round"></path>
-    
+
     <path d="M91 112 L98 120 L105 112" stroke="#059669" stroke-width="1.8" stroke-linejoin="round" fill="none"></path>
     <line x1="98" y1="120" x2="98" y2="144" stroke="#059669" stroke-width="1.2" stroke-opacity="0.4"></line>
-    
+
     <circle cx="98" cy="130" r="1.2" fill="#059669" fill-opacity="0.4"></circle>
     <circle cx="98" cy="137" r="1.2" fill="#059669" fill-opacity="0.4"></circle>
-    
+
     <circle cx="98" cy="70" r="22" fill="url(#ec-avatar-bg)" stroke="#059669" stroke-width="2"></circle>
-    
+
     <path d="M79 67 Q79 52 98 50 Q117 52 117 67" fill="#059669" fill-opacity="0.2"></path>
-    
+
     <path d="M77 70 Q74 72 76 76 Q78 78 80 76" fill="#ECFDF5" stroke="#059669" stroke-width="1" stroke-opacity="0.5"></path>
-    
+
     <path d="M119 70 Q122 72 120 76 Q118 78 116 76" fill="#ECFDF5" stroke="#059669" stroke-width="1" stroke-opacity="0.5"></path>
-    
+
     <circle cx="91" cy="68" r="2.2" fill="#059669"></circle>
     <circle cx="105" cy="68" r="2.2" fill="#059669"></circle>
-    
+
     <circle cx="92" cy="67" r="0.8" fill="#FFFFFF" fill-opacity="0.7"></circle>
     <circle cx="106" cy="67" r="0.8" fill="#FFFFFF" fill-opacity="0.7"></circle>
-    
+
     <path d="M89 76 Q98 83 107 76" stroke="#059669" stroke-width="2" stroke-linecap="round" fill="none"></path>
-    
+
     <ellipse cx="85" cy="75" rx="4" ry="2.5" fill="#059669" fill-opacity="0.08"></ellipse>
     <ellipse cx="111" cy="75" rx="4" ry="2.5" fill="#059669" fill-opacity="0.08"></ellipse>
   </g>
 
-  
+
   <g filter="url(#ec-card-shadow)" transform="translate(52 158)">
     <rect width="96" height="28" rx="7" fill="url(#ec-card)" stroke="#E4E4E7" stroke-width="1.2"></rect>
-    
+
     <rect x="0" y="0" width="4" height="28" rx="2" fill="#059669"></rect>
-    
+
     <rect x="12" y="7" width="40" height="5" rx="2" fill="#D1FAE5"></rect>
-    
+
     <rect x="12" y="17" width="60" height="3.5" rx="1.5" fill="#E4E4E7"></rect>
-    
+
     <circle cx="84" cy="14" r="7" fill="#ECFDF5" stroke="#059669" stroke-width="1"></circle>
     <circle cx="84" cy="11.5" r="3" fill="#059669" fill-opacity="0.35"></circle>
     <path d="M76 20 Q78 17 84 17 Q90 17 92 20" fill="#ECFDF5" stroke="#059669" stroke-width="0.8" stroke-opacity="0.5"></path>
   </g>
 
-  
+
   <g filter="url(#ec-drop)" transform="translate(181 136)">
     <circle r="18" cx="0" cy="0" fill="url(#ec-plus)" stroke="#047857" stroke-width="1"></circle>
-    
+
     <line x1="0" y1="-8" x2="0" y2="8" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"></line>
     <line x1="-8" y1="0" x2="8" y2="0" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"></line>
-    
+
     <path d="M-12 -12 Q-4 -16 4 -14" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.3"></path>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.45">
     <line x1="32" y1="52" x2="38" y2="58"></line>
     <line x1="38" y1="52" x2="32" y2="58"></line>
@@ -23875,92 +23875,92 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <ellipse cx="120" cy="172" rx="76" ry="8" fill="url(#ee-shadow)"></ellipse>
 
-  
+
   <path d="M14 100 Q32 100 42 100" stroke="url(#ee-cable-l)" stroke-width="5" stroke-linecap="round"></path>
-  
+
   <path d="M14 100 Q32 100 42 100" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4" stroke-dasharray="4 3"></path>
 
-  
+
   <path d="M198 100 Q188 100 178 100" stroke="url(#ee-cable-r)" stroke-width="5" stroke-linecap="round"></path>
   <path d="M198 100 Q188 100 178 100" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-opacity="0.35" stroke-dasharray="4 3"></path>
 
-  
+
   <g filter="url(#ee-drop-plug)">
-    
+
     <rect x="28" y="72" width="44" height="56" rx="10" fill="url(#ee-plug-l)" stroke="#059669" stroke-width="1.8"></rect>
-    
+
     <rect x="66" y="80" width="10" height="40" rx="4" fill="#D1FAE5" stroke="#059669" stroke-width="1.2"></rect>
-    
+
     <rect x="68" y="88" width="5" height="8" rx="2" fill="#059669" fill-opacity="0.3"></rect>
     <rect x="68" y="102" width="5" height="8" rx="2" fill="#059669" fill-opacity="0.3"></rect>
-    
+
     <line x1="34" y1="82" x2="34" y2="120" stroke="#059669" stroke-width="0.8" stroke-opacity="0.2"></line>
     <line x1="40" y1="82" x2="40" y2="120" stroke="#059669" stroke-width="0.8" stroke-opacity="0.2"></line>
-    
+
     <path d="M34 76 Q50 73 66 76" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-opacity="0.7"></path>
-    
+
     <rect x="28" y="92" width="4" height="16" rx="2" fill="#059669" fill-opacity="0.4"></rect>
-    
+
     <rect x="35" y="108" width="26" height="8" rx="2.5" fill="#ECFDF5" stroke="#059669" stroke-width="0.8"></rect>
     <rect x="39" y="111" width="18" height="2.5" rx="1" fill="#059669" fill-opacity="0.4"></rect>
   </g>
 
-  
+
   <g filter="url(#ee-drop-plug-r)">
-    
+
     <rect x="168" y="72" width="44" height="56" rx="10" fill="url(#ee-plug-r)" stroke="#D4D4D8" stroke-width="1.8"></rect>
-    
+
     <rect x="164" y="80" width="10" height="40" rx="4" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1.2"></rect>
-    
+
     <rect x="165" y="87" width="5" height="9" rx="2" fill="#A1A1AA" fill-opacity="0.6"></rect>
     <rect x="165" y="103" width="5" height="9" rx="2" fill="#A1A1AA" fill-opacity="0.6"></rect>
-    
+
     <line x1="200" y1="82" x2="200" y2="120" stroke="#A1A1AA" stroke-width="0.8" stroke-opacity="0.3"></line>
     <line x1="206" y1="82" x2="206" y2="120" stroke="#A1A1AA" stroke-width="0.8" stroke-opacity="0.3"></line>
-    
+
     <path d="M174 76 Q190 73 206 76" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-opacity="0.7"></path>
-    
+
     <rect x="179" y="108" width="26" height="8" rx="2.5" fill="#F4F4F5" stroke="#E4E4E7" stroke-width="0.8"></rect>
     <rect x="183" y="111" width="18" height="2.5" rx="1" fill="#D4D4D8"></rect>
   </g>
 
-  
+
   <ellipse cx="120" cy="100" rx="16" ry="14" fill="url(#ee-spark-glow)" filter="url(#ee-spark-blur)"></ellipse>
 
-  
+
   <line x1="108" y1="94" x2="112" y2="94" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"></line>
   <line x1="108" y1="100" x2="112" y2="100" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"></line>
   <line x1="108" y1="106" x2="112" y2="106" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"></line>
 
-  
+
   <g fill="#FCD34D" opacity="0.9">
-    
+
     <path d="M116 89 L112 99 L117 99 L113 111 L121 98 L116 98 Z"></path>
-    
+
     <path d="M109 95 L107 101 L110 101 L108 107 L113 100 L110 100 Z" opacity="0.5"></path>
-    
+
     <path d="M130 94 L128 99 L131 99 L129 105 L133 99 L130 99 Z" opacity="0.4"></path>
   </g>
-  
+
   <circle cx="106" cy="88" r="2" fill="#FCD34D" opacity="0.55"></circle>
   <circle cx="130" cy="90" r="1.5" fill="#FCD34D" opacity="0.45"></circle>
   <circle cx="132" cy="108" r="1.8" fill="#FCD34D" opacity="0.4"></circle>
   <circle cx="108" cy="112" r="1.2" fill="#FCD34D" opacity="0.5"></circle>
 
-  
+
   <g filter="url(#ee-drop-badge)" transform="translate(120 50)">
     <circle r="14" cx="0" cy="0" fill="url(#ee-badge)"></circle>
-    
+
     <rect x="-1.5" y="-7" width="3" height="9" rx="1.5" fill="#FFFFFF"></rect>
     <circle cx="0" cy="5" r="1.8" fill="#FFFFFF"></circle>
-    
+
     <path d="M-9 -9 Q-3 -13 3 -10" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.4"></path>
   </g>
 
-  
+
   <g transform="translate(38 148)">
     <rect x="-20" y="-10" width="44" height="20" rx="7" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1"></rect>
     <circle cx="-10" cy="0" r="4" fill="#EF4444" fill-opacity="0.7"></circle>
@@ -23974,7 +23974,7 @@ replacements for the most-copied snippets, not a full rewrite.
     <rect x="-1" y="2" width="10" height="2.5" rx="1" fill="#FEE2E2"></rect>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.45">
     <line x1="32" y1="44" x2="38" y2="50"></line>
     <line x1="38" y1="44" x2="32" y2="50"></line>
@@ -24181,78 +24181,78 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <ellipse cx="120" cy="172" rx="82" ry="8" fill="url(#em-shadow)"></ellipse>
 
-  
+
   <g filter="url(#em-drop-card)">
     <rect x="32" y="52" width="74" height="96" rx="10" fill="url(#em-card-l)" stroke="#E4E4E7" stroke-width="1.5"></rect>
-    
+
     <rect x="32" y="52" width="74" height="22" rx="10" fill="#F4F4F5"></rect>
     <rect x="32" y="63" width="74" height="11" rx="0" fill="#F4F4F5"></rect>
-    
+
     <rect x="42" y="60" width="38" height="6" rx="2" fill="#D4D4D8"></rect>
-    
+
     <rect x="88" y="57" width="12" height="10" rx="2" fill="#E4E4E7"></rect>
     <rect x="90" y="59" width="8" height="4" rx="1" fill="#D4D4D8"></rect>
-    
+
     <rect x="42" y="83" width="54" height="5" rx="2" fill="#E4E4E7"></rect>
     <rect x="42" y="94" width="44" height="4" rx="2" fill="#F4F4F5"></rect>
     <rect x="42" y="104" width="50" height="4" rx="2" fill="#F4F4F5"></rect>
     <rect x="42" y="114" width="38" height="4" rx="2" fill="#F4F4F5"></rect>
-    
+
     <rect x="42" y="128" width="30" height="11" rx="4" fill="#ECFDF5" stroke="#059669" stroke-width="1"></rect>
     <rect x="47" y="132" width="20" height="3" rx="1.5" fill="#059669" fill-opacity="0.5"></rect>
-    
+
     <rect x="88" y="80" width="13" height="13" rx="3.5" fill="#F4F4F5" stroke="#E4E4E7" stroke-width="1"></rect>
     <text x="94.5" y="90" font-family="ui-sans-serif, system-ui" font-size="6" font-weight="700" fill="#A1A1AA" text-anchor="middle">WO</text>
   </g>
 
-  
+
   <g filter="url(#em-drop-card)">
     <rect x="134" y="52" width="74" height="96" rx="10" fill="url(#em-card-r)" stroke="#059669" stroke-width="1.5"></rect>
-    
+
     <rect x="134" y="52" width="74" height="22" rx="10" fill="#D1FAE5"></rect>
     <rect x="134" y="63" width="74" height="11" rx="0" fill="#D1FAE5"></rect>
-    
+
     <rect x="144" y="60" width="38" height="6" rx="2" fill="#6EE7B7"></rect>
-    
+
     <rect x="190" y="57" width="12" height="10" rx="2" fill="#A7F3D0"></rect>
     <rect x="192" y="59" width="8" height="4" rx="1" fill="#6EE7B7"></rect>
-    
+
     <rect x="144" y="83" width="54" height="5" rx="2" fill="#A7F3D0"></rect>
     <rect x="144" y="94" width="44" height="4" rx="2" fill="#ECFDF5"></rect>
     <rect x="144" y="104" width="50" height="4" rx="2" fill="#ECFDF5"></rect>
     <rect x="144" y="114" width="38" height="4" rx="2" fill="#ECFDF5"></rect>
-    
+
     <rect x="144" y="128" width="30" height="11" rx="4" fill="#059669"></rect>
     <rect x="149" y="132" width="20" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.6"></rect>
-    
+
     <rect x="190" y="80" width="13" height="13" rx="3.5" fill="#ECFDF5" stroke="#059669" stroke-width="1"></rect>
     <text x="196.5" y="90" font-family="ui-sans-serif, system-ui" font-size="5" font-weight="700" fill="#059669" text-anchor="middle">TRP</text>
   </g>
 
-  
-  
+
+
   <path d="M106 100 C 110 100, 112 100, 114 100" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 4" stroke-opacity="0.5"></path>
-  
+
   <path d="M126 100 C 128 100, 130 100, 134 100" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 4" stroke-opacity="0.5"></path>
-  
+
   <circle cx="107" cy="100" r="2.2" fill="#059669" fill-opacity="0.4"></circle>
   <circle cx="133" cy="100" r="2.2" fill="#059669" fill-opacity="0.4"></circle>
 
-  
+
   <g filter="url(#em-drop-center)">
     <circle cx="120" cy="100" r="16" fill="url(#em-center)"></circle>
-    
+
     <circle cx="120" cy="100" r="16" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.25"></circle>
-    
+
     <path d="M112 100 L117 105 L128 94" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></path>
-    
+
     <path d="M110 92 Q114 88 120 89" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.35"></path>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.5">
     <line x1="50" y1="38" x2="56" y2="44"></line>
     <line x1="56" y1="38" x2="50" y2="44"></line>
@@ -24301,68 +24301,68 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <ellipse cx="120" cy="172" rx="70" ry="7.5" fill="url(#en-shadow)"></ellipse>
 
-  
+
   <ellipse cx="120" cy="100" rx="56" ry="52" fill="url(#en-glow)"></ellipse>
 
-  
+
   <circle cx="120" cy="100" r="62" stroke="#059669" stroke-width="1" stroke-opacity="0.07" fill="none"></circle>
   <circle cx="120" cy="100" r="50" stroke="#059669" stroke-width="1.2" stroke-opacity="0.1" fill="none"></circle>
   <circle cx="120" cy="100" r="38" stroke="#059669" stroke-width="1.5" stroke-opacity="0.14" fill="none"></circle>
 
-  
+
   <g filter="url(#en-drop-bell)">
-    
+
     <path d="M120 48 Q84 48 84 88 L84 118 Q84 128 74 134 L74 140 L166 140 L166 134 Q156 128 156 118 L156 88 Q156 48 120 48 Z" fill="url(#en-bell)" stroke="#059669" stroke-width="2" stroke-linejoin="round"></path>
 
-    
+
     <path d="M156 88 Q156 48 120 48 L130 48 Q166 48 166 88 L166 118 Q166 128 176 134 L166 134 Q156 128 156 118 Z" fill="#059669" fill-opacity="0.07"></path>
 
-    
+
     <path d="M98 64 Q100 54 110 52" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.85"></path>
-    
+
     <path d="M88 90 Q87 80 88 72" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.45"></path>
 
-    
+
     <path d="M90 110 Q90 86 120 82 Q150 86 150 110" stroke="#059669" stroke-width="0.9" stroke-opacity="0.18" fill="none"></path>
 
-    
+
     <rect x="72" y="136" width="96" height="10" rx="4" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"></rect>
-    
+
     <rect x="74" y="137" width="92" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.4"></rect>
 
-    
+
     <rect x="115" y="38" width="10" height="12" rx="3" fill="#059669" stroke="#047857" stroke-width="0.8"></rect>
     <circle cx="120" cy="38" r="4" fill="#047857"></circle>
     <circle cx="120" cy="38" r="1.8" fill="#ECFDF5" fill-opacity="0.5"></circle>
 
-    
+
     <path d="M113 146 Q113 156 120 158 Q127 156 127 146 Z" fill="#18181B"></path>
     <ellipse cx="120" cy="158" rx="5" ry="3" fill="#09090B"></ellipse>
   </g>
 
-  
-  
+
+
   <g filter="url(#en-drop-badge)" transform="translate(162 60)">
     <circle r="13" cx="0" cy="0" fill="url(#en-badge-r)"></circle>
     <text x="0" y="4.5" font-family="ui-sans-serif, system-ui" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
-    
+
     <path d="M-8 -8 Q-2 -12 4 -9" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.4"></path>
   </g>
 
-  
+
   <g filter="url(#en-drop-notif)" transform="translate(46 80)">
     <rect x="-22" y="-12" width="44" height="24" rx="7" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"></rect>
-    
+
     <circle cx="-12" cy="0" r="4" fill="#059669" fill-opacity="0.8"></circle>
-    
+
     <rect x="-4" y="-4" width="20" height="4" rx="2" fill="#E4E4E7"></rect>
     <rect x="-4" y="2" width="14" height="3" rx="1.5" fill="#F4F4F5"></rect>
   </g>
 
-  
+
   <g filter="url(#en-drop-notif)" transform="translate(194 90)">
     <rect x="-20" y="-10" width="40" height="20" rx="6" fill="#ECFDF5" stroke="#059669" stroke-width="0.8"></rect>
     <circle cx="-10" cy="0" r="3.5" fill="#059669" fill-opacity="0.7"></circle>
@@ -24370,7 +24370,7 @@ replacements for the most-copied snippets, not a full rewrite.
     <rect x="-3" y="2" width="12" height="3" rx="1.5" fill="#D1FAE5"></rect>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.8" stroke-linecap="round" opacity="0.5">
     <line x1="58" y1="54" x2="64" y2="60"></line>
     <line x1="64" y1="54" x2="58" y2="60"></line>
@@ -24631,48 +24631,48 @@ replacements for the most-copied snippets, not a full rewrite.
     <filter id="ep-coin-drop" x="-40%" y="-40%" width="180%" height="180%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#D97706" flood-opacity="0.2"></feDropShadow>
     </filter>
-    
+
     <linearGradient id="ep-shine" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"></stop>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"></stop>
     </linearGradient>
   </defs>
 
-  
+
   <ellipse cx="120" cy="172" rx="72" ry="7.5" fill="url(#ep-shadow)"></ellipse>
 
-  
+
   <g opacity="0.32">
     <path d="M60 72 L112 72 L158 118 L112 162 L60 162 Z" fill="url(#ep-tag-back)" stroke="#E4E4E7" stroke-width="1.5" stroke-linejoin="round" transform="rotate(-8 109 117)"></path>
     <circle cx="76" cy="117" r="6" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1.5" transform="rotate(-8 109 117)"></circle>
   </g>
 
-  
+
   <g filter="url(#ep-drop)">
-    
+
     <path d="M78 58 L142 58 L192 108 L142 158 L78 158 Z" fill="url(#ep-tag-front)" stroke="#059669" stroke-width="2" stroke-linejoin="round"></path>
-    
+
     <path d="M80 60 L140 60 L148 68 L80 68 Z" fill="#FFFFFF" fill-opacity="0.45"></path>
-    
+
     <path d="M192 108 L184 100 L184 116 Z" fill="#047857" fill-opacity="0.15"></path>
 
-    
+
     <circle cx="97" cy="108" r="10" fill="#FFFFFF" stroke="#059669" stroke-width="2.2"></circle>
     <circle cx="97" cy="108" r="4" fill="#059669"></circle>
     <circle cx="97" cy="108" r="2" fill="#ECFDF5"></circle>
-    
+
     <path d="M97 98 Q92 88 86 80" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2 2.5"></path>
 
-    
+
     <rect x="116" y="88" width="52" height="7" rx="2.5" fill="#059669"></rect>
     <rect x="116" y="103" width="40" height="5" rx="2" fill="#059669" fill-opacity="0.45"></rect>
     <rect x="116" y="116" width="46" height="5" rx="2" fill="#059669" fill-opacity="0.45"></rect>
     <rect x="116" y="129" width="32" height="5" rx="2" fill="#059669" fill-opacity="0.3"></rect>
 
-    
+
     <text x="170" y="152" font-family="ui-sans-serif, system-ui, sans-serif" font-size="28" font-weight="700" fill="#059669" fill-opacity="0.1" text-anchor="middle">%</text>
 
-    
+
     <g transform="translate(88 138)">
       <rect x="0" y="8" width="6" height="8" rx="1.5" fill="#059669" fill-opacity="0.3"></rect>
       <rect x="8" y="4" width="6" height="12" rx="1.5" fill="#059669" fill-opacity="0.4"></rect>
@@ -24680,18 +24680,18 @@ replacements for the most-copied snippets, not a full rewrite.
     </g>
   </g>
 
-  
+
   <g filter="url(#ep-coin-drop)" transform="translate(196 68)">
     <circle r="18" cx="0" cy="0" fill="url(#ep-coin)" stroke="#D97706" stroke-width="1.5"></circle>
-    
+
     <circle r="14" cx="0" cy="0" fill="none" stroke="#FDE68A" stroke-width="1" stroke-opacity="0.7"></circle>
-    
+
     <text x="0" y="6" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700" fill="#D97706" text-anchor="middle">₫</text>
-    
+
     <path d="M-10 -12 Q-2 -16 6 -12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5"></path>
   </g>
 
-  
+
   <g opacity="0.55" transform="translate(54 60)">
     <circle r="9" cx="0" cy="0" fill="url(#ep-coin)" stroke="#D97706" stroke-width="1"></circle>
     <text x="0" y="3.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" font-weight="700" fill="#D97706" text-anchor="middle">₫</text>
@@ -24700,7 +24700,7 @@ replacements for the most-copied snippets, not a full rewrite.
     <circle r="6" cx="0" cy="0" fill="url(#ep-coin)" stroke="#D97706" stroke-width="0.8"></circle>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.8" stroke-linecap="round" opacity="0.5">
     <line x1="178" y1="44" x2="184" y2="50"></line>
     <line x1="184" y1="44" x2="178" y2="50"></line>
@@ -24741,100 +24741,100 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <ellipse cx="120" cy="174" rx="78" ry="8" fill="url(#er-shadow)"></ellipse>
 
-  
+
   <g filter="url(#er-drop-map)">
-    
+
     <path d="M36 54 L92 46 L150 58 L204 50 L204 156 L150 164 L92 152 L36 160 Z" fill="url(#er-map)" stroke="#E4E4E7" stroke-width="1.8" stroke-linejoin="round"></path>
 
-    
+
     <path d="M36 54 L92 46 L150 58 L204 50 L204 58 L150 66 L92 54 L36 62 Z" fill="#FFFFFF" fill-opacity="0.55"></path>
 
-    
+
     <line x1="92" y1="46" x2="92" y2="152" stroke="#E4E4E7" stroke-width="1.2" stroke-dasharray="2 3.5"></line>
     <line x1="150" y1="58" x2="150" y2="164" stroke="#E4E4E7" stroke-width="1.2" stroke-dasharray="2 3.5"></line>
 
-    
+
     <g stroke="#F4F4F5" stroke-width="1">
       <line x1="36" y1="80" x2="204" y2="76"></line>
       <line x1="36" y1="104" x2="204" y2="100"></line>
       <line x1="36" y1="128" x2="204" y2="124"></line>
     </g>
 
-    
+
     <path d="M46 84 Q64 76 80 86 Q74 98 58 96 Z" fill="#ECFDF5" fill-opacity="0.9"></path>
     <path d="M156 108 Q174 100 188 114 Q180 124 164 120 Z" fill="#ECFDF5" fill-opacity="0.9"></path>
     <path d="M100 128 Q114 122 128 132 Q120 142 106 140 Z" fill="#ECFDF5" fill-opacity="0.7"></path>
 
-    
+
     <path d="M46 84 Q64 76 80 86 Q74 98 58 96 Z" stroke="#059669" stroke-width="0.8" stroke-opacity="0.25" fill="none"></path>
     <path d="M156 108 Q174 100 188 114 Q180 124 164 120 Z" stroke="#059669" stroke-width="0.8" stroke-opacity="0.25" fill="none"></path>
 
-    
+
     <g stroke="#D4D4D8" stroke-width="1" stroke-linecap="round">
       <path d="M56 90 L70 104 L68 120" fill="none"></path>
       <path d="M100 100 L120 112 L140 108" fill="none"></path>
       <path d="M164 88 L172 106" fill="none"></path>
     </g>
 
-    
+
     <g fill="#D1FAE5">
       <rect x="104" y="98" width="5" height="6" rx="1"></rect>
       <rect x="114" y="95" width="4" height="9" rx="1"></rect>
       <rect x="162" y="85" width="5" height="5" rx="1"></rect>
     </g>
 
-    
+
     <path d="M68 124 C 88 78, 154 76, 182 62" stroke="#059669" stroke-width="2.8" stroke-linecap="round" stroke-dasharray="5 7" fill="none"></path>
-    
+
     <path d="M68 124 C 88 78, 154 76, 182 62" stroke="#059669" stroke-width="5" stroke-linecap="round" stroke-dasharray="5 7" fill="none" stroke-opacity="0.07"></path>
 
-    
+
     <g transform="translate(178 138)">
       <circle r="12" cx="0" cy="0" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1.5"></circle>
-      
+
       <path d="M0 -9 L2.8 -1 L0 7 L-2.8 -1 Z" fill="#059669"></path>
-      
+
       <path d="M0 9 L2.2 3 L0 -1 L-2.2 3 Z" fill="#E4E4E7"></path>
-      
+
       <line x1="-9" y1="0" x2="-5" y2="0" stroke="#D4D4D8" stroke-width="1.2"></line>
       <line x1="5" y1="0" x2="9" y2="0" stroke="#D4D4D8" stroke-width="1.2"></line>
-      
+
       <text x="0" y="-14" font-family="ui-sans-serif, system-ui, sans-serif" font-size="6.5" font-weight="700" fill="#059669" text-anchor="middle">N</text>
     </g>
 
-    
+
     <g transform="translate(120 92)">
       <rect x="-18" y="-9" width="36" height="17" rx="5" fill="#ECFDF5" stroke="#059669" stroke-width="1"></rect>
       <text x="0" y="3.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="7" font-weight="600" fill="#059669" text-anchor="middle">– km –</text>
     </g>
   </g>
 
-  
+
   <g filter="url(#er-drop-pin)">
     <path d="M68 126 C 68 112, 80 104, 80 92 C 80 79, 70 72, 62 78 C 54 84, 56 96, 68 126 Z" fill="url(#er-pin-a)" stroke="#047857" stroke-width="1.2"></path>
-    
+
     <circle cx="68" cy="90" r="5.5" fill="#FFFFFF"></circle>
     <circle cx="68" cy="90" r="2.5" fill="#059669"></circle>
-    
+
     <rect x="76" y="108" width="13" height="11" rx="3" fill="#059669"></rect>
     <text x="82.5" y="117.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="7" font-weight="700" fill="#FFFFFF" text-anchor="middle">A</text>
   </g>
 
-  
+
   <g filter="url(#er-drop-pin)">
     <path d="M182 64 C 182 50, 193 42, 193 30 C 193 17, 182 11, 175 17 C 168 23, 170 35, 182 64 Z" fill="url(#er-pin-b)" stroke="#059669" stroke-width="2"></path>
-    
+
     <circle cx="182" cy="28" r="5" fill="#059669"></circle>
     <circle cx="182" cy="28" r="2.2" fill="#FFFFFF"></circle>
-    
+
     <rect x="160" y="44" width="13" height="11" rx="3" fill="#FFFFFF" stroke="#059669" stroke-width="1"></rect>
     <text x="166.5" y="53.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="7" font-weight="700" fill="#059669" text-anchor="middle">B</text>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.45">
     <line x1="42" y1="38" x2="48" y2="44"></line>
     <line x1="48" y1="38" x2="42" y2="44"></line>
@@ -24968,16 +24968,16 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <rect x="0" y="0" width="240" height="148" fill="url(#et-sky)"></rect>
 
-  
+
   <ellipse cx="122" cy="157" rx="86" ry="8" fill="url(#et-shadow)"></ellipse>
 
-  
+
   <rect x="0" y="148" width="240" height="13" fill="url(#et-road)"></rect>
 
-  
+
   <g stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" opacity="0.5">
     <line x1="16" y1="154.5" x2="36" y2="154.5"></line>
     <line x1="52" y1="154.5" x2="72" y2="154.5"></line>
@@ -24987,78 +24987,78 @@ replacements for the most-copied snippets, not a full rewrite.
     <line x1="196" y1="154.5" x2="216" y2="154.5"></line>
   </g>
 
-  
+
   <g stroke="#059669" stroke-linecap="round" opacity="0.12">
     <line x1="12" y1="100" x2="46" y2="100" stroke-width="2.5"></line>
     <line x1="8" y1="111" x2="38" y2="111" stroke-width="1.8"></line>
     <line x1="16" y1="122" x2="42" y2="122" stroke-width="1.2"></line>
   </g>
 
-  
+
   <g filter="url(#et-drop)">
 
-    
+
     <rect x="62" y="138" width="90" height="8" rx="3" fill="#D1FAE5" stroke="#059669" stroke-width="1.4"></rect>
-    
+
     <rect x="65" y="141" width="8" height="7" rx="1.5" fill="#059669" fill-opacity="0.28"></rect>
     <rect x="130" y="141" width="8" height="7" rx="1.5" fill="#059669" fill-opacity="0.28"></rect>
 
-    
+
     <rect x="60" y="74" width="92" height="68" rx="6" fill="url(#et-cargo)" stroke="#059669" stroke-width="2"></rect>
-    
+
     <rect x="62" y="75" width="88" height="5" rx="2" fill="#FFFFFF" fill-opacity="0.5"></rect>
-    
+
     <g stroke="#059669" stroke-width="0.7" stroke-opacity="0.2">
       <line x1="84" y1="78" x2="84" y2="138"></line>
       <line x1="104" y1="78" x2="104" y2="138"></line>
       <line x1="124" y1="78" x2="124" y2="138"></line>
     </g>
-    
+
     <line x1="122" y1="78" x2="122" y2="138" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></line>
-    
+
     <rect x="116" y="102" width="10" height="7" rx="2" fill="none" stroke="#059669" stroke-width="1.3" stroke-opacity="0.45"></rect>
     <rect x="119" y="98" width="4" height="6" rx="1" fill="#059669" fill-opacity="0.2"></rect>
-    
+
     <g stroke="#059669" stroke-width="1.1" stroke-linecap="round" stroke-opacity="0.3">
       <line x1="70" y1="112" x2="96" y2="112"></line>
       <line x1="70" y1="118" x2="84" y2="118"></line>
     </g>
 
-    
+
     <path d="M152 82 L184 82 Q192 82 192 90 L192 140 L152 140 Z" fill="url(#et-cab)"></path>
-    
+
     <path d="M190 100 L192 90 Q192 82 184 82 L179 82 L190 100 Z" fill="#047857" fill-opacity="0.7"></path>
-    
+
     <path d="M152 82 Q166 76 184 82" fill="#059669"></path>
-    
+
     <path d="M156 88 L184 88 Q188 88 188 92 L188 118 L156 118 Z" fill="url(#et-win)"></path>
-    
+
     <path d="M156 88 L184 88 Q188 88 188 92 L188 90 Q188 86 184 86 L156 86 Z" fill="#FFFFFF" fill-opacity="0.38"></path>
-    
+
     <line x1="160" y1="91" x2="170" y2="108" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-opacity="0.35"></line>
-    
+
     <line x1="152" y1="118" x2="192" y2="118" stroke="#047857" stroke-width="0.9" stroke-opacity="0.55"></line>
-    
+
     <rect x="154" y="126" width="11" height="3.5" rx="1.75" fill="#ECFDF5" fill-opacity="0.55"></rect>
-    
+
     <rect x="149" y="91" width="5" height="9" rx="2" fill="#065F46" stroke="#059669" stroke-width="0.75"></rect>
     <rect x="150" y="92" width="3" height="4.5" rx="0.75" fill="#ECFDF5" fill-opacity="0.45"></rect>
-    
+
     <rect x="189" y="100" width="3" height="28" rx="1" fill="#065F46"></rect>
-    
+
     <g stroke="#ECFDF5" stroke-width="0.7" stroke-opacity="0.3">
       <line x1="189" y1="106" x2="192" y2="106"></line>
       <line x1="189" y1="112" x2="192" y2="112"></line>
       <line x1="189" y1="118" x2="192" y2="118"></line>
       <line x1="189" y1="124" x2="192" y2="124"></line>
     </g>
-    
+
     <rect x="188" y="128" width="4" height="6" rx="1" fill="#FEF9C3" fill-opacity="0.92" stroke="#D97706" stroke-width="0.6"></rect>
-    
+
     <ellipse cx="190" cy="131" rx="5.5" ry="3.5" fill="#FEF3C7" fill-opacity="0.18"></ellipse>
   </g>
 
-  
+
   <circle cx="90" cy="148" r="12" fill="url(#et-wheel)"></circle>
   <circle cx="90" cy="148" r="7.5" fill="#3F3F46"></circle>
   <circle cx="90" cy="148" r="4.5" fill="url(#et-hub)"></circle>
@@ -25071,7 +25071,7 @@ replacements for the most-copied snippets, not a full rewrite.
   </g>
   <path d="M82 142 Q86 139 91 140" stroke="#A1A1AA" stroke-width="1" stroke-linecap="round" stroke-opacity="0.45"></path>
 
-  
+
   <circle cx="174" cy="148" r="12" fill="url(#et-wheel)"></circle>
   <circle cx="174" cy="148" r="7.5" fill="#3F3F46"></circle>
   <circle cx="174" cy="148" r="4.5" fill="url(#et-hub)"></circle>
@@ -25084,21 +25084,21 @@ replacements for the most-copied snippets, not a full rewrite.
   </g>
   <path d="M166 142 Q170 139 175 140" stroke="#A1A1AA" stroke-width="1" stroke-linecap="round" stroke-opacity="0.45"></path>
 
-  
+
   <circle cx="55" cy="94" r="7" fill="#F4F4F5" fill-opacity="0.65"></circle>
   <circle cx="46" cy="104" r="5.5" fill="#F4F4F5" fill-opacity="0.5"></circle>
   <circle cx="40" cy="113" r="3.5" fill="#F4F4F5" fill-opacity="0.35"></circle>
 
-  
+
   <g transform="translate(104 48)">
     <circle r="17" cx="0" cy="0" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1.5" style="filter:drop-shadow(0 2px 6px rgba(5,150,105,0.10))"></circle>
-    
+
     <path d="M-7 -2 L0 -7 L7 -2 L7 6 L0 11 L-7 6 Z" stroke="#A1A1AA" stroke-width="1.4" stroke-linejoin="round" fill="#F4F4F5"></path>
     <line x1="-7" y1="-2" x2="7" y2="-2" stroke="#A1A1AA" stroke-width="1.4"></line>
     <line x1="0" y1="-7" x2="0" y2="11" stroke="#A1A1AA" stroke-width="0.9" stroke-opacity="0.45"></line>
   </g>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.45">
     <line x1="212" y1="86" x2="218" y2="92"></line>
     <line x1="218" y1="86" x2="212" y2="92"></line>
@@ -25231,53 +25231,53 @@ replacements for the most-copied snippets, not a full rewrite.
 <file path="frontend/public/assets/illustrations/empty-welcome.svg">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
   <defs>
-    
+
     <linearGradient id="ew-sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5"></stop>
       <stop offset="100%" stop-color="#D1FAE5"></stop>
     </linearGradient>
-    
+
     <linearGradient id="ew-ground" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#A7F3D0"></stop>
       <stop offset="100%" stop-color="#6EE7B7"></stop>
     </linearGradient>
-    
+
     <linearGradient id="ew-road" x1="0.5" y1="0" x2="0.5" y2="1">
       <stop offset="0%" stop-color="#059669" stop-opacity="0.1"></stop>
       <stop offset="100%" stop-color="#059669" stop-opacity="0.22"></stop>
     </linearGradient>
-    
+
     <linearGradient id="ew-cab" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ECFDF5"></stop>
       <stop offset="100%" stop-color="#D1FAE5"></stop>
     </linearGradient>
-    
+
     <linearGradient id="ew-trailer" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#F0FDF4"></stop>
       <stop offset="100%" stop-color="#E8FDF2"></stop>
     </linearGradient>
-    
+
     <radialGradient id="ew-sun" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#059669" stop-opacity="0.22"></stop>
       <stop offset="60%" stop-color="#059669" stop-opacity="0.08"></stop>
       <stop offset="100%" stop-color="#059669" stop-opacity="0"></stop>
     </radialGradient>
-    
+
     <radialGradient id="ew-shadow" cx="50%" cy="30%" r="60%">
       <stop offset="0%" stop-color="#059669" stop-opacity="0.1"></stop>
       <stop offset="100%" stop-color="#059669" stop-opacity="0"></stop>
     </radialGradient>
-    
+
     <linearGradient id="ew-flag" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#059669"></stop>
       <stop offset="100%" stop-color="#34D399"></stop>
     </linearGradient>
-    
+
     <linearGradient id="ew-ribbon" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FCD34D" stop-opacity="0.9"></stop>
       <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.6"></stop>
     </linearGradient>
-    
+
     <filter id="ew-drop" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#059669" flood-opacity="0.16"></feDropShadow>
     </filter>
@@ -25292,18 +25292,18 @@ replacements for the most-copied snippets, not a full rewrite.
     </filter>
   </defs>
 
-  
+
   <rect width="240" height="200" fill="url(#ew-sky)"></rect>
 
-  
+
   <ellipse cx="120" cy="52" rx="52" ry="46" fill="url(#ew-sun)" filter="url(#ew-glow)"></ellipse>
 
-  
+
   <circle cx="120" cy="52" r="18" fill="#059669" fill-opacity="0.09"></circle>
   <circle cx="120" cy="52" r="11" fill="#059669" fill-opacity="0.13"></circle>
   <circle cx="120" cy="52" r="6" fill="#059669" fill-opacity="0.18"></circle>
 
-  
+
   <g stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.2">
     <line x1="120" y1="28" x2="120" y2="20"></line>
     <line x1="138" y1="34" x2="144" y2="28"></line>
@@ -25315,32 +25315,32 @@ replacements for the most-copied snippets, not a full rewrite.
     <line x1="102" y1="34" x2="96" y2="28"></line>
   </g>
 
-  
+
   <ellipse cx="120" cy="182" rx="80" ry="8" fill="url(#ew-shadow)"></ellipse>
 
-  
+
   <rect x="0" y="152" width="240" height="48" fill="url(#ew-ground)"></rect>
 
-  
-  
+
+
   <path d="M88 180 L110 120 L130 120 L152 180 Z" fill="url(#ew-road)"></path>
-  
+
   <path d="M88 180 L110 120" stroke="#059669" stroke-width="1.2" stroke-opacity="0.2"></path>
   <path d="M152 180 L130 120" stroke="#059669" stroke-width="1.2" stroke-opacity="0.2"></path>
-  
+
   <line x1="120" y1="122" x2="119" y2="132" stroke="#059669" stroke-width="1" stroke-opacity="0.25" stroke-dasharray="4 3"></line>
   <line x1="119" y1="136" x2="118" y2="148" stroke="#059669" stroke-width="1.2" stroke-opacity="0.22" stroke-dasharray="4 3"></line>
   <line x1="118" y1="152" x2="116" y2="168" stroke="#059669" stroke-width="1.5" stroke-opacity="0.2" stroke-dasharray="5 4"></line>
   <line x1="116" y1="172" x2="114" y2="180" stroke="#059669" stroke-width="1.8" stroke-opacity="0.18" stroke-dasharray="4 4"></line>
 
-  
+
   <line x1="0" y1="120" x2="240" y2="120" stroke="#059669" stroke-width="0.8" stroke-opacity="0.15"></line>
 
-  
+
   <path d="M0 122 Q30 108 60 116 Q90 124 110 120 L0 120 Z" fill="#059669" fill-opacity="0.08"></path>
   <path d="M240 122 Q210 106 180 114 Q150 122 130 120 L240 120 Z" fill="#059669" fill-opacity="0.08"></path>
 
-  
+
   <g fill="#059669" fill-opacity="0.22">
     <ellipse cx="32" cy="132" rx="11" ry="16"></ellipse>
     <rect x="30" y="144" width="4" height="16" rx="1.5"></rect>
@@ -25354,7 +25354,7 @@ replacements for the most-copied snippets, not a full rewrite.
     <rect x="14" y="150" width="4" height="10" rx="1.5"></rect>
   </g>
 
-  
+
   <g fill="#059669" fill-opacity="0.20">
     <ellipse cx="208" cy="134" rx="11" ry="15"></ellipse>
     <rect x="206" y="145" width="4" height="15" rx="1.5"></rect>
@@ -25368,40 +25368,40 @@ replacements for the most-copied snippets, not a full rewrite.
     <rect x="222" y="150" width="4" height="10" rx="1.5"></rect>
   </g>
 
-  
+
   <g filter="url(#ew-drop-flag)">
-    
+
     <line x1="170" y1="75" x2="170" y2="135" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.6"></line>
-    
+
     <path d="M170 75 L202 82 L196 92 L170 98 Z" fill="url(#ew-flag)"></path>
-    
+
     <path d="M170 76 L196 82" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.4"></path>
-    
+
     <rect x="176" y="82" width="16" height="3" rx="1" fill="#FFFFFF" fill-opacity="0.5"></rect>
     <rect x="176" y="88" width="11" height="2.5" rx="1" fill="#FFFFFF" fill-opacity="0.35"></rect>
-    
+
     <ellipse cx="170" cy="136" rx="5" ry="2" fill="#059669" fill-opacity="0.25"></ellipse>
-    
+
     <rect x="162" y="132" width="16" height="10" rx="3" fill="#D1FAE5" stroke="#059669" stroke-width="1" stroke-opacity="0.3"></rect>
     <rect x="165" y="135" width="10" height="3" rx="1" fill="#059669" fill-opacity="0.2"></rect>
   </g>
 
-  
+
   <g filter="url(#ew-drop-truck)" transform="translate(100 100) scale(0.55)">
-    
+
     <rect x="-52" y="-14" width="52" height="18" rx="3" fill="url(#ew-trailer)" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></rect>
-    
+
     <rect x="-50" y="-10" width="48" height="3" rx="1" fill="#059669" fill-opacity="0.15"></rect>
-    
+
     <rect x="0" y="-18" width="24" height="22" rx="4" fill="url(#ew-cab)" stroke="#059669" stroke-width="1.4" stroke-opacity="0.38"></rect>
-    
+
     <rect x="3" y="-16" width="14" height="9" rx="2" fill="#059669" fill-opacity="0.18"></rect>
-    
+
     <path d="M3 -16 Q10 -19 17 -16" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" stroke-opacity="0.5"></path>
-    
+
     <line x1="22" y1="-18" x2="22" y2="-26" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-opacity="0.3"></line>
     <ellipse cx="22" cy="-27" rx="4" ry="2.5" fill="#059669" fill-opacity="0.08"></ellipse>
-    
+
     <circle cx="-38" cy="6" r="7" fill="#D1FAE5" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></circle>
     <circle cx="-38" cy="6" r="3" fill="#059669" fill-opacity="0.2"></circle>
     <circle cx="-14" cy="6" r="7" fill="#D1FAE5" stroke="#059669" stroke-width="1.2" stroke-opacity="0.3"></circle>
@@ -25410,21 +25410,21 @@ replacements for the most-copied snippets, not a full rewrite.
     <circle cx="14" cy="6" r="3" fill="#059669" fill-opacity="0.2"></circle>
   </g>
 
-  
+
   <g stroke="#059669" stroke-linecap="round" stroke-opacity="0.18">
     <line x1="82" y1="103" x2="68" y2="103" stroke-width="1.4"></line>
     <line x1="82" y1="107" x2="72" y2="107" stroke-width="1"></line>
     <line x1="82" y1="99" x2="74" y2="99" stroke-width="0.9"></line>
   </g>
 
-  
+
   <path d="M72 116 Q120 113 168 116" stroke="url(#ew-ribbon)" stroke-width="2.5" stroke-linecap="round"></path>
   <path d="M72 116 Q120 113 168 116" stroke="#FFFFFF" stroke-width="0.8" stroke-linecap="round" stroke-opacity="0.6"></path>
-  
+
   <circle cx="72" cy="116" r="3.5" fill="#FCD34D" fill-opacity="0.8"></circle>
   <circle cx="168" cy="116" r="3.5" fill="#FCD34D" fill-opacity="0.8"></circle>
 
-  
+
   <circle cx="85" cy="100" r="2" fill="#FCD34D" fill-opacity="0.55"></circle>
   <circle cx="158" cy="98" r="1.5" fill="#FCD34D" fill-opacity="0.5"></circle>
   <circle cx="75" cy="108" r="1.8" fill="#059669" fill-opacity="0.3"></circle>
@@ -25432,7 +25432,7 @@ replacements for the most-copied snippets, not a full rewrite.
   <circle cx="105" cy="92" r="1.5" fill="#FCD34D" fill-opacity="0.4"></circle>
   <circle cx="135" cy="90" r="1.8" fill="#059669" fill-opacity="0.3"></circle>
 
-  
+
   <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-opacity="0.35">
     <line x1="44" y1="56" x2="50" y2="62"></line>
     <line x1="50" y1="56" x2="44" y2="62"></line>
@@ -31937,7 +31937,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
       } else {
         await tripClient.createTripExpense(tripId, payload);
       }
-      
+
       await queryClient.invalidateQueries({ queryKey: qk.tripForm.tripExpenses(tripId) });
       setForm(EMPTY_FORM);
       setEditingId(null);
@@ -43229,28 +43229,28 @@ export function ReassignDialog({
                 </option>
               ))}
             </select>
-            <input 
-              type="text" 
-              placeholder="Biển số xe" 
-              value={reassignState.externalPlateNumber} 
+            <input
+              type="text"
+              placeholder="Biển số xe"
+              value={reassignState.externalPlateNumber}
               onChange={(e) => setReassignState(s => ({ ...s, externalPlateNumber: e.target.value }))}
               disabled={reassignState.loading}
               style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
             />
           </div>
           <div className="row">
-            <input 
-              type="text" 
-              placeholder="Tên lái xe" 
-              value={reassignState.externalDriverName} 
+            <input
+              type="text"
+              placeholder="Tên lái xe"
+              value={reassignState.externalDriverName}
               onChange={(e) => setReassignState(s => ({ ...s, externalDriverName: e.target.value }))}
               disabled={reassignState.loading}
               style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
             />
-            <input 
-              type="text" 
-              placeholder="SĐT lái xe" 
-              value={reassignState.externalDriverPhone} 
+            <input
+              type="text"
+              placeholder="SĐT lái xe"
+              value={reassignState.externalDriverPhone}
               onChange={(e) => setReassignState(s => ({ ...s, externalDriverPhone: e.target.value }))}
               disabled={reassignState.loading}
               style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
@@ -47021,7 +47021,7 @@ export type { UseMotionPathOptions, UseMotionPathReturn } from './useMotionPath'
 <file path="frontend/src/hooks/animations/PAGE_ANALYSIS.md">
 # Page Animation Integration Points
 
-> Generated: 2026-06-13  
+> Generated: 2026-06-13
 > Purpose: Identify animation targets for each page to plan anime.js integration.
 
 ## Legend
@@ -56155,10 +56155,10 @@ export default function PenaltyReasonsConfigPage() {
   return (
     <div ref={pageRef} className="penalty-reasons-page" style={{ minHeight: '100%' }}>
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <PageHeader 
-        title="Danh mục lỗi vi phạm" 
-        description="Quản lý các loại lỗi vi phạm của lái xe và quy định mức phạt mặc định để áp dụng nhanh chóng." 
-        onBack={handleBack} 
+      <PageHeader
+        title="Danh mục lỗi vi phạm"
+        description="Quản lý các loại lỗi vi phạm của lái xe và quy định mức phạt mặc định để áp dụng nhanh chóng."
+        onBack={handleBack}
         iconName="alert"
         action={
           <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}>
@@ -58400,7 +58400,7 @@ export default function WeightPricingTiersConfigPage() {
     width: 100%;
     margin-top: 2px;
   }
-  
+
   .penalty-seg {
     display: flex;
     width: 100%;
@@ -58408,7 +58408,7 @@ export default function WeightPricingTiersConfigPage() {
     padding: 4px;
     border-radius: 10px;
   }
-  
+
   .penalty-seg button {
     flex: 1;
     text-align: center;
@@ -58535,8 +58535,8 @@ export default function WeightPricingTiersConfigPage() {
     padding: 14px 16px;
   }
   .penalty-page .penalty-card-lead,
-  .fleet-page .fleet-card-lead { 
-    width: 100%; 
+  .fleet-page .fleet-card-lead {
+    width: 100%;
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
@@ -66760,8 +66760,8 @@ export default function DebtListPage() {
         iconName="receivables"
         action={
           <div className="page-actions">
-            <button 
-              className="btn btn--secondary btn--sm" 
+            <button
+              className="btn btn--secondary btn--sm"
               onClick={handleExport}
               disabled={exporting}
             >
@@ -77857,7 +77857,7 @@ export default function PenaltyPage() {
     right: 14px;
   }
   .tc-page-title { font-size: 19px; }
-  
+
   .tc-card-head {
     margin-bottom: 12px;
   }
@@ -78011,8 +78011,8 @@ export default function PenaltyPage() {
   line-height: 1.35;
   margin-top: 4px;
 }
-.tc-card-body { 
-  padding: 0; 
+.tc-card-body {
+  padding: 0;
   container-type: inline-size;
 }
 
@@ -80393,11 +80393,11 @@ import { test } from '@playwright/test';
 test('capture screenshot', async ({ page }) => {
   // Set viewport to mobile size since this is a driver view
   await page.setViewportSize({ width: 390, height: 844 });
-  
+
   console.log('Navigating to login...');
   await page.goto('http://localhost:7173/login');
   await page.waitForTimeout(1000);
-  
+
   console.log('Logging in as driver laixe...');
   const userFields = await page.$$('input');
   if (userFields.length >= 2) {
@@ -80407,13 +80407,13 @@ test('capture screenshot', async ({ page }) => {
     await page.fill('input[type="text"]', 'laixe');
     await page.fill('input[type="password"]', 'admin123');
   }
-  
+
   await page.click('button[type="submit"]');
   await page.waitForTimeout(2500);
-  
+
   let currentUrl = page.url();
   console.log('Logged in, current URL:', currentUrl);
-  
+
   if (currentUrl.includes('/login')) {
     console.log('Failed login with laixe/admin123. Trying quyet/admin123...');
     const userFields2 = await page.$$('input');
@@ -80426,12 +80426,12 @@ test('capture screenshot', async ({ page }) => {
     currentUrl = page.url();
     console.log('Current URL after quyet login:', currentUrl);
   }
-  
+
   console.log('Navigating to my-trips/81...');
   await page.goto('http://localhost:7173/my-trips/81');
   console.log('Waiting for content to load...');
   await page.waitForTimeout(4000); // Give it enough time to fetch and render
-  
+
   const screenshotPath = '/Users/dev/.gemini/antigravity-cli/brain/3c2fe464-e600-4472-8ac9-ab6a86629a9c/my_trips_detail.png';
   console.log(`Taking screenshot to ${screenshotPath}...`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -124991,7 +124991,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     const [u] = await db.select().from(s.users).where(eq(s.users.username, CUSTOMER_USERNAME));
     assert.ok(u, 'CUSTOMER demo user exists');
     assert.equal(u.role, 'CUSTOMER');
-    assert.equal(u.email, 'customer@nepo.vn');
+    assert.equal(u.email, 'customer@silversea.vn');
     assert.ok(u.customerId, 'CUSTOMER demo user is linked to an AR customer for portal row scope');
   });
 
@@ -128301,9 +128301,9 @@ We trusted the visible UI state instead of the persisted contract. The save path
 <file path="docs/journals/260801-new-flow-default.md">
 # New Flow Only, No Rollback Fantasy
 
-**Date**: 2026-08-01 17:18  
-**Severity**: Medium  
-**Component**: Workflow rollout removal, backend test hygiene, E2E closeout  
+**Date**: 2026-08-01 17:18
+**Severity**: Medium
+**Component**: Workflow rollout removal, backend test hygiene, E2E closeout
 **Status**: Ongoing
 
 ## What Happened
@@ -128481,7 +128481,7 @@ curl -fsS https://vantai.tingting.vip/api/health
 *   **Người thực hiện:** Admin / Giám đốc / Kế toán / Nhân viên CUS.
 *   **Thao tác (Nghiệp vụ):** Cập nhật dữ liệu chuẩn vào hệ thống bao gồm: Danh sách Khách hàng, Nhà cung cấp, Tuyến đường, Bảng giá cước, Định mức nhiên liệu, và Danh sách Nhà máy (kèm MST, Lưu ý đặc biệt...).
 *   **Dev Note:**
-    *   **Mở rộng Master Data:** 
+    *   **Mở rộng Master Data:**
         *   *Nhà cung cấp (NCC):* Bắt buộc tách riêng 2 trường `Hạn thanh toán Chi hộ` và `Hạn thanh toán Cước` (vì NCC thực tế có 2 mốc hạn nợ khác nhau).
         *   *Cảng/Bãi:* Bổ sung bảng Ma trận phí Nâng/Hạ chuẩn theo `Tên Cảng + 20'/40' + Hàng/Rỗng`.
     *   **Định dạng Biển số xe:** Bắt buộc lưu dưới dạng Văn bản (Text) có dấu tách (Ví dụ: `15C-123.45`).
@@ -128489,17 +128489,17 @@ curl -fsS https://vantai.tingting.vip/api/health
     *   **Bảo mật & Thao tác:** Các thông tin nhạy cảm (biên lợi nhuận chuyến, lương lái xe, hoa hồng, giá vốn) chỉ hiển thị với Giám đốc/Kế toán/Admin, ẩn hoàn toàn với Điều vận và Ops. **Chỉ Admin / Giám đốc mới có quyền chỉnh sửa hoặc xoá dữ liệu hệ thống (sau khi duyệt), những người còn lại chỉ được quyền thêm mới (Create-only).**
     *   **Quy tắc xóa cho người Create-only:**
         *   **Được xóa khi tạo sai:** Nếu người dùng Create-only vừa thêm mới mà phát hiện sai, họ **vẫn có quyền xóa** — không ép giữ lại bản ghi sai.
-        *   **Giới hạn trong phiên làm việc (session):** Quyền xóa này chỉ áp dụng trong **phiên làm việc hiện tại** (session). 
+        *   **Giới hạn trong phiên làm việc (session):** Quyền xóa này chỉ áp dụng trong **phiên làm việc hiện tại** (session).
         *   **Xóa ở phiên cũ → phải được duyệt:** Nếu muốn xóa dữ liệu tạo ra từ phiên trước, người Create-only phải gửi yêu cầu và được Admin / Giám đốc phê duyệt.
         *   **Ngoại lệ cấm xóa:** Chi phí và chứng từ **đã được Kế toán duyệt** thì **không được xóa** (dù ở bất kỳ phiên nào, bởi bất kỳ ai dưới quyền duyệt). Chỉ Admin / Giám đốc mới có quyền xử lý.
     *   **Phân loại tài sản:** Tại Master Data Xe, thiết lập Tag nguồn gốc xe: `Xe nhà (In-house)` và `Xe ngoài (Subcontractor)`.
-    *   **Push Notification (MVP):** Tạm thời trong flow chỉ cài đặt push cho 2 role: **Lái xe** và **Điều vận**. 
+    *   **Push Notification (MVP):** Tạm thời trong flow chỉ cài đặt push cho 2 role: **Lái xe** và **Điều vận**.
 
 #### BƯỚC 1: KHỞI TẠO & KIỂM DUYỆT LÔ HÀNG (NGHIỆP VỤ CUS)
 *   **Người thực hiện:** Nhân viên CUS.
 *   **Thao tác (Nghiệp vụ):**
-    *   **Tạo mới:** Tiếp nhận Booking, nhập thông tin lên phần mềm (Số Bill/Booking, Khách hàng, Tuyến đường, Nhà máy). 
-    *   **Phân loại hàng hóa:** 
+    *   **Tạo mới:** Tiếp nhận Booking, nhập thông tin lên phần mềm (Số Bill/Booking, Khách hàng, Tuyến đường, Nhà máy).
+    *   **Phân loại hàng hóa:**
         *   *Hàng FCL (Container):* Nhập số lượng Cont / KG / CBM.
         *   *Hàng LCL (Hàng lẻ):* Có màn hình nhập liệu chuyên biệt gồm các trường: Kho lấy hàng, Loại bao bì (Pallet, Roll, Carton), Số lượng, Số kg, Số CBM, Ghi chú lưu ý.
     *   **CUS - PHẦN 1 (Hiển thị chi tiết lô hàng để theo dõi):** Hiển thị dạng danh sách chi tiết để CUS kiểm tra lại độ chính xác so với chứng từ gốc, chuẩn bị dữ liệu chuẩn cho Điều vận và Kế toán.
@@ -128550,8 +128550,8 @@ curl -fsS https://vantai.tingting.vip/api/health
 *   **Dev Note:**
     *   *Trạng thái kết thúc — KHÔNG đóng băng:* Chuyến đi sau khi Kế toán xác nhận sẽ chuyển sang trạng thái `Hoàn thành (Completed)`. **Tạm thời BỎ tính năng "Khóa cứng / Đóng băng dữ liệu (Read-only)"** — dữ liệu chi phí **vẫn được phép chỉnh sửa tiếp** sau khi hoàn thành.
     *   *Điểm neo POD (State Transition Gate):* Hệ thống thiết lập cờ logic (Boolean) bắt buộc. Chỉ cho phép chuyển trạng thái chuyến đi từ `Pending` sang `Completed` khi Kế toán/CUS đã tích chọn "Đã thu hồi chứng từ gốc". O2C dừng ở việc xác nhận POD đã về kho.
-    *   *Điểm neo Tạm ứng (Cash Flow Boundary):* Khi Kế toán duyệt các khoản phí `Treo`, hệ thống tự động sinh giao dịch đối trừ cấn trừ vào Số dư tạm ứng của Ops/Lái xe. 
-    *   *Điểm neo Chu kỳ chốt (Data Hand-off):* Thao tác bấm "Hoàn thành" là điểm kết thúc nghiệp vụ O2C. Hệ thống tính tổng tiền sau VAT và đẩy song song **bản ghi AR (Công nợ Phải thu Khách hàng)** và **bản ghi AP (Công nợ Phải trả NCC/Chủ xe ngoài)** sang module Công nợ. 
+    *   *Điểm neo Tạm ứng (Cash Flow Boundary):* Khi Kế toán duyệt các khoản phí `Treo`, hệ thống tự động sinh giao dịch đối trừ cấn trừ vào Số dư tạm ứng của Ops/Lái xe.
+    *   *Điểm neo Chu kỳ chốt (Data Hand-off):* Thao tác bấm "Hoàn thành" là điểm kết thúc nghiệp vụ O2C. Hệ thống tính tổng tiền sau VAT và đẩy song song **bản ghi AR (Công nợ Phải thu Khách hàng)** và **bản ghi AP (Công nợ Phải trả NCC/Chủ xe ngoài)** sang module Công nợ.
     *   **Lưu ý Đồng bộ (Sync Logic):** Vì chưa khóa cứng, dữ liệu đẩy sang công nợ là **bản chụp thời điểm (snapshot)**; nếu chi phí tiếp tục được chỉnh sửa sau đó tại Bước 4, hệ thống sẽ đánh dấu (flag) bản ghi đã thay đổi để Kế toán đối soát lại.
     *   *Tách P&L:* Tự động bóc tách doanh thu và kết chuyển giá vốn riêng biệt cho nhóm "Xe nhà" và "Xe ngoài" lên Dashboard Quản trị.
     *   *Trạng thái Lô hàng:* `Hoàn thành (Completed)`.
@@ -128559,7 +128559,7 @@ curl -fsS https://vantai.tingting.vip/api/health
 
 <file path="docs/prd/O2C Flow.md">
 # TÀI LIỆU ĐẶC TẢ QUY TRÌNH VẬN HÀNH & QUYẾT TOÁN (ORDER-TO-CASH)
-**Dự án:** Phần mềm Quản lý Vận tải TTransport 
+**Dự án:** Phần mềm Quản lý Vận tải TTransport
 **Đơn vị sử dụng:** Công ty Silver Sea
 
 ---
@@ -128577,7 +128577,7 @@ curl -fsS https://vantai.tingting.vip/api/health
 
 ### BƯỚC 0: THIẾT LẬP NỀN TẢNG & MA TRẬN PHÂN QUYỀN
 **1. Bộ phận chịu trách nhiệm:** Ban Giám đốc / Quản trị viên (Admin).
-**2. Thao tác nghiệp vụ:** 
+**2. Thao tác nghiệp vụ:**
 *   Khai báo danh mục chuẩn: Khách hàng, Nhà cung cấp, Bảng giá cước, Định mức nhiên liệu, Danh sách Nhà máy, và Danh sách Xe (phân loại rõ `Xe nhà` và `Xe thuê ngoài`).
 **3. Điểm kiểm soát hệ thống (System Rulers):**
 *   **Kiểm soát bảo mật:** Dữ liệu nhạy cảm (Lợi nhuận, Giá vốn, Lương tài xế, Định mức) chỉ được cấp quyền hiển thị cho Ban Giám đốc và Kế toán. Các bộ phận Điều vận, Hiện trường (Ops) tuyệt đối không được tiếp cận.
@@ -128597,7 +128597,7 @@ curl -fsS https://vantai.tingting.vip/api/health
 **3. Điểm kiểm soát hệ thống:**
 *   Hệ thống tự động áp mã tính cước dựa trên biểu giá đã ký kết với khách hàng, loại bỏ việc tự gõ giá thủ công.
 
-### BƯỚC 2: PHÂN BỔ & ĐIỀU CHUYẾN 
+### BƯỚC 2: PHÂN BỔ & ĐIỀU CHUYẾN
 **1. Bộ phận chịu trách nhiệm:** Điều vận viên.
 **2. Thao tác nghiệp vụ:**
 *   Lập kế hoạch tổng thể: Đánh giá tổng khối lượng hàng trong ngày và thực hiện gán xe dự kiến (gán nháp).
@@ -128611,7 +128611,7 @@ curl -fsS https://vantai.tingting.vip/api/health
 **1. Bộ phận chịu trách nhiệm:** Nhân viên Hiện trường (Ops) & Lái xe.
 **2. Thao tác nghiệp vụ:**
 *   **Nhân viên Ops:** Thực hiện chi trả hộ các phí bãi/cảng, nhập dữ liệu thực chi lên App kèm ảnh chụp biên lai. Xác nhận và bàn giao chứng từ/lệnh vật lý cho Lái xe.
-*   **Lái xe:** 
+*   **Lái xe:**
     *   Tiếp nhận lệnh đầy đủ (Giờ cut-off, đóng/trả hàng) và bấm "Xác nhận Lệnh" để tính thời gian bắt đầu.
     *   Cập nhật thực tế chi phí đi đường, chi phí nâng hạ cho từng container. Chụp ảnh cột bơm/hóa đơn khi đổ nhiên liệu.
     *   Chụp ảnh số Container/Seal chì báo cáo hoàn thành chuyến đi.
@@ -137080,7 +137080,7 @@ describe('ExecutiveFinancialStrip', () => {
   .app.is-driver .sidebar-overlay {
     display: none !important;
   }
-  
+
   .driver-mode .app-body {
     padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
   }
@@ -137093,7 +137093,7 @@ describe('ExecutiveFinancialStrip', () => {
   .app.is-driver .app-body:has(.driver-trip-detail-page) {
     padding: 0;
   }
-  
+
   .bottom-nav {
     display: flex;
     position: fixed;
@@ -137110,7 +137110,7 @@ describe('ExecutiveFinancialStrip', () => {
     padding-bottom: env(safe-area-inset-bottom, 12px);
     box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
   }
-  
+
   .bottom-nav-item {
     position: relative;
     display: flex;
@@ -137141,28 +137141,28 @@ describe('ExecutiveFinancialStrip', () => {
     opacity: 0;
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
-  
+
   .bottom-nav-item.active .bottom-nav-indicator {
     opacity: 1;
   }
-  
+
   .bottom-nav-icon-wrap {
     padding: 6px;
     border-radius: 999px;
     transition: all 0.3s ease;
     color: var(--ink-3);
   }
-  
+
   .bottom-nav-item:hover .bottom-nav-icon-wrap {
     background: var(--surface-3);
   }
-  
+
   .bottom-nav-item.active .bottom-nav-icon-wrap {
     background: rgba(0, 177, 79, 0.1);
     color: var(--accent-2);
     transform: translateY(-4px);
   }
-  
+
   .bottom-nav-label {
     font-size: var(--fs-xs);
     font-weight: 600;
@@ -137171,12 +137171,12 @@ describe('ExecutiveFinancialStrip', () => {
     line-height: 1.35;
     transition: all 0.3s ease;
   }
-  
+
   .bottom-nav-item.active .bottom-nav-label {
     color: var(--accent-2);
     opacity: 1;
   }
-  
+
   /* ── Mobile User Menu Sheet (Vantai Design System Redesign) ── */
   .mobile-user-sheet-overlay {
     position: fixed;
@@ -152244,10 +152244,10 @@ export default function SalaryPeriodConfigPage() {
 
   return (
     <div ref={pageRef} className="sp-wrap" style={{ maxWidth: 840 }}>
-      <PageHeader 
-        title="Kỳ lương" 
-        description="Thiết lập quy tắc mặc định cho chu kỳ chấm công và tính lương." 
-        onBack={() => navigate('/config')} 
+      <PageHeader
+        title="Kỳ lương"
+        description="Thiết lập quy tắc mặc định cho chu kỳ chấm công và tính lương."
+        onBack={() => navigate('/config')}
         iconName="salary-period"
       />
 
@@ -158251,7 +158251,7 @@ export default function ExpenseEntryPage() {
                       set('truckId', '');
                     } else {
                       set('vehicleComponent', val);
-                      set('truckId', ''); 
+                      set('truckId', '');
                     }
                   }}
                 >
@@ -162364,7 +162364,7 @@ import { TireTable, DisposedTireTable } from '../features/tires/tire-tables';
     background: var(--sb-bg);
     border-bottom: 1px solid rgba(0, 0, 0, 0.15);
   }
-  
+
   /* Hamburger menu and icon buttons in green header */
   .topbar__toggle,
   .topbar .icon-btn {
@@ -162382,7 +162382,7 @@ import { TireTable, DisposedTireTable } from '../features/tires/tire-tables';
   .topbar__context strong {
     color: #ffffff;
   }
-  
+
   /* Month Navigator in green header */
   .topbar-date__trigger {
     background: transparent;
@@ -165977,8 +165977,8 @@ Reviewer: Codex self-review
 <file path="plans/260726-2126-product-wide-ultraqa/reports/route-role-coverage.md">
 # Product-wide route, role, navigation, and function inventory
 
-Date: 2026-07-26  
-Scope: current local checkout at `/Users/dev/Documents/projects/silversea`  
+Date: 2026-07-26
+Scope: current local checkout at `/Users/dev/Documents/projects/silversea`
 Purpose: deterministic functional and visual browser QA coverage map (read-only inventory)
 
 > Baseline note: this inventory captured the pre-fix router state. The UltraQA
@@ -166273,8 +166273,8 @@ Run each page at 1440×900 desktop and 390×844 mobile; add 768×1024 tablet for
 
 The route catalog contains all implemented page patterns above, but current code does **not** provide a coherent seven-role browser contract: CUSTOMER is seeded but unlinked and has no navigation, CLERK lacks a demo identity and navigation, their home behavior is inconsistent, and CLERK is unintentionally admitted by `adminOnly` to pages its backend role cannot use. These are priority findings for the functional run, not reasons to omit those roles.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Complete current route/page/role/navigation/action inventory produced for all seven roles and all nine seeded demo accounts, including dynamic prerequisites, automated coverage gaps, and an ordered browser QA sequence.  
+Status: DONE_WITH_CONCERNS
+Summary: Complete current route/page/role/navigation/action inventory produced for all seven roles and all nine seeded demo accounts, including dynamic prerequisites, automated coverage gaps, and an ordered browser QA sequence.
 Concerns/Blockers: CLERK lacks a deterministic seeded identity. CUSTOMER is seeded and can log in, but remains unlinked to `users.customerId`, which blocks meaningful row-scoped portal data through the standard fixture. Router behavior also over-admits CLERK and exposes dashboard to CUSTOMER/CLERK.
 </file>
 
@@ -167979,8 +167979,8 @@ The approved rule set is not "mostly missing"; it is mostly partially implemente
 <file path="plans/260727-0908-staging-customer-handover-qa/reports/customer-handover-verdict.md">
 # SilverSea staging customer-handover verdict
 
-**Date:** 2026-07-27  
-**Environment:** staging  
+**Date:** 2026-07-27
+**Environment:** staging
 **Verdict:** **NO-GO**
 
 The verified read-only shells are generally responsive and role-scoped, but
@@ -168186,8 +168186,8 @@ Artifacts:
 <file path="plans/260727-0908-staging-customer-handover-qa/reports/session-01-preflight.md">
 # Session 01 — Controller preflight
 
-**Environment:** `https://vantai.tingting.vip/` staging  
-**Started:** 2026-07-27T01:27Z  
+**Environment:** `https://vantai.tingting.vip/` staging
+**Started:** 2026-07-27T01:27Z
 **Build fingerprint:** `9627997bfd50ea0f5473ef500cf8e3026f3fb62f950b769cbc13539bfa0964f3`
 
 ## Health and identity
@@ -168247,9 +168247,9 @@ authorized. Detail/export/lifecycle cases that require them use execution
 The public login surface has no observed horizontal overflow or clipped primary
 action at the captured widths.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Staging health, seven role identities, CLERK provisioning, build fingerprint, and manifests are ready for fan-out.  
-Counts: PASS 13 / FAIL 0 / BLOCKED 3 / NOT_RUN 0 / NOT_APPLICABLE 0  
+Status: DONE_WITH_CONCERNS
+Summary: Staging health, seven role identities, CLERK provisioning, build fingerprint, and manifests are ready for fan-out.
+Counts: PASS 13 / FAIL 0 / BLOCKED 3 / NOT_RUN 0 / NOT_APPLICABLE 0
 Concerns/Blockers: No office shipment fixture; CUSTOMER has no own shipment or debit-note fixtures.
 </file>
 
@@ -168553,8 +168553,8 @@ Concerns/Blockers: real-device camera/GPS/offline behavior not verified
 <file path="plans/260727-0908-staging-customer-handover-qa/reports/session-06-forwarder.md">
 # Session 06 — FORWARDER field operations
 
-**Environment:** staging  
-**Execution mode:** authenticated browser, read-only  
+**Environment:** staging
+**Execution mode:** authenticated browser, read-only
 **Build comparison:** inconclusive; no stable controller-equivalent fingerprint
 was recomputed, and no public core asset filename change was observed
 
@@ -168616,15 +168616,15 @@ was submitted.
 - NOT_RUN: 4
 - Unexpected console/network failures on reachable role routes: 0
 
-Status: DONE_WITH_CONCERNS  
-Summary: FORWARDER routes, existing details, responsive layouts, and route isolation passed read-only testing.  
+Status: DONE_WITH_CONCERNS
+Summary: FORWARDER routes, existing details, responsive layouts, and route isolation passed read-only testing.
 Concerns/Blockers: Print preview is browser-blocked; mutation, upload/device, and paired ownership cases remain not run.
 </file>
 
 <file path="plans/260727-0908-staging-customer-handover-qa/reports/session-07-customer.md">
 # Session 07 — CUSTOMER portal
 
-**Environment:** staging  
+**Environment:** staging
 **Execution mode:** authenticated browser, read-only
 
 ## Result
@@ -168683,8 +168683,8 @@ No fixture was created because business-data mutation was not authorized.
 - Unexpected network failures: statement API returned HTTP 404 at four
   required viewports
 
-Status: DONE_WITH_CONCERNS  
-Summary: CUSTOMER empty states and route isolation are responsive, but statement loading/export and logout/account access fail.  
+Status: DONE_WITH_CONCERNS
+Summary: CUSTOMER empty states and route isolation are responsive, but statement loading/export and logout/account access fail.
 Concerns/Blockers: Handover NO-GO for the CUSTOMER role until statement and logout/account defects are fixed and re-tested; detail/privacy cases remain fixture-blocked.
 </file>
 
@@ -168803,8 +168803,8 @@ API action or foreign-record identifier.
 Q15-Q23 remain unsigned customer authority and are classified `NOT_RUN` in the
 execution manifest rather than inferred from adjacent route evidence.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Role homes and exercised direct-route isolation are coherent, but CUSTOMER failures, MANAGER normal-load 403s, and mutation/fixture gaps prevent functional certification.  
+Status: DONE_WITH_CONCERNS
+Summary: Role homes and exercised direct-route isolation are coherent, but CUSTOMER failures, MANAGER normal-load 403s, and mutation/fixture gaps prevent functional certification.
 Concerns/Blockers: confirmed CUSTOMER defects, MANAGER app-settings 403s, fixture gaps, unsigned Q15-Q23, and mutation-dependent cross-role journeys.
 </file>
 
@@ -168893,8 +168893,8 @@ original 483-row ownership model and are additional NO-GO evidence.
 5. Resolve or formally accept M1.7 and the pending PRD/Q authority decisions.
 6. Run an independent privacy/evidence/verdict review.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Execution is consolidated, but the full product is not ready for customer handover because confirmed CUSTOMER defects, M1.7, and critical blocked/not-run coverage remain open.  
+Status: DONE_WITH_CONCERNS
+Summary: Execution is consolidated, but the full product is not ready for customer handover because confirmed CUSTOMER defects, M1.7, and critical blocked/not-run coverage remain open.
 Concerns/Blockers: P1 CUSTOMER defects, M1.7, fixture gaps, mutation gaps, real-device gaps, and pending customer authority.
 </file>
 
@@ -169790,9 +169790,9 @@ Concerns/Blockers: No browser automation artifact captured; user-visible redirec
 <file path="plans/260727-1230-approved-business-rules/reports/coverage-baseline.md">
 # Approved business-rule coverage baseline
 
-**Authority date:** 2026-07-27  
-**Scope:** Q01-Q23, O01, O02  
-**Authority:** all TingTing proposals accepted as written  
+**Authority date:** 2026-07-27
+**Scope:** Q01-Q23, O01, O02
+**Authority:** all TingTing proposals accepted as written
 **Implementation status:** independent of authority
 
 | ID | Baseline | Primary evidence | Gap to close |
@@ -169840,7 +169840,7 @@ The full read-only audit and plan review is stored at
 <file path="plans/260727-1230-approved-business-rules/reports/docker-build-pruning.md">
 # Docker build memory and image pruning
 
-Date: 2026-07-27  
+Date: 2026-07-27
 Status: completed
 
 ## Root cause
@@ -169871,15 +169871,15 @@ The repository also had two independent sources of unnecessary build weight:
 
 ## Evidence
 
-- Cold backend AMD64 build: green  
+- Cold backend AMD64 build: green
   `qa/2026-07-27_docker-pruning_backend-image-build.rerun.log`
-- Backend runtime inspection: green  
+- Backend runtime inspection: green
   `qa/2026-07-27_docker-pruning_backend-image-inspection.log`
-- Cold frontend AMD64 build: green  
+- Cold frontend AMD64 build: green
   `qa/2026-07-27_docker-pruning_frontend-image-build.log`
-- Frontend runtime inspection: green  
+- Frontend runtime inspection: green
   `qa/2026-07-27_docker-pruning_frontend-image-inspection.log`
-- Local backend production compilation: green  
+- Local backend production compilation: green
   `qa/2026-07-27_docker-pruning_backend-build.log`
 
 Measured results:
@@ -170422,9 +170422,9 @@ Concerns/Blockers: Implementation must include OCR and helper-based trip-photo d
 <file path="plans/260727-1230-approved-business-rules/reports/final-audit-q01-q11.md">
 # Final Audit — Approved Q01-Q11
 
-**Audit date:** 2026-07-27  
-**Authority:** `docs/prd/business-logic-qa-proposals.md` Q01-Q11, all accepted on 2026-07-27  
-**Scope:** read-only audit of the current worktree, cited plan reports, and saved QA artifacts only  
+**Audit date:** 2026-07-27
+**Authority:** `docs/prd/business-logic-qa-proposals.md` Q01-Q11, all accepted on 2026-07-27
+**Scope:** read-only audit of the current worktree, cited plan reports, and saved QA artifacts only
 **Rule:** a clause is `PROVED` only when current code plus saved QA evidence cover the reachable production boundary and the required normal / invalid / exception / concurrency / RBAC behavior for that clause.
 
 ## Summary
@@ -170551,9 +170551,9 @@ Q01-Q11 are fully proved against the accepted clauses in the current worktree.
 <file path="plans/260727-1230-approved-business-rules/reports/final-audit-q12-q23-o01-o02.md">
 # Final Audit — Approved Q12-Q23, O01-O02
 
-**Audit date:** Monday, 2026-07-27  
-**Authority:** `docs/prd/business-logic-qa-proposals.md` Q12-Q23, O01-O02, all accepted on 2026-07-27  
-**Scope:** read-only audit of the current worktree, cited plan reports, and saved QA artifacts only  
+**Audit date:** Monday, 2026-07-27
+**Authority:** `docs/prd/business-logic-qa-proposals.md` Q12-Q23, O01-O02, all accepted on 2026-07-27
+**Scope:** read-only audit of the current worktree, cited plan reports, and saved QA artifacts only
 **Rule:** a clause is `PROVED` only when current code plus saved QA evidence cover the reachable production boundary and the required normal / invalid / exception / concurrency / RBAC behavior for that clause.
 
 ## Evidence bar
@@ -170733,9 +170733,9 @@ Within Q12-Q23 and O01-O02, the currently fully proved accepted items are **Q14,
 <file path="plans/260727-1230-approved-business-rules/reports/final-financial-durability-review.md">
 # Final Financial Durability Review
 
-**Date:** 2026-07-28  
-**Reviewer:** `/root/final_financial_durability_review`  
-**Mode:** independent read-only adversarial review  
+**Date:** 2026-07-28
+**Reviewer:** `/root/final_financial_durability_review`
+**Mode:** independent read-only adversarial review
 **Verdict:** **FAIL / NO-GO**
 
 ## Code Review Summary
@@ -170872,16 +170872,16 @@ Pre-landing two-pass result: **7 issues (1 critical, 4 high, 2 medium)**.
 - What historical source, if any, can defensibly backfill issuer/counterparty identity for already-issued documents?
 - Is there an existing durable jobs/outbox table appropriate for storage cleanup, or should cleanup records be a narrow new domain table?
 
-Status: DONE_WITH_CONCERNS  
-Summary: Final review is NO-GO: atomic audit coverage is incomplete, storage compensation is not durable, profit table locks are unsafe, and legacy actor/identity records remain outside the new guarantees.  
+Status: DONE_WITH_CONCERNS
+Summary: Final review is NO-GO: atomic audit coverage is incomplete, storage compensation is not durable, profit table locks are unsafe, and legacy actor/identity records remain outside the new guarantees.
 Concerns/Blockers: One critical, four high, and two medium findings require correction and re-verification before landing.
 </file>
 
 <file path="plans/260727-1230-approved-business-rules/reports/final-fresh-review.md">
 # Final fresh independent review
 
-**Date:** 2026-07-28  
-**Review base:** `origin/main` versus the current worktree  
+**Date:** 2026-07-28
+**Review base:** `origin/main` versus the current worktree
 **Decision:** **NO-GO for deployment**
 
 The migration-compatibility and cross-user query-cache blockers found during
@@ -171816,8 +171816,8 @@ Concerns/Blockers: None. The controller should include these files in the indepe
 <file path="plans/260727-1230-approved-business-rules/reports/phase2-remaining-gap-map.md">
 # Phase 2 remaining gap map — Q15, Q17, Q18, Q21, Q22
 
-**Date:** 2026-07-27  
-**Scope:** read-only source audit of the accepted rules named above.  
+**Date:** 2026-07-27
+**Scope:** read-only source audit of the accepted rules named above.
 **Authority:** `docs/prd/business-logic-qa-proposals.md`; implementation intent
 in `phase-02-shared-governance-and-concurrency.md`; current code and tests are
 evidence of what is implemented, not authority for changing the accepted rule.
@@ -173107,9 +173107,9 @@ proof, and O02's fail-open legacy/unresolved scope behavior.
 <file path="plans/260727-1230-approved-business-rules/reports/q03-allocation-scout.md">
 # Q03 payment allocation implementation scout
 
-**Date:** 2026-07-27  
-**Mode:** read-only production-path scout  
-**Scope:** Q03 only, while preserving Q19 immutable due-date authority and Q23 request idempotency  
+**Date:** 2026-07-27
+**Mode:** read-only production-path scout
+**Scope:** Q03 only, while preserving Q19 immutable due-date authority and Q23 request idempotency
 **Expected output:** smallest backward-compatible API/service/schema change after migration `0137` that makes the live receipt path honor explicit instructions, default to oldest immutable due date, persist excess as customer unapplied credit, and replay receipts exactly under retries and concurrency.
 
 ## Accepted authority and acceptance criteria
@@ -173608,7 +173608,7 @@ is necessary: the existing non-unique allocation rows and ledger text cannot
 store a replayable zero/multi-allocation receipt result or distinguish exact
 replay from conflicting reuse.
 
-Status: DONE  
+Status: DONE
 Summary: Production route, shared contract, frontend caller, posting service,
 unused allocator, Q19 snapshot authority, Q23 request idempotency, migration
 position, lock order, compatibility boundary, and QA matrix are traced above.
@@ -174333,11 +174333,11 @@ post-implementation review was completed as a documented self-review.
 <file path="plans/260727-1230-approved-business-rules/reports/q15-maker-checker-implementation-map.md">
 # Q15 maker/checker implementation map
 
-**Date:** 2026-07-27  
-**Mode:** read-only implementation scout  
-**Verdict:** Q15 remains **PARTIAL**  
-**Authority:** accepted Q15 in `docs/prd/business-logic-qa-proposals.md`  
-**Plan:** `phase-02-shared-governance-and-concurrency.md`  
+**Date:** 2026-07-27
+**Mode:** read-only implementation scout
+**Verdict:** Q15 remains **PARTIAL**
+**Authority:** accepted Q15 in `docs/prd/business-logic-qa-proposals.md`
+**Plan:** `phase-02-shared-governance-and-concurrency.md`
 **Related inventory:** `reports/q23-material-write-inventory.md`
 
 ## Scope and boundary
@@ -174941,8 +174941,8 @@ Concrete first implementation order:
 This tranche is the dependency for every later Q15 domain slice and can land
 without changing current payment, price, billing, salary or ledger behavior.
 
-Status: DONE  
-Summary: Q15 is partial across 20 material-write classes. Q18 and advance settlements provide reusable anchors; all direct money, price, close and exception effects are mapped to their current actors and exact missing state. The smallest design extends `governance_actions`, keeps domain-owned application logic and domain-native settlement state, and rolls out in six non-overlapping tranches.  
+Status: DONE
+Summary: Q15 is partial across 20 material-write classes. Q18 and advance settlements provide reusable anchors; all direct money, price, close and exception effects are mapped to their current actors and exact missing state. The smallest design extends `governance_actions`, keeps domain-owned application logic and domain-native settlement state, and rolls out in six non-overlapping tranches.
 Concerns/Blockers: Schema/journal ownership must be coordinated with Q22/Q23 after current migration 0138. Q15 cannot be declared complete while legacy direct-effect routes remain reachable.
 </file>
 
@@ -175259,8 +175259,8 @@ QA artifacts
 <file path="plans/260727-1230-approved-business-rules/reports/q15-profit-distribution-closure.md">
 # Q15 profit-distribution governance closure
 
-**Date:** 2026-07-28  
-**Status:** DONE  
+**Date:** 2026-07-28
+**Status:** DONE
 **Scope:** profit distribution only
 
 ## Root cause
@@ -175345,8 +175345,8 @@ all concurrently edited lanes finish.
 <file path="plans/260727-1230-approved-business-rules/reports/q15-profit-tx-integrity.md">
 # Q15 profit transaction integrity
 
-**Status:** PARTIAL  
-**Task owner:** `/root/q15_profit_tx_integrity`  
+**Status:** PARTIAL
+**Task owner:** `/root/q15_profit_tx_integrity`
 **Date:** 2026-07-28
 
 ## Scope
@@ -175422,10 +175422,10 @@ The reviewed Q15 blocker was real:
 <file path="plans/260727-1230-approved-business-rules/reports/q15-q17-q18-q22-q23-executable-gap-map.md">
 # Executable closure map — Q15, Q17, Q18, Q22 and Q23
 
-**Audit date:** 2026-07-28  
-**Mode:** read-only, evidence-first audit of the current reachable production boundary  
-**Authority:** accepted clauses in `docs/prd/business-logic-qa-proposals.md:178-209,245-261`  
-**Scope:** Q15, Q17, Q18, Q22 and Q23 only  
+**Audit date:** 2026-07-28
+**Mode:** read-only, evidence-first audit of the current reachable production boundary
+**Authority:** accepted clauses in `docs/prd/business-logic-qa-proposals.md:178-209,245-261`
+**Scope:** Q15, Q17, Q18, Q22 and Q23 only
 **Change boundary:** this report is the only file created by this audit. No source, test, migration, QA artifact, deployment state or `HANDOFF.md` was changed.
 
 ## Evidence rule
@@ -176623,7 +176623,7 @@ The best next step is the additive join-table path above, with `users.customerId
 <file path="plans/260727-1230-approved-business-rules/reports/q17-clerk-scope-versioning-implementation.md">
 # Q17 clerk scope/versioning implementation
 
-**Date:** 2026-07-27  
+**Date:** 2026-07-27
 **Scope:** required frontend/admin assignment controls only after backend checkpoint
 
 ## Delivered
@@ -176706,7 +176706,7 @@ Concerns/Blockers: Optional clerk-create responsible-unit name list still needs 
 <file path="plans/260727-1230-approved-business-rules/reports/q17-final-closure.md">
 # Q17 Final Closure
 
-Date: 2026-07-28  
+Date: 2026-07-28
 Lane: 2 — Q17 proof and CLERK boundary
 
 ## Outcome
@@ -176981,7 +176981,7 @@ maker/checker/approver separation.
 <file path="plans/260727-1230-approved-business-rules/reports/q19-business-calendar-implementation.md">
 # Q19 business-calendar implementation
 
-Date: 2026-07-27  
+Date: 2026-07-27
 Status: implemented; independent review GO
 
 ## Accepted rule
@@ -177101,7 +177101,7 @@ tracked for the integrated QA phase.
 <file path="plans/260727-1230-approved-business-rules/reports/q21-period-authority-implementation.md">
 # Q21 period-authority implementation
 
-Date: 2026-07-27  
+Date: 2026-07-27
 Status: implemented; backend QA green with migration-command concern noted
 
 ## Accepted rule
@@ -177201,7 +177201,7 @@ migration gates are green.
 <file path="plans/260727-1230-approved-business-rules/reports/q22-authority-catalog-implementation.md">
 # Q22 Slice 1 authority-catalog implementation
 
-**Date:** 2026-07-27  
+**Date:** 2026-07-27
 **Scope:** executable shared vocabulary only
 
 ## Delivered
@@ -177411,7 +177411,7 @@ Concerns/Blockers: None for accepted Q22 scope.
 <file path="plans/260727-1230-approved-business-rules/reports/q22-issued-debit-note-delete-implementation.md">
 # Q22 issued debit-note deletion boundary
 
-**Date:** 2026-07-27  
+**Date:** 2026-07-27
 **Status:** GO for this bounded Q22 slice
 
 ## Delivered
@@ -177455,9 +177455,9 @@ binding, and linked post-issue correction still require later slices.
 <file path="plans/260727-1230-approved-business-rules/reports/q22-source-authority-scout.md">
 # Q22 source-authority scout
 
-**Date:** 2026-07-27  
-**Mode:** read-only product-code scout; this report is the only file created  
-**Scope:** shipment → trip → approved expense → debit note → AR/receipt chain  
+**Date:** 2026-07-27
+**Mode:** read-only product-code scout; this report is the only file created
+**Scope:** shipment → trip → approved expense → debit note → AR/receipt chain
 **Concurrent boundary:** Q17 owns `backend/src/db/schema.ts`, shipment services/routes,
 shared shipment schemas, and shipment/user UI. Those surfaces were read only.
 
@@ -177773,8 +177773,8 @@ Status: DONE
 <file path="plans/260727-1230-approved-business-rules/reports/q23-advances-replay.md">
 # Q23 advance immutable replay and stale versions
 
-**Date:** 2026-07-28  
-**Status:** DONE_WITH_CONCERNS  
+**Date:** 2026-07-28
+**Status:** DONE_WITH_CONCERNS
 **Scope:** advance request approval/rejection, advance settlement creation and
 review mutations, and forwarder advance request/settlement creation.
 
@@ -177973,7 +177973,7 @@ first-valid-approval behavior and conflict audit proof.
 <file path="plans/260727-1230-approved-business-rules/reports/q23-company-expense-replay.md">
 # Q23 company-expense replay and stale-write closure
 
-**Date:** 2026-07-28  
+**Date:** 2026-07-28
 **Status:** DONE
 
 ## Delivered
@@ -178010,8 +178010,8 @@ owned after the concurrent Q15 governance sessions settle.
 <file path="plans/260727-1230-approved-business-rules/reports/q23-config-crud-replay.md">
 # Q23 generated configuration CRUD replay
 
-**Date:** 2026-07-27  
-**Scope:** all resources registered through `createCrudRouter()`  
+**Date:** 2026-07-27
+**Scope:** all resources registered through `createCrudRouter()`
 **Status:** DONE_WITH_CONCERNS
 
 ## Delivered
@@ -178078,8 +178078,8 @@ The safe next slice is coordinated shared-client/schema work:
 3. compare and mutate under the idempotency winner transaction;
 4. update all generic config callers and add stale/double-update proof.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Generic config writes now have required stable-key replay, immutable exact results, first-winner concurrency, and transaction-aware DB hooks without bypassing governed pricing.  
+Status: DONE_WITH_CONCERNS
+Summary: Generic config writes now have required stable-key replay, immutable exact results, first-winner concurrency, and transaction-aware DB hooks without bypassing governed pricing.
 Concerns/Blockers: Universal stale update/delete protection needs a coordinated mandatory client version contract; integrated typecheck/comprehensive reruns are temporarily blocked by the concurrent debit-note lane and remain with the controller.
 
 ## Controller stale-version closure — 2026-07-28
@@ -178103,7 +178103,7 @@ Focused proof:
 - `qa/2026-07-28_q23-config-stale-version_backend-test.log`
 - `qa/2026-07-28_q23-config-stale-version_frontend-test.log`
 
-Status: DONE  
+Status: DONE
 Summary: Generated configuration create/update/delete now has required atomic
 replay plus mandatory optimistic concurrency from every existing UI caller.
 </file>
@@ -178780,8 +178780,8 @@ Review source: `qa/2026-07-28_q23-boundary_review.md`
 <file path="plans/260727-1230-approved-business-rules/reports/q23-shipments-replay.md">
 # Q23 shipment immutable replay
 
-**Date:** 2026-07-27  
-**Owner:** `q23_shipments_replay`  
+**Date:** 2026-07-27
+**Owner:** `q23_shipments_replay`
 **Status:** DONE
 
 ## Delivered
@@ -179093,8 +179093,8 @@ parallel fixtures stabilize.
 <file path="plans/260727-1230-approved-business-rules/reports/remaining-domain-gap-map.md">
 # Remaining domain gap map — Q01–Q14, Q20, O01/O02
 
-**Read-only source audit:** 2026-07-27  
-**Authority:** `docs/prd/business-logic-qa-proposals.md` (all listed rules accepted)  
+**Read-only source audit:** 2026-07-27
+**Authority:** `docs/prd/business-logic-qa-proposals.md` (all listed rules accepted)
 **Scope boundary:** current working tree only; no code, migrations, QA artifacts, plan status, or `HANDOFF.md` changed. Concurrent Phase 2 work is present, so uncommitted source is treated as current implementation, not as green QA proof.
 
 ## Baseline corrections
@@ -179248,16 +179248,16 @@ The remaining baseline classifications (Q02/Q04/Q05/Q06/Q08/Q10/Q13/Q14/Q20/O01/
 - Never infer legal-entity identity, litres, evidence, readiness, completion date, currency or approval from ambiguous legacy text.
 - Q06, Q08, Q09–Q14, Q20 and O01 are schema-bearing. Q01/Q02/Q03/Q04/Q05 likely need schema for durable policy/workflow/idempotency; O02 may remain code-only if existing audit metadata is sufficient.
 
-Status: DONE  
-Summary: Current source/tests were traced for every assigned rule, six false “PROVED” baseline claims were corrected, and exact implementation/migration/test gaps were ordered into dependency-safe lanes.  
+Status: DONE
+Summary: Current source/tests were traced for every assigned rule, six false “PROVED” baseline claims were corrected, and exact implementation/migration/test gaps were ordered into dependency-safe lanes.
 Concerns/Blockers: Concurrent Phase 2 and reminder work is uncommitted; re-read those touched files and require green QA before treating the current WIP as proven.
 </file>
 
 <file path="plans/260727-1230-approved-business-rules/reports/review-q15-completed-domains.md">
 # Independent review — Q15 completed domains
 
-**Status:** DONE_WITH_CONCERNS  
-**Release verdict:** BLOCKED  
+**Status:** DONE_WITH_CONCERNS
+**Release verdict:** BLOCKED
 **Scope:** trip financial governance, salary authority, profit distribution, official identity snapshots. Material-config work was excluded.
 
 ## Executive result
@@ -179295,16 +179295,16 @@ to pass all tests and terminate by itself with exit 0.
 - Official identity can remain provisionally complete after the controller's focused green run, but include it in the final integrated DB/type/lint/build gates.
 - Trip and salary completed-domain status can remain green, subject to the final integrated suite.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Independent review completed; two profit blockers remain, and the issued-export identity bypass was patched and regression-covered.  
+Status: DONE_WITH_CONCERNS
+Summary: Independent review completed; two profit blockers remain, and the issued-export identity bypass was patched and regression-covered.
 Concerns/Blockers: Profit plan computation is not transaction-consistent; the natural test run failed audit proof and hung.
 </file>
 
 <file path="plans/260727-1230-approved-business-rules/reports/review-q18-q22-q23-integration.md">
 # Q18/Q22/Q23 integration review
 
-**Status:** FAIL — production-readiness blockers found  
-**Review mode:** read-only adversarial review of the uncommitted integration  
+**Status:** FAIL — production-readiness blockers found
+**Review mode:** read-only adversarial review of the uncommitted integration
 **Detailed evidence:** `qa/2026-07-28_q18-q22-q23-integration_review.md`
 
 ## Blocking findings
@@ -179340,9 +179340,9 @@ Concerns/Blockers: Runtime DB tests were intentionally deferred because another 
 <file path="plans/260727-1230-approved-business-rules/reports/storage-effect-path-audit.md">
 # Storage effect path audit
 
-**Date:** 2026-07-28  
-**Scope:** current SilverSea backend worktree; local/object storage writes, deletes, rollback cleanup, durable `ORPHAN_GUARD` and `FINAL_DELETE` wiring  
-**Method:** read-only source audit using the repository context resolver, storage primitive search, caller tracing, and adversarial code review  
+**Date:** 2026-07-28
+**Scope:** current SilverSea backend worktree; local/object storage writes, deletes, rollback cleanup, durable `ORPHAN_GUARD` and `FINAL_DELETE` wiring
+**Method:** read-only source audit using the repository context resolver, storage primitive search, caller tracing, and adversarial code review
 **Tests:** not run; this task explicitly excluded database tests
 
 ## Verdict
@@ -179610,11 +179610,11 @@ uploads through pre-write guards. It should not be declared green until:
 - **Conclusion:** The failing assertion lagged behind the durable-delete design. This was not DB pollution and not a product regression.
 
 ### Hypotheses checked
-- **Hypothesis A:** runtime company-expense code regressed.  
+- **Hypothesis A:** runtime company-expense code regressed.
   Eliminated: focused rerun after test correction passed without touching runtime code.
-- **Hypothesis B:** test pollution or DB leftovers caused the two failures.  
+- **Hypothesis B:** test pollution or DB leftovers caused the two failures.
   Eliminated: failures reproduced deterministically from current assertions against current code paths; they were semantic mismatches, not order-dependent state leaks.
-- **Hypothesis C:** route behavior had changed and tests were stale.  
+- **Hypothesis C:** route behavior had changed and tests were stale.
   Confirmed by direct source inspection and green rerun after aligning assertions.
 
 ## Files Changed
@@ -179638,8 +179638,8 @@ uploads through pre-write guards. It should not be declared green until:
 <file path="plans/260727-1230-approved-business-rules/reports/team-q23-forwarder-create-replay.md">
 # Q23 forwarder create replay diagnosis and fix
 
-**Date:** 2026-07-28  
-**Scope:** `backend/src/tests/q23-forwarder-create-replay.test.ts`  
+**Date:** 2026-07-28
+**Scope:** `backend/src/tests/q23-forwarder-create-replay.test.ts`
 **Status:** implementation and focused verification complete; backend typecheck rerun pending an unrelated concurrent fix
 
 ## Exact symptom
@@ -186413,7 +186413,7 @@ Notes:
 <file path="plans/260801-0942-end-to-end-dispatch-workflow/reports/phase-01-backend-debug.md">
 # Phase 1 backend test failure diagnosis
 
-Date: 2026-08-01  
+Date: 2026-08-01
 Scope: read-only diagnosis of the full-backend-test failures after Phase 1
 
 ## Verdict
@@ -186493,16 +186493,16 @@ The first full-suite artifact, `qa/2026-08-01_dispatch-workflow_phase-01-backend
 3. Keep reset/migrate/seed as an explicit precondition of a clean full-suite QA run.
 4. After correcting the test clocks, rerun the two narrow suites and then `cd backend && pnpm test`, saving complete pass/fail output under `qa/`.
 
-Status: DONE  
-Summary: Reproduced and classified the remaining backend failures as two date/clock-dependent test defects plus an already-explained pre-seed environment failure; no Phase 1 implementation causality or settings/fuel order pollution was found.  
+Status: DONE
+Summary: Reproduced and classified the remaining backend failures as two date/clock-dependent test defects plus an already-explained pre-seed environment failure; no Phase 1 implementation causality or settings/fuel order pollution was found.
 Concerns/Blockers: Full backend QA remains red until the deterministic-clock fixes are implemented and the complete suite exits zero.
 </file>
 
 <file path="plans/260801-0942-end-to-end-dispatch-workflow/reports/phase-01-tester.md">
 # Phase 1 independent tester report
 
-Date: 2026-08-01  
-Scope: authority and migration foundation  
+Date: 2026-08-01
+Scope: authority and migration foundation
 Recommendation: **PASS after final re-review**
 
 ## Commands and results
@@ -186607,13 +186607,13 @@ There is no focused coverage for:
 
 The focused suite is useful and green, but Phase 1 should remain in progress. Acceptance is blocked by missing database-enforced cross-mode cardinality, missing DRIVER-role validation, no migration execution evidence, and absent endpoint-level scope/RBAC tests. After those are implemented, run the focused suite again, then the full schema/RBAC gates required by the phase (root lint, both typechecks/tests, build, and E2E) with artifacts under `qa/`.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Focused tests pass, but the Phase 1 acceptance recommendation is FAIL because material authority, migration, concurrency, and RBAC cases remain unproved or unenforced.  
+Status: DONE_WITH_CONCERNS
+Summary: Focused tests pass, but the Phase 1 acceptance recommendation is FAIL because material authority, migration, concurrency, and RBAC cases remain unproved or unenforced.
 Concerns/Blockers: Cross-mode database cardinality, DRIVER-principal enforcement, isolated migration QA, and route-level 404/403 behavior.
 
 ## Re-review after fixes
 
-Re-review date: 2026-08-01  
+Re-review date: 2026-08-01
 Final recommendation: **PASS — all independently exercised Phase 1 gates are green**
 
 ### Focused Phase 1 rerun
@@ -186701,8 +186701,8 @@ Result: exit 0; 9 tests passed; 0 failed; 0 canceled; 0 skipped; 0 todo; runner 
 
 **PASS for Phase 1 authority and migration foundation.** The focused authority suite passes 15/15, shipment compatibility passes 14/14, Q15 financial governance passes 9/9 with a clean exit, and the controller reports a successful clean migrate-and-seed. No remaining case listed in this report blocks Phase 1; the route/API cases remain mandatory acceptance work for their explicitly identified later phases.
 
-Status: DONE  
-Summary: All original Phase 1 blockers and the Q15 cleanup regression are resolved with green independent reruns.  
+Status: DONE
+Summary: All original Phase 1 blockers and the Q15 cleanup regression are resolved with green independent reruns.
 Concerns/Blockers: None for Phase 1; deferred route-level requirements remain tracked for Phases 2-6.
 </file>
 
@@ -186754,7 +186754,7 @@ Concerns/Blockers: None for Phase 1; deferred route-level requirements remain tr
 <file path="plans/260801-0942-end-to-end-dispatch-workflow/reports/phase-02-03-review.md">
 # Phase 2-3 integrated review summary
 
-Date: 2026-08-01  
+Date: 2026-08-01
 Verdict: **BLOCKED — keep Phase 2 in progress and do not mark Phase 3 complete**
 
 Full evidence: `qa/2026-08-01_dispatch-workflow_phase-02-03-review.md`
@@ -186794,8 +186794,8 @@ Full evidence: `qa/2026-08-01_dispatch-workflow_phase-02-03-review.md`
 - Latest full backend run remains red at 1,915/1,925; it was not rerun after the fixes.
 - No final integrated lint/build/E2E or five-viewport evidence exists.
 
-Status: DONE_WITH_CONCERNS  
-Summary: Review complete; one P0 data leak and eight P1 workflow/authority gaps block Phase 2-3 completion.  
+Status: DONE_WITH_CONCERNS
+Summary: Review complete; one P0 data leak and eight P1 workflow/authority gaps block Phase 2-3 completion.
 Concerns/Blockers: Fix the scoped read leak first, then close live binding/capacity, reassignment, fulfillment-only, pagination/volume, mode-switch, and final QA gaps.
 </file>
 
@@ -187906,7 +187906,7 @@ Evidence is saved under `qa/2026-08-01_accountant-secure-billing-vat_*`.
 <file path="plans/260801-1305-accountant-workflow-requirements/reports/implementation-status.md">
 # Accountant workflow implementation status
 
-**Date:** 2026-08-01  
+**Date:** 2026-08-01
 **Scope:** documentation-only checkpoint for `plans/260801-1305-accountant-workflow-requirements/`
 
 ## Delivered bounded slice
@@ -187943,8 +187943,8 @@ Evidence is saved under `qa/2026-08-01_accountant-secure-billing-vat_*`.
 <file path="plans/260801-1305-accountant-workflow-requirements/reports/implementation-transport-backend.md">
 # Accountant transport register backend implementation
 
-**Date:** 2026-08-01  
-**Owner:** `/root/accounting_transport_backend`  
+**Date:** 2026-08-01
+**Owner:** `/root/accounting_transport_backend`
 **Scope:** Shared read contract, set-based backend projection, finance route, and focused tests only.
 
 ## Delivered contract
@@ -188000,7 +188000,7 @@ directly and use a separate set-based count query.
 
 ### Second backend integration run — RED
 
-Command: same as above.  
+Command: same as above.
 Exit status: `1`
 
 Exact root failure:
@@ -188132,19 +188132,19 @@ must re-run the whole-backend gate after those owners finish integration.
 - Carrier payable is presentation-only; the service contains no insert/update/delete call.
 - Existing billing document endpoints and payloads are unchanged.
 
-Status: DONE_WITH_CONCERNS  
-Summary: The bounded read contract, set-based service, route, and focused tests are complete and green.  
+Status: DONE_WITH_CONCERNS
+Summary: The bounded read contract, set-based service, route, and focused tests are complete and green.
 Concerns/Blockers: Whole-backend typecheck must be rerun after concurrent secure-billing/VAT and dispatch edits settle.
 </file>
 
 <file path="plans/260801-1305-accountant-workflow-requirements/reports/implementation-ui-ux-spec.md">
 # Accountant UI/UX implementation delta spec
 
-**Status:** implementation-ready UI specification  
-**Product state:** pre-release; no backward-compatibility or redirect requirement  
-**Primary role:** `ACCOUNTANT`  
-**Secondary authorized roles:** `ADMIN`, `MANAGER`, subject to capabilities  
-**Canonical home:** `/accounting`  
+**Status:** implementation-ready UI specification
+**Product state:** pre-release; no backward-compatibility or redirect requirement
+**Primary role:** `ACCOUNTANT`
+**Secondary authorized roles:** `ADMIN`, `MANAGER`, subject to capabilities
+**Canonical home:** `/accounting`
 **Navigation label:** `Kế toán`
 
 ## 1. Outcome and scope
@@ -189019,7 +189019,7 @@ At every width verify:
 <file path="plans/260801-1305-accountant-workflow-requirements/reports/project-status-closeout.md">
 # Accountant workflow closeout reconciliation
 
-**Date:** 2026-08-01  
+**Date:** 2026-08-01
 **Scope:** `plans/260801-1305-accountant-workflow-requirements/` status reconciliation only
 
 ## Plan status
@@ -189218,8 +189218,8 @@ Concerns/Blockers: Vietnam completion-date parity and authoritative expense-to-t
 <file path="plans/260801-1305-accountant-workflow-requirements/reports/ui-implementation-review.md">
 # Accountant workspace UI implementation re-review
 
-**Reviewed:** 2026-08-01  
-**Scope:** static re-review of the updated Accountant workspace, its customer-draft handoff, and `transport-preview-integration-assessment.md`  
+**Reviewed:** 2026-08-01
+**Scope:** static re-review of the updated Accountant workspace, its customer-draft handoff, and `transport-preview-integration-assessment.md`
 **Verdict:** **DONE_WITH_CONCERNS — the explicit current-page customer draft flow is acceptable for the initial slice; remaining gaps are bounded follow-ups or intentionally deferred capabilities**
 
 ## Executive result
@@ -189378,8 +189378,8 @@ For a selected-source debit-note flow, hide `Thêm dòng trình bày`, amount-al
 
 This is a static code and contract re-review. It does not claim browser screenshots, measured contrast, screen-reader output or completed end-to-end billing issuance. The current-page customer draft flow is acceptable by code inspection; full closed-loop proof still requires the focused builder integration test and browser QA listed above.
 
-Status: DONE_WITH_CONCERNS  
-Summary: URL state, server-owned overdue totals, Vietnam dates, provenance, bounded responsive cards, retry states, 44px main controls and narrow READY/same-customer selection are materially improved. The matching `selectedTripIds` builder flow securely filters server-generated lines and is acceptable for the initial customer draft slice.  
+Status: DONE_WITH_CONCERNS
+Summary: URL state, server-owned overdue totals, Vietnam dates, provenance, bounded responsive cards, retry states, 44px main controls and narrow READY/same-customer selection are materially improved. The matching `selectedTripIds` builder flow securely filters server-generated lines and is acceptable for the initial customer draft slice.
 Concerns/Blockers: No blocker for the initial explicit customer flow. Remaining concerns are filter-driven selection invalidation, checkbox/input accessibility, browser QA, overview composition and a focused builder integration test; filter-wide selection and carrier confirmation remain intentionally deferred.
 </file>
 
@@ -189711,8 +189711,8 @@ The workbook should therefore be treated as a requirements source for accountant
 <file path="plans/260801-1645-new-flow-default/reports/implementation-status.md">
 # Implementation Status
 
-**Plan:** `plans/260801-1645-new-flow-default/plan.md`  
-**Status:** completed  
+**Plan:** `plans/260801-1645-new-flow-default/plan.md`
+**Status:** completed
 **Updated:** 2026-08-01 18:04 Asia/Singapore
 
 ## Delivered
@@ -193833,8 +193833,8 @@ final result: passed
 <file path="HANDOFF.example.md">
 # Current Development Handoff
 
-**Updated:** YYYY-MM-DD  
-**Controller:** session/task owner  
+**Updated:** YYYY-MM-DD
+**Controller:** session/task owner
 **Status:** Not started | In progress | Blocked | Complete
 
 ## Goal
@@ -270823,11 +270823,11 @@ export function useReassignMutations() {
 
   const closeReassign = useCallback(() => {
     setReassignOpen(null);
-    setReassignState({ 
-      carrierType: 'OWN', 
-      truckId: '', driverId: '', 
+    setReassignState({
+      carrierType: 'OWN',
+      truckId: '', driverId: '',
       externalCarrierId: '', externalPlateNumber: '', externalDriverName: '', externalDriverPhone: '',
-      loading: false, error: '' 
+      loading: false, error: ''
     });
   }, []);
 
@@ -275763,8 +275763,8 @@ export default function AuditLogPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
-  const { 
-    data, 
+  const {
+    data,
     isLoading: loading,
     isFetchingNextPage,
     hasNextPage,
@@ -275772,7 +275772,7 @@ export default function AuditLogPage() {
   } = useAuditLogs(PAGE_SIZE, filter, search);
 
   const { rootRef } = usePageAnimations({ ready: !loading });
-   
+
   const rawEntries: AuditEntry[] = useMemo(() => data?.pages.flatMap(p => p.items) ?? [], [data]);
   const entries = useMemo(() => rawEntries.map(normalizeEntry), [rawEntries]);
   const total = data?.pages[0]?.total ?? 0;
@@ -277558,7 +277558,7 @@ fontSize: 13,
   .dispatch-page .fleet-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 
+    grid-template-areas:
       "cust plate"
       "driver driver"
       "route route";
@@ -282927,10 +282927,10 @@ Concerns/Blockers: Full frontend typecheck remains red on an unrelated app-setti
 <file path="plans/260727-1230-approved-business-rules/reports/q23-material-write-inventory.md">
 # Q23 universal material-write inventory
 
-**Date:** 2026-07-27  
-**Mode:** read-only route/service/schema audit  
+**Date:** 2026-07-27
+**Mode:** read-only route/service/schema audit
 **Scope:** every mounted authenticated `POST`, `PUT`, `PATCH`, and `DELETE`
-boundary, including generated configuration CRUD routes  
+boundary, including generated configuration CRUD routes
 **Authority:** Q23 requires a transaction key, stale-version rejection,
 first-valid-approval-wins, and an audit record for conflicts on every material
 write.
@@ -288403,8 +288403,8 @@ evidence before completion.
 <file path="plans/260801-0942-end-to-end-dispatch-workflow/reports/phase-01-review.md">
 # Phase 1 independent code review
 
-Date: 2026-08-01  
-Scope: authority and migration foundation  
+Date: 2026-08-01
+Scope: authority and migration foundation
 Recommendation: **PASS after remediation re-review**
 
 ## Original findings — resolved
@@ -375613,10 +375613,10 @@ export default function SettlementPrintPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isPortal = user?.role === 'FORWARDER' || user?.role === 'DRIVER';
-  
+
   const fwdQuery = useForwarderSettlementDetail(isPortal ? Number(id) : 0);
   const admQuery = useAdminSettlementDetail(!isPortal ? Number(id) : 0);
-  
+
   const settlement = isPortal ? fwdQuery.data : admQuery.data;
   const isLoading = isPortal ? fwdQuery.isLoading : admQuery.isLoading;
   const error = isPortal ? fwdQuery.error : admQuery.error;
@@ -375644,7 +375644,7 @@ export default function SettlementPrintPage() {
   useBackShortcut(handleBack);
 
   const handlePrint = async () => {
-    const endpoint = isPortal 
+    const endpoint = isPortal
       ? `/forwarder/me/advance-settlements/${id}/export?format=html`
       : `/finance/advance-settlements/${id}/export?format=html`;
     const html = await api.postForText(endpoint, {});
@@ -398812,16 +398812,16 @@ export default function DashboardPage() {
     const inTransit = stats?.inTransitTrips ?? 0;
     const total = stats?.totalTrucks ?? 0;
     const drivers = stats?.totalDrivers ?? 0;
-    
+
     // ACTIVE status includes trucks currently in transit.
     // Subtract inTransit to get the mutually exclusive count of trucks that are ready/idle.
     const ready = Math.max(0, totalActive - inTransit);
-    
+
     // Utilization: percentage of the available fleet (total - maintenance) that is currently running (inTransit)
     // This matches the logic in DispatchPage.tsx
     const utilizable = total - maintenance;
     const utilization = utilizable > 0 ? (inTransit / utilizable) * 100 : null;
-    
+
     return { ready, inTransit, maintenance, idle, total, drivers, utilization };
   }, [stats]);
 
@@ -407954,7 +407954,7 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
   // Populate data rows
   data.forEach((row, i: number) => {
     const r = tableHeaderRow + 1 + i;
-    
+
     const customerNameCell = sheet.getCell(r, 1);
     customerNameCell.value = row.customerName;
     customerNameCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF111827' } };
@@ -431438,7 +431438,7 @@ export class LedgerService {
       .limit(1);
 
     const prevBalance = lastEntry ? Number(lastEntry.balance) : 0;
-    
+
     // Sign convention rules:
     // Customer: Debit increases outstanding balance, Credit decreases outstanding balance
     // Driver/Vendor: Credit increases payable balance, Debit decreases payable balance
@@ -434098,7 +434098,7 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
     headers: { 'Idempotency-Key': `comprehensive-user-create-${newUserUsername}` },
     body: JSON.stringify({
       username: newUserUsername,
-      email: `${newUserUsername}@nepo.vn`,
+      email: `${newUserUsername}@silversea.vn`,
       phone: newUserPhone,
       password: 'password123',
       role: Role.ACCOUNTANT
@@ -434134,7 +434134,7 @@ test('E2E — Duplicate username yields 409 (not 500) with field message', async
   const dupUsername = `dup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const baseBody = {
     username: dupUsername, password: 'password123', role: Role.ACCOUNTANT,
-    fullName: 'Dup Test', email: `${dupUsername}@nepo.vn`,
+    fullName: 'Dup Test', email: `${dupUsername}@silversea.vn`,
   };
   const first = await testFetch('/api/auth/users', {
     method: 'POST',
@@ -434150,7 +434150,7 @@ test('E2E — Duplicate username yields 409 (not 500) with field message', async
     method: 'POST',
     token: adminToken,
     headers: { 'Idempotency-Key': `comprehensive-dup-user-second-${dupUsername}` },
-    body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@nepo.vn` }),
+    body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@silversea.vn` }),
   });
   assert.strictEqual(second.status, 409);
   assert.match(String(second.data.error), /username|đã tồn tại/i);
@@ -449058,15 +449058,15 @@ async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
-    { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
-    { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
-    { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
-    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CLERK, fullName: 'Nhân viên CUS Demo' },
-    { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
-    { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.FORWARDER, fullName: 'Nguyễn Văn Giao' },
-    { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
-    { username: 'pho', email: 'pho@nepo.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
-    { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
+    { username: 'admin', email: 'admin@silversea.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
+    { username: 'giamdoc', email: 'giamdoc@silversea.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
+    { username: 'ketoan', email: 'ketoan@silversea.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
+    { username: 'cus', email: 'cus@silversea.vn', phone: '0900000005', passwordHash, role: Role.CLERK, fullName: 'Nhân viên CUS Demo' },
+    { username: 'laixe', email: 'laixe@silversea.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
+    { username: 'giaonhan', email: 'giaonhan@silversea.vn', phone: '0900000004', passwordHash, role: Role.FORWARDER, fullName: 'Nguyễn Văn Giao' },
+    { username: 'thu', email: 'thu@silversea.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
+    { username: 'pho', email: 'pho@silversea.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
+    { username: 'quyet', email: 'quyet@silversea.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
   ];
 
   for (const user of users) {
@@ -449090,10 +449090,10 @@ async function seed() {
   const userByEmail = new Map(userAccounts.map(u => [u.email, u.id]));
 
   const driverSeeds = [
-    { userId: userByEmail.get('laixe@nepo.vn') ?? null, name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('thu@nepo.vn') ?? null,   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('quyet@nepo.vn') ?? null, name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('pho@nepo.vn') ?? null,   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { userId: userByEmail.get('laixe@silversea.vn') ?? null, name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { userId: userByEmail.get('thu@silversea.vn') ?? null,   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { userId: userByEmail.get('quyet@silversea.vn') ?? null, name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { userId: userByEmail.get('pho@silversea.vn') ?? null,   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
   ];
 
   // Use onConflictDoNothing with a unique constraint on (name) if it exists,
@@ -449612,14 +449612,14 @@ export async function seedShipments(passwordHash: string) {
   //    the first stable sample customer for portal QA.
   await db.insert(schema.users).values({
     username: 'customer',
-    email: 'customer@nepo.vn',
+    email: 'customer@silversea.vn',
     phone: '0900000020',
     passwordHash,
     role: Role.CUSTOMER,
     fullName: 'Khách hàng Demo',
   }).onConflictDoUpdate({
     target: schema.users.username,
-    set: { passwordHash, role: Role.CUSTOMER, email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo' },
+    set: { passwordHash, role: Role.CUSTOMER, email: 'customer@silversea.vn', phone: '0900000020', fullName: 'Khách hàng Demo' },
   });
   console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
 
@@ -450928,13 +450928,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Menu items with card tiles + trailing chevrons */}
             <div className="mobile-user-sheet-body">
               <div className="mobile-user-sheet-section-title">Tài khoản & Thiết lập</div>
-              
+
               <button className="mobile-user-sheet-btn profile" onClick={openProfileModal}>
                 <span className="icon-tile"><UserCog size={18} /></span>
                 <span className="btn-label">Thông tin cá nhân</span>
                 <ChevronRight size={16} className="btn-chevron" />
               </button>
-              
+
               <button className="mobile-user-sheet-btn password" onClick={openPasswordModal}>
                 <span className="icon-tile"><KeyRound size={18} /></span>
                 <span className="btn-label">Đổi mật khẩu</span>
@@ -467381,7 +467381,7 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 20 }).unique(),
   // Human-readable full name (e.g. "Lê Văn Tài"). Used as the actor label in
   // audit log messages so users see "Quản lý Lê Văn Tài khóa chuyến" instead
-  // of the email "Quản lý giamdoc@nepo.vn khóa chuyến #76".
+  // of the email "Quản lý giamdoc@silversea.vn khóa chuyến #76".
   fullName: varchar('full_name', { length: 255 }),
   passwordHash: text('password_hash').notNull(),
   role: roleEnum('role').notNull().default('DRIVER'),

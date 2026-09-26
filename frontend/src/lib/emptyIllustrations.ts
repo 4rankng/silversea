@@ -28,13 +28,18 @@
 
 const BASE = '/assets/illustrations';
 
-export type EmptyCategory = 'trips' | 'fleet' | 'ops' | 'finance';
+export type EmptyCategory = 'trips' | 'fleet' | 'ops' | 'finance' | 'driver-tasks' | 'driver-documents' | 'driver-fuel' | 'driver-costs';
 
 export const EMPTY_ILLUSTRATIONS: Record<EmptyCategory, string> = {
   trips: `${BASE}/empty-1.png`,
   fleet: `${BASE}/empty-2.png`,
   ops: `${BASE}/empty-3.png`,
   finance: `${BASE}/empty-4.png`,
+  // Driver task/trip empties (card 20260926_29, CHIEF-provided flat green set).
+  'driver-tasks': `${BASE}/empty-tasks.webp`,
+  'driver-documents': `${BASE}/empty-documents.webp`,
+  'driver-fuel': `${BASE}/empty-fuel.webp`,
+  'driver-costs': `${BASE}/empty-costs.webp`,
 };
 
 /**
@@ -81,7 +86,12 @@ export type EmptyContext =
   | 'profitable-routes'
   | 'forwarder-advance'
   | 'forwarder-expense'
-  | 'debit-note-template';
+  | 'debit-note-template'
+  // driver task/trip empties (card 20260926_29, CHIEF-provided green set)
+  | 'driver-tasks'
+  | 'driver-documents'
+  | 'driver-fuel'
+  | 'driver-costs';
 
 /** THE empty-state art table — the single place art is chosen, per context. */
 const ART_BY_CONTEXT: Record<EmptyContext, string> = {
@@ -112,6 +122,10 @@ const ART_BY_CONTEXT: Record<EmptyContext, string> = {
   salary: EMPTY_ILLUSTRATIONS.finance,
   pie: EMPTY_ILLUSTRATIONS.finance,
   pricing: EMPTY_ILLUSTRATIONS.finance,
+  'driver-tasks': EMPTY_ILLUSTRATIONS['driver-tasks'],
+  'driver-documents': EMPTY_ILLUSTRATIONS['driver-documents'],
+  'driver-fuel': EMPTY_ILLUSTRATIONS['driver-fuel'],
+  'driver-costs': EMPTY_ILLUSTRATIONS['driver-costs'],
   // Bespoke legacy art slots — kept byte-identical for visual parity.
   'revenue-period': `${BASE}/empty-revenue-period.webp`,
   'cost-composition': `${BASE}/empty-cost-composition.webp`,

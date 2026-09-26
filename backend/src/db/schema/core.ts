@@ -11,7 +11,7 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 20 }).unique(),
   // Human-readable full name (e.g. "Lê Văn Tài"). Used as the actor label in
   // audit log messages so users see "Quản lý Lê Văn Tài khóa chuyến" instead
-  // of the email "Quản lý giamdoc@nepo.vn khóa chuyến #76".
+  // of the email "Quản lý giamdoc@silversea.vn khóa chuyến #76".
   fullName: varchar('full_name', { length: 255 }),
   // Mã NV from the customer's staff/role sheet (e.g. "NV001"). Nullable —
   // legacy/non-staff logins predate the sheet.

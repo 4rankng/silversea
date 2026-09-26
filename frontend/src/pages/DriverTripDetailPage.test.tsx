@@ -1134,7 +1134,7 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     });
     renderPage();
     expect(await screen.findByText('Tác vụ')).toBeTruthy();
-    expect(screen.getByText('Không có tác vụ.')).toBeTruthy();
+    expect(screen.getByText('Không có tác vụ')).toBeTruthy();
     expect(screen.getByText('Ghi chú')).toBeTruthy();
     expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
     expect(screen.queryByTestId('operation-chips')).toBeNull();

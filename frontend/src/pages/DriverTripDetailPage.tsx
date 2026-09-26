@@ -19,6 +19,7 @@ import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm'
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
+import { EmptyState } from '../design-system';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -379,7 +380,12 @@ function DriverTripDetailContent() {
             )}
           </div>
         ) : (
-          <p className="driver-task-empty">Không có tác vụ.</p>
+          <EmptyState
+            variant="compact"
+            context="driver-tasks"
+            title="Không có tác vụ"
+            description="Chưa có việc nào được giao cho chuyến này."
+          />
         )}
         <div className="driver-task-section__head">
           <span>Ghi chú</span>
@@ -457,9 +463,14 @@ function DriverTripDetailContent() {
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
               </button>}
             </div>
-
-
-
+            {!latestFuelEvidence && !cancelled && (
+              <EmptyState
+                variant="compact"
+                context="driver-fuel"
+                title="Chưa có ảnh nhiên liệu"
+                description="Chụp màn hình bơm để làm bằng chứng nhiên liệu."
+              />
+            )}
             {latestFuelEvidence && (
               <div className="driver-task-fuel-details">
                 <div className="driver-task-fuel-grid">

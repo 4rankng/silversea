@@ -184,7 +184,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     assert.equal(u.role, 'CUSTOMER');
     assert.equal(
       u.email,
-      preExistingCustomerUser.value?.email ?? 'customer@nepo.vn',
+      preExistingCustomerUser.value?.email ?? 'customer@silversea.vn',
       'seeding preserves an existing account email and only supplies the canonical email for a new account',
     );
     if (preExistingCustomerUser.value) {

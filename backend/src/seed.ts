@@ -60,21 +60,21 @@ export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
-    { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
-    { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
-    { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
-    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CUS, fullName: 'Nhân viên CUS Demo' },
-    { username: 'dieuvan', email: 'dieuvan@nepo.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
-    { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
-    { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
+    { username: 'admin', email: 'admin@silversea.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
+    { username: 'giamdoc', email: 'giamdoc@silversea.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
+    { username: 'ketoan', email: 'ketoan@silversea.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
+    { username: 'cus', email: 'cus@silversea.vn', phone: '0900000005', passwordHash, role: Role.CUS, fullName: 'Nhân viên CUS Demo' },
+    { username: 'dieuvan', email: 'dieuvan@silversea.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
+    { username: 'laixe', email: 'laixe@silversea.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
+    { username: 'giaonhan', email: 'giaonhan@silversea.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
     // Card 20260922_72: named staff from testaccounts.txt — dev-seed and the
     // prod mirror now agree on these logins (password rule: Abc123).
-    { username: 'thanhdc', email: 'thanhdc@nepo.vn', phone: '0900000020', passwordHash, role: Role.CUS, fullName: 'Trần Đức Thanh' },
-    { username: 'dungnv', email: 'dungnv@nepo.vn', phone: '0900000021', passwordHash, role: Role.DISPATCHER, fullName: 'Nguyễn Văn Dũng' },
-    { username: 'dvthuc', email: 'dvthuc@nepo.vn', phone: '0900000022', passwordHash, role: Role.DRIVER, fullName: 'Đỗ Văn Thức' },
-    { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
-    { username: 'pho', email: 'pho@nepo.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
-    { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
+    { username: 'thanhdc', email: 'thanhdc@silversea.vn', phone: '0900000020', passwordHash, role: Role.CUS, fullName: 'Trần Đức Thanh' },
+    { username: 'dungnv', email: 'dungnv@silversea.vn', phone: '0900000021', passwordHash, role: Role.DISPATCHER, fullName: 'Nguyễn Văn Dũng' },
+    { username: 'dvthuc', email: 'dvthuc@silversea.vn', phone: '0900000022', passwordHash, role: Role.DRIVER, fullName: 'Đỗ Văn Thức' },
+    { username: 'thu', email: 'thu@silversea.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
+    { username: 'pho', email: 'pho@silversea.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
+    { username: 'quyet', email: 'quyet@silversea.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
   ];
 
   const existingUsers = await db.select({
@@ -142,10 +142,10 @@ export async function seed() {
   const userByUsername = new Map(userAccounts.map(u => [u.username, u.id]));
 
   const driverSeeds = [
-    { username: 'laixe', email: 'laixe@nepo.vn', name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
-    { username: 'thu',   email: 'thu@nepo.vn',   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { username: 'quyet', email: 'quyet@nepo.vn', name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { username: 'pho',   email: 'pho@nepo.vn',   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { username: 'laixe', email: 'laixe@silversea.vn', name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { username: 'thu',   email: 'thu@silversea.vn',   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'quyet', email: 'quyet@silversea.vn', name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'pho',   email: 'pho@silversea.vn',   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
   ].map((d) => ({
     userId: userByUsername.get(d.username) ?? userByEmail.get(d.email) ?? null,
     name: d.name,
@@ -1045,9 +1045,9 @@ export async function seedShipments(passwordHash: string) {
     fullName: string;
     customerId: number;
   }> = [
-    { username: 'customer', email: 'customer@nepo.vn', phone: '0900000030', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
-    { username: 'samsung-cs', email: 'samsung.cs@nepo.vn', phone: '0900000031', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
-    { username: 'canon-cs', email: 'canon.cs@nepo.vn', phone: '0900000032', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
+    { username: 'customer', email: 'customer@silversea.vn', phone: '0900000030', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
+    { username: 'samsung-cs', email: 'samsung.cs@silversea.vn', phone: '0900000031', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
+    { username: 'canon-cs', email: 'canon.cs@silversea.vn', phone: '0900000032', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
   ];
   for (const seed of customerPortalSeeds) {
     const [existing] = await db.select({ id: schema.users.id })

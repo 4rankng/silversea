@@ -159,7 +159,7 @@ before(async () => {
 
   const [loginUser] = await db.insert(s.users).values({
     username: loginUsername,
-    email: `${loginUsername}@nepo.vn`,
+    email: `${loginUsername}@silversea.vn`,
     phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
     passwordHash: await bcrypt.hash(loginPassword, 10),
     role: Role.ADMIN,
@@ -230,7 +230,7 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
     headers: { 'Idempotency-Key': `comprehensive-user-create-${newUserUsername}` },
     body: JSON.stringify({
       username: newUserUsername,
-      email: `${newUserUsername}@nepo.vn`,
+      email: `${newUserUsername}@silversea.vn`,
       phone: newUserPhone,
       password: 'password123',
       role: Role.ACCOUNTANT
@@ -266,7 +266,7 @@ test('E2E — Duplicate username yields 409 (not 500) with field message', async
   const dupUsername = `dup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const baseBody = {
     username: dupUsername, password: 'password123', role: Role.ACCOUNTANT,
-    fullName: 'Dup Test', email: `${dupUsername}@nepo.vn`,
+    fullName: 'Dup Test', email: `${dupUsername}@silversea.vn`,
   };
   const first = await testFetch('/api/auth/users', {
     method: 'POST',
@@ -282,7 +282,7 @@ test('E2E — Duplicate username yields 409 (not 500) with field message', async
     method: 'POST',
     token: adminToken,
     headers: { 'Idempotency-Key': `comprehensive-dup-user-second-${dupUsername}` },
-    body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@nepo.vn` }),
+    body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@silversea.vn` }),
   });
   assert.strictEqual(second.status, 409);
   assert.match(String(second.data.error), /username|đã tồn tại/i);

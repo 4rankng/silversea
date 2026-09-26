@@ -280,7 +280,7 @@ describe('seed bootstrap app-owned idempotency', () => {
       assert.equal(await bcrypt.compare('NotTheSeedPassword', opsLegacyAfterSeed.passwordHash), true);
 
       assert.notEqual(cusCanonical.id, cusBefore.id);
-      assert.equal(cusCanonical.email, 'cus@nepo.vn');
+      assert.equal(cusCanonical.email, 'cus@silversea.vn');
       assert.equal(cusCanonical.phone, '0900000005');
       assert.equal(cusCanonical.fullName, 'Nhân viên CUS Demo');
       assert.equal(cusCanonical.role, Role.CUS);
@@ -289,7 +289,7 @@ describe('seed bootstrap app-owned idempotency', () => {
       assert.equal(await bcrypt.compare('Abc123', cusCanonical.passwordHash), true);
 
       assert.notEqual(opsCanonical.id, opsBefore.id);
-      assert.equal(opsCanonical.email, 'giaonhan@nepo.vn');
+      assert.equal(opsCanonical.email, 'giaonhan@silversea.vn');
       assert.equal(opsCanonical.phone, '0900000004');
       assert.equal(opsCanonical.fullName, 'Nguyễn Văn Giao');
       assert.equal(opsCanonical.role, Role.OPS);
