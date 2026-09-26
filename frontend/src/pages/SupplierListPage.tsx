@@ -5,7 +5,9 @@ import {
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
   Building2, Hash, User, Phone, Landmark, Clock, FileText,
 } from 'lucide-react';
+import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
+import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
@@ -17,7 +19,7 @@ import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '..
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
-import type { Supplier } from '@tingting/shared';
+import { SupplierType, type Supplier } from '@tingting/shared';
 import { CONFIG } from '@tingting/shared';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
@@ -214,6 +216,8 @@ export default function SupplierListPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  // Card 20260926_2: expanded carrier row showing its 'Xe của nhà thầu' section.
+  const [trucksOpenId, setTrucksOpenId] = useState<number | null>(null);
   // Row kebab menus join the global click-away / Escape dismissal layer.
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
@@ -427,10 +431,20 @@ export default function SupplierListPage() {
                   </div>
                 )}
                 <div className="m-card-edit-row">
+                  {s.types?.includes(SupplierType.CARRIER) && s.linkedCustomerId != null && (
+                    <button className="btn btn--ghost btn--sm" aria-expanded={trucksOpenId === s.id} onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
+                      Xe của nhà thầu
+                    </button>
+                  )}
                   <button className="btn btn--ghost btn--sm" onClick={(e) => { e.stopPropagation(); setEditingId(s.id); setShowAddForm(false); }}>
                     Sửa
                   </button>
                 </div>
+                {trucksOpenId === s.id && s.linkedCustomerId != null && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId} />
+                  </div>
+                )}
               </ClickableCard>
             ))
           )}
@@ -483,7 +497,7 @@ export default function SupplierListPage() {
                   <EmptyState variant="compact" context="clients" title="Chưa có dữ liệu" />
                 </td></tr>
               )}
-              {filtered.map((s, index) => (
+              {filtered.map((s, index) => [
                   <tr key={s.id} role="button" tabIndex={0}
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/suppliers/${s.id}`)}
@@ -515,6 +529,12 @@ export default function SupplierListPage() {
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" data-dropdown-root={menuOpenId === s.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
+                        {s.types?.includes(SupplierType.CARRIER) && s.linkedCustomerId != null && (
+                          <button type="button" className="row-action" aria-label={`Xe của nhà thầu ${s.name}`} aria-expanded={trucksOpenId === s.id}
+                            onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
+                            <TruckIcon size={14} />
+                          </button>
+                        )}
                         <button type="button" className="row-action" aria-label={`Tùy chọn nhà cung cấp ${s.name}`} aria-expanded={menuOpenId === s.id} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />
                         </button>
@@ -540,8 +560,15 @@ export default function SupplierListPage() {
                         </div>
                       )}
                     </td>
-                  </tr>
-              ))}
+                  </tr>,
+                  trucksOpenId === s.id && s.linkedCustomerId != null && (
+                    <tr key={`${s.id}-trucks`} className="supplier-carrier-trucks-row">
+                      <td colSpan={8}>
+                        <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId} />
+                      </td>
+                    </tr>
+                  ),
+              ])}
             </tbody>
           </table>
         </div>

@@ -1,0 +1,97 @@
+/* Card 20260926_2 — 'Xe của nhà thầu' section inside the suppliers table
+   (expanded row). Two-layer surface contract (card 20260926_3): the section
+   band stays transparent; only the controls carry fills. */
+.supplier-carrier-trucks {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: transparent;
+}
+
+.supplier-carrier-trucks__title {
+  margin: 0;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--ink-2);
+}
+
+.supplier-carrier-trucks__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.supplier-carrier-trucks__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.supplier-carrier-trucks__item + .supplier-carrier-trucks__item {
+  border-top: 1px solid var(--line);
+}
+
+.supplier-carrier-trucks__plate {
+  font-family: var(--font-data);
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.supplier-carrier-trucks__meta {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+
+.supplier-carrier-trucks__actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.supplier-carrier-trucks__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.supplier-carrier-trucks__add label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.supplier-carrier-trucks__add input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  /* Control-level fill only — the wrapper stays transparent. */
+  background: var(--surface);
+  font-size: var(--text-data-size);
+  min-width: 0;
+}
+
+.supplier-carrier-trucks__add input:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px), (pointer: coarse) {
+  .supplier-carrier-trucks__add input,
+  .supplier-carrier-trucks__add .btn {
+    min-height: 44px;
+  }
+
+  .supplier-carrier-trucks__add {
+    align-items: stretch;
+  }
+
+  .supplier-carrier-trucks__add .btn {
+    flex: 1 1 auto;
+  }
+}
