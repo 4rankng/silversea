@@ -11,6 +11,17 @@ async function select(label: string, option: string) {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`${label}`) }));
   fireEvent.click(await screen.findByRole('option', { name: option }));
 }
+describe('treasury account empty submit', () => {
+  it('routes empty submit through the app inline error, native validation disabled', async () => {
+    render(<TreasuryAccountDrawer onClose={vi.fn()} onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu tài khoản' }));
+    // The app's own red inline notice renders; the browser's native bubble is
+    // suppressed because the form opts out of constraint validation.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chọn nguồn quỹ và điền đầy đủ thông tin hợp lệ');
+    expect(document.querySelector('form.treasury-account-form')).toHaveAttribute('novalidate');
+  });
+});
+
 describe('treasury account fund setup', () => {
   it('requires explicit legacy classification, keeps version and retries unknown response with the same key', async () => {
     update.mockReset().mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ id: 8 });

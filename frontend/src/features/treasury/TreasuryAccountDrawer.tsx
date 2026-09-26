@@ -42,7 +42,7 @@ export function TreasuryAccountDrawer({ account, onClose, onSaved }: { account?:
   }
   return <Drawer isOpen onClose={close} title={account ? 'Phân nguồn quỹ' : 'Thêm tài khoản quỹ'} subtitle={account?.name}
     footer={<><button type="button" className="btn btn--secondary" disabled={busy} onClick={close}>Đóng</button><button className="btn btn--primary" form={id} type="submit" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu tài khoản'}</button></>}>
-    <form id={id} className="treasury-account-form" onSubmit={event => void save(event)}>
+    <form id={id} className="treasury-account-form" noValidate onSubmit={event => void save(event)}>
       {error && <p role="alert" className="treasury-notice treasury-notice--error">{error}</p>}
       <p>{account ? 'Chỉ thay đổi nguồn quỹ của tài khoản; giữ nguyên số dư và lịch sử giao dịch.' : 'Thiết lập tài khoản thực tế để ghi thu / chi. Không gửi tiền qua ngân hàng.'}</p>
       <UuiSelectField label="Nguồn quỹ" required value={fundCode} disabled={busy} onChange={event => setFundCode(event.target.value)} options={[{ value: '', label: 'Chọn nguồn quỹ' }, { value: 'COMPANY', label: 'Quỹ công ty' }, { value: 'TM', label: 'Quỹ TM' }]} />
