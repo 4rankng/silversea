@@ -391,7 +391,8 @@ router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   // Dispatchers may add new tractors (casbin route-scoped POST allowance) but
   // not edit or retire existing ones.
   beforeCreate: async (data, _req, tx) => {
-    await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
+    await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại',
+      tombstoneMessage: (key) => `Biển số ${key} đã tồn tại trong thùng rác (xe đã xóa). Vui lòng khôi phục xe hoặc chọn biển số khác.` });
     await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
     // Same transfer semantics as the update hook — a NEW truck claiming a
     // held trailer clears the holder.
