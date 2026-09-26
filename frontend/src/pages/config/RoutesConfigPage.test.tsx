@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Route } from '@tingting/shared';
 
@@ -128,10 +130,10 @@ describe('UI-CD-09 catalog query whitespace', () => {
 });
 
 describe('ListFilterBar adoption (card 20260922_38)', () => {
-  it('renders the shared bar with the routes search, no hand-rolled search chrome', async () => {
+  it('search lives in the chief-strip header row (ListFilterBar superseded by card 20260926_59)', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
-    expect(container.querySelector('.filter-bar.list-filter-bar')).not.toBeNull();
+    expect(container.querySelector('.routes-strip__search input')).not.toBeNull();
     expect(container.querySelector('.toolbar__search')).toBeNull();
     screen.getByRole('textbox', { name: 'Tìm tuyến đường' });
   });
@@ -172,10 +174,49 @@ describe('RoutesConfigPage chief table spec (20260926_53)', () => {
     expect(screen.queryByRole('button', { name: /Tùy chọn/ })).toBeNull();
   });
 
-  it('title carries the live route count and the search shell offers the ⌘K badge', async () => {
+  it('title carries the live route count and the strip search offers the ⌘K badge', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
-    expect(container.querySelector('.page-header__title-visible')?.textContent).toContain('(2)');
-    expect(container.querySelector('.filter-bar__search .filter-bar__kbd')?.textContent).toBe('⌘K');
+    expect(container.querySelector('.routes-strip__title')?.textContent).toContain('(2)');
+    expect(container.querySelector('.routes-strip__kbd')?.textContent).toBe('⌘K');
+  });
+});
+
+
+describe('routes true grid (card 20260926_59 — chief bounce)', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/pages/config/RoutesConfigPage.css'), 'utf8');
+  const tsx = readFileSync(resolve(process.cwd(), 'src/pages/config/RoutesConfigPage.tsx'), 'utf8');
+  const topbar = readFileSync(resolve(process.cwd(), 'src/components/layout/Topbar.tsx'), 'utf8');
+
+  it('renders the unit exactly once — no km km anywhere', async () => {
+    getRoutesList.mockResolvedValue([
+      makeRoute(1, 'KCN Đồng Văn, Ninh Bình'),
+      { ...makeRoute(2, 'Hải Phòng-NEWEB'), code: null, shortName: null, distanceKm: null },
+    ]);
+    const { container } = renderPage();
+    await screen.findByText('KCN Đồng Văn, Ninh Bình');
+    const body = container.querySelector('.routes-table tbody')?.textContent ?? '';
+    expect(body).toContain('120 km');
+    expect(body).not.toContain('km km');
+    // the class-level double-append is gone from the stylesheet
+    expect(css).not.toContain("content: ' km'");
+  });
+
+  it('grid geometry: fixed columns, 36px striped rows, phone-only reflow', () => {
+    expect(css).toMatch(/\.routes-table th\.routes-table__code,\n\.routes-config-page \.routes-table td\.routes-table__code \{ width: 160px;/);
+    expect(css).toMatch(/td:nth-child\(3\) \{ width: 200px;/);
+    expect(css).toMatch(/@container \(max-width: 640px\)/);
+    expect(css).not.toMatch(/@container \(max-width: 1100px\)/);
+    expect(css).toMatch(/tbody tr:nth-child\(even\)/);
+  });
+
+  it('one header row: back + count + search with kbd + create', () => {
+    expect(tsx).toContain('routes-strip__back');
+    expect(tsx).toContain('routes-title-count');
+    expect(tsx).toContain('routes-strip__kbd');
+    expect(tsx).toContain('Thêm tuyến');
+    expect(tsx).not.toContain('ListFilterBar');
+    // the month-picker law keeps the navigator off config routes
+    expect(topbar).toMatch(/config\|fleet/);
   });
 });

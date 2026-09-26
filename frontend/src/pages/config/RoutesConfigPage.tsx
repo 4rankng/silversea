@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
-import { PageHeader, useConfirm } from '../../components/UI';
+import { useConfirm } from '../../components/UI';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
@@ -16,7 +16,6 @@ import './config-page.css';
 import './RoutesConfigPage.css';
 import { RouteFormModal } from './route-form-modal';
 import { EmptyState } from '../../design-system';
-import { ListFilterBar } from '../../components/ListFilterBar';
 
 export default function RoutesConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -46,20 +45,20 @@ export default function RoutesConfigPage() {
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   const totalCount = routes.length;
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const hasActiveFilters = Boolean(search.trim());
 
-  // ⌘K / Ctrl+K focuses the route search (the search shell carries the ⌘K
-  // badge); the input lives inside the shared ListFilterBar, so focus via
-  // the page root query.
+  // ⌘K / Ctrl+K focuses the route search (badge on the search shell).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        pageRef.current?.querySelector<HTMLInputElement>('.filter-bar__search input')?.focus();
+        searchRef.current?.focus();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pageRef]);
+  }, []);
 
   const filtered = useMemo(() => sortClientSide(
     routes,
@@ -92,15 +91,30 @@ export default function RoutesConfigPage() {
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
-      <PageHeader
-        title={<>Tuyến đường <span className="routes-title-count">({totalCount})</span></>}
-        description={isPending ? 'Đang tải tuyến đường…' : <><strong>{totalCount}</strong> tuyến đang quản lý</>}
-        onBack={handleBack}
-        iconName="route-distance"
-        action={
-          <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
-        }
-      />
+      <div className="routes-strip" role="banner">
+        <button type="button" className="routes-strip__back" aria-label="Quay lại" onClick={handleBack}>
+          <ArrowLeft size={16} />
+        </button>
+        <h1 className="routes-strip__title">Tuyến đường <span className="routes-title-count">({totalCount})</span></h1>
+        <div className="routes-strip__search">
+          <Search size={14} aria-hidden="true" />
+          <input
+            ref={searchRef}
+            type="text"
+            aria-label="Tìm tuyến đường"
+            placeholder="Tìm mã, tên tuyến…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <kbd className="routes-strip__kbd">⌘K</kbd>
+        </div>
+        {hasActiveFilters && (
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSearch('')}>
+            <RotateCcw size={13} /> Xóa lọc
+          </button>
+        )}
+        <button className="btn btn--primary routes-strip__add" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
+      </div>
 
       <RouteFormModal
         isOpen={crud.showAddForm || crud.editingId != null}
@@ -116,11 +130,6 @@ export default function RoutesConfigPage() {
       />
 
       <div className="table-wrap">
-        {/* Shared filter-bar contract (card 20260922_38): the routes search
-            lives in the bar's typed search slot. */}
-        <ListFilterBar
-          search={{ value: search, onChange: setSearch, placeholder: 'Tìm mã, tên tuyến…', ariaLabel: 'Tìm tuyến đường', shortcut: '⌘K' }}
-        />
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table routes-table" aria-busy={isFetching}>
