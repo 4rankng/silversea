@@ -70,3 +70,36 @@ describe('invoice-tracking 14-column board anti-spill contract (card 20260922_52
     expect(css).toMatch(/tbody td:nth-child\(8\),[\s\S]*?nth-child\(10\)\s*\{\s*text-align:\s*right/);
   });
 });
+
+describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () => {
+  const tsx = readFileSync(resolve(process.cwd(), 'src/pages/AccountingInvoiceTrackingPage.tsx'), 'utf8');
+  const tableCss = readFileSync(resolve(process.cwd(), 'src/components/Table.css'), 'utf8');
+
+  it('header is a two-row command strip: inline KPI ribbon + export, tiles and Lọc deleted', () => {
+    expect(tsx).not.toContain('invoice-tracking-totals__tile');
+    expect(tsx).toMatch(/invoice-tracking-header/);
+    expect(tsx).toMatch(/invoice-tracking-kpi/);
+    expect(tsx).toContain('Xuất Excel');
+    expect(tsx).toContain('downloadCSV');
+    expect(tsx).not.toMatch(/>Loc<|>Lọc</);
+  });
+
+  it('row 2: date-range popover with presets auto-refetches, plus search, supplier, discrepancy toggle, reset', () => {
+    expect(tsx).toContain('DateRangePopover');
+    expect(tsx).toContain('Tháng này');
+    expect(tsx).toContain('Tháng trước');
+    expect(tsx).toContain('Quý này');
+    expect(tsx).toMatch(/Số HĐ, MST, Lô, Cont/);
+    expect(tsx).toContain('Chỉ xem dòng có lệch');
+    expect(tsx).toContain('Xóa lọc');
+  });
+
+  it('empty state centers the muted search icon with period copy and a clear-filters sub-link', () => {
+    expect(tsx).toContain('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
+    expect(tsx).toContain('Xóa bộ lọc ngày');
+  });
+
+  it('scrollbar thumb is neutral ink — the green table-scroll thumb is gone', () => {
+    expect(tableCss).not.toMatch(/scrollbar-thumb[^}]*rgba\(0,\s*90,\s*45/);
+  });
+});

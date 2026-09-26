@@ -21,7 +21,7 @@
 }
 .table-scroll::-webkit-scrollbar { height: 8px; }
 .table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 90, 45, 0.22);
+  background: rgba(10, 10, 10, 0.15);
   border-radius: 999px;
 }
 

@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Download, FileSearch, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 import {
   INVOICE_TRACKING_PROGRESS,
   INVOICE_TRACKING_PROGRESS_LABELS,
@@ -12,10 +12,11 @@ import {
   type InvoiceTrackingProgress,
   type InvoiceTrackingRow,
 } from '@tingting/shared';
-import { Btn, PageHeader, useConfirm } from '../components/UI';
+import { Btn, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
-import { BufferedUuiDateInput } from '../design-system/forms/BufferedUuiDateInput';
+import { DateRangePopover, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangePopover';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
+import { downloadCSV } from '../lib/csv';
 import {
   deleteInvoiceTracking,
   listInvoiceTracking,
@@ -26,6 +27,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
 import { businessDateISO, formatBusinessRef, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
+import { EmptyState } from '../design-system';
 import './AccountingInvoiceTrackingPage.css';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
@@ -53,14 +55,39 @@ function defaultPeriod(): { from: string; to: string } {
   return { from: `${today.slice(0, 7)}-01`, to: today };
 }
 
+/** Preset ranges evaluated at click time so they stay today-anchored. */
+function buildPeriodPresets(): DateRangePreset[] {
+  const today = businessDateISO();
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const last = (y2: number, m2: number) => new Date(Date.UTC(y2, m2 - 1, 0)).getUTCDate();
+  const iso = (yy: number, mm: number, dd: number) => `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  return [
+    { id: 'this-month', label: 'Tháng này', range: () => ({ from: iso(y, m, 1), to: today }) },
+    { id: 'last-month', label: 'Tháng trước', range: () => {
+      const py = m === 1 ? y - 1 : y;
+      const pm = m === 1 ? 12 : m - 1;
+      return { from: iso(py, pm, 1), to: iso(py, pm, last(py, pm)) };
+    } },
+    { id: 'this-quarter', label: 'Quý này', range: () => {
+      const qStart = Math.floor((m - 1) / 3) * 3 + 1;
+      return { from: iso(y, qStart, 1), to: today };
+    } },
+  ];
+}
+
 export default function AccountingInvoiceTrackingPage() {
   const { user } = useAuth();
   const canWrite = WRITE_ROLES.includes(getModernRole(user?.role ?? '') as Role);
   const queryClient = useQueryClient();
   const initialPeriod = useMemo(defaultPeriod, []);
-  const [from, setFrom] = useState(initialPeriod.from);
-  const [to, setTo] = useState(initialPeriod.to);
+  const periodPresets = useMemo(buildPeriodPresets, []);
+  const [period, setPeriod] = useState<DateRangeValue>(initialPeriod);
+  const [search, setSearch] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [diffOnly, setDiffOnly] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const { from, to } = period;
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; row: InvoiceTrackingRow } | null>(null);
   const { confirm, dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
@@ -70,8 +97,50 @@ export default function AccountingInvoiceTrackingPage() {
     queryFn: () => listInvoiceTracking(from, to),
   });
   const rows = query.data?.rows ?? [];
-  const totals = computeTotals(rows);
+  const supplierOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.supplierName?.trim()).filter((v): v is string => Boolean(v)))].sort((a, b) => a.localeCompare(b, 'vi')),
+    [rows],
+  );
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (supplier && r.supplierName?.trim() !== supplier) return false;
+    if (diffOnly && Number(r.invoiceAmount) === Number(r.supplierPayment)) return false;
+    if (search.trim()) {
+      const needle = search.trim().toLowerCase();
+      const haystack = [r.invoiceNumber, r.taxCode, r.shipmentCode, r.containerNumber].map(v => (v ?? '').toLowerCase());
+      if (!haystack.some(v => v.includes(needle))) return false;
+    }
+    return true;
+  }), [rows, supplier, diffOnly, search]);
+  const totals = computeTotals(filtered);
   const colCount = canWrite ? 14 : 13;
+
+  const clearFilters = () => { setSearch(''); setSupplier(''); setDiffOnly(false); };
+  const hasActiveFilters = Boolean(search.trim() || supplier || diffOnly);
+
+  const exportExcel = () => {
+    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
+    const body = filtered.map((row, index) => [
+      index + 1,
+      formatISODate(row.expenseDate),
+      row.shipmentCode ?? '',
+      row.customerName ?? '',
+      row.containerNumber ?? '',
+      row.taxCode ?? '',
+      row.supplierName ?? '',
+      row.invoiceNumber ?? '',
+      Number(row.invoiceAmount),
+      Number(row.supplierPayment),
+      row.comNote ?? '',
+      Number(row.invoiceAmount) - Number(row.supplierPayment),
+      formatISODate(row.invoiceSentAt),
+      row.note ?? '',
+      INVOICE_TRACKING_PROGRESS_LABELS[row.progress],
+    ]);
+    void downloadCSV('theo-doi-hoa-don.xlsx', headers, body, {
+      title: 'THEO DÕI HÓA ĐƠN KẾT HỢP',
+      subtitle: `Kỳ ${formatISODate(from)} - ${formatISODate(to)}`,
+    });
+  };
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.invoiceTracking.all });
 
@@ -108,37 +177,66 @@ export default function AccountingInvoiceTrackingPage() {
 
   return (
     <div className="invoice-tracking-page">
-      <PageHeader title="Theo dõi hóa đơn kết hợp" description="Quản lý hóa đơn kết hợp theo từng lô hàng." />
       {dialog}
       {reasonDialog}
 
-      <section className="invoice-tracking-period" aria-label="Kỳ theo dõi">
-        <div className="invoice-tracking-period__fields">
-          <BufferedUuiDateInput label="Từ ngày" size="sm" value={from} max={to || undefined} onChange={setFrom} />
-          <BufferedUuiDateInput label="Đến ngày" size="sm" value={to} min={from || undefined} onChange={setTo} />
+      <header className="invoice-tracking-header" aria-label="Theo dõi hóa đơn kết hợp">
+        <div className="invoice-tracking-header__row">
+          <h1>Theo dõi hóa đơn kết hợp</h1>
+          <div className="invoice-tracking-kpi" role="status" aria-label="Tổng cộng theo kỳ">
+            <span className="invoice-tracking-kpi__item">Hóa đơn: <strong className="ivt-money">{formatMoney(totals.invoice)} ₫</strong></span>
+            <span className="invoice-tracking-kpi__item">Trả NCC: <strong className="ivt-money">{formatMoney(totals.paid)} ₫</strong></span>
+            <span className="invoice-tracking-kpi__item">Chênh lệch: <strong className={`ivt-money ${totals.difference === 0 ? 'ivt-money--flat' : totals.difference > 0 ? 'ivt-money--over' : 'ivt-money--under'}`}>{formatMoney(totals.difference)} ₫</strong></span>
+          </div>
+          <div className="invoice-tracking-header__actions">
+            <Btn variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportExcel}>Xuất Excel</Btn>
+            {canWrite && (
+              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setModal({ mode: 'create' })}>
+                Thêm chi phí lô hàng
+                </Btn>
+            )}
+          </div>
         </div>
-        <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
-        {canWrite && (
-          <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setModal({ mode: 'create' })}>
-            Thêm chi phí lô hàng
-          </Btn>
-        )}
-      </section>
 
-      <section className="invoice-tracking-totals" aria-label="Tổng cộng theo kỳ">
-        <div className="invoice-tracking-totals__tile">
-          <span>Tổng tiền hóa đơn</span>
-          <strong>{formatMoney(totals.invoice)} ₫</strong>
+        <div className="invoice-tracking-filters" role="search" aria-label="Bộ lọc hóa đơn">
+          <DateRangePopover
+            id="ivt-period"
+            className="invoice-tracking-range"
+            ariaLabel="Kỳ theo dõi"
+            size="sm"
+            value={period}
+            onChange={setPeriod}
+            presets={periodPresets}
+          />
+          <div className="invoice-tracking-search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="text"
+              aria-label="Tìm theo số HĐ, MST, lô, cont"
+              placeholder="Số HĐ, MST, Lô, Cont..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <UuiSelectField
+            wrapperClassName="invoice-tracking-supplier"
+            label="Nhà cung cấp"
+            hideLabel
+            value={supplier}
+            onChange={(event) => setSupplier(event.target.value)}
+            options={[{ value: '', label: 'Nhà cung cấp: tất cả' }, ...supplierOptions.map((name) => ({ value: name, label: name }))]}
+          />
+          <UuiSelectField
+            wrapperClassName="invoice-tracking-diff"
+            label="Chênh lệch"
+            hideLabel
+            value={diffOnly ? 'diff' : 'all'}
+            onChange={(event) => setDiffOnly(event.target.value === 'diff')}
+            options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
+          />
+          <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
         </div>
-        <div className="invoice-tracking-totals__tile">
-          <span>Tổng trả NCC</span>
-          <strong>{formatMoney(totals.paid)} ₫</strong>
-        </div>
-        <div className="invoice-tracking-totals__tile">
-          <span>Tổng chênh lệch</span>
-          <strong>{formatMoney(totals.difference)} ₫</strong>
-        </div>
-      </section>
+      </header>
 
       {actionError && <p className="invoice-tracking-alert" role="alert">{actionError}</p>}
 
@@ -170,9 +268,28 @@ export default function AccountingInvoiceTrackingPage() {
               <tr><td colSpan={colCount}>Không tải được dữ liệu. Vui lòng thử lại.</td></tr>
             )}
             {!query.isPending && !query.isError && rows.length === 0 && (
-              <tr><td colSpan={colCount}>Chưa có hóa đơn nào trong kỳ.</td></tr>
+              <tr><td colSpan={colCount} className="invoice-tracking-empty">
+                <EmptyState
+                  variant="compact"
+                  icon={FileSearch}
+                  title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
+                  description={hasActiveFilters ? undefined : 'Thêm chi phí lô hàng để bắt đầu theo dõi.'}
+                  action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button> : undefined}
+                />
+              </td></tr>
             )}
-            {rows.map((row, index) => (
+            {!query.isPending && !query.isError && rows.length > 0 && filtered.length === 0 && (
+              <tr><td colSpan={colCount} className="invoice-tracking-empty">
+                <EmptyState
+                  variant="compact"
+                  icon={FileSearch}
+                  title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
+                  description="Không dòng nào khớp bộ lọc hiện tại."
+                  action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button>}
+                />
+              </td></tr>
+            )}
+            {filtered.map((row, index) => (
               <tr key={row.id}>
                 <td>{index + 1}</td>
                 <td>{formatISODate(row.expenseDate)}</td>

@@ -13,49 +13,93 @@
   font-size: var(--text-body-size, 14px);
 }
 
-.invoice-tracking-period {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 8px 12px;
-}
-
-.invoice-tracking-period__fields {
-  display: flex;
-  gap: 8px 12px;
-}
-
-.invoice-tracking-totals {
+/* Card 20260926_52 (chief spec) - the ~240px header (page header + period
+ * fields + three KPI tiles) collapses into a two-row command strip.
+ * Row 1: title + inline KPI ribbon + export actions. Row 2: filters. */
+.invoice-tracking-header {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
-.invoice-tracking-totals__tile {
+.invoice-tracking-header__row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
+  align-items: center;
+  gap: 10px 18px;
+  min-height: 36px;
+  flex-wrap: wrap;
 }
 
-.invoice-tracking-totals__tile span {
-  color: var(--ink-3);
-  font-size: var(--text-label-size, 11px);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.invoice-tracking-totals__tile strong {
-  font-family: var(--font-data);
-  font-size: var(--text-title-size, 18px);
+.invoice-tracking-header__row h1 {
+  margin: 0;
+  font-size: 16px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.01em;
 }
+
+/* KPI ribbon: mono semibold figures; chenh lech is slate at 0d and
+   amber (invoice > paid) / red (paid > invoice) bold when non-zero. */
+.invoice-tracking-kpi {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-left: auto;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+.invoice-tracking-kpi__item { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+
+.invoice-tracking-kpi .ivt-money {
+  font-family: var(--font-data);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-tracking-kpi .ivt-money--flat { color: var(--ink-3); font-weight: 600; }
+.invoice-tracking-kpi .ivt-money--over { color: var(--warning, #A45D1C); font-weight: 700; }
+.invoice-tracking-kpi .ivt-money--under { color: var(--danger, #A0444E); font-weight: 700; }
+
+.invoice-tracking-header__actions { display: flex; align-items: center; gap: 8px; }
+
+.invoice-tracking-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.invoice-tracking-range { width: 210px; }
+
+.invoice-tracking-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 240px;
+  height: var(--filter-control-h, 32px);
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: 8px;
+}
+
+.invoice-tracking-search svg { position: absolute; left: 10px; color: var(--fg-3); pointer-events: none; }
+
+.invoice-tracking-search input {
+  width: 100%;
+  height: 100%;
+  padding: 0 10px 0 30px;
+  border: 0;
+  background: none;
+  font-size: var(--text-control-size, 13px);
+  color: var(--ink);
+  outline: none;
+}
+
+.invoice-tracking-supplier { width: 180px; }
+.invoice-tracking-diff { width: 190px; }
 
 .invoice-tracking-alert {
   margin: 0;
@@ -254,4 +298,39 @@
    floor; the column tracks and the token/wrap split above hold as-is. */
 @media (max-width: 640px) {
   .invoice-tracking-table { min-width: 1180px; }
+}
+
+/* ── Card 20260926_52 — table hygiene ──
+   Header: compact 32px, uppercase, tracked. Money columns right-align mono
+   (existed); dates and codes center and go mono. */
+.invoice-tracking-table thead th {
+  height: 34px;
+  padding-block: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+
+.invoice-tracking-table thead th:nth-child(2),
+.invoice-tracking-table thead th:nth-child(5),
+.invoice-tracking-table thead th:nth-child(11),
+.invoice-tracking-table tbody td:nth-child(2),
+.invoice-tracking-table tbody td:nth-child(5),
+.invoice-tracking-table tbody td:nth-child(11) {
+  text-align: center;
+}
+
+.invoice-tracking-table tbody td:nth-child(2),
+.invoice-tracking-table tbody td:nth-child(4),
+.invoice-tracking-table tbody td:nth-child(5),
+.invoice-tracking-table tbody td:nth-child(11),
+.invoice-tracking-table tbody td:nth-child(1) {
+  font-family: var(--font-data);
+}
+
+/* Centered empty states (no data / no filter match). */
+.invoice-tracking-empty {
+  padding: 28px 12px !important;
+  text-align: center;
 }
