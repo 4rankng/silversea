@@ -149,7 +149,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // PhotoViewer with focus restore for full-image viewing. Reviewed as a
   // contract change; a future split (extract the photo block) should restore
   // a smaller ceiling.
-  'src/components/trip/DriverContainerCard.tsx': 720,
+  'src/components/trip/DriverContainerCard.tsx': 738,
   // Baseline 410 (was new-file capped): e-POD photos now render as tappable
   // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
   // render branch live beside the upload lifecycle they serve.

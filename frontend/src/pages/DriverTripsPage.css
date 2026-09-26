@@ -499,7 +499,7 @@
  * fill — label + count is the whole message. */
 .driver-journey__tab-count {
   margin-left: 6px;
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--fg-3, #5F6872);
   font-weight: 500;
 }
