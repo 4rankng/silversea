@@ -81,6 +81,92 @@
   margin-left: auto;
 }
 
+/* Card 20260926_48 — Row 2: one uniform 32px toolbar. Flat chrome throughout
+   (border + surface); widths are the spec's: search 260-300, range 220,
+   chips min-w 110, Kế hoạch 160. */
+.shipments-control__row--filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.shipments-control__search {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  width: min(280px, 100%);
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--app-radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+}
+
+.shipments-control__search:focus-within {
+  border-color: var(--accent);
+}
+
+.shipments-control__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.shipments-control__kbd {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-family: var(--font-data);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.shipments-control__range .date-range__trigger--sm {
+  width: 220px;
+}
+
+.shipments-control__chip {
+  min-width: 110px;
+}
+
+.shipments-control__chip .inline-label-select__trigger {
+  width: 100%;
+}
+
+.shipments-control__plan {
+  width: 160px;
+}
+
+.shipments-control__plan .searchable-select__trigger {
+  width: 100%;
+  min-height: 32px;
+}
+
+/* The reset action keeps the ghost look at the row end. */
+.shipments-control__reset {
+  margin-left: auto;
+}
+
+@media (min-width: 768px) {
+  .shipments-control__reset.shipment-uui-button {
+    height: 32px;
+    min-height: 32px;
+  }
+}
+
 /* h-8 law for the two header actions — desktop density; below the touch
    breakpoint the UUI button's own 44px touch floor applies untouched. */
 @media (min-width: 768px) {

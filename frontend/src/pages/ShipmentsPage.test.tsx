@@ -34,9 +34,6 @@ import ShipmentsPage from './ShipmentsPage';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
-// 2026-09-19: the flat filter rail wave extracted the filter controls into
-// the shared WorkboardFilters component — source assertions follow the markup into that file.
-const filtersSource = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
@@ -352,7 +349,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByRole('heading', { name: 'Tổng quan lô hàng' })).toBeTruthy();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
-    expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('type')).toBe('text');
+    expect(screen.getByLabelText('Tìm lô hàng').getAttribute('type')).toBe('text');
   });
 
   it('surfaces API-backed operational priorities before the detailed shipment table', async () => {
@@ -380,7 +377,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('applies a valid suffix after the debounce and never applies a pattern-violating draft', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
+    const input = screen.getByLabelText('Tìm lô hàng');
 
     fireEvent.change(input, { target: { value: 'A12' } });
     await new Promise((resolve) => setTimeout(resolve, 450));
@@ -397,7 +394,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('accepts the full Bill/Booking number, not only a 4-5 char suffix (2026-09-09 report)', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
+    const input = screen.getByLabelText('Tìm lô hàng');
 
     fireEvent.change(input, { target: { value: 'MSCU6639870' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
@@ -637,7 +634,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: /Xuất \/ Nhập/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
     expect(within(screen.getByRole('table')).getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
@@ -798,14 +795,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPut).not.toHaveBeenCalled();
   });
 
-  it('CUS-OVERVIEW-02: the five filter controls ride the shared bar — always visible, no disclosure', async () => {
+  it('CUS-OVERVIEW-02: every filter control rides the one Row 2 toolbar — visible, no disclosure', async () => {
     renderPage();
     await screen.findByRole('table');
-    expect(screen.getByLabelText('Từ ngày giao')).toBeTruthy();
-    expect(screen.getByLabelText('Xuất / Nhập')).toBeTruthy();
-    expect(screen.getByLabelText('Kế hoạch')).toBeTruthy();
+    const toolbar = document.querySelector('.shipments-control__row--filters') as HTMLElement;
+    expect(screen.getByLabelText('Tìm lô hàng')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
+    expect(toolbar.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Bộ lọc nâng cao/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Xuất \/ Nhập/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
   });
@@ -2127,18 +2127,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
-    // Card 20260922_42: the search rides the shared bar slot; the control
-    // strip keeps its own inputClassName pins.
-    expect(source).toContain("ariaLabel: 'Bill/Book hoặc tờ khai'");
-    expect(source).toContain('<ListFilterBar');
-    expect(filtersSource).toContain('inputClassName="shipment-uui-control__input"');
-    expect(source + filtersSource).not.toContain('className="cus-filter-field shipment-uui-field"');
-    for (const label of ['Từ ngày giao', 'Đến ngày giao']) {
-      expect(filtersSource).toMatch(new RegExp(`label="${label}"\\s+size="sm"`));
-    }
-    for (const label of ['Xuất / Nhập', 'Kế hoạch']) {
-      expect(filtersSource).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
-    }
+    // Card 20260926_48: the worksheet owns its Row 2 toolbar in the page —
+    // search, date-range popover, label-inside chips, Kế hoạch combobox. The
+    // shared ListFilterBar/WorkboardFilters stay for OTHER list pages.
+    expect(source).toContain('placeholder="Bill, Book, Cont, Tờ khai..."');
+    expect(source).not.toContain('<ListFilterBar');
+    expect(source).not.toContain('<WorkboardFilters');
+    expect(source).toContain('<DateRangePopover');
+    expect(source).toContain('<InlineLabelSelect');
+    expect(source).toContain('<SearchableMultiSelect');
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
     // Card 20260922_42 dead-chrome pin: the self-made toolbar family is gone.
@@ -2351,6 +2348,29 @@ describe('Loại lô filter — ad-hoc tri-state (20260917_12)', () => {
 });
 
 
+// MemoryRouter keeps history in memory — jsdom's location never moves. A
+// sibling probe component prints the live search string so tests can pin the
+// URL contract (cards _47/_48: click = URL state) directly.
+function UrlProbe() {
+  const { search } = useLocation();
+  return <div data-testid="url-probe" data-search={search} />;
+}
+function renderTabsPage(path = '/shipments') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/shipments" element={<><UrlProbe /><ShipmentsPage /></>} />
+            <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
 describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', () => {
   // The fixture quartet: one row per readiness dimension, one row in no tab.
   const scheduleWaitingRow: ShipmentCusWorkspaceListItem = {
@@ -2373,29 +2393,6 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     activeLock: null,
   };
   const tabbedItems = [row, scheduleWaitingRow, vehicleWaitingRow, accountingWaitingRow];
-
-  // MemoryRouter keeps history in memory — jsdom's location never moves. A
-  // sibling probe component prints the live search string so the tests can
-  // pin the URL contract (card _47: click = URL state) directly.
-  function UrlProbe() {
-    const { search } = useLocation();
-    return <div data-testid="url-probe" data-search={search} />;
-  }
-  function renderTabsPage(path = '/shipments') {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <MemoryRouter initialEntries={[path]}>
-            <Routes>
-              <Route path="/shipments" element={<><UrlProbe /><ShipmentsPage /></>} />
-              <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
-            </Routes>
-          </MemoryRouter>
-        </ToastProvider>
-      </QueryClientProvider>,
-    );
-  }
 
   it('renders Row 1 as one baseline: title, tabs and actions share it; the summary strip is gone', async () => {
     apiGet.mockResolvedValue(listResponse(tabbedItems));
@@ -2467,5 +2464,108 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
     expect(pageSource).toMatch(/id: 'needsVehicle',[\s\S]{0,220}?countTone: 'warning'/);
     expect(pageSource).toMatch(/id: 'waitingAccounting',[\s\S]{0,220}?countTone: 'info'/);
+  });
+});
+
+
+describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chips + Kế hoạch', () => {
+  it('renders one uniform 32px toolbar row: search 260-300 + popover 220 + chips 110 + combobox 160 + Xóa lọc gated', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderPage();
+    await screen.findByRole('table');
+    expect(document.querySelector('.shipments-control__row--filters')).toBeTruthy();
+    // Search: placeholder per spec, ⌘K badge present.
+    const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
+    expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
+    expect(document.querySelector('.shipments-control__kbd')?.textContent).toBe('⌘K');
+    // Date-range trigger (replaces the two Từ/Đến inputs).
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
+    expect(screen.queryByLabelText('Từ ngày giao')).toBeNull();
+    expect(screen.queryByLabelText('Đến ngày giao')).toBeNull();
+    // Chip selects: label inside, defaults per spec.
+    expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
+    // Kế hoạch combobox present (multi-select with chips).
+    expect(document.querySelector('.shipments-control__plan .searchable-multi-select__trigger, .shipments-control__plan button[aria-haspopup]')).toBeTruthy();
+    // Xóa lọc hidden while filters are default.
+    expect(screen.queryByRole('button', { name: 'Xóa lọc' })).toBeNull();
+    // Uniform 32px + width laws are CSS, not accident.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+    expect(css).toMatch(/\.shipments-control__row--filters\s*\{[^}]*min-height:\s*32px/);
+    expect(css).toMatch(/\.shipments-control__search\s*\{[^}]*width:\s*min\(280px, 100%\)/);
+    expect(css).toMatch(/\.shipments-control__range\s*\.date-range__trigger--sm\s*\{[^}]*width:\s*220px/);
+    expect(css).toMatch(/\.shipments-control__chip\s*\{[^}]*min-width:\s*110px/);
+    expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*width:\s*160px/);
+  });
+
+  it('date-range popover opens with the four 1-click presets and applies one to the URL', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Khoảng ngày giao' });
+    // Presets render inside the popover.
+    for (const label of ['Hôm nay', 'Hôm qua', '7 ngày qua', 'Tháng này']) {
+      expect(within(dialog).getByRole('button', { name: label })).toBeTruthy();
+    }
+    // One click = both URL params, ordered, page reset.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hôm nay' }));
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    await waitFor(() => {
+      const url = String(apiGet.mock.lastCall?.[0] ?? '');
+      expect(url).toContain(`transportDateFrom=${iso}`);
+      expect(url).toContain(`transportDateTo=${iso}`);
+    });
+  });
+
+  it('direction and kind ride the inline-label chips into the URL', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Xuất' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
+    expect(screen.getByRole('button', { name: 'Hướng: Xuất' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Loại: Tất cả' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lệnh chạy ngoài' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('isAdHoc=true')));
+    expect(screen.getByRole('button', { name: 'Loại: Lệnh chạy ngoài' })).toBeTruthy();
+  });
+
+  it('Kế hoạch combobox: one bucket filters server-side; two buckets turn the lens on', async () => {
+    // The base row sits in PENDING_LOCK; a second row lives in NEW so the
+    // lens has something to keep and something to cut.
+    const newRow: ShipmentCusWorkspaceListItem = { ...row, id: 9, bucket: ShipmentCusBucket.NEW, bucketLabel: 'Mới tạo' };
+    apiGet.mockResolvedValue(listResponse([row, newRow]));
+    renderTabsPage();
+    await screen.findByRole('table');
+    const trigger = document.querySelector('.shipments-control__plan button[aria-haspopup]') as HTMLButtonElement;
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Mới tạo' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('bucket=NEW')));
+    // Second selection (the multi popover stays open): the URL carries the
+    // full set. The single-valued API keeps serving its cached page and the
+    // client lens slices it — the PENDING_LOCK row drops out of view.
+    fireEvent.click(await screen.findByRole('option', { name: 'Đã khóa' }));
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="url-probe"]')?.getAttribute('data-search')).toContain('bucket=NEW');
+    });
+    expect(document.querySelector('[data-testid="url-probe"]')?.getAttribute('data-search')).toContain('bucket=LOCKED');
+    const bodyRows = document.querySelectorAll('tr.cus-dashboard-row');
+    expect(bodyRows.length).toBe(1);
+    expect(within(screen.getByRole('listbox', { name: 'Danh sách kế hoạch' })).getByRole('option', { name: 'Mới tạo' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('Xóa lọc appears only when filters deviate and clears the whole toolbar', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderPage('/shipments?direction=EXPORT');
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa lọc' }));
+    await waitFor(() => {
+      const url = String(apiGet.mock.lastCall?.[0] ?? '');
+      expect(url).not.toContain('direction=');
+    });
   });
 });

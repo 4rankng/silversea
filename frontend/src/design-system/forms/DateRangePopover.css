@@ -1,0 +1,130 @@
+/* DateRangePopover (card 20260926_50) — dual-calendar range picker. Flat
+   chrome: border + surface, no shadow (house law). Mirrors the coarse-pointer
+   44px floor of DatePickerSurface. */
+
+.date-range { position: relative; display: inline-flex; min-width: 0; }
+
+.date-range__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 220px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--ink, #1f2937);
+  font-size: var(--text-control-compact-size, 13px);
+  cursor: pointer;
+}
+
+.date-range__trigger--md { height: 38px; width: 240px; }
+
+.date-range__trigger--open { border-color: var(--color-fg-brand-primary, #005a2d); }
+
+.date-range__label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
+.date-range__label--placeholder { color: var(--ink-3, #6b7280); }
+
+.date-range__chevron { flex: 0 0 auto; color: var(--ink-3, #6b7280); }
+
+.date-range__popover {
+  position: fixed;
+  z-index: var(--z-nested-popover, 410);
+  display: grid;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+}
+
+.date-range__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-data-size, 13px);
+}
+
+.date-range__close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.date-range__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.date-range__preset {
+  padding: 4px 10px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--ink-2, #4b5563);
+  font-size: var(--text-caption-size, 12px);
+  cursor: pointer;
+}
+
+.date-range__preset[aria-pressed='true'] {
+  border-color: var(--color-fg-brand-primary, #005a2d);
+  color: var(--color-fg-brand-primary, #005a2d);
+  background: var(--background-color-brand-primary, #e6f6ec);
+}
+
+.date-range__panels { display: flex; gap: 12px; }
+
+.date-range__panel {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.date-range__panel h4 {
+  margin: 0;
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  font-size: var(--text-caption-size, 12px);
+  font-weight: 600;
+}
+
+.date-range__foot { display: flex; justify-content: space-between; gap: 8px; }
+
+.date-range__clear,
+.date-range__done {
+  padding: 5px 12px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--ink, #1f2937);
+  font-size: var(--text-caption-size, 12px);
+  cursor: pointer;
+}
+
+.date-range__done {
+  border-color: var(--color-fg-brand-primary, #005a2d);
+  color: var(--color-fg-brand-primary, #005a2d);
+}
+
+/* ≤640px: stack the two calendars into one column. */
+@media (max-width: 640px) {
+  .date-range__panels { flex-direction: column; }
+  .date-range__trigger { width: 100%; }
+}
+
+/* Coarse pointer: 44px floor on touch targets. */
+@media (pointer: coarse) {
+  .date-range__trigger { height: 44px; }
+  .date-range__close { width: 44px; height: 44px; }
+  .date-range__preset { padding: 12px 14px; border-radius: 8px; }
+  .date-range__clear,
+  .date-range__done { min-height: 44px; }
+  .date-range__popover .dtp-day { min-height: 44px; height: auto; }
+  .date-range__popover .dtp-nav { width: 44px; height: 44px; }
+}

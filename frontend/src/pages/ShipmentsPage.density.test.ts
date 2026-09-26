@@ -125,9 +125,10 @@ describe('shipment container editor density', () => {
 // owns a full-width row.
 describe('shipment worksheet export button — non-fighting compact (superseded by 20260926_47)', () => {
   it('Tải XLSX rides Row 1 at h-8 on desktop; no full-width slab anywhere', () => {
-    // h-8 law scoped to ≥768 — below it the UUI button keeps its 44px touch floor.
-    const desktop = css.match(/@media \(min-width: 768px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    const exportRule = desktop.match(/\.shipments-control__actions \.shipment-uui-button\s*\{([^}]*)\}/)?.[1] ?? '';
+    // h-8 law scoped to ≥768 — below it the UUI button keeps its 44px touch
+    // floor. Matched by selector (the rule only lives inside the ≥768 query,
+    // so a stray top-level copy would be a different regression).
+    const exportRule = css.match(/\.shipments-control__actions \.shipment-uui-button\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(exportRule).not.toBe('');
     expect(exportRule).toMatch(/height:\s*32px/);
     expect(exportRule).toMatch(/min-height:\s*32px/);

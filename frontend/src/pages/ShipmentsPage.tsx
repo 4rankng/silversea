@@ -4,6 +4,7 @@ import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save, Search } fr
 import {
   CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
+  SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
@@ -17,12 +18,10 @@ import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, Pagination, Tabs, UuiSelectField } from '../design-system';
+import { DateRangePopover, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
-import { WORKBOARD_BUCKETS, WorkboardFilters } from '../components/WorkboardFilters';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -37,8 +36,6 @@ import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
-import { parseDateTime24 } from '../lib/format';
-import { validateDateInputText } from '../design-system/hooks/useBufferedDateTextValue';
 import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
@@ -95,6 +92,19 @@ const LOT_STATUS_TABS = [
   },
 ] as const;
 
+// Valid plan buckets — same derivation the shared WorkboardFilters uses.
+const LOT_PLAN_BUCKETS = Object.values(ShipmentCusBucket);
+
+// Card 20260926_48 — 1-click ranges for the date-range popover. Evaluated on
+// click so the ranges stay anchored to "today" whenever the operator opens it.
+const toISODate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const LOT_DATE_PRESETS = [
+  { id: 'today', label: 'Hôm nay', range: () => { const t = new Date(); return { from: toISODate(t), to: toISODate(t) }; } },
+  { id: 'yesterday', label: 'Hôm qua', range: () => { const y = new Date(); y.setDate(y.getDate() - 1); return { from: toISODate(y), to: toISODate(y) }; } },
+  { id: 'last7', label: '7 ngày qua', range: () => { const from = new Date(); from.setDate(from.getDate() - 6); return { from: toISODate(from), to: toISODate(new Date()) }; } },
+  { id: 'thisMonth', label: 'Tháng này', range: () => { const now = new Date(); return { from: toISODate(new Date(now.getFullYear(), now.getMonth(), 1)), to: toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)) } } },
+];
+
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -109,16 +119,18 @@ export default function ShipmentsPage() {
   const adHoc = ['true', 'false'].includes(searchParams.get('adHoc') ?? '')
     ? (searchParams.get('adHoc') as 'true' | 'false')
     : '';
-  const rawBucket = searchParams.get('bucket');
-  const bucket = WORKBOARD_BUCKETS.includes(rawBucket as ShipmentCusBucket)
-    ? rawBucket as ShipmentCusBucket
-    : '';
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
   // Card 20260926_47: the status tabs are URL state. Values are the
   // pageSummary keys — the same vocabulary the API reports counts in.
   const rawStatus = searchParams.get('status');
   const statusTab = LOT_STATUS_TABS.find((tab) => tab.id === rawStatus)?.id ?? '';
+  // Card 20260926_48: Kế hoạch is a multi-select combobox. The API keeps a
+  // single-valued bucket, so exactly one selection filters server-side while
+  // two or more ride the same client-side lens as the status tabs.
+  const selectedBuckets = searchParams.getAll('bucket').filter((value) => (
+    LOT_PLAN_BUCKETS.includes(value as ShipmentCusBucket)
+  ));
   // Column sort lives in the URL like every other workboard param. Unknown
   // keys fall back to the backend's default operational queue order.
   const rawSortBy = searchParams.get('sortBy');
@@ -141,33 +153,11 @@ export default function ShipmentsPage() {
   // applies on the same 350ms debounce with the same silent pattern-skip;
   // dateResetKey clears the buffered date drafts; the export gate validates
   // the same two date inputs by id inside the bar container.
-  const filterBarRef = useRef<HTMLDivElement>(null);
   const [searchInput, setSearchInput] = useState(suffixParam);
-  const [dateResetKey, setDateResetKey] = useState(0);
-  const [hasDateDraft, setHasDateDraft] = useState(false);
-
-  const validateFilterDates = () => {
-    const fromInput = filterBarRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-from');
-    const toInput = filterBarRef.current?.querySelector<HTMLInputElement>('#cus-filter-date-to');
-    const visibleFrom = fromInput?.value ? parseDateTime24(`00:00 ${fromInput.value}`)?.slice(0, 10) ?? '' : '';
-    const visibleTo = toInput?.value ? parseDateTime24(`00:00 ${toInput.value}`)?.slice(0, 10) ?? '' : '';
-    // Read the actual draft pair: a rapid submit can precede the next render
-    // and its validity effect, so URL state alone is not validation evidence.
-    if (fromInput) fromInput.setCustomValidity(validateDateInputText(fromInput.value, '', visibleTo));
-    if (toInput) toInput.setCustomValidity(validateDateInputText(toInput.value, visibleFrom));
-    const invalidInput = filterBarRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid');
-    if (!invalidInput) return true;
-    // Reveal the invalid draft to the user: focus + native validity bubble.
-    requestAnimationFrame(() => {
-      invalidInput.focus();
-      invalidInput.reportValidity();
-    });
-    return false;
-  };
 
   const ws = useCusWorkspaceState({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
-    direction, bucket, adHoc, sortKey, sortDir,
+    direction, bucket: selectedBuckets.length === 1 ? (selectedBuckets[0] as ShipmentCusBucket) : '', adHoc, sortKey, sortDir,
   }, drawerId);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
@@ -185,13 +175,32 @@ export default function ShipmentsPage() {
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      // A second date can arrive before React has rendered the first date's
-      // min/max prop. Keep its invalid draft out of the applied URL range.
-      if (value && key === 'transportDateFrom' && next.get('transportDateTo') && value > next.get('transportDateTo')!) return current;
-      if (value && key === 'transportDateTo' && next.get('transportDateFrom') && value < next.get('transportDateFrom')!) return current;
       if (!value) next.delete(key);
       else next.set(key, value);
       if (key !== 'page') next.delete('page');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Card 20260926_48: the date-range popover writes both params in one pass
+  // (it guarantees from <= to), and Kế hoạch writes its bucket set in one
+  // pass — repeated `bucket` params, one per selection.
+  const applyDateRange = useCallback((range: { from: string; to: string }) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (range.from) next.set('transportDateFrom', range.from); else next.delete('transportDateFrom');
+      if (range.to) next.set('transportDateTo', range.to); else next.delete('transportDateTo');
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const updateBuckets = useCallback((values: string[]) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('bucket');
+      for (const value of values) next.append('bucket', value);
+      next.delete('page');
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -269,8 +278,6 @@ export default function ShipmentsPage() {
 
 
   const clearFiltersUrl = () => {
-    setDateResetKey((key) => key + 1);
-    setHasDateDraft(false);
     setSearchInput('');
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -288,7 +295,10 @@ export default function ShipmentsPage() {
   const statusTabDef = LOT_STATUS_TABS.find((tab) => tab.id === statusTab) ?? LOT_STATUS_TABS[0];
   // Plain filter, not useMemo: `items` is rebuilt every render (ws.data?.items
   // ?? []) so a memo here both buys nothing and trips exhaustive-deps.
-  const visibleItems = items.filter(statusTabDef.matches);
+  // Kế hoạch lens (card _48): with two or more buckets the API keeps the
+  // unfiltered page and this predicate slices it, same as the status tabs.
+  const bucketLens = selectedBuckets.length >= 2 ? (item: ShipmentCusWorkspaceListItem) => selectedBuckets.includes(item.bucket) : null;
+  const visibleItems = items.filter(statusTabDef.matches).filter((item) => (bucketLens ? bucketLens(item) : true));
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
   // Derived, not stored: the banner clears itself the moment the blocking
@@ -317,9 +327,8 @@ export default function ShipmentsPage() {
     enabled: quickEditDraft != null && quickEditItem != null,
     ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
-  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc || statusTab);
+  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
   const exportWorksheet = async () => {
-    if (!validateFilterDates()) return;
     setExporting(true);
     ws.setError(null);
     try {
@@ -329,7 +338,7 @@ export default function ShipmentsPage() {
         transportDateFrom: current.get('transportDateFrom') ?? '',
         transportDateTo: current.get('transportDateTo') ?? '',
         direction: current.get('direction') === 'IMPORT' ? 'IMPORT' : current.get('direction') === 'EXPORT' ? 'EXPORT' : undefined,
-        bucket: WORKBOARD_BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
+        bucket: LOT_PLAN_BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
       });
       ws.setNotice('Đã tải bảng XLSX.');
     } catch (exportError) {
@@ -425,41 +434,74 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        {/* Card 20260922_42: shared ListFilterBar (card _38 contract). The
-            WorkboardFilters strip rides as children — same five controls, same
-            ids, same updateParam paths (behavior byte-identical); the toolbar
-            chrome (advanced disclosure, summary chip) is deleted. */}
-        <div ref={filterBarRef} className="cus-filterbar-slot" onInput={(event) => { if ((event.target as HTMLElement).matches('[data-date-input]')) setHasDateDraft(true); }}>
-          <ListFilterBar
-            search={{
-              value: searchInput,
-              onChange: (value) => setSearchInput(value),
-              placeholder: 'Bill/Book, số container hoặc tờ khai',
-              ariaLabel: 'Bill/Book hoặc tờ khai',
-            }}
-            actions={(hasFilters || hasDateDraft) && (
-              <UUIButton
-                type="button"
-                size="sm"
-                color="tertiary"
-                className="shipment-uui-button shipment-uui-button--tertiary cus-filterbar-reset"
-                onPress={clearFiltersUrl}
-                iconLeading={<RotateCcw size={16} aria-hidden="true" />}
-              >
-                Xóa lọc
-              </UUIButton>
-            )}
-          >
-            <WorkboardFilters
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              direction={direction}
-              adHoc={adHoc}
-              bucket={bucket}
-              dateResetKey={dateResetKey}
-              updateParam={updateParam}
+        {/* Card 20260926_48 — Row 2: one uniform 32px toolbar. Search carries
+            the ⌘K badge (hotkeys land with card _49); the date-range popover
+            replaces the two Từ/Đến inputs; Hướng/Loại are label-inside chips;
+            Kế hoạch is a multi-select combobox. Xóa lọc rides the row end and
+            shows only when a filter deviates from default. */}
+        <div className="shipments-control__row shipments-control__row--filters">
+          <div className="shipments-control__search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="text"
+              aria-label="Tìm lô hàng"
+              placeholder="Bill, Book, Cont, Tờ khai..."
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
             />
-          </ListFilterBar>
+            <kbd className="shipments-control__kbd" aria-hidden="true">⌘K</kbd>
+          </div>
+          <DateRangePopover
+            className="shipments-control__range"
+            id="lot-date-range"
+            size="sm"
+            ariaLabel="Khoảng ngày giao"
+            value={{ from: dateFrom, to: dateTo }}
+            presets={LOT_DATE_PRESETS}
+            onChange={applyDateRange}
+          />
+          <InlineLabelSelect
+            className="shipments-control__chip"
+            id="lot-direction-filter"
+            label="Hướng"
+            ariaLabel="Hướng vận chuyển"
+            items={[{ id: '', label: 'Tất cả' }, { id: 'EXPORT', label: 'Xuất' }, { id: 'IMPORT', label: 'Nhập' }]}
+            selectedKey={direction}
+            onSelectionChange={(key) => updateParam('direction', key || null)}
+          />
+          <InlineLabelSelect
+            className="shipments-control__chip"
+            id="lot-kind-filter"
+            label="Loại"
+            ariaLabel="Loại lô"
+            items={[{ id: '', label: 'Tất cả' }, { id: 'true', label: 'Lệnh chạy ngoài' }, { id: 'false', label: 'Thường' }]}
+            selectedKey={adHoc}
+            onSelectionChange={(key) => updateParam('adHoc', key || null)}
+          />
+          <SearchableMultiSelect
+            className="shipments-control__plan"
+            id="lot-plan-filter"
+            size="sm"
+            values={selectedBuckets}
+            onChange={updateBuckets}
+            options={LOT_PLAN_BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] }))}
+            placeholder="Kế hoạch"
+            selectionLabel="kế hoạch"
+            countSuffix="đã chọn"
+            clearAllLabel="Bỏ chọn"
+          />
+          {hasFilters && (
+            <UUIButton
+              type="button"
+              size="sm"
+              color="tertiary"
+              className="shipment-uui-button shipment-uui-button--tertiary shipments-control__reset"
+              onPress={clearFiltersUrl}
+              iconLeading={<RotateCcw size={15} aria-hidden="true" />}
+            >
+              Xóa lọc
+            </UUIButton>
+          )}
         </div>
 
 
