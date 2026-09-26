@@ -246,11 +246,14 @@
     width: 100%;
   }
 
-  /* Multi-element actions stack full-width (the old direct-children
-     behaviour); a single action fills the row. */
-  .filter-bar__actions {
+  /* Multi-element actions stack (the old direct-children behaviour); buttons
+     hug the END of each row — the mobile law reserves full-width for the main
+     search only (law §5), so a lone 'Bộ lọc' never stretches into a floating
+     mid-band (Chief 26/09, card 20260926_4). Specificity matches the desktop
+     (0,3,0) cluster rule so this wins inside the breakpoint. */
+  .filter-bar.list-filter-bar .filter-bar__actions {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-end;
     gap: 8px;
   }
 

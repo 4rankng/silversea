@@ -489,7 +489,10 @@ describe('DetailedPlanGrid', () => {
     expect(activeDateShortcut).toContain('box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);');
     expect(activeDateShortcut).not.toContain('background-color-brand-primary');
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    grid-template-columns: minmax(0, 1fr) auto;');
+    // Card 20260926_4 (Chief 390 scatter): the narrow-container arrangement
+    // stacks date / shortcuts / Xóa lọc as an even column — no side-by-side
+    // pairing of the clear button with the date field.
+    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    grid-template-columns: minmax(0, 1fr);');
     expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
     expect(css).toContain('.detailed-plan-filter-panel__fields {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
     expect(css).not.toContain('detailed-plan-filters__advanced');

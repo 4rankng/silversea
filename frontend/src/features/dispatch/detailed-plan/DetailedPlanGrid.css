@@ -484,8 +484,12 @@
 }
 
 @container (max-width: 640px) {
+  /* Card 20260926_4 (Chief 26/09, 390 scatter): even stack — date field on
+     its own row, three shortcuts on one even row, Xóa lọc right-aligned on
+     the last row; nothing floats beside the field (the old pairing put Xóa
+     lọc beside the date at phones). */
   .detailed-plan-filters__date-scope-controls {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .detailed-plan-filters__date-scope .detailed-plan-filters__date {
@@ -498,13 +502,15 @@
   .detailed-plan-filters__date-mode {
     grid-column: 1 / -1;
     grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
     min-width: 0;
   }
 
   .detailed-plan-filters__clear {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: end;
   }
 }
 
