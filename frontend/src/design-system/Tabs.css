@@ -130,6 +130,19 @@
   color: var(--ink-2);
 }
 
+/* Semantic count pills (20260926_47): a tone rides the tab's meaning, not its
+ * selection — amber for Chờ điều xe, info for Chờ đối soát; no tab is
+ * semantically colored, only its count. */
+.ds-tabs__count--warning {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.ds-tabs__count--info {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
 .ds-tabs--boxed .ds-tabs__btn--active .ds-tabs__count,
 .ds-tabs--bordered .ds-tabs__btn--active .ds-tabs__count {
   background: var(--surface-3);

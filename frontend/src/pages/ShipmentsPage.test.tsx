@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../components/shared/Toast';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   Role,
@@ -32,7 +32,6 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => authState }));
 import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
 const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 // 2026-09-19: the flat filter rail wave extracted the filter controls into
@@ -366,13 +365,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    const summary = await screen.findByRole('region', { name: 'Tóm tắt ưu tiên xử lý' });
-    expect(within(summary).getByText('Lô phù hợp')).toBeTruthy();
-    expect(within(summary).getByText('Chưa chốt lịch')).toBeTruthy();
-    expect(within(summary).getByText('Chờ điều xe')).toBeTruthy();
-    expect(within(summary).getByText('Chờ đối soát')).toBeTruthy();
-    expect(within(summary).getAllByText('1')).toHaveLength(4);
-    expect(summary.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Card 20260926_47: the priority rail is the tab strip now — the same
+    // pageSummary numbers ride the tab counts, and the strip precedes the table.
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
+      expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
+    }
+    expect(within(tablist).getAllByText('1')).toHaveLength(4);
+    expect(tablist.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   // Card 20260922_42: the bar applies live (one apply model, shared bar
@@ -2143,14 +2143,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
     // Card 20260922_42 dead-chrome pin: the self-made toolbar family is gone.
     expect(css).not.toMatch(/cus-worksheet-toolbar|cus-search-field|cus-worksheet-advanced|cus-advanced-toggle|cus-active-filter-summary/);
-    expect(source).toMatch(/action=\{canCreateShipment && <UUIButton/);
+    // Card 20260926_47: the create action rides the Row 1 actions cluster.
+    expect(source).toMatch(/\{canCreateShipment && \(\s*<UUIButton/);
     // Container codes: one line, never bold, copy icon in the ordinal slot
     // (user ruling 2026-09-18).
     expect(css).toMatch(/\.cus-container-cell--identity strong\s*\{[^}]*font-weight:\s*400;[^}]*white-space:\s*nowrap;/);
     // 2026-09-18 relocation ruling: the copy affordance replaces the ordinal on
     // hover — same top-right slot, never over the container number.
     expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*auto;[^}]*right:\s*12px;/);
-    expect(source).toContain('cus-workspace-summary__export');
+    // Card 20260926_47: export rides the Row 1 action cluster; the rail's
+    // export class is retired from source and CSS.
+    expect(source).toContain('shipments-control__export');
+    expect(source).not.toContain('cus-workspace-summary__export');
+    expect(css).not.toContain('cus-workspace-summary__export');
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(rowSource).toContain('cus-cargo-summary__containers');
     expect(rowSource).toContain('kg ·');
@@ -2342,5 +2347,125 @@ describe('Loại lô filter — ad-hoc tri-state (20260917_12)', () => {
       const url = String(apiGet.mock.lastCall?.[0] ?? '');
       expect(url).toContain('isAdHoc=false');
     });
+  });
+});
+
+
+describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', () => {
+  // The fixture quartet: one row per readiness dimension, one row in no tab.
+  const scheduleWaitingRow: ShipmentCusWorkspaceListItem = {
+    ...row,
+    id: 2,
+    operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE', vehicleReadiness: 'READY' },
+    accountingConfirmation: { ...row.accountingConfirmation, status: 'CONFIRMED' as const },
+  };
+  const vehicleWaitingRow: ShipmentCusWorkspaceListItem = {
+    ...row,
+    id: 3,
+    operational: { ...row.operational, scheduleReadiness: 'SCHEDULED', vehicleReadiness: 'WAITING_PLATE' },
+    accountingConfirmation: { ...row.accountingConfirmation, status: 'CONFIRMED' as const },
+  };
+  const accountingWaitingRow: ShipmentCusWorkspaceListItem = {
+    ...row,
+    id: 4,
+    operational: { ...row.operational, scheduleReadiness: 'SCHEDULED', vehicleReadiness: 'READY' },
+    accountingConfirmation: { ...row.accountingConfirmation, status: 'PENDING' as const },
+    activeLock: null,
+  };
+  const tabbedItems = [row, scheduleWaitingRow, vehicleWaitingRow, accountingWaitingRow];
+
+  // MemoryRouter keeps history in memory — jsdom's location never moves. A
+  // sibling probe component prints the live search string so the tests can
+  // pin the URL contract (card _47: click = URL state) directly.
+  function UrlProbe() {
+    const { search } = useLocation();
+    return <div data-testid="url-probe" data-search={search} />;
+  }
+  function renderTabsPage(path = '/shipments') {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <Routes>
+              <Route path="/shipments" element={<><UrlProbe /><ShipmentsPage /></>} />
+              <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('renders Row 1 as one baseline: title, tabs and actions share it; the summary strip is gone', async () => {
+    apiGet.mockResolvedValue(listResponse(tabbedItems));
+    renderPage();
+    await screen.findByRole('table');
+    // The old decision rail is dead — its four numbers live in the tabs now.
+    expect(document.querySelector('.cus-workspace-summary')).toBeNull();
+    // One 36px primary row carries title + tabs + actions; export is one of its actions.
+    expect(document.querySelector('.shipments-control__row--primary')).toBeTruthy();
+    const primaryRow = document.querySelector('.shipments-control__row--primary') as HTMLElement;
+    expect(primaryRow.querySelector('h1')?.textContent).toBe('Tổng quan lô hàng');
+    expect(primaryRow.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(Array.from(primaryRow.querySelectorAll('button')).some((b) => b.textContent?.includes('Tải XLSX'))).toBe(true);
+    expect(primaryRow.textContent).toContain('Tạo lô mới');
+    // The 36px lock is CSS law, not accident.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+    expect(css).toMatch(/\.shipments-control__row--primary\s*\{[^}]*min-height:\s*36px/);
+    // The old PageHeader action slot is gone from the page source.
+    expect(source).not.toContain('PageHeader');
+  });
+
+  it('renders the four segmented tabs with counts — Tất cả from total, readiness tabs from pageSummary', async () => {
+    apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
+    renderPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    const all = within(tablist).getByRole('tab', { name: /Tất cả/ });
+    expect(all.getAttribute('aria-selected')).toBe('true');
+    expect(all.textContent).toContain('72');
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toContain('1');
+    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toContain('1');
+    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toContain('1');
+  });
+
+  it('clicking a readiness tab writes ?status= and slices the table without a reload', async () => {
+    apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
+    renderTabsPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(screen.getByRole('tablist')).getByRole('tab', { name: /Chờ điều xe/ }));
+    // URL state carries the slice; the server list is untouched (client-side
+    // slice of the loaded page — the API has no status param).
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="url-probe"]')?.getAttribute('data-search')).toContain('status=needsVehicle');
+    });
+    const bodyRows = document.querySelectorAll('tr.cus-dashboard-row');
+    expect(bodyRows.length).toBe(1);
+    expect(bodyRows[0].textContent).toContain('BILL-12345');
+  });
+
+  it('the status slice coexists with server filters and resets with Xóa lọc', async () => {
+    apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
+    renderTabsPage('/shipments?direction=EXPORT&status=waitingAccounting');
+    await screen.findByRole('table');
+    // Server filter still hits the API; the status tab slices the page locally.
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
+    expect(document.querySelectorAll('tr.cus-dashboard-row').length).toBe(1);
+    expect(within(screen.getByRole('tablist')).getByRole('tab', { name: /Chờ đối soát/ }).getAttribute('aria-selected')).toBe('true');
+    // Xóa lọc owns every local param it guards, including the new one.
+    expect(source).toContain("'status'");
+  });
+
+  it('readiness counts wear semantic pills: amber Chờ điều xe, info Chờ đối soát', async () => {
+    apiGet.mockResolvedValue(listResponse(tabbedItems));
+    renderPage();
+    await screen.findByRole('tablist');
+    const tabsCss = readFileSync(resolve(process.cwd(), 'src/design-system/Tabs.css'), 'utf8');
+    expect(tabsCss).toMatch(/\.ds-tabs__count--warning/);
+    expect(tabsCss).toMatch(/\.ds-tabs__count--info/);
+    // The page binds the tones: amber on Chờ điều xe, info on Chờ đối soát.
+    const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+    expect(pageSource).toMatch(/id: 'needsVehicle',[\s\S]{0,220}?countTone: 'warning'/);
+    expect(pageSource).toMatch(/id: 'waitingAccounting',[\s\S]{0,220}?countTone: 'info'/);
   });
 });

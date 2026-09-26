@@ -21,12 +21,14 @@ import './Tabs.css';
 export type TabsVariant = 'boxed' | 'bordered' | 'plain';
 
 export interface TabItem {
-  /** Stable id used for active matching and list keys. */
+  /** Stable id used for active matching and list scopes. */
   id: string;
   /** Visible label. Vietnamese in user-facing UIs. */
   label: ReactNode;
   /** Optional count badge (e.g. open items count). */
   count?: number;
+  /** Semantic tone of the count badge — 'warning' = amber, 'info' = info-teal. */
+  countTone?: 'warning' | 'info';
   /** Disable this tab. */
   disabled?: boolean;
 }
@@ -107,7 +109,11 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
           >
             <span className="ds-tabs__label">{t.label}</span>
             {t.count !== undefined && (
-              <span className={`ds-tabs__count${isActive ? ' ds-tabs__count--active' : ''}`}>{t.count}</span>
+              <span className={[
+                'ds-tabs__count',
+                t.countTone ? `ds-tabs__count--${t.countTone}` : '',
+                isActive ? ' ds-tabs__count--active' : '',
+              ].filter(Boolean).join(' ')}>{t.count}</span>
             )}
           </button>
         );

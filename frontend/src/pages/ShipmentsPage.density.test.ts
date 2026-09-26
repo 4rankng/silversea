@@ -119,31 +119,26 @@ describe('shipment container editor density', () => {
   });
 });
 
-// Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot "Tổng quan lô hàng"):
-// the XLSX button was a full-width white slab between the stats grid and the
-// table, sitting on top of the first table row. Make it compact (fit-content
-// with the shared filter-control height token), canh phải hàng stats or hàng
-// riêng sát — never full-width, never overlapping the table header.
-describe('shipment worksheet export button — non-fighting compact (card 20260925_1)', () => {
-  it('drops the full-width slab at ≤480 — fit-content + 44px token, no border chrome', () => {
-    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    const exportRule = mobile.match(/\.cus-workspace-summary__export\s*\{([^}]*)\}/)?.[1] ?? '';
+// Card 20260925_1 (CHIEF 25/09 09:46) export-button pins — SUPERSEDED by
+// card 20260926_45/_47: the summary rail is gone; Tải XLSX rides the Row 1
+// action cluster (ghost, h-8 desktop, 44px touch floor below 768px) and never
+// owns a full-width row.
+describe('shipment worksheet export button — non-fighting compact (superseded by 20260926_47)', () => {
+  it('Tải XLSX rides Row 1 at h-8 on desktop; no full-width slab anywhere', () => {
+    // h-8 law scoped to ≥768 — below it the UUI button keeps its 44px touch floor.
+    const desktop = css.match(/@media \(min-width: 768px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const exportRule = desktop.match(/\.shipments-control__actions \.shipment-uui-button\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(exportRule).not.toBe('');
+    expect(exportRule).toMatch(/height:\s*32px/);
+    expect(exportRule).toMatch(/min-height:\s*32px/);
     expect(exportRule).not.toMatch(/width:\s*100%/);
-    expect(exportRule).toMatch(/width:\s*fit-content/);
-    expect(exportRule).toMatch(/min-height:\s*var\(--filter-control-h\)/);
-    expect(exportRule).not.toMatch(/border:\s*1px\s+solid\s+var\(--line-2\)/);
-    expect(exportRule).toMatch(/border:\s*0(?:;|$)/);
-    // Right-aligned within the row it sits on (canh phải hàng stats / hàng riêng sát).
-    expect(exportRule).toMatch(/margin:\s*0\s+0\s+0\s+auto|align-self:\s*flex-end/);
+    // The old rail family is dead chrome.
+    expect(css).not.toContain('cus-workspace-summary__export');
+    expect(css).not.toMatch(/\.cus-workspace-summary\b/);
   });
 
-  it('export sits in the same summary row or its own right-aligned row — never stretches to claim the table lane', () => {
-    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // The 4-tile summary still renders as a 2×2 grid (existing rule).
-    expect(mobile).toMatch(/\.cus-workspace-summary dl\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    // No full-width button in the slot between the summary and the table —
-    // the export must NOT own the row it sits on.
-    expect(mobile).not.toMatch(/\.cus-workspace-summary__export\s*\{[^}]*width:\s*100%/);
+  it('no export rule anywhere claims width 100%', () => {
+    expect(css).not.toMatch(/\.[a-z-]*export[a-z_-]*\s*\{[^}]*width:\s*100%/);
   });
 });
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
+import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
@@ -9,14 +9,15 @@ import {
   ShipmentDocumentCustody,
   Role,
   type ShipmentCusWorkspaceListItem,
+  type ShipmentCusWorkspaceListResponse,
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
-import { Drawer, Modal, PageHeader } from '../components/UI';
+import { Drawer, Modal } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, Tabs, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
@@ -52,6 +53,48 @@ const LOT_DELETE_BLOCK_MESSAGES = {
   dispatched: 'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
 } as const;
 
+// Card 20260926_47 — Row 1 status tabs. Each tab is a lens over the current
+// page, matching the pageSummary vocabulary the API already reports (the
+// workspace list endpoint has no server-side status param — the slice is
+// client-side over the loaded page, so "Tất cả" counts come from `total`
+// while the three readiness tabs count the current page, exactly like the
+// summary rail they replace).
+const LOT_STATUS_TABS = [
+  {
+    id: 'all',
+    label: 'Tất cả',
+    countTone: undefined,
+    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary'], total: number) => total,
+    matches: () => true,
+  },
+  {
+    id: 'needsSchedule',
+    label: 'Chưa chốt lịch',
+    countTone: undefined,
+    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsSchedule,
+    matches: (item: ShipmentCusWorkspaceListItem) => item.operational.scheduleReadiness === 'WAITING_DATE',
+  },
+  {
+    id: 'needsVehicle',
+    label: 'Chờ điều xe',
+    countTone: 'warning' as const,
+    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsVehicle,
+    matches: (item: ShipmentCusWorkspaceListItem) => (
+      item.operational.vehicleReadiness === 'WAITING_CARRIER' || item.operational.vehicleReadiness === 'WAITING_PLATE'
+    ),
+  },
+  {
+    id: 'waitingAccounting',
+    label: 'Chờ đối soát',
+    countTone: 'info' as const,
+    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.waitingAccounting,
+    matches: (item: ShipmentCusWorkspaceListItem) => (
+      item.activeLock == null
+      && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
+    ),
+  },
+] as const;
+
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -72,6 +115,10 @@ export default function ShipmentsPage() {
     : '';
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
+  // Card 20260926_47: the status tabs are URL state. Values are the
+  // pageSummary keys — the same vocabulary the API reports counts in.
+  const rawStatus = searchParams.get('status');
+  const statusTab = LOT_STATUS_TABS.find((tab) => tab.id === rawStatus)?.id ?? '';
   // Column sort lives in the URL like every other workboard param. Unknown
   // keys fall back to the backend's default operational queue order.
   const rawSortBy = searchParams.get('sortBy');
@@ -227,13 +274,21 @@ export default function ShipmentsPage() {
     setSearchInput('');
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'adHoc', 'page'].forEach((key) => next.delete(key));
+      ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'direction', 'bucket', 'adHoc', 'status', 'page'].forEach((key) => next.delete(key));
       return next;
     }, { replace: true });
   };
 
   const items = ws.data?.items ?? [];
   const total = ws.data?.total ?? 0;
+  // Card 20260926_47: the active status tab is a lens over the loaded page —
+  // the list endpoint has no server-side status param, so the tab slices the
+  // current page locally and its counts are the pageSummary numbers the old
+  // summary rail displayed.
+  const statusTabDef = LOT_STATUS_TABS.find((tab) => tab.id === statusTab) ?? LOT_STATUS_TABS[0];
+  // Plain filter, not useMemo: `items` is rebuilt every render (ws.data?.items
+  // ?? []) so a memo here both buys nothing and trips exhaustive-deps.
+  const visibleItems = items.filter(statusTabDef.matches);
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
   // Derived, not stored: the banner clears itself the moment the blocking
@@ -262,7 +317,7 @@ export default function ShipmentsPage() {
     enabled: quickEditDraft != null && quickEditItem != null,
     ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
-  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc);
+  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket || adHoc || statusTab);
   const exportWorksheet = async () => {
     if (!validateFilterDates()) return;
     setExporting(true);
@@ -276,6 +331,7 @@ export default function ShipmentsPage() {
         direction: current.get('direction') === 'IMPORT' ? 'IMPORT' : current.get('direction') === 'EXPORT' ? 'EXPORT' : undefined,
         bucket: WORKBOARD_BUCKETS.includes(current.get('bucket') as ShipmentCusBucket) ? current.get('bucket') as ShipmentCusBucket : undefined,
       });
+      ws.setNotice('Đã tải bảng XLSX.');
     } catch (exportError) {
       ws.setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
     } finally {
@@ -309,12 +365,57 @@ export default function ShipmentsPage() {
   return (
     <div className="shipments-page shipments-page--worksheet">
       <Breadcrumbs items={[{ label: 'Tổng quan', to: '/dashboard' }, { label: 'Tổng quan lô hàng' }]} />
-      <PageHeader
-        title="Tổng quan lô hàng"
-        iconName="cargo"
-        description="Bảng điều hành giao nhận theo từng lô hàng"
-        action={canCreateShipment && <UUIButton size="sm" color="primary" className="shipment-uui-button shipment-uui-button--primary cus-create-shipment" onPress={() => navigate(routes.shipmentNew)} iconLeading={<Plus size={17} aria-hidden="true" />}>Tạo lô mới</UUIButton>}
-      />
+      {/* Card 20260926_47 — the control surface: Row 1 locks to one 36px
+          baseline carrying title + segmented status tabs + the action cluster
+          (Tải XLSX ghost before + Tạo lô mới primary). The old header chrome and
+          the summary rail are gone — the rail's four numbers became the tab
+          counts, and export moved up here from the rail. */}
+      <header className="shipments-control">
+        <div className="shipments-control__row shipments-control__row--primary">
+          <h1 className="shipments-control__title">Tổng quan lô hàng</h1>
+          {ws.data ? (
+            <Tabs
+              className="shipments-control__tabs"
+              variant="boxed"
+              ariaLabel="Trạng thái lô hàng"
+              value={statusTab || 'all'}
+              onChange={(id) => updateParam('status', id === 'all' ? null : id)}
+              tabs={LOT_STATUS_TABS.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                count: tab.countOf(ws.data!.pageSummary, total),
+                countTone: tab.countTone,
+              }))}
+            />
+          ) : null}
+          <div className="shipments-control__actions">
+            <UUIButton
+              size="sm"
+              color="tertiary"
+              isDisabled={exporting || ws.loading}
+              isLoading={exporting}
+              showTextWhileLoading
+              className="shipment-uui-button shipment-uui-button--tertiary shipments-control__export"
+              onPress={() => void exportWorksheet()}
+              iconLeading={<FileSpreadsheet size={16} aria-hidden="true" />}
+            >
+              Tải XLSX
+            </UUIButton>
+            {canCreateShipment && (
+              <UUIButton
+                size="sm"
+                color="primary"
+                className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
+                iconLeading={<Plus size={17} aria-hidden="true" />}
+                onPress={() => navigate(routes.shipmentNew)}
+              >
+                Tạo lô mới
+              </UUIButton>
+            )}
+          </div>
+        </div>
+        {/* Row 2 (filters) lands with card 20260926_48. */}
+      </header>
 
       <section
         className="cus-workspace cus-workspace--worksheet"
@@ -361,40 +462,6 @@ export default function ShipmentsPage() {
           </ListFilterBar>
         </div>
 
-        {ws.data && (
-          <section className="cus-workspace-summary" aria-label="Tóm tắt ưu tiên xử lý">
-            <dl>
-              <div className="cus-workspace-summary__item">
-                <dt>Lô phù hợp</dt>
-                <dd>{total.toLocaleString('vi-VN')}</dd>
-              </div>
-              <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
-                <dt>Chưa chốt lịch</dt>
-                <dd>{ws.data.pageSummary.needsSchedule.toLocaleString('vi-VN')}</dd>
-              </div>
-              <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
-                <dt>Chờ điều xe</dt>
-                <dd>{ws.data.pageSummary.needsVehicle.toLocaleString('vi-VN')}</dd>
-              </div>
-              <div className="cus-workspace-summary__item cus-workspace-summary__item--info">
-                <dt>Chờ đối soát</dt>
-                <dd>{ws.data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
-              </div>
-            </dl>
-            <UUIButton
-              size="sm"
-              color="secondary"
-              isDisabled={exporting || ws.loading}
-              isLoading={exporting}
-              className="shipment-uui-button shipment-uui-button--secondary cus-workspace-summary__export"
-              onPress={() => void exportWorksheet()}
-              iconLeading={<Download size={16} aria-hidden="true" />}
-              showTextWhileLoading
-            >
-              Tải XLSX
-            </UUIButton>
-          </section>
-        )}
 
         {ws.notice && <div className="cus-notice cus-notice--success" role="status">{ws.notice}</div>}
         {ws.error && (
@@ -406,7 +473,7 @@ export default function ShipmentsPage() {
 
         {ws.loading && !ws.data ? (
           <div className="cus-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải lô hàng…</div>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             icon={Search}
             title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
@@ -440,7 +507,7 @@ export default function ShipmentsPage() {
                   <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr></thead>
                 <tbody>
-                  {items.map((item) => (
+                  {visibleItems.map((item) => (
                     <CusShipmentRow
                       key={item.id}
                       item={item}
