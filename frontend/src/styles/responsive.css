@@ -751,6 +751,24 @@
   #root textarea { min-height: var(--control-touch-h); }
   #root button,
   #root [role='button'] { min-width: var(--control-touch-h); }
+  /* Table-cell links: `a` defaults to display:inline where min-height is
+     IGNORED — the 68 inline table links measured 15px tall (2026-09-26
+     sweep). inline-flex makes the floor real; rows grow on touch, which is
+     the point of §5. record-table card mode keeps its <td> elements (restyled
+     by container queries), so td/th covers them; the two custom-card links
+     (fleet tire count, settlement code) are named explicitly. Nav/
+     breadcrumb anchors keep their layout. max-width + wrap keep the
+     no-truncation law for long values. */
+  #root td a[href],
+  #root th a[href],
+  #root .fleet-tire-link,
+  #root .as-mcard__code {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-height: var(--control-touch-h);
+  }
 }
 
 /* Tablet controls retain the same touch target as phones. */

@@ -1,71 +1,74 @@
-# Current Development Handoff
+# HANDOFF.md — mobile UI/UX polish (all device sizes)
 
-**Updated:** 2026-09-24 ~15:25 (+08)
-**Controller:** Director (native Claude session, glm-5.3-flash) — wave c12 "chi-phí gap + audit" close
-**Status:** COMPLETE — board drained, 3 staging cuts deployed, report delivered. Prod deploy awaits BOSS go.
+**Updated:** 2026-09-26 ~18:15 (+08)
+**Controller:** omp session (user order: "use all mcp to polish UI UX of this app for all mobile devices size")
+**Status:** COMPLETE — all fixes landed, gates green, sweep at −97.2% findings, artifacts saved. No deploy action taken.
 
 ## Goal
 
-Complete the chi-phí wave ordered by CHIEF 24/09: implement the 3 "KHÔNG TÌM THẤY" gaps from
-the nghiệm-thu docx (chot-debit settlement popup, OPS sổ quỹ, deposit-tracker warnings), fix
-every audit finding, close the full kanban board, and deliver the user test report.
+Systematically polish the frontend for every mobile/tablet size: audit every
+route at every width, fix what the design law (`docs/design-guidelines.md`,
+`frontend/docs/design-system.md`) says is wrong, prove it in a real browser.
 
-## Delivered (all staging-verified)
+## Delivered
 
-- **Gap cards**: `_12` chot-debit Chọn Debit popup (Lần/Tháng/VAT 0-5-8-10% auto-computed, TỔNG
-  HỢP CÔNG NỢ auto-fill, idempotent, registry-complete) `920a2078`+`5c8e668e`; `_13` OPS
-  partial read-only Sổ quỹ `7fbc01db`+`8ac6ac2c` (+ADR `docs/adr/2026-09-24-ops-fund-book-scoped-read.md`);
-  `_14` deposit-tracker +7-day overdue red banner + chưa-hoàn-cược total `2c0c0c03`.
-- **Audit families**: cluster A (ops-orders form), B (phoi-phieu/debit display + seed-name
-  migration `19a77628`+`c41022b9`+`26f6f41a`, payer split + cash-voucher 409 gate, ADR
-  `docs/adr/` expense-payer-scope), correction family `deb27c03`+`26f6f41a`, sanitiser retirement `2bb1eded`.
-- **Quotation**: `_57` full close (D1 preview≡commit `2d07c15a`, D2 norms `f4abfc87`, D3 already-fixed),
-  import inherit ruling (ii) landed pre-freeze (`c41c5e74`), `DEDICATED_DEPOT` rename `077355b6`,
-  `_64` Phase A/B (`8fb54074`, `ed059c45`), `_2` shadow totals (`855aef81`, `c4ecda9d`),
-  `_3` unattached-trips section (`639c9116`, `6918e234`).
-- **Tooling/infra**: `_4` keyed-POST hang root-caused to harness (Redis teardown) `f5578db3`;
-  `_5` registry sweep `6405513a`; trio coherence checker `f90a5930`; journal restamp heal
-  `a43676ce`; post-deploy migration gate now PERMANENT in the cut runbook.
-- **QA**: 3 staging cuts (a26035d9 → 639c9116 → c41c5e74), each with buildHash + asset guard +
-  migration-gate verification; 16 wave cards QA_PASSED with per-criterion artifacts; negative
-  paths (401/403/409) + mobile 390 + UX sweeps all covered.
-- **Docs/report**: PRD deltas + BaoGia.md + CHANGELOG staged at wave close; user test report
-  `Bao-cao-kiem-thu-khoi-chi-phi-25-09-2026.docx` (23 images) in OneDrive shared + ~/Downloads.
+- **Harness:** `frontend/mobile-ux-sweep.mjs` — 3 roles × 9 widths
+  (360/390/414/430/600/768/820/1024 + 1440 control) × ~64 routes; detects
+  hscroll / offscreen / clipped / sub-44 touch targets (bordered-field aware)
+  / sub-11px text / page errors. Re-runnable; referenced by the case.
+- **Sweep numbers:** baseline `clipped=1174 small=3424 tiny=253` →
+  final `small=95, clipped=0, tiny=0, hscroll=0, offscreen=0, pageerrors=0`
+  (`qa/2026-09-26_mobile-ux-sweep/findings{,-baseline}.json`).
+- **Fixes (source commit `3a791229` + pins `ae916f87`):** hamburger 32→44;
+  three ID-scoped `#root .btn` floor guards (phone / pointer:coarse / tablet)
+  replacing page-owned 30/40px rules (incl. `/profit` dead rule,
+  ExpenseListPage); blanket coarse floors for bare buttons/inputs
+  (stab-pill 24, config-search 34, row-action 30, cus triggers 32, detailed-
+  plan note 17 → 44); UUI combobox full-field tap surface (strip 16→42,
+  tap-top/mid/bottom all focus+type — previously opened the list with dead
+  typing); `.expense-add-btn` 44 on touch; recoverable `<small>` → 11px;
+  finance `tr₫` tspan → 11px; collapsed sidebar rail 39→47 on coarse only;
+  CustomersPage inline `min-height` moved to `.customers-quick-search`
+  (inline styles beat every stylesheet — now pinned as a banned pattern).
+- **Regression:** `frontend/src/styles/mobile-touch-floor.styles.test.ts`
+  (10 cases) + `testplan/case-QA-2026-09-26-03-mobile-touch-floor-sweep.md`
+  (repro/expected/evidence + residuals). Two existing contracts updated
+  honestly: `operational-density` stale `height:auto` fragment dropped;
+  `overlay-surface` registry followed the DebitFilterDropdown extraction.
+- **Docs:** law-book changelog row (`docs/design-guidelines.md` §12).
+- **Later-law ruling recorded:** 09-22 §5 (44px mobile) supersedes ticket
+  6770b9cb (09-10, 30/32px phone scale).
 
-## Rulings/decisions Chief may want on record
+## Residuals (documented, need operator ruling — NOT regressions)
 
-- `_13` = OPS **partial read-only** sổ quỹ (Chief 24/09); treasury stays accountant-only.
-- Payer scope split: phoi-phieu voucher pays chi-hộ/OPS sources; cash/vouchers is the sole
-  DRIVER payer; approved-only guard on BOTH (ADR landed).
-- Port-names-are-data: `DEDICATED_LACH_HUYEN` → `DEDICATED_DEPOT` rename (`077355b6`).
-- Import fee semantics = inherit prior frame's catalog (option ii); file-as-fee-source deferred (backlog `_8`).
-- Flat design law: NO 3D, NO box-shadow (Chief 24/09) — in `docs/design-guidelines.md`.
-- F1 shadow-totals: L1 totals exclude fulfillment-less fees with visible red summary line;
-  L2 unattached section shipped display-only.
+1. **Inline text links in dense tables** (`/accounting`, `/config/trucks`,
+   `/finance`, `/salary`): ~84×15. Fixing = padding that inflates data rows
+   (§5 44px floor vs §5 density law). 68 sweep samples.
+2. **`.fleet-tire-link--empty` 94×42** (2px under) — same density call.
+3. Desktop-collapsed sidebar rail at fine-pointer widths stays 39px (mouse
+   floor applies; coarse pointer gets 47px).
 
-## Fleet governance notes
+## QA artifacts (`qa/`)
 
-- LaneB stopped 14:00 after 4 directive-fidelity failures (final: committed while restricted).
-  Policy: future probes via fresh ONE-SHOT omp spawns with read-only charter in the prompt;
-  one-shot workers cannot go rogue between dispatches.
-- mimo died mid-gates 24/09 morning; its card was absorbed by LaneB/BE.
-- Worker claims are verified against disk/artifacts before acceptance (two workers claimed
-  files that didn't exist).
+- `2026-09-26_mobile-ux-sweep/` — findings.json (final), findings-baseline.json,
+  before/after screenshots (`before-390-*`, `ui-360-*`, `ui-390-*`, `ui-768-*`)
+- `2026-09-26_mobile-touch-floor_ui-driver.log` — probes + run results
+- `2026-09-26_mobile-touch-floor_{lint,frontend-test,build}.log`
 
-## Remaining (not feature debt)
+## Gates (all green, re-run after last change)
 
-1. **PROD DEPLOY** — all staging gates green on `c41c5e74`; awaits BOSS's explicit go (hierarchy law).
-2. Backlog cards in TODO: `_8` (import file-as-fee-source enhancement), `_9` (390px shadow-line
-   wrap), `_10` (date-segment padding polish).
-3. Stash `pre-polish-patch` (stash@{0}): old advance-services refactor (14 files, −630/+172),
-   owner unknown, does not map to landed work — KEPT, not dropped; recommend owner confirmation
-   or cherry-pick review next session.
-4. Polish wave next: shadow-line wrap + date-segment + any Chief-reported visual issues → mimo-style worker per model law.
+lint 0 errors · `tsc -b` 0 · vitest 464/464 files, 3062/3062 tests ·
+`make build` 0. E2E skipped (frontend-only, gate-scoping rule; precedent
+QA-2026-09-26-02).
 
-## Task-owned files
+## Concurrent-session note
 
-- `HANDOFF.md` (this file)
-- `plans/reports/c12-*.md` (16 lane/worker reports), `plans/reports/c12-agy-card6-mobile-ui.md`
-- `testplan/case-QA-2026-09-24-0{1..9}*.md` (wave regression cases)
-- `docs/adr/2026-09-24-*.md` (fund-book scoped read, expense payer split)
-- `docs/design-guidelines.md` (flat law), `docs/prd/QuyTrinhO2C.md` + `docs/prd/BaoGia.md`
+A parallel session committed the source fixes as `3a791229` (+ probe
+`65de3492`, scanner `432a1067`) while this session ran gates; this session
+committed the pins/case as `ae916f87`. Probe script restored after a cleanup
+collision (the other session adopted it). Remotes untouched.
+
+## Next step
+
+Operator call on residual #1/#2 (table-link touch floors vs density); then
+staging cut per usual runbook if desired (no backend/migration involved).

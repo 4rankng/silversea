@@ -36,6 +36,18 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     expect(responsive.split(guard).length - 1).toBe(3);
   });
 
+  it('raises table-cell and card links to the touch floor on coarse pointers', () => {
+    const responsive = read('src/styles/responsive.css');
+    const coarse = responsive.match(/@media \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(coarse, 'coarse-pointer block exists').not.toBe('');
+    // `a` is display:inline where min-height is ignored — the rule must set
+    // display for the floor to apply (68 inline table links at 15px, and
+    // .fleet-tire-link/.as-mcard__code in custom cards).
+    expect(coarse).toMatch(
+      /#root td a\[href\],\s*#root th a\[href\],\s*#root \.fleet-tire-link,\s*#root \.as-mcard__code \{\s*display: inline-flex;\s*align-items: center;\s*flex-wrap: wrap;\s*max-width: 100%;\s*min-height: var\(--control-touch-h\);/,
+    );
+  });
+
   it('keeps the customer quick-search height in the stylesheet, not inline', () => {
     const tsx = read('src/pages/CustomersPage.tsx');
     // An inline `min-height` beats EVERY stylesheet rule — this exact bug
