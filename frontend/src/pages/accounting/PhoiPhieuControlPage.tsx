@@ -7,6 +7,7 @@ import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
 import { PageHeader } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import './PhoiPhieuControlPage.css';
@@ -186,8 +187,8 @@ export default function PhoiPhieuControlPage() {
           stays on its full row. */}
       <div className="ppc-filters">
         <div className="ppc-filters__pair">
-          <label>Từ ngày <input className="input" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} /></label>
-          <label>Đến ngày <input className="input" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} /></label>
+          <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
+          <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
         </div>
         <div className="ppc-filters__pair">
           <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} />

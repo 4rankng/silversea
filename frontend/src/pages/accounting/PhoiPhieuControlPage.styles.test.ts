@@ -101,7 +101,10 @@ describe('phôi phiếu filter row-packing (card 20260924_12, filter-bar law §5
   });
 
   it('one control height per context: inputs and UUI selects both read --filter-control-h, coarse rises to 44px', () => {
-    expect(css).toMatch(/\.ppc-filters input\s*\{[^}]*height:\s*var\(--filter-control-h\)/);
+    // Card 20260925_46: [data-seg] digit boxes inside the shared segmented
+    // date field keep their own geometry — the bare-input height rule scopes
+    // them out; the date group rides --uui-control-h via [data-uui-control].
+    expect(css).toMatch(/\.ppc-filters input:not\(\[data-seg\]\)\s*\{[^}]*height:\s*var\(--filter-control-h\)/);
     expect(css).toMatch(/\.ppc-filters \[data-uui-control\]\[data-control-size\]\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\)/);
     expect(css).toMatch(/pointer:\s*coarse[\s\S]*?--filter-control-h:\s*var\(--control-touch-h\)/);
   });

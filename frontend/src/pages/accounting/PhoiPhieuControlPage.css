@@ -99,6 +99,18 @@
   border-radius: 0;
 }
 
+/* Card 20260925_46: the date pair rides the shared segmented field, sized
+   like the tracker's (deposit-tracker 168px track / 149px floor) so all four
+   audited pages read as one control family. The bar's auto-fit track caps
+   at 320px, so the pair shares its cell: each field flexes 140–154px and
+   both stay on one row (2×154 + 12px gap = 320). */
+.ppc-filters__pair [data-input-wrapper] {
+  flex: 1 1 140px;
+  width: auto;
+  max-width: 154px;
+  min-width: 0;
+}
+
 /* Labels stack above their control (label-trên/control-dưới) at every width —
    the UUI selects beside them already render label-above, and this mirrors
    the AccountingDebitClosePage date-row pattern. */
@@ -109,8 +121,11 @@
 }
 
 /* One control height per context (card 20260920_19): the house .input chrome
-   at the bar's --filter-control-h (30px desktop, 44px phone via tokens). */
-.ppc-filters input {
+   at the bar's --filter-control-h (30px desktop, 44px phone via tokens).
+   Card 20260925_46: [data-seg] digit boxes inside the shared segmented date
+   field keep their own geometry — the bare-input chrome rule must not hit
+   them. */
+.ppc-filters input:not([data-seg]) {
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
   font-size: var(--filter-control-font-size);
@@ -167,7 +182,7 @@
   }
   /* Every filter surface rides the chosen height token — 44px phone touch
      floor (card 20260925_1 one-height contract). */
-  .ppc-filters input,
+  .ppc-filters input:not([data-seg]),
   .ppc-filters [data-uui-control],
   .ppc-filter-actions [data-uui-control] {
     min-height: var(--filter-control-h);
