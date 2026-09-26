@@ -51,6 +51,12 @@
   margin-left: auto;
 }
 
+.supplier-carrier-trucks__error {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--danger-text);
+}
+
 .supplier-carrier-trucks__add {
   display: flex;
   flex-wrap: wrap;

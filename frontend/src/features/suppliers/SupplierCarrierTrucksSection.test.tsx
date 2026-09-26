@@ -67,3 +67,27 @@ describe('SupplierCarrierTrucksSection (card 20260926_2)', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/trucks/1'));
   });
 });
+
+// Card 20260926_17: mutation failures must be visible. The section sets
+// error state on every failed mutation but never rendered it, so the 409
+// tombstone business message (card 20260926_14) never reached the operator.
+describe('SupplierCarrierTrucksSection (card 20260926_17)', () => {
+  it('renders a failed add mutation as visible error text with role=alert', async () => {
+    renderSection();
+    await screen.findByText('29H-123.45');
+    api.post.mockRejectedValueOnce(new Error('Biển số 29H-123.45 đã tồn tại trong thùng rác (xe đã xóa). Vui lòng khôi phục xe hoặc chọn biển số khác.'));
+    fireEvent.change(screen.getByLabelText('Biển số mới'), { target: { value: '29H-123.45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('thùng rác');
+  });
+
+  it('renders a failed delete mutation as visible error text with role=alert', async () => {
+    renderSection();
+    await screen.findByText('29H-123.45');
+    api.delete.mockRejectedValueOnce(new Error('Không thể xóa xe đang gán chuyến.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa biển số 29H-123.45' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Không thể xóa');
+  });
+});

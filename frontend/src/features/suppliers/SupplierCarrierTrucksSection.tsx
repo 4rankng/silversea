@@ -91,6 +91,9 @@ export function SupplierCarrierTrucksSection({ supplierName, carrierId }: Suppli
               ))}
             </ul>
           )}
+          {error && (
+            <p className="supplier-carrier-trucks__error" role="alert">{error}</p>
+          )}
           <div className="supplier-carrier-trucks__add">
             <label htmlFor={`new-plate-${carrierId}`}>Thêm biển số</label>
             <input id={`new-plate-${carrierId}`} aria-label="Biển số mới" value={plateDraft} onChange={(e) => setPlateDraft(e.target.value)} />
