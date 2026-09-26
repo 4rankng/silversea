@@ -133,6 +133,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     departureDate: s.trips.departureDate,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     isAdHoc: s.shipments.isAdHoc,
     isCombined: s.shipments.isCombined,
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
@@ -259,6 +261,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       shipmentId: row.shipmentId,
       tripCode: row.tripCode,
       shipmentCode: row.shipmentCode,
+      blNumber: row.blNumber,
+      bookingRef: row.bookingRef,
       isAdHoc: row.isAdHoc,
       bucket: bucketForStatus(
         row.tripStatus,

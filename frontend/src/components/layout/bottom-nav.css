@@ -11,6 +11,18 @@
    opened at desktop width still renders these same components (the sidebar
    + generic topbar only toggle off below 1023px), so the shell must never
    add a second inset + a second background tone around them at any width. */
+/* CHIEF 26/09: the shell itself fills the phone screen and carries the page
+   tone, so nothing gray ever shows below the fixed bottom nav — not on short
+   content, not on scroll-extended captures, not in the safe-area strip. */
+.app.is-driver {
+  background: var(--surface, #fff);
+  min-height: 100dvh;
+}
+
+.app.is-driver:has(.driver-task-screen) {
+  background: var(--surface-2, #f4f6f4);
+}
+
 .app.is-driver .app-body {
   background: var(--surface);
 }

@@ -165,11 +165,14 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
     const kho = screen.getByText('SĐT kho');
     expect(kho).not.toBeNull();
-    // The call affordance is an icon button (aria-label), not a text Gọi box.
+    // The LEADING icon is the call affordance (one glyph, no trailing button);
+    // the number renders as plain selectable text.
     const call = screen.getByRole('link', { name: /Gọi điện thoại kho/ });
     expect(call.querySelector('svg')).not.toBeNull();
-    expect(call.textContent).not.toContain('Gọi');
     expect(call.getAttribute('href')).toBe('tel:0901234567');
+    expect(screen.queryByText('Gọi')).toBeNull();
+    // The number is plain text — no second tel link on the row.
+    expect(document.querySelector('a.driver-task-link[href="tel:0901234567"]')).toBeNull();
   });
 
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {

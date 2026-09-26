@@ -49,6 +49,8 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     shipmentId: 1,
     tripCode: 'TRIP-55',
     shipmentCode: 'SHP-1',
+    blNumber: null,
+    bookingRef: null,
     isAdHoc: false,
     bucket: 'NEW',
     classification: 'SINGLE',

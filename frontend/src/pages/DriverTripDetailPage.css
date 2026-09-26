@@ -315,26 +315,23 @@
 
 /* Cards 20260926_12/_13: the warehouse-phone row — number + a ≥44px Gọi
    affordance so the driver can dial the site hands-free. */
-.driver-task-call {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.driver-task-call-btn {
+/* Card 20260926_25 amendment (CHIEF): the row's leading phone icon IS the
+   call affordance — a 44px round tap target spanning the label+value rows.
+   The number itself stays plain, selectable text. One glyph, one target. */
+.driver-task-fact__call {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: var(--control-touch-h, 44px);
   height: var(--control-touch-h, 44px);
-  padding: 0;
-  border: none;
+  margin: -8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
-  font-weight: var(--fw-semibold, 600);
-  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.driver-task-fact__call:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .driver-task-sync {

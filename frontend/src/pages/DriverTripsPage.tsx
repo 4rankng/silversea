@@ -118,7 +118,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
             leads the card; the internal TRP code never renders (internal-ids
             law). One card rides one fulfillment, so one bill per card. */}
         {card.shipmentCode && (
-          <span className="driver-journey-card__bill">{card.shipmentCode}</span>
+          <span className="driver-journey-card__bill">{card.blNumber || card.bookingRef || card.shipmentCode}</span>
         )}
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}

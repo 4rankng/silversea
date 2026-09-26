@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone, PhoneCall } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
@@ -160,18 +160,22 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {/* Card 20260926_25 (CHIEF): one phone row, one label — the call
               affordance is a round phone-icon button, not a boxed Gọi. */}
           <TaskFact
-            icon={<Phone size={16} />}
-            label="SĐT kho"
-            value={khoPhone
+            /* Card 20260926_25 amendment (CHIEF): the leading icon IS the call
+               button — one phone glyph, spanning label + value, tap to call.
+               The number stays plain text (selectable/copyable). */
+            icon={khoPhone
               ? (
-                <span className="driver-task-call">
-                  <a href={`tel:${khoPhone}`} className="driver-task-link">{khoPhone}</a>
-                  <a href={`tel:${khoPhone}`} className="driver-task-call-btn" aria-label={`Gọi điện thoại kho ${khoPhone}`}>
-                    <PhoneCall size={16} aria-hidden="true" />
-                  </a>
-                </span>
+                <a
+                  href={`tel:${khoPhone}`}
+                  className="driver-task-fact__call"
+                  aria-label={`Gọi điện thoại kho ${khoPhone}`}
+                >
+                  <Phone size={18} aria-hidden="true" />
+                </a>
               )
-              : '—'}
+              : <Phone size={16} aria-hidden="true" />}
+            label="SĐT kho"
+            value={khoPhone ?? '—'}
           />
           {/* KP-191: each container number paired with its own type code. */}
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} />
