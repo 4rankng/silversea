@@ -682,7 +682,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           </>
         )}
       >
-        <form className="dispatch-assignment-dialog" aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
           <div className="dispatch-assignment-dialog__fields">
             <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`} className="dispatch-assignment-dialog__carrier">
               <span>Nhà xe</span>

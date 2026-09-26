@@ -157,6 +157,16 @@ function issueButton(): HTMLButtonElement {
 }
 
 
+describe('DispatchPlanEditorCell — assignment dialog validation', () => {
+  beforeEach(() => { mockFleetResources(); });
+
+  it('dialog form opts out of native constraint validation — app errors own empty submits', async () => {
+    renderCell(row({ plannedEndAt: null }), {});
+    await openDialog();
+    expect(document.querySelector('form.dispatch-assignment-dialog')).toHaveAttribute('novalidate');
+  });
+});
+
 describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)', () => {
   const endField = () => screen.getByRole('group', { name: 'Giờ trả hàng' });
   const daySeg = () => screen.getByLabelText('Ngày — Giờ trả hàng') as HTMLInputElement;

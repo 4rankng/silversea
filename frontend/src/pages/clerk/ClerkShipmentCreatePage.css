@@ -146,10 +146,11 @@
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
 .csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
-/* Retired with the shared adapter promotion: control boundary + popover skin
- * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
- * csc-control-boundary rules below remain for the clerk page's input/textarea
- * fields (UTextField/UDateField), which still use the marker. */
+/* The retired `ds-uui-boundary` control-boundary block was removed from
+ * design-system/forms/UuiSelectField.css (no component applied the class;
+ * the app-wide box-shadow reset made it unrendered). The
+ * csc-control-boundary rules below remain for the clerk page's
+ * input/textarea fields (UTextField/UDateField), which still use the marker. */
 
 .csc-control-boundary > [role='presentation'],
 .csc-control-boundary [data-input-wrapper='true'],

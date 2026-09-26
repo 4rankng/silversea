@@ -106,61 +106,6 @@
 }
 
 /*
- * Control boundary: one consistent border/hover/focus/invalid/disabled
- * treatment for the UUI trigger regardless of the page it lives on.
- */
-.ds-uui-boundary > [role='presentation'],
-.ds-uui-boundary [data-input-wrapper='true'],
-.ds-uui-boundary [role='group'],
-.ds-uui-boundary select,
-.ds-uui-boundary textarea {
-  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
-  border-radius: 8px;
-  background: var(--surface, #fff);
-  box-shadow: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
-}
-
-.ds-uui-boundary :where(input, select, textarea):focus-visible {
-  outline: none;
-  outline-offset: 0;
-}
-
-.ds-uui-boundary:not(:focus-within):hover > [role='presentation'],
-.ds-uui-boundary:not(:focus-within):hover [data-input-wrapper='true'],
-.ds-uui-boundary:not(:focus-within):hover [role='group'],
-.ds-uui-boundary:not(:focus-within):hover select,
-.ds-uui-boundary:not(:focus-within):hover textarea {
-  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
-}
-
-.ds-uui-boundary:focus-within > [role='presentation'],
-.ds-uui-boundary:focus-within [data-input-wrapper='true'],
-.ds-uui-boundary:focus-within [role='group'],
-.ds-uui-boundary:focus-within select,
-.ds-uui-boundary:focus-within textarea {
-  border-color: var(--accent, #2563eb);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
-}
-
-.ds-uui-boundary:has([aria-invalid='true']) > [role='presentation'],
-.ds-uui-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
-.ds-uui-boundary:has([aria-invalid='true']) [role='group'],
-.ds-uui-boundary:has([aria-invalid='true']) select,
-.ds-uui-boundary:has([aria-invalid='true']) textarea {
-  border-color: var(--danger, #dc2626);
-}
-
-.ds-uui-boundary:has(:disabled) > [role='presentation'],
-.ds-uui-boundary:has(:disabled) [data-input-wrapper='true'],
-.ds-uui-boundary:has(:disabled) [role='group'],
-.ds-uui-boundary:has(:disabled) select,
-.ds-uui-boundary:has(:disabled) textarea {
-  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
-  background: var(--surface-2, #f8fafc);
-}
-
-/*
  * Card 20260924_1 (image1, HIGH) — the shared untitled-ui Popover pins its
  * box to the trigger width (w-(--trigger-width)) with overflow-x-hidden, so
  * an option longer than a narrow trigger clipped mid-word with no ellipsis

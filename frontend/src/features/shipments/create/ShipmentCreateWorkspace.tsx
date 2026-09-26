@@ -572,7 +572,7 @@ export function ShipmentCreateWorkspace() {
        * inline in the breadcrumb area instead — keeps a11y (text is
        * reachable) and removes the layout-side effect. */}
       <h1 className="csc-page__title">Tạo lô hàng</h1>
-      <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
+      <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1, quyết định 2026-09-18) —
             cờ cấp LÔ, thấy ngay không cần cuộn. Bật/tắt KHÔNG bao giờ xoá nội
