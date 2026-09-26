@@ -22,6 +22,10 @@ export interface ListFilterBarSearchProps {
   placeholder: string;
   /** Accessible name for the search field. */
   ariaLabel: string;
+  /** Optional keyboard-shortcut badge (e.g. "⌘K") rendered inside the search
+   * shell's right edge. Purely visual here — the owning page wires the
+   * actual key handler. */
+  shortcut?: string;
 }
 
 export interface ListFilterBarProps {
@@ -50,6 +54,7 @@ export function ListFilterBar({ search, children, quickFilters, quickFiltersLabe
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
           />
+          {search.shortcut && <kbd className="filter-bar__kbd">{search.shortcut}</kbd>}
         </div>
       )}
       {children}

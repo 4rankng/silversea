@@ -1,13 +1,75 @@
 .routes-config-page .routes-table .record-table__action { position: relative; }
-.routes-config-page .routes-table tbody tr:hover { background: var(--surface); }
-.routes-config-page .routes-table thead th:nth-child(1) { width: 10%; }
-.routes-config-page .routes-table thead th:nth-child(2) { width: 23%; }
-.routes-config-page .routes-table thead th:nth-child(3) { width: 16%; }
-.routes-config-page .routes-table thead th:nth-child(4) { width: 17%; }
-.routes-config-page .routes-table thead th:nth-child(5) { width: 10%; }
-.routes-config-page .routes-table thead th:nth-child(6) { width: 9%; }
-.routes-config-page .routes-table thead th:nth-child(7) { width: 11%; }
-.routes-config-page .routes-table thead th:nth-child(8) { width: 44px !important; }
+/* Neutral ink hover (law: no accent fills on rows); hairline dividers. */
+.routes-config-page .routes-table tbody tr { border-bottom: 1px solid var(--line); }
+.routes-config-page .routes-table tbody tr:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+
+/* Chief spec 20260926_53 — class-anchored widths survive the presence-gated
+   beyond-spec columns: MÃ TUYẾN 140px mono · KHOẢNG CÁCH 100px right mono ·
+   THAO TÁC 80px right; name column takes the remaining width. */
+.routes-config-page .routes-table th.routes-table__code,
+.routes-config-page .routes-table td.routes-table__code { width: 140px; }
+.routes-config-page .routes-table th.routes-table__distance,
+.routes-config-page .routes-table td.routes-table__distance { width: 100px; }
+.routes-config-page .routes-table th.routes-table__distance { white-space: nowrap; }
+.routes-config-page .routes-table th.routes-table__actions,
+.routes-config-page .routes-table td.routes-table__actions-cell { width: 80px; }
+.routes-config-page .routes-table td.routes-table__code {
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--fg-2);
+}
+.routes-config-page .routes-table td.routes-table__distance { font-family: var(--font-data); }
+
+/* 36px single-line rows: names never wrap — ellipsis + title tooltip;
+   fine-pointer action buttons shrink to 24px so the row floors at 36px
+   (coarse pointers keep the 44px touch floors via the container query). */
+.routes-config-page .routes-table td.routes-table__name .row-strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 560px;
+}
+.routes-config-page .routes-table tbody td { padding-block: 6px; }
+@media (hover: hover) and (pointer: fine) {
+  .routes-config-page .routes-table .row-action {
+    min-width: 24px;
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+}
+
+/* ✎ 🗑 reveal on row hover (fine pointers); always reachable for touch and
+   keyboard — the spec's "..." slot stays reserved for future secondary
+   actions (Duplicate, Audit). */
+@media (hover: hover) and (pointer: fine) {
+  .routes-config-page .routes-table .row-actions .row-action { opacity: 0; transition: opacity 100ms ease; }
+  .routes-config-page .routes-table tbody tr:hover .row-action,
+  .routes-config-page .routes-table .row-actions .row-action:focus-visible { opacity: 1; }
+}
+.routes-config-page .routes-table .row-action--danger { color: var(--danger); }
+.routes-config-page .routes-title-count {
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
+  color: var(--fg-3);
+  margin-left: 2px;
+}
+.routes-config-page .filter-bar__search { min-width: 280px; max-width: 320px; }
+.routes-config-page .filter-bar__kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-data);
+  font-size: 10px;
+  color: var(--fg-3);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
 
 /* The row's identity is its name. Optional empty facts remain in the edit
    form, without forcing an empty label/value block into each narrow record. */
@@ -58,8 +120,8 @@
   .routes-config-page .routes-table tbody tr td.record-table__action::before { display: none; }
   .routes-config-page .routes-table tbody tr td.routes-table__note { grid-column: 1 / -1; }
   .routes-config-page .routes-table tbody tr td.routes-table__distance:not([data-empty])::after { content: ' km'; }
-  .routes-config-page .routes-table tbody tr td.record-table__action { position: absolute; top: 2px; right: 0; width: 44px; padding: 0; }
-  .routes-config-page .routes-table .row-action { min-width: 44px; min-height: 44px; }
+  .routes-config-page .routes-table tbody tr td.record-table__action { position: absolute; top: 2px; right: 0; width: 92px; padding: 0; }
+  .routes-config-page .routes-table .row-action { min-width: 44px; min-height: 44px; opacity: 1; }
 }
 
 @container (min-width: 680px) and (max-width: 1100px) {

@@ -90,9 +90,11 @@ describe('RoutesConfigPage dispatcher edit/delete access', () => {
     await screen.findByText('Hải Phòng - Nội Bài');
 
     expect(screen.getByRole('button', { name: /Thêm tuyến/ })).toBeInTheDocument();
-    // Card 20260922_22: columns render by data presence — the fixture fills
-    // code/loadPoint/distanceKm, so name + those three + actions = 5.
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(5);
+    // Chief spec 20260926_53: MÃ TUYẾN / TÊN RÚT GỌN / KHOẢNG CÁCH are
+    // mandatory columns that always render (dash for missing data) — the
+    // fixture fills code/loadPoint/distanceKm, so code + name + shortName +
+    // loadPoint + distance + actions = 6.
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(6);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 
@@ -100,9 +102,9 @@ describe('RoutesConfigPage dispatcher edit/delete access', () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
 
-    // Card 20260922_22: columns render by data presence — the fixture fills
-    // code/loadPoint/distanceKm, so name + those three + actions = 5.
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(5);
+    // Chief spec 20260926_53: mandatory columns always render — 6 with the
+    // fixture (see the dispatcher test above).
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(6);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });
@@ -139,5 +141,41 @@ describe('ListFilterBar adoption (card 20260922_38)', () => {
     renderPage();
     const face = await screen.findByText('Chưa có dữ liệu');
     expect(face.closest('.ds-empty-state')).not.toBeNull();
+  });
+});
+
+
+describe('RoutesConfigPage chief table spec (20260926_53)', () => {
+  it('renders the mandatory spec columns even when data is missing — dash, never a collapsed column', async () => {
+    const sparse = [
+      makeRoute(1, 'Hải Phòng - Nội Bài'),
+      { ...makeRoute(2, 'C12 route'), code: null, shortName: null, distanceKm: null, loadPoint: null } as unknown as Route,
+    ];
+    getRoutesList.mockResolvedValue(sparse);
+    const { container } = renderPage();
+    await screen.findByText('Hải Phòng - Nội Bài');
+    const headers = [...container.querySelectorAll('.routes-table thead th')].map(th => th.textContent?.trim());
+    expect(headers.some(h => h?.includes('Mã Tuyến'))).toBe(true);
+    expect(headers.some(h => h?.includes('Tên tuyến rút gọn'))).toBe(true);
+    expect(headers.some(h => h?.includes('Khoảng cách'))).toBe(true);
+    const lastRow = [...container.querySelectorAll('tbody tr')].pop()!;
+    expect(lastRow.textContent).toContain('—');
+  });
+
+  it('renders clean "120 km" distance and direct hover edit/delete actions, no dots menu', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Hải Phòng - Nội Bài');
+    const dist = container.querySelector('tbody td.routes-table__distance');
+    expect(dist?.textContent).toBe('120 km');
+    expect(screen.getAllByRole('button', { name: /Sửa tuyến/ })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /Xoá tuyến/ })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /Tùy chọn/ })).toBeNull();
+  });
+
+  it('title carries the live route count and the search shell offers the ⌘K badge', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Hải Phòng - Nội Bài');
+    expect(container.querySelector('.page-header__title-visible')?.textContent).toContain('(2)');
+    expect(container.querySelector('.filter-bar__search .filter-bar__kbd')?.textContent).toBe('⌘K');
   });
 });
