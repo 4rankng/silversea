@@ -1233,7 +1233,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
     expect(within(drawer).getByRole('button', { name: /20DC/ })).toBeTruthy();
     fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
-    fireEvent.change(within(drawer).getByLabelText('Giờ hẹn đóng/trả'), { target: { value: '2026-08-13T09:30' } });
+    // Card 20260926_1: the datetime rides the shared segmented field — fill
+    // the date and time segments (paste distribution emits the ISO payload).
+    // Both groups' first segments carry the field's aria-label, so pick the
+    // date (dd) and time (hh) segments by their data-seg marker.
+    const apptSeg = (segKey: string) => within(drawer).getAllByLabelText('Giờ hẹn đóng/trả')
+      .filter((el) => el.tagName === 'INPUT')
+      .find((el) => (el as HTMLInputElement).dataset.seg === segKey) as HTMLInputElement;
+    fireEvent.change(apptSeg('dd'), { target: { value: '13/08/2026' } });
+    fireEvent.change(apptSeg('hh'), { target: { value: '09:30' } });
     fireEvent.click(within(drawer).getByRole('button', { name: /^Thêm$/ }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(

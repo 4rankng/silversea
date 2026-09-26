@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { UuiSelectField } from '../../../design-system';
+import { BufferedUuiDateTimeInput } from '../../../design-system/forms/BufferedUuiDateTimeInput';
 
 /** The four fields the container-add API accepts; one add-row draft. */
 export interface AddContainerFields {
@@ -102,11 +103,10 @@ export function CusContainerAddRow({
         />
       </td>
       <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell">
-        <input
+        <BufferedUuiDateTimeInput
           aria-label="Giờ hẹn đóng/trả"
-          type="datetime-local"
           value={fields.customerAppointmentAt}
-          onChange={(event) => onChange({ customerAppointmentAt: event.target.value })}
+          onChange={(customerAppointmentAt) => onChange({ customerAppointmentAt })}
         />
       </td>
       <td data-label="Thao tác" className="cus-container-cell cus-container-cell--actions">
