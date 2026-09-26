@@ -1,5 +1,9 @@
 .shipment-cost-entry { --control-mobile-h: var(--control-touch-h); }
-.shipment-cost-entry { display: grid; gap: 12px; padding: 12px; background: var(--surface); border-block: 1px solid var(--line); }
+/* Card 20260926_21: proper rounded section card matching .driver-task-section
+   chrome (border + radius 10 + the shared 10px top rhythm) — never the old
+   squared border-block band that collided with the rounded cards above. One
+   pattern for both surfaces: ShipmentCostEntryForm AND FuelRefillReportForm. */
+.shipment-cost-entry { display: grid; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
 .shipment-cost-entry__head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .shipment-cost-entry__title { margin: 0; font-size: var(--text-dialog-title-size); }
 .shipment-cost-entry__subtitle, .shipment-cost-entry__empty { margin: 4px 0 0; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
