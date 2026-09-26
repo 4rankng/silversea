@@ -493,3 +493,13 @@
     border-color: var(--line-strong);
   }
 }
+
+/* Journey tab counts are plain text (QA-2026-09-26-24): the shared Badge's
+ * status dot reads as a black blob jammed against a tab label. No dot, no
+ * fill — label + count is the whole message. */
+.driver-journey__tab-count {
+  margin-left: 6px;
+  font-size: 13px;
+  color: var(--fg-3, #5F6872);
+  font-weight: 500;
+}

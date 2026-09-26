@@ -127,6 +127,20 @@ describe('DriverTripsPage', () => {
     expect(screen.getByRole('tabpanel', { name: 'Lịch sử' })).toBeVisible();
   });
 
+  it('QA-2026-09-26-24 renders journey tab counts as plain text — no badge dot', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 2, bucket: 'NEW' }),
+      card({ fulfillmentId: 3, bucket: 'HISTORY' }),
+    ]));
+    renderPage();
+    const newTab = screen.getByRole('tab', { name: /Lệnh mới/ });
+    expect(newTab.textContent).toContain('2');
+    expect(newTab.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
+    const history = screen.getByRole('tab', { name: /Lịch sử/ });
+    expect(history.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
+  });
+
   it('renders the card time VN-pinned — a 17:30Z trip reads 00:30 on the NEXT day', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
     renderPage();
@@ -483,7 +497,7 @@ describe('DriverTripsPage', () => {
   // Card 20260922_30: the primitive's own count chip floated above the label
   // baseline and read as a superscript. The count now rides the shared Badge
   // inside the label.
-  it('renders tab counts through the shared Badge inside the label', async () => {
+  it('renders tab counts as plain text riding the label — no badge chrome', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ fulfillmentId: 1, bucket: 'NEW' }),
       card({ fulfillmentId: 2, bucket: 'RUNNING' }),
@@ -491,23 +505,12 @@ describe('DriverTripsPage', () => {
     renderPage();
 
     const running = screen.getByRole('tab', { name: /Đã nhận/ });
-    expect(running.querySelector('.ds-tabs__count')).toBeNull();
-    const label = running.querySelector('.ds-tabs__label')!;
-    expect(label.textContent).toBe('Đã nhận1');
-    // The count rides the shared text+dot treatment (card 20260924_21,
-    // BATCH A): inline-flex, bold via the --status-text-weight token.
-    const badge = label.querySelector('span') as HTMLElement;
-    expect(badge.style.display).toBe('inline-flex');
-    expect(badge.style.fontWeight).toContain('700');
-    // The legacy pill chrome is gone (card 20260924_21): no background fill,
-    // no border on any side, no rounded bubble — just text + dot.
-    expect(badge.style.background).toBe('transparent');
-    expect(badge.style.borderTopStyle).toBe('none');
-    expect(badge.style.borderRightStyle).toBe('none');
-    expect(badge.style.borderBottomStyle).toBe('none');
-    expect(badge.style.borderLeftStyle).toBe('none');
-    expect(['0', '0px']).toContain(badge.style.borderRadius);
-    expect(['0', '0px']).toContain(badge.style.padding);
+    // The count is a plain span, secondary color, no status dot and no badge
+    // chrome — a tab count is a number, not a status (Chief 26/09).
+    const count = running.querySelector('.driver-journey__tab-count') as HTMLElement;
+    expect(count).not.toBeNull();
+    expect(count.textContent).toBe('1');
+    expect(running.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
   });
 
   // Card 20260922_30(a): one small line on a blank page gave the driver no

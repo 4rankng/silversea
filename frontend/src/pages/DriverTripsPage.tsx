@@ -8,7 +8,6 @@ import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
 import { formatDateTimeShort } from '../lib/format';
 import { PageHeader } from '../components/UI';
-import { Badge } from '../components/shared';
 import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
 import { driverLocationLabels } from '../features/driver/driver-display';
@@ -278,7 +277,7 @@ export default function DriverTripsPage() {
           <Link className="driver-journey__day-view" to="/my-trips/two-orders">
             <Truck size={16} aria-hidden="true" />
             <span className="driver-journey__day-view-label">Hai lệnh hôm nay</span>
-            {todayOrders >= 2 && <Badge>{todayOrders} lệnh</Badge>}
+            {todayOrders >= 2 && <span className="driver-journey__tab-count">{todayOrders} lệnh</span>}
             <ChevronRight size={16} aria-hidden="true" />
           </Link>
         }
@@ -296,7 +295,9 @@ export default function DriverTripsPage() {
           label: (
             <>
               {tab.label}
-              <Badge>{countsByBucket[tab.key]}</Badge>
+              {/* Plain count text — the shared Badge's status dot reads as a
+                  black blob jammed against a tab label (Chief 26/09). */}
+              <span className="driver-journey__tab-count">{countsByBucket[tab.key]}</span>
             </>
           ),
         }))}
