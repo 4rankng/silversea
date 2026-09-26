@@ -76,6 +76,14 @@
   gap: 4px;
 }
 
+/* Card 20260926_10 (CHIEF): the segmented shortcuts gain their group label. */
+.detailed-plan-filters__mode-label {
+  grid-column: 1 / -1;
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
 .detailed-plan-filters__date-shortcut {
   min-width: 0;
   box-shadow: none;
@@ -308,6 +316,22 @@
 
 .detailed-plan-grid__line--italic {
   font-style: italic;
+}
+
+/* Card 20260926_10 (CHIEF group 4): missing values read as ONE muted italic
+   voice — never bold black; 'Chưa có…'/'Chưa cập nhật' stop shouting. */
+.detailed-plan-grid__line--missing {
+  font-size: var(--text-caption-size);
+  color: var(--ink-3, #98a2b3);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Card 20260926_10 (CHIEF group 6): the pager sits under a 1px rule so the
+   table card ends cleanly. */
+.detailed-plan-grid__footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
 }
 
 .detailed-plan-grid__documents {

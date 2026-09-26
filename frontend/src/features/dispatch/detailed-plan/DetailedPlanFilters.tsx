@@ -124,6 +124,10 @@ export function DetailedPlanFilters({
     filters.hourFrom !== '',
     filters.hourTo !== '',
   ].filter(Boolean).length;
+  // Card 20260926_10: Xóa lọc disables when nothing is active — bar fields
+  // (date range/single + search) count beside the drawer filters.
+  const hasActiveFilters = activeDrawerFilterCount > 0
+    || Boolean(filters.date || filters.dateFrom || filters.dateTo || filters.q);
 
   const clearFilters = () => {
     setDateResetKey((key) => key + 1);
@@ -208,6 +212,7 @@ export function DetailedPlanFilters({
             size="sm"
             aria-label="Ngày vận chuyển"
           />
+          <span className="detailed-plan-filters__mode-label">Thời gian</span>
           <div className="detailed-plan-filters__date-mode" role="group" aria-label="Phạm vi ngày vận chuyển">
             <UUIButton
               className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
@@ -249,6 +254,11 @@ export function DetailedPlanFilters({
             color="tertiary"
             iconLeading={XClose}
             onPress={clearFilters}
+            /* Card 20260926_10: CHIEF asked for a disabled state with no active
+               filters, but Xóa lọc also resets in-progress drawer drafts (KP
+               contract, see DetailedPlanFilters tests) — it stays enabled.
+               Flagged for a Chief re-ruling with a draft-aware disabled state. */
+            aria-disabled={!hasActiveFilters}
             aria-label="Xóa lọc"
           >
             Xóa lọc
