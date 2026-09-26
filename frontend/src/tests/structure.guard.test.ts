@@ -186,11 +186,6 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // icon (design law §1); the import is the added line. Reviewed as a
   // contract change.
 'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 451,
-  // Bumped 400 (new-file cap) → 404: 2026-09-26 visual sweep — the chot-debit
-  // date filters gain content-width wrappers (were full-row stretches);
-  // extraction would split a filter row for no real boundary. Reviewed as a
-  // contract change.
-  'src/pages/accounting/AccountingDebitClosePage.tsx': 404,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
