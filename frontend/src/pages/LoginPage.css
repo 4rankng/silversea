@@ -178,7 +178,9 @@
   padding-left: 46px;
   border-color: var(--line-2);
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.94);
+  /* Card 20260925_49: controls are opaque (rubric §1, law §3 family) — the
+     0.94-alpha white let the pastel canvas bleed through. */
+  background: var(--surface);
   font-size: var(--control-field-font-size);
 }
 

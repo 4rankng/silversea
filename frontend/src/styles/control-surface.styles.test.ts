@@ -58,4 +58,11 @@ describe('site surface contract (card 20260925_3)', () => {
     expect(rule).toContain('opacity: 0.45');
     expect(rule).toContain('cursor: not-allowed');
   });
+
+  it('login inputs fill opaque with var(--surface), never a translucent white (card 20260925_49)', () => {
+    const css = read('src/pages/LoginPage.css');
+    const rule = css.match(/\.login-form \.input\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain('background: var(--surface)');
+    expect(rule).not.toMatch(/rgba?\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0?\.\d+/);
+  });
 });
