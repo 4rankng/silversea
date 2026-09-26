@@ -59,7 +59,7 @@ export function CalCell({ dateStr, day: _day, isSunday, dayLabel, workDay, isUpd
             <cfg.icon size={16} strokeWidth={2} />
           </span>
           {status === 'TRIP_DAY' && workDay?.trip?.tripCode && (
-            <span className="cal-cell-trip-code" title={workDay.trip.routeName || undefined}>
+            <span className="cal-cell-trip-code" title={workDay.trip.tripCode + (workDay.trip.routeName ? ` – ${workDay.trip.routeName}` : '')}>
               {workDay.trip.tripCode}
             </span>
           )}

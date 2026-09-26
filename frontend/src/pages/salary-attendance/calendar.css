@@ -295,9 +295,9 @@
   border-radius: 3px;
   margin-top: 2px;
   max-width: 90%;
-  overflow: visible;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-data);
 }
 
