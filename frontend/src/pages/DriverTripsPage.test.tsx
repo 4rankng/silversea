@@ -90,6 +90,16 @@ function renderPage() {
 }
 
 describe('DriverTripsPage', () => {
+  it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tripCode: 'TRP-202609-0019', shipmentCode: 'BILL-2026-0777' }),
+    ]));
+    renderPage();
+    expect(screen.getByText('BILL-2026-0777')).toBeTruthy();
+    expect(screen.queryByText(/TRP-/)).toBeNull();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+  });
+
   beforeEach(() => {
     navigateMock.mockReset();
     refetchMock.mockReset();

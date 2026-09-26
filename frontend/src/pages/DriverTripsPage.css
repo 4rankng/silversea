@@ -472,13 +472,13 @@
   color: var(--warning, #b45309);
 }
 
-/* TRP code chip (acceptance-blocker identity): same muted tone as the
-   classification tag, monospace for code scanning. */
-.driver-journey-card__trip-code {
+/* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,
+   bold, data-font for plate/bill scanning. Replaces the removed TRP chip. */
+.driver-journey-card__bill {
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: var(--text-data-size);
-  font-weight: 600;
-  color: var(--text-secondary, #475467);
+  font-weight: 700;
+  color: var(--fg-1, var(--ink, #101828));
   background: var(--surface-2, #f8fafc);
   border: 1px solid var(--border-subtle, #eaecf0);
   border-radius: 6px;

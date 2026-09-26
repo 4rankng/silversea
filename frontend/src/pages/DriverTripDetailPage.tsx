@@ -465,7 +465,7 @@ function DriverTripDetailContent() {
                 <div className="driver-task-fuel-grid">
                   <img
                     src={getAuthenticatedPhotoUrl(latestFuelEvidence.photoUrl)}
-                    alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
+                    alt="Ảnh nhiên liệu"
                     className="driver-task-fuel-img"
                   />
                   <div className="driver-task-fuel-facts">

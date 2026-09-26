@@ -115,10 +115,11 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
-        {/* TRP chip: the blocker identity drivers are told to look for —
-            without it a busy-trip rejection names a trip no card shows. */}
-        {card.tripCode && (
-          <span className="driver-journey-card__trip-code">{card.tripCode}</span>
+        {/* CHIEF 26/09: drivers match shipments by SỐ BILL/BOOKING — the bill
+            leads the card; the internal TRP code never renders (internal-ids
+            law). One card rides one fulfillment, so one bill per card. */}
+        {card.shipmentCode && (
+          <span className="driver-journey-card__bill">{card.shipmentCode}</span>
         )}
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}
