@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, type CSSProperties } from 'react'; // useEffect remains for the form modal's reset-on-open
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react'; // useEffect remains for the form modal's reset-on-open
+import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Search,
@@ -9,7 +10,8 @@ import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, FilterPill, StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
+import { StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
+import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
@@ -336,10 +338,6 @@ export default function CustomersPage() {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   // Card _37: column visibility (optional detail columns hidden by default),
   // secondary debt filter, bulk selection and the row slide-over drawer.
-  const [extraCols, setExtraCols] = useState<{ shortName: boolean; taxCode: boolean; freightTerm: boolean }>(() => ({
-    shortName: false, taxCode: false, freightTerm: false,
-  }));
-  const [colsOpen, setColsOpen] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -365,6 +363,20 @@ export default function CustomersPage() {
     debounceMs: 300,
   });
   const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError, setFilter: setSortFilter } = table;
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const hasActiveFilters = Boolean(search.trim() || filter !== 'all');
+
+  // KBD: Meta/Ctrl+K focuses the customer search (badge on the search shell).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const error = queryError ? 'Không thể tải dữ liệu' : null;
   const refetchCustomers = table.query.refetch;
 
@@ -392,6 +404,21 @@ export default function CustomersPage() {
   const debtMap = useMemo(() => {
     return buildCustomerDebtMap(ledgerEntries ?? []);
   }, [ledgerEntries]);
+
+  // Concentration signal (card 20260926_60): the top-4 debtors' share of all
+  // tracked debt — drives the ⚠️ badge in the strip; the popover breaks the
+  // four down. Revenue-per-customer is not on this surface, so debt is the
+  // honest basis here (noted for chief).
+  const concentration = useMemo(() => {
+    const rowsWithDebt = customers
+      .map((c) => ({ id: c.id, name: c.shortName || c.name, debt: debtMap.get(c.id) ?? 0 }))
+      .filter((row) => row.debt > 0)
+      .sort((a, b) => b.debt - a.debt);
+    const totalDebt = rowsWithDebt.reduce((sum, row) => sum + row.debt, 0);
+    const top = rowsWithDebt.slice(0, 4).map((row) => ({ ...row, share: totalDebt > 0 ? Math.round((row.debt / totalDebt) * 100) : 0 }));
+    const topShare = top.reduce((sum, row) => sum + row.share, 0);
+    return { top, totalDebt, topShare, anyDebt: totalDebt > 0 };
+  }, [customers, debtMap]);
 
   const { activeCount, lockedCount, filtered } = useMemo(() => {
     const activeCount = customers.filter(c => c.status === CustomerStatus.ACTIVE).length;
@@ -498,13 +525,39 @@ export default function CustomersPage() {
           { label: 'Khách hàng' },
         ]}
       />
-      <PageHeader
-        title="Khách hàng"
-        iconName="customer"
-        description={`${total} khách hàng đang quản lý`}
-        action={
-          <>
-            <button className="btn btn--secondary" onClick={async () => {
+      <div className="customers-strip" role="banner">
+        <div className="customers-strip__row1">
+          <button type="button" className="customers-strip__back" aria-label="Quay lại" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft size={16} />
+          </button>
+          <h1 className="customers-strip__title">Khách hàng & Đối tác</h1>
+          <div className="customers-strip__tabs" role="tablist" aria-label="Lọc theo trạng thái khách hàng">
+            <button type="button" role="tab" aria-selected={filter === 'all'} className={`customers-strip__tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>
+              Tất cả <span className="customers-strip__tab-count">{total}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={filter === 'active'} className={`customers-strip__tab customers-strip__tab--active is-on${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
+              Hoạt động <span className="customers-strip__tab-count customers-strip__tab-count--active">{activeCount}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={filter === 'locked'} className={`customers-strip__tab customers-strip__tab--locked is-on${filter === 'locked' ? ' is-active' : ''}`} onClick={() => setFilter('locked')}>
+              Tạm khoá <span className="customers-strip__tab-count customers-strip__tab-count--locked">{lockedCount}</span>
+            </button>
+          </div>
+          {concentration.anyDebt && (
+            <div className="customers-strip__risk" tabIndex={0}>
+              <span aria-hidden="true">⚠️</span> Top 4 KH chiếm {concentration.topShare}% công nợ
+              <div className="customers-strip__risk-pop" role="tooltip">
+                <strong>Công nợ tập trung — top 4 khách hàng</strong>
+                {concentration.top.map((row) => (
+                  <div key={row.id} className="customers-strip__risk-row">
+                    <span>{row.name}</span>
+                    <span className="customers-strip__risk-share">{row.share}% · {formatCurrency(row.debt)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="customers-strip__actions">
+            <button className="btn btn--secondary btn--sm" onClick={async () => {
               const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái'];
               const rows = filtered.map(c => [
                 c.name,
@@ -526,77 +579,41 @@ export default function CustomersPage() {
             <button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
               <Plus size={14} /> Thêm khách hàng
             </button>
-          </>
-        }
-      />
-
-      {/* Summary rail — status cards double as filters (card _37). */}
-      <SummaryRail
-        ariaLabel="Tóm tắt khách hàng"
-        items={[
-          { label: 'Tổng khách hàng', value: total },
-          { label: 'Đang hoạt động', value: activeCount, onClick: () => setFilter(filter === 'active' ? 'all' : 'active'), pressed: filter === 'active' },
-          { label: 'Tạm khoá', value: lockedCount, tone: lockedCount > 0 ? 'warning' : undefined, onClick: () => setFilter(filter === 'locked' ? 'all' : 'locked'), pressed: filter === 'locked' },
-        ]}
-      />
-
-      {/* Toolbar with filter pills */}
-      <div className="toolbar">
-        <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả · {total}</FilterPill>
-        <FilterPill active={filter === 'risk'} onClick={() => setFilter('risk')}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warning)', display: 'inline-block', marginRight: 4 }} />
-          Rủi ro cao
-        </FilterPill>
-        <FilterPill active={filter === 'active'} onClick={() => setFilter('active')}>
-          <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
-          Hoạt động · {activeCount}
-        </FilterPill>
-        <FilterPill active={filter === 'locked'} onClick={() => setFilter('locked')}>
-          <StatusDot status="INACTIVE" style={{ marginRight: 4 }} />
-          Tạm khoá · {lockedCount}
-        </FilterPill>
-        <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            aria-expanded={colsOpen}
-            aria-haspopup="true"
-            onClick={() => setColsOpen(o => !o)}
-          >
-            Tùy chỉnh cột
-          </button>
-          {colsOpen && (
-            <div className="customers-cols-popover" onClick={(e) => e.stopPropagation()}>
-              {([
-                ['shortName', 'Tên viết tắt'],
-                ['taxCode', 'Mã số thuế'],
-                ['freightTerm', 'Hạn TT Cước'],
-              ] as const).map(([key, label]) => (
-                <label key={key}>
-                  <input
-                    type="checkbox"
-                    checked={extraCols[key]}
-                    onChange={(e) => setExtraCols(prev => ({ ...prev, [key]: e.target.checked }))}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
-        <div style={{ position: 'relative', width: 240, maxWidth: '100%' }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} />
-          <input
-            type="text"
-            name="customerSearch"
-            aria-label="Tìm khách hàng theo tên hoặc mã số thuế"
-            placeholder="Tìm theo tên, MST…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="customers-quick-search"
-            style={{ width: '100%', padding: '4px 11px 4px 32px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--control-field-font-size)', lineHeight: 1.35 }}
+        <div className="customers-strip__row2">
+          <div className="customers-strip__search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              name="customerSearch"
+              aria-label="Tìm khách hàng theo tên, mã, MST hoặc điện thoại"
+              placeholder="Tên, mã, MST, điện thoại..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <kbd className="customers-strip__kbd">⌘K</kbd>
+          </div>
+          <UuiSelectField
+            wrapperClassName="customers-strip__status"
+            label="Trạng thái"
+            hideLabel
+            ariaLabel="Lọc theo trạng thái"
+            value={filter === 'active' ? 'active' : filter === 'locked' ? 'locked' : 'all'}
+            onChange={(event) => setFilter(event.target.value as FilterKey)}
+            options={[
+              { value: 'all', label: 'Trạng thái: tất cả' },
+              { value: 'active', label: 'Trạng thái: hoạt động' },
+              { value: 'locked', label: 'Trạng thái: tạm khoá' },
+            ]}
           />
+          <span className="customers-strip__count">{filtered.length}/{total} khách hàng</span>
+          {hasActiveFilters && (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setSearch(''); setFilter('all'); }}>
+              <RotateCcw size={13} /> Xóa lọc
+            </button>
+          )}
         </div>
       </div>
 
@@ -711,54 +728,50 @@ export default function CustomersPage() {
       <div className="desktop-only table-wrap">
         <div className="record-table-wrap">
           <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 36 }} />
-              <col style={{ width: '26%' }} />
-              <col style={{ width: '18%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} />
-              {extraCols.shortName && <col style={{ width: '10%' }} />}
-              {extraCols.taxCode && <col style={{ width: '12%' }} />}
-              {extraCols.freightTerm && <col style={{ width: '10%' }} />}
-              <col style={{ width: 60 }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th style={{ width: 36 }}>
-                  <input
-                    type="checkbox"
-                    aria-label="Chọn tất cả khách hàng trên trang"
-                    checked={filtered.length > 0 && selected.size === filtered.length}
-                    onChange={(e) => {
-                      setSelected(e.target.checked ? new Set(filtered.map(c => c.id)) : new Set());
-                    }}
-                  />
-                </th>
-                <SortHeader label="Đối tác" sortKey="name" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Giám đốc" sortKey="accountantName" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hạn TT Chi hộ" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={applySort} style={thNumStyle} />
-                {extraCols.shortName && <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={applySort} />}
-                {extraCols.taxCode && <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} />}
-                {extraCols.freightTerm && <th>Hạn TT Cước</th>}
-                <th style={{ width: 60 }}></th>
-              </tr>
-            </thead>
+              <colgroup>
+                <col style={{ width: 36 }} />
+                <col style={{ width: 140 }} />
+                <col />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 200 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 80 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Chọn tất cả khách hàng trên trang"
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      onChange={(e) => {
+                        setSelected(e.target.checked ? new Set(filtered.map(c => c.id)) : new Set());
+                      }}
+                    />
+                  </th>
+                  <SortHeader label="Mã / Tên rút gọn" sortKey="shortName" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Tên doanh nghiệp" sortKey="name" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Liên hệ & SĐT" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
+                  <th>Trạng thái</th>
+                  <th></th>
+                </tr>
+              </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={5 + Number(extraCols.shortName) + Number(extraCols.taxCode) + Number(extraCols.freightTerm) + 2} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={5 + Number(extraCols.shortName) + Number(extraCols.taxCode) + Number(extraCols.freightTerm) + 2} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={5 + Number(extraCols.shortName) + Number(extraCols.taxCode) + Number(extraCols.freightTerm) + 2} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
@@ -786,60 +799,63 @@ export default function CustomersPage() {
                         }}
                       />
                     </td>
-                    <td data-label="Đối tác" style={{ position: 'relative' }}>
-                      <StatusStrip status={c.status} />
-                      <span className="customers-cell-wrap" style={{ fontWeight: 700, wordBreak: 'break-word', whiteSpace: 'normal' }}>
-                        {c.name}
+                    <td data-label="Mã / Tên rút gọn" className="customers-code-cell">
+                      {c.shortName || <span className="customers-muted">—</span>}
+                    </td>
+                    <td data-label="Tên doanh nghiệp">
+                      <span className="customers-name-cell" title={c.name}>{c.name}</span>
+                    </td>
+                    <td data-label="Mã số thuế" className="customers-mono-cell">
+                      {c.taxCode || <span className="customers-muted">—</span>}
+                    </td>
+                    <td data-label="Người liên hệ & SĐT">
+                      <span className="customers-contact-stack">
+                        <span>{c.contactPerson || '—'}</span>
+                        {c.phone && (
+                          <button
+                            type="button"
+                            className="customers-copy-phone"
+                            title="Sao chép số điện thoại"
+                            aria-label={`Sao chép số điện thoại ${c.phone}`}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(c.phone as string);
+                                toast({ kind: 'success', message: `Đã sao chép ${c.phone}` });
+                              } catch { toast({ kind: 'error', message: 'Không sao chép được' }); }
+                            }}
+                          >
+                            {c.phone}
+                          </button>
+                        )}
+                        {!c.phone && <span className="customers-muted">—</span>}
                       </span>
-                      <span className="customers-cell-sub" title={c.taxCode || undefined}>
-                        {c.shortName || c.name}
-                        {c.taxCode ? ` · MST ${c.taxCode}` : ''}
-                      </span>
-                      <span style={{ display: 'inline-flex', marginTop: 4 }}>
-                        <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'warn'}>
-                          {STATUS_LABELS[c.status] || c.status}
-                        </StatusPill>
-                      </span>
                     </td>
-                    <td data-label="Người liên hệ">
-                      <span style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{c.contactPerson || '—'}</span>
-                      <span className="customers-cell-sub">{c.phone || ''}</span>
+                    <td data-label="Trạng thái">
+                      <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'warn'}>
+                        {STATUS_LABELS[c.status] || c.status}
+                      </StatusPill>
                     </td>
-                    <td data-label="Giám đốc">
-                      {c.accountantName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
-                    </td>
-                    <td className="num" data-label="Hạn TT Chi hộ">
-                      {c.agencyFeePaymentTermDays != null ? `${c.agencyFeePaymentTermDays} ngày` : '—'}
-                    </td>
-                    {extraCols.shortName && <td data-label="Tên viết tắt">{c.shortName || <span style={{ color: 'var(--ink-3)' }}>—</span>}</td>}
-                    {extraCols.taxCode && <td data-label="Mã số thuế">{c.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}</td>}
-                    {extraCols.freightTerm && <td className="num" data-label="Hạn TT Cước">—</td>}
-                    <td data-label="" className="record-table__action" data-dropdown-root={menuOpenId === c.id ? '' : undefined} style={{ position: 'relative' }}>
+                    <td data-label="" className="record-table__action customers-actions-cell">
                       <div className="row-actions">
-                        <button className="row-action" aria-label={`Mở thao tác cho ${c.shortName || c.name}`} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}>
-                          <MoreHorizontal size={14} />
+                        <button
+                          className="row-action"
+                          title="Sửa khách hàng"
+                          aria-label={`Sửa khách hàng ${c.shortName || c.name}`}
+                          onClick={(e) => { e.stopPropagation(); setEditingId(c.id); setShowAddForm(false); }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          className="row-action"
+                          title="Xoá khách hàng"
+                          aria-label={`Xoá khách hàng ${c.shortName || c.name}`}
+                          disabled={deleting === c.id}
+                          onClick={(e) => { e.stopPropagation(); doDelete(c.id); }}
+                        >
+                          {deleting === c.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                         </button>
                       </div>
-                      {menuOpenId === c.id && (
-                        <div style={{
-                          position: 'absolute', right: 12, zIndex: 20,
-                          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
-                          overflow: 'hidden', minWidth: 140,
-                          ...(index >= filtered.length - 2 && filtered.length > 2
-                            ? { bottom: '100%', marginBottom: 4 }
-                            : { top: '100%' }),
-                        }} onClick={(e) => e.stopPropagation()}>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
-                            onClick={() => { setEditingId(c.id); setShowAddForm(false); }}>
-                            <Pencil size={13} /> Sửa
-                          </button>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
-                            disabled={deleting === c.id}
-                            onClick={() => doDelete(c.id)}>
-                            {deleting === c.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá
-                          </button>
-                        </div>
-                      )}
                     </td>
                   </tr>
               ))}

@@ -21,18 +21,20 @@ describe('customer row keyboard boundaries', () => {
       : { items: [{ id: 2, name: 'Công ty Biển Bạc', shortName: 'Biển Bạc', status: 'ACTIVE', isCarrier: false }], total: 1 });
   });
 
-  it('leaves checkbox Space and action-menu Enter to their native controls', async () => {
+  it('leaves checkbox Space and row actions to their native controls', async () => {
     renderPage();
     const checkbox = await screen.findByRole('checkbox', { name: 'Chọn Biển Bạc' });
     expect(fireEvent.keyDown(checkbox, { key: ' ' })).toBe(true);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(checkbox);
     expect(checkbox).toBeChecked();
-    const menu = screen.getByRole('button', { name: 'Mở thao tác cho Biển Bạc' });
-    expect(fireEvent.keyDown(menu, { key: 'Enter' })).toBe(true);
-    fireEvent.click(menu);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Sửa' }).length).toBeGreaterThan(0);
+    // Chief grid: direct hover actions replaced the dots menu — Enter on the
+    // edit affordance opens the edit modal (its own dialog carries the same
+    // accessible name), while checkbox Space never does.
+    const edit = screen.getByRole('button', { name: 'Sửa khách hàng Biển Bạc' });
+    expect(fireEvent.keyDown(edit, { key: 'Enter' })).toBe(true);
+    fireEvent.click(edit);
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Sửa khách hàng Biển Bạc' })).toBeTruthy());
   });
 
   it('opens details from the row, traps focus, closes on Escape and restores the row', async () => {

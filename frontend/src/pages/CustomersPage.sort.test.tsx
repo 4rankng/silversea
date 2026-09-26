@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customer } from '@tingting/shared';
 
@@ -84,7 +86,7 @@ describe('CustomersPage server-side sort headers', () => {
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
 
     // First click: fresh column starts ascending and jumps back to page 1.
-    fireEvent.click(screen.getByRole('button', { name: 'Đối tác' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên doanh nghiệp' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=name');
@@ -92,7 +94,7 @@ describe('CustomersPage server-side sort headers', () => {
     });
 
     // Second click on the active column flips to descending.
-    fireEvent.click(screen.getByRole('button', { name: 'Đối tác' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên doanh nghiệp' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
@@ -103,24 +105,21 @@ describe('CustomersPage server-side sort headers', () => {
     renderPage();
     expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Giám đốc' }));
+    fireEvent.click(screen.getByRole('button', { name: 'MST' }));
     await waitFor(() => {
-      expect(lastGetUrl()).toContain('sortBy=accountantName');
+      expect(lastGetUrl()).toContain('sortBy=taxCode');
       expect(lastGetUrl()).toContain('sortDir=asc');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hạn TT Chi hộ' }));
-    await waitFor(() => expect(lastGetUrl()).toContain('sortBy=agencyFeePaymentTermDays'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Người liên hệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Liên hệ & SĐT' }));
     await waitFor(() => expect(lastGetUrl()).toContain('sortBy=contactPerson'));
 
     // The active column announces direction; inactive columns announce none.
     // (Query via the header buttons — the bare label text also appears in the
     // mobile card list.)
-    const header = screen.getByRole('button', { name: 'Người liên hệ' }).closest('th');
+    const header = screen.getByRole('button', { name: 'Liên hệ & SĐT' }).closest('th');
     expect(header?.getAttribute('aria-sort')).toBe('ascending');
-    expect(screen.getByRole('button', { name: 'Hạn TT Chi hộ' }).closest('th')?.getAttribute('aria-sort')).toBe('none');
+    expect(screen.getByRole('button', { name: 'MST' }).closest('th')?.getAttribute('aria-sort')).toBe('none');
   });
 
   it('omits sort params entirely until a header is pressed', async () => {
@@ -128,5 +127,31 @@ describe('CustomersPage server-side sort headers', () => {
     expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
     expect(lastGetUrl()).not.toContain('sortBy');
     expect(lastGetUrl()).not.toContain('sortDir');
+  });
+});
+
+describe('customers chief strip + grid (card 20260926_60)', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/pages/CustomersPage.css'), 'utf8');
+  const tsx = readFileSync(resolve(process.cwd(), 'src/pages/CustomersPage.tsx'), 'utf8');
+
+  it('command strip replaces the metric-card band: pills in row 1, filters in row 2', () => {
+    expect(tsx).not.toContain('<SummaryRail');
+    expect(tsx).toContain('customers-strip__row1');
+    expect(tsx).toContain('customers-strip__row2');
+    expect(tsx).toContain('Top 4 KH chiếm');
+    expect(tsx).not.toContain('Rủi ro cao');
+  });
+
+  it('grid: fixed spec columns over 38px striped rows, stacked contact, copyable phone', () => {
+    expect(css).toMatch(/\.customers-code-cell\s*\{[^}]*font-family:\s*var\(--font-data\)/);
+    expect(css).toMatch(/\.customers-strip__tab-count--active/);
+    expect(css).toMatch(/\.customers-contact-stack\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/\.customers-copy-phone/);
+    expect(tsx).not.toContain('colSpan={5 + Number');
+  });
+
+  it('search carries the working kbd badge', () => {
+    expect(tsx).toContain('customers-strip__kbd');
+    expect(tsx).toMatch(/event\.metaKey \|\| event\.ctrlKey/);
   });
 });
