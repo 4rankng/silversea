@@ -1,11 +1,37 @@
 /* Customer catalogs contain twelve facts per record. Keep their summary and
    labelled layout compact without changing the shared config-page patterns. */
+/* Card 20260926_9 (CHIEF 8-item overhaul): the KPI strip becomes ONE card —
+   radius 12 + 1px border on the container replaces the vertical dividers on
+   the gray canvas; numbers go primary semibold with a muted unit; every
+   sub-label reads the same neutral color. */
 .cfg-page--customers .cfg-customer-summary {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin-bottom: 12px;
-  padding-block: 8px;
-  border-block: 1px solid var(--line);
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.cfg-page--customers .cfg-customer-summary > .kpi + .kpi {
+  border-inline-start: 0;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__value {
+  font-size: 26px;
+  font-weight: var(--fw-semibold, 600);
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__value-unit {
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-regular, 400);
+  color: var(--ink-3);
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__meta--up {
+  color: var(--ink-3);
+  font-weight: var(--fw-regular, 400);
 }
 
 .cfg-page--customers .cfg-customer-summary > .kpi {
@@ -106,3 +132,19 @@
    narrows them). A 132px floor lets 'HẠN THANH TOÁN' hold line 1, so the
    header settles at an even 2-line wrap next to its neighbours. */
 .cfg-page--customers .cfg-customer-table thead th.num { min-width: 132px; }
+
+/* Card 20260926_9 (CHIEF overhaul): one toolbar rhythm — filter pills and
+   the search shell share the 36px control height; table rows breathe at
+   12px vertical / 16px horizontal (desktop table; the phone card list keeps
+   its own padding). */
+.cfg-page--customers .filter-tab,
+.cfg-page--customers .filter-bar .filter-tab,
+.cfg-page--customers .filter-bar__search {
+  height: 36px;
+}
+
+@media (min-width: 641px) {
+  .cfg-page--customers .cfg-customer-table tbody td {
+    padding: 12px 16px;
+  }
+}

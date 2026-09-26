@@ -219,13 +219,11 @@ export default function CustomersConfigPage() {
           <div className="kpi__top"><span className="kpi__label">Tổng khách hàng</span></div>
           <div className="kpi__value">{data ? totalCount : '—'}</div>
           <div className="kpi__meta kpi__meta--up">Đang quản lý</div>
-          <div className="kpi__watermark" aria-hidden="true"><Users size={72} /></div>
         </div>
         <div className="kpi kpi--success">
           <div className="kpi__top"><span className="kpi__label">Đang hoạt động</span></div>
           <div className="kpi__value">{data ? activeCount : '—'}{data && <span className="kpi__value-unit">/{totalCount}</span>}</div>
           <div className="kpi__meta">Trạng thái hoạt động</div>
-          <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg></div>
         </div>
         <div className="kpi kpi--warn">
           <div className="kpi__top"><span className="kpi__label">Top 4 chiếm</span></div>
@@ -234,13 +232,11 @@ export default function CustomersConfigPage() {
             : tripStats.isError ? <>Không thể tải doanh thu. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void tripStats.refetch(); }}>Thử lại</button></>
               : tripStats.isPending ? 'Đang tải doanh thu…'
                 : top4Pct == null ? 'Chưa có doanh thu tháng này' : top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
-          <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
         </div>
         <div className="kpi kpi--danger">
           <div className="kpi__top"><span className="kpi__label">Tạm khoá</span></div>
           <div className="kpi__value">{data ? lockedCount : '—'}</div>
           <div className="kpi__meta">Trạng thái tạm khoá</div>
-          <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
         </div>
       </div>
 
@@ -327,6 +323,11 @@ export default function CustomersConfigPage() {
                       <div style={{
                         position: 'absolute', right: 12, zIndex: 20,
                         background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
+                        /* Card 20260926_9: CHIEF asked for a soft shadow here, but §3
+                           flat contract + its styles test ban ad-hoc elevation —
+                           separation comes from border + radius + padding. Flagged
+                           for a Chief-signed law amendment if the shadow is wanted. */
+                        padding: 4,
                         overflow: 'hidden', minWidth: 140,
                         ...(index >= filtered.length - 2 && filtered.length > 2
                           ? { bottom: '100%', marginBottom: 4 }

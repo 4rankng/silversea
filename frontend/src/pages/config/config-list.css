@@ -156,6 +156,7 @@
 .cfg-customer-table td[data-label="Mã Số Thuế"],
 .cfg-customer-table td[data-label="SĐT Giám đốc"],
 .cfg-customer-table td[data-label="SĐT Kế toán"],
+.cfg-customer-table td[data-label="SĐT liên hệ"],
 .factories-table td[data-label="Mã"] {
   white-space: nowrap;
 }
