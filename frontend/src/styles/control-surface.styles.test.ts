@@ -48,4 +48,14 @@ describe('site surface contract (card 20260925_3)', () => {
     expect(rule).toContain('background: var(--surface)');
     expect(rule).toContain('border: 1px solid var(--line)');
   });
+
+  it('disabled buttons carry the opacity + not-allowed cue (card 20260925_48)', () => {
+    // Audit reported the login submit as cue-less; computed styles on the live
+    // login page show the .btn[disabled] cue applied (opacity 0.45 over the
+    // accent fill reads faded). Pin the Button-layer contract so it cannot rot.
+    const css = read('src/components/Button.css');
+    const rule = css.match(/\.btn\[disabled\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain('opacity: 0.45');
+    expect(rule).toContain('cursor: not-allowed');
+  });
 });
