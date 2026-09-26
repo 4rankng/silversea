@@ -410,3 +410,75 @@
 .dcc-capture--note {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
+
+/* Card 20260926_28 item 9: copy button rides the code rows (bento plate and
+   seal); the row wrapper keeps plate + copy on one line. */
+.dcc-bento__plate-row,
+.dcc-bento__seal-value-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Card 20260926_28 item 11: the Thêm-ảnh action sheet — flat bottom sheet,
+   no shadows (design law), full-bleed on phones. */
+.dcc-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--ink, #0f172a) 40%, transparent);
+}
+
+.dcc-sheet__panel {
+  width: min(var(--driver-measure, 720px), 100%);
+  display: grid;
+  gap: 4px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  background: var(--surface);
+}
+
+.dcc-sheet__title {
+  margin: 0 0 4px;
+  font-size: var(--text-section-size);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dcc-sheet__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dcc-sheet__action:hover {
+  background: var(--surface-2);
+}
+
+.dcc-sheet__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dcc-sheet__action--cancel {
+  margin-top: 4px;
+  justify-content: center;
+  color: var(--ink-3);
+  font-weight: 500;
+}

@@ -78,7 +78,9 @@ async function scanContainer(ocrResult: Record<string, unknown>) {
   uploadMock.mockResolvedValueOnce(ocrResult as never);
   const editButton = screen.queryByRole('button', { name: /Sửa/ });
   if (editButton) fireEvent.click(editButton);
-  fireEvent.click(screen.getByRole('button', { name: /Mở camera cont/ }));
+  // Card _28 item 11: camera lives inside the merged Thêm-ảnh action sheet.
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chụp ảnh' }));
   fireEvent.click(screen.getByText('fake-scanner-capture'));
   await waitFor(() => expect(uploadMock).toHaveBeenCalled());
 }
@@ -140,8 +142,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
     const { onSaved } = renderCard();
     const containerInput = screen.getByRole('textbox', { name: 'Số container' });
     fireEvent.change(containerInput, { target: { value: 'CSQU3054383' } });
-    const input = screen.getByText('Chụp / chọn ảnh biên bản')
-      .closest('label')!.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector('input[aria-label="Chọn ảnh biên bản"]') as HTMLInputElement;
     const file = new File(['note-bytes'], 'note.jpg', { type: 'image/jpeg' });
     uploadMock.mockRejectedValueOnce(new Error('Mạng gián đoạn. Vui lòng thử lại.'));
 
@@ -174,9 +175,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
     const { onSaved } = renderCard({ deliveryNotePhotoKey: null });
     uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'k', url: '/api/photos/k' } as never);
 
-    const input = screen.getByText('Chụp / chọn ảnh biên bản')
-      .closest('label')!
-      .querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector('input[aria-label="Chọn ảnh biên bản"]') as HTMLInputElement;
     expect(input).toBeTruthy();
     const file = new File(['note-bytes'], 'note.jpg', { type: 'image/jpeg' });
     await fireEvent.change(input, { target: { files: [file] } });
@@ -226,8 +225,7 @@ describe('DriverContainerCard — unified photo block', () => {
     expect(screen.getByAltText('Ảnh seal')).toBeTruthy();
     expect(screen.getByAltText('Ảnh biên bản')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
-    expect(screen.getByText('Chụp / chọn ảnh biên bản')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm ảnh biên bản' })).toBeTruthy();
 
     expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
     expect(document.querySelector('.dcc-note')).toBeNull();
@@ -329,14 +327,14 @@ describe('DriverContainerCard — local container validation', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
   });
 
-  it('pairs each photo picker with its own camera action in the capture grid', () => {
+  it('card _28: each capture zone is ONE Thêm-ảnh entry opening the action sheet', () => {
     renderCard();
     const groups = document.querySelectorAll('.dcc-capture-group');
     expect(groups).toHaveLength(3);
-    for (const [index, name] of ['cont', 'seal', 'biên bản'].entries()) {
-      expect(groups[index]).toHaveTextContent(`Chụp / chọn ảnh ${name}`);
-      expect(groups[index]).toHaveTextContent(`Mở camera ${name}`);
-      expect(groups[index].querySelector('input[type="file"]')).toBeTruthy();
+    const zoneButtons = document.querySelectorAll('.dcc-capture-btn--primary');
+    expect(zoneButtons).toHaveLength(3);
+    for (const [index, name] of ['Thêm ảnh cont', 'Thêm ảnh seal', 'Thêm ảnh biên bản'].entries()) {
+      expect(zoneButtons[index].textContent).toContain(name);
     }
   });
 });

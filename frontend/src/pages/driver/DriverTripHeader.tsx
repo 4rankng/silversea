@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../../components/UI';
+import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { tripStatusVariant } from '../../lib/tripStatus';
 import type { DriverTaskDetail } from '../../api/driverClient';
 
@@ -33,7 +34,12 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
         <ArrowLeft size={18} />
       </button>
       <div className="driver-task-header__body">
-        <h1 className="driver-task-header__title">{title}</h1>
+        {/* Card 20260926_28 item 9: the display key is copyable — drivers
+            shuttle the bill/booking code between apps constantly. */}
+        <div className="driver-task-header__title-row">
+          <h1 className="driver-task-header__title">{title}</h1>
+          {fulfillment?.code && <CopyCodeButton value={fulfillment.code} label="Số Bill / Booking" />}
+        </div>
         <div className="driver-task-header__meta">
           {locationShown && (
             <span className="driver-task-header__location">{location}</span>

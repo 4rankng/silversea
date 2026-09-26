@@ -3,6 +3,7 @@ import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned,
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
+import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { driverLocationLabels } from '../../features/driver/driver-display';
 
 /**
@@ -28,12 +29,13 @@ import { driverLocationLabels } from '../../features/driver/driver-display';
  *   differ: identical numbers render ONE row; differing numbers render both
  *   rows with their own labels so the driver can call the right one.
  */
-function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
+function TaskFact({ icon, label, value, fullWidth, action }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean; action?: React.ReactNode }) {
   return (
     <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
       <span className="driver-task-fact__icon">{icon}</span>
       <span className="driver-task-fact__label">{label}</span>
       <div className="driver-task-fact__value">{value}</div>
+      {action ? <div className="driver-task-fact__action">{action}</div> : null}
     </div>
   );
 }
@@ -231,8 +233,9 @@ export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
           {trip.invoiceFactory?.address ? (
             <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
           ) : null}
+          {/* Card _28 item 9: MST values are copyable (factory + customer). */}
           {trip.invoiceFactory?.taxCode ? (
-            <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
+            <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth action={<CopyCodeButton value={trip.invoiceFactory.taxCode} label="MST nhà máy" />} />
           ) : null}
           {missingFactoryInvoiceFields.length > 0 ? <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình: {missingFactoryInvoiceFields.join(', ')}.</p> : null}
           {/* Customer master-data invoice block — heading precedes data. */}
@@ -246,7 +249,7 @@ export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
                 <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
               ) : null}
               {trip.invoiceMaster.taxCode ? (
-                <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+                <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth action={<CopyCodeButton value={trip.invoiceMaster.taxCode} label="MST khách hàng" />} />
               ) : null}
             </>
           ) : null}

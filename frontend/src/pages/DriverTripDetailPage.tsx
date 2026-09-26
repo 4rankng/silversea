@@ -326,6 +326,13 @@ function DriverTripDetailContent() {
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
+  // Card 20260926_28 item 10: live completion state for the sticky bar (and
+  // the top progress strip) — missing = the POD-gate files still absent.
+  const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
+  const missingDocs = 2 - podHave;
+  const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
+  const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
+
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
   const showAcceptStickyBar = !closed && acceptState !== 'done';
@@ -333,7 +340,7 @@ function DriverTripDetailContent() {
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
   return (
-    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
+    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}${!closed && !showAcceptStickyBar ? ' driver-task-screen--has-complete-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
 
       {/* Card 20260926_30 item 16: compact progress strip at the top — the
@@ -343,20 +350,9 @@ function DriverTripDetailContent() {
           saved cost entries. Incomplete groups warn, complete groups show
           ok. */}
       <div className="driver-task-progress" data-testid="driver-task-progress">
-        {(() => {
-          const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
-          const podTotal = 2;
-          const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
-          const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
-          const photoTotal = 3;
-          return (
-            <>
-              <span className={`driver-task-progress__item${podHave >= podTotal ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/{podTotal}</span>
-              <span className={`driver-task-progress__item${photoHave >= photoTotal ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoHave}/{photoTotal}</span>
-              <span className={`driver-task-progress__item${costEntryCount > 0 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-costs">Chi phí {costEntryCount}</span>
-            </>
-          );
-        })()}
+        <span className={`driver-task-progress__item${podHave >= 2 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/2</span>
+        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoHave}/3</span>
+        <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
       </div>
 
 
@@ -396,31 +392,11 @@ function DriverTripDetailContent() {
               </ul>
             )}
           </div>
-          {closed ? (
+          {closed && (
             <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
               <FileCheck2 size={18} />
               <span>Xem chứng từ giao hàng</span>
             </Link>
-          ) : trip.status === 'IN_TRANSIT' ? (
-            <button
-              type="button"
-              className="driver-task-complete"
-              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
-            >
-              <FileCheck2 size={18} />
-              <span>Hoàn tất lệnh vận chuyển</span>
-            </button>
-          ) : (
-            <button type="button" className="driver-task-complete" disabled>
-              <FileCheck2 size={18} />
-              <span>{completeCtaLabel(trip.status)}</span>
-            </button>
-          )}
-          {podReady && trip.status === 'IN_TRANSIT' && (
-            <div className="driver-task-footer__ready">
-              <CheckCircle2 size={16} />
-              <span>Đủ điều kiện hoàn thành chuyến.</span>
-            </div>
           )}
         </div>
       </footer>
@@ -612,6 +588,29 @@ function DriverTripDetailContent() {
       )}
 
       {/* KP-087: blocking-trip reference when acceptance is rejected */}
+      {/* Card 20260926_28 item 10: the completion action lives in a sticky
+          bar above the tab nav with LIVE state — "Còn thiếu N chứng từ" —
+          instead of a gray disabled card at the end of the scroll. Hidden
+          while the accept bar is up so the two never stack. */}
+      {!closed && !showAcceptStickyBar && (
+        <div className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
+          <div className="driver-task-complete-sticky__inner">
+            <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
+              {missingDocs > 0 ? `Còn thiếu ${missingDocs} chứng từ` : 'Đủ điều kiện hoàn thành'}
+            </span>
+            <button
+              type="button"
+              className="driver-task-complete-sticky__btn"
+              disabled={trip.status !== 'IN_TRANSIT'}
+              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
+            >
+              <FileCheck2 size={16} />
+              <span>{trip.status === 'IN_TRANSIT' ? 'Hoàn thành' : completeCtaLabel(trip.status)}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {blockingTripCode && (
         <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
           <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>

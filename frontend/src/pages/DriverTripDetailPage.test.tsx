@@ -367,8 +367,9 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    // Accept recorded → acceptState 'done' → no sticky bar at all.
-    await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    // Accept recorded → acceptState 'done' → the completion bar owns the
+    // sticky slot (card _28 item 10).
+    await screen.findByTestId('complete-sticky-bar');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
   });
@@ -378,19 +379,26 @@ describe('DriverTripDetailPage', () => {
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn thành" CTA is now a
-    // "Hoàn tất lệnh vận chuyển" link that navigates to /my-trips/:id/pod. The
-    // actual complete action lives on the e-POD page.
-    const cta = screen.getByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
-    expect(cta.hasAttribute('disabled')).toBe(false);
-    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
-    // gaps, not the evidence endpoint's milestone/label echo (old code echoed
-    // the backend label "Thiếu biên bản giao nhận có ký nhận" here).
+    // Card _28 item 10: before acceptance the completion action has no sticky
+    // slot — the accept bar owns it; the Chứng từ card still lists the two
+    // e-POD photo gaps.
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the Chứng từ card lists only the two
+    // e-POD photo gaps, not the evidence endpoint's milestone/label echo.
+    expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
-  it('navigates to the e-POD page when the driver taps Hoàn tất lệnh vận chuyển (the trip detail no longer completes the trip inline)', async () => {
+  it('navigates to the e-POD page when the driver taps the sticky completion action (the trip detail no longer completes the trip inline)', async () => {
+    // Card _28 item 10: the action lives in the sticky bar, which owns the
+    // slot only once the order is accepted.
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -421,9 +429,9 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    // Clicking "Hoàn tất lệnh vận chuyển" navigates to the pod page; we don't fire
-    // any completion command from the trip detail anymore.
-    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    // Tapping the sticky "Hoàn thành" action navigates to the pod page; we
+    // don't fire any completion command from the trip detail anymore.
+    const cta = await screen.findByRole('button', { name: /Hoàn thành/ });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen — the route param is the
@@ -463,15 +471,24 @@ describe('DriverTripDetailPage', () => {
       refetch: vi.fn().mockResolvedValue(undefined),
     });
 
+    // Card _28 item 10: the completion action is the sticky bar's button
+    // (owning the slot once the order is accepted).
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
     renderPageWithBoard();
 
-    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    await screen.findByTestId('complete-sticky-bar');
+    const cta = screen.getByRole('button', { name: /Hoàn thành/ });
     fireEvent.click(cta);
 
-    // The trip detail doesn't navigate away on the CTA (a real router would
-    // change the URL, but the click is wired through react-router's
-    // <Link> and we don't have a Router assertion here). The point is: the
-    // driver is NOT shown a queued complete or a journey-board jump.
+    // The trip detail doesn't fire a completion command from the sticky
+    // action — the driver is NOT shown a queued complete or a journey-board
+    // jump; the action navigates to the e-POD screen instead.
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(toastMock).not.toHaveBeenCalled();
   });
@@ -701,6 +718,88 @@ describe('DriverTripDetailPage', () => {
     expect(strip.textContent).toContain('Chứng từ 0/2');
     expect(strip.textContent).toContain('Ảnh 0/3');
     expect(strip.textContent).toContain('Chi phí 0');
+  });
+
+  it('card _28: copy affordances ride the header code and the MST rows', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Header: the display key carries a copy button.
+    expect(screen.getByRole('button', { name: 'Copy Số Bill / Booking' })).toBeTruthy();
+    // Invoice MST rows (collapsed by default): expand, then check both copy
+    // buttons. Base fixture has factory MST absent — expand shows the empty
+    // note, so assert on the header copy + the invoice section's MST when
+    // master data exists.
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+  });
+
+  it('card _28: sticky completion bar shows the live missing count', async () => {
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Trip IN_TRANSIT, 0/2 POD files → the bar shows the missing count and
+    // the completion action navigates to the e-POD screen.
+    const bar = screen.getByTestId('complete-sticky-bar');
+    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Còn thiếu 2 chứng từ');
+    const btn = screen.getByRole('button', { name: /Hoàn thành/ });
+    expect(btn).toBeEnabled();
+  });
+
+  it('card _28: the sticky bar never stacks with the accept bar', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'CREATED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // CREATED trip: the accept bar owns the sticky slot; the complete bar
+    // stays hidden until the order is accepted.
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    expect(screen.getByTestId('accept-sticky-bar')).toBeTruthy();
+  });
+
+  it('card _28: sticky bar hides on a closed trip (link takes over in the Chứng từ card)', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'COMPLETED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toBeTruthy();
+  });
+
+  it('card _28: Thêm ảnh opens one action sheet with camera + gallery + Hủy', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ containers: [] }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // No container saved → the form renders with the merged capture zones.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
+    expect(screen.getByRole('dialog', { name: 'Thêm ảnh' })).toBeTruthy();
+    expect(screen.getAllByText('Thêm ảnh cont').length).toBeGreaterThan(0);
+    // One camera entry + one gallery entry inside the sheet.
+    expect(screen.getAllByRole('button', { name: 'Chụp ảnh' }).length).toBe(1);
+    expect(screen.getAllByRole('button', { name: 'Chọn từ thư viện' }).length).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog', { name: 'Thêm ảnh' })).toBeNull();
   });
 
   it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
@@ -1092,8 +1191,9 @@ describe('DriverTripDetailPage', () => {
   it('shows the unified biên bản affordances and no standalone section', async () => {
     renderPage();
 
-    expect(screen.getByText('Chụp / chọn ảnh biên bản')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
+    // Card _28 item 11: ONE merged Thêm-ảnh entry per zone.
+    expect(screen.getByRole('button', { name: 'Thêm ảnh biên bản' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Mở camera biên bản' })).toBeNull();
     expect(screen.queryByTestId('delivery-note-block')).toBeNull();
     expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
     expect(screen.queryByAltText('Ảnh biên bản')).toBeNull();

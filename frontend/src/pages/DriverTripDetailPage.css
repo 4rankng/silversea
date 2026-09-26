@@ -106,6 +106,112 @@
   overflow-wrap: anywhere;
 }
 
+/* Card 20260926_28 item 9: inline copy affordance for the driver's long
+   codes — icon flips to a check for a beat after copying. */
+.driver-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.driver-copy-btn:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+/* Fact-row action slot (card _28: copy on MST rows). */
+.driver-task-fact__action {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Card 20260926_28 item 10: sticky completion bar — the completion action
+   and its LIVE missing-count sit above the tab nav (mirrors the accept
+   sticky bar); never a gray card at the end of the scroll. */
+.driver-task-complete-sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky, 100);
+  display: flex;
+  justify-content: center;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 92%, transparent) 20%, var(--surface-2, #f8fafc) 100%);
+}
+
+@media (max-width: 1023px) {
+  .driver-task-complete-sticky {
+    bottom: calc(60px + env(safe-area-inset-bottom, 12px));
+  }
+}
+
+.driver-task-complete-sticky__inner {
+  width: min(var(--driver-measure), 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.driver-task-complete-sticky__status {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  color: var(--warning, #d97706);
+}
+
+.driver-task-complete-sticky__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: var(--ink);
+  color: var(--fg-inverse, #fff);
+  font-size: var(--text-body-size);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.driver-task-complete-sticky__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  #root .driver-task-complete-sticky__btn {
+    min-height: 48px;
+  }
+}
+
+/* Bottom clearance mirrors the accept bar so the last section never hides
+   behind the sticky completion bar. */
+.driver-task-screen--has-complete-bar {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 1023px) {
+  .driver-task-screen--has-complete-bar {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Card 20260926_30 item 16: compact progress strip — one text-only line
    under the header; incomplete groups warn, complete groups show ok. */
 .driver-task-progress {
