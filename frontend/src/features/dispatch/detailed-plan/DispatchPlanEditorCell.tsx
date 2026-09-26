@@ -12,7 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
-import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import { DateTimeField, SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,
@@ -103,9 +103,31 @@ interface PlanEditorDraft {
   vehicleValue: string;
   plannedRevenue: string;
   plannedCarrierCost: string;
+  /** Giờ trả hàng — local 'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. */
+  plannedEndAt: string;
   classification: DispatchClassification;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
+}
+
+/** ISO instant → Vietnam wall-clock 'YYYY-MM-DDTHH:mm' for datetime-local inputs. */
+function isoToVietnamLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
+}
+
+/** Local 'YYYY-MM-DDTHH:mm' → zone-aware ISO (+07:00). Null when incomplete. */
+function vietnamLocalInputToIso(local: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return null;
+  return new Date(`${local}:00+07:00`).toISOString();
 }
 
 
@@ -115,6 +137,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
+    plannedEndAt: isoToVietnamLocalInput(row.plannedEndAt),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
@@ -525,6 +548,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       setError('Biển số đã chọn không hợp lệ.');
       return;
     }
+    // Giờ trả hàng: omit = untouched, null = clear, zone-aware ISO = set —
+    // mirroring the backend's atomic-save contract exactly.
+    const storedEnd = row.plannedEndAt ?? null;
+    const draftEndIso = draft.plannedEndAt === '' ? null : vietnamLocalInputToIso(draft.plannedEndAt);
+    if (draft.plannedEndAt !== '' && draftEndIso == null) {
+      setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -536,6 +567,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         ...(vehicleChanged ? body : {}),
         plannedRevenue: revenue.value,
         plannedCarrierCost: carrierCost.value,
+        // Same touch-gating as the vehicle block: an untouched field must
+        // never reach the wire and clobber a value another editor saved.
+        ...(draftEndIso !== storedEnd ? { plannedEndAt: draftEndIso } : {}),
         classification: draft.classification,
         operationalNotes: draft.operationalNotes,
       });
@@ -778,10 +812,16 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"
               label="Cước trả dự kiến"
               inputMode="numeric"
-              autoComplete="off"
-              value={formatMoneyInput(draft.plannedCarrierCost)}
               suffix="đ"
+              value={formatMoneyInput(draft.plannedCarrierCost)}
               onChange={(event) => { setDraft((current) => ({ ...current, plannedCarrierCost: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              disabled={saving}
+            />
+            <DateTimeField
+              id={`dispatch-plan-end-${row.fulfillmentId}`}
+              label="Giờ trả hàng"
+              value={draft.plannedEndAt}
+              onChange={(next) => { setDraft((current) => ({ ...current, plannedEndAt: next })); setError(null); }}
               disabled={saving}
             />
           </div>

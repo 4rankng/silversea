@@ -225,6 +225,8 @@ export interface DispatchDetailPlanRow {
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+  /** Giờ trả hàng — staged pre-issuance on the fulfillment; null until set. */
+  plannedEndAt: string | null;
   // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
   // containers start as "Đơn" until dispatch reclassifies them.
   classification: DispatchClassification;
@@ -371,6 +373,8 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
+  /** Giờ trả hàng — omit to leave stored value untouched, null to clear, zone-aware ISO to set. */
+  plannedEndAt?: string | null;
   /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */
   classification?: DispatchClassification;
   isCombined?: boolean;
@@ -384,6 +388,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
     classification: DispatchClassification;
     isCombined: boolean;
     operationalNotes: string | null;
+    plannedEndAt: string | null;
     dispatch: {
       carrierType: 'OWN' | 'EXTERNAL';
       carrierName: string | null;

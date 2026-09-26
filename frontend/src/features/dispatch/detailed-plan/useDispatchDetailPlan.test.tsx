@@ -434,6 +434,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     updateDispatchDetailPlanMock.mockResolvedValue({
       fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
       classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
+      plannedEndAt: null,
       dispatch: { ...updated.dispatch, carrierType: 'OWN' }, estimates: updated.estimates, lotFullyPlated: true,
       driverNotified: false, driverHint: null, replayed: false,
     });
@@ -474,7 +475,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
       classification: 'SINGLE', isCombined: false, operationalNotes: null,
       dispatch: { ...plannedRow.dispatch, carrierType: 'OWN', assignedPlate: after, assignedDriverName: after ? 'Nguyễn Văn A' : null },
       estimates: { plannedRevenue: null, plannedCarrierCost: null },
-      lotFullyPlated: after != null, driverNotified: false, driverHint: null, replayed: false,
+      plannedEndAt: null, lotFullyPlated: after != null, driverNotified: false, driverHint: null, replayed: false,
     });
     const countBeforeSave = listDispatchDetailPlanRowsMock.mock.calls.length;
     await act(async () => {
@@ -497,7 +498,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
       classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
       dispatch: { ...plannedRow.dispatch, carrierType: 'OWN', assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
       estimates: { plannedRevenue: null, plannedCarrierCost: null },
-      lotFullyPlated: true, driverNotified: false, driverHint: null, replayed: false,
+      plannedEndAt: null, lotFullyPlated: true, driverNotified: false, driverHint: null, replayed: false,
     });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({
       version: 4, shipmentVersion: 6,

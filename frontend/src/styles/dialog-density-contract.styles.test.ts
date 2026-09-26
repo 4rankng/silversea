@@ -17,7 +17,6 @@ function collectTsxFiles(dir: string): string[] {
 // the entry here at the same time.
 const FROZEN_WRAPPER_ALLOWLIST = [
   'features/dispatch/components/ReassignDialog.tsx',
-  'features/dispatch/components/DispatchTripCard.tsx',
 ];
 
 describe('dialog density contract', () => {

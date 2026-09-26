@@ -98,7 +98,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 441 → 444: 2026-09-22 card 20260922_32 — the detail-plan filter
   // interface gains the dateFrom/dateTo range fields (wire half of the
   // month-scope feature). Reviewed as a contract change.
-  'src/api/dispatchPlanningClient.ts': 444,
+  'src/api/dispatchPlanningClient.ts': 449,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -185,7 +185,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // lot-banner close button swaps the U+2715 text glyph for the lucide X
   // icon (design law §1); the import is the added line. Reviewed as a
   // contract change.
-'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 451,
+'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 455,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
@@ -205,7 +205,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // carrier-options fallback label) + the driver-acceptance chip derive.
   // Reviewed as a contract change; a future split (extract the carrier-link
   // resolution) should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 832,
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 859,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.

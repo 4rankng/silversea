@@ -79,6 +79,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   classification: 'SINGLE' as DispatchDetailPlanRow['classification'],
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
   lotFullyPlated: false,
+  plannedEndAt: null,
   ...overrides,
 } as DispatchDetailPlanRow);
 
@@ -155,6 +156,54 @@ function issueButton(): HTMLButtonElement {
     .find((b) => b.classList.contains('dispatch-assignment-dialog__issue-btn')) as HTMLButtonElement;
 }
 
+
+describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)', () => {
+  const endField = () => screen.getByRole('group', { name: 'Giờ trả hàng' });
+  const daySeg = () => screen.getByLabelText('Ngày — Giờ trả hàng') as HTMLInputElement;
+  const hourSeg = () => screen.getByLabelText('Giờ — Giờ trả hàng') as HTMLInputElement;
+
+  it('prefills the Giờ trả hàng field in Vietnam wall-clock', async () => {
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), {});
+    await openDialog();
+    expect(endField()).toBeTruthy();
+    expect(daySeg().value).toBe('05');
+    expect(hourSeg().value).toBe('15');
+  });
+
+  it('sends zone-aware ISO on save (15:30 +07:00 → 08:30Z)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: null }), { onAtomicSave });
+    await openDialog();
+    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '05/10/2026' } });
+    fireEvent.change(hourSeg(), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('Phút — Giờ trả hàng'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ plannedEndAt: '2026-10-05T08:30:00.000Z' });
+  });
+
+  it('omits plannedEndAt from the save body when untouched — omit = untouched contract', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
+  });
+});
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
