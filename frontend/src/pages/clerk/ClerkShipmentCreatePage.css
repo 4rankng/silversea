@@ -188,6 +188,16 @@
 .csc-control-boundary:has([aria-invalid='true']) textarea {
   border-color: var(--danger, #dc2626);
 }
+/* A focused invalid field shows the red ring — the green focus glow must
+   never co-render with the error state (error styling wins over focus). */
+.csc-control-boundary:has([aria-invalid='true']):focus-within > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within [role='group'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within select,
+.csc-control-boundary:has([aria-invalid='true']):focus-within textarea {
+  border-color: var(--danger, #dc2626);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #dc2626) 18%, transparent);
+}
 .csc-control-boundary:has(:disabled) > [role='presentation'],
 .csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
 .csc-control-boundary:has(:disabled) [role='group'],

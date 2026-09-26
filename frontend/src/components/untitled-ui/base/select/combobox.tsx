@@ -58,13 +58,14 @@ interface ComboBoxValueProps extends AriaGroupProps {
     openOnPress?: boolean;
     allowsCustomValue?: boolean;
     triggerClassName?: string;
+    isInvalid?: boolean;
     onClear?: () => void;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
     const state = useContext(ComboBoxStateContext);
     // True from the last explicit option-navigation key until the next typing
     // key or a consumed Enter — see the keydown-capture handler below.
@@ -94,9 +95,17 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
             data-default-search-icon={IconProp == null || (!isReactComponent(IconProp) && !isValidElement(IconProp)) ? true : undefined}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                    "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
                     isDisabled && "cursor-not-allowed opacity-50",
-                    isFocusWithin && "border-brand outline-2 outline-offset-1",
+                    // Error wins over focus: a focused invalid control outlines
+                    // red; the brand-green focus ring never co-renders with the
+                    // error state.
+                    isInvalid && isFocusWithin
+                        ? "border-error outline-2 outline-offset-1 outline-error"
+                        : cx(
+                              "outline-focus-ring",
+                              isFocusWithin && "border-brand outline-2 outline-offset-1",
+                          ),
                     triggerClassName,
                 )
             }
@@ -348,6 +357,7 @@ export const ComboBox = ({
     icon,
     openOnPress = false,
     hideRequiredIndicator,
+    isInvalid,
     triggerClassName,
     onClear,
     onEnterCommit,
@@ -382,6 +392,7 @@ export const ComboBox = ({
                 defaultFilter={matchesComboboxSearch}
                 allowsEmptyCollection
                 {...otherProps}
+                isInvalid={isInvalid}
                 selectedKey={otherProps.selectedKey}
             >
                 {(state) => (
@@ -419,6 +430,7 @@ export const ComboBox = ({
                             openOnPress={openOnPress}
                             allowsCustomValue={otherProps.allowsCustomValue}
                             triggerClassName={triggerClassName}
+                            isInvalid={isInvalid}
                             onClear={onClear}
                             onEnterCommit={onEnterCommit}
                             size={size}

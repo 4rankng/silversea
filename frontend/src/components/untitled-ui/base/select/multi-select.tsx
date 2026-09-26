@@ -215,8 +215,15 @@ const MultiSelectRoot = ({
                         onClick={onResize}
                         className={(state) =>
                             cx(
-                                "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
-                                (state.isFocusVisible || state.isPressed) && "border-brand outline-2 outline-offset-1",
+                                "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
+                                // Error wins over focus: a focused invalid control outlines
+                                // red; the brand-green focus ring never co-renders.
+                                isInvalid && (state.isFocusVisible || state.isPressed)
+                                    ? "border-error outline-2 outline-offset-1 outline-error"
+                                    : cx(
+                                          "outline-focus-ring",
+                                          (state.isFocusVisible || state.isPressed) && "border-brand outline-2 outline-offset-1",
+                                      ),
                                 state.isDisabled && "cursor-not-allowed opacity-50",
                             )
                         }

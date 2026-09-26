@@ -323,3 +323,33 @@ describe('ComboBox factory search while typing', () => {
     expect((input as HTMLInputElement).value).toContain('VID');
   });
 });
+
+describe('ComboBox invalid focus ring', () => {
+  it('outlines red when focused while invalid — the brand-green ring never co-renders with the error', () => {
+    render(
+      <ComboBox label="Khách hàng" isInvalid items={[{ id: '1', label: 'KH A' }]}>
+        {(item) => <SelectItem id={item.id} label={item.label} />}
+      </ComboBox>,
+    );
+    const input = screen.getByRole('combobox', { name: 'Khách hàng' });
+    act(() => input.focus());
+    const group = input.closest('.uui-combobox') as HTMLElement;
+    expect(group.className).toContain('outline-error');
+    expect(group.className).not.toContain('outline-focus-ring');
+    expect(group.className).not.toContain('border-brand');
+  });
+
+  it('keeps the green focus ring for a focused valid combobox', () => {
+    render(
+      <ComboBox label="Hãng tàu" items={[{ id: '1', label: 'SITC' }]}>
+        {(item) => <SelectItem id={item.id} label={item.label} />}
+      </ComboBox>,
+    );
+    const input = screen.getByRole('combobox', { name: 'Hãng tàu' });
+    act(() => input.focus());
+    const group = input.closest('.uui-combobox') as HTMLElement;
+    expect(group.className).toContain('outline-focus-ring');
+    expect(group.className).toContain('border-brand');
+    expect(group.className).not.toContain('outline-error');
+  });
+});

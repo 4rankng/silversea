@@ -23,6 +23,7 @@ interface TagSelectValueProps extends AriaGroupProps {
     size: "sm" | "md" | "lg";
     shortcut?: boolean;
     isDisabled?: boolean;
+    isInvalid?: boolean;
     placeholder?: string;
     shortcutClassName?: string;
     icon?: IconComponentType | null;
@@ -75,6 +76,7 @@ export const TagSelectBase = ({
     icon,
     // Omit name to avoid conflicts with the `Select` component
     name: _name,
+    isInvalid,
     className,
     ...props
 }: TagSelectProps) => {
@@ -166,6 +168,7 @@ export const TagSelectBase = ({
                     onChange={onSelectionChange}
                     className={(state) => cx("flex flex-col gap-1.5", typeof className === "function" ? className(state) : className)}
                     {...props}
+                    isInvalid={isInvalid}
                 >
                     {(state) => (
                         <>
@@ -177,6 +180,7 @@ export const TagSelectBase = ({
 
                             <TagSelectTagsValue
                                 size={size}
+                                isInvalid={isInvalid}
                                 shortcut={shortcut}
                                 ref={placeholderRef}
                                 placeholder={placeholder}
@@ -350,6 +354,7 @@ export const TagSelectTagsValue = ({
     icon: Icon = SearchLg,
     // Omit this prop to avoid invalid HTML attribute warning
     isDisabled: _isDisabled,
+    isInvalid,
     ...otherProps
 }: TagSelectValueProps) => {
     const tagSelectContext = useContext(TagSelectContext);
@@ -361,9 +366,16 @@ export const TagSelectTagsValue = ({
             {...otherProps}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "relative flex w-full items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                    "relative flex w-full items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
                     isDisabled && "cursor-not-allowed opacity-50",
-                    isFocusWithin && "border-brand outline-2 outline-offset-1",
+                    // Error wins over focus: a focused invalid control outlines
+                    // red; the brand-green focus ring never co-renders.
+                    isInvalid && isFocusWithin
+                        ? "border-error outline-2 outline-offset-1 outline-error"
+                        : cx(
+                              "outline-focus-ring",
+                              isFocusWithin && "border-brand outline-2 outline-offset-1",
+                          ),
 
                     // Icon styles
                     "*:data-icon:shrink-0 *:data-icon:text-fg-quaternary",
