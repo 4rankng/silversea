@@ -67,6 +67,9 @@
 - **Editing affordances appear only where editing happens.** Hover affordances for EDITING (e.g. the copy affordance in
   the STT cell) exist on schedule-editing surfaces only; read-only views never grow them.
   *Source:* 2026-09-18 operator ruling (staging); card 20260918_3.
+- **Search shells follow the control-surface law** — opaque surface token, no tint/canvas transparency; same
+  control-height and focus rules as any control.
+  *Source:* Director ruling 2026-09-26; QA cut #10 canvas-tint evidence; card 20260926_7.
 
 ## 4. Tables and data display
 

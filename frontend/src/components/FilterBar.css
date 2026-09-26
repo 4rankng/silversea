@@ -58,7 +58,9 @@
   align-items: center;
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
-  background: var(--control-bg, var(--surface-2));
+  /* Card 20260926_7 (Director law): search shells follow the control-surface
+     law — opaque surface token, never a tint fallback (QA cut #10 evidence). */
+  background: var(--surface);
   border: 1px solid var(--control-border, var(--line));
   border-radius: 8px;
   min-width: min(180px, 100%);
