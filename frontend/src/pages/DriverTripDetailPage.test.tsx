@@ -667,11 +667,70 @@ describe('DriverTripDetailPage', () => {
     expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
+    // Card _30 item 15: the section spine follows driver priority — Chứng từ
+    // giao hàng (checklist card) leads, back-office hóa đơn trails last.
+    const podCard = document.querySelector('.driver-task-footer');
+    const contCard = document.querySelector('.dcc-section');
+    const costForm = screen.getByTestId('shipment-cost-entry-form');
+    expect(podCard!.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(contCard!.compareDocumentPosition(costForm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(costForm.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Card _30 item 17: hóa đơn is back-office — default-collapsed.
+    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('false');
+
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
+    // Invoice starts collapsed; one click expands it.
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
     expect(info.hidden).toBe(true);
-    expect(invoice.hidden).toBe(true);
+    expect(invoice.hidden).toBe(false);
     expect(notes).toBeVisible();
+    // Invoice collapses back on demand.
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    expect(invoice.hidden).toBe(true);
+  });
+
+  // Card _30 item 16: compact progress summary at the top — the driver sees
+  // what is missing without scrolling.
+  it('card _30: progress summary leads the screen with doc/photo/cost counts', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    // Fixture: no POD files, no cont/seal/biên-bản photos, no costs.
+    expect(strip.textContent).toContain('Chứng từ 0/2');
+    expect(strip.textContent).toContain('Ảnh 0/3');
+    expect(strip.textContent).toContain('Chi phí 0');
+  });
+
+  it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          ...makeTaskDetail().currentPod!,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+          ],
+        },
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 1, type: 'CONTAINER', storageKey: 'c1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+            { id: 2, type: 'SEAL', storageKey: 's1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+            { id: 3, type: 'DELIVERY_NOTE', storageKey: 'd1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    expect(strip.textContent).toContain('Chứng từ 2/2');
+    expect(strip.textContent).toContain('Ảnh 3/3');
+    expect(strip.textContent).toContain('Chi phí 0');
   });
 
   // _30: the standalone warehouse-phone row is removed at the source — the
@@ -815,9 +874,14 @@ describe('DriverTripDetailPage', () => {
     const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
     const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
     const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
-    fireEvent.click(invoiceToggle);
+    // Card _30 item 17: invoice starts collapsed (back-office off the
+    // critical path) and expands on demand — collapsing/expanding it never
+    // touches the info section.
     expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
     expect(invoiceGrid.hidden).toBe(true);
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(invoiceGrid.hidden).toBe(false);
     expect(infoGrid.hidden).toBe(false);
   });
 

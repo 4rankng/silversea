@@ -81,7 +81,6 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // Both sections start expanded (the driver should see everything on
   // arrival); collapsing is an explicit per-visit space-saving choice.
   const [infoOpen, setInfoOpen] = useState(true);
-  const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
@@ -106,13 +105,6 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
   const contactPhone = fulfillment?.contactPhone?.trim() || null;
   const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
-
-  const invoiceInfo = fulfillment?.invoiceInfo ?? null;
-  const missingFactoryInvoiceFields = trip.invoiceFactory ? [
-    !trip.invoiceFactory.name && 'tên pháp lý',
-    !trip.invoiceFactory.address && 'địa chỉ xuất hóa đơn',
-    !trip.invoiceFactory.taxCode && 'mã số thuế',
-  ].filter(Boolean) : [];
 
   // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
   // name renders in the header), so the full-name row falls back to the
@@ -193,10 +185,32 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}
       {children}
+    </>
+  );
+}
 
+/**
+ * Card 20260926_30 items 15+17: the invoice block is back-office material —
+ * it leaves the driver's critical path by rendering LAST on the screen and
+ * starting collapsed; the driver expands it on demand.
+ */
+export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
+  // Card 20260926_30 item 17: default-collapsed — the section head is the
+  // toggle; the driver expands on demand.
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const fulfillment = trip.fulfillment ?? null;
+  const invoiceInfo = fulfillment?.invoiceInfo ?? null;
+  const missingFactoryInvoiceFields = trip.invoiceFactory ? [
+    !trip.invoiceFactory.name && 'tên pháp lý',
+    !trip.invoiceFactory.address && 'địa chỉ xuất hóa đơn',
+    !trip.invoiceFactory.taxCode && 'mã số thuế',
+  ].filter(Boolean) : [];
+
+  return (
+    <>
       {/* 2a618442 / paper-form spec: "THÔNG TIN XUẤT HÓA ĐƠN" is a STRUCTURAL
-          section — it always renders; rows show their values or the
-          unconfigured empty states below. */}
+          section — it always renders (collapsed by default); rows show their
+          values or the unconfigured empty states below. */}
       <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
         <CollapsibleSectionHead
           id="driver-task-invoice-grid"

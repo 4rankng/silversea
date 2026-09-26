@@ -106,6 +106,34 @@
   overflow-wrap: anywhere;
 }
 
+/* Card 20260926_30 item 16: compact progress strip — one text-only line
+   under the header; incomplete groups warn, complete groups show ok. */
+.driver-task-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 8px 2px;
+  font-size: 13px;
+  color: var(--ink-2, #4a5550);
+}
+
+.driver-task-progress__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.driver-task-progress__item--open {
+  color: var(--warning, #d97706);
+  font-weight: 600;
+}
+
+.driver-task-progress__item--done {
+  color: var(--ok, #166534);
+}
+
 .driver-task-section {
   display: grid;
   gap: 10px;
@@ -517,23 +545,20 @@
 }
 
 .driver-task-footer {
-  /* In normal flow at the end of the trip workflow so it never overlaps
-     the e-POD / fuel / income / legs sections. On mobile, the .app-body
-     already reserves 70px+ for the bottom nav, so the footer is also
-     clear of the bottom tab bar. The action is the final step of the
-     flow (after the user has filled in milestones + e-POD) so a scroll
-     to the end is the expected interaction. */
-  margin-top: 24px;
-  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 96%, transparent) 18%, var(--surface-2, #f8fafc) 100%);
+  /* Card 20260926_30 item 15: the completion checklist is the FIRST card of
+     the screen — the one thing the driver must act on leads. Same card
+     chrome as every section; no end-of-page gradient. */
+  margin-top: 10px;
+  padding: 0;
+  background: none;
 }
 
 .driver-task-footer__body {
-  width: min(var(--driver-measure), 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   display: grid;
   gap: 10px;
-  padding: 14px;
+  padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);

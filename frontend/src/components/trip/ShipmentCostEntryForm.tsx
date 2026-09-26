@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Camera, Plus, ReceiptText } from 'lucide-react';
 import { DRIVER_INCIDENTAL_COST_LABELS, DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
@@ -16,10 +16,19 @@ export interface ShipmentCostEntryFormProps {
   totalRoadAllowance: string | null;
   costSubmissionNote?: string | null;
   readOnly?: boolean;
+  /** Card 20260926_30 item 16: the page's top progress strip shows the saved
+   *  cost-entry count without scrolling — the form owns the entry list, so it
+   *  reports the count up whenever it changes. */
+  onEntriesCountChange?: (count: number) => void;
 }
 
-export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissionNote = null, readOnly = false }: ShipmentCostEntryFormProps) {
+export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissionNote = null, readOnly = false, onEntriesCountChange }: ShipmentCostEntryFormProps) {
   const state = useDriverExpenseEntry(tripId, readOnly);
+
+  useEffect(() => {
+    onEntriesCountChange?.(state.entries.length);
+  }, [state.entries.length, onEntriesCountChange]);
+
   const disabled = readOnly || state.busy || state.uploading;
   const selected = driverExpenseOption(state.draft.option, state.options);
   const [sectionNote, setSectionNote] = useState(costSubmissionNote ?? '');
