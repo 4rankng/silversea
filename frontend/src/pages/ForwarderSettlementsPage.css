@@ -787,7 +787,7 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: var(--warning, #D97706);
+  color: var(--warning, #A45D1C);
 }
 
 /* Error banner */

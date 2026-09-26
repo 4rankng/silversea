@@ -415,27 +415,27 @@
   padding: 10px 12px;
   border-radius: 10px;
   font-size: var(--text-data-size);
-  border: 1px solid #fecaca;
-  background: #fff7ed;
-  color: #9a3412;
+  border: 1px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .shipment-pod-review__alert--warning {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .shipment-pod-review__alert--danger {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 .shipment-pod-review__alert--success {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 
 .shipment-pod-review__completion {

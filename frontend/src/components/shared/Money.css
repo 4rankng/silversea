@@ -23,6 +23,9 @@
   font-size: var(--text-caption-size);
   line-height: 1.35;
   font-weight: 500;
-  opacity: 0.65;
+  /* Design law §2: the unit keeps the parent's meaning color at full opacity —
+     11px text at 0.65 opacity could not clear the 4.5:1 floor. */
+  opacity: 1;
+  color: inherit;
   white-space: nowrap;
 }

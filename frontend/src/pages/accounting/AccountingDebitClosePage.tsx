@@ -194,8 +194,13 @@ export default function AccountingDebitClosePage() {
     <div className="page-shell">
       <PageHeader title="Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP" />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', margin: '12px 0 8px' }}>
-        <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
-        <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
+        {/* DD/MM/YYYY fields size to content, never the full row (value-length width ruling). */}
+        <div style={{ width: 170 }}>
+          <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
+        </div>
+        <div style={{ width: 170 }}>
+          <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
+        </div>
         <DebitFilterDropdown
           label="Lọc khách hàng (Thông tin lô hàng)"
           values={customerValues}

@@ -150,7 +150,7 @@ export default function TripEditPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--fg-3)' }}>
+      <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--fg-3)' }}>
         <Spinner size={20} />
         <span style={{ fontSize: 'var(--text-body-size)' }}>Đang tải dữ liệu…</span>
       </div>

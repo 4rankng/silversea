@@ -13,7 +13,7 @@ import '../components/shared/HeroKpiRow.css';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 const STATUS_COLORS: Record<string, string> = {
-  RECORDED: 'var(--success, #059669)',
+  RECORDED: 'var(--success-text)',
   VOIDED: 'var(--danger)',
   DRAFT: 'var(--ink-muted)',
 };

@@ -150,8 +150,8 @@ export function RevenueTrendChart({
         {/* Revenue area fill */}
         <path d={areaPath(revenue)} fill="#005A2D" opacity={0.08} />
 
-        {/* Gross profit line */}
-        <path d={path(gross)} fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Gross profit line — house info token (graphic, not text) */}
+        <path d={path(gross)} fill="none" stroke="var(--info)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Revenue line (on top) — className preserved for animation hooks */}
         <path className="wf-rev-line" d={path(revenue)} fill="none" stroke="#005A2D" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -160,7 +160,7 @@ export function RevenueTrendChart({
         {activeIdx !== null && (
           <>
             <line x1={ax} y1={mT} x2={ax} y2={mT + pH} stroke="#005A2D" strokeWidth="1" strokeDasharray="3 4" opacity={0.45} />
-            <circle cx={ax} cy={ayGp} r="3.5" fill="#fff" stroke="#2563EB" strokeWidth="2" />
+            <circle cx={ax} cy={ayGp} r="3.5" fill="#fff" stroke="var(--info)" strokeWidth="2" />
             <circle cx={ax} cy={ay} r="4" fill="#fff" stroke="#005A2D" strokeWidth="2.6" />
           </>
         )}
@@ -221,10 +221,10 @@ export function RevenueTrendChart({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: '12px', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-data)', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--info)' }} />
               LN gộp
             </div>
-            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: 'var(--info-text)', whiteSpace: 'nowrap' }}>
               {fmtTip(gross[activeIdx] || 0)}
             </div>
           </div>

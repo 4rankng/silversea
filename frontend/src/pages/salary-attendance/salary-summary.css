@@ -205,11 +205,11 @@
   margin-top: 14px;
   align-items: flex-start;
   background: var(--warning-soft, #FFFBEB);
-  border: 1px solid color-mix(in srgb, var(--warning, #D97706) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning, #A45D1C) 25%, transparent);
 }
 
 .payslip-callout-icon {
-  color: var(--warning, #D97706);
+  color: var(--warning, #A45D1C);
   flex-shrink: 0;
   margin-top: 1px;
   opacity: 0.9;

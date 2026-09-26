@@ -83,6 +83,15 @@
   word-break: normal;
 }
 
+/* React Aria renders the inline label as a span[data-label] INSIDE the
+   control row, not a direct <label> child, so the guard above never matched
+   it — tight filter toolbars (e.g. penalty log "Lái xe") squeezed the span
+   into a mid-word two-line stack. Keep it unsqueezable and on one line. */
+.ds-uui-select--inline [data-label] {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .ds-uui-select--inline .ds-uui-select__control {
   flex: 1 1 auto;
   min-width: 140px;

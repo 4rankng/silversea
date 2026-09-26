@@ -614,7 +614,7 @@ export default function PayableListPage() {
                         <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
+                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #A45D1C)' : 'var(--fg-3)' }}>
                           {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
                         </td>
                         <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>

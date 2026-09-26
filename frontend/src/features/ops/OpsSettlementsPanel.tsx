@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FileText, Loader2, Printer } from 'lucide-react';
+import { Download, FileText, Loader2, Printer, X } from 'lucide-react';
 import {
   useOpsSettlements,
   useCreateOpsSettlement,
@@ -119,7 +119,7 @@ export function OpsSettlementsPanel() {
                 <button type="button" className="btn-secondary" disabled={!detail.data} onClick={() => window.print()}>
                   <Printer size={14} /> In
                 </button>
-                <button type="button" aria-label="Đóng" onClick={() => setDetailId(null)}>✕</button>
+                <button type="button" aria-label="Đóng" onClick={() => setDetailId(null)}><X size={16} aria-hidden="true" /></button>
               </div>
             </header>
             <div className="ops-modal__body">

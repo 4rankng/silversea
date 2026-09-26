@@ -245,12 +245,12 @@
 }
 
 .csc-debit-warn-cell--armed {
-  background: #fff3e0;
-  color: #9a3412;
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .csc-debit-warn-cell--armed svg {
-  color: #ea580c;
+  color: var(--warning);
   margin-right: 4px;
   vertical-align: -2px;
 }

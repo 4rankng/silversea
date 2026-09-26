@@ -188,12 +188,6 @@
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .sp-mode-hint--same { background: rgba(16, 185, 129, 0.1); color: #6EE7B7; border-color: rgba(16, 185, 129, 0.25); }
-  .sp-mode-hint--cross { background: rgba(245, 158, 11, 0.1); color: #FCD34D; border-color: rgba(245, 158, 11, 0.25); }
-}
-
 /* ── Field row for the default card ── */
 .sp-default-card__fields {
   display: flex;

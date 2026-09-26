@@ -73,7 +73,7 @@ function statusFilterParam(filter: StatusFilter): string | undefined {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  RECORDED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #177448)',
   REVERSED: '#64748B',
   VOIDED: '#DC2626',
   DRAFT: 'var(--warning)',

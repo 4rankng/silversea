@@ -543,7 +543,7 @@ export default function CustomersPage() {
       <div className="toolbar">
         <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả · {total}</FilterPill>
         <FilterPill active={filter === 'risk'} onClick={() => setFilter('risk')}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warning, #D97706)', display: 'inline-block', marginRight: 4 }} />
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warning)', display: 'inline-block', marginRight: 4 }} />
           Rủi ro cao
         </FilterPill>
         <FilterPill active={filter === 'active'} onClick={() => setFilter('active')}>

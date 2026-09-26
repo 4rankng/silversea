@@ -44,9 +44,9 @@ const StatusDot = memo(function StatusDot({ status }: { status: string }) {
 });
 
 function fleetStatusColor(status: string): string {
-  if (status === "ACTIVE") return "#059669";
-  if (status === "MAINTENANCE") return "#D97706";
-  return "#6B7280";
+  if (status === "ACTIVE") return "var(--success)";
+  if (status === "MAINTENANCE") return "var(--warning)";
+  return "var(--ink-3)";
 }
 
 const TireQuickLink = memo(function TireQuickLink({ to, count }: { to: string; count: number }) {

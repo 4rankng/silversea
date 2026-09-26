@@ -382,7 +382,7 @@ export default function FinancePage() {
                       const isNegative = val < 0;
                       const w = Math.max(2, (Math.abs(val) / totalRange) * barTrackW);
                       const barX = isNegative ? zeroX - w : zeroX;
-                      const fill = isNegative ? 'var(--danger)' : 'var(--success, #059669)';
+                      const fill = isNegative ? 'var(--danger)' : 'var(--success, #177448)';
                       const label = t.name.length > 10 ? `${t.name.slice(0, 9)}…` : t.name;
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>

@@ -317,7 +317,7 @@
 }
 .dd-seg-0 { background: var(--accent); }
 .dd-seg-1 { background: var(--warning); }
-.dd-seg-2 { background: var(--warning-deep, #D97706); }
+.dd-seg-2 { background: var(--warning-deep, #914A16); }
 .dd-seg-3 { background: var(--danger); }
 
 /* ─── Aging Grid ────────────────────────────────────────────────────────────── */

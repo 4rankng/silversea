@@ -334,7 +334,9 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    const img = await screen.findByAltText('Ảnh nhiên liệu TRIP-55');
+    // The alt no longer carries the trip code: internal ids never render on
+    // a user surface (dc1b1cba), so the code-leading variant would fail here.
+    const img = await screen.findByAltText('Ảnh nhiên liệu');
     expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
     expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
     expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
@@ -474,21 +476,24 @@ describe('DriverTripDetailPage', () => {
     expect(toastMock).not.toHaveBeenCalled();
   });
 
-  // 20260911_3 BUG 5 (supersedes the 365943ea order): the fact grid leads
-  // with the factory (short name), then the working facts (container, ports)
-  // — the Tuyến address line is demoted below them — and container number +
-  // type + seal still share one line.
-  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
+  // 20260911_3 BUG 5 (supersedes the 365943ea order), restated 26/09 after
+  // 1af13d12 + dc1b1cba: the fact grid now leads with the business key
+  // (Số Bill / Booking — internal TRP codes never render), then the factory
+  // block with both phone rows (liên hệ + kho), then the working facts
+  // (container, ports) — the Tuyến address line is demoted below them.
+  it('renders the customer field order: bill, factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
+      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
+      'Số điện thoại kho',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',

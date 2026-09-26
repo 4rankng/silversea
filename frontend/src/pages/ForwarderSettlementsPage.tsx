@@ -24,7 +24,7 @@ function advanceRequestCode(id: number): string {
 /** Status strip colors matching ForwarderTripsPage pattern */
 const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
   DRAFT: 'var(--warning)',
-  RECORDED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #177448)',
   VOIDED: '#DC2626',
   REVERSED: '#64748B',
 };

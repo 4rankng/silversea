@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
   useAdminOpsExpenses,
   useAdminOpsSettlements,
@@ -141,7 +141,7 @@ export function OpsAccountantTab() {
                 >
                   Excel
                 </button>
-                <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}>✕</button>
+                <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}><X size={16} aria-hidden="true" /></button>
               </div>
             </header>
             <div className="ops-modal__body">

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
@@ -66,7 +67,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
       <div className="ops-modal" style={{ maxWidth: 760 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết tiền đường {detail.data?.tripCode ?? ''}</h2>
-        <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
+        <button type="button" aria-label="Đóng" onClick={onClose}><X size={16} aria-hidden="true" /></button>
       </header>
       <div className="ops-modal__body">
         {detail.isLoading && <p>Đang tải…</p>}

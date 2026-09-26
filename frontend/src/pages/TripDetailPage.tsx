@@ -47,7 +47,7 @@ export default function TripDetailPage() {
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {
     return (
-      <div className="tdp-loading">
+      <div className="tdp-loading" role="status" aria-live="polite">
         <Spinner size={20} />
         <span>Đang tải dữ liệu…</span>
       </div>

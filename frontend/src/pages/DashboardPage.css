@@ -181,8 +181,8 @@
   --wf-green-700: #0A6E3A;
   --wf-green-500: #16A34A;
   --wf-green-soft: #E7F2EC;
-  --wf-blue: #2563EB;
-  --wf-blue-soft: #E8EFFD;
+  --wf-blue: var(--info-text);
+  --wf-blue-soft: var(--info-soft);
   --wf-amber: #C2780B;
   --wf-amber-soft: #FBF1DE;
   --wf-red: #C7372F;

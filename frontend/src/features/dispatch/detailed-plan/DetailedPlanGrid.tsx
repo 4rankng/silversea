@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -170,7 +171,7 @@ export function DetailedPlanGrid({
       {lotBanner && (
         <div className="detailed-plan-grid__lot-banner" role="status">
           <span>{lotBanner}</span>
-          <button type="button" onClick={onClearLotBanner} aria-label="Đóng thông báo">✕</button>
+          <button type="button" onClick={onClearLotBanner} aria-label="Đóng thông báo"><X size={16} aria-hidden="true" /></button>
         </div>
       )}
 

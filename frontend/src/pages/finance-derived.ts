@@ -163,9 +163,9 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
       }));
 
       const costPieData = [
-        { name: 'Nhiên liệu', value: fuelCost ?? 0, fill: '#059669' },
-        { name: 'Phụ cấp đường', value: roadCost ?? 0, fill: '#D97706' },
-        { name: 'Lương lái xe', value: driverCost ?? 0, fill: '#2563EB' },
+        { name: 'Nhiên liệu', value: fuelCost ?? 0, fill: '#177448' },
+        { name: 'Phụ cấp đường', value: roadCost ?? 0, fill: '#A45D1C' },
+        { name: 'Lương lái xe', value: driverCost ?? 0, fill: '#2E675E' },
         { name: 'Vé cầu đường · phí công ty', value: tollAndTicketsCost ?? 0, fill: '#0EA5E9' },
         { name: 'Chi phí chuyến khác · điều chỉnh', value: otherTripCost ?? 0, fill: '#64748B' },
         { name: 'Bảo dưỡng', value: maintenanceCost ?? 0, fill: '#DC2626' },

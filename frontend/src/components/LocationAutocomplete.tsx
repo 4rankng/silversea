@@ -229,9 +229,9 @@ export function LocationAutocomplete({
                     style={{
                       fontSize: 'var(--text-body-size)',
                       padding: '2px 6px',
-                      borderRadius: 999,
-                      background: 'rgba(16,185,129,0.15)',
-                      color: '#059669',
+                      borderRadius: 6,
+                      background: 'var(--success-soft)',
+                      color: 'var(--success-text)',
                       fontWeight: 700,
                       letterSpacing: 0.3,
                       flexShrink: 0,

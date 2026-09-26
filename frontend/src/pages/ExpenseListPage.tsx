@@ -29,8 +29,8 @@ import './ExpenseListRecordTable.css';
 const PAGE_SIZE = 20;
 
 const EXPENSE_STATUS_COLORS: Record<string, string> = {
-  PAID: 'var(--success, #059669)',
-  UNPAID: 'var(--warning, #D97706)',
+  PAID: 'var(--success, #177448)',
+  UNPAID: 'var(--warning, #A45D1C)',
 };
 
 /** Filter bag for GET /api/expenses (server-paginated; no search param yet).

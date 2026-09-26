@@ -16,9 +16,9 @@ import "./TruckTiresPage.css";
 type VehicleKind = "truck" | "trailer";
 
 const TIRE_STATUS_COLORS: Record<Tire["status"], string> = {
-  IN_USE: "#16A34A",
-  IN_STOCK: "#2563EB",
-  DISPOSED: "#9CA3AF",
+  IN_USE: "var(--success-text)",
+  IN_STOCK: "var(--info)",
+  DISPOSED: "var(--ink-4)",
 };
 
 const TIRE_STATUS_LEGEND: { status: Tire["status"]; label: string }[] = [

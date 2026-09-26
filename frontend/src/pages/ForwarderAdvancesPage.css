@@ -371,7 +371,7 @@
   box-shadow: none;
 }
 
-.fadv-settlement-summary__card--info { --stat-rail: #2563EB; }
+.fadv-settlement-summary__card--info { --stat-rail: var(--info); }
 .fadv-settlement-summary__card--success { --stat-rail: var(--accent); }
 
 .fadv-settlement-summary__label {
