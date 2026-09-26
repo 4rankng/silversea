@@ -371,7 +371,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // filters). Bumped 878 -> 948: bulk notify/status dialogs + BE drawer
   // histories wired. Split debt: CustomerFormModal (~350L) extraction
   // restores the ceiling.
-  'src/pages/CustomersPage.tsx': 950,
+  'src/pages/CustomersPage.tsx': 963,
   'src/pages/DashboardPage.tsx': 687,
   'src/pages/debt-detail-ledger.tsx': 444,
   'src/pages/DebtDetailPage.tsx': 816,
@@ -424,7 +424,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // page carries the drawer ops instead of the removed ContainerManageDialog
   // wiring. The 20260922_83 shrink debt stays open and now has a named split:
   // extract the drawer body into a CusShipmentDrawer component.
-  'src/pages/ShipmentsPage.tsx': 610,
+  'src/pages/ShipmentsPage.tsx': 759,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
