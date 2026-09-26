@@ -297,13 +297,13 @@ export function DetailedPlanGrid({
                     const dropShort = row.ports.dropoffPortShortName;
                     return (
                       <>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng">
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{liftShort ?? liftPort ?? '—'}</div>
                           {liftShort && liftPort && liftShort !== liftPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
                           )}
                         </td>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng">
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{dropShort ?? dropPort ?? '—'}</div>
                           {dropShort && dropPort && dropShort !== dropPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
