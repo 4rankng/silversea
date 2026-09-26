@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
+import { MonthProvider } from '../../../hooks/useMonth';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 // The editor dialog mounts the note composer, which pulls the tag pool via
@@ -52,8 +54,10 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
 function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, unknown> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <DetailedPlanGrid
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <MonthProvider>
+          <DetailedPlanGrid
         filters={EMPTY_DETAILED_PLAN_FILTERS}
         onFilterChange={vi.fn()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
@@ -77,7 +81,9 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
         onIssueOrder={vi.fn()}
         {...extraProps}
       />
-    </QueryClientProvider>,
+        </MonthProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -819,8 +825,10 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
       return fresh;
     });
     return (
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <DetailedPlanGrid
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MonthProvider>
+            <DetailedPlanGrid
           filters={EMPTY_DETAILED_PLAN_FILTERS}
           onFilterChange={vi.fn()}
           loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
@@ -846,7 +854,9 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
           autoOpenFulfillmentId={autoOpen}
           onAutoOpenConsumed={consume}
         />
-      </QueryClientProvider>
+          </MonthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   }
 

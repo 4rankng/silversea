@@ -1,11 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FilterLines } from '@untitledui/icons';
-import { Search, RotateCcw } from 'lucide-react';
+import { Plus, Search, RotateCcw } from 'lucide-react';
 import { DateRangePopover, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, type DateRangeValue } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { businessDateISO } from '../../../lib/format';
+import { useMonth } from '../../../hooks/useMonth';
 import { useTripOptions } from '../../../hooks/useTripOptions';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
@@ -123,6 +125,9 @@ export function DetailedPlanFilters({
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [draftResetKey, setDraftResetKey] = useState(0);
   const filterPanelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const { setMonthYear } = useMonth();
   const today = businessDateISO();
   const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
   const { customers } = useTripOptions();
@@ -185,10 +190,31 @@ export function DetailedPlanFilters({
     setIsFilterDrawerOpen(false);
   };
 
+  // ⌘K / Ctrl+K focuses the quick search (card 20260926_55).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // + Gán xe (card 20260926_55): plate assignment lives on the master plan —
+  // the dispatcher lands there pre-scoped to the active date's month.
+  const goAssign = () => {
+    const scope = filters.date || filters.dateFrom || today;
+    const [year, month] = scope.slice(0, 10).split('-').map(Number);
+    if (Number.isFinite(month) && Number.isFinite(year)) setMonthYear(month, year);
+    navigate('/dispatch');
+  };
+
   return (
     <>
       <header className="detailed-plan-header" data-component="detailed-plan-header">
-        <h1 className="detailed-plan-header__title">Chi tiết lô hàng</h1>
+        <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
         <div className="detailed-plan-header__date" role="group" aria-label="Phạm vi ngày vận chuyển">
           <UUIButton
             className={`detailed-plan-header__preset${filters.date === today ? ' is-active' : ''}`}
@@ -226,18 +252,29 @@ export function DetailedPlanFilters({
           value={rangeValue}
           onChange={applyRange}
         />
+        <UUIButton
+          className="detailed-plan-header__assign"
+          size="sm"
+          color="primary"
+          iconLeading={Plus}
+          onPress={goAssign}
+        >
+          Gán xe
+        </UUIButton>
       </header>
 
       <div className="detailed-plan-ribbon" data-component="detailed-plan-ribbon">
         <div className="detailed-plan-ribbon__search">
           <Search size={14} aria-hidden="true" />
           <input
+            ref={searchInputRef}
             type="text"
             aria-label="Tìm nhanh"
             placeholder="Bill, Cont, Tờ khai..."
             value={filters.q}
             onChange={(event) => onChange({ q: event.target.value })}
           />
+          <kbd className="detailed-plan-ribbon__kbd" aria-hidden="true">⌘K</kbd>
         </div>
         <SearchableSelect
           id="detailed-plan-customer"

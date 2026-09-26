@@ -761,6 +761,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     user,
     isDriver,
     pageTitle,
+    hideContext: location.pathname.startsWith(routes.dispatchDetailedPlan),
     sidebarOpen,
     menuButtonRef,
     onToggleSidebar: toggleSidebar,

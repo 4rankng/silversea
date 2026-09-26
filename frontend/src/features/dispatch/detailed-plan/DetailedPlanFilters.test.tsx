@@ -1,17 +1,45 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
 import { businessDateISO, formatISODate } from '../../../lib/format';
+import { MonthProvider, useMonth } from '../../../hooks/useMonth';
 
 const TEST_ZONES = [{ code: 'LACH_HUYEN', label: 'Lạch Huyện' }, { code: 'HAI_PHONG', label: 'Cảng Hải Phòng' }];
 
-/** useTripOptions needs a react-query context (customer catalog bootstrap). */
-function renderFilters(ui: React.ReactElement) {
+function MonthProbe() {
+  const { month, year } = useMonth();
+  return <span data-testid="month-probe">{`${month}/${year}`}</span>;
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-probe">{location.pathname}</span>;
+}
+
+/** Router + query + month context: useNavigate, useTripOptions and useMonth
+ *  all need their providers (Gán xe sets the master-plan month scope). */
+function wrapFilters(ui: React.ReactElement, initialEntry = '/dispatch-detail') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return (
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={client}>
+        <MonthProvider>
+          <Routes>
+            <Route path="/dispatch-detail" element={<>{ui}<MonthProbe /><LocationProbe /></>} />
+            <Route path="/dispatch" element={<><span>dispatch-landed</span><MonthProbe /><LocationProbe /></>} />
+          </Routes>
+        </MonthProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
+  );
+}
+
+function renderFilters(ui: React.ReactElement) {
+  return render(wrapFilters(ui));
 }
 
 /** Common props so each test lists only what it varies. */
@@ -53,23 +81,49 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     const { container } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
     expect(container.querySelector('[data-component="detailed-plan-header"]')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    // Card 20260926_55: the h1 matches the app chrome — 'Kế hoạch Chi tiết Xe'
+    // (supersedes the _50-era 'Chi tiết lô hàng' pin; topbar context hidden).
+    expect(screen.getByRole('heading', { name: 'Kế hoạch Chi tiết Xe' })).toBeTruthy();
     const presetGroup = screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' });
     expect(presetGroup.querySelector('.detailed-plan-header__preset')).toBeTruthy();
     expect(within(presetGroup).getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
+    // + Gán xe primary rides Row 1's right end (ruling c).
+    expect(screen.getByRole('button', { name: 'Gán xe' })).toBeTruthy();
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
     expect(screen.queryByText('Thời gian')).toBeNull();
 
     const ribbon = container.querySelector('[data-component="detailed-plan-ribbon"]');
     expect(ribbon).toBeTruthy();
     expect(screen.getByPlaceholderText('Bill, Cont, Tờ khai...')).toBeTruthy();
+    // ⌘K badge rides the search field (ruling a).
+    expect(screen.getByText('⌘K')).toBeTruthy();
     // Label-in-control: the integrated trigger text IS the accessible name.
     expect(screen.getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Điều xe: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
     expect(within(ribbon as HTMLElement).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
+  });
+
+  it('Gán xe hands the active date scope to the master plan', async () => {
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2026-09-15' }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gán xe' }));
+    expect(await screen.findByText('dispatch-landed')).toBeTruthy();
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch');
+    // The month context carries the filter's scope month (9/2026).
+    expect(screen.getByTestId('month-probe').textContent).toBe('9/2026');
+  });
+
+  it('⌘K focuses the quick search', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} />);
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(document.activeElement).toBe(screen.getByLabelText('Tìm nhanh'));
   });
 
   it('clicking a preset updates the trigger value instantly WITHOUT opening the picker', () => {
@@ -82,12 +136,12 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
 
     const today = businessDateISO();
     view.rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      wrapFilters(
         <DetailedPlanFilters
           {...baseProps()}
           filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: today }}
-        />
-      </QueryClientProvider>,
+        />,
+      ),
     );
     const trigger = screen.getByRole('button', { name: 'Khoảng ngày vận chuyển' });
     expect(trigger.textContent).toContain(`${formatISODate(today)} - ${formatISODate(today)}`);
@@ -109,12 +163,12 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     fireEvent.click(within(fromPanel).getByRole('button', { name: '15 Tháng 9 2026' }));
     expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '' });
     view.rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      wrapFilters(
         <DetailedPlanFilters
           {...baseProps(onChange)}
           filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dateFrom: '2026-09-15' }}
-        />
-      </QueryClientProvider>,
+        />,
+      ),
     );
     const reopened = screen.getByRole('dialog', { name: 'Khoảng ngày vận chuyển' });
     fireEvent.click(within(reopened.querySelector('.date-range__panel[data-side="to"]') as HTMLElement).getByRole('button', { name: '22 Tháng 9 2026' }));
@@ -151,14 +205,13 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     fireEvent.click(clearButton);
     expect(onChange).not.toHaveBeenCalled();
 
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     rerender(
-      <QueryClientProvider client={client}>
+      wrapFilters(
         <DetailedPlanFilters
           {...baseProps(onChange)}
           filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dataStatus: 'MISSING' }}
-        />
-      </QueryClientProvider>,
+        />,
+      ),
     );
     const enabled = screen.getByRole('button', { name: 'Xóa lọc' });
     expect(enabled).toBeEnabled();
