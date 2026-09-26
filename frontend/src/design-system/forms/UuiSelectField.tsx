@@ -47,6 +47,9 @@ export interface UuiSelectFieldProps {
   placeholder?: string;
   /** `content` shrinks the control to its label; default fills the wrapper. */
   width?: 'stretch' | 'content';
+  /** Optional leading icon on the trigger — replaces the default inset
+   * search glyph (e.g. a chevron for filter comboboxes). */
+  icon?: ReactNode;
   /** Extra classes for the wrapper, control, and popover elements. */
   wrapperClassName?: string;
   controlClassName?: string;
@@ -84,6 +87,7 @@ export function UuiSelectField({
   wrapperClassName,
   controlClassName,
   popoverClassName,
+  icon,
   size = 'sm',
 }: UuiSelectFieldProps) {
   const generatedId = useId();
@@ -115,6 +119,7 @@ export function UuiSelectField({
       {isSearchable ? (
         <UUISelect.ComboBox
           id={id}
+          icon={icon}
           size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
@@ -167,6 +172,7 @@ export function UuiSelectField({
           popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
           className="ds-uui-select__control"
           triggerClassName={controlClassName}
+          icon={icon}
         >
           {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
         </UUISelect>

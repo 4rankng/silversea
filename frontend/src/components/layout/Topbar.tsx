@@ -5,6 +5,7 @@ import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMonth } from '../../hooks/useMonth';
+import { useLocation } from 'react-router-dom';
 import { useDriverVehicle } from '../../hooks/useDriverQueries';
 import { useSearch } from '../../context/SearchContext';
 import { getSearchItems, filterItems } from '../../data/searchRegistry';
@@ -167,6 +168,11 @@ function Topbar({
   menuButtonRef,
   onToggleSidebar,
 }: TopbarProps) {
+  const location = useLocation();
+  // CHIEF ruling (27/09): config and master-data catalog views are
+  // period-independent asset inventories — the global month navigator is
+  // noise there and is hidden (config/*, fleet/*, dispatch/catalogs/*).
+  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs/.test(location.pathname);
   const topbarRef = useTopbarEntrance();
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useSearch();
@@ -271,7 +277,7 @@ function Topbar({
       )}
 
       <div className="topbar__actions">
-        {!isDriver && <MonthNavigator />}
+        {!isDriver && !isPeriodIndependentView && <MonthNavigator />}
         {canUseNotifications && <NotificationBell />}
       </div>
     </header>

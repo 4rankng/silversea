@@ -3,9 +3,7 @@
  * may add, edit, and retire tractors from this view.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Truck } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
-import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
@@ -48,6 +46,7 @@ export function FleetVehiclesView() {
   );
   const [assignOpsTruck, setAssignOpsTruck] = useState<TruckType | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'down'>('all');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   // Trailer plate/type shown alongside each tractor (same source as FleetPage).
@@ -127,9 +126,12 @@ export function FleetVehiclesView() {
   }, []);
   const carrierNameById = useMemo(() => new Map(carriers.map((c) => [c.id, c.name])), [carriers]);
   const filtered = useMemo(() => {
-    const byCarrier = carrierFilter === ''
+    const byStatus = statusFilter === 'all'
       ? trucks
-      : trucks.filter((t) => (carrierFilter === 'UNASSIGNED' ? t.carrierId == null : t.carrierId === Number(carrierFilter)));
+      : trucks.filter((t) => (statusFilter === 'active' ? t.status === 'ACTIVE' : t.status !== 'ACTIVE'));
+    const byCarrier = carrierFilter === ''
+      ? byStatus
+      : byStatus.filter((t) => (carrierFilter === 'UNASSIGNED' ? t.carrierId == null : t.carrierId === Number(carrierFilter)));
     if (!needle) return byCarrier;
     return byCarrier.filter((t) => {
       const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
@@ -139,7 +141,7 @@ export function FleetVehiclesView() {
         [t.licensePlate, trailer?.licensePlate],
       );
     });
-  }, [trucks, needle, carrierFilter, driverByTruck, trailerById]);
+  }, [trucks, needle, carrierFilter, statusFilter, driverByTruck, trailerById]);
 
   // Full catalog is already client-side (unpaginated lookup table), so sorting
   // happens locally with the shared contract: empty cells last, id tiebreaker.
@@ -168,29 +170,52 @@ export function FleetVehiclesView() {
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
-      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
-        <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Xe nội bộ</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
-            Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
-          </p>
-        </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
-          Thêm xe đầu kéo
-        </Button>
-      </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid dispatch-catalogs__summary dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
-        <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
-        <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
-      </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
       <CatalogTableShell
+        title="Danh mục Xe nội bộ"
+        tabs={(
+          <div className="dispatch-catalogs__tabs" role="tablist" aria-label="Lọc theo trạng thái xe">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === 'all'}
+              className={`dispatch-catalogs__tab${statusFilter === 'all' ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              Tất cả <span className="dispatch-catalogs__tab-count">{trucks.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === 'active'}
+              className={`dispatch-catalogs__tab dispatch-catalogs__tab--active is-on${statusFilter === 'active' ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter('active')}
+            >
+              Hoạt động <span className="dispatch-catalogs__tab-count">{active}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === 'down'}
+              className={`dispatch-catalogs__tab dispatch-catalogs__tab--down is-on${statusFilter === 'down' ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter('down')}
+            >
+              Bảo trì / Ngưng <span className="dispatch-catalogs__tab-count">{maintenance}</span>
+            </button>
+          </div>
+        )}
+        actions={(
+          <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
+            Thêm xe đầu kéo
+          </Button>
+        )}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm biển số hoặc tài xế…"
         totalLabel={`${filtered.length}/${trucks.length} xe`}
+        hasActiveFilters={statusFilter !== 'all' || carrierFilter !== '' || search.trim() !== ''}
+        onReset={() => { setStatusFilter('all'); setCarrierFilter(''); setSearch(''); }}
         filters={(
           <UuiSelectField
             label="Lọc theo nhà xe"
@@ -200,8 +225,8 @@ export function FleetVehiclesView() {
             value={carrierFilter}
             onChange={(e) => setCarrierFilter(e.target.value)}
             options={[
-              { value: '', label: 'Tất cả nhà xe' },
-              { value: 'UNASSIGNED', label: 'Chưa phân nhà xe' },
+              { value: '', label: 'Nhà xe: Tất cả' },
+              { value: 'UNASSIGNED', label: 'Nhà xe: Chưa phân' },
               ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
             ]}
           />

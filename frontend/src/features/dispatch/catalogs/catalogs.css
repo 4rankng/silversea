@@ -87,7 +87,7 @@
 }
 
 .dispatch-catalogs__carrier-filter {
-  width: min(240px, 100%);
+  width: min(160px, 100%);
   min-width: 0;
 }
 
@@ -359,3 +359,91 @@
 .dispatch-catalogs__license-flag--overdue { color: var(--danger); }
 
 .dispatch-catalogs__license-flag--soon { color: var(--warning); }
+
+/* ── Card 20260926_57 (chief spec) — 80px two-row command strip ── */
+.dispatch-catalogs__strip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  min-height: 36px;
+  flex-wrap: wrap;
+}
+
+.dispatch-catalogs__strip-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.dispatch-catalogs__strip-actions { margin-left: auto; display: flex; align-items: center; }
+
+.dispatch-catalogs__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.dispatch-catalogs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: var(--text-caption-size, 12px);
+  font-weight: 600;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.dispatch-catalogs__tab:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+
+.dispatch-catalogs__tab.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+  outline: 1px solid var(--line-2, var(--line));
+}
+
+.dispatch-catalogs__tab-count {
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-3);
+}
+
+.dispatch-catalogs__tab.is-active .dispatch-catalogs__tab-count { color: var(--ink); }
+.dispatch-catalogs__tab--active.is-on .dispatch-catalogs__tab-count { color: var(--accent, #177448); }
+.dispatch-catalogs__tab--down.is-on .dispatch-catalogs__tab-count { color: var(--warning, #A45D1C); }
+
+.dispatch-catalogs__search-wrap { position: relative; display: flex; align-items: center; }
+
+.dispatch-catalogs__kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-data);
+  font-size: 10px;
+  color: var(--fg-3);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  /* The badge collides with the placeholder on phone widths. */
+  .dispatch-catalogs__kbd { display: none; }
+}
+
+/* Counter docks beside the filters (no far-right push) and the reset sits
+   after it. */
+.dispatch-catalogs__count { margin-left: 0; }

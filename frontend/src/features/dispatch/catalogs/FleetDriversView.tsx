@@ -6,9 +6,8 @@
  * to keep mutations direct.
  */
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Users } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
-import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
@@ -104,30 +103,32 @@ export function FleetDriversView() {
     return present;
   }, [rows]);
 
+  const hasActiveFilters = search.trim() !== '';
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Tài xế' }]} />
-      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
-        <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Tài xế</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
-            Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
-          </p>
-        </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
-          Thêm tài xế
-        </Button>
-      </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
-      </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
       <CatalogTableShell
+        title="Danh mục Tài xế"
+        tabs={(
+          <div className="dispatch-catalogs__tabs" role="tablist" aria-label="Số tài xế">
+            <button type="button" role="tab" aria-selected className="dispatch-catalogs__tab is-active">
+              Tổng <span className="dispatch-catalogs__tab-count">{drivers.length}</span>
+            </button>
+          </div>
+        )}
+        actions={(
+          <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
+            Thêm tài xế
+          </Button>
+        )}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm mã, tên, SĐT hoặc biển số xe…"
         totalLabel={`${filtered.length}/${drivers.length} tài xế`}
+        hasActiveFilters={hasActiveFilters}
+        onReset={() => setSearch('')}
       >
         {loading ? (
           <div role="status">

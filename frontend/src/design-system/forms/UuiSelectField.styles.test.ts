@@ -16,3 +16,12 @@ describe('select popover never clips an option label (card 20260924_1, image1)',
     expect(css).toMatch(/\.ds-uui-select__popover\s*\{[^}]*min-width:\s*max-content/);
   });
 });
+
+describe('UuiSelectField leading icon (card 20260926_57)', () => {
+  it('forwards the icon prop to both control branches', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/design-system/forms/UuiSelectField.tsx'), 'utf8');
+    // declared + destructured + forwarded to the ComboBox and the Select branch
+    expect(src).toMatch(/icon\?: ReactNode/);
+    expect(src.match(/icon=\{icon\}/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+});
