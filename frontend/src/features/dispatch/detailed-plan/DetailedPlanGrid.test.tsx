@@ -231,7 +231,7 @@ describe('DetailedPlanGrid', () => {
 
   it('shows "Chưa có số" for a missing container number', () => {
     renderGrid([row({ container: { containerNumber: null, containerTypeLabel: '20DC', cargoWeightKg: null } })]);
-    expect(screen.getByText('Chưa có số')).toBeTruthy();
+    expect(screen.getByText('Chưa có số cont')).toBeTruthy();
   });
 
   it('shows the NHẬP badge for import rows', () => {
@@ -707,7 +707,7 @@ describe('DetailedPlanGrid — unique row keys', () => {
 
       // Header row + both branch rows render — nothing dropped.
       expect(screen.getAllByRole('row')).toHaveLength(3);
-      expect(screen.getAllByText('Chưa có số')).toHaveLength(2);
+      expect(screen.getAllByText('Chưa có số cont')).toHaveLength(2);
       const duplicateKeyWarnings = errorSpy.mock.calls
         .filter((call) => String(call[0]).includes('same key'));
       expect(duplicateKeyWarnings).toEqual([]);

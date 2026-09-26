@@ -337,14 +337,18 @@ export function DetailedPlanGrid({
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container">
                     {row.cargoMode === 'FCL' ? (
                       <>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                          {row.container.containerNumber ?? 'Chưa có số'}
-                          {row.dispatch.pairKind && (
-                            <span className="detailed-plan-grid__pair-tag">
-                              {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                            </span>
-                          )}
-                        </div>
+                        {row.container.containerNumber ? (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+                            {row.container.containerNumber}
+                            {row.dispatch.pairKind && (
+                              <span className="detailed-plan-grid__pair-tag">
+                                {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
+                        )}
                         <div className="detailed-plan-grid__line">{row.container.containerTypeLabel ?? '—'}</div>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                           {formatWeight(row.container.cargoWeightKg)}

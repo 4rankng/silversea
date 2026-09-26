@@ -251,16 +251,15 @@ export function DetailedPlanFilters({
             </div>
           </div>
           <UUIButton
-            className="detailed-plan-filters__clear"
+            className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
             size="sm"
             color="tertiary"
             iconLeading={XClose}
             onPress={clearFilters}
             /* Card 20260926_10: CHIEF asked for a disabled state with no active
                filters, but Xóa lọc also resets in-progress drawer drafts (KP
-               contract, see DetailedPlanFilters tests) — it stays enabled.
-               Flagged for a Chief re-ruling with a draft-aware disabled state. */
-            aria-disabled={!hasActiveFilters}
+               contract) — it stays clickable and the idle state is visual only
+               (UUIButton drops aria-disabled, per QA rung). */
             aria-label="Xóa lọc"
           >
             Xóa lọc

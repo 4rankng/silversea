@@ -334,10 +334,17 @@
 }
 
 /* Card 20260926_10 (CHIEF group 6): the pager sits under a 1px rule so the
-   table card ends cleanly. */
+   table card ends cleanly. /dispatch-detail mounts no pager (29-row board,
+   YAGNI ruling 26/09) — the rule applies wherever a footer exists. */
 .detailed-plan-grid__footer {
   padding-top: 8px;
   border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+}
+
+/* CHIEF 'disabled-look with no active filters': visual-only idle state —
+   the button stays clickable (it also resets drawer drafts; KP contract). */
+.detailed-plan-filters__clear.is-idle {
+  opacity: 0.5;
 }
 
 .detailed-plan-grid__documents {
