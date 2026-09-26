@@ -43,7 +43,7 @@ export function InlineLabelSelect({
   const panelRef = useRef<HTMLDivElement>(null);
   const position = usePopoverPosition(panelRef, triggerRef, true, 220, 260);
   const close = useCallback(() => setIsOpen(false), []);
-  useClickOutside(panelRef, close, { escapeKey: true, additionalRefs: [triggerRef] });
+  useClickOutside(panelRef, close, { escapeKey: true, enabled: isOpen, additionalRefs: [triggerRef] });
 
   const selected = items.find((item) => item.id === selectedKey)
     ?? items[0];

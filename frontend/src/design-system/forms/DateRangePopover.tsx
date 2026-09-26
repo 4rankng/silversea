@@ -60,7 +60,7 @@ export function DateRangePopover({
   const panelRef = useRef<HTMLDivElement>(null);
   const position = usePopoverPosition(panelRef, triggerRef, true, 520, 500);
   const close = useCallback(() => setIsOpen(false), []);
-  useClickOutside(panelRef, close, { escapeKey: true, additionalRefs: [triggerRef] });
+  useClickOutside(panelRef, close, { escapeKey: true, enabled: isOpen, additionalRefs: [triggerRef] });
 
   const pickFrom = (date: string) => {
     onChange({ from: date, to: value.to && value.to < date ? '' : value.to });

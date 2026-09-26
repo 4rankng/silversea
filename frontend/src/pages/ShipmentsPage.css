@@ -9,6 +9,10 @@
   min-width: 0;
   container-name: cus-workboard;
   container-type: inline-size;
+  /* Card 20260926_49: the pinned thead keeps the house flush-pin (topbar
+     edge — rows never peek above it); at rest its top edge rests right
+     below the two-row control surface, holding the 104px budget. */
+  --sticky-thead-top: -24px;
 }
 
 /* Card 20260926_47 — the control surface. The whole header above the table
@@ -416,7 +420,7 @@
   z-index: 3;
   padding: 10px 12px;
   border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: var(--ops-table-header-size);
@@ -427,6 +431,16 @@
   overflow-wrap: anywhere;
 }
 
+/* Card 20260926_49: codes and dates ride the data face — Bill/Book, tờ
+   khai (the mono cell class) and every schedule datetime in the grid. */
+.cus-dashboard-table .cus-multiline-cell--mono {
+  font-family: var(--font-data);
+}
+
+.cus-dashboard-table .cus-schedule-lot-fallback {
+  font-family: var(--font-data);
+}
+
 .cus-dashboard-table thead th:last-child,
 .cus-dashboard-table tbody > tr > :last-child { border-right: 0; }
 
@@ -434,10 +448,10 @@
 .cus-dashboard-table tbody > tr > td {
   position: relative;
   /* Table-cell height is a floor, not a cap: rows grow with dense schedule
-     columns. 72px keeps sparse rows from reading as mostly empty space while
-     the 44px inline triggers preserve their touch targets. */
-  height: 72px;
-  padding: 10px;
+     columns (card 20260926_49: the floor drops to the 36-40px law and the
+     block padding to 6px — dense rows read as a grid, not cards). */
+  height: 40px;
+  padding: 6px 10px;
   overflow-wrap: anywhere;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

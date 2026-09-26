@@ -25,6 +25,7 @@ import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { isOverlayOpen } from '../lib/overlayState';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
@@ -154,6 +155,8 @@ export default function ShipmentsPage() {
   // dateResetKey clears the buffered date drafts; the export gate validates
   // the same two date inputs by id inside the bar container.
   const [searchInput, setSearchInput] = useState(suffixParam);
+  // Card 20260926_49: '/' focus + Esc clear target.
+  const searchFieldRef = useRef<HTMLInputElement>(null);
 
   const ws = useCusWorkspaceState({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
@@ -217,6 +220,41 @@ export default function ShipmentsPage() {
     }, 350);
     return () => clearTimeout(timer);
   }, [searchInput, suffixParam, updateParam]);
+
+  // Card 20260926_49 — grid keyboard nav: '/' focuses the search field,
+  // Escape clears its draft (or blurs when empty), Alt+N opens Tạo lô mới.
+  // Keys stay quiet while typing in any field and while the drawer or a
+  // modal owns the screen — a stray hotkey must never navigate away from a
+  // dirty edit.
+  useEffect(() => {
+    // Capture phase: closed-popover Escape guards used to stopPropagation at
+    // document level before a bubble listener could see the key. The overlay
+    // registry keeps the house contract — while any overlay is open, its own
+    // Escape owns the press and these shortcuts yield.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isOverlayOpen()) return;
+      if (drawerId != null || quickEditDraft != null || deleteLotBlock != null) return;
+      const target = event.target as HTMLElement | null;
+      const isTextField = Boolean(target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]'));
+      if (event.key === '/' && !isTextField) {
+        event.preventDefault();
+        searchFieldRef.current?.focus();
+        return;
+      }
+      if (event.altKey && (event.key === 'n' || event.code === 'KeyN') && !isTextField) {
+        event.preventDefault();
+        navigate(routes.shipmentNew);
+        return;
+      }
+      if (event.key === 'Escape' && document.activeElement === searchFieldRef.current) {
+        event.preventDefault();
+        if (searchInput.trim() !== '') setSearchInput('');
+        else searchFieldRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [drawerId, quickEditDraft, deleteLotBlock, navigate, searchInput]);
 
   // Both sort params are written in one setSearchParams pass so no render can
   // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
@@ -443,13 +481,15 @@ export default function ShipmentsPage() {
           <div className="shipments-control__search">
             <Search size={14} aria-hidden="true" />
             <input
+              ref={searchFieldRef}
               type="text"
               aria-label="Tìm lô hàng"
               placeholder="Bill, Book, Cont, Tờ khai..."
+              title="Nhấn / để tìm kiếm · Esc để xóa"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
-            <kbd className="shipments-control__kbd" aria-hidden="true">⌘K</kbd>
+            <kbd className="shipments-control__kbd" title="Nhấn / để tìm kiếm · Esc để xóa · Alt+N để tạo lô mới" aria-hidden="true">⌘K</kbd>
           </div>
           <DateRangePopover
             className="shipments-control__range"

@@ -2569,3 +2569,65 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     });
   });
 });
+
+
+describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
+  it('sticky header pins at the 104px budget with the neutral-200 hairline', () => {
+    // The page declares its sticky-base variable explicitly; the thead pins
+    // flush (rows never peek) and carries the 1px neutral-200 bottom hairline.
+    expect(css).toMatch(/\.shipments-page--worksheet\s*\{[^}]*--sticky-thead-top:\s*calc\(var\(--app-topbar-h[^(]*\)\s*\*?\s*-1\)|--sticky-thead-top:\s*-24px/);
+    expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
+    // z-index guard so dropdowns/portals still ride above the pinned header.
+    expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[^}]*z-index:\s*3;/);
+  });
+
+  it('rows compact to the 36-40px law: 40px floor, py 6-8px', () => {
+    expect(css).toMatch(/\.cus-dashboard-table tbody > tr > th,\n\s*\.cus-dashboard-table tbody > tr > td\s*\{[^}]*height:\s*40px;/);
+    expect(css).toMatch(/\.cus-dashboard-table tbody > tr > th,\n\s*\.cus-dashboard-table tbody > tr > td\s*\{[^}]*padding:\s*[6-8]px 10px;/);
+  });
+
+  it('codes and dates ride the data (mono) face: Bill/Book, tờ khai, schedule dates', () => {
+    // Chứng từ cell keeps its mono class in the row feature.
+    expect(rowSource).toContain('cus-multiline-cell--mono');
+    // The lot-level schedule datetime gains the data face via page CSS (the
+    // appointment-group lines mix date + factory + container text in one
+    // span, so the data face applies only to the pure datetime span).
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-schedule-lot-fallback\s*\{[^}]*font-family:\s*var\(--font-data\);/);
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-multiline-cell--mono\s*\{[^}]*font-family:\s*var\(--font-data\);/);
+  });
+
+  it("keyboard: '/' focuses search, Esc clears it, Alt+N opens Tạo lô mới", async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderTabsPage();
+    await screen.findByRole('table');
+    // '/' from nowhere focuses the search field.
+    fireEvent.keyDown(window, { key: '/', bubbles: true });
+    expect(document.activeElement).toBe(screen.getByLabelText('Tìm lô hàng'));
+    // Typing then Esc clears the draft (and the debounce never applies it).
+    fireEvent.change(screen.getByLabelText('Tìm lô hàng'), { target: { value: 'BILL' } });
+    fireEvent.keyDown(window, { key: 'Escape', bubbles: true });
+    expect((screen.getByLabelText('Tìm lô hàng') as HTMLInputElement).value).toBe('');
+    // Documented at the placeholder/badge (the RAC create button drops the
+    // title attr, so the badge carries all three).
+    expect(screen.getByLabelText('Tìm lô hàng').getAttribute('title')).toContain('/');
+    expect(document.querySelector('.shipments-control__kbd')?.getAttribute('title')).toContain('Alt+N');
+    // Alt+N navigates to the create route — last, it unmounts the list.
+    fireEvent.keyDown(window, { key: 'n', altKey: true, bubbles: true });
+    expect(await screen.findByTestId('shipment-create-page')).toBeTruthy();
+  });
+
+  it('hotkeys stay quiet while typing or when the drawer owns the screen', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    renderTabsPage();
+    await screen.findByRole('table');
+    // Typing '/' inside a focused search field must NOT steal focus away.
+    const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
+    search.focus();
+    fireEvent.change(search, { target: { value: 'A' } });
+    fireEvent.keyDown(search, { key: '/', bubbles: true });
+    expect(document.activeElement).toBe(search);
+    // The guard exists in source: field-focused keys and open-drawer keys are ignored.
+    expect(source).toMatch(/isTextField|closest\('input/);
+    expect(source).toMatch(/drawerId != null/);
+  });
+});
