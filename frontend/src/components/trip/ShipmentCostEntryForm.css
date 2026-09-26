@@ -25,6 +25,33 @@
 .shipment-cost-entry__receipt-preview { display: flex; gap: 8px; align-items: center; font-size: var(--text-caption-size); }
 .shipment-cost-entry__section-note { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 .shipment-cost-entry__section-note > button { justify-self: end; }
+
+/* Card 20260926_29 item 14: the collapsed accountant-note row — a ghost
+   "+ Thêm ghi chú cho kế toán" affordance or a one-line saved-note preview;
+   it expands to the editor with Lưu while editing. */
+.shipment-cost-entry__note-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-3);
+  font-size: var(--text-data-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.shipment-cost-entry__note-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+  font-weight: 500;
+}
 @media (max-width: 600px) {
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }

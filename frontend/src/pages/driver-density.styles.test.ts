@@ -87,3 +87,15 @@ describe('driver density contract (20260926_26)', () => {
     expect(callBlock).toMatch(/height:\s*var\(--control-touch-h, 44px\)/);
   });
 });
+
+/* Card 20260926_29 item 13: the container-card capture strip is ONE row of
+ * uniform 72px tiles — the old `1fr` group row stretched every tile to the
+ * tallest column (~110px). */
+describe('driver capture strip contract (20260926_29)', () => {
+  const css = read('src/components/trip/DriverContainerCard.css');
+
+  it('capture tiles are uniform 72px', () => {
+    expect(css).toMatch(/\.dcc-capture-btn--primary \{[^}]*height:\s*72px;/s);
+    expect(css).not.toMatch(/\.dcc-capture-group \{[^}]*grid-template-rows:\s*1fr/s);
+  });
+});

@@ -29,9 +29,25 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
   it('shows unknown route rates and does not create money automatically', async () => {
     setup();
-    await screen.findByText('Chưa có chi phí phát sinh nào.');
+    await screen.findByText('Chưa có chi phí phát sinh');
     expect(screen.getByTestId('shipment-cost-route-reference').textContent).toContain('Chưa có định mức');
     expect(api.createIncidentalCost).not.toHaveBeenCalled();
+  });
+
+  it('card _29: costs empty renders the driver-costs illustration empty state', async () => {
+    setup();
+    await screen.findByText('Chưa có chi phí phát sinh');
+    expect(document.querySelector('img[src*="empty-costs.webp"]')).toBeTruthy();
+  });
+
+  it('card _29: the accountant note is a collapsed row — editor and Lưu appear on tap', async () => {
+    setup();
+    await screen.findByText('Chưa có chi phí phát sinh');
+    // Collapsed: the field is not mounted, the ghost row is.
+    expect(screen.queryByLabelText('Ghi chú cho kế toán')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
+    expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lưu ghi chú' })).toBeTruthy();
   });
 
   it('reads saved fee names, invoice numbers and actual amounts', async () => {
@@ -143,7 +159,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
   });
 
   it('does not autosave notes and explicitly stores the correct trip note once', async () => {
-    setup(); await screen.findByText('Chưa có chi phí phát sinh nào.');
+    setup(); await screen.findByText('Chưa có chi phí phát sinh');
+    // Card _29: the note editor mounts only after expanding the collapsed row.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
     fireEvent.change(screen.getByLabelText('Ghi chú cho kế toán'), { target: { value: 'Kiểm tra phí cầu đường' } });
     expect(api.updateCostSubmissionNote).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu ghi chú' }));
@@ -182,13 +200,15 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup({ readOnly: true });
     await screen.findByText('Nâng container');
     expect(screen.queryByRole('button', { name: 'Thêm chi phí' })).toBeNull();
+    // Card _29: expand the collapsed note row to reach the read-only field.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
     expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeDisabled();
   });
   it('does not claim there are no costs when the list read fails and recovers explicitly', async () => {
     api.listIncidentalCosts.mockRejectedValueOnce(new Error('Không tải được chi phí QA'));
     setup();
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được chi phí QA');
-    expect(screen.queryByText('Chưa có chi phí phát sinh nào.')).toBeNull();
+    expect(screen.queryByText('Chưa có chi phí phát sinh')).toBeNull();
     api.listIncidentalCosts.mockResolvedValue([entry]);
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }));
     expect(await screen.findByText('Nâng container')).toBeTruthy();

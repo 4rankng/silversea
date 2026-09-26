@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Plus, ReceiptText } from 'lucide-react';
+import { Camera, Plus, ReceiptText, StickyNote } from 'lucide-react';
 import { DRIVER_INCIDENTAL_COST_LABELS, DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
-import { NumberField, DateField, TextField, UuiSelectField, Tabs } from '../../design-system';
+import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
 import { driverExpenseOption } from '../../features/driver/driver-expense-options';
@@ -36,10 +36,13 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const noteLock = useRef(false);
+  // Card 20260926_29 item 14: the note row starts collapsed (the editor
+  // opens on tap; a saved note previews as one line).
+  const [noteOpen, setNoteOpen] = useState(Boolean(costSubmissionNote));
   async function saveNote() {
     if (disabled || noteLock.current) return;
     noteLock.current = true; setNoteSaving(true); setNoteError(null);
-    try { await driverClient.updateCostSubmissionNote(tripId, sectionNote); setSavedNote(sectionNote); }
+    try { await driverClient.updateCostSubmissionNote(tripId, sectionNote); setSavedNote(sectionNote); setNoteOpen(false); }
     catch (cause) { setNoteError(cause instanceof Error ? cause.message : 'Chưa lưu được ghi chú.'); }
     finally { noteLock.current = false; setNoteSaving(false); }
   }
@@ -56,7 +59,14 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         ? `Tiền tuyến tham chiếu: ${formatCurrency(totalRoadAllowance)}. Chỉ ghi khoản phát sinh thực tế, không cộng thêm nếu đã có trong danh sách.`
         : 'Chưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.'}
     </p>
-    {state.loading ? <p role="status">Đang tải chi phí…</p> : state.entries.length === 0 ? (!state.loadError && <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào.</p>) :
+    {state.loading ? <p role="status">Đang tải chi phí…</p> : state.entries.length === 0 ? (!state.loadError && (
+      <EmptyState
+        variant="compact"
+        context="driver-costs"
+        title="Chưa có chi phí phát sinh"
+        description="Thêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng."
+      />
+    )) :
       <ul className="shipment-cost-entry__list">{state.entries.map(entry => <li key={entry.id} className="shipment-cost-entry__item">
         {entry.receiptStorageKey && <a href={photoSrc(entry.receiptStorageKey)} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><img src={photoSrc(entry.receiptStorageKey)} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
         <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
@@ -96,10 +106,28 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><img src={photoSrc(state.draft.receiptStorageKey)} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
       <div className="shipment-cost-entry__form-actions"><button type="button" className="btn btn--secondary" disabled={state.busy || state.uploading} onClick={state.cancel}>Hủy</button><button type="submit" className="btn btn--primary" disabled={disabled}>{state.busy ? 'Đang lưu…' : 'Lưu chi phí'}</button></div>
     </form>}
-    <div className="shipment-cost-entry__section-note">
-      <TextField controlSize="sm" label="Ghi chú cho kế toán" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
-      {noteError && <p role="alert" className="shipment-cost-entry__banner--error">{noteError}</p>}
-      {!readOnly && <button type="button" className="btn btn--secondary btn--sm" disabled={disabled || noteSaving || sectionNote === savedNote} onClick={() => void saveNote()}>{noteSaving ? 'Đang lưu…' : 'Lưu ghi chú'}</button>}
+    <div className="shipment-cost-entry__section-note" data-testid="cost-note-row">
+      {/* Card 20260926_29 item 14: the accountant note is ONE collapsed row —
+          a ghost "+ Thêm ghi chú cho kế toán" when empty, a tappable one-line
+          preview when saved; it expands to the editor, with Lưu visible only
+          while editing. */}
+      {noteOpen ? (
+        <>
+          <TextField controlSize="sm" label="Ghi chú cho kế toán" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
+          {noteError && <p role="alert" className="shipment-cost-entry__banner--error">{noteError}</p>}
+          {!readOnly && <button type="button" className="btn btn--secondary btn--sm" disabled={disabled || noteSaving || sectionNote === savedNote} onClick={() => void saveNote()}>{noteSaving ? 'Đang lưu…' : 'Lưu ghi chú'}</button>}
+        </>
+        ) : savedNote ? (
+        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)} title={savedNote}>
+          <StickyNote size={14} aria-hidden="true" />
+          <span className="shipment-cost-entry__note-text">{savedNote}</span>
+        </button>
+      ) : (
+        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)}>
+          <Plus size={14} aria-hidden="true" />
+          <span>Thêm ghi chú cho kế toán</span>
+        </button>
+      )}
     </div>
   </section>;
 }
