@@ -205,7 +205,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // carrier-options fallback label) + the driver-acceptance chip derive.
   // Reviewed as a contract change; a future split (extract the carrier-link
   // resolution) should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 860,
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 873,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.

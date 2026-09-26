@@ -184,6 +184,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
+  // Live completeness of the Giờ trả hàng segments ('complete' | 'empty' |
+  // 'incomplete') — 'incomplete' must BLOCK the save; '' from the field alone
+  // can't distinguish an intentional clear from a half-typed edit.
+  const endCompletenessRef = useRef<'complete' | 'empty' | 'incomplete'>('empty');
   const [carrierOptions, setCarrierOptions] = useState<SearchableSelectOption[]>([]);
   const [carrierSearch, setCarrierSearch] = useState('');
   const [carrierCursor, setCarrierCursor] = useState<string | null>(null);
@@ -549,10 +553,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       return;
     }
     // Giờ trả hàng: omit = untouched, null = clear, zone-aware ISO = set —
-    // mirroring the backend's atomic-save contract exactly.
+    // mirroring the backend's atomic-save contract exactly. The completeness
+    // ref distinguishes an intentional clear (all segments emptied) from a
+    // half-typed edit, which must never reach the wire as a clear.
     const storedEnd = row.plannedEndAt ?? null;
-    const draftEndIso = draft.plannedEndAt === '' ? null : vietnamLocalInputToIso(draft.plannedEndAt);
-    if (draft.plannedEndAt !== '' && draftEndIso == null) {
+    if (endCompletenessRef.current === 'incomplete') {
+      setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
+      return;
+    }
+    const draftEndIso = endCompletenessRef.current === 'complete'
+      ? vietnamLocalInputToIso(draft.plannedEndAt)
+      : null;
+    if (endCompletenessRef.current === 'complete' && draftEndIso == null) {
       setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
     }
@@ -823,6 +835,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               label="Giờ trả hàng"
               value={draft.plannedEndAt}
               onChange={(next) => { setDraft((current) => ({ ...current, plannedEndAt: next })); setError(null); }}
+              onCompletenessChange={(state) => { endCompletenessRef.current = state; }}
               disabled={saving}
             />
           </div>

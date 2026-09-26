@@ -203,6 +203,25 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
   });
+
+  it('QA-2026-09-26-23 blocks the save while the Giờ trả hàng edit is incomplete — no silent clear', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    // Partial edit: EMPTY the day segment — the field reports incomplete, so
+    // Lưu must be BLOCKED, never write a silent clear of the stored instant.
+    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).not.toHaveBeenCalled());
+    expect(screen.getByText('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.')).toBeTruthy();
+    expect((document.querySelector('[role=dialog]'))).toBeTruthy();
+  });
 });
 
 describe('DispatchPlanEditorCell — driver note composer', () => {

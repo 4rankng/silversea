@@ -14,9 +14,13 @@ function splitValue(value: string) {
 /** Independent, editable 24h time/date controls with one complete datetime
  * contract. Partial drafts stay visible and invalidate their form inputs;
  * they never silently preserve an older complete timestamp for submission. */
-export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
+export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
   id?: string; label: string; value: string; onChange: (value: string) => void;
   onCommit?: (value: string) => void;
+  /** 'complete' = parsed datetime; 'empty' = all segments cleared;
+   *  'incomplete' = some content but not parseable. Lets a form block the
+   *  incomplete state instead of reading '' as an intentional clear. */
+  onCompletenessChange?: (state: 'complete' | 'empty' | 'incomplete') => void;
   disabled?: boolean; readOnly?: boolean; required?: boolean; error?: string; hideLabel?: boolean; className?: string;
   min?: string; max?: string; name?: string; groupRef?: Ref<HTMLDivElement>; size?: 'sm' | 'md' | 'lg';
   inputClassName?: string; wrapperClassName?: string;
@@ -72,6 +76,12 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
 
   const parsed = draft.time && draft.date ? parseDateTime24(`${draft.time} ${draft.date}`) : null;
   const incomplete = Boolean(draft.time || draft.date) && parsed == null;
+  const completeness: 'complete' | 'empty' | 'incomplete' = parsed != null
+    ? 'complete'
+    : (draft.time || draft.date) ? 'incomplete' : 'empty';
+  useEffect(() => {
+    onCompletenessChange?.(completeness);
+  }, [completeness]);
   const validation = incomplete ? 'Nhập đủ giờ và ngày hợp lệ.'
     : required && !parsed ? 'Vui lòng nhập ngày và giờ.'
     : parsed && min && parsed < min.slice(0, 16) ? `Chọn từ ${formatDateTime24(min)}.`
