@@ -76,9 +76,15 @@
   gap: 4px;
 }
 
-/* Card 20260926_10 (CHIEF): the segmented shortcuts gain their group label. */
-.detailed-plan-filters__mode-label {
+/* Card 20260926_10 (CHIEF): the segmented shortcuts gain their group label.
+   The wrap owns the row; the label sits above the 3-up shortcuts. */
+.detailed-plan-filters__mode-wrap {
+  display: grid;
+  gap: 2px;
   grid-column: 1 / -1;
+}
+
+.detailed-plan-filters__mode-label {
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
   font-size: var(--text-label-size);
   font-weight: 600;

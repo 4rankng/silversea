@@ -212,8 +212,9 @@ export function DetailedPlanFilters({
             size="sm"
             aria-label="Ngày vận chuyển"
           />
-          <span className="detailed-plan-filters__mode-label">Thời gian</span>
-          <div className="detailed-plan-filters__date-mode" role="group" aria-label="Phạm vi ngày vận chuyển">
+          <div className="detailed-plan-filters__mode-wrap">
+            <span className="detailed-plan-filters__mode-label">Thời gian</span>
+            <div className="detailed-plan-filters__date-mode" role="group" aria-label="Phạm vi ngày vận chuyển">
             <UUIButton
               className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
               size="sm"
@@ -247,6 +248,7 @@ export function DetailedPlanFilters({
             >
               Tất cả
             </UUIButton>
+            </div>
           </div>
           <UUIButton
             className="detailed-plan-filters__clear"
