@@ -99,3 +99,10 @@
   .cfg-customer-details dd { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.4; font-size: var(--text-data-size); }
 }
 @media (pointer: coarse) { .cfg-customer-details > summary { min-height: 44px; } }
+
+/* Card 20260925_47 (audit, header-wrap band): the two Hạn Thanh Toán headers
+   read 'HẠN THANH / TOÁN CHI HỘ / (NGÀY)' — three ragged lines at tight
+   column widths (the table hosts up to 12 columns; seeded chi-hộ data
+   narrows them). A 132px floor lets 'HẠN THANH TOÁN' hold line 1, so the
+   header settles at an even 2-line wrap next to its neighbours. */
+.cfg-page--customers .cfg-customer-table thead th.num { min-width: 132px; }
