@@ -44,6 +44,13 @@
   color: var(--ink-3);
 }
 
+/* Required mark (card 20260926_51 settlement toolbar): amber asterisk inside
+   the trigger, ahead of placeholder/value copy. */
+.searchable-select__req {
+  color: var(--color-warning-ink, #b45309);
+  font-weight: 700;
+}
+
 .searchable-select__chevron {
   flex-shrink: 0;
   color: var(--ink-3);

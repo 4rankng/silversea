@@ -14,10 +14,8 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, BufferedUuiDateInput, UuiSelectField } from '../design-system';
-import { PageHeader } from '../components/UI';
-import { USearchableField } from '../features/shipments/create/uui-searchable-field';
-import { ListFilterBar } from '../components/ListFilterBar';
+import { DateRangePopover, EmptyState, InlineLabelSelect, SearchableSelect, type DateRangePreset } from '../design-system';
+import { RotateCcw } from 'lucide-react';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
 
@@ -25,9 +23,30 @@ import './ShipmentDebitPage.css';
 const EXPANDED_LOT_KEY = 'shipment-debit.expanded-lot';
 
 const LOCK_FILTERS = [
-  { value: 'ALL', label: 'Tất cả' },
-  { value: 'OPEN', label: 'Đang mở' },
-  { value: 'LOCKED', label: 'Đã khóa' },
+  { id: 'ALL', label: 'Tất cả' },
+  { id: 'OPEN', label: 'Đang mở' },
+  { id: 'LOCKED', label: 'Đã khóa' },
+];
+
+/** Settlement quick ranges (card 20260926_51) — evaluated on click so the
+ *  pills stay anchored to "now" whenever the popover opens. */
+const toIsoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const monthBounds = (offset: number) => {
+  const now = new Date();
+  return {
+    from: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset, 1)),
+    to: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)),
+  };
+};
+const quarterBounds = () => {
+  const now = new Date();
+  const start = Math.floor(now.getMonth() / 3) * 3;
+  return { from: toIsoDate(new Date(now.getFullYear(), start, 1)), to: toIsoDate(new Date(now.getFullYear(), start + 3, 0)) };
+};
+const SETTLEMENT_PRESETS: DateRangePreset[] = [
+  { id: 'this-month', label: 'Tháng này', range: () => monthBounds(0) },
+  { id: 'prev-month', label: 'Tháng trước', range: () => monthBounds(-1) },
+  { id: 'this-quarter', label: 'Quý này', range: quarterBounds },
 ];
 
 /** A 409 from the batched issue call can carry the selection's lot codes that
@@ -215,49 +234,102 @@ export function ShipmentDebitPage() {
   const items = summary.data?.items ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
 
+  const hasDebitFilters = customerId !== ''
+    || deliveryFrom !== '' || deliveryTo !== ''
+    || lockStatus !== 'ALL';
+
   return (
     <div className="shipment-debit-page data-workspace">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi phí - Quyết toán' }]} />
-      <PageHeader title="Chi phí - Quyết toán" iconName="cargo" description="Tổng hợp doanh thu - chi phí theo lô để quyết toán với khách hàng." />
       {!canManage && <Alert variant="info">Chế độ chỉ xem tổng hợp. Tài khoản này không có quyền mở chi tiết hoặc xuất Debit Note.</Alert>}
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Shared filter-bar contract (card 20260922_38): customer pick +
-            delivery range + lock filter in one wrapping row; the export
-            action rides the bar's right-side actions slot. */}
-        <ListFilterBar
-          actions={canManage && (
-            /* Hidden without manage rights; disabled until at least one LOCKED
-               lot is ticked — and with the brand fill stripped while disabled
-               (page CSS) so it can never read as the live action with nothing
-               selected (card 20260922_31). */
-            <UUIButton className="shipment-debit-export" size="sm" isDisabled={!anyLockedSelected || issuing} onPress={() => { void exportSelectedLockedLots(); }}>
-              Xuất Debit Note
-            </UUIButton>
+        {/* Card 20260926_51: two-tier 76px header — Row 1 title + Xuất Debit
+            Note ghost top-right (disabled without customer or locked tick,
+            hover names the prerequisite); Row 2 ribbon: required customer
+            combobox, range popover with settlement presets, Khóa lô, Xóa lọc. */}
+        <header className="shipment-debit-header" data-component="shipment-debit-header">
+          <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
+          {canManage && (
+            <span className="shipment-debit-header__export" title={!customerId ? 'Vui lòng chọn khách hàng để xuất Debit Note' : undefined}>
+              <UUIButton
+                className="shipment-debit-export"
+                size="sm"
+                color="tertiary"
+                isDisabled={!customerId || !anyLockedSelected || issuing}
+                onPress={() => { void exportSelectedLockedLots(); }}
+              >
+                Xuất Debit Note
+              </UUIButton>
+            </span>
           )}
-        >
-          <USearchableField
+        </header>
+        <div className="shipment-debit-ribbon" data-component="shipment-debit-ribbon">
+          <SearchableSelect
             id="shipment-debit-customer"
-            label="Khách hàng"
+            className="shipment-debit-ribbon__customer"
             value={customerId}
             onChange={(value) => {
               setSelectedIds(new Set());
               updateParam('customer', value || null);
             }}
-            options={customers.map((customer) => ({ value: String(customer.id), label: customer.name }))}
-            placeholder="Bắt buộc chọn khách hàng"
-            searchable
+            options={customers.map((customer) => ({
+              value: String(customer.id),
+              label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
+              searchText: `${customer.name} ${customer.fullName ?? ''}`,
+            }))}
+            placeholder="Khách hàng"
+            searchPlaceholder="Tìm khách hàng…"
+            emptyMessage="Không tìm thấy khách hàng phù hợp."
+            clearable
+            clearLabel="Bỏ khách hàng"
+            requiredMark
+            required
+            size="sm"
           />
-          <BufferedUuiDateInput label="Từ ngày giao" size="sm" value={deliveryFrom} onChange={(value) => updateParam('from', value || null)} inputProps={{ max: deliveryTo || undefined }} />
-          <BufferedUuiDateInput label="Đến ngày giao" size="sm" value={deliveryTo} onChange={(value) => updateParam('to', value || null)} inputProps={{ min: deliveryFrom || undefined }} />
-          <UuiSelectField
-            label="Trạng thái khóa lô"
-            value={lockStatus}
-            options={LOCK_FILTERS}
-            onChange={(event) => { setSelectedIds(new Set()); updateParam('lock', event.target.value === 'ALL' ? null : event.target.value); }}
+          <DateRangePopover
+            className="shipment-debit-ribbon__range"
+            id="shipment-debit-date-range"
+            ariaLabel="Khoảng ngày giao"
+            size="sm"
+            value={{ from: deliveryFrom, to: deliveryTo }}
+            onChange={({ from, to }) => {
+              updateParam('from', from || null);
+              updateParam('to', to || null);
+            }}
+            presets={SETTLEMENT_PRESETS}
           />
-        </ListFilterBar>
+          <InlineLabelSelect
+            id="shipment-debit-lock"
+            label="Khóa lô"
+            items={LOCK_FILTERS}
+            selectedKey={lockStatus}
+            onSelectionChange={(key) => {
+              setSelectedIds(new Set());
+              updateParam('lock', key === 'ALL' ? null : key);
+            }}
+            ariaLabel="Trạng thái khóa lô"
+            className="shipment-debit-ribbon__lock"
+          />
+          <UUIButton
+            className="shipment-debit-ribbon__clear"
+            size="sm"
+            color="tertiary"
+            iconLeading={RotateCcw}
+            isDisabled={!hasDebitFilters}
+            onPress={() => {
+              setSelectedIds(new Set());
+              updateParam('customer', null);
+              updateParam('from', null);
+              updateParam('to', null);
+              updateParam('lock', null);
+            }}
+            aria-label="Xóa lọc"
+          >
+            Xóa lọc
+          </UUIButton>
+        </div>
         {customerId === '' ? (
           <EmptyState illustration="finance" title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
         ) : summary.isPending ? (

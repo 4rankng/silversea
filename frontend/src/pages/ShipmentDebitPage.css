@@ -1,11 +1,81 @@
 /* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
    controls own control density; this file owns the page grid and the
-   settlement table only. */
+   settlement table only. Card 20260926_51 adds the two-tier 76px header:
+   Row 1 (36px) title + Xuất Debit Note ghost top-right; Row 2 (32px) one
+   continuous ribbon (required customer combobox 280, delivery-range popover
+   220 with settlement preset pills, Khóa lô 160, Xóa lọc tail). */
 
 .shipment-debit-page {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+
+/* Row 1: title left, Xuất Debit Note pinned top-right on the same 36px
+   baseline. Flat; the export button keeps its disabled de-brand rule below. */
+.shipment-debit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+}
+
+.shipment-debit-header__title {
+  margin: 0;
+  margin-right: auto;
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  font-size: var(--text-section-size, 16px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.shipment-debit-header__export[title] {
+  cursor: help;
+}
+
+/* Row 2: one continuous 32px ribbon. */
+.shipment-debit-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+
+.shipment-debit-ribbon__customer {
+  width: 280px;
+  min-width: 0;
+}
+
+.shipment-debit-ribbon__customer .searchable-select__trigger {
+  height: 32px;
+}
+
+.shipment-debit-ribbon__range .date-range__trigger {
+  width: 220px;
+}
+
+.shipment-debit-ribbon__lock { min-width: 160px; }
+
+.shipment-debit-ribbon__clear {
+  margin-left: auto;
+}
+
+/* 390 stack: title row holds; ribbon wraps, search-edge controls full-width. */
+@media (max-width: 640px) {
+  .shipment-debit-header { height: auto; min-height: 36px; }
+  .shipment-debit-ribbon { flex-wrap: wrap; height: auto; }
+  .shipment-debit-ribbon__customer { flex: 1 1 100%; width: auto; }
+  .shipment-debit-ribbon__range { flex: 1 1 100%; }
+  .shipment-debit-ribbon__range .date-range__trigger { width: 100%; }
+  .shipment-debit-ribbon__clear { margin-left: 0; }
+}
+
+@media (pointer: coarse) {
+  .shipment-debit-header,
+  .shipment-debit-ribbon { height: auto; }
+  .shipment-debit-ribbon__customer .searchable-select__trigger,
+  .shipment-debit-ribbon__range .date-range__trigger,
+  .shipment-debit-ribbon__lock .inline-label-select__trigger { height: 44px; }
 }
 
 .shipment-debit-workspace {

@@ -101,8 +101,10 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
       .toContain('/assets/illustrations/empty-4.png');
     expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true);
     expect(listSummary).not.toHaveBeenCalled();
-    // Picking the customer fires the summary fetch with the numeric id.
-    fireEvent.click(await screen.findByRole('combobox', { name: 'Khách hàng' }));
+    // Picking the customer fires the summary fetch with the numeric id —
+    // card 20260926_51: the picker is the shared searchable combobox whose
+    // trigger text IS the label.
+    fireEvent.click(await screen.findByRole('button', { name: 'Khách hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
     await waitFor(() => expect(listSummary).toHaveBeenCalledWith(expect.objectContaining({ customerId: 1 })));
   });
@@ -116,24 +118,31 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
       deliveryDateTo: '2026-09-30',
       lockStatus: 'LOCKED',
     })));
-    // 3 options stay below the search threshold → the select renders a button trigger.
-    expect(screen.getByRole('button', { name: /Trạng thái khóa lô/ })).toHaveTextContent('Đã khóa');
+    // Card 20260926_51: the lock filter rides the inline-label select.
+    expect(screen.getByRole('button', { name: 'Khóa lô: Đã khóa' })).toBeTruthy();
   });
 
-  it('adopts the shared ListFilterBar contract (card 20260922_38)', () => {
+  it('renders the two-tier header with label-in-control ribbon (card 20260926_51)', () => {
     const { container } = renderPage();
-    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
-    expect(bar).not.toBeNull();
-    // The hand-rolled bar is gone — no page-local filter chrome remains.
-    expect(container.querySelector('.shipment-debit-filters, .shipment-debit-toolbar')).toBeNull();
-    // Customer + delivery range + lock filter in row order, export action on
-    // the right side of the same row (the bar's spacer is its hook).
-    expect(bar.querySelector('.filter-bar__spacer')).not.toBeNull();
-    within(bar).getByRole('combobox', { name: 'Khách hàng' });
-    within(bar).getByText('Từ ngày giao');
-    within(bar).getByText('Đến ngày giao');
-    within(bar).getByRole('button', { name: /Trạng thái khóa lô/ });
-    within(bar).getByRole('button', { name: 'Xuất Debit Note' });
+    expect(container.querySelector('[data-component="shipment-debit-header"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Chi phí - Quyết toán' })).toBeTruthy();
+    expect(container.querySelector('[data-component="shipment-debit-ribbon"]')).not.toBeNull();
+    // Label-in-control: no floating label rows remain.
+    expect(screen.queryByText('Từ ngày giao')).toBeNull();
+    expect(screen.queryByText('Đến ngày giao')).toBeNull();
+    expect(screen.queryByText('Trạng thái khóa lô')).toBeNull();
+    // Ribbon order: customer combobox → delivery range → lock → Xóa lọc tail.
+    const ribbon = container.querySelector('[data-component="shipment-debit-ribbon"]') as HTMLElement;
+    within(ribbon).getByRole('button', { name: 'Khách hàng' });
+    within(ribbon).getByRole('button', { name: 'Khoảng ngày giao' });
+    within(ribbon).getByRole('button', { name: 'Khóa lô: Tất cả' });
+    within(ribbon).getByRole('button', { name: 'Xóa lọc' });
+    // Row 1: Xuất Debit Note rides the title baseline, disabled without a
+    // customer, with the hover tooltip naming the prerequisite.
+    const header = container.querySelector('[data-component="shipment-debit-header"]') as HTMLElement;
+    expect(within(header).getByRole('button', { name: 'Xuất Debit Note' })).toBeTruthy();
+    const exportWrap = header.querySelector('.shipment-debit-header__export') as HTMLElement;
+    expect(exportWrap.getAttribute('title')).toBe('Vui lòng chọn khách hàng để xuất Debit Note');
   });
 
   it('keeps the disabled export CTA off its brand fill (card 20260922_31)', () => {
@@ -202,7 +211,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: /Trạng thái khóa lô/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô: Tất cả' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đang mở' }));
     await waitFor(() => expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true));
   });

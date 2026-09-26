@@ -52,6 +52,9 @@ export interface SearchableSelectProps {
   ariaDescribedBy?: string;
   /** Semantic trigger density. Use `sm` for compact operational toolbars and grids. */
   size?: 'sm' | 'md';
+  /** Renders the amber required asterisk inside the trigger (card 20260926_51
+   *  settlement toolbar) — visual marker only; validation stays the caller's. */
+  requiredMark?: boolean;
   /** Notifies an inline host when the picker opens or returns to read mode. */
   onOpenChange?: (isOpen: boolean) => void;
   /**
@@ -93,6 +96,7 @@ export function SearchableSelect({
   ariaInvalid,
   ariaDescribedBy,
   size = 'md',
+  requiredMark = false,
   onOpenChange,
   optionSuffix,
 }: SearchableSelectProps) {
@@ -382,6 +386,7 @@ export function SearchableSelect({
         aria-required={required}
       >
         <span className={selectedOption ? 'searchable-select__value' : 'searchable-select__placeholder'}>
+          {requiredMark ? <span className="searchable-select__req" aria-hidden="true">* </span> : null}
           {selectedOption?.label ?? placeholder}
         </span>
         <ChevronDown
