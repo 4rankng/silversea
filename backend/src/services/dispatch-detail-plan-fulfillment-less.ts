@@ -115,6 +115,7 @@ export async function listFulfillmentLessReadyRows(
       plannedVehiclePlateNumber: sql<null>`null`,
       plannedRevenue: sql<null>`null`,
       plannedCarrierCost: sql<null>`null`,
+      plannedEndAt: sql<null>`null`,
       classification: sql<string>`'SINGLE'`,
       shipmentContainerId: s.shipmentContainers.id,
       siteSnapshot: sql<null>`null`,

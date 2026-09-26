@@ -1245,6 +1245,11 @@ export const atomicDispatchPlanEditSchema = z.object({
   clearVehicle: z.boolean().optional(),
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
+  /** Giờ trả hàng (cargo-handover time) staged per-container pre-issuance.
+   *  Optional: an editor save that omits it leaves the stored value untouched;
+   *  null/'' clears it. No after-start rule here — the FE owns the
+   *  'Giờ trả hàng phải sau giờ chạy' check (card _15, 2026-09-26). */
+  plannedEndAt: z.string().nullish(),
   /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
    *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
    *  rows keep Lẻ. Undefined = unchanged. */

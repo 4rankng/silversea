@@ -421,6 +421,7 @@ dispatchPlanningRoutes.patch(
       clearVehicle: parsed.data.clearVehicle === true,
       plannedRevenue: parsed.data.plannedRevenue,
       plannedCarrierCost: parsed.data.plannedCarrierCost,
+      plannedEndAt: parsed.data.plannedEndAt,
       classification: parsed.data.classification,
       isCombined: parsed.data.isCombined,
       operationalNotes: parsed.data.operationalNotes,

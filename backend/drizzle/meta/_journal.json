@@ -914,6 +914,13 @@
       "when": 1790227656074,
       "tag": "20260924021509_high_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1790404801327,
+      "tag": "20260926064001_classy_stick",
+      "breakpoints": true
     }
   ]
 }

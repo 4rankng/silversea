@@ -263,6 +263,7 @@ type DetailPlanRow = {
   classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | null;
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
+  plannedEndAt: string | null;
 };
 
 type PlateResponse = {
@@ -1256,6 +1257,7 @@ describe('atomic dispatch detail plan save', () => {
     shipmentVersion: number;
     classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
     isCombined: boolean;
+    error?: string;
     dispatch: {
       carrierType: 'OWN' | 'EXTERNAL';
       carrierName: string | null;
@@ -1264,6 +1266,7 @@ describe('atomic dispatch detail plan save', () => {
       assignedPlate: string | null;
     };
     estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+    plannedEndAt: string | null;
     lotFullyPlated: boolean;
     driverNotified: boolean;
     driverHint: string | null;
@@ -1318,6 +1321,96 @@ describe('atomic dispatch detail plan save', () => {
     const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
     assert.equal(after.dispatchClassification, 'DOUBLE');
     void truck; void driver;
+  });
+
+  test('atomic save stages Giờ trả hàng (plannedEndAt) — omitted = untouched, null clears', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // Twin-types law: zod-accept is not handler-forward. Assert the stored
+    // instant on the row, not just a 200.
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+        plannedEndAt: '2026-10-05T15:30:00+07:00',
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.plannedEndAt, '2026-10-05T08:30:00.000Z');
+    assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.plannedEndAt instanceof Date, true, 'plannedEndAt must reach the row');
+    assert.equal(after.plannedEndAt?.toISOString(), '2026-10-05T08:30:00.000Z');
+
+    // A save that omits the field means "not part of this save": the stored
+    // instant stays and only the version bumps.
+    const omittedSave = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: response.data.fulfillmentVersion,
+        expectedShipmentVersion: response.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+      },
+    });
+    assert.equal(omittedSave.status, 200, JSON.stringify(omittedSave.data));
+    const { fulfillment: afterOmitted } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(afterOmitted.plannedEndAt?.toISOString(), '2026-10-05T08:30:00.000Z', 'omitted plannedEndAt must not clear the stored value');
+
+    // null (or '') clears the staged handover time.
+    const clearSave = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: omittedSave.data.fulfillmentVersion,
+        expectedShipmentVersion: omittedSave.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+        plannedEndAt: null,
+      },
+    });
+    assert.equal(clearSave.status, 200, JSON.stringify(clearSave.data));
+    const { fulfillment: afterClear } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(afterClear.plannedEndAt, null, 'null must clear the stored instant');
+
+    // The rows read echoes the stored instant so the modal can prefill.
+    const rows = await fetchRows(dispatcherToken, `?q=${freshShipment.shipmentCode}`);
+    assert.equal(rows.status, 200, JSON.stringify(rows.data));
+    const row = rows.data.items.find((item: { fulfillmentId: number }) => item.fulfillmentId === fulfillment.id)!;
+    assert.equal(row.plannedEndAt, null);
+  });
+
+  test('plannedEndAt without a timezone offset is rejected with 400 and no version bump', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 500_000,
+        plannedCarrierCost: 400_000,
+        plannedEndAt: '2026-10-05T15:30:00',
+      },
+    });
+    assert.equal(response.status, 400, JSON.stringify(response.data));
+    // Pin the FORMAT rejection (zone required), not an unrelated validation
+    // failure — the guard is parseIsoWithZone's 'phải kèm múi giờ'.
+    assert.match(String(response.data.error), /phải kèm múi giờ/);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.version, fulfillment.version, 'a rejected save must not bump the version');
   });
 
   test('omitting classification and isCombined leaves both stored values untouched', async () => {

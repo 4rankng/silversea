@@ -4,7 +4,7 @@ import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, parseIsoWithZone, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, toIsoOrNull, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
@@ -94,6 +94,11 @@ export interface UpdateDispatchDetailPlanInput {
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
+  /** Giờ trả hàng staged on the row (shipment_fulfillments.planned_end_at).
+   *  Undefined = untouched by this save; null/'' clears it. Zone-qualified
+   *  instant only — parseIsoWithZone 400s on a naive local string. The FE
+   *  owns the 'Giờ trả hàng phải sau giờ chạy' cross-field rule. */
+  plannedEndAt?: string | null;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -106,6 +111,8 @@ export interface DispatchDetailPlanMutationResult {
   shipmentVersion: number;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Stored Giờ trả hàng after the save (ISO instant; null when unstaged). */
+  plannedEndAt: string | null;
   /** Stored driver-facing note after the save (accountants never reach this
    *  path — the route gate excludes them, matching the read-side mask). */
   operationalNotes: string | null;
@@ -333,6 +340,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedRevenue: s.shipmentFulfillments.plannedRevenue,
       plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
+      plannedEndAt: s.shipmentFulfillments.plannedEndAt,
       classification: s.shipmentFulfillments.dispatchClassification,
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
@@ -538,6 +546,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             plannedRevenue: row.plannedRevenue,
             plannedCarrierCost: row.plannedCarrierCost,
           },
+          plannedEndAt: row.plannedEndAt?.toISOString() ?? null,
           // NOT NULL DEFAULT 'SINGLE': fresh containers surface as "Đơn"
           // until dispatch reclassifies them.
           classification: row.classification,
@@ -1075,9 +1084,10 @@ export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanIn
       plannedCarrierCost: input.plannedCarrierCost,
       classification: input.classification ?? null as unknown as DispatchClassification,
       isCombined: input.isCombined,
-      // Note is part of the dedup payload: two saves differing only in the
-      // note must not collide as the same idempotent request.
+      // Note and Giờ trả hàng are part of the dedup payload: two saves
+      // differing only in these must not collide as the same idempotent request.
       operationalNotes: input.operationalNotes ?? null,
+      plannedEndAt: input.plannedEndAt ?? null,
     },
     createdBy: input.actor.userId,
     entityType: 'shipment_fulfillments',
@@ -1138,6 +1148,15 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
   }
 
+  // Giờ trả hàng staging: undefined = untouched; null/'' = clear; otherwise a
+  // zone-qualified instant — validated before any write so an invalid value
+  // changes nothing (all-or-nothing like carrier resolution). The FE owns the
+  // after-start cross-field rule (card _15, 2026-09-26).
+  const plannedEndAtProvided = input.plannedEndAt !== undefined;
+  const nextPlannedEndAt = plannedEndAtProvided
+    ? (input.plannedEndAt == null || input.plannedEndAt === '' ? null : parseIsoWithZone(input.plannedEndAt, 'Giờ trả hàng'))
+    : null;
+
   // Carrier resolution — validated before any write, so an invalid carrier
   // changes nothing (all-or-nothing).
   let carrierName = INTERNAL_FLEET_CARRIER_NAME;
@@ -1196,6 +1215,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     } : {}),
     plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
     plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
+    // Giờ trả hàng: a save that omits the field leaves the stored value untouched.
+    ...(plannedEndAtProvided ? { plannedEndAt: nextPlannedEndAt } : {}),
     // Phân loại per-row is the dispatcher's call (2026-09-08): a save that
     // carries it rewrites the stored value; omitted = untouched.
     ...(input.classification ? { dispatchClassification: input.classification } : {}),
@@ -1280,6 +1301,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       plannedRevenue: updatedFulfillment.plannedRevenue,
       plannedCarrierCost: updatedFulfillment.plannedCarrierCost,
     },
+    // Stored value, not the input: an omitted save echoes what the row holds.
+    plannedEndAt: toIsoOrNull(updatedFulfillment.plannedEndAt),
     lotFullyPlated,
     driverNotified: false,
     driverHint: vehicle?.driverHint ?? null,
