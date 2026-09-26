@@ -27,7 +27,7 @@ import './customer-config-density.css';
 function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
   const facts = [
     ['Tên đầy đủ', c.name], ['Tên viết tắt', c.shortName], ['Mã KH', c.code], ['Mã số thuế', c.taxCode],
-    ['Địa chỉ', c.address], ['Người liên hệ', c.contactPerson], ['SĐT liên hệ', c.phone],
+    ['Địa chỉ', c.address || c.contactInfo], ['Người liên hệ', c.contactPerson], ['SĐT liên hệ', c.phone],
     ['Kế toán liên hệ', c.accountantName], ['SĐT kế toán', c.accountantPhone], ['Liên hệ khác', c.contactInfo],
     ['Hạn thanh toán chi hộ', c.agencyFeePaymentTermDays == null ? null : `${c.agencyFeePaymentTermDays} ngày`],
     ['Hạn thanh toán cước', c.paymentTermDays == null ? null : `${c.paymentTermDays} ngày`],
@@ -295,7 +295,12 @@ export default function CustomersConfigPage() {
                   {colPresence.shortName && <td data-label="Tên viết tắt">{c.shortName || '—'}</td>}
                   {colPresence.code && <td data-label="Mã KH">{c.code || '—'}</td>}
                   {colPresence.taxCode && <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>}
-                  {colPresence.address && <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || '—'}</td>}
+                  {/* Card 20260926_9: staging census (BE) — 2 live rows keep
+                      their address in contact_info; ĐỊA CHỈ falls back to the
+                      address-bearing field (Director's no-migration ruling)
+                      so the row no longer renders two '—' address slots.
+                      LIÊN HỆ KHÁC keeps its own data untouched. */}
+                  {colPresence.address && <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || c.contactInfo || '—'}</td>}
                   {colPresence.contactPerson && <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>}
                   {colPresence.phone && <td data-label="SĐT liên hệ">{c.phone || '—'}</td>}
                   {colPresence.accountantName && <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>}
