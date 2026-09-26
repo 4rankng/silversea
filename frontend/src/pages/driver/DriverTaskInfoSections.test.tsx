@@ -93,11 +93,13 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
+      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
+      'Số điện thoại kho',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',
@@ -299,11 +301,13 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
+      'Số Bill / Booking',
       'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
+      'Số điện thoại kho',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',

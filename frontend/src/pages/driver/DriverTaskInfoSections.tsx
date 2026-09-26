@@ -116,6 +116,10 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
       ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a>
       : contactName || '—';
 
+  // Cards 20260926_12/_13 (CHIEF): the warehouse phone always renders —
+  // callable, with a ≥44px Gọi affordance, or as a dash when unentered.
+  const khoPhone = fulfillment?.khoPhone?.trim() || null;
+
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
   const missingFactoryInvoiceFields = trip.invoiceFactory ? [
     !trip.invoiceFactory.name && 'tên pháp lý',
@@ -144,6 +148,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           onToggle={() => setInfoOpen((v) => !v)}
         />
         <div className="driver-task-grid" id="driver-task-info-grid" hidden={!infoOpen}>
+          {/* CHIEF 26/09 (internal-ids law): the bill/booking code leads the
+              detail the same way it leads the journey card. */}
+          <TaskFact icon={<FileText size={16} />} label="Số Bill / Booking" value={valueOrDash(fulfillment?.code)} fullWidth />
           {/* Row 1 — NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY (short name), per the
               mobile target sketch: the plan time pairs with the destination
               the driver scans for first. */}
@@ -162,6 +169,22 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
             icon={<Phone size={16} />}
             label="Số điện thoại liên hệ"
             value={contactFieldValue}
+            fullWidth
+          />
+          {/* Cards 20260926_12/_13 (CHIEF): the warehouse-phone row ALWAYS
+              renders — callable tel link plus a ≥44px Gọi affordance, or a
+              dash when the site has no phone on file. */}
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="Số điện thoại kho"
+            value={khoPhone
+              ? (
+                <span className="driver-task-call">
+                  <a href={`tel:${khoPhone}`} className="driver-task-link">{khoPhone}</a>
+                  <a href={`tel:${khoPhone}`} className="driver-task-call-btn" aria-label={`Gọi điện thoại kho ${khoPhone}`}>Gọi</a>
+                </span>
+              )
+              : '—'}
             fullWidth
           />
           {/* KP-191: each container number paired with its own type code. */}

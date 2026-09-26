@@ -327,6 +327,28 @@
   overflow-wrap: anywhere;
 }
 
+/* Cards 20260926_12/_13: the warehouse-phone row — number + a ≥44px Gọi
+   affordance so the driver can dial the site hands-free. */
+.driver-task-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.driver-task-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: var(--fw-semibold, 600);
+  text-decoration: none;
+}
+
 .driver-task-sync {
   display: flex;
   align-items: flex-start;
