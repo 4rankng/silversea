@@ -38,7 +38,9 @@
   border-radius: 10px;
   padding: 0 10px;
   height: 40px;
-  background: var(--bg-1, #fff);
+  /* Card 20260926_3: the control chrome carries the SURFACE token — the
+     canvas alias (--bg-1) read as a tinted band behind label text. */
+  background: var(--surface, #fff);
   color: var(--fg-2, #555);
   min-width: 0;
 }

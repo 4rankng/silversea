@@ -89,7 +89,13 @@ img { display: block; }
  * picker-hosted inset fill (.dtp-time__exact > input, surface-2) still wins
  * inside the floating picker via its own rule.
  * ========================================================================== */
-[data-uui-control='input'],
-[data-input-wrapper] {
+[data-uui-control='input'] {
   background: var(--surface);
+}
+/* Chief 26/09 wrapper-band fix (card 20260926_3): the wrapper column hosts
+   the LABEL too — filling it painted a white band behind the label, wider
+   than the control, clashing with the canvas. The wrapper stays transparent
+   (page bg shows through); the control element carries the fill. */
+[data-input-wrapper] {
+  background: transparent;
 }

@@ -23,9 +23,12 @@ import { describe, expect, it } from 'vitest';
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
 describe('site surface contract (card 20260925_3)', () => {
-  it('input control wrappers fill site-wide with var(--surface)', () => {
+  it('controls carry the opaque fill; label wrappers stay transparent (Chief 26/09 wrapper-band)', () => {
     const base = read('src/styles/base.css');
-    expect(base).toMatch(/\[data-uui-control='input'\],\s*\n?\[data-input-wrapper\]\s*\{[^}]*background:\s*var\(--surface\)/);
+    const controlRule = base.match(/\[data-uui-control='input'\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(controlRule, 'the bordered control itself keeps the surface fill').toContain('background: var(--surface)');
+    const wrapperRule = base.match(/\[data-input-wrapper\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(wrapperRule, 'the label-hosting wrapper shows the page background, not a white band').toContain('background: transparent');
   });
 
   it('reconciliation export button stays compact inside its filter grid', () => {
