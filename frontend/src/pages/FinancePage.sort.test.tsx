@@ -117,6 +117,39 @@ beforeEach(() => {
   useCapTableMock.mockReturnValue({ data: [] });
 });
 
+describe('FinancePage top-trucks chart zero-value bars', () => {
+  it('renders no bar tick for a zero-profit row and keeps non-zero bars', () => {
+    const zeroReport = {
+      ...report,
+      trucks: [
+        pnlTruck(11, '15H-061.14', 0),
+        pnlTruck(12, '30H-888.88', 4_000_000),
+      ],
+    };
+    usePnlReportMock.mockImplementation((_month: number, year: number) => (
+      year === 2026
+        ? { data: zeroReport, isLoading: false, error: null }
+        : { data: undefined, isLoading: false, error: null }
+    ));
+
+    const { container } = renderPage();
+    const svg = container.querySelector('svg[aria-label^="Top xe theo lợi nhuận"]');
+    expect(svg).not.toBeNull();
+    const rows = [...svg!.querySelectorAll('g')];
+    const rowFor = (plate: string) => rows.find(g => g.querySelector('text')?.textContent?.startsWith(plate));
+
+    // A zero-profit row renders label + 0₫ only — no bar tick glued to the plate.
+    const zeroRow = rowFor('15H-061.14');
+    expect(zeroRow).toBeDefined();
+    expect(zeroRow!.querySelector('rect')).toBeNull();
+
+    // Non-zero rows keep their bar.
+    const barRow = rowFor('30H-888.88');
+    expect(barRow).toBeDefined();
+    expect(barRow!.querySelector('rect')).not.toBeNull();
+  });
+});
+
 describe('FinancePage per-truck table column sorting', () => {
   it('keeps the report profit-desc default and sorts by profit and plate client-side', () => {
     const { container } = renderPage();

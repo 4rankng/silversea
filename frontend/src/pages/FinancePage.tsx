@@ -387,7 +387,11 @@ export default function FinancePage() {
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>
                           <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{label}<title>{t.name}</title></text>
-                          <rect x={barX} y={4} width={w} height={14} fill={fill} rx={3} opacity={0.85} />
+                          {/* Zero-value rows show label + 0₫ only — a min-width tick here
+                              reads as a stray mark glued to the plate label. */}
+                          {val !== 0 && (
+                            <rect x={barX} y={4} width={w} height={14} fill={fill} rx={3} opacity={0.85} />
+                          )}
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
