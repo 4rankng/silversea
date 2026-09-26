@@ -551,7 +551,7 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@container (max-width: 960px) {
+@media (max-width: 960px) {
   .detailed-plan-header {
     flex-wrap: wrap;
     height: auto;
@@ -561,7 +561,7 @@
   .detailed-plan-header__title { flex-basis: 100%; }
 }
 
-@container (max-width: 640px) {
+@media (max-width: 640px) {
   /* Card 20260926_50: 390 stack — row 1 keeps title above the segment+trigger
      (both full-width); the ribbon wraps controls to natural width with the
      search going edge to edge. */
