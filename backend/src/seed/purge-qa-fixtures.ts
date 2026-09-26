@@ -93,7 +93,7 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
     for (const column of surface.scrubColumns ?? []) {
       if (!(await columnExists(surface.table, column))) continue;
       const nullable = await rows(`SELECT is_nullable FROM information_schema.columns WHERE table_name = '${surface.table}' AND column_name = '${column}'`);
-      const value = nullable[0]?.is_nullable === 'YES' ? 'NULL' : `'(da don fixture QA)'`;
+      const value = nullable[0]?.is_nullable === 'YES' ? 'NULL' : `'Chưa xác định'`;
       const res = await rows(`UPDATE ${surface.table} SET ${column} = ${value} WHERE ${surface.predicate} RETURNING id`);
       deleted += res.length;
     }
