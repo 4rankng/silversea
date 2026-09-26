@@ -153,10 +153,10 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {/* Full factory name: canonical site name from the container
               factory join; dashes when missing OR when it would duplicate
               the abbrev row above. */}
-          <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} fullWidth />
+          <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} />
           {/* The customer's order-info row is the factory street address;
               route text remains visible in the task header. */}
-          <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
+          <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} />
           {/* Card 20260926_25 (CHIEF): one phone row, one label — the call
               affordance is a round phone-icon button, not a boxed Gọi. */}
           <TaskFact
@@ -172,10 +172,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
                 </span>
               )
               : '—'}
-            fullWidth
           />
           {/* KP-191: each container number paired with its own type code. */}
-          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
+          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} />
           {sealLine ? (
             <TaskFact icon={<Package2 size={16} />} label="Seal" value={sealLine} fullWidth />
           ) : null}
