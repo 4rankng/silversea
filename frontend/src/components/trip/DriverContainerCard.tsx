@@ -431,6 +431,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                   onClick={() => setScannerType('DELIVERY_NOTE')}
                   title="Mở camera overlay (chế độ chụp nâng cao)"
                 >
+                  <Camera size={20} aria-hidden="true" />
                   <span>Mở camera biên bản</span>
                 </button>
               </div>}
@@ -531,6 +532,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                   onClick={() => setScannerType('DELIVERY_NOTE')}
                   title="Mở camera overlay (chế độ chụp nâng cao)"
                 >
+                  <Camera size={20} aria-hidden="true" />
                   <span>Mở camera biên bản</span>
                 </button>
               </div>

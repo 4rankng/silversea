@@ -326,10 +326,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
+  width: var(--control-touch-h, 44px);
+  height: var(--control-touch-h, 44px);
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
   font-weight: var(--fw-semibold, 600);
   text-decoration: none;
@@ -870,9 +872,18 @@
    only leaves half-empty rows. Reset to auto placement for a clean 2×N grid.
    Must sit AFTER the base rule above: a media query adds no specificity, so
    source order is the only thing deciding the winner. */
+/* Card 20260926_25 (CHIEF): at >=641px the fact grid becomes 2 columns —
+   short facts pair up instead of burning a whole row each. Long values keep
+   the full-row span so addresses never wrap in a half column. */
 @media (min-width: 641px) {
+  .driver-task-grid,
+  .driver-task-finance {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
   .driver-task-fact--full {
-    grid-column: auto;
+    grid-column: 1 / -1;
   }
 }
 

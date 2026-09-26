@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
@@ -106,18 +106,12 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
     ? containers.map((c) => c.sealNumber ? `Seal ${c.sealNumber}` : null).filter(Boolean).join(' · ') || null
     : null;
 
-  // KP-010: contact name and callable phone grouped together beneath the
-  // factory address, labeled "Số điện thoại liên hệ".
-  const contactName = fulfillment?.contactName?.trim() || trip.instructions?.contactName?.trim() || null;
-  const contactPhone = fulfillment?.contactPhone?.trim() || trip.instructions?.contactPhone?.trim() || null;
-  const contactFieldValue = contactName && contactPhone
-    ? <>{contactName} · <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a></>
-    : contactPhone
-      ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a>
-      : contactName || '—';
+  // KP-010 contact row REMOVED (card 20260926_25, CHIEF 26/09): it read the
+  // same site phone as the kho row (driver.service feeds both from
+  // siteContactPhone) — two identical numbers stacked read as a bug.
 
   // Cards 20260926_12/_13 (CHIEF): the warehouse phone always renders —
-  // callable, with a ≥44px Gọi affordance, or as a dash when unentered.
+  // callable, with a ≥44px phone-icon affordance, or as a dash when unentered.
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
 
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
@@ -163,25 +157,18 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {/* The customer's order-info row is the factory street address;
               route text remains visible in the task header. */}
           <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
-          {/* KP-010: contact name + callable phone grouped together
-              beneath the factory address. */}
+          {/* Card 20260926_25 (CHIEF): one phone row, one label — the call
+              affordance is a round phone-icon button, not a boxed Gọi. */}
           <TaskFact
             icon={<Phone size={16} />}
-            label="Số điện thoại liên hệ"
-            value={contactFieldValue}
-            fullWidth
-          />
-          {/* Cards 20260926_12/_13 (CHIEF): the warehouse-phone row ALWAYS
-              renders — callable tel link plus a ≥44px Gọi affordance, or a
-              dash when the site has no phone on file. */}
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="Số điện thoại kho"
+            label="SĐT kho"
             value={khoPhone
               ? (
                 <span className="driver-task-call">
                   <a href={`tel:${khoPhone}`} className="driver-task-link">{khoPhone}</a>
-                  <a href={`tel:${khoPhone}`} className="driver-task-call-btn" aria-label={`Gọi điện thoại kho ${khoPhone}`}>Gọi</a>
+                  <a href={`tel:${khoPhone}`} className="driver-task-call-btn" aria-label={`Gọi điện thoại kho ${khoPhone}`}>
+                    <PhoneCall size={16} aria-hidden="true" />
+                  </a>
                 </span>
               )
               : '—'}

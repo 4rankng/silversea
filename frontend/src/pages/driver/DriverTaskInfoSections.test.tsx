@@ -98,8 +98,7 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'Số điện thoại liên hệ',
-      'Số điện thoại kho',
+      'SĐT kho',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',
@@ -159,28 +158,26 @@ describe('DriverTaskInfoSections', () => {
 
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
   });
-  it('renders contact name + phone grouped as Số điện thoại liên hệ beneath factory address', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+  it('QA-2026-09-26-25 renders ONE phone row (SĐT kho) with a round phone-icon call affordance', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactName: 'Anh Minh', contactPhone: '0909000001' } })} />);
 
-    const contactValue = valueOf('Số điện thoại liên hệ');
-    expect(contactValue).toContain('Anh Minh');
-    expect(contactValue).toContain('0909000001');
-    // Phone is a tel link
-    const contactLink = screen.getByText('0909000001');
-    expect(contactLink.getAttribute('href')).toBe('tel:0909000001');
+    // The duplicate contact row is gone even when contact data exists.
+    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    const kho = screen.getByText('SĐT kho');
+    expect(kho).not.toBeNull();
+    // The call affordance is an icon button (aria-label), not a text Gọi box.
+    const call = screen.getByRole('link', { name: /Gọi điện thoại kho/ });
+    expect(call.querySelector('svg')).not.toBeNull();
+    expect(call.textContent).not.toContain('Gọi');
+    expect(call.getAttribute('href')).toBe('tel:0901234567');
   });
 
-  it('renders only phone in Số điện thoại liên hệ when contact name is absent', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null } })} />);
-
-    const contactLink = screen.getByText('0909000001');
-    expect(contactLink.getAttribute('href')).toBe('tel:0909000001');
-  });
-
-  it('renders "—" in Số điện thoại liên hệ when both name and phone are absent', () => {
+  it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
 
-    expect(valueOf('Số điện thoại liên hệ')).toBe('—');
+    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    expect(labels).toContain('SĐT kho');
   });
 
   it('VID-DRV-01 renders the factory address in the info section, leaving route text to the task header', () => {
@@ -256,12 +253,14 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Hóa đơn phí nâng')).toBe('Chưa có tên đơn vị · Địa chỉ pháp lý nhà máy · MST 2301234567');
   });
 
-  it('DRV-R04 renders a trimmed named contact only once without warehouse-phone duplication', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ' } })} />);
-    expect(valueOf('Số điện thoại liên hệ')).toBe('Chị An · 0909000001');
-    expect(screen.getAllByRole('link', { name: '0909000001' })).toHaveLength(1);
-    expect(labels()).not.toContain('SĐT kho');
-    expect(labels()).not.toContain('SĐT liên hệ');
+  it('DRV-R04 (card _25) one phone row only — named contact data never resurrects a second phone row', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ', khoPhone: ' 0901234567 ' } })} />);
+    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    const khoValue = valueOf('SĐT kho');
+    expect(khoValue).toContain('0901234567');
+    // One phone row: the number renders once as text + once as the icon
+    // button's aria-label — the icon affordance is single.
+    expect(screen.getAllByRole('link', { name: 'Gọi điện thoại kho 0901234567' })).toHaveLength(1);
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -306,8 +305,7 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'Số điện thoại liên hệ',
-      'Số điện thoại kho',
+      'SĐT kho',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',
