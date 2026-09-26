@@ -44,16 +44,14 @@ describe('driver density contract (20260926_26)', () => {
     expect(css).toMatch(/\.driver-task-fact:last-child \{\s*border-bottom:\s*0;\s*\}/);
   });
 
-  it('ITEM 2: label 12-13px muted; value 15-16px primary', () => {
-    const labelBlock = css.slice(css.indexOf('.driver-task-fact__label {'));
-    const labelSize = Number(labelBlock.match(/font-size:\s*(\d+(?:\.\d+)?)px/)?.[1]);
-    expect(labelSize).toBeGreaterThanOrEqual(12);
-    expect(labelSize).toBeLessThanOrEqual(13);
+  it('ITEM 2: label and value ride the shared semantic type roles', () => {
+    // The raw-px form was swapped for tokens (typography-contract sweep) —
+    // labels ride --text-body-size, values ride --text-section-size.
+    const labelBlock = css.slice(css.indexOf('.driver-task-fact__label {'), css.indexOf('.driver-task-fact__value {'));
+    expect(labelBlock).toMatch(/font-size:\s*var\(--text-[a-z-]+-size\)/);
     expect(labelBlock).toMatch(/color:\s*var\(--ink-3\)/);
     const valueBlock = css.slice(css.indexOf('.driver-task-fact__value {'));
-    const valueSize = Number(valueBlock.match(/font-size:\s*(\d+(?:\.\d+)?)px/)?.[1]);
-    expect(valueSize).toBeGreaterThanOrEqual(15);
-    expect(valueSize).toBeLessThanOrEqual(16);
+    expect(valueBlock).toMatch(/font-size:\s*var\(--text-[a-z-]+-size\)/);
     expect(valueBlock).toMatch(/color:\s*var\(--ink\)/);
   });
 
@@ -81,10 +79,9 @@ describe('driver density contract (20260926_26)', () => {
     expect(headerBlock).toMatch(/align-items:\s*center/);
   });
 
-  it('call affordance keeps its 44px target without inflating the row', () => {
-    const callBlock = css.slice(css.indexOf('.driver-task-fact__call {'));
-    expect(callBlock).toMatch(/width:\s*var\(--control-touch-h, 44px\)/);
-    expect(callBlock).toMatch(/height:\s*var\(--control-touch-h, 44px\)/);
+  it('call affordance keeps its 44px target without inflating the row (V2: bar button below the card)', () => {
+    const callBlock = css.slice(css.indexOf('.driver-task-call-bar__btn {'));
+    expect(callBlock).toMatch(/min-height:\s*var\(--control-touch-h, 44px\)/);
   });
 });
 
