@@ -15,7 +15,7 @@ import { type NotificationPayload } from './notification.service';
 
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
-import { ilike, inArray, or, sql } from 'drizzle-orm';
+import { ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { NotificationType, Role } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -493,6 +493,25 @@ export async function loadDeclarationNumbers(tx: Tx, shipmentIds: number[]) {
     result.set(row.shipmentId, bucket);
   }
   return result;
+}
+
+/**
+ * Data-status predicate for the dispatch detail plan (card 20260926_50):
+ * "Thiếu dữ liệu" (MISSING) = the row is missing ANY of the three intake
+ * signals — bill/booking (either column counts), tờ khai (any non-blank
+ * shipment_declarations row), or container number. COMPLETE is its exact
+ * complement (all three present). One fragment, shared by the
+ * fulfillment-owned query, its count, and the fulfillment-less branch so the
+ * page, the pager, and the count can never disagree.
+ */
+export function dispatchDetailDataStatusSql(status: 'COMPLETE' | 'MISSING'): SQL {
+  const missing = sql`(
+    (coalesce(btrim(${s.shipments.blNumber}), '') = '' and coalesce(btrim(${s.shipments.bookingRef}), '') = '')
+    or not exists (select 1 from ${s.shipmentDeclarations} sd
+      where sd.shipment_id = ${s.shipments.id} and coalesce(btrim(sd.declaration_number), '') <> '')
+    or coalesce(btrim(${s.shipmentContainers.containerNumber}), '') = ''
+  )`;
+  return status === 'MISSING' ? missing : sql`not ${missing}`;
 }
 
 

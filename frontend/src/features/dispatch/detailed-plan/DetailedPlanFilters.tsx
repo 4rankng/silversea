@@ -1,12 +1,12 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { Check, FilterLines, XClose } from '@untitledui/icons';
-import { SearchableMultiSelect } from '../../../design-system';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { FilterLines } from '@untitledui/icons';
+import { Search, RotateCcw } from 'lucide-react';
+import { DateRangePopover, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, type DateRangeValue } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
-import { ListFilterBar } from '../../../components/ListFilterBar';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
-import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import { businessDateISO } from '../../../lib/format';
+import { useTripOptions } from '../../../hooks/useTripOptions';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 
@@ -27,26 +27,28 @@ interface DetailedPlanFiltersProps {
   zones: Array<{ code: string; label: string }>;
 }
 
-const DIRECTION_OPTIONS = [
-  { id: 'ALL_DIRECTIONS', label: 'Nhập/Xuất' },
+const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'ALL_DIRECTIONS', label: 'Tất cả' },
   { id: 'IMPORT', label: 'Nhập' },
   { id: 'EXPORT', label: 'Xuất' },
 ];
 
-const ASSIGNMENT_OPTIONS = [
+const ASSIGNMENT_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_ASSIGNMENTS', label: 'Tất cả' },
-  { id: 'UNASSIGNED', label: 'Chưa gán Biển số' },
-  { id: 'ASSIGNED', label: 'Đã gán Biển số' },
+  { id: 'UNASSIGNED', label: 'Chưa điều xe' },
+  { id: 'ASSIGNED', label: 'Đã điều xe' },
+];
+
+const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'ALL_DATA_STATUS', label: 'Tất cả' },
+  { id: 'COMPLETE', label: 'Đầy đủ' },
+  { id: 'MISSING', label: 'Thiếu dữ liệu' },
 ];
 
 /**
  * Multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả), backed by the
  * shared `SearchableMultiSelect` — portal + flip positioning from the
  * dropdown-flip sweep, so the picker never clips or covers lower controls.
- *
- * Facets load on open and on the shared picker's debounced search. Each
- * request belongs to that query/opening, so a late result cannot replace
- * newer suggestions or leak into a reopened picker.
  */
 function FacetMultiSelect({
   label,
@@ -99,7 +101,17 @@ function FacetMultiSelect({
   );
 }
 
-/** Filter bar for the dispatch detail plan grid (docx §4). */
+/**
+ * Two-tier 80px header (card 20260926_50, supersedes the _10 filter-block):
+ * Row 1 (36px) — page title + Hôm nay/Hôm sau/Tất cả preset segment directly
+ * adjacent to a merged dual-calendar date-range trigger (220px, h-8); a
+ * preset click updates the trigger value instantly without opening the
+ * picker. Row 2 (32px) — one continuous ribbon: search (260px), Khách hàng
+ * searchable combobox (w-180, trailing chevron, label integrated), Hướng /
+ * Điều xe / Dữ liệu inline-label selects, the advanced-filter drawer trigger
+ * (hours/zone/points), and Xóa lọc as a ghost at the tail, disabled until a
+ * filter deviates from default. Labels live inside the controls.
+ */
 export function DetailedPlanFilters({
   filters,
   onChange,
@@ -110,13 +122,20 @@ export function DetailedPlanFilters({
 }: DetailedPlanFiltersProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [draftResetKey, setDraftResetKey] = useState(0);
-  const [dateResetKey, setDateResetKey] = useState(0);
   const filterPanelRef = useRef<HTMLDivElement>(null);
   const today = businessDateISO();
   const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
+  const { customers } = useTripOptions();
+  const customerOptions = useMemo(
+    () => customers.map((customer) => ({ value: String(customer.id), label: customer.label })),
+    [customers],
+  );
+  const rangeValue: DateRangeValue = {
+    from: filters.date || filters.dateFrom,
+    to: filters.date || filters.dateTo,
+  };
+
   const activeDrawerFilterCount = [
-    filters.direction,
-    filters.assignmentStatus,
     filters.zone !== '',
     filters.pickupIds.length > 0,
     filters.dropoffIds.length > 0,
@@ -124,23 +143,27 @@ export function DetailedPlanFilters({
     filters.hourFrom !== '',
     filters.hourTo !== '',
   ].filter(Boolean).length;
-  // Card 20260926_10: Xóa lọc disables when nothing is active — bar fields
-  // (date range/single + search) count beside the drawer filters.
   const hasActiveFilters = activeDrawerFilterCount > 0
+    || filters.direction !== ''
+    || filters.assignmentStatus !== ''
+    || filters.customerId != null
+    || filters.dataStatus !== ''
     || Boolean(filters.date || filters.dateFrom || filters.dateTo || filters.q);
 
   const clearFilters = () => {
-    setDateResetKey((key) => key + 1);
     setDraftResetKey((key) => key + 1);
     setIsFilterDrawerOpen(false);
     onChange(createDefaultDetailedPlanFilters());
   };
 
   const selectDate = (date: string) => {
-    setDateResetKey((key) => key + 1);
-    // Presets and the exact-date input replace the month range entirely
-    // (last writer wins — card 20260922_32).
+    // Presets and the range popover replace each other entirely (last writer
+    // wins — card 20260922_32 lineage).
     onChange({ date, dateFrom: '', dateTo: '' });
+  };
+
+  const applyRange = (next: DateRangeValue) => {
+    onChange({ date: '', dateFrom: next.from, dateTo: next.to });
   };
 
   const clearDrawerFilters = () => {
@@ -164,122 +187,129 @@ export function DetailedPlanFilters({
 
   return (
     <>
-      {/* Shared filter-bar contract (card 20260922_46, adopts card _38):
-          search + transport-date scope ride the shared bar; the drawer
-          trigger rides the right-side actions slot. Multi-select logic and
-          the drawer panel are unchanged. */}
-      <ListFilterBar
-        search={{
-          value: filters.q,
-          onChange: (value) => onChange({ q: value }),
-          placeholder: 'Bill, khách hàng, container…',
-          ariaLabel: 'Tìm nhanh',
-        }}
-        actions={(
+      <header className="detailed-plan-header" data-component="detailed-plan-header">
+        <h1 className="detailed-plan-header__title">Chi tiết lô hàng</h1>
+        <div className="detailed-plan-header__date" role="group" aria-label="Phạm vi ngày vận chuyển">
           <UUIButton
+            className={`detailed-plan-header__preset${filters.date === today ? ' is-active' : ''}`}
             size="sm"
             color="secondary"
-            iconLeading={FilterLines}
-            onPress={() => setIsFilterDrawerOpen(true)}
-            aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+            onPress={() => selectDate(today)}
+            aria-pressed={filters.date === today}
           >
-            Bộ lọc
-            {activeDrawerFilterCount > 0 && (
-              <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
-            )}
+            Hôm nay
           </UUIButton>
-        )}
-      >
-      <div className="detailed-plan-filters__date-scope">
-        <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
-        {(filters.dateFrom !== '' || filters.dateTo !== '') && (
-          <span
-            className="detailed-plan-filters__range-chip"
-            data-range={`${filters.dateFrom}..${filters.dateTo}`}
-            aria-label={`Phạm vi đang lọc ${filters.dateFrom} đến ${filters.dateTo}`}
-          >
-            {filters.dateFrom !== '' && filters.dateTo !== ''
-              ? `${filters.dateFrom.slice(8, 10)}/${filters.dateFrom.slice(5, 7)} – ${filters.dateTo.slice(8, 10)}/${filters.dateTo.slice(5, 7)}`
-              : filters.dateFrom !== '' ? `từ ${filters.dateFrom}` : `đến ${filters.dateTo}`}
-          </span>
-        )}
-        <div className="detailed-plan-filters__date-scope-controls">
-          <BufferedUuiDateInput
-            key={dateResetKey}
-            className="detailed-plan-filters__date"
-            value={filters.date}
-            onChange={(value) => onChange({ date: value, dateFrom: '', dateTo: '' })}
-            size="sm"
-            aria-label="Ngày vận chuyển"
-          />
-          <div className="detailed-plan-filters__mode-wrap">
-            <span className="detailed-plan-filters__mode-label">Thời gian</span>
-            <div className="detailed-plan-filters__date-mode" role="group" aria-label="Phạm vi ngày vận chuyển">
-            <UUIButton
-              className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
-              size="sm"
-              color="secondary"
-              onPress={() => selectDate(today)}
-              aria-label="Hôm nay"
-              aria-pressed={filters.date === today}
-              iconLeading={filters.date === today ? <Check aria-hidden="true" /> : undefined}
-            >
-              Hôm nay
-            </UUIButton>
-            <UUIButton
-              className={`detailed-plan-filters__date-shortcut${filters.date === tomorrow ? ' is-active' : ''}`}
-              size="sm"
-              color="secondary"
-              onPress={() => selectDate(tomorrow)}
-              aria-label="Hôm sau"
-              aria-pressed={filters.date === tomorrow}
-              iconLeading={filters.date === tomorrow ? <Check aria-hidden="true" /> : undefined}
-            >
-              Hôm sau
-            </UUIButton>
-            <UUIButton
-              className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
-              size="sm"
-              color="secondary"
-              onPress={() => selectDate('')}
-              aria-label="Tất cả"
-              aria-pressed={filters.date === ''}
-              iconLeading={filters.date === '' ? <Check aria-hidden="true" /> : undefined}
-            >
-              Tất cả
-            </UUIButton>
-            </div>
-          </div>
           <UUIButton
-            className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
+            className={`detailed-plan-header__preset${filters.date === tomorrow ? ' is-active' : ''}`}
             size="sm"
-            color="tertiary"
-            iconLeading={XClose}
-            onPress={clearFilters}
-            /* Card 20260926_10: CHIEF asked for a disabled state with no active
-               filters, but Xóa lọc also resets in-progress drawer drafts (KP
-               contract) — it stays clickable and the idle state is visual only
-               (UUIButton drops aria-disabled, per QA rung). */
-            aria-label="Xóa lọc"
+            color="secondary"
+            onPress={() => selectDate(tomorrow)}
+            aria-pressed={filters.date === tomorrow}
           >
-            Xóa lọc
+            Hôm sau
+          </UUIButton>
+          <UUIButton
+            className={`detailed-plan-header__preset${filters.date === '' && rangeValue.from === '' ? ' is-active' : ''}`}
+            size="sm"
+            color="secondary"
+            onPress={() => selectDate('')}
+            aria-pressed={filters.date === '' && rangeValue.from === ''}
+          >
+            Tất cả
           </UUIButton>
         </div>
+        <DateRangePopover
+          className="detailed-plan-header__range"
+          id="detailed-plan-date-range"
+          ariaLabel="Khoảng ngày vận chuyển"
+          size="sm"
+          value={rangeValue}
+          onChange={applyRange}
+        />
+      </header>
+
+      <div className="detailed-plan-ribbon" data-component="detailed-plan-ribbon">
+        <div className="detailed-plan-ribbon__search">
+          <Search size={14} aria-hidden="true" />
+          <input
+            type="text"
+            aria-label="Tìm nhanh"
+            placeholder="Bill, Cont, Tờ khai..."
+            value={filters.q}
+            onChange={(event) => onChange({ q: event.target.value })}
+          />
+        </div>
+        <SearchableSelect
+          id="detailed-plan-customer"
+          className="detailed-plan-ribbon__customer"
+          value={String(filters.customerId ?? '')}
+          onChange={(value) => onChange({ customerId: value === '' ? null : Number(value) })}
+          options={customerOptions}
+          placeholder="Khách: Tất cả"
+          searchPlaceholder="Tìm khách hàng…"
+          emptyMessage="Không tìm thấy khách hàng phù hợp."
+          clearable
+          clearLabel="Khách: Tất cả"
+          size="sm"
+        />
+        <InlineLabelSelect
+          id="detailed-plan-direction"
+          label="Hướng"
+          items={DIRECTION_OPTIONS}
+          selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+          onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
+          ariaLabel="Chiều hàng"
+        />
+        <InlineLabelSelect
+          id="detailed-plan-assignment"
+          label="Điều xe"
+          items={ASSIGNMENT_OPTIONS}
+          selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
+          onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
+          ariaLabel="Trạng thái điều xe"
+        />
+        <InlineLabelSelect
+          id="detailed-plan-data-status"
+          label="Dữ liệu"
+          items={DATA_STATUS_OPTIONS}
+          selectedKey={filters.dataStatus || 'ALL_DATA_STATUS'}
+          onSelectionChange={(key) => onChange({ dataStatus: key === 'ALL_DATA_STATUS' ? '' : key as DetailedPlanFilterState['dataStatus'] })}
+          ariaLabel="Trạng thái dữ liệu"
+        />
+        <UUIButton
+          size="sm"
+          color="secondary"
+          iconLeading={FilterLines}
+          onPress={() => setIsFilterDrawerOpen(true)}
+          aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+        >
+          Bộ lọc
+          {activeDrawerFilterCount > 0 && (
+            <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
+          )}
+        </UUIButton>
+        <UUIButton
+          className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
+          size="sm"
+          color="tertiary"
+          iconLeading={RotateCcw}
+          onPress={clearFilters}
+          isDisabled={!hasActiveFilters}
+          aria-label="Xóa lọc"
+        >
+          Xóa lọc
+        </UUIButton>
       </div>
-      </ListFilterBar>
+
       <Drawer
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
         title="Bộ lọc kế hoạch"
-        subtitle="Thu hẹp danh sách theo phân xe và điểm giao nhận."
+        subtitle="Thu hẹp theo giờ chạy, khu vực và điểm giao nhận (Hướng/Điều xe đã dọn về ribbon)."
         className="detailed-plan-filter-drawer"
         footer={
           <>
-            <UUIButton
-              size="sm"
-              color="secondary"
-              onPress={clearDrawerFilters}
-            >
+            <UUIButton size="sm" color="secondary" onPress={clearDrawerFilters}>
               Đặt lại
             </UUIButton>
             <UUIButton size="sm" color="primary" onPress={showResults}>
@@ -290,20 +320,8 @@ export function DetailedPlanFilters({
       >
         <div ref={filterPanelRef} className="detailed-plan-filter-panel">
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-assignment">
-            <h3 id="detailed-plan-filter-assignment" className="detailed-plan-filter-panel__title">Phân xe và giờ chạy</h3>
+            <h3 id="detailed-plan-filter-assignment" className="detailed-plan-filter-panel__title">Giờ chạy và khu vực</h3>
             <div className="detailed-plan-filter-panel__fields">
-              <div className="detailed-plan-filters__field detailed-plan-filters__field--direction">
-                <span className="detailed-plan-filters__label">Chiều hàng</span>
-                <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Chiều hàng" selectedKey={filters.direction || 'ALL_DIRECTIONS'} onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })} items={DIRECTION_OPTIONS}>
-                  {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-                </UUISelect>
-              </div>
-              <div className="detailed-plan-filters__field detailed-plan-filters__field--assignment">
-                <span className="detailed-plan-filters__label">Phân xe</span>
-                <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Phân xe" selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'} onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })} items={ASSIGNMENT_OPTIONS}>
-                  {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-                </UUISelect>
-              </div>
               <div className="detailed-plan-filters__field detailed-plan-filters__hour">
                 <span className="detailed-plan-filters__label">Giờ chạy</span>
                 <div className="detailed-plan-filters__hour-inputs">
@@ -314,17 +332,10 @@ export function DetailedPlanFilters({
               </div>
               <div className="detailed-plan-filters__field detailed-plan-filters__field--zone">
                 <span className="detailed-plan-filters__label">Khu vực</span>
-                <UUISelect
-                  className="detailed-plan-filters__select"
-                  size="sm"
-                  aria-label="Khu vực"
-                  selectedKey={filters.zone || 'ALL_ZONES'}
-                  onSelectionChange={(key) => onChange({ zone: key === 'ALL_ZONES' ? '' : String(key) })}
-                  items={[
-                    { id: 'ALL_ZONES', label: 'Tất cả khu vực' },
-                    ...zones.map((zone) => ({ id: zone.code, label: zone.label })),
-                  ]}
-                >
+                <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Khu vực" selectedKey={filters.zone || 'ALL_ZONES'} onSelectionChange={(key) => onChange({ zone: key === 'ALL_ZONES' ? '' : String(key) })} items={[
+                  { id: 'ALL_ZONES', label: 'Tất cả khu vực' },
+                  ...zones.map((zone) => ({ id: zone.code, label: zone.label })),
+                ]}>
                   {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
                 </UUISelect>
               </div>

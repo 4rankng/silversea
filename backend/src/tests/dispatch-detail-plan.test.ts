@@ -621,6 +621,58 @@ describe('dispatch detail plan rows', () => {
     assert.equal(assigned.data.items[0]!.dispatch.assignedPlate, truck.licensePlate);
   });
 
+  test('customerId filter narrows rows server-side', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: other } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(shipment.customerId, 'fixture lot carries a customer');
+
+    const mine = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=${shipment.customerId}`);
+    assert.equal(mine.status, 200, JSON.stringify(mine.data));
+    assert.equal(mine.data.items.length, 1);
+    const theirs = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=${other.customerId}`);
+    assert.equal(theirs.data.items.length, 0);
+
+    // Route validation: non-integer / non-positive ids are rejected outright.
+    const malformed = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=abc`);
+    assert.equal(malformed.status, 400, JSON.stringify(malformed.data));
+    const zero = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=0`);
+    assert.equal(zero.status, 400, JSON.stringify(zero.data));
+  });
+
+  test('dataStatus filter separates complete vs missing intake data', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(fulfillmentIds[0]);
+    // Fixture: bookingRef + container number set, no declaration row yet —
+    // missing-ANY signal ⇒ the row reads MISSING before the declaration lands.
+    const missingBefore = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingBefore.status, 200, JSON.stringify(missingBefore.data));
+    assert.equal(missingBefore.data.items.length, 1);
+    const completeBefore = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeBefore.data.items.length, 0);
+
+    await db.insert(s.shipmentDeclarations).values({
+      shipmentId: shipment.id,
+      declarationNumber: `DEC-${suffix}-${shipment.id}`,
+      createdBy: adminUserId,
+    });
+    const completeAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeAfter.data.items.length, 1);
+    const missingAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingAfter.data.items.length, 0);
+
+    // Strip bill/booking + container → a missing signal flips the row back.
+    await db.update(s.shipments).set({ bookingRef: null }).where(eq(s.shipments.id, shipment.id));
+    await db.update(s.shipmentContainers).set({ containerNumber: null }).where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    const missingStripped = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingStripped.data.items.length, 1);
+    const completeStripped = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeStripped.data.items.length, 0);
+
+    // Route validation: unknown values are rejected.
+    const junk = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=junk`);
+    assert.equal(junk.status, 400, JSON.stringify(junk.data));
+  });
+
   test('hour range and direction filters apply', async () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
     // Fixture closes at 08:00Z = 15:00 Asia/Ho_Chi_Minh — filters and display

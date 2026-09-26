@@ -198,6 +198,20 @@ dispatchPlanningRoutes.get(
       if (value.length > 32) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
       return value;
     })();
+    const customerId = (() => {
+      const raw = req.query.customerId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'customerId không hợp lệ.');
+      return value;
+    })();
+    const dataStatus = (() => {
+      const raw = req.query.dataStatus;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== 'COMPLETE' && value !== 'MISSING') throw new ApiError(400, 'dataStatus không hợp lệ.');
+      return value as 'COMPLETE' | 'MISSING';
+    })();
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
       page: typeof req.query.page === 'string' && Number.isInteger(Number(req.query.page)) && Number(req.query.page) > 0
@@ -216,6 +230,8 @@ dispatchPlanningRoutes.get(
       hourFrom: time('hourFrom'),
       hourTo: time('hourTo'),
       zone,
+      customerId,
+      dataStatus,
     }));
   }),
 );

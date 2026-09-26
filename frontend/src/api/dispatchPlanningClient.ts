@@ -247,9 +247,9 @@ export interface DispatchDetailPlanFilters {
   deliveryPointIds?: number[];
   hourFrom?: string;
   hourTo?: string;
-  /** Only rows whose container picks up or drops off at a port in this zone
-   *  (code from the DB taxonomy via GET /dispatch-zones). */
+  /** Zone code from the DB taxonomy (GET /dispatch-zones). */
   zone?: string;
+  customerId?: number | null; dataStatus?: 'COMPLETE' | 'MISSING' | ''; // card _50 ribbon
 }
 
 export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, PageHeader } from '../components/UI';
+import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
@@ -38,12 +38,6 @@ export default function DispatchDetailPlanPage() {
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
-      <PageHeader
-        title="Kế hoạch Chi tiết Xe"
-        iconName="truck"
-        description="Gom chuyến, kiểm tra lịch chạy và gán biển số theo từng container."
-      />
-
       <section className="dispatch-plan-page__workspace">
         <DetailedPlanGrid
           filters={detailPlan.filters}

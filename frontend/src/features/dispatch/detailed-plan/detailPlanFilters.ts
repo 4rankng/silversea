@@ -3,8 +3,9 @@ import type { DispatchDetailPlanFilters } from '../../../api/dispatchPlanningCli
 export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   q: string;
   date: string;
-  /** Inclusive transport-date range (YYYY-MM-DD). The topbar month scope
-   *  writes these (card 20260922_32); the screen presets overwrite them. */
+  /** Inclusive transport-date scope: single day (presets) or range (popover).
+   *  The topbar month scope writes dateFrom/dateTo (card 20260922_32); the
+   *  screen presets overwrite both. */
   dateFrom: string;
   dateTo: string;
   direction: 'IMPORT' | 'EXPORT' | '';
@@ -16,6 +17,10 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   hourTo: string;
   /** Zone code from the DB taxonomy; '' = no zone filter. */
   zone: string;
+  /** Exact-match customer scope; null = Tất cả (card 20260926_50). */
+  customerId: number | null;
+  /** '' = Tất cả; COMPLETE/MISSING intake-data predicate (card _50). */
+  dataStatus: 'COMPLETE' | 'MISSING' | '';
 }
 
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
@@ -31,6 +36,8 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   hourFrom: '',
   hourTo: '',
   zone: '',
+  customerId: null,
+  dataStatus: '',
 };
 
 export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
@@ -57,5 +64,7 @@ export function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
     ...(filters.hourFrom ? { hourFrom: filters.hourFrom } : {}),
     ...(filters.hourTo ? { hourTo: filters.hourTo } : {}),
     ...(filters.zone ? { zone: filters.zone } : {}),
+    ...(filters.customerId ? { customerId: filters.customerId } : {}),
+    ...(filters.dataStatus ? { dataStatus: filters.dataStatus } : {}),
   };
 }

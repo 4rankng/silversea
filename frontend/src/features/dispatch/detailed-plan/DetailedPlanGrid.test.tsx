@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
@@ -49,31 +50,34 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
 } as DispatchDetailPlanRow);
 
 function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, unknown> = {}) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <DetailedPlanGrid
-      filters={EMPTY_DETAILED_PLAN_FILTERS}
-      onFilterChange={vi.fn()}
-      loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-      loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-      loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-      items={items}
-      loading={false}
-      error={null}
-      onRetry={vi.fn()}
-      assignmentError={null}
-      lotBanner={null}
-      onClearLotBanner={vi.fn()}
-      presence={null}
-      zones={[]}
-      sortKey={null}
-      sortDirection="asc"
-      onToggleSort={vi.fn()}
-      onAtomicSave={vi.fn()}
-      onOpenTripReassign={vi.fn()}
-      onCompleteExternalTrip={vi.fn()}
-      onIssueOrder={vi.fn()}
-      {...extraProps}
-    />,
+    <QueryClientProvider client={client}>
+      <DetailedPlanGrid
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onFilterChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        items={items}
+        loading={false}
+        error={null}
+        onRetry={vi.fn()}
+        assignmentError={null}
+        lotBanner={null}
+        onClearLotBanner={vi.fn()}
+        presence={null}
+        zones={[]}
+        sortKey={null}
+        sortDirection="asc"
+        onToggleSort={vi.fn()}
+        onAtomicSave={vi.fn()}
+        onOpenTripReassign={vi.fn()}
+        onCompleteExternalTrip={vi.fn()}
+        onIssueOrder={vi.fn()}
+        {...extraProps}
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -476,23 +480,18 @@ describe('DetailedPlanGrid', () => {
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    // Card _46 cutover: the bar is the shared ListFilterBar (its layout/wrap
-    // contract is pinned by ListFilterBar.test.tsx, card _38).
-    expect(filtersSource).toContain('<ListFilterBar');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n  display: grid;\n  grid-template-columns: 140px auto auto;\n  align-items: center;');
-    expect(css).toContain('.detailed-plan-filters__date-scope .detailed-plan-filters__date {\n  flex: 0 1 140px;\n  width: 140px;');
-    expect(css).toContain('.detailed-plan-filters__date-mode {\n  display: grid;\n  grid-template-columns: repeat(3, auto);\n  min-width: 0;\n  gap: 4px;');
-    expect(css).not.toContain('repeat(2, minmax(0, 1fr));\n  flex: 0 1 248px');
-    const activeDateShortcut = css.match(/\.detailed-plan-filters__date-shortcut\.is-active\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(activeDateShortcut).toContain('background: var(--background-color-primary, #fff);');
-    expect(activeDateShortcut).toContain('border-color: var(--color-fg-primary, var(--text-primary, #101828));');
-    expect(activeDateShortcut).toContain('box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);');
-    expect(activeDateShortcut).not.toContain('background-color-brand-primary');
+    // Card 20260926_50: the two-tier header replaces the _10 bar — Row 1
+    // header (title+presets+range trigger), Row 2 one continuous ribbon;
+    // the old date-scope/mode/shortcut chrome is gone.
+    expect(filtersSource).toContain('detailed-plan-header');
+    expect(filtersSource).toContain('detailed-plan-ribbon');
+    expect(filtersSource).not.toContain('<ListFilterBar');
+    expect(css).toContain('.detailed-plan-header {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  height: 36px;\n}');
+    expect(css).toContain('.detailed-plan-ribbon {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  height: 32px;\n}');
+    expect(css).not.toContain('detailed-plan-filters__date-scope-controls');
+    expect(css).not.toContain('detailed-plan-filters__date-mode');
+    expect(css).not.toContain('detailed-plan-filters__date-shortcut');
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
-    // Card 20260926_4 (Chief 390 scatter): the narrow-container arrangement
-    // stacks date / shortcuts / Xóa lọc as an even column — no side-by-side
-    // pairing of the clear button with the date field.
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    grid-template-columns: minmax(0, 1fr);');
     expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
     expect(css).toContain('.detailed-plan-filter-panel__fields {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
     expect(css).not.toContain('detailed-plan-filters__advanced');
@@ -523,14 +522,18 @@ describe('DetailedPlanGrid', () => {
     expect(css).toContain('td.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
   });
 
-  it('adopts the shared ListFilterBar and carries zero self-made filter chrome (card 20260922_46)', () => {
+  it('rides the frozen design-system controls and carries zero self-made filter chrome (card 20260926_50)', () => {
     const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
-    // The bar is the shared component; the page never re-skins it (card _38 law).
-    expect(filtersSource).toContain('<ListFilterBar');
+    // Card _50: ribbon controls ride the shared design-system family
+    // (SearchableSelect combobox, InlineLabelSelect chips, DateRangePopover
+    // trigger) — no self-made chrome.
+    expect(filtersSource).toContain('DateRangePopover');
+    expect(filtersSource).toContain('InlineLabelSelect');
+    expect(filtersSource).toContain('SearchableSelect');
     // Self-made bar chrome and the dead legacy picker family are deleted clean.
-    for (const dead of ['__toolbar-actions', '__status', '__field--search', '__search {', '__drawer-trigger',
+    for (const dead of ['__toolbar-actions', '__status', '__field--search', 'filters__search {', '__drawer-trigger',
       '__multi-trigger', '__point-picker', '__multi-search', '__point-list', '__point-option',
       '__point-feedback', '__point-footer', '__point-search', '__zone-toggle']) {
       expect(css).not.toContain(dead);
@@ -816,32 +819,34 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
       return fresh;
     });
     return (
-      <DetailedPlanGrid
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onFilterChange={vi.fn()}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        items={items}
-        loading={false}
-        error={null}
-        onRetry={vi.fn()}
-        assignmentError={null}
-        lotBanner={null}
-        onClearLotBanner={vi.fn()}
-        presence={null}
-        zones={[]}
-        sortKey={null}
-        sortDirection="asc"
-        onToggleSort={vi.fn()}
-        onAtomicSave={vi.fn()}
-        onOpenTripReassign={vi.fn()}
-        onCompleteExternalTrip={vi.fn()}
-        onIssueOrder={vi.fn()}
-        onEnsureFulfillment={ensure}
-        autoOpenFulfillmentId={autoOpen}
-        onAutoOpenConsumed={consume}
-      />
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <DetailedPlanGrid
+          filters={EMPTY_DETAILED_PLAN_FILTERS}
+          onFilterChange={vi.fn()}
+          loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+          loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+          loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+          items={items}
+          loading={false}
+          error={null}
+          onRetry={vi.fn()}
+          assignmentError={null}
+          lotBanner={null}
+          onClearLotBanner={vi.fn()}
+          presence={null}
+          zones={[]}
+          sortKey={null}
+          sortDirection="asc"
+          onToggleSort={vi.fn()}
+          onAtomicSave={vi.fn()}
+          onOpenTripReassign={vi.fn()}
+          onCompleteExternalTrip={vi.fn()}
+          onIssueOrder={vi.fn()}
+          onEnsureFulfillment={ensure}
+          autoOpenFulfillmentId={autoOpen}
+          onAutoOpenConsumed={consume}
+        />
+      </QueryClientProvider>
     );
   }
 

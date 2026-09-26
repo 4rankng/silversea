@@ -3,16 +3,121 @@
    scrollport and cells wrap instead of owning a horizontal rail. Follows the
    dispatch-plan-page__* BEM conventions. */
 
-.detailed-plan-filters__clear {
-  flex: 0 0 auto;
+/* ══ Card 20260926_50: two-tier 80px header ══════════════════════════════
+   Row 1 (36px): title + preset segment ADJACENT to the dual-calendar
+   range trigger (220px). Row 2 (32px): one continuous ribbon — search 260,
+   Khách w-180 trailing chevron, Hướng/Điều xe/Dữ liệu inline-label selects,
+   Bộ lọc drawer trigger, Xóa lọc ghost at the tail. No label rows. */
+
+.detailed-plan-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
 }
 
-.detailed-plan-filters__date-scope-controls .detailed-plan-filters__clear {
+.detailed-plan-header__title {
+  margin: 0;
+  margin-right: auto;
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  font-size: var(--text-section-size, 16px);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.detailed-plan-header__date {
+  display: inline-grid;
+  grid-auto-flow: column;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-radius: 8px;
+}
+
+.detailed-plan-header__preset {
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface, #fff);
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  font-size: var(--text-control-compact-size, 13px);
+}
+
+.detailed-plan-header__preset + .detailed-plan-header__preset {
+  border-left: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+}
+
+.detailed-plan-header__preset.is-active {
+  background: var(--background-color-brand-primary, #e6f6ec);
+  color: var(--color-fg-brand-primary, #005a2d);
+  font-weight: 600;
+}
+
+.detailed-plan-header__preset:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-fg-brand-primary, #005a2d));
+  outline-offset: -2px;
+}
+
+.detailed-plan-header__range .date-range__trigger {
+  width: 220px;
+}
+
+.detailed-plan-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+
+.detailed-plan-ribbon__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: 0 0 auto;
-  /* Reserve a stable width so toggling filter state never shifts the
-     neighbouring date-shortcut buttons. */
-  min-width: 92px;
-  justify-content: center;
+  width: 260px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+}
+
+.detailed-plan-ribbon__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  font-size: var(--text-control-compact-size, 13px);
+}
+
+.detailed-plan-ribbon__customer {
+  width: 180px;
+  min-width: 0;
+}
+
+.detailed-plan-ribbon__customer .searchable-select__trigger {
+  height: 32px;
+}
+
+/* Ribbon selects ride the shared InlineLabelSelect chrome (h-8, trailing
+   chevron, integrated label); widths: Hướng min-w-110, Điều xe/Dữ liệu 150. */
+.detailed-plan-ribbon .inline-label-select__trigger { height: 32px; }
+.detailed-plan-ribbon .inline-label-select:first-of-type { min-width: 110px; }
+
+/* Drawer trigger + Xóa lọc pin right. */
+.detailed-plan-filters__clear {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.detailed-plan-filters__clear:disabled {
+  opacity: 0.45;
 }
 
 .detailed-plan-filters__count {
@@ -26,7 +131,7 @@
   color: var(--color-fg-brand-primary, #005a2d);
   font-size: var(--text-caption-size);
   font-weight: 700;
-  line-height: 1;
+  margin-inline-start: 6px;
 }
 
 .detailed-plan-filters__field {
@@ -35,86 +140,20 @@
   min-width: 150px;
 }
 
-.detailed-plan-filters__field--direction,
-.detailed-plan-filters__field--assignment { min-width: 0; }
-
 .detailed-plan-filters__label {
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
   font-size: var(--text-label-size);
   font-weight: 600;
 }
 
-.detailed-plan-filters__select,
-.detailed-plan-filters__date {
+.detailed-plan-filters__select {
   min-width: 0;
 }
 
-.detailed-plan-filters__date-scope {
+.detailed-plan-filters__points {
+  position: relative;
   display: grid;
-  gap: 5px;
   min-width: 0;
-}
-
-.detailed-plan-filters__date-scope-controls {
-  display: grid;
-  grid-template-columns: 140px auto auto;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.detailed-plan-filters__date-scope .detailed-plan-filters__date {
-  flex: 0 1 140px;
-  width: 140px;
-  min-width: 124px;
-}
-
-.detailed-plan-filters__date-mode {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  min-width: 0;
-  gap: 4px;
-}
-
-/* Card 20260926_10 (CHIEF): the segmented shortcuts gain their group label.
-   The wrap owns the row; the label sits above the 3-up shortcuts. */
-.detailed-plan-filters__mode-wrap {
-  display: grid;
-  gap: 2px;
-  grid-column: 1 / -1;
-}
-
-.detailed-plan-filters__mode-label {
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: var(--text-label-size);
-  font-weight: 600;
-}
-
-.detailed-plan-filters__date-shortcut {
-  min-width: 0;
-  box-shadow: none;
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-}
-
-.detailed-plan-filters__date-shortcut:hover:not(.is-active) {
-  background: var(--background-color-primary, #fff);
-  color: var(--color-fg-primary, var(--text-primary, #101828));
-}
-
-.detailed-plan-filters__date-shortcut.is-active {
-  background: var(--background-color-primary, #fff);
-  border-color: var(--color-fg-primary, var(--text-primary, #101828));
-  color: var(--color-fg-primary, var(--text-primary, #101828));
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-}
-
-.detailed-plan-filters__date-shortcut.is-active [data-icon] {
-  color: currentColor;
-}
-
-.detailed-plan-filters__date-shortcut:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-fg-brand-primary, #005a2d));
-  outline-offset: 1px;
 }
 
 .detailed-plan-filters__points {
@@ -513,41 +552,33 @@
 }
 
 @container (max-width: 960px) {
-  .detailed-plan-filters__date-scope-controls {
-    grid-template-columns: minmax(124px, 160px) minmax(0, 1fr) auto;
+  .detailed-plan-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 36px;
   }
 
-  .detailed-plan-filters__date-mode { min-width: 0; }
+  .detailed-plan-header__title { flex-basis: 100%; }
 }
 
 @container (max-width: 640px) {
-  /* Card 20260926_4 (Chief 26/09, 390 scatter): even stack — date field on
-     its own row, three shortcuts on one even row, Xóa lọc right-aligned on
-     the last row; nothing floats beside the field (the old pairing put Xóa
-     lọc beside the date at phones). */
-  .detailed-plan-filters__date-scope-controls {
-    grid-template-columns: minmax(0, 1fr);
+  /* Card 20260926_50: 390 stack — row 1 keeps title above the segment+trigger
+     (both full-width); the ribbon wraps controls to natural width with the
+     search going edge to edge. */
+  .detailed-plan-header__date { width: 100%; }
+  .detailed-plan-header__date .detailed-plan-header__preset { flex: 1 1 0; }
+  .detailed-plan-header__range { flex: 1 1 100%; }
+  .detailed-plan-header__range .date-range__trigger { width: 100%; }
+
+  .detailed-plan-ribbon {
+    flex-wrap: wrap;
+    height: auto;
   }
 
-  .detailed-plan-filters__date-scope .detailed-plan-filters__date {
-    grid-column: 1;
-    grid-row: 1;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .detailed-plan-filters__date-mode {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    min-width: 0;
-  }
+  .detailed-plan-ribbon__search { flex: 1 1 100%; width: auto; }
 
   .detailed-plan-filters__clear {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: end;
+    margin-left: 0;
   }
 }
 

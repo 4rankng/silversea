@@ -25,6 +25,7 @@ import {
   CUSTOMER_OPERATIONAL_NAME,
   ROUTE_OPERATIONAL_NAME,
   buildPattern,
+  dispatchDetailDataStatusSql,
   shipmentQSearchPredicate,
 } from './dispatch-planning-utils.service';
 import * as s from '../db/schema';
@@ -46,6 +47,10 @@ export interface FulfillmentLessFilters {
   hourTo?: number | null;
   zone?: string | null;
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | null;
+  /** Exact-match customer scope (card 20260926_50 ribbon combobox). */
+  customerId?: number | null;
+  /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
+  dataStatus?: 'COMPLETE' | 'MISSING' | null;
 }
 
 const TRANSPORT_DATE_SQL = sql<string>`coalesce(
@@ -84,6 +89,10 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
       exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.pickupPortId} and pz.dispatch_zone = ${filters.zone} and pz.deleted_at is null)
       or exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.dropoffPortId} and pz.dispatch_zone = ${filters.zone} and pz.deleted_at is null)
     )` : undefined,
+    // Card 20260926_50 ribbon parity: exact customer scope and the shared
+    // COMPLETE/MISSING intake-data predicate.
+    filters.customerId ? eq(s.shipments.customerId, filters.customerId) : undefined,
+    filters.dataStatus ? dispatchDetailDataStatusSql(filters.dataStatus) : undefined,
     shipmentQSearchPredicate(buildPattern(filters.q), { containerNumber: true }),
   ].filter((c): c is SQL => c != null);
 }

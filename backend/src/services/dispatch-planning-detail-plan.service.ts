@@ -4,7 +4,7 @@ import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, parseIsoWithZone, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, toIsoOrNull, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailDataStatusSql, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, parseIsoWithZone, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, toIsoOrNull, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
@@ -61,6 +61,10 @@ export interface ListDispatchDetailPlanRowsInput {
   hourTo?: string;
   /** Only rows whose container picks up or drops off at a port in this zone. */
   zone?: string;
+  /** Exact-match customer scope (card 20260926_50 ribbon combobox). */
+  customerId?: number;
+  /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
+  dataStatus?: 'COMPLETE' | 'MISSING';
 }
 
 /**
@@ -310,6 +314,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       input.assignmentStatus === 'ASSIGNED'
         ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
         : undefined,
+      input.customerId ? eq(s.shipments.customerId, input.customerId) : undefined,
+      input.dataStatus ? dispatchDetailDataStatusSql(input.dataStatus) : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -324,6 +330,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       hourTo,
       zone: input.zone ?? null,
       assignmentStatus: input.assignmentStatus ?? null,
+      customerId: input.customerId ?? null,
+      dataStatus: input.dataStatus ?? null,
     };
     const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
     const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);
