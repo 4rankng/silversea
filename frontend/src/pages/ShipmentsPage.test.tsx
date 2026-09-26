@@ -2294,8 +2294,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
   });
 
-  it('keeps factory and route lines in the CUS identity cell readable without truncation', () => {
-    expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+  it('clamps identity factory/route lines at two lines with ellipsis and full text in titles', () => {
+    // Clamped at 2 lines so free wrap cannot stretch rows raggedly taller
+    // than neighbors; the span's title carries the full value (CusShipmentRow).
+    expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*-webkit-line-clamp:\s*2;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*hidden;/);
+    const row = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
+    expect(row).toMatch(/title=\{\[\.\.\.item\.effectiveFactoryNames, item\.factoryName\]\.find\(Boolean\) \|\| 'Chưa có nhà máy'\}/);
+    expect(row).toMatch(/title=\{item\.routeName \|\| item\.deliveryLocation \|\| 'Chưa có tuyến đường'\}/);
   });
 
   it('CUS-OVERVIEW-01 gives labels their own line and wraps complete identifiers without inherited fixed columns', () => {

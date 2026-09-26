@@ -472,6 +472,7 @@
   overflow-wrap: anywhere;
 }
 
+
 /* Document identifiers must remain readable at desktop column widths too. */
 .cus-multiline-cell--mono strong,
 .cus-multiline-cell--mono span {
@@ -500,8 +501,15 @@
      every text-based query/label) keeps the customer's real casing. */
   text-transform: uppercase;
 }
+
+/* Identity-cell factory/route lines clamp at two lines with an ellipsis;
+   the span's title carries the full value — free wrap can't stretch a row
+   visibly taller than its neighbors and make the grid read ragged. */
 .cus-dashboard-cell--identity .cus-multiline-cell span {
-  overflow: visible;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;

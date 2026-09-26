@@ -104,10 +104,10 @@ export function CusShipmentRow({
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
         <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
           <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}{item.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}</strong>
-          <span className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
+          <span title={[...item.effectiveFactoryNames, item.factoryName].find(Boolean) || 'Chưa có nhà máy'} className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
             ? item.effectiveFactoryNames.join(' + ')
             : item.factoryName || 'Chưa có nhà máy'}</span>
-          <span className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
+          <span title={item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'} className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
         </span></button>
       </th>
       <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
