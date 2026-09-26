@@ -488,38 +488,26 @@ describe('DriverTripDetailPage', () => {
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
       'Ngày giờ kế hoạch',
-      'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'SĐT kho',
-      'Container / lô hàng',
-      'Seal',
+      'SĐT liên hệ',
       'Cảng nâng',
       'Cảng hạ',
     ]);
-    // BUG 5: the fixture has no short name → the grid falls back to the
-    // full factory name.
-    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
-    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('Nhà máy Bình Dương');
-    // Sparse fixture: full name / address / warehouse phone all absent → the
-    // rows stay visible with the em-dash placeholder, and Tuyến falls back to
-    // the route summary (no address on this row anymore).
+    // Card _27 item 5: the abbrev row is gone — the fixture's factory name
+    // ('Nhà máy Bình Dương') renders as the header line-2 location instead.
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
+    // Sparse fixture: full name falls back to the free-text name; the address
+    // row dashes; the Tuyến row no longer exists at all.
     const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
-    expect(valueOf('Tên nhà máy')).toBe('—');
+    expect(valueOf('Tên nhà máy')).toBe('Nhà máy Bình Dương');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBeUndefined();
-    // KP-191: container number paired with type code; seal on own row.
-    expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
-    expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
   });
-
-  // KẾT HỢP / paired trips carry multiple containers — the one-line fact must
-  // KP-191: each container number paired with its own type code; seals on
-  // their own row.
-  it('separates multiple containers with number · type pairs and seals on a separate row', async () => {
+  it('card _27: containers and seals live only in the Số cont & seal card, never in the info grid', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         containers: [
@@ -533,8 +521,13 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('MSCU1234561 · 40G1 · MSCU7654321 · 40G1')).toBeTruthy();
-    expect(screen.getByText('Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
+    await screen.findByText(/Số cont & seal/);
+    // The read-only duplicate rows are gone from the fact grid.
+    expect(screen.queryByText('Container / lô hàng')).toBeNull();
+    expect(screen.queryByText(/Seal SEAL-9/)).toBeNull();
+    // The single home still carries both containers — the saved bento leads
+    // with the first container's number.
+    expect(document.querySelector('.dcc-bento__plate')?.textContent).toContain('MSCU1234561');
   });
 
   it('renders the container card and identifies missing factory invoice configuration', async () => {
@@ -683,11 +676,36 @@ describe('DriverTripDetailPage', () => {
 
   // _30: the standalone warehouse-phone row is removed at the source — the
   // combined contact row carries the callable number.
-  it('renders no standalone SĐT liên hệ row', async () => {
+  it('card _27: renders the SĐT liên hệ row when the contact number differs from the kho number', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
+    // Page fixture: contactPhone 0909000001, khoPhone absent → one kho row
+    // (dashed) + one contact row. Identical numbers would render one row.
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+  });
+
+  it('card _27: identical kho and contact numbers render ONE phone row', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, khoPhone: '0909000001', contactPhone: '0909000001' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('SĐT kho')).toBe('0909000001');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(1);
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
@@ -760,10 +778,9 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText('Thông tin lệnh');
-    // BUG 5: with a short name present, the expanded grid leads with it.
-    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
-    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('ASKEY');
+    // Card _27 item 5: the abbrev row is gone from the grid — the factory
+    // short name renders as the header line-2 location instead.
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     const toggle = screen.getByTestId('task-section-toggle-driver-task-info-grid');
     const grid = document.getElementById('driver-task-info-grid') as HTMLElement;
     expect(toggle.getAttribute('aria-expanded')).toBe('true');

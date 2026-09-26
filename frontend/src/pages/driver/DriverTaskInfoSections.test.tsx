@@ -89,79 +89,73 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText(/07:00/)).toBeNull();
   });
 
-  it('VID-DRV-01 renders schedule, factory, contact, container, seal and ports without a duplicate route row', () => {
+  it('VID-DRV-01 renders schedule, factory names, phones, and ports without duplicate rows', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
       'Ngày giờ kế hoạch',
-      'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'SĐT kho',
-      'Container / lô hàng',
-      'Seal',
+      'SĐT liên hệ',
       'Cảng nâng',
       'Cảng hạ',
     ]);
   });
 
-  it('renders the factory block: short name, canonical full name, site address', () => {
+  it('renders the factory block: canonical full name and site address (no abbrev row)', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    expect(valueOf('Nhà máy')).toBe('ASKEY');
+    expect(screen.queryByText('ASKEY')).toBeNull();
     expect(valueOf('Tên nhà máy')).toBe('Công ty TNHH Askey Việt Nam');
     expect(valueOf('Địa chỉ nhà máy')).toBe('KCN Việt Nam – Singapore, Thuận An, Bình Dương');
   });
 
-  it('falls back to the full factory name in the abbrev row when the site has no short name', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { factoryShortName: null } })} />);
+  it('falls back to the free-text factory name in the full-name row when the site has no canonical name', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { factoryFullName: undefined } })} />);
 
-    expect(valueOf('Nhà máy')).toBe('Nhà máy Askey Việt Nam');
+    expect(valueOf('Tên nhà máy')).toBe('Nhà máy Askey Việt Nam');
   });
 
-  it('renders "—" for the full-name and address rows when the shipment carries neither', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { factoryFullName: undefined, factoryAddress: null } })} />);
+  it('renders "—" for the full-name and address rows when the shipment carries neither name nor address', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+      factoryFullName: undefined,
+      factoryName: null,
+      factoryShortName: null,
+      factoryAddress: null,
+    } })} />);
 
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
   });
 
-  it('dashes the full-name row when the site join misses and only free text exists', () => {
-    // Site-miss: the full-name chain falls back to the free-text factoryName,
-    // which is also what the abbrev row shows — no duplicate row.
+  it('renders the free-text factory name in the full-name row when the site join misses', () => {
+    // Site-miss: the canonical full name is absent, so the free-text name
+    // carries the row — no dash, no echo of a removed abbrev neighbor.
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
       factoryShortName: null,
       factoryName: 'Nhà máy Free Text',
       factoryFullName: 'Nhà máy Free Text',
     } })} />);
 
-    expect(valueOf('Nhà máy')).toBe('Nhà máy Free Text');
-    expect(valueOf('Tên nhà máy')).toBe('—');
+    expect(valueOf('Tên nhà máy')).toBe('Nhà máy Free Text');
   });
 
-  it('dashes the full-name row when a blank site short name resolves both rows to the site name', () => {
-    // Blank short_name: the SQL blank-safe resolution makes the abbrev row
-    // show the site's full name — identical to the canonical full name.
+  it('renders the canonical full name even when it equals the factory name (no abbrev row to echo)', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
       factoryShortName: 'Nhà máy Đầy Đủ',
       factoryName: 'STALE TEXT',
       factoryFullName: 'Nhà máy Đầy Đủ',
     } })} />);
 
-    expect(valueOf('Nhà máy')).toBe('Nhà máy Đầy Đủ');
-    expect(valueOf('Tên nhà máy')).toBe('—');
+    expect(valueOf('Tên nhà máy')).toBe('Nhà máy Đầy Đủ');
   });
 
-  it('no longer renders a standalone warehouse-phone row (the combined contact row carries the number)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
-
-    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
-  });
   it('QA-2026-09-26-25 renders ONE phone row (SĐT kho) with a round phone-icon call affordance', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactName: 'Anh Minh', contactPhone: '0909000001' } })} />);
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0901234567' } })} />);
 
-    // The duplicate contact row is gone even when contact data exists.
-    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    // Card _27 item 7: IDENTICAL numbers never render twice — one row.
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     const kho = screen.getByText('SĐT kho');
     expect(kho).not.toBeNull();
     // The LEADING icon is the call affordance (one glyph, no trailing button);
@@ -172,6 +166,43 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText('Gọi')).toBeNull();
     // The number is plain text — no second tel link on the row.
     expect(document.querySelector('a.driver-task-link[href="tel:0901234567"]')).toBeNull();
+  });
+
+  it('QA-2026-09-26-27 renders TWO phone rows when the kho and contact numbers differ', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
+
+    const khoCall = screen.getByRole('link', { name: 'Gọi điện thoại kho 0901234567' });
+    expect(khoCall.getAttribute('href')).toBe('tel:0901234567');
+    const contactCall = screen.getByRole('link', { name: 'Gọi điện thoại liên hệ 0909000001' });
+    expect(contactCall.getAttribute('href')).toBe('tel:0909000001');
+    expect(valueOf('SĐT kho')).toBe('0901234567');
+    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // Exactly one tel link per distinct number — no duplication.
+    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(2);
+  });
+
+  it('QA-2026-09-26-27 renders the contact row when only contactPhone exists', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('—');
+    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+  });
+
+  it('QA-2026-09-26-27 never duplicates when whitespace differs between the two fields', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0901234567 ', contactPhone: '0901234567' } })} />);
+
+    // Trimmed comparison: the same number with surrounding whitespace is the
+    // SAME number — one row.
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+    expect(valueOf('SĐT kho')).toBe('0901234567');
+  });
+
+  it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
+
+    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    expect(labels).toContain('SĐT kho');
   });
 
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
@@ -255,14 +286,14 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Hóa đơn phí nâng')).toBe('Chưa có tên đơn vị · Địa chỉ pháp lý nhà máy · MST 2301234567');
   });
 
-  it('DRV-R04 (card _25) one phone row only — named contact data never resurrects a second phone row', () => {
+  it('DRV-R04 (card _25/_27) differing numbers render both rows, each with its own call affordance', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ', khoPhone: ' 0901234567 ' } })} />);
-    expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
     const khoValue = valueOf('SĐT kho');
     expect(khoValue).toContain('0901234567');
-    // One phone row: the number renders once as text + once as the icon
-    // button's aria-label — the icon affordance is single.
-    expect(screen.getAllByRole('link', { name: 'Gọi điện thoại kho 0901234567' })).toHaveLength(1);
+    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // One tel link per distinct number — the trim is comparison-only; the
+    // rendered value stays the trimmed contact number.
+    expect(screen.getAllByRole('link', { name: /Gọi điện thoại/ })).toHaveLength(2);
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -303,12 +334,10 @@ describe('DriverTaskInfoSections', () => {
 
     expect(labels()).toEqual([
       'Ngày giờ kế hoạch',
-      'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'SĐT kho',
-      'Container / lô hàng',
-      'Seal',
+      'SĐT liên hệ',
       'Cảng nâng',
       'Cảng hạ',
       'Trả cont rỗng',
@@ -372,13 +401,13 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('renders each container number paired with its type code (KP-191)', () => {
+  it('card _27: container and seal info leaves the info grid — one home, the Số cont & seal card', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    // Each container number is paired with its own type code.
-    expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 40G1');
-    // Seals render on their own row.
-    expect(valueOf('Seal')).toBe('Seal SEAL-9');
+    // The read-only duplicate rows are gone; the container card is the
+    // single home for cont/seal data.
+    expect(screen.queryByText('Container / lô hàng')).toBeNull();
+    expect(screen.queryByText(/^Seal/)).toBeNull();
   });
 
   it('falls back to dropWarehouseName when dropPortName is null', () => {
@@ -407,6 +436,6 @@ it('renders a legacy task without a container array without crashing', () => {
   const trip = makeTrip();
   trip.containers = null as unknown as DriverTaskDetail['containers'];
   render(<DriverTaskInfoSections trip={trip} />);
-  expect(screen.getByText('Container / lô hàng')).toBeTruthy();
-  expect(screen.getByText('FCL')).toBeTruthy();
+  expect(screen.getByText('Tên nhà máy')).toBeTruthy();
+  expect(screen.queryByText('Container / lô hàng')).toBeNull();
 });
