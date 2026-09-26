@@ -64,6 +64,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_TRANSITION: 'shipments.transition',
   SHIPMENT_DISPATCH: 'shipments.dispatch',
   TRUCK_DRIVER_REASSIGN: 'fleet.truck-driver.reassign',
+  TRUCK_RESTORE: 'config.trucks.restore',
   SHIPMENT_DOCUMENT_ATTACH: 'shipments.documents.attach',
   SHIPMENT_DOCUMENT_REPLACE: 'shipments.documents.replace',
   SHIPMENT_DECLARATION_CREATE: 'shipments.declarations.create',

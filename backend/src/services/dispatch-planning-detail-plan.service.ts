@@ -891,16 +891,40 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
         throw new ApiError(400, 'Biển số xe không hợp lệ.');
       }
       plannedVehiclePlateNumber = normalized;
-      // Match against the vendor catalog so a typed plate matching an existing
-      // entry links to it instead of creating a phantom free-text plate.
+      // Registry A (trucks) is the source of truth for external plates: a
+      // typed plate links to (or auto-registers into) the carrier's catalog —
+      // the list dispatchers manage on /suppliers — so attribution
+      // (resolve-carrier) self-heals instead of decaying. Tombstoned plates
+      // stay reserved; the plate's UNIQUE column blocks a duplicate insert.
       if (args.plannedExternalCarrierId != null) {
-        const normalizedCatalogKey = normalized.replace(/[^A-Z0-9]/g, '');
+        const plateKey = normalized.replace(/[^A-Z0-9]/g, '');
+        const [truckMatch] = await tx.select({ id: s.trucks.id }).from(s.trucks)
+          .where(and(
+            eq(s.trucks.carrierId, args.plannedExternalCarrierId),
+            sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${plateKey}`,
+            isNull(s.trucks.deletedAt),
+          ))
+          .limit(1);
+        if (!truckMatch) {
+          const [plateOwner] = await tx.select({ id: s.trucks.id }).from(s.trucks)
+            .where(sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${plateKey}`)
+            .limit(1);
+          if (!plateOwner) {
+            await tx.insert(s.trucks).values({
+              licensePlate: normalized,
+              carrierId: args.plannedExternalCarrierId,
+              status: 'ACTIVE',
+            }).onConflictDoNothing();
+          }
+        }
+        // Legacy B match retained so pre-unification assignments keep
+        // resolving their vehicle link.
         const [match] = await tx.select({
           id: s.carrierFleetVehicles.id,
         }).from(s.carrierFleetVehicles)
           .where(and(
             eq(s.carrierFleetVehicles.carrierId, args.plannedExternalCarrierId),
-            eq(s.carrierFleetVehicles.normalizedPlate, normalizedCatalogKey),
+            eq(s.carrierFleetVehicles.normalizedPlate, plateKey),
             isNull(s.carrierFleetVehicles.deletedAt),
           ))
           .limit(1);

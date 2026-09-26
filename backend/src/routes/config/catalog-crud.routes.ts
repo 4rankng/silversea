@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../../errors';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
@@ -383,6 +384,48 @@ async function assertActiveCarrier(tx: H.CrudTx, carrierId: number | null | unde
     throw new ApiError(409, 'Nhà xe không còn hiệu lực hoặc không phải nhà xe.');
   }
 }
+
+// Tombstone restore (card 20260926_18, R1): retiring a truck keeps the row as
+// a soft-deleted tombstone so the plate stays reserved — the re-add 409's
+// business message promises "khôi phục"; this endpoint IS that promise.
+// ADMIN/MANAGER only (symmetric with retire: dispatchers add but never retire
+// or restore). The plate's UNIQUE column means the tombstone still owns the
+// plate, so no live-conflict check is possible or needed.
+router.post(
+  '/trucks/:id/restore',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const truckId = Number(req.params.id);
+    if (!Number.isInteger(truckId) || truckId <= 0) throw new ApiError(400, 'ID xe không hợp lệ.');
+    const user = getUser(req);
+    const idempotencyKey = req.get('Idempotency-Key');
+    if (!idempotencyKey) {
+      throw new ApiError(400, 'Idempotency-Key là bắt buộc khi khôi phục xe.');
+    }
+    const { result, replayed } = await runIdempotent<Record<string, unknown>>({
+      endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_RESTORE,
+      idempotencyKey,
+      payload: { truckId },
+      createdBy: user.userId,
+      entityType: 'trucks',
+      responseStatusCode: 200,
+      getEntityId: (truck) => (truck as { id?: number } | null)?.id ?? null,
+      getEntityKey: (truck) => (truck as { licensePlate?: string } | null)?.licensePlate ?? null,
+      create: async (tx) => {
+        const [tombstoned] = await tx.select().from(s.trucks)
+          .where(and(eq(s.trucks.id, truckId), isNotNull(s.trucks.deletedAt)))
+          .limit(1);
+        if (!tombstoned) throw new ApiError(404, 'Xe không nằm trong thùng rác.');
+        const [restored] = await tx.update(s.trucks)
+          .set({ deletedAt: null, updatedAt: new Date() })
+          .where(and(eq(s.trucks.id, truckId), isNotNull(s.trucks.deletedAt)))
+          .returning();
+        return restored;
+      },
+    });
+    res.status(200).json({ ...result, replayed });
+  }),
+);
 
 router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   searchableField: 'licensePlate',
