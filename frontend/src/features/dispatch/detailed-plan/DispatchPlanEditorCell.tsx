@@ -819,6 +819,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
             />
             <DateTimeField
               id={`dispatch-plan-end-${row.fulfillmentId}`}
+              className="dispatch-assignment-dialog__end-field"
               label="Giờ trả hàng"
               value={draft.plannedEndAt}
               onChange={(next) => { setDraft((current) => ({ ...current, plannedEndAt: next })); setError(null); }}

@@ -210,6 +210,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
 export default function SupplierListPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'carrier' | 'other'>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -263,12 +264,14 @@ export default function SupplierListPage() {
     const activeCount = suppliers.filter(s => s.status === 'ACTIVE').length;
     const inactiveCount = suppliers.filter(s => s.status !== 'ACTIVE').length;
     const filtered = suppliers.filter(s => {
+      if (typeFilter === 'carrier' && !s.types?.includes(SupplierType.CARRIER)) return false;
+      if (typeFilter === 'other' && s.types?.includes(SupplierType.CARRIER)) return false;
       if (filter === 'active') return s.status === 'ACTIVE';
       if (filter === 'inactive') return s.status !== 'ACTIVE';
       return true;
     });
     return { activeCount, inactiveCount, filtered };
-  }, [suppliers, filter]);
+  }, [suppliers, filter, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -374,6 +377,9 @@ export default function SupplierListPage() {
           Ngừng HĐ · {inactiveCount}
         </button>
         <div className="filter-bar__spacer" />
+        <button className={`filter-tab${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
+        <button className={`filter-tab${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
+        <button className={`filter-tab${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
         <div className="filter-bar__search">
           <Search size={14} />
           <input
@@ -431,7 +437,7 @@ export default function SupplierListPage() {
                   </div>
                 )}
                 <div className="m-card-edit-row">
-                  {s.types?.includes(SupplierType.CARRIER) && s.linkedCustomerId != null && (
+                  {s.types?.includes(SupplierType.CARRIER) && (
                     <button className="btn btn--ghost btn--sm" aria-expanded={trucksOpenId === s.id} onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
                       Xe của nhà thầu
                     </button>
@@ -440,9 +446,9 @@ export default function SupplierListPage() {
                     Sửa
                   </button>
                 </div>
-                {trucksOpenId === s.id && s.linkedCustomerId != null && (
+                {trucksOpenId === s.id && (
                   <div onClick={(e) => e.stopPropagation()}>
-                    <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId} />
+                    <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId ?? null} />
                   </div>
                 )}
               </ClickableCard>
@@ -529,7 +535,7 @@ export default function SupplierListPage() {
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" data-dropdown-root={menuOpenId === s.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
-                        {s.types?.includes(SupplierType.CARRIER) && s.linkedCustomerId != null && (
+                        {s.types?.includes(SupplierType.CARRIER) && (
                           <button type="button" className="row-action" aria-label={`Xe của nhà thầu ${s.name}`} aria-expanded={trucksOpenId === s.id}
                             onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
                             <TruckIcon size={14} />
@@ -561,10 +567,10 @@ export default function SupplierListPage() {
                       )}
                     </td>
                   </tr>,
-                  trucksOpenId === s.id && s.linkedCustomerId != null && (
+                  trucksOpenId === s.id && (
                     <tr key={`${s.id}-trucks`} className="supplier-carrier-trucks-row">
                       <td colSpan={8}>
-                        <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId} />
+                        <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId ?? null} />
                       </td>
                     </tr>
                   ),

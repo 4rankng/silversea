@@ -134,9 +134,18 @@
   grid-template-areas:
     'carrier vehicle'
     'classification combined'
-    'revenue cost';
+    'revenue cost'
+    'end end';
   gap: 14px 12px;
   align-items: end;
+}
+
+/* Giờ trả hàng gets its own full-width row: the 2-col cell shrinks the
+ * split-datetime tracks and stretches/overflows its segments (seen live
+ * 15:40); the wide row lets the control size naturally. */
+.dispatch-assignment-dialog__end-field {
+  grid-area: end;
+  min-width: 0;
 }
 
 .dispatch-assignment-dialog__fields > label {

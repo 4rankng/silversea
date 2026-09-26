@@ -101,3 +101,10 @@
     flex: 1 1 auto;
   }
 }
+
+/* Restore remedy (card 20260926_18 R1) — inline action beside the tombstone
+ * 409 message; offset from the text so the alert reads as one unit. */
+.supplier-carrier-trucks__restore {
+  margin-left: 10px;
+  vertical-align: middle;
+}

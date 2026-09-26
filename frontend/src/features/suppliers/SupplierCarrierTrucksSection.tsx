@@ -8,18 +8,22 @@ import './SupplierCarrierTrucks.css';
 
 export interface SupplierCarrierTrucksSectionProps {
   supplierName: string;
-  /** The supplier's linked customer id — trucks.carrier_id references it. */
-  carrierId: number;
+  /** The supplier's linked customer id — trucks.carrier_id references it.
+   *  Null on legacy carriers without the link: the section renders a setup
+   *  hint instead of the list (the link is created on the next supplier save). */
+  carrierId: number | null;
 }
 
 /** Card 20260926_2 AC1/AC2 — 'Xe của nhà thầu' section: lists the trucks
  *  bound to the supplier's linked carrier customer and drives the existing
  *  /trucks CRUD (plate unique; carrier link validated server-side). */
 export function SupplierCarrierTrucksSection({ supplierName, carrierId }: SupplierCarrierTrucksSectionProps) {
+  const hasLink = carrierId != null;
   const qc = useQueryClient();
   const listKey = ['suppliers', 'carrier-trucks', carrierId];
   const listQuery = useQuery({
     queryKey: listKey,
+    enabled: hasLink,
     queryFn: () => fetchAllPaginated<Truck>('/trucks', { carrierId: String(carrierId) }),
   });
   const [plateDraft, setPlateDraft] = useState('');
@@ -34,6 +38,17 @@ export function SupplierCarrierTrucksSection({ supplierName, carrierId }: Suppli
     onSuccess: () => { setPlateDraft(''); setError(null); invalidate(); },
     onError: (e: Error) => setError(e.message),
   });
+
+  // Tombstone remedy (card 20260926_18 R1): the re-add 409 names the trash —
+  // the restore button next to it is that promise, keyed to the plate the
+  // operator just typed (kept in the draft on error for exactly this).
+  const restoreM = useMutation({
+    mutationFn: (licensePlate: string) => api.post('/trucks/restore', { licensePlate }),
+    onSuccess: () => { setPlateDraft(''); setError(null); invalidate(); },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const tombstoneBlocked = error?.includes('thùng rác') === true && plateDraft.trim().length > 0;
 
   const updateM = useMutation({
     mutationFn: (input: { id: number; licensePlate: string; updatedAt?: string }) =>
@@ -57,7 +72,12 @@ export function SupplierCarrierTrucksSection({ supplierName, carrierId }: Suppli
       {listQuery.isError && (
         <p className="supplier-carrier-trucks__meta" role="alert">Không tải được danh sách xe. Vui lòng thử lại.</p>
       )}
-      {!listQuery.isLoading && !listQuery.isError && (
+      {!hasLink && (
+        <p className="supplier-carrier-trucks__meta">
+          Nhà thầu chưa liên kết khách hàng — mở “Sửa” và lưu lại để thiết lập, sau đó thêm xe được.
+        </p>
+      )}
+      {hasLink && !listQuery.isLoading && !listQuery.isError && (
         <>
           {trucks.length === 0 ? (
             <p className="supplier-carrier-trucks__meta">Chưa có xe nào gán cho nhà thầu này.</p>
@@ -92,7 +112,19 @@ export function SupplierCarrierTrucksSection({ supplierName, carrierId }: Suppli
             </ul>
           )}
           {error && (
-            <p className="supplier-carrier-trucks__error" role="alert">{error}</p>
+            <p className="supplier-carrier-trucks__error" role="alert">
+              {error}
+              {tombstoneBlocked && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm supplier-carrier-trucks__restore"
+                  disabled={restoreM.isPending}
+                  onClick={() => restoreM.mutate(plateDraft.trim())}
+                >
+                  {restoreM.isPending ? 'Đang khôi phục…' : 'Khôi phục xe này'}
+                </button>
+              )}
+            </p>
           )}
           <div className="supplier-carrier-trucks__add">
             <label htmlFor={`new-plate-${carrierId}`}>Thêm biển số</label>
