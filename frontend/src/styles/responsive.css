@@ -247,6 +247,14 @@
   #root select {
     min-height: 30px;
   }
+  /* Contract guard (design-system.md control-density contract: height is
+     owned by the shared primitive, never page CSS). The zero-specificity
+     :where() floor above loses to any page rule, and Button.css's `.btn`
+     floor (0-1-0) loses to two-class page selectors — e.g.
+     `.workflow-profitability__controls .btn` rendered primary actions at
+     30px on /profit at every width. This ID-scoped floor outranks all
+     page/feature stylesheets; page rules that fight it are dead code. */
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
 
   /* ── App shell ── */
   :root { --app-body-pad-t: 10px; --app-body-pad-x: 8px; }
@@ -284,8 +292,10 @@
     line-height: 1.2;
   }
   .topbar .icon-btn { display: none; }
-  /* Hamburger stays a comfortable tap target at the compact scale */
-  .topbar__toggle { width: 32px; height: 32px; }
+  /* Hamburger is the primary nav control on phones: full 44×44 touch floor
+     (design-guidelines §5) — width was 32px, the most-tapped element under
+     the floor on 52 routes (2026-09-26 mobile sweep). */
+  .topbar__toggle { width: var(--control-touch-h); height: var(--control-touch-h); }
   .topbar__toggle svg { width: 20px; height: 20px; }
   /* Driver identity (greeting + name + plate chip) replaces the old page-title
      topbar on phones — drivers no longer render the "Đang xem <page>" block. */
@@ -332,10 +342,15 @@
   .page-actions,
   .page-header .header-actions,
   .header-actions { flex-wrap: wrap; width: 100%; gap: 8px; }
+  /* Header/page action buttons follow the shared phone floor. The 30px value
+     here predated the 2026-09-22 law book (design-guidelines §5: 44px touch
+     targets on mobile) and lost to it; without this rule these selectors
+     out-specify Button.css's phone `.btn { min-height: var(--control-touch-h) }`
+     and silently shrink primary actions to the 30px bare-button floor. */
   .page-actions .btn,
   .header-actions .btn,
   .page-header .btn:not(.btn--icon),
-  .page-header .btn-primary { min-height: 30px; }
+  .page-header .btn-primary { min-height: var(--control-touch-h); }
   .trip-detail-title { font-size: var(--text-title-size); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }
@@ -716,6 +731,28 @@
 
 } /* end PHONE ≤ 640px */
 
+/* Touch devices at ANY width — the width-based blocks above stop at 900px,
+   but a coarse pointer at 1024+ (iPad landscape, collapsed icon rail) still
+   needs the floor, and two-class page selectors out-specify Button.css's
+   own coarse rule. Same contract guard, pointer-gated.
+
+   The blanket floors below mirror the phone block's ID-scoped rules for
+   EVERY bare button/input/trigger — measured offenders at 768-1024 were
+   `.stab-pill` 24px, `#config-search` 34px, `.row-action` 30px, CUS note/
+   detail triggers 32-36px, `.detailed-plan-grid__note` 17px. Links
+   (`a[href]`) stay OUT: inline table links vs row density is an open
+   operator ruling (case QA-2026-09-26-03 residuals). */
+@media (pointer: coarse) {
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
+  #root button,
+  #root [role='button'],
+  #root input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
+  #root select,
+  #root textarea { min-height: var(--control-touch-h); }
+  #root button,
+  #root [role='button'] { min-width: var(--control-touch-h); }
+}
+
 /* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
   .btn,
@@ -723,6 +760,9 @@
   .btn-sm {
     min-height: 44px;
   }
+  /* Same contract guard as the phone block: two-class page selectors
+     out-specify `.btn` and were shrinking actions below the floor. */
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
 
   .btn--icon,
   .btn-icon,

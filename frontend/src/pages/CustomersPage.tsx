@@ -593,7 +593,8 @@ export default function CustomersPage() {
             placeholder="Tìm theo tên, MST…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', minHeight: 'var(--control-compact-h)', padding: '4px 11px 4px 32px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--control-field-font-size)', lineHeight: 1.35 }}
+            className="customers-quick-search"
+            style={{ width: '100%', padding: '4px 11px 4px 32px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--control-field-font-size)', lineHeight: 1.35 }}
           />
         </div>
       </div>

@@ -137,3 +137,17 @@
 }
 .customers-drawer__section dt { color: var(--ink-3); font-size: var(--text-caption-size); }
 .customers-drawer__section dd { margin: 0; font-weight: 600; }
+
+/* Quick customer search: desktop keeps the compact 30px scale; phones and
+   coarse pointers take the 44% touch floor (design-guidelines §5). The
+   height USED to live inline (min-height: var(--control-compact-h)), which
+   beats every stylesheet rule — inline min-heights are banned on controls.
+   2026-09-26 mobile sweep: 240x30 at 360-1024. */
+.customers-quick-search {
+  min-height: var(--control-compact-h);
+}
+@media (max-width: 640px), (pointer: coarse) {
+  .customers-quick-search {
+    min-height: var(--control-touch-h);
+  }
+}

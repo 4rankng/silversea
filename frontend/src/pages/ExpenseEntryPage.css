@@ -263,6 +263,12 @@
   min-width: 44px;
   border-radius: 6px;
 }
+/* Touch floor on phones/tablets (design-guidelines §5: 44px mobile); desktop
+   keeps the compact 32px inline-action scale. Bare button, so the shared
+   `.btn` phone floor does not reach it — it needs its own override. */
+@media (max-width: 640px), (pointer: coarse) {
+  .expense-add-btn { min-height: var(--control-touch-h); }
+}
 
 /* ── Quick-create inline form row ── */
 .expense-quick-create-row {

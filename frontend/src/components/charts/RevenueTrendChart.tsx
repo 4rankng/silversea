@@ -132,7 +132,7 @@ export function RevenueTrendChart({
             <text x={mL - 10} y={Y(v) + 3.5} textAnchor="end" fontFamily="var(--font-data)" fill="#56655C">
               {v === 0
                 ? <tspan fontSize="11">0</tspan>
-                : <><tspan fontSize="11">{fmtY(v)}</tspan><tspan fontSize="9">tr₫</tspan></>
+                : <><tspan fontSize="11">{fmtY(v)}</tspan><tspan fontSize="11">tr₫</tspan></>
               }
             </text>
           </g>

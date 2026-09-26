@@ -107,6 +107,17 @@
     padding: 8px 4px;
   }
 
+  /* Touch: the 48px rail's 4px nav/footer gutters left 39px-wide icon
+     targets (measured on 61 routes @1024, 2026-09-26 mobile sweep).
+     Zero the gutters on coarse pointers only — items fill 48px, icons stay
+     centred; fine-pointer desktop keeps the padded rail. */
+  @media (pointer: coarse) {
+    .app.sidebar-closed .sidebar-nav,
+    .app.sidebar-closed .sidebar-footer {
+      padding-inline: 0;
+    }
+  }
+
   .app.sidebar-closed .sidebar-user {
     justify-content: center;
     padding: 8px 0;

@@ -34,7 +34,12 @@ describe('operational density contract', () => {
     const comboboxStyles = read('src/components/untitled-ui/base/select/combobox.css');
     expect(read('src/components/untitled-ui/base/select/combobox.tsx')).toContain('import "./combobox.css"');
     expect(comboboxStyles).toContain('@media (max-width: 640px), (pointer: coarse)');
-    expect(comboboxStyles).toMatch(/#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\]\s*\{[^}]*min-height:\s*0;[^}]*height:\s*auto;[^}]*padding-block:\s*0;/);
+    // Contract: the input adds NO height floor of its own (min-height: 0) and
+    // no vertical padding — the field box stays one boundary. The former
+    // `height: auto` fragment is dropped 2026-09-26: it collapsed the input
+    // to a 16px text strip whose dead tap zone opened the list without
+    // focusing the input (mobile-touch-floor.styles.test.ts pins height: 100%).
+    expect(comboboxStyles).toMatch(/#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\]\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;[^}]*padding-block:\s*0;/);
     expect(read('src/components/untitled-ui/base/select/select-shared.tsx')).toContain('import "../control-geometry.css"');
     expect(read('src/components/untitled-ui/base/select/select-item.tsx')).toContain('max-md:min-h-11');
     expect(read('src/components/untitled-ui/base/buttons/button.tsx')).toContain('max-md:min-h-11');

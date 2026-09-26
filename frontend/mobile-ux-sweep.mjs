@@ -121,23 +121,48 @@ const auditPage = () => {
       add('offscreen', path(el), `l=${Math.round(r.left)} r=${Math.round(r.right)} vw=${vw}`);
     }
 
-    // clipped: own content wider than the box, hard-clipped, no ellipsis
+    // clipped: own content wider than the box, hard-clipped, no ellipsis.
+    // clientWidth <= 2 = the 1px sr-only / visually-hidden a11y pattern —
+    // content is meant to be clipped there (was 1,174 false positives).
     const ox = cs.overflowX;
-    if ((ox === 'hidden' || ox === 'clip') && el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0) {
+    if ((ox === 'hidden' || ox === 'clip') && el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 2) {
       const hasText = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-      if (hasText && cs.textOverflow !== 'ellipsis') {
+      if (hasText && cs.textOverflow !== 'ellipsis' && !el.closest('.sr-only')) {
         add('clipped', path(el), `scrollW=${el.scrollWidth} clientW=${el.clientWidth}`);
       }
     }
 
-    // touch floor: interactive elements under 44px (mobile/tablet widths only, caller filters)
+    // touch floor: interactive elements under 44px. Mobile/tablet widths only
+    // (the 1440 desktop control run is filtered by the caller). Checkbox/radio
+    // and the sr-only pattern are exempt (native controls with label hit
+    // areas / not rendered). 43.5 = sub-pixel rounding tolerance (43.9px
+    // boxes are at the floor). Inputs/selects measure against their nearest
+    // BORDERED field shell: a 42px input inside a 44px shell is compliant
+    // (border compensation), while a 16px strip inside a 44px combobox
+    // still fails on its own box.
     if (
-      el.matches('a[href], button, [role="button"], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])') &&
+      el.matches('a[href], button, [role="button"], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea, [tabindex]:not([tabindex="-1"])') &&
       inViewport(r) &&
-      (r.width < 44 || r.height < 44) &&
-      !el.closest('[aria-hidden="true"]')
+      !el.closest('[aria-hidden="true"]') &&
+      !el.closest('.sr-only') &&
+      !el.matches('.sr-only')
     ) {
-      add('small', path(el), `${Math.round(r.width)}x${Math.round(r.height)}`);
+      let w = r.width;
+      let h = r.height;
+      if (el.matches('input, select, textarea')) {
+        let ancestor = el.parentElement;
+        while (ancestor && ancestor !== document.body) {
+          const acs = style(ancestor);
+          if (parseFloat(acs.borderTopWidth) >= 1) {
+            const ar = ancestor.getBoundingClientRect();
+            if (ar.height >= r.height) h = ar.height;
+            if (ar.width >= r.width) w = ar.width;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+      }
+      if (w < 43.5 || h < 43.5) add('small', path(el), `${w.toFixed(1)}x${h.toFixed(1)}`);
     }
 
     // text floor: leaf text nodes under 11px
@@ -172,8 +197,14 @@ for (const scan of SCANS) {
     for (const route of scan.routes) {
       try {
         await page.goto(BASE + route, { waitUntil: 'load', timeout: 20000 });
-        await page.waitForTimeout(500);
+        // 1000ms, not 500: entry animations (fade-up/scale on mounted cards)
+        // still scale targets to ~0.98 at 500ms — measured as 43.1×43.1 vs
+        // settled 44×44 (false positives on wf-chart-toggle/pr-act/btn--sm).
+        await page.waitForTimeout(1000);
         const result = await page.evaluate(auditPage);
+        // 1440 = desktop control run: touch-floor counts are expected there
+        // (house desktop density is 30-34px); keep only layout/text kinds.
+        if (width >= 1440) { delete result.counts.small; result.samples.small = []; }
         const bad = Object.entries(result.counts).some(([, n]) => n > 0);
         if (bad) findings.push({ user: scan.user, route, width, coarse: result.coarse, ...result });
         const bits = Object.entries(result.counts).filter(([, n]) => n > 0).map(([k, n]) => `${k}=${n}`).join(' ');

@@ -419,7 +419,8 @@
   }
 
   .expense-list-page .page-actions .btn {
-    min-height: 40px;
+    /* Height belongs to the shared .btn phone floor (44px, design-guidelines
+       §5); this page rule shrank primary actions to 40px — removed 2026-09-26. */
     border-radius: 13px;
     padding-inline: 18px;
     flex: 0 0 auto;
