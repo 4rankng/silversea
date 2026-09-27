@@ -12,6 +12,7 @@ import { useMonth } from '../../../hooks/useMonth';
 import { useTripOptions } from '../../../hooks/useTripOptions';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
+import { useVehicleRouteOptions, VehicleDriverSelect, FleetFilterFields } from './DetailedPlanVehicleFilters';
 
 export interface FacetItem {
   id: number;
@@ -142,6 +143,8 @@ export function DetailedPlanFilters({
     () => customers.map((customer) => ({ value: String(customer.id), label: customer.label })),
     [customers],
   );
+
+  const { fleetOptions, routeOptions } = useVehicleRouteOptions();
   const rangeValue: DateRangeValue = {
     from: filters.date || filters.dateFrom,
     to: filters.date || filters.dateTo,
@@ -169,9 +172,19 @@ export function DetailedPlanFilters({
     filters.direction !== '',
     filters.assignmentStatus !== '',
     filters.dataStatus !== '',
+    filters.truckPlate !== '',
+    filters.driverId != null,
+    filters.carrierClass !== '',
+    filters.trailerType !== '',
+    filters.routeId != null,
   ].filter(Boolean).length;
   const appliedFilterCount = activeDrawerFilterCount + activeQuickFacetCount;
   const hasActiveFilters = activeDrawerFilterCount > 0
+    || filters.truckPlate !== ''
+    || filters.driverId != null
+    || filters.carrierClass !== ''
+    || filters.trailerType !== ''
+    || filters.routeId != null
     || filters.direction !== ''
     || filters.assignmentStatus !== ''
     || filters.customerId != null
@@ -343,6 +356,7 @@ export function DetailedPlanFilters({
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-quick">
             <h3 id="detailed-plan-filter-quick" className="detailed-plan-filter-panel__title">Bộ lọc nhanh</h3>
             <div className="detailed-plan-filter-panel__quick">
+              <VehicleDriverSelect filters={filters} fleetOptions={fleetOptions} onChange={onChange} />
               <SearchableSelect
                 id="detailed-plan-customer"
                 value={String(filters.customerId ?? '')}
@@ -411,6 +425,7 @@ export function DetailedPlanFilters({
               <FacetMultiSelect label="Điểm trả" selected={filters.deliveryPointIds} onSelectionChange={(ids) => onChange({ deliveryPointIds: ids })} loadFacets={loadDeliveryPointFacets} />
             </div>
           </section>
+          <FleetFilterFields filters={filters} routeOptions={routeOptions} onChange={onChange} />
         </div>
       </Drawer>
     </>

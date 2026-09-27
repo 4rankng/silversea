@@ -212,6 +212,42 @@ dispatchPlanningRoutes.get(
       if (value !== 'COMPLETE' && value !== 'MISSING') throw new ApiError(400, 'dataStatus không hợp lệ.');
       return value as 'COMPLETE' | 'MISSING';
     })();
+    // Card 20260927_61 advanced filters (CHIEF rulings 27/09).
+    const truckPlate = (() => {
+      const raw = req.query.truckPlate;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim();
+      if (value.length < 4 || value.length > 20) throw new ApiError(400, 'truckPlate không hợp lệ.');
+      return value;
+    })();
+    const driverId = (() => {
+      const raw = req.query.driverId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'driverId không hợp lệ.');
+      return value;
+    })();
+    const carrierClass = (() => {
+      const raw = req.query.carrierClass;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== 'OWN' && value !== 'EXTERNAL') throw new ApiError(400, 'carrierClass không hợp lệ.');
+      return value as 'OWN' | 'EXTERNAL';
+    })();
+    const trailerType = (() => {
+      const raw = req.query.trailerType;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== '20FT' && value !== '40FT') throw new ApiError(400, 'trailerType không hợp lệ.');
+      return value;
+    })();
+    const routeId = (() => {
+      const raw = req.query.routeId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'routeId không hợp lệ.');
+      return value;
+    })();
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
       page: typeof req.query.page === 'string' && Number.isInteger(Number(req.query.page)) && Number(req.query.page) > 0
@@ -232,6 +268,11 @@ dispatchPlanningRoutes.get(
       zone,
       customerId,
       dataStatus,
+      truckPlate,
+      driverId,
+      carrierClass,
+      trailerType,
+      routeId,
     }));
   }),
 );

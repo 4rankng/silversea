@@ -65,6 +65,18 @@ export interface ListDispatchDetailPlanRowsInput {
   customerId?: number;
   /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
   dataStatus?: 'COMPLETE' | 'MISSING';
+  /** Card 20260927_61 (CHIEF rulings 27/09): assignment-scoped filters match
+   *  the EFFECTIVE assignment only — the row's current planned plate; no
+   *  reassignment history. */
+  truckPlate?: string;
+  /** Driver of the assigned OWN truck (active PRIMARY assignment). */
+  driverId?: number;
+  /** Đội xe: OWN = xe nhà, EXTERNAL = thầu ngoài (plannedCarrierType). */
+  carrierClass?: 'OWN' | 'EXTERNAL';
+  /** Assigned truck's trailer type (trucks.trailer_type). */
+  trailerType?: string;
+  /** Route of the LOT (FCL container→lot fallback), lot-first per ruling. */
+  routeId?: number;
 }
 
 /**
@@ -316,6 +328,28 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         : undefined,
       input.customerId ? eq(s.shipments.customerId, input.customerId) : undefined,
       input.dataStatus ? dispatchDetailDataStatusSql(input.dataStatus) : undefined,
+      // Card 20260927_61 advanced filters. Plate equality is the effective
+      // assignment key (the editor stores the formatted plate on the row).
+      input.truckPlate ? eq(s.shipmentFulfillments.plannedVehiclePlateNumber, input.truckPlate) : undefined,
+      input.driverId ? sql`${s.shipmentFulfillments.plannedVehiclePlateNumber} in (
+        select t.license_plate from ${s.trucks} t
+        where exists (
+          select 1 from ${s.truckDriverAssignments} a
+          where a.truck_id = t.id and a.driver_id = ${input.driverId}
+            and a.role = 'PRIMARY' and a.ends_at is null
+        )
+      )` : undefined,
+      input.carrierClass ? eq(s.shipmentFulfillments.plannedCarrierType, input.carrierClass) : undefined,
+      input.trailerType ? sql`exists (
+        select 1 from ${s.trucks} t
+        where t.license_plate = ${s.shipmentFulfillments.plannedVehiclePlateNumber}
+          and t.trailer_type = ${input.trailerType}
+      )` : undefined,
+      // Lot-first route: same FCL container→lot fallback the row's Tuyến
+      // cell renders, so a filter on the displayed route never lies.
+      input.routeId ? sql`(case when ${s.shipmentFulfillments.cargoMode} = 'FCL'
+        then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+        else ${s.shipments.routeId} end) = ${input.routeId}` : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -332,6 +366,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       assignmentStatus: input.assignmentStatus ?? null,
       customerId: input.customerId ?? null,
       dataStatus: input.dataStatus ?? null,
+      truckPlate: input.truckPlate ?? null,
+      driverId: input.driverId ?? null,
+      carrierClass: input.carrierClass ?? null,
+      trailerType: input.trailerType ?? null,
+      routeId: input.routeId ?? null,
     };
     const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
     const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);

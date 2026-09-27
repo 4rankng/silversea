@@ -51,6 +51,14 @@ export interface FulfillmentLessFilters {
   customerId?: number | null;
   /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
   dataStatus?: 'COMPLETE' | 'MISSING' | null;
+  /** Card 20260927_61: assignment-scoped filters — this branch is inherently
+   *  unassigned, so any of them (other than the route) empties it. */
+  truckPlate?: string | null;
+  driverId?: number | null;
+  carrierClass?: 'OWN' | 'EXTERNAL' | null;
+  trailerType?: string | null;
+  /** Route of the LOT — this branch DOES carry route parity. */
+  routeId?: number | null;
 }
 
 const TRANSPORT_DATE_SQL = sql<string>`coalesce(
@@ -93,13 +101,24 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
     // COMPLETE/MISSING intake-data predicate.
     filters.customerId ? eq(s.shipments.customerId, filters.customerId) : undefined,
     filters.dataStatus ? dispatchDetailDataStatusSql(filters.dataStatus) : undefined,
+    // Card 20260927_61 route parity: the lot route (same FCL fallback as the
+    // rows join below), lot-first per ruling.
+    filters.routeId ? sql`exists (select 1 from ${s.routes} r where r.id = (case when ${s.shipments.cargoMode} = 'FCL'
+      then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+      else ${s.shipments.routeId} end) and r.id = ${filters.routeId})` : undefined,
     shipmentQSearchPredicate(buildPattern(filters.q), { containerNumber: true }),
   ].filter((c): c is SQL => c != null);
 }
 
-/** The branch is inherently unassigned — an ASSIGNED filter empties it. */
+/** The branch is inherently unassigned — an ASSIGNED filter or any
+ *  assignment-scoped _61 filter (plate/driver/carrier class/trailer type)
+ *  empties it; the route filter keeps it (route parity is real here). */
 function branchActive(filters: FulfillmentLessFilters): boolean {
-  return filters.assignmentStatus !== 'ASSIGNED';
+  return filters.assignmentStatus !== 'ASSIGNED'
+    && filters.truckPlate == null
+    && filters.driverId == null
+    && filters.carrierClass == null
+    && filters.trailerType == null;
 }
 
 export async function listFulfillmentLessReadyRows(

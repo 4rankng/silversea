@@ -1,4 +1,4 @@
-import { createDefaultDetailedPlanFilters, detailPlanQuery, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
+import { createDefaultDetailedPlanFilters, detailPlanQuery, detailPlanViewSignature, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
 import { compareDetailPlanRows, nextDetailPlanSortState } from './detailedPlanSort';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
@@ -123,21 +123,7 @@ export function useDispatchDetailPlan() {
   const viewSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const requestId = ++requestIdRef.current;
-    const viewSignature = JSON.stringify([
-      page,
-      debouncedQ,
-      filters.date,
-      filters.dateFrom,
-      filters.dateTo,
-      filters.direction,
-      filters.assignmentStatus,
-      filters.pickupIds,
-      filters.dropoffIds,
-      filters.deliveryPointIds,
-      filters.hourFrom,
-      filters.hourTo,
-      filters.zone,
-    ]);
+    const viewSignature = detailPlanViewSignature(page, debouncedQ, filters);
     // Background refreshes must keep the table mounted: swapping it for the
     // skeleton unmounts the open row editor mid-edit and silently discards
     // the dispatcher's drafted carrier/vehicle/note changes (2026-09-09 bug:
@@ -165,7 +151,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.date, filters.dateFrom, filters.dateTo, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch with stale data patches
+  }, [page, debouncedQ, filters.date, filters.dateFrom, filters.dateTo, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, filters.truckPlate, filters.driverId, filters.carrierClass, filters.trailerType, filters.routeId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch with stale data patches
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));

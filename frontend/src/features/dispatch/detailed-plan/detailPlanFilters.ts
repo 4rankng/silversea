@@ -21,6 +21,13 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   customerId: number | null;
   /** '' = Tất cả; COMPLETE/MISSING intake-data predicate (card _50). */
   dataStatus: 'COMPLETE' | 'MISSING' | '';
+  /** Card 20260927_61 advanced filters (CHIEF rulings 27/09). Assignment-
+   *  scoped fields match the EFFECTIVE assignment; routeId rides the LOT. */
+  truckPlate: string;
+  driverId: number | null;
+  carrierClass: 'OWN' | 'EXTERNAL' | '';
+  trailerType: '20FT' | '40FT' | '';
+  routeId: number | null;
 }
 
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
@@ -38,6 +45,11 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   zone: '',
   customerId: null,
   dataStatus: '',
+  truckPlate: '',
+  driverId: null,
+  carrierClass: '',
+  trailerType: '',
+  routeId: null,
 };
 
 export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
@@ -66,5 +78,38 @@ export function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
     ...(filters.zone ? { zone: filters.zone } : {}),
     ...(filters.customerId ? { customerId: filters.customerId } : {}),
     ...(filters.dataStatus ? { dataStatus: filters.dataStatus } : {}),
+    ...(filters.truckPlate ? { truckPlate: filters.truckPlate } : {}),
+    ...(filters.driverId ? { driverId: filters.driverId } : {}),
+    ...(filters.carrierClass ? { carrierClass: filters.carrierClass } : {}),
+    ...(filters.trailerType ? { trailerType: filters.trailerType } : {}),
+    ...(filters.routeId ? { routeId: filters.routeId } : {}),
   };
+}
+
+/** View signature of the in-flight/last fetch — page + every enumerated
+ * filter. Lets the hook tell a real view change from a background refresh
+ * tick without duplicating the field list in the component file. */
+export function detailPlanViewSignature(page: number, q: string, filters: DetailedPlanFilterState) {
+  return JSON.stringify([
+    page,
+    q,
+    filters.date,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.direction,
+    filters.assignmentStatus,
+    filters.pickupIds,
+    filters.dropoffIds,
+    filters.deliveryPointIds,
+    filters.hourFrom,
+    filters.hourTo,
+    filters.zone,
+    filters.customerId,
+    filters.dataStatus,
+    filters.truckPlate,
+    filters.driverId,
+    filters.carrierClass,
+    filters.trailerType,
+    filters.routeId,
+  ]);
 }
