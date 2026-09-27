@@ -3,7 +3,8 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
-import { Search, ChevronRight, Gift } from 'lucide-react';
+import { ChevronRight, Gift } from 'lucide-react';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -473,32 +474,29 @@ export default function PayableListPage() {
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">
-        {/* Category filter group — the shared boxed Tabs primitive (operator
-            ruling 2026-09-27); className is a layout-only spacing hook. */}
-        <Tabs
-          className="payables-category-chips"
-          variant="boxed"
-          tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
-          value={category ?? 'all'}
-          onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
-          ariaLabel="Lọc theo loại công nợ"
-        />
-
-        {/* Toolbar row */}
-        <div className="payables-toolbar">
-          <div className="payables-toolbar__spacer" />
-          <div className="payables-toolbar__search">
-            <Search size={14} style={{ color: 'var(--ink-3)' }} />
-            <input
-              type="text"
-              name="supplierPayableSearch"
-              aria-label="Tìm công nợ theo nhà cung cấp"
-              placeholder="Tìm nhà cung cấp..."
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
+        {/* Card 20260927_152 — the shared bar owns the strip's layout, the
+            search chrome and every control width. The category group is the
+            shared boxed `Tabs` primitive (operator ruling 2026-09-27) and rides
+            the bar's quick-filter slot, so this page declares no filter layout
+            and no control width of its own. */}
+        <ListFilterBar
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+            placeholder: 'Tìm nhà cung cấp...',
+            ariaLabel: 'Tìm công nợ theo nhà cung cấp',
+            inputProps: { name: 'supplierPayableSearch' },
+          }}
+          quickFilters={(
+            <Tabs
+              variant="boxed"
+              tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
+              value={category ?? 'all'}
+              onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
+              ariaLabel="Lọc theo loại công nợ"
             />
-          </div>
-        </div>
+          )}
+        />
 
         {error && (
           <div className="panel" style={{ padding: 16, color: 'var(--danger)', marginBottom: 20 }}>

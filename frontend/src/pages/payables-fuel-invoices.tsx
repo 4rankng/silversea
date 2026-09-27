@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, ClipboardList, Droplets, Eye, FilePenLine, Plus, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Droplets, FilePenLine, Plus, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { SupplierType, round2dp, type TripExpense } from '@tingting/shared';
 
 import { qk } from '../api/keys';
 import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { Panel, Modal } from '../components/UI';
+import { FuelInvoiceFilters } from '../features/payables/FuelInvoiceFilters';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import { SortHeader } from '../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
@@ -68,14 +69,6 @@ const STATUS_META: Record<FuelInvoiceStatus, { label: string; className: string;
   APPROVED: { label: 'Đã ghi nhận (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--approved', icon: CheckCircle2 },
   REJECTED: { label: 'Từ chối (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
 };
-
-const STATUS_OPTIONS: Array<{ value: '' | FuelInvoiceStatus; label: string }> = [
-  { value: '', label: 'Tất cả trạng thái' },
-  { value: 'DRAFT', label: 'Bản nháp' },
-  { value: 'RECORDED', label: 'Đã ghi nhận' },
-  { value: 'VOIDED', label: 'Đã hủy' },
-  { value: 'REVERSED', label: 'Đã hoàn tác' },
-];
 
 let rowSequence = 0;
 
@@ -830,41 +823,19 @@ export function FuelInvoicesPanel() {
           <FuelInvoiceSummaryMetric icon={Truck} label="Giá trị hóa đơn" value={formatCurrency(summary.totalAmount)} />
         </div>
 
-        <div className="fuel-invoices-toolbar">
-          <div className="payables-toolbar__search fuel-invoices-toolbar__search">
-            <Eye size={14} aria-hidden="true" style={{ color: 'var(--ink-3)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm theo số hóa đơn hoặc nhà cung cấp…"
-              aria-label="Tìm hóa đơn nhiên liệu"
-            />
-          </div>
-          <UuiSelectField
-            label="Lọc nhà cung cấp nhiên liệu"
-            hideLabel
-            value={supplierFilter}
-            onChange={(event) => setSupplierFilter(event.target.value)}
-            aria-label="Lọc nhà cung cấp nhiên liệu"
-            options={[{ value: '', label: 'Tất cả nhà cung cấp nhiên liệu' }, ...suppliers
-              .slice()
-              .sort((left, right) => left.name.localeCompare(right.name, 'vi'))
-              .map((supplier) => ({ value: String(supplier.id), label: supplier.name }))]}
-            inline
-            controlClassName="fuel-invoices-toolbar__select"
-          />
-          <UuiSelectField
-            label="Lọc trạng thái hóa đơn nhiên liệu"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as FuelInvoiceStatus | '')}
-            aria-label="Lọc trạng thái hóa đơn nhiên liệu"
-            options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-            inline
-            controlClassName="fuel-invoices-toolbar__select"
-          />
-        </div>
+        {/* Card 20260927_152: the ONE shared strip — the search cell plus the
+            supplier/status criteria, which render inline while the strip fits
+            two rows and fold into `Bộ lọc` when the width leaves no other
+            choice. The panel declares no filter layout of its own. */}
+        <FuelInvoiceFilters
+          search={search}
+          onSearchChange={setSearch}
+          supplier={supplierFilter}
+          onSupplierChange={setSupplierFilter}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+          suppliers={suppliers}
+        />
 
         {invoicesQuery.error && (
           <div className="fuel-invoice-warning fuel-invoice-warning--error" role="alert">

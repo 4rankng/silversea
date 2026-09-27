@@ -1,0 +1,18 @@
+/* PeriodFilter — the ledger period plane (card 20260927_152).
+ *
+ * The group is ONE item of the shared filter strip, so its parts ride the ONE
+ * row discipline (`.filter-bar`, FilterBar.css): the boxed mode switch, the
+ * month/year selects or the shared from/to date group, and the Áp dụng action
+ * pack into as few lines as the width allows, and every part keeps the width
+ * its value asks for. This sheet declares no layout of its own — it only drops
+ * the bottom margin a TOP-LEVEL bar carries (`margin: 0 0 16px`), which would
+ * otherwise lift the group 16px above the siblings it shares a line with.
+ *
+ * The page-local `fieldset` chrome, the `flex flex-col lg:flex-row` stack and
+ * the `w-full`/`lg:w-auto` stretch this component used to declare are deleted:
+ * a control that owns a full row is exactly the operator's 2026-09-27 defect
+ * ("some control the value very short but why the fuck it does take full row").
+ */
+.period-filter.filter-bar {
+  margin: 0;
+}

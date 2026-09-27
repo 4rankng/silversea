@@ -142,52 +142,16 @@
   box-shadow: none;
 }
 
-/* ── Toolbar inside data card ────────────────────────────────────────────── */
-.payables-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.payables-toolbar__spacer {
-  flex: 1;
-}
-
-.payables-toolbar__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-1, #F7F8FA);
-  border: 1px solid var(--line, #EAECEF);
-  border-radius: var(--r-sm, 8px);
-  padding: 8px 14px;
-  min-height: var(--filter-control-h);
-  width: 300px;
-  transition: border-color 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-              box-shadow 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
-}
-
-.payables-toolbar__search:focus-within {
-  border-color: var(--brand, #005a2d);
-  box-shadow: 0 0 0 3px rgba(0, 90, 45, 0.1);
-}
-
-.payables-toolbar__search input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: var(--control-field-font-size);
-  line-height: 1.35;
-  min-height: 32px;
-  color: var(--ink, #0A0A0A);
-  width: 100%;
-  font-family: inherit;
-}
-
-.payables-toolbar__search input::placeholder {
-  color: var(--ink-3, #8B919B);
-}
+/* ── Filter strip ───────────────────────────────────────────────────────────
+ * Card 20260927_152 — the strip is the shared `ListFilterBar` and the category
+ * group rides its quick-filter slot, so this sheet declares no filter layout
+ * and no control width of its own. What the page used to declare here — the
+ * `.payables-toolbar` flex row, its `.payables-toolbar__spacer`, and the
+ * `.payables-toolbar__search` shell with its 300px width, its `min-height` and
+ * its `width: 100%` input — is deleted: FilterBar.css owns the row packing, the
+ * growing search cell and every control width, and a page rule with higher
+ * specificity is exactly how the operator's 2026-09-27 "why the fuck it does
+ * take full row" regression returned twice. */
 
 /* ============================================================================
  * Operational canvas (<=1500px) — the desktop shell leaves less than the
@@ -218,10 +182,6 @@
 
   .payables-data-card {
     padding: 16px;
-  }
-
-  .payables-toolbar__search {
-    width: 240px;
   }
 }
 
@@ -274,21 +234,6 @@
     border-radius: var(--r, 12px);
   }
 
-  .payables-toolbar {
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .payables-toolbar__search {
-    width: 100%;
-    order: -1;
-    min-height: 44px;
-  }
-
-  .payables-page .payables-category-chips {
-    margin-bottom: 12px;
-  }
-
   /* Mobile amount text in card list */
   .payables-page .m-card .m-card__row-value {
     font-family: var(--font-data);
@@ -312,12 +257,13 @@
  * V2 — Category filter group + commission posting form
  * ========================================================================== */
 
-/* Category filter group is the shared boxed Tabs primitive (operator ruling
-   2026-09-27); this class is a layout-only hook spacing the group above the
-   table. */
-.payables-page .payables-category-chips {
-  margin-bottom: 16px;
-}
+/* The category filter group is the shared boxed Tabs primitive (operator
+   ruling 2026-09-27) and rides the shared bar's quick-filter slot (card
+   20260927_152), so it needs no page-local spacing hook: the bar's own gap and
+   card chrome space it. `.payables-category-chips` is deleted with its
+   `margin-bottom` rules (base + the ≤640 band) — a page rule that re-spaces a
+   control the bar already lays out is the same specificity trap the filter law
+   bans. */
 
 /* Commission posting form (inside Modal).
    NOTE: the Modal is rendered through a portal at document.body, OUTSIDE the

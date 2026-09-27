@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PeriodFilter } from './PeriodFilter';
 
 describe('PeriodFilter', () => {
@@ -13,7 +13,7 @@ describe('PeriodFilter', () => {
     dateTo: '2026-07-31',
   } as const;
 
-  it('stacks the mode toggle and month controls until the large breakpoint', () => {
+  it('renders the mode switch and the month controls as one shared-bar group', () => {
     render(
       <PeriodFilter
         {...baseProps}
@@ -21,9 +21,13 @@ describe('PeriodFilter', () => {
       />,
     );
 
+    // Card 20260927_152: the group is ONE item of the shared strip, so it rides
+    // the shared row discipline and declares no page-local layout of its own
+    // (the `fieldset` chrome and the `flex flex-col lg:flex-row` stack are gone).
     const root = screen.getByRole('group', { name: 'Bộ lọc thời gian' });
     expect(root.className).toContain('period-filter');
-    expect(root.className).toContain('border-y');
+    expect(root.className).toContain('filter-bar');
+    expect(root.className).not.toContain('border-y');
 
     // Mode switch is the shared boxed Tabs primitive (one group shape app-wide).
     const modeToggle = screen.getByRole('tablist', { name: 'Chế độ lọc' });
@@ -40,22 +44,35 @@ describe('PeriodFilter', () => {
     expect(buttonTriggers.length + comboboxTriggers.length).toBe(2);
   });
 
-  it('renders the range inputs as a two-column block with full-width fields', () => {
+  it('renders the shared from/to date group and refuses an out-of-order range', () => {
+    const onRangeChange = vi.fn();
     render(
       <PeriodFilter
         {...baseProps}
         mode="range"
+        onRangeChange={onRangeChange}
       />,
     );
 
-    const inputs = screen.getAllByDisplayValue(/07\/2026$/);
-    expect(inputs).toHaveLength(2);
-    inputs.forEach(input => {
-      expect((input as HTMLElement).className).toContain('w-full');
-    });
+    // Card 20260927_152: Từ/Đến are the shared `DateRangeFields` group — two
+    // independent fields inside one `role="group"`, cross-clamped by each
+    // other's min/max (CHIEF 2026-09-27: "choose from and to separately instead
+    // of one long control"). The page-local two-column block with full-width
+    // fields is deleted with the layout it declared.
+    const group = screen.getByRole('group', { name: 'Khoảng ngày' });
+    const from = screen.getByLabelText('Từ ngày');
+    const to = screen.getByLabelText('Đến ngày');
+    expect(group).toContainElement(from);
+    expect(group).toContainElement(to);
 
-    const labels = screen.getAllByText(/Từ ngày|Đến ngày/);
-    expect(labels).toHaveLength(2);
+    // A Từ ngày inside the range is emitted for both ends of the pair…
+    fireEvent.change(from, { target: { value: '05/07/2026' } });
+    expect(onRangeChange).toHaveBeenCalledWith({ dateFrom: '2026-07-05', dateTo: '2026-07-31' });
+
+    // …and one past Đến ngày is refused by the field's own bound.
+    onRangeChange.mockClear();
+    fireEvent.change(from, { target: { value: '05/08/2026' } });
+    expect(onRangeChange).not.toHaveBeenCalled();
 
     const root = screen.getByRole('group', { name: 'Bộ lọc thời gian' });
     expect(root.className).toContain('period-filter');

@@ -11,6 +11,8 @@ import { Modal } from '../components/UI';
 import { Tabs } from '../design-system';
 import type { TabItem } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { ListFilterBar } from '../components/ListFilterBar';
+import { FilterDropdown } from '../components/FilterDropdown';
 import { Tooltip } from '../components/shared/Tooltip';
 import AssetIcon from '../components/AssetIcon';
 import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
@@ -647,33 +649,40 @@ export default function DebtDetailPage() {
                   <p>Toàn bộ cước, phí chi hộ, khoản đã thu và điều chỉnh của khách hàng.</p>
                 </div>
                 <span className="dd-cnt">{filteredRows.length} giao dịch</span>
-                <div className="dd-filters">
-                  {FILTER_OPTIONS.map(f => (
-                    <button
-                      key={f.key}
-                      className={`dd-filter-chip${ledgerFilter === f.key ? ' dd-filter-chip--on' : ''}`}
-                      onClick={() => setLedgerFilter(f.key)}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
-              {/* Period filter + period summary (số dư đầu kỳ / phát sinh / cuối kỳ) */}
-              <PeriodFilter
-                mode={period.mode}
-                onModeChange={(m) => setPeriod(p => applyModeSwitch(p, m))}
-                month={period.month}
-                year={period.year}
-                onMonthYearChange={({ month, year }) => setPeriod(p => ({ ...p, month, year }))}
-                dateFrom={period.dateFrom}
-                dateTo={period.dateTo}
-                onRangeChange={(next) => setPeriod(p => ({ ...p, ...next }))}
-                onApply={() => setAppliedPeriod(period)}
-                isApplying={isStatementFetching}
-                isApplyDisabled={!isPeriodDirty || isStatementFetching}
-              />
+              {/* ONE filter plane (card 20260927_152): the shared `ListFilterBar`
+                  hosts the period control as its primary criterion and the
+                  ledger's txn-type chips ride `Bộ lọc` (the page's only
+                  secondary criterion). */}
+              <ListFilterBar>
+                <PeriodFilter
+                  mode={period.mode}
+                  onModeChange={(m) => setPeriod(p => applyModeSwitch(p, m))}
+                  month={period.month}
+                  year={period.year}
+                  onMonthYearChange={({ month, year }) => setPeriod(p => ({ ...p, month, year }))}
+                  dateFrom={period.dateFrom}
+                  dateTo={period.dateTo}
+                  onRangeChange={(next) => setPeriod(p => ({ ...p, ...next }))}
+                  onApply={() => setAppliedPeriod(period)}
+                  isApplying={isStatementFetching}
+                  isApplyDisabled={!isPeriodDirty || isStatementFetching}
+                />
+                {/* `Bộ lọc` rides LAST: the item that arrives and leaves as the width changes. */}
+                <FilterDropdown
+                  count={ledgerFilter === 'all' ? 0 : 1}
+                  ariaLabel="Bộ lọc"
+                  dialogLabel="Bộ lọc giao dịch"
+                  onReset={() => setLedgerFilter('all')}
+                >
+                  {FILTER_OPTIONS.map(f => (
+                    <button key={f.key} type="button" aria-pressed={ledgerFilter === f.key}
+                      className={`filter-chip${ledgerFilter === f.key ? ' is-active' : ''}`}
+                      onClick={() => setLedgerFilter(f.key)}>{f.label}</button>
+                  ))}
+                </FilterDropdown>
+              </ListFilterBar>
               <PeriodSummaryCards
                 summary={statement?.periodSummary}
                 isLoading={isStatementFetching}

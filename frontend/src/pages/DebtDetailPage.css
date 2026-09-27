@@ -580,7 +580,11 @@
   margin-bottom: 12px;
   padding: 0 0 12px;
 }
+/* The chips that used to pin themselves to this row's right end are gone with
+   the retired ledger filter row; the count takes over that role so the header
+   row keeps its right-hand anchor. */
 .dd-ledger-head .dd-cnt {
+  margin-left: auto;
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 600;
@@ -628,42 +632,11 @@
   box-shadow: none;
 }
 
-.dd-ledger-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 0 0 10px;
-  border-bottom: 0;
-  background: transparent;
-}
-
-.dd-filters {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.dd-filter-chip {
-  min-height: var(--filter-control-h);
-  padding: 8px 14px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  font-family: var(--font-display);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: var(--t-fast);
-  white-space: nowrap;
-}
-.dd-filter-chip:hover { border-color: var(--ink-2); }
-.dd-filter-chip--on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--fg-on-brand);
-}
+/* The ledger's filter plane is the shared `ListFilterBar` (card 20260927_152):
+   the ledger toolbar, the chip row and the chip skin are deleted — the page
+   declares no filter layout, no filter width and no control height. The chips
+   ride `filter-chip` and the period control rides `PeriodFilter` inside the
+   bar; both read FilterBar.css. */
 
 /* ─── Grouped Ledger Layout ───────────────────────────────────────────────── */
 
@@ -1106,10 +1079,6 @@
   .debt-detail-page .dd-ledger-groups {
     padding: 10px;
     gap: 10px;
-  }
-  .debt-detail-page .dd-ledger-toolbar {
-    justify-content: flex-start;
-    padding: 0 0 8px;
   }
   .debt-detail-page .dd-route-card-head {
     grid-template-columns: minmax(0, 1fr);
@@ -1555,17 +1524,6 @@
     flex-wrap: wrap;
     align-items: flex-start;
   }
-  .debt-detail-page .dd-filters {
-    flex-basis: 100%;
-    margin-left: 0;
-    /* Chips wrap instead of a hidden-scrollbar swipe strip: every filter
-       stays reachable on touch. */
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .debt-detail-page .dd-filters > * {
-    flex-shrink: 0;
-  }
 }
 
 /* ─── Animation ─────────────────────────────────────────────────────────────── */
@@ -1722,18 +1680,6 @@
   .debt-detail-page .dd-ledger-head h2 {
     font-size: var(--text-section-size);
   }
-  .debt-detail-page .dd-filters {
-    margin-left: 0;
-    flex-basis: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .debt-detail-page .dd-filter-chip {
-    min-height: 44px;
-    padding: 8px 12px;
-    font-size: var(--fs-xs);
-    flex-shrink: 0;
-  }
 }
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
@@ -1747,8 +1693,6 @@
   .dd-actions .btn { width: 100%; justify-content: center; }
   .dd-ledger-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
   .dd-ledger-head h2 { font-size: var(--text-section-size); }
-  .dd-filters { width: 100%; flex-wrap: wrap; gap: 8px; }
-  .dd-filters > * { flex-shrink: 0; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }
   /* Accounting ledger: stack the 5-column debit/credit rows instead of the
      700px swipe grid. The column head row loses meaning once rows stack, so
