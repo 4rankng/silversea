@@ -724,8 +724,9 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Header: the display key carries a copy button.
-    expect(screen.getByRole('button', { name: 'Copy Số Bill / Booking' })).toBeTruthy();
+    // Card _62: the header copy button is REMOVED — copy affordances live on
+    // the grid rows only.
+    expect(screen.queryByRole('button', { name: 'Copy Số Bill / Booking' })).toBeNull();
     // Invoice MST rows (collapsed by default): expand, then check both copy
     // buttons. Base fixture has factory MST absent — expand shows the empty
     // note, so assert on the header copy + the invoice section's MST when

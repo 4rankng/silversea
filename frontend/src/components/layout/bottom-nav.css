@@ -23,6 +23,17 @@
   background: var(--surface-2, #f4f6f4);
 }
 
+/* The iOS visual viewport can extend past the app's 100dvh (toolbar
+   collapse) — paint the body to match so the strip below the fixed nav is
+   the page tone, never a foreign gray band. */
+body:has(.app.is-driver .driver-task-screen) {
+  background: var(--surface-2, #f4f6f4);
+}
+
+body:has(.app.is-driver) {
+  background: var(--surface, #fff);
+}
+
 .app.is-driver .app-body {
   background: var(--surface);
 }

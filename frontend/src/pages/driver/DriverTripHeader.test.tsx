@@ -75,8 +75,10 @@ describe('DriverTripHeader — 20260926_26 two-line title block', () => {
       onBack={() => {}}
     />);
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
-    // Card _28 item 9: the display key is copyable.
-    expect(screen.getByRole('button', { name: 'Copy Số Bill / Booking' })).toBeTruthy();
+    // Card 20260926_62 (CHIEF): the header copy button is REMOVED — the
+    // orphaned glyph broke the title baseline at 390px. Copy affordances
+    // live on the grid rows only.
+    expect(screen.queryByRole('button', { name: 'Copy Số Bill / Booking' })).toBeNull();
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     expect(screen.getByTestId('close-status-chip').textContent).toBe('Đóng');
     expect(screen.getByText('SilverSea')).toBeTruthy();
