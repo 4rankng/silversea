@@ -9,6 +9,17 @@
         "--repo",
         "/Volumes/LexarSSD/projects/silversea-prod"
       ]
+    },
+    "repowise": {
+      "type": "local",
+      "command": [
+        "repowise",
+        "mcp",
+        "/Volumes/LexarSSD/projects/silversea-prod",
+        "--transport",
+        "stdio"
+      ],
+      "enabled": true
     }
   }
 }

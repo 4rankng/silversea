@@ -28,7 +28,7 @@ Card `20260927_1`, three user-reported defects on the driver task screen:
 `backend/src/services/driver.service.ts` (`blNumber` on the detail wire) ·
 `frontend/src/components/layout/bottom-nav.css` (canvas tone + `::after` band) ·
 `frontend/drv-repro.mjs` (re-runnable instrument) ·
-`testplan/case-QA-2026-09-27-01-driver-task-mobile-polish.md` ·
+`testplan/qa/cases/case-QA-2026-09-27-01-driver-task-mobile-polish.md` ·
 `qa/2026-09-27_driver-task-polish/` · one `docs/design-guidelines.md` §12 row.
 
 ## Local fixture (required; the local DB has no live driver task)
