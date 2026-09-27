@@ -17,7 +17,11 @@ describe('shared control density', () => {
 
     expect(tokens).toMatch(/--control-compact-h:\s*30px;/);
     expect(tokens).toMatch(/--control-default-h:\s*34px;/);
-    expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
+    // Operator ruling 2026-09-27: "text 11px 12px component size max 40px".
+    // The touch floor IS the ceiling now — a coarse pointer used to inflate a
+    // 12px field to 44px.
+    expect(tokens).toMatch(/--control-max-h:\s*40px;/);
+    expect(tokens).toMatch(/--control-touch-h:\s*var\(--control-max-h\);/);
     expect(tokens).toMatch(/--control-mobile-h:\s*var\(--control-touch-h\);/);
     expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--text-control-compact-size\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);

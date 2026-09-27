@@ -255,7 +255,15 @@
      a touch-safe minimum. Keep --control-h as the shell-compatible alias. */
   --control-compact-h: 30px;
   --control-default-h: 34px;
-  --control-touch-h: 44px;
+  /* Operator ruling 2026-09-27: "text 11px 12px component size max 40px" —
+     one ceiling for every form component, on every pointer. Touch devices used
+     to inflate a 30px filter field to 44px around 12px text (measured on
+     /shipments with a coarse pointer: search, date fields, `Bộ lọc` and the
+     quick-range chips all 44px), which read as an oversized box per the
+     operator's screenshot. The touch floor is now the same ceiling, so a
+     `var(--control-touch-h)` consumer inherits 40px everywhere. */
+  --control-max-h: 40px;
+  --control-touch-h: var(--control-max-h);
   /* Compact geometry is independent from readable typography. Phone text
      uses the same role scale; field text follows the same compact scale on every device. */
   --control-mobile-h: var(--control-touch-h);
@@ -267,7 +275,7 @@
   --control-compact-touch-font-size: var(--text-input-touch-size);
   --control-compact-touch-line-height: 20px;
   --control-field-font-size: var(--text-control-size);
-  --control-h: 44px;
+  --control-h: var(--control-max-h);
 
   /* Filter density is intentionally independent from general form controls.
      CUS and Điều vận use this compact desktop contract for high-frequency

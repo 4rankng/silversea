@@ -20,7 +20,7 @@
 }
 
 [data-uui-control][data-control-size='xl'] {
-  --uui-control-h: 44px;
+  --uui-control-h: var(--control-max-h);
 }
 
 [data-uui-control='button'][data-icon-only] {

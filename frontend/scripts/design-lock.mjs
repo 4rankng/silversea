@@ -71,7 +71,12 @@ function evaluateLock(lock) {
       return { pass: hits.length <= (lock.max ?? 0), actual: `${hits.length} clipped`, detail: hits.slice(0, 6) };
     }
     case 'tapFloor': {
-      const min = lock.min ?? 44;
+      // Operator ruling 2026-09-27: "text 11px 12px component size max 40px".
+      // The touch floor is the ceiling — a coarse pointer used to inflate a
+      // 12px filter field to 44px (the oversized box in the operator's
+      // /shipments screenshot). `min: 44` on a lock still asserts the old
+      // floor where a surface genuinely needs it.
+      const min = lock.min ?? 40;
       const hits = [];
       for (const el of document.querySelectorAll('a[href], button, [role=button], input:not([type=hidden]), select, textarea')) {
         if (!vis(el) || el.closest('[aria-hidden="true"]')) continue;
@@ -167,8 +172,24 @@ function evaluateLock(lock) {
     case 'rows': {
       const els = all(lock.selector);
       if (!els.length) return { pass: false, actual: 'selector matched nothing' };
-      const tops = [...new Set(els.map((el) => Math.round(el.getBoundingClientRect().top / 4) * 4))].sort((x, y) => x - y);
-      return { pass: tops.length === lock.n, actual: `${tops.length} visual rows (want ${lock.n})`, detail: els.slice(0, 6).map(desc) };
+      // A visual row is a band of elements sharing vertical space. Distinct
+      // `top` values are NOT rows: `.filter-bar` is `align-items: flex-end`, so
+      // two controls on one line legitimately have different tops (a 40px
+      // trigger beside a 30px chip). Group by range overlap, the way the
+      // ui-filter audit measures the same strip.
+      const boxes = els
+        .map((el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, el }; })
+        .sort((a, b) => a.top - b.top);
+      let rows = 0;
+      let lineBottom = -Infinity;
+      for (const box of boxes) {
+        if (box.top >= lineBottom - 2) { rows += 1; lineBottom = box.bottom; } else { lineBottom = Math.max(lineBottom, box.bottom); }
+      }
+      const detail = boxes.slice(0, 6).map((b) => desc(b.el));
+      if (lock.max != null) {
+        return { pass: rows <= lock.max, actual: `${rows} visual rows (max ${lock.max})`, detail };
+      }
+      return { pass: rows === lock.n, actual: `${rows} visual rows (want ${lock.n})`, detail };
     }
     case 'computed': {
       const el = first(lock.selector);
