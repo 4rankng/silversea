@@ -512,6 +512,7 @@ describe('DriverTripDetailPage', () => {
       'Địa chỉ nhà máy',
       'SĐT kho',
       'SĐT liên hệ',
+      'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
     ]);
@@ -527,7 +528,7 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBeUndefined();
   });
-  it('card _27: containers and seals live only in the Số cont & seal card, never in the info grid', async () => {
+  it('card _27 + operator ruling 2026-09-27: container reads in the info grid, seal lives in Số cont & seal card', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         containers: [
@@ -542,8 +543,8 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // The read-only duplicate rows are gone from the fact grid.
-    expect(screen.queryByText('Container / lô hàng')).toBeNull();
+    // The container row reads in the fact grid.
+    expect(screen.getByText('Container / lô hàng')).toBeTruthy();
     expect(screen.queryByText(/Seal SEAL-9/)).toBeNull();
     // The single home still carries both containers — the saved bento leads
     // with the first container's number.

@@ -110,6 +110,7 @@ describe('DriverTaskInfoSections', () => {
       'Địa chỉ nhà máy',
       'SĐT kho',
       'SĐT liên hệ',
+      'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
     ]);
@@ -350,6 +351,7 @@ describe('DriverTaskInfoSections', () => {
       'Địa chỉ nhà máy',
       'SĐT kho',
       'SĐT liên hệ',
+      'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
       'Trả cont rỗng',
@@ -413,12 +415,14 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('card _27: container and seal info leaves the info grid — one home, the Số cont & seal card', () => {
+  it('card _27 + operator ruling 2026-09-27: the container row reads in the grid, the seal row stays in its card', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    // The read-only duplicate rows are gone; the container card is the
-    // single home for cont/seal data.
-    expect(screen.queryByText('Container / lô hàng')).toBeNull();
+    // "we need to have container lô hàng like previous original design": the
+    // driver reads the container they haul here (number · type code), while
+    // the SEAL stays owned by the editable Số cont & seal card.
+    expect(screen.getByText('Container / lô hàng')).toBeTruthy();
+    expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 40G1');
     expect(screen.queryByText(/^Seal/)).toBeNull();
   });
 
@@ -449,5 +453,6 @@ it('renders a legacy task without a container array without crashing', () => {
   trip.containers = null as unknown as DriverTaskDetail['containers'];
   render(<DriverTaskInfoSections trip={trip} />);
   expect(screen.getByText('Tên nhà máy')).toBeTruthy();
-  expect(screen.queryByText('Container / lô hàng')).toBeNull();
+  // The row keeps its slot and dashes — a legacy payload never hides it.
+  expect(valueOf('Container / lô hàng')).toBe('—');
 });

@@ -10,8 +10,7 @@
   color: var(--sb-text);
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   border-right: 1px solid var(--sb-line);
   position: relative;

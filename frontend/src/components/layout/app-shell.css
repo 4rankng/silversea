@@ -27,10 +27,8 @@
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  grid-template-rows: 100vh;
-  grid-template-rows: 100dvh;
-  height: 100vh;
-  height: 100dvh;
+  grid-template-rows: 100%;
+  height: 100%;
   overflow: clip;
 }
 
@@ -154,8 +152,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow: clip;
   background: var(--bg);
 }

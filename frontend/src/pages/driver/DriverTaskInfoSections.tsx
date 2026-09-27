@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Phone, PhoneCall } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
@@ -22,9 +22,12 @@ import { driverLocationLabels } from '../../features/driver/driver-display';
  *   the header (line-2 location); Tên nhà máy + Địa chỉ nhà máy stay. The
  *   full-name row falls back to factoryName, so the old dash-dedup against
  *   the removed abbrev neighbor is retired with it.
- * - ITEM 6: container + seal info has ONE home — the Số cont & seal card
- *   (the editable one). The read-only "Container / lô hàng" and "Seal" grid
- *   rows are removed; the FCL/LCL mode label leaves this screen with them.
+ * - ITEM 6 (SUPERSEDED 2026-09-27, operator screenshot: "we need to have
+ *   container lô hàng like previous original design"): the read-only
+ *   "Container / lô hàng" row is BACK in the grid — the driver reads the
+ *   container they are hauling without opening the Số cont & seal card. The
+ *   SEAL row stays out (the seal card is the single home for seal data, which
+ *   is editable there), and the FCL/LCL mode label stays off this screen.
  * - ITEM 7: khoPhone and contactPhone are independent fields, so they CAN
  *   differ: identical numbers render ONE row; differing numbers render both
  *   rows with their own labels so the driver can call the right one.
@@ -38,6 +41,22 @@ function TaskFact({ icon, label, value, fullWidth, action }: { icon: React.React
       {action ? <div className="driver-task-fact__action">{action}</div> : null}
     </div>
   );
+}
+
+/** "MSCU7654329 · 20DC" per container; several containers comma-join. The type
+ *  code falls back to the type name, and a container with neither renders its
+ *  number alone — never a dangling separator. Shows "—" when no containers exist. */
+function containerLedgerValue(containers: DriverTaskDetail['containers']): string {
+  if (!containers || containers.length === 0) return '—';
+  const parts = containers
+    .map((container) => {
+      const num = container.containerNumber?.trim() || '';
+      const type = container.containerTypeCode?.trim() || container.containerTypeName?.trim() || '';
+      if (num && type) return `${num} · ${type}`;
+      return num || type || '';
+    })
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : '—';
 }
 
 /** One fee-invoice row reads "name · address · MST x" — each segment hides
@@ -144,6 +163,11 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {showContactPhoneRow ? (
             <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={contactPhone} />
           ) : null}
+          {/* Operator ruling 2026-09-27: the container the driver is hauling
+              reads here, in the original design's position (after the kho
+              phone, before the ports). Read-only — editing stays in the
+              Số cont & seal card. */}
+          <TaskFact icon={<Package size={16} />} label="Container / lô hàng" value={containerLedgerValue(trip.containers)} />
           <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
           {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
               empty-container return depot; for EXPORT the drop port. */}

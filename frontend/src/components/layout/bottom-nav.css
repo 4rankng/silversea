@@ -16,7 +16,7 @@
    content, not on scroll-extended captures, not in the safe-area strip. */
 .app.is-driver {
   background: var(--surface, #fff);
-  min-height: 100dvh;
+  min-height: 100%;
 }
 
 .app.is-driver:has(.driver-task-screen) {
