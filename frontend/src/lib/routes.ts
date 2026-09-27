@@ -31,6 +31,7 @@ export const routes = {
   fleet: PAGE_CATALOG.fleet.path,
   fleetVehicles: PAGE_CATALOG.fleetVehicles.path,
   fleetDrivers: PAGE_CATALOG.fleetDrivers.path,
+  fleetExternal: PAGE_CATALOG.fleetExternal.path,
   fleetTires: (truckId: number | string) => PAGE_CATALOG.fleetTires.path({ truckId }),
   fleetTrailerTires: (trailerId: number | string) => PAGE_CATALOG.fleetTrailerTires.path({ trailerId }),
   trips: PAGE_CATALOG.trips.path,
@@ -211,6 +212,7 @@ const titleRules: TitleRule[] = [
   // Exact matches before the /fleet startsWith catch-all so the dispatcher
   // catalog pages don't inherit the admin "Đội xe" title.
   { test: p => p === routes.fleetVehicles, title: PAGE_CATALOG.fleetVehicles.title },
+  { test: p => p === routes.fleetExternal, title: PAGE_CATALOG.fleetExternal.title },
   { test: p => p === routes.fleetDrivers, title: PAGE_CATALOG.fleetDrivers.title },
   // Tires sub-pages before the /fleet startsWith catch-all so the topbar shows
   // the tire catalog title, not the generic "Đội xe".
