@@ -800,7 +800,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     const toolbar = document.querySelector('.shipments-control__row--filters') as HTMLElement;
     expect(screen.getByLabelText('Tìm lô hàng')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Đến' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     expect(toolbar.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
@@ -2479,10 +2480,10 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
     expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
     expect(document.querySelector('.shipments-control__kbd')).toBeNull();
-    // Date-range trigger (replaces the two Từ/Đến inputs).
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
-    expect(screen.queryByLabelText('Từ ngày giao')).toBeNull();
-    expect(screen.queryByLabelText('Đến ngày giao')).toBeNull();
+    // Date-range: two side-by-side Từ/Đến controls (card 20260927_150 —
+    // CHIEF ruling reverses the single-trigger design).
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Đến' })).toBeTruthy();
     // Chip selects: label inside, defaults per spec.
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
@@ -2494,7 +2495,7 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
     expect(css).toMatch(/\.shipments-control__row--filters\s*\{[^}]*min-height:\s*32px/);
     expect(css).toMatch(/\.shipments-control__search\s*\{[^}]*width:\s*min\(280px, 100%\)/);
-    expect(css).toMatch(/\.shipments-control__range\s*\.date-range__trigger--sm\s*\{[^}]*width:\s*220px/);
+    expect(css).toMatch(/\.shipments-control__range\s*\.date-range__pair\s*\{[^}]*min-width:\s*220px/);
     expect(css).toMatch(/\.shipments-control__chip\s*\{[^}]*min-width:\s*110px/);
     expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*width:\s*160px/);
   });
@@ -2503,7 +2504,7 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     apiGet.mockResolvedValue(listResponse([row]));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' }));
     const dialog = await screen.findByRole('dialog', { name: 'Khoảng ngày giao' });
     // Presets render inside the popover.
     for (const label of ['Hôm nay', 'Hôm qua', '7 ngày qua', 'Tháng này']) {

@@ -131,7 +131,10 @@ html:has(body .app.is-driver) {
     left: 0;
     right: 0;
     top: 100%;
-    height: 160px;
+    /* 160px proved short on real iOS: when Safari's toolbar collapses the
+       revealed slack can exceed it. One viewport-height of band can never
+       run dry. */
+    height: 100dvh;
     background: var(--surface, #fff);
     z-index: -1;
   }

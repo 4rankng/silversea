@@ -114,7 +114,7 @@
 /* Inherits the shared content-sized range trigger (a fixed 220px clipped the
    trigger's own mask — 2026-09-27 role sweep, §4). The phone band below
    gives the range a full row so it is never squeezed into a half-width cell. */
-.shipments-control__range .date-range__trigger--sm {
+.shipments-control__range .date-range__pair {
   width: max-content;
   min-width: 220px;
   max-width: 100%;
@@ -2552,7 +2552,8 @@
     min-width: 0;
   }
 
-  .shipments-control__range .date-range__trigger--sm { width: 100%; }
+  .shipments-control__range .date-range__pair { width: 100%; }
+  .shipments-control__range .date-range__trigger--sm { flex: 1 1 0; }
 
   .shipments-control__chip,
   .shipments-control__plan { flex: 1 1 calc(50% - 4px); }

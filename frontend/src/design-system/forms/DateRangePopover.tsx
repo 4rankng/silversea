@@ -56,7 +56,7 @@ export function DateRangePopover({
   className = '',
 }: DateRangePopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const position = usePopoverPosition(panelRef, triggerRef, true, 520, 500);
   const close = useCallback(() => setIsOpen(false), []);
@@ -69,7 +69,8 @@ export function DateRangePopover({
     onChange({ from: value.from && date < value.from ? date : value.from, to: date });
   };
 
-  const label = value.from || value.to ? `${side(value.from)} - ${side(value.to)}` : placeholder;
+  const fromLabel = value.from ? side(value.from) : placeholder;
+  const toLabel = value.to ? side(value.to) : placeholder;
   const rootClass = ['date-range', className].filter(Boolean);
 
   const panel = isOpen ? (
@@ -128,22 +129,38 @@ export function DateRangePopover({
 
   return (
     <div className={rootClass.join(' ')} data-component="date-range">
-      <button
-        ref={triggerRef}
-        id={id}
-        type="button"
-        className={`date-range__trigger date-range__trigger--${size}${isOpen ? ' date-range__trigger--open' : ''}`}
-        onClick={() => (isOpen ? close() : setIsOpen(true))}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        aria-label={ariaLabel}
-      >
-        <CalendarDays size={14} aria-hidden="true" />
-        <span className={value.from || value.to ? 'date-range__label' : 'date-range__label date-range__label--placeholder'}>
-          {label}
-        </span>
-        <ChevronDown size={14} className="date-range__chevron" aria-hidden="true" />
-      </button>
+      {/* Card 20260927_150 (CHIEF ruling): Từ and Đến are two separate
+          side-by-side controls, not one long range trigger. Both open the
+          same dual-calendar popover. */}
+      <div className="date-range__pair" ref={triggerRef}>
+        <button
+          id={id}
+          type="button"
+          className={`date-range__trigger date-range__trigger--${size} date-range__trigger--from${isOpen ? ' date-range__trigger--open' : ''}`}
+          onClick={() => (isOpen ? close() : setIsOpen(true))}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-label={`${ariaLabel} — Từ`}
+        >
+          <CalendarDays size={14} aria-hidden="true" />
+          <span className={value.from ? 'date-range__label' : 'date-range__label date-range__label--placeholder'}>
+            Từ {fromLabel}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`date-range__trigger date-range__trigger--${size} date-range__trigger--to${isOpen ? ' date-range__trigger--open' : ''}`}
+          onClick={() => (isOpen ? close() : setIsOpen(true))}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-label={`${ariaLabel} — Đến`}
+        >
+          <span className={value.to ? 'date-range__label' : 'date-range__label date-range__label--placeholder'}>
+            Đến {toLabel}
+          </span>
+          <ChevronDown size={14} className="date-range__chevron" aria-hidden="true" />
+        </button>
+      </div>
       {typeof document !== 'undefined' ? createPortal(panel, document.body) : panel}
     </div>
   );

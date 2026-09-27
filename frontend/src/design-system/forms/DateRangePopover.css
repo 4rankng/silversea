@@ -4,30 +4,41 @@
 
 .date-range { position: relative; display: inline-flex; min-width: 0; }
 
+.date-range__pair {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .date-range__trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  /* Content-sized, floored to the house toolbar rhythm. A fixed width
-     ellipsized the trigger's OWN value — the empty-state mask
-     'DD/MM/YYYY - DD/MM/YYYY' measures 178px against a 174px label box at
-     236px total (2026-09-27 role sweep: /shipments, /shipments-debit,
-     /accounting/invoice-tracking, §4 no-truncation). max-content fits any
-     value the trigger can carry; max-width keeps it inside a narrow column. */
+  /* Card 20260927_150: Từ and Đến are two separate side-by-side controls.
+     Each half is content-sized with a floor so the date never truncates
+     (§4 no-truncation); the pair shares one border seam in the middle. */
   width: max-content;
-  min-width: 220px;
+  min-width: 128px;
   max-width: 100%;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--line, #d1d5db);
-  border-radius: 8px;
   background: var(--surface, #fff);
   color: var(--ink, #1f2937);
   font-size: var(--text-control-compact-size, 13px);
   cursor: pointer;
 }
 
-.date-range__trigger--md { height: 38px; width: 240px; }
+.date-range__trigger--from {
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+}
+
+.date-range__trigger--to {
+  border-radius: 0 8px 8px 0;
+}
+
+.date-range__trigger--md { height: 38px; min-width: 140px; }
 
 .date-range__trigger--open { border-color: var(--color-fg-brand-primary, #005a2d); }
 
