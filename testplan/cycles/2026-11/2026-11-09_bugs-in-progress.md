@@ -73,7 +73,7 @@ Cover 4 bugs reported on the IN_PROGRESS kanban board:
   - `qa/2026-11-09_bugs-ip_ui-003a-carrier-picker.png`
   - `qa/2026-11-09_bugs-ip_db-003.sql`
   - `qa/2026-11-09_bugs-ip_api-003.log`
-- **Existing coverage:** `testplan/qa/2026-09-10_dispatch-detailed-plan.md` TC-DDP-003, TC-DDP-004
+- **Existing coverage:** `testplan/cycles/2026-09/2026-09-10_dispatch-detailed-plan.md` TC-DDP-003, TC-DDP-004
 
 ### TC-IP-004 — Button click error does not occur
 

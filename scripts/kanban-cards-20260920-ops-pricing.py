@@ -7,7 +7,7 @@ import tempfile
 REPO = pathlib.Path('/Volumes/LexarSSD/projects/silversea-prod')
 KANBAN = pathlib.Path('/Users/dev/Library/CloudStorage/GoogleDrive-frankng.sg@gmail.com/My Drive/SilverSea/Kanban-PROD/TODO')
 EV = 'qa/2026-09-20_ops-pricing-docx-qa'
-SPEC = 'testplan/2026-09-20-ops-pricing-docx-qa.md'
+SPEC = 'testplan/cycles/2026-09/2026-09-20-ops-pricing-docx-qa.md'
 
 CARDS = [
     dict(
@@ -111,7 +111,7 @@ CARDS = [
         slug='debit-bang-2-3-chua-xac-dinh-phat-sinh', case_id='TC-CUOC-BUG-03',
         title='Bảng 2.3 “Phí HQGS / Phí Phát sinh” hard-code “Chưa xác định” — chi phí Ops đã nhập không lên bảng kê',
         status='TODO — phát hiện qua QA 2026-09-20 (local dev, buildHash dev)',
-        source=f'`Phương án tính cước tự động.docx` §4 (đối soát trên bảng kê) + `testplan/2026-09-18-chi-phi-quyet-toan.md` TC-DN-18-04. Phiên QA: `{SPEC}`, case **TC-CUOC-BUG-03**.',
+        source=f'`Phương án tính cước tự động.docx` §4 (đối soát trên bảng kê) + `testplan/cycles/2026-09/2026-09-18-chi-phi-quyet-toan.md` TC-DN-18-04. Phiên QA: `{SPEC}`, case **TC-CUOC-BUG-03**.',
         desc=[
             '`PayablesTable` (Bảng 2.3 — Phí Phải trả) render cứng `Chưa xác định` cho `Cước trả`, `Phí HQGS`, `Phí Phát sinh`, `Ghi chú`, không đọc `detail.payables`.',
             'API đã trả số thật: `payables.hqgsFee = 250000`, `opsExpenseTotal = 250000` (khoản Ops “Ship Lạch Huyện” của lô 298). Người dùng nhìn bảng kê thấy “Chưa xác định” ⇒ không biết chi phí Ops đã nhập, dễ gửi khách thiếu chi hộ.',
@@ -222,7 +222,7 @@ CARDS = [
         case_id='TC-QA-ENV-01',
         title='Lệch hợp đồng môi trường QA: cổng local và danh sách tài khoản local không khớp thực tế checkout',
         status='TODO — phát hiện qua QA 2026-09-20 (local dev, buildHash dev)',
-        source='`AGENTS.md` (Local dev quick reference) + `testplan/testaccounts.txt` (mục `local:`). Phiên QA: `testplan/2026-09-20-ops-pricing-docx-qa.md`, case **TC-QA-ENV-01**.',
+        source='`AGENTS.md` (Local dev quick reference) + `testplan/testaccounts.txt` (mục `local:`). Phiên QA: `testplan/cycles/2026-09/2026-09-20-ops-pricing-docx-qa.md`, case **TC-QA-ENV-01**.',
         desc=[
             '`AGENTS.md` ghi Backend `:3001` · Frontend `:7174`, `testplan/testaccounts.txt` cũng ghi `baseUrl: http://localhost:7174`, nhưng `Makefile` của checkout này chạy backend `:3002` và frontend `:7175` (`docker-compose.dev.yml`, target `dev`). Probe theo tài liệu trả `000/404`; phải đọc Makefile mới biết cổng thật.',
             '`testaccounts.txt` mục `local:` liệt kê `thanhdc/tiepvv/anhdtv…` (CUS), `dungnv/bacdk/huongnt` (DISPATCHER), `hoangnh/hungld…` (OPS) — đây là user của bản `make stgdb`, **không tồn tại** trong DB sau `make setup`/`make seed` (DB dev hiện có 13 user demo: `admin, giamdoc, ketoan, cus, dieuvan, laixe, giaonhan, thu, pho, quyet, customer, samsung-cs, canon-cs`).',

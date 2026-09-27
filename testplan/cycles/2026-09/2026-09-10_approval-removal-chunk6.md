@@ -11,8 +11,8 @@
 **Owner (verify):** qa
 **Status (this doc):** PREP — pm signed off 2026-09-10 (NOTES.md Amendment 6); awaiting backend chunk 6 land + staging cut
 **Cycle:** PM cycle 1, Team B
-**Companion master checklist:** `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (Cluster E — full set)
-**Companion chunk spec:** `testplan/qa/2026-09-10_approval-removal-chunk4.md` (chunks 1–4 closed; chunk 5 = no-op)
+**Companion master checklist:** `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` (Cluster E — full set)
+**Companion chunk spec:** `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk4.md` (chunks 1–4 closed; chunk 5 = no-op)
 
 ## Goal
 
@@ -167,8 +167,8 @@ Per-chunk commit + push (commit+push after every task rule from `testing-and-dep
 ## Linked artifacts
 
 - Ticket: `18f4a2dd` (kanban, in_progress)
-- Master checklist: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — Cluster E (chunk 6) is this spec
-- Companion specs: `testplan/qa/2026-09-10_approval-removal-chunk4.md` (cluster C, closed), `testplan/qa/2026-09-10_approval-removal-chunk7.md` (cluster F, next chunk)
+- Master checklist: `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` — Cluster E (chunk 6) is this spec
+- Companion specs: `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk4.md` (cluster C, closed), `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk7.md` (cluster F, next chunk)
 - Shared header: `testplan/qa/_TEMPLATE.md`
 - PM rulings adopted: Amendment 1 (RBAC stays, FE lockstep, X1 grep), Amendment 5 (own-table audit, staging cuts from pushed HEAD only)
 - Memory: [[agent-working-contract]] (QA gates, RBAC invariant), [[test-debt-and-db-lean-down]] (direct-apply + own-table audit pattern), [[deploy-tag-race-verification]] (staging cut bundle-flip check)

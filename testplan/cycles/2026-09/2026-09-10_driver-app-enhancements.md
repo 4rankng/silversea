@@ -247,8 +247,8 @@ PASS iff TC-DA-001 through TC-DA-007 ALL hold on **staging first** (local-only r
 ## Linked artifacts
 
 - Ticket: `36d0183d` (kanban)
-- Companion specs in this cycle: `testplan/qa/2026-09-10_dispatch-detailed-plan.md` (8afc13a9), `testplan/qa/2026-09-10_driver-mobile-ui.md` (365943ea), `testplan/qa/2026-09-10_replace-tags.md` (a6cb2543)
-- Companion historical specs: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (approval-removal cluster A — already DONE; not a gate for this ticket)
+- Companion specs in this cycle: `testplan/cycles/2026-09/2026-09-10_dispatch-detailed-plan.md` (8afc13a9), `testplan/cycles/2026-09/2026-09-10_driver-mobile-ui.md` (365943ea), `testplan/cycles/2026-09/2026-09-10_replace-tags.md` (a6cb2543)
+- Companion historical specs: `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` (approval-removal cluster A — already DONE; not a gate for this ticket)
 - Memory: [[responsive-space-utilisation]] (cache-cold protocol + pairing rule), [[frontend-architecture]] (api/hook patterns)
 
 ## Anti-lying guardrails

@@ -11,7 +11,7 @@ import tempfile
 REPO = pathlib.Path('/Volumes/LexarSSD/projects/silversea-prod')
 KANBAN = pathlib.Path('/Users/dev/Library/CloudStorage/GoogleDrive-frankng.sg@gmail.com/My Drive/SilverSea/Kanban-PROD/TODO')
 EV = 'qa/2026-09-22_cac-chi-phi-audit'
-SPEC = 'testplan/2026-09-22-cac-chi-phi-audit-bugs.md'
+SPEC = 'testplan/cycles/2026-09/2026-09-22-cac-chi-phi-audit-bugs.md'
 
 CARDS = [
     dict(

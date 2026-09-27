@@ -5,7 +5,7 @@
 Tài liệu này là trang PRD của phân hệ **báo giá**: khung giá theo khách hàng, lưới giá nhà máy ×
 tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất file Excel, và lịch sử phiên bản. Các quy tắc
 chốt theo file yêu cầu của khách (`22.9 - BÁO GIÁ MẪU 1.xlsx`, `các chi phí.pdf` 21/09); bảng kiểm
-nghiệm thu đầy đủ (ca TC-BG-01…60) nằm ở `testplan/2026-09-22-bao-gia-chi-phi-requirements.md`.
+nghiệm thu đầy đủ (ca TC-BG-01…60) nằm ở `testplan/cycles/2026-09/2026-09-22-bao-gia-chi-phi-requirements.md`.
 Cách tính cước áp cho lô khi phát lệnh nằm ở [QuyTrinhO2C.md](QuyTrinhO2C.md) §7.
 
 ## 1. Vấn đề cần giải quyết

@@ -33,8 +33,8 @@ grep -rnE 'ManagerDecisionInbox|ApprovalQueueCard|useApprovalQueue|DASHBOARD_APP
 ```
 
 **Where Category A prose legitimately lives (NOT stale — leave alone):**
-- `testplan/qa/2026-09-10_approval-removal-chunk{4,6,7}.md` — these ARE the verification criteria for the teardown (TC-CHUNK4-A1, TC-CHUNK7-001 through TC-CHUNK7-006). Don't delete; the names appear in the assertions themselves.
-- `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — this IS the verification master checklist. Lines 149-153 reference `/dashboard/approval-queue`, `ApprovalQueueCard`, `ManagerDecisionInbox` as F2 rule checks.
+- `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk{4,6,7}.md` — these ARE the verification criteria for the teardown (TC-CHUNK4-A1, TC-CHUNK7-001 through TC-CHUNK7-006). Don't delete; the names appear in the assertions themselves.
+- `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` — this IS the verification master checklist. Lines 149-153 reference `/dashboard/approval-queue`, `ApprovalQueueCard`, `ManagerDecisionInbox` as F2 rule checks.
 - `testplan/qa/artifacts/2026-09-10_approval-removal-chunk7_*` — QA run reports showing the teardown PASSED. Historical evidence.
 - `testplan/qa/artifacts/2026-09-{08,09,10}_*_frontend-test.log` — historical test logs that PASSED ManagerDecisionInbox tests **before the teardown** (those tests have since been removed). The logs themselves were transit: purged 2026-09-27 under the testplan evidence retention law (durable record is the Drive card docx); recoverable from git history.
 
@@ -89,10 +89,10 @@ grep -nE 'phê duyệt|approval-queue|ManagerDecisionInbox|getApprovalQueue|DASH
 
 For every staging checklist in the wave, the G-mig migration-hash check (verify `__drizzle_migrations` carries hash prefix `2d8af75377` after every migrate) was added per pm Amendment 2 2026-09-10:
 
-- `testplan/qa/2026-09-10_dispatch-detailed-plan.md` — G-mig section + TC-DDP-008 (carrier-less auto-load) + TC-DDP-009 (fleet-fetch retry)
-- `testplan/qa/2026-09-10_driver-mobile-ui.md` — G-mig section
-- `testplan/qa/2026-09-10_replace-tags.md` — TC-REPLACE-TAGS-008 (G-mig)
-- `testplan/qa/2026-09-10_driver-app-enhancements.md` (NEW, for 36d0183d) — 7 TCs + G-mig section
+- `testplan/cycles/2026-09/2026-09-10_dispatch-detailed-plan.md` — G-mig section + TC-DDP-008 (carrier-less auto-load) + TC-DDP-009 (fleet-fetch retry)
+- `testplan/cycles/2026-09/2026-09-10_driver-mobile-ui.md` — G-mig section
+- `testplan/cycles/2026-09/2026-09-10_replace-tags.md` — TC-REPLACE-TAGS-008 (G-mig)
+- `testplan/cycles/2026-09/2026-09-10_driver-app-enhancements.md` (NEW, for 36d0183d) — 7 TCs + G-mig section
 
 ## Anti-lying for the audit step itself
 
@@ -102,7 +102,7 @@ For every staging checklist in the wave, the G-mig migration-hash check (verify 
 
 ## Linked artifacts
 
-- Spec: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (F2 rule for the dashboard queue teardown)
+- Spec: `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` (F2 rule for the dashboard queue teardown)
 - Findings: `testplan/qa/artifacts/2026-09-10_approval-removal-chunk7_be-rerun-backend.md` (the local re-run that PASSED TC-004..008)
 - Source-tree proof: this audit ran `grep -rnE 'ManagerDecisionInbox|...'` against `backend/src/` + `frontend/src/` and confirmed 0 hits at audit time.
 - Memory: [[agent-working-contract]] (trunk-based git + closed-loop SDLC), [[frontend-architecture]] (test convention)

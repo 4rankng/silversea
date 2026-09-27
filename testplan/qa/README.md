@@ -23,6 +23,9 @@ testplan/qa/
 │   ├── smoke.mjs              # health probe + role-by-role login check
 │   ├── run-case.mjs           # run a single case file
 │   ├── run-all.mjs            # run a topic set (cases/<topic>/index.mjs)
+│   ├── ui-*.mjs               # standalone defect drivers: run one, read report.json
+│   │                          #   (e.g. ui-driver-chrome-20260927.mjs — driver phone
+│   │                          #    topbar row count + completion-bar subtlety)
 │   └── _legacy/               # archived scripts (e.g. qa_automation/test_staging.py)
 ├── cases/                     # one .mjs file per TC; small + declarative
 │   └── chungtu-regression/
@@ -37,6 +40,9 @@ testplan/qa/
     ├── _legacy/               # all pre-consolidation artifacts (date-prefixed)
     └── <timestamp>_<pid>_<topic>/  # one unique folder per attempt
 ```
+
+Dated cycle records (per-ticket regression specs and wave plans) do **not** live here — they
+live in `testplan/cycles/<YYYY-MM>/` (moved 2026-09-27). `testplan/README.md` is the map.
 
 ## Conventions
 
@@ -123,7 +129,8 @@ follow a single shared header so the per-cycle context QA loads stays small.
   **Out of scope**, **Acceptance criteria (TC-…)**, and **Linked artifacts**.
 - **Do not duplicate** the shared header blocks inside the per-ticket spec —
   the QA harness and any agent reading the file already know them.
-- **Naming:** `testplan/qa/<YYYY-MM-DD>_<ticket-slug>.md`. The date is the
-  cycle date; the slug is the kanban ticket id or a short kebab name.
+- **Naming/location:** `testplan/cycles/<YYYY-MM>/<YYYY-MM-DD>_<ticket-slug>.md` (moved from
+  `testplan/qa/` on 2026-09-27). The date is the cycle date; the slug is the kanban ticket id or a
+  short kebab name.
 - **Lifecycle:** `PREP` while waiting on the implementer; flip to `READY` /
   `RUNNING` / `DONE` in the status line as the cycle progresses.

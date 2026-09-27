@@ -6,7 +6,7 @@
   calculation + its snapshot; engine side per `backend/src/services/freight-pricing-engine.service.ts` contract.
 - **Status:** case PREPARED — feature not yet implemented (_66 building). Asserts card acceptance + rulings only;
   runnable once _66/_59 land.
-- **Engine-gate anchors:** TC-BG-26…TC-BG-30 in `testplan/2026-09-22-bao-gia-…` (2026-09-22 Báo giá & Chi phí
+- **Engine-gate anchors:** TC-BG-26…TC-BG-30 in `testplan/cycles/2026-09/2026-09-22-bao-gia-chi-phi-requirements.md` (2026-09-22 Báo giá & Chi phí
   requirements). This case adds the staged, mouse-through-level proof around those anchors.
 
 ## Scope fence (what this case does NOT assert)

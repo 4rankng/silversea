@@ -172,7 +172,7 @@ PASS iff all seven TCs hold on **staging first**, then re-verified on **prod** p
 ## Linked artifacts
 
 - Ticket: `a6cb2543` (kanban)
-- Companion specs: `testplan/2026-09-10_driver-mobile-ui.md`, `testplan/2026-09-10_approval-removal-chunk4.md`
+- Companion specs: `testplan/cycles/2026-09/2026-09-10_driver-mobile-ui.md`, `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk4.md`
 - PM dispatch plan: NOTES.md → "Ticket assignments" → row 2
 
 ## Anti-lying guardrails

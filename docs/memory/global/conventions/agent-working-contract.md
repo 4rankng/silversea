@@ -52,7 +52,7 @@ Every QA run → one artifact under `qa/`, pass or fail. Naming: `qa/<YYYY-MM-DD
 
 ## Testplan regression rule
 
-Every bugfix/feature: update `testplan/` first, re-test before marking done. **Every user-reported bug must also land a regression case in `testplan/`** (repro steps + expected behavior + case ID) before its fix is reported done — cite the case ID in the fix report and re-run it before any deploy. Structure: `testplan/roles/` (7 per-role walkthroughs: cus, dieuvan, laixe, ketoan, quanly-admin, vanhanh, khachhang), `testplan/flows/` (10 flow specs incl. e2e-regression + qa-matrix-v2), `testplan/qa/` (runnable harness: `run-all.mjs`, `run-case.mjs`, `smoke.mjs`), `testplan/testaccounts.txt` (all local+staging passwords are `Abc123` — see [[testing-and-deploy-environments]]).
+Every bugfix/feature: update `testplan/` first, re-test before marking done. **Every user-reported bug must also land a regression case in `testplan/`** (repro steps + expected behavior + case ID) before its fix is reported done — cite the case ID in the fix report and re-run it before any deploy. Structure: `testplan/roles/` (7 per-role walkthroughs: cus, dieuvan, laixe, ketoan, quanly-admin, vanhanh, khachhang), `testplan/flows/` (10 flow specs incl. e2e-regression + qa-matrix-v2), `testplan/cycles/<YYYY-MM>/` (every dated record: per-ticket regression specs + wave plans), `testplan/qa/` (runnable harness: `run-all.mjs`, `run-case.mjs`, `smoke.mjs`, plus the standalone `ui-*.mjs` defect drivers), `testplan/testaccounts.txt` (all local+staging passwords are `Abc123` — see [[testing-and-deploy-environments]]).
 
 ## Definition of Done
 

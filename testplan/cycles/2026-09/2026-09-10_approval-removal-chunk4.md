@@ -8,7 +8,7 @@
 **Owner (verify):** qa
 **Status (this doc):** PREP — ready to execute when backend chunk 4 lands + staging cut
 **Cycle:** PM cycle 1, Team B
-**Companion master checklist:** `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (Cluster C — full set)
+**Companion master checklist:** `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` (Cluster C — full set)
 
 ## Goal
 
@@ -255,8 +255,8 @@ PASS iff TC-CHUNK4-001 through TC-CHUNK4-009 ALL hold on **staging first** (loca
 ## Linked artifacts
 
 - Ticket: `18f4a2dd` (kanban, in_progress)
-- Master checklist: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — Cluster C (chunk 4) is this spec; Clusters A / B / D / E / F get their own prep docs in subsequent cycles
-- Companion specs: `testplan/2026-09-10_driver-mobile-ui.md`, `testplan/2026-09-10_replace-tags.md`
+- Master checklist: `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` — Cluster C (chunk 4) is this spec; Clusters A / B / D / E / F get their own prep docs in subsequent cycles
+- Companion specs: `testplan/cycles/2026-09/2026-09-10_driver-mobile-ui.md`, `testplan/cycles/2026-09/2026-09-10_replace-tags.md`
 - Memory: [[test-debt-and-db-lean-down]] — direct-apply + `PENDING_EXPENSE_APPROVAL` retirement, cluster re-pin map
 
 ## Anti-lying guardrails

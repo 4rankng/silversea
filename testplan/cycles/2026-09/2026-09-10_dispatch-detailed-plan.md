@@ -267,7 +267,7 @@ PASS iff TC-DDP-001 through TC-DDP-009 ALL hold on **staging first** (local-only
 ## Linked artifacts
 
 - Ticket: `8afc13a9` (kanban, todo)
-- Companion specs in this cycle: `testplan/qa/2026-09-10_approval-removal-chunk4.md`, `testplan/qa/2026-09-10_driver-mobile-ui.md`, `testplan/qa/2026-09-10_replace-tags.md`
+- Companion specs in this cycle: `testplan/cycles/2026-09/2026-09-10_approval-removal-chunk4.md`, `testplan/cycles/2026-09/2026-09-10_driver-mobile-ui.md`, `testplan/cycles/2026-09/2026-09-10_replace-tags.md`
 - Memory: [[prd-roadmap-and-decisions]] (O2C business flow), [[frontend-architecture]] (api/hook patterns)
 - Audit memory: `load-failure-retry-duplication` (cycle-1 custom finding; TC-DDP-009 covers the editor's instance)
 

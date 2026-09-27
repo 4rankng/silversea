@@ -67,5 +67,5 @@ Trường cấp dòng trong bảng container của /shipments/new: NHÀ MÁY, TU
 - Case 01–04, 06, 07: UI DRIVEN trên staging (bấm thật, ảnh từng case).
 - Case 05: TEST VERIFIED — pin unit trong suite workspace, số đếm thật gắn
   thẻ; rung browser vẫn chạy song song, không thay thế nhau.
-- Liên quan: testplan/2026-09-18-adhoc-definition.md (định nghĩa lệnh chạy
+- Liên quan: testplan/cycles/2026-09/2026-09-18-adhoc-definition.md (định nghĩa lệnh chạy
   ngoài), card 20260918_8 (fix tầng dòng), 20260916_3 (đã QA PASSED mức lô).

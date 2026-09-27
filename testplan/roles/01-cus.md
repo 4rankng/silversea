@@ -160,7 +160,7 @@ applies (silent redirect to `/shipments`).
       re-picked from the catalogue — typed data is **not** silently wiped.
     - The flag persists on the shipment (`is_ad_hoc`) and is still checked
       when the shipment is reopened for editing.
-    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1; `testplan/2026-09-18-adhoc-definition.md`.
+    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1; `testplan/cycles/2026-09/2026-09-18-adhoc-definition.md`.
     - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`, `TC-ADHOC-DEF-01`.
     - **Evidence**: screenshots of the flag off → on → off sequence.
 

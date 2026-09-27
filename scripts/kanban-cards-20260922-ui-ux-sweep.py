@@ -11,7 +11,7 @@ import tempfile
 REPO = pathlib.Path('/Volumes/LexarSSD/projects/silversea-prod')
 KANBAN = pathlib.Path('/Users/dev/Library/CloudStorage/GoogleDrive-frankng.sg@gmail.com/My Drive/SilverSea/Kanban-PROD/TODO')
 EV = 'qa/2026-09-22_ui-ux-sweep-4roles'
-SPEC = 'testplan/2026-09-22-ui-ux-sweep-4-roles.md'
+SPEC = 'testplan/cycles/2026-09/2026-09-22-ui-ux-sweep-4-roles.md'
 
 CARDS = [
     dict(

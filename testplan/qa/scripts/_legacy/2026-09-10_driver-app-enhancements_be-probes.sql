@@ -7,7 +7,7 @@
 -- (see ENV BLOCKER). Spec corrections required before FE gate.
 
 -- ============================================================
--- CORRECTIONS to the spec's probe table (testplan/qa/2026-09-10_driver-app-enhancements.md:161-173)
+-- CORRECTIONS to the spec's probe table (testplan/cycles/2026-09/2026-09-10_driver-app-enhancements.md:161-173)
 -- ============================================================
 -- C1. `kho_phone` DOES NOT EXIST anywhere in the schema. Warehouse phone lives at
 --     operational_sites.contact_phone, joined via shipment_containers.operational_site_id.

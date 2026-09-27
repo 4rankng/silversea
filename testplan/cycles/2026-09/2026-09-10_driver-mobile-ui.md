@@ -162,7 +162,7 @@ The cycle's verdict is **PASS** iff all seven TCs above hold on **both** local (
 ## Linked artifacts
 
 - Ticket: `365943ea` (kanban)
-- Companion gate prep: `testplan/2026-09-10_replace-tags.md` (own prep)
+- Companion gate prep: `testplan/cycles/2026-09/2026-09-10_replace-tags.md` (own prep)
 - Memory: [[responsive-space-utilisation]] (pairing rule + cache-cold protocol)
 - Role walkthrough: `testplan/roles/03-laixe.md` (DRV-LIST-01..06 unchanged)
 

@@ -107,7 +107,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
 - **Evidence:**
   - `qa/2026-09-11_completed_comp-004a-collapsed.png`
   - `qa/2026-09-11_completed_comp-004b-expanded.png`
-- **Existing coverage:** `testplan/qa/2026-09-10_driver-app-enhancements.md` TC-DA-001 through 005
+- **Existing coverage:** `testplan/cycles/2026-09/2026-09-10_driver-app-enhancements.md` TC-DA-001 through 005
 - **UPDATE 2026-09-12:** the collapsible piece (last open sub-item) is DONE —
   `DriverTaskInfoSections.tsx` collapsible heads (`Thông tin lệnh` +
   `Thông tin xuất hóa đơn` toggle independently; collapsed head keeps the
@@ -135,7 +135,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
 - **Evidence:**
   - `qa/2026-09-11_completed_comp-005a-overview.png`
   - `qa/2026-09-11_completed_comp-005b-task-detail.png`
-- **Existing coverage:** `testplan/qa/2026-09-10_driver-app-enhancements.md` TC-DA-001, 002, 006
+- **Existing coverage:** `testplan/cycles/2026-09/2026-09-10_driver-app-enhancements.md` TC-DA-001, 002, 006
 
 ### 20260911_2 — FEATURE 1: Customer layout card view with expand
 
@@ -206,7 +206,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - At least one unassigned row visible with "Chưa phân" label
 - **Evidence:**
   - `qa/2026-09-11_completed_comp-009.png`
-- **Existing coverage:** `testplan/qa/2026-09-10_dispatch-detailed-plan.md` TC-DDP-001 through 004
+- **Existing coverage:** `testplan/cycles/2026-09/2026-09-10_dispatch-detailed-plan.md` TC-DDP-001 through 004
 
 ### 20260911_3 — BUG 3: Container number supplement saved directly
 
@@ -227,7 +227,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - `qa/2026-09-11_completed_comp-010a-edit.png`
   - `qa/2026-09-11_completed_comp-010b-saved.png`
   - `qa/2026-09-11_completed_comp-010_api.log`
-- **Existing coverage:** `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` Cluster A
+- **Existing coverage:** `testplan/cycles/2026-09/2026-09-17_18f4a2dd-verification-checklist.md` Cluster A
 
 ### 20260911_3 — BUG 4: Task tags format — actions on top, text below; no Tác vụ column
 
@@ -262,7 +262,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - Same as TC-COMP-005 (consolidated — this bug is a duplicate of 20260911_2 BUG 2)
 - **Evidence:**
   - `qa/2026-09-11_completed_comp-012.png`
-- **Existing coverage:** TC-COMP-005 above; `testplan/qa/2026-09-10_driver-app-enhancements.md`
+- **Existing coverage:** TC-COMP-005 above; `testplan/cycles/2026-09/2026-09-10_driver-app-enhancements.md`
 
 ---
 

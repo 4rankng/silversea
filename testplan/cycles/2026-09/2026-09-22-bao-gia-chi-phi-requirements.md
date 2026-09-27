@@ -183,7 +183,7 @@ Ngữ nghĩa đã chốt: đúng hàm `ROUND` của Excel — **làm tròn nửa
 
 Phần lớn các yêu cầu này ĐÃ được triển khai ở các đợt trước. Các ca dưới đây là **kiểm tra
 nghiệm thu** để trả lời "đã làm đúng chưa", không phải yêu cầu làm mới. Bốn lỗi đã phát hiện
-nằm ở `testplan/2026-09-22-cac-chi-phi-audit-bugs.md` (`TC-CCP-01`…`TC-CCP-04`) — không lặp lại ở đây.
+nằm ở `testplan/cycles/2026-09/2026-09-22-cac-chi-phi-audit-bugs.md` (`TC-CCP-01`…`TC-CCP-04`) — không lặp lại ở đây.
 
 ## B1. Phân loại chi phí OPS (pdf tr.1–2)
 
