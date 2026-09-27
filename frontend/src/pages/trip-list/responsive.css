@@ -91,9 +91,6 @@
   .trip-list-page .hero-actions .btn { flex: 1; justify-content: center; }
   .trip-list-page .metrics { grid-template-columns: 1fr 1fr; }
   .trip-list-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
-  .trip-list-page .filters-row-top { flex-direction: column; align-items: stretch; }
-  .trip-list-page .filters-search { width: 100%; }
-  .trip-list-page .filters-row-bottom { flex-wrap: wrap; }
   .trip-list-page .trip-mobile-list {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -182,15 +179,6 @@
   .trip-list-page .stats-strip { grid-template-columns: 1fr 1fr; gap: 10px; }
   .trip-list-page .section-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
 
-  /* Right-edge fade — sits inside the scroll container so it pins to the
-     visible right edge regardless of scroll position. */
-  .trip-list-page .filters-row-top {
-    position: relative;
-    padding-right: 0;
-  }
-  .trip-list-page .filters-row-top::after {
-    content: none;
-  }
   .trip-list-page .hero-actions {
     display: grid;
     grid-template-columns: 44px 44px minmax(0, 1fr);
@@ -207,42 +195,11 @@
   .trip-list-page .hero-action--export .hero-action-label {
     display: none;
   }
-  .trip-list-page .filters-card {
-    padding: 12px;
-  }
-  .trip-list-page .filters-divider {
-    margin: 10px 0;
-  }
-  .trip-list-page .filters-row-bottom {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .trip-list-page .filters-row-bottom .filters-search,
-  .trip-list-page .filters-search-hint {
-    grid-column: 1 / -1;
-  }
 } /* end 640px */
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 640px) {
-  /* ── TripListPage: larger filter pill tap targets, breakdown bar fix ── */
-  .trip-list-page .filter-chip {
-    height: auto;
-    min-height: 48px;
-    padding: 8px 12px;
-    font-size: var(--fs-xs);
-    align-items: center;
-  }
-  .trip-list-page .filter-chip .filter-lbl-wrap {
-    gap: 3px;
-    line-height: 1.35;
-  }
-  .trip-list-page .filter-chip .filter-lbl-cap {
-    line-height: 1.35;
-  }
-  .trip-list-page .filter-chip select {
-    min-height: 44px;
-    line-height: 1.35;
-  }
+  /* ── TripListPage: breakdown bar fix ── */
   .trip-list-page .breakdown-bar {
     height: 6px;
     border-radius: 99px;
@@ -277,10 +234,5 @@
 
   .trip-list-page .metrics {
     gap: 8px;
-  }
-
-  .trip-list-page .filters-card {
-    padding: 10px;
-    margin-bottom: 10px;
   }
 }

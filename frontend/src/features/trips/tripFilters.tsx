@@ -1,10 +1,11 @@
-import { Search } from 'lucide-react';
 import {
   TripStatus,
   type TripDetail,
 } from '@tingting/shared';
 import { Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { ListFilterBar } from '../../components/ListFilterBar';
+import { FilterDropdown } from '../../components/FilterDropdown';
 
 export interface StatusCounts {
   all: number;
@@ -29,12 +30,6 @@ export interface TripFiltersBarProps {
   onCustomerFilter: (id: number | '') => void;
 }
 
-const CHEVRON = (
-  <svg className="filter-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"></polyline>
-  </svg>
-);
-
 const STATUS_TABS: Array<{ key: '' | TripStatus; label: string }> = [
   { key: '', label: 'Tất cả' },
   { key: TripStatus.CREATED, label: 'Mới tạo' },
@@ -43,6 +38,18 @@ const STATUS_TABS: Array<{ key: '' | TripStatus; label: string }> = [
   { key: TripStatus.CANCELED, label: 'Đã hủy' },
 ];
 
+/**
+ * Sổ chuyến đi filter strip (card 20260927_152).
+ *
+ * The page-local `.filters-card` (two hand-rolled rows, a divider, pill-shaped
+ * selects and a 340px search) is gone: the strip is the ONE shared
+ * `ListFilterBar`, which owns the layout, the search chrome and every control
+ * width, so this surface declares no filter geometry of its own.
+ *
+ * Which criteria are VISIBLE is measured, not declared (`filter-bar-mode.ts`):
+ * while the strip fits two rows the two selects render inline on the bar and
+ * only a width that leaves no other choice collapses them behind `Bộ lọc (N)`.
+ */
 export function TripFiltersBar(props: TripFiltersBarProps) {
   const {
     statusCounts, statusFilter, onStatusFilter,
@@ -51,11 +58,25 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
     customerOptions, customerFilter, onCustomerFilter,
   } = props;
 
+  // The two criteria behind `Bộ lọc`: the count feeds the trigger badge and
+  // `Đặt lại` clears exactly those two — the status segment and the search
+  // are primary and stay on the bar.
+  const secondaryCount = (truckFilter ? 1 : 0) + (customerFilter ? 1 : 0);
+  const resetSecondary = () => { onTruckFilter(''); onCustomerFilter(''); };
+
   return (
-    <div className="filters-card">
-      <div className="filters-row-top">
+    <ListFilterBar
+      search={{
+        value: searchQuery,
+        onChange: onSearch,
+        placeholder: 'Tìm theo mã chuyến, KH, biển số, số cont',
+        ariaLabel: 'Tìm chuyến đi',
+      }}
+      // The status segment rides the quick-filter slot: it is the shared
+      // `Tabs variant="boxed"` (the app-wide button group), never a bespoke
+      // segment, and the slot keeps it beside the search on wide bars.
+      quickFilters={(
         <Tabs
-          className="status-tabs"
           variant="boxed"
           ariaLabel="Lọc theo trạng thái chuyến"
           value={statusFilter === '' ? 'all' : statusFilter}
@@ -66,67 +87,50 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
             count: tab.key === '' ? statusCounts.all : statusCounts[tab.key as TripStatus],
           }))}
         />
-      </div>
-
-      <div className="filters-divider" />
-
-      <div className="filters-row-bottom">
-        <div className="filters-search">
-          <Search size={18} />
-          <input
-            type="text"
-            aria-label="Tìm chuyến đi"
-            placeholder="Tìm theo mã chuyến, KH, biển số, số cont"
-            value={searchQuery}
-            onChange={(e) => onSearch(e.target.value)}
-          />
-        </div>
-        {searching && (
-          <span className="filters-search-hint" title="Khi tìm kiếm, hệ thống bỏ qua bộ lọc tháng để tìm trên tất cả các tháng.">
-            Đang tìm trên tất cả tháng
-          </span>
-        )}
-        <label className={`filter-chip${truckFilter ? ' has-value' : ''}`}>
-          <div className="filter-lbl-wrap">
-            <span className="filter-lbl-cap">Phương tiện</span>
-            <UuiSelectField
-              label="Phương tiện"
-              hideLabel
-              value={truckFilter === null || truckFilter === undefined ? '' : String(truckFilter)}
-              onChange={(e) => onTruckFilter(e.target.value ? Number(e.target.value) : '')}
-              options={[
-                { value: '', label: 'Tất cả xe' },
-                ...truckOptions.map((t) => ({ value: String(t.id), label: t.licensePlate })),
-              ]}
-              inline
-            />
-          </div>
-          {CHEVRON}
-        </label>
-
-        <label className={`filter-chip${customerFilter ? ' has-value' : ''}`}>
-          <div className="filter-lbl-wrap">
-            <span className="filter-lbl-cap">Khách hàng</span>
-            <UuiSelectField
-              label="Khách hàng"
-              hideLabel
-              value={customerFilter === null || customerFilter === undefined ? '' : String(customerFilter)}
-              onChange={(e) => onCustomerFilter(e.target.value ? Number(e.target.value) : '')}
-              options={[
-                { value: '', label: 'Tất cả khách hàng' },
-                ...customerOptions.map((c) => ({ value: String(c.id), label: c.name })),
-              ]}
-              inline
-            />
-          </div>
-          {CHEVRON}
-        </label>
-      </div>
-    </div>
+      )}
+      // Search bypasses the month scope, and the note saying so is a status,
+      // not a criterion: it rides the bar's status slot so it can never turn
+      // into a third row of its own.
+      status={searching ? (
+        <span
+          className="filter-chip filters-search-hint"
+          title="Khi tìm kiếm, hệ thống bỏ qua bộ lọc tháng để tìm trên tất cả các tháng."
+        >
+          Đang tìm trên tất cả tháng
+        </span>
+      ) : undefined}
+    >
+      <FilterDropdown
+        count={secondaryCount}
+        ariaLabel="Bộ lọc"
+        dialogLabel="Bộ lọc chuyến đi"
+        onReset={resetSecondary}
+      >
+        <UuiSelectField
+          label="Phương tiện"
+          wrapperClassName="trip-criterion"
+          value={String(truckFilter)}
+          onChange={(e) => onTruckFilter(e.target.value ? Number(e.target.value) : '')}
+          options={[
+            { value: '', label: 'Tất cả xe' },
+            ...truckOptions.map((t) => ({ value: String(t.id), label: t.licensePlate })),
+          ]}
+        />
+        <UuiSelectField
+          label="Khách hàng"
+          wrapperClassName="trip-criterion"
+          value={String(customerFilter)}
+          onChange={(e) => onCustomerFilter(e.target.value ? Number(e.target.value) : '')}
+          options={[
+            { value: '', label: 'Tất cả khách hàng' },
+            ...customerOptions.map((c) => ({ value: String(c.id), label: c.name })),
+          ]}
+        />
+      </FilterDropdown>
+    </ListFilterBar>
   );
 }
 
- 
 export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   const total = statusCounts.all || 0;
   if (total === 0) return { chot: 0, htth: 0, dang: 0, moi: 0, huy: 0 };
@@ -142,7 +146,6 @@ export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   };
 }
 
- 
 export function defaultStatusCounts(): StatusCounts {
   return {
     all: 0,

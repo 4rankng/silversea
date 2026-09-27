@@ -1,15 +1,16 @@
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TripDetail } from '@tingting/shared';
+import { TripStatus, type TripDetail } from '@tingting/shared';
 
 const listTripsMock = vi.hoisted(() => vi.fn());
+const getTripsSummaryMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/tripClient', () => ({
   tripClient: {
     listTrips: listTripsMock,
-    getTripsSummary: vi.fn().mockResolvedValue(undefined),
+    getTripsSummary: getTripsSummaryMock,
   },
 }));
 
@@ -23,7 +24,9 @@ vi.mock('../hooks/useMonth', () => ({
 
 vi.mock('../hooks/useQueries', () => ({
   useFuelConfig: () => ({ data: undefined }),
-  useSalaryPeriod: () => ({ data: undefined }),
+  // The page scopes the list and the summary to the salary period; the strip's
+  // criteria (truck/customer options) only exist once that period is present.
+  useSalaryPeriod: () => ({ data: { start: '2026-08-01', end: '2026-08-31' } }),
 }));
 
 vi.mock('./use-trip-list-animations', () => ({
@@ -72,6 +75,7 @@ function lastCallParams(): Record<string, unknown> {
 
 beforeEach(() => {
   listTripsMock.mockReset().mockResolvedValue(envelope);
+  getTripsSummaryMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('TripListPage server-side column sort', () => {
@@ -116,5 +120,45 @@ describe('TripListPage server-side column sort', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Xe' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 1, sortBy: 'truck', sortDir: 'asc' }));
+  });
+});
+
+describe('TripListPage filter strip (card 20260927_152)', () => {
+  const summary = {
+    statusCounts: { all: 12, CREATED: 3, IN_TRANSIT: 4, COMPLETED: 3, CANCELED: 2 },
+    truckOptions: [{ id: 1, licensePlate: '30A-12301' }],
+    customerOptions: [{ id: 7, name: 'Khách 7' }],
+  };
+
+  it('renders the shared filter bar — no page-local card — and keeps the search writer', async () => {
+    getTripsSummaryMock.mockResolvedValue(summary);
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getAllByText('TRP-202608-0001').length).toBeGreaterThan(0));
+
+    expect(container.querySelector('.filter-bar.list-filter-bar')).toBeTruthy();
+    for (const retired of ['.filters-card', '.filters-row-top', '.filters-row-bottom', '.filters-divider', '.filters-search']) {
+      expect(container.querySelector(retired)).toBeNull();
+    }
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm chuyến đi' }), { target: { value: 'TRP-202608' } });
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ search: 'TRP-202608' }));
+  });
+
+  it('writes the status segment and the criteria into the list query', async () => {
+    getTripsSummaryMock.mockResolvedValue(summary);
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getAllByText('TRP-202608-0001').length).toBeGreaterThan(0));
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+
+    fireEvent.click(within(bar).getByRole('tab', { name: /Đang chạy/ }));
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ status: TripStatus.IN_TRANSIT }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Phương tiện$/ }));
+    fireEvent.click(screen.getByRole('option', { name: '30A-12301' }));
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ status: TripStatus.IN_TRANSIT, truckId: 1 }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng$/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Khách 7' }));
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ status: TripStatus.IN_TRANSIT, truckId: 1, customerId: 7 }));
   });
 });
