@@ -227,7 +227,7 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - `qa/2026-09-11_completed_comp-010a-edit.png`
   - `qa/2026-09-11_completed_comp-010b-saved.png`
   - `qa/2026-09-11_completed_comp-010_api.log`
-- **Existing coverage:** `testplan/18f4a2dd-verification-checklist.md` Cluster A
+- **Existing coverage:** `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` Cluster A
 
 ### 20260911_3 — BUG 4: Task tags format — actions on top, text below; no Tác vụ column
 

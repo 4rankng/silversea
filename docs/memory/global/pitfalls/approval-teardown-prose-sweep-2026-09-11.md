@@ -34,7 +34,7 @@ grep -rnE 'ManagerDecisionInbox|ApprovalQueueCard|useApprovalQueue|DASHBOARD_APP
 
 **Where Category A prose legitimately lives (NOT stale — leave alone):**
 - `testplan/qa/2026-09-10_approval-removal-chunk{4,6,7}.md` — these ARE the verification criteria for the teardown (TC-CHUNK4-A1, TC-CHUNK7-001 through TC-CHUNK7-006). Don't delete; the names appear in the assertions themselves.
-- `testplan/18f4a2dd-verification-checklist.md` — this IS the verification master checklist. Lines 149-153 reference `/dashboard/approval-queue`, `ApprovalQueueCard`, `ManagerDecisionInbox` as F2 rule checks.
+- `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — this IS the verification master checklist. Lines 149-153 reference `/dashboard/approval-queue`, `ApprovalQueueCard`, `ManagerDecisionInbox` as F2 rule checks.
 - `testplan/qa/artifacts/2026-09-10_approval-removal-chunk7_*` — QA run reports showing the teardown PASSED. Historical evidence.
 - `testplan/qa/artifacts/2026-09-{08,09,10}_*_frontend-test.log` — historical test logs that PASSED ManagerDecisionInbox tests **before the teardown** (those tests have since been removed). The logs themselves are archive.
 
@@ -102,7 +102,7 @@ For every staging checklist in the wave, the G-mig migration-hash check (verify 
 
 ## Linked artifacts
 
-- Spec: `testplan/18f4a2dd-verification-checklist.md` (F2 rule for the dashboard queue teardown)
+- Spec: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (F2 rule for the dashboard queue teardown)
 - Findings: `testplan/qa/artifacts/2026-09-10_approval-removal-chunk7_be-rerun-backend.md` (the local re-run that PASSED TC-004..008)
 - Source-tree proof: this audit ran `grep -rnE 'ManagerDecisionInbox|...'` against `backend/src/` + `frontend/src/` and confirmed 0 hits at audit time.
 - Memory: [[agent-working-contract]] (trunk-based git + closed-loop SDLC), [[frontend-architecture]] (test convention)

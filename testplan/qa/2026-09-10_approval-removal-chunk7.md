@@ -11,7 +11,7 @@
 **Owner (verify):** qa
 **Status (this doc):** PREP — pm signed off 2026-09-10 (NOTES.md Amendment 6); awaiting backend chunk 7 land + staging cut
 **Cycle:** PM cycle 1, Team B
-**Companion master checklist:** `testplan/18f4a2dd-verification-checklist.md` (Cluster F — full set, plus conservative-cancel cross-cutting)
+**Companion master checklist:** `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` (Cluster F — full set, plus conservative-cancel cross-cutting)
 **Prior chunks closed:** 1 (Cluster A) · 3 (Cluster B) · 4 (Cluster C, incl. C1b settlements) · 6 (Cluster E)
 **Chunk 5:** verified NO-OP, no spec
 
@@ -210,7 +210,7 @@ Per-chunk commit + push (commit+push after every task rule from `testing-and-dep
 ## Linked artifacts
 
 - Ticket: `18f4a2dd` (kanban, in_progress — moves to DONE after master checklist cluster-sweep re-run post-chunk-7)
-- Master checklist: `testplan/18f4a2dd-verification-checklist.md` — Cluster F (chunk 7) is this spec; X1–X5 cross-cutting re-run after cluster-sweep
+- Master checklist: `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — Cluster F (chunk 7) is this spec; X1–X5 cross-cutting re-run after cluster-sweep
 - Companion specs: `testplan/qa/2026-09-10_approval-removal-chunk4.md` (cluster C, incl. C1b settlements), `testplan/qa/2026-09-10_approval-removal-chunk6.md` (cluster E)
 - Shared header: `testplan/qa/_TEMPLATE.md`
 - PM rulings adopted: Amendment 1 (RBAC stays, FE lockstep, X1 grep, work-inbox + reports rewiring), Amendment 5 (own-table audit pattern carry-over, conservative-cancel legacy sweep, staging cuts from pushed HEAD only)

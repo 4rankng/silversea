@@ -12,7 +12,6 @@ Reorganized 2026-09-26 (Chief order): bloated local evidence purged; retention p
 | `qa/evidence/` | CURRENT-WAVE ONLY. Transit artifacts (screenshots, logs) backing open rungs. See retention policy. |
 | `qa/artifacts/` | QA run command logs (exact command + exit + output). |
 | `qa/scripts/`, `qa/lib/`, `package.json` | QA runner tooling. |
-| `cases/` ← via `qa/cases/` | See above. |
 | `flows/`, `roles/`, `matrix/`, `deploy/`, `fixtures/` | Test flows, role maps, coverage matrix, deploy test notes, fixtures. |
 | `*.md` (dated) | Historical per-wave test/verification plans (09-10 → present). Append-only record; do not delete. |
 | `qa/README.md`, `qa/_TEMPLATE.md` | QA runner docs + case template. |
