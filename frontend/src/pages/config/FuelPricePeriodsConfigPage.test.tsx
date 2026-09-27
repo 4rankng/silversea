@@ -32,6 +32,15 @@ vi.mock('../../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
 }));
 
+// The quotation-approval inbox is an accountant surface (2026-09-27 sweep: the
+// list route is Casbin-closed for CUS, whose nav still admits this page to
+// ENTER fuel prices). Default the harness to ACCOUNTANT so the inbox renders;
+// the CUS case below pins that it is gated off.
+let currentRole = 'ACCOUNTANT';
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { role: currentRole, capabilities: [] } }),
+}));
+
 import FuelPricePeriodsConfigPage from './FuelPricePeriodsConfigPage';
 
 function renderPage() {
@@ -138,5 +147,20 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     renderPage();
     await waitFor(() => expect(listFuelApprovalsMock).toHaveBeenCalled());
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not request the accountant approval inbox for a role the server refuses', async () => {
+    // CUS may ENTER fuel prices here (docx §5-1) but the approval list route is
+    // Casbin-closed to them: firing it produced a 403 on every visit
+    // (2026-09-27 role sweep, /config/fuel-price-periods).
+    currentRole = 'CUS';
+    try {
+      renderPage();
+      expect(screen.getByTestId('crud-table')).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+      expect(listFuelApprovalsMock).not.toHaveBeenCalled();
+    } finally {
+      currentRole = 'ACCOUNTANT';
+    }
   });
 });
