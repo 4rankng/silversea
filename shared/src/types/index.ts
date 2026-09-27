@@ -33,18 +33,6 @@ export type UserPublic = Omit<User, 'passwordHash' | 'deletedAt'>;
  * /users page can render salary/truck inline. baseSalary/socialInsurance are
  * string|null because the numeric(15,0) columns serialize as strings (see Driver).
  */
-export interface UserWithDriver extends UserPublic {
-  customerId?: number | null;
-  customerIds?: number[];
-  customerAccountType?: CustomerAccountType;
-  driverId: number | null;
-  driverName: string | null;
-  driverPhone: string | null;
-  assignedTruckId: number | null;
-  baseSalary: string | null;
-  socialInsurance: string | null;
-  driverStatus: DriverStatus | null;
-}
 
 export interface Driver {
   id: number;
@@ -837,9 +825,6 @@ export interface TruckSuggestion {
 }
 
 /** `GET /api/shipments/dispatch-detail-plan-rows/:id/plan` row extension. */
-export interface DispatchDetailPlanRowClassification {
-  classification: DispatchClassification | null;
-}
 
 // ─── Forwarder ────────────────────────────────────────────────────────────────────
 
