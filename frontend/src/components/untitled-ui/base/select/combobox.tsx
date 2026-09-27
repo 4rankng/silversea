@@ -65,7 +65,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
+const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
     const state = useContext(ComboBoxStateContext);
     // True from the last explicit option-navigation key until the next typing
     // key or a consumed Enter — see the keydown-capture handler below.
@@ -256,23 +256,6 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                     </button>
                 )}
             </div>
-
-            {shortcut && (
-                <div
-                    className={cx(
-                        "absolute inset-y-0.5 right-0.5 z-10 hidden items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8 md:flex",
-                        sizes[size].shortcut,
-                        shortcutClassName,
-                    )}
-                >
-                    <span
-                        className="pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset"
-                        aria-hidden="true"
-                    >
-                        ⌘K
-                    </span>
-                </div>
-            )}
         </AriaGroup>
     );
 };

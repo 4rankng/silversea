@@ -54,7 +54,6 @@ export function ListFilterBar({ search, children, quickFilters, quickFiltersLabe
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
           />
-          {search.shortcut && <kbd className="filter-bar__kbd">{search.shortcut}</kbd>}
         </div>
       )}
       {children}

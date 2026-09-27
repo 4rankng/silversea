@@ -210,7 +210,7 @@ export const TagSelectBase = ({
     );
 };
 
-const InnerTagSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder, size = "sm" }: Omit<TagSelectProps, "selectedItems" | "children">) => {
+const InnerTagSelect = ({ isDisabled, shortcut: _shortcut, shortcutClassName: _shortcutClassName, placeholder, size = "sm" }: Omit<TagSelectProps, "selectedItems" | "children">) => {
     const focusManager = useFocusManager();
     const tagSelectContext = useContext(TagSelectContext);
     const comboBoxStateContext = useContext(ComboBoxStateContext);
@@ -311,7 +311,7 @@ const InnerTagSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder, 
                     </span>
                 ))}
 
-            <div className={cx("relative flex min-w-12 flex-1 flex-row items-center", !isSelectionEmpty && "ml-0.5", shortcut && "min-w-[30%]")}>
+            <div className={cx("relative flex min-w-12 flex-1 flex-row items-center", !isSelectionEmpty && "ml-0.5")}>
                 <AriaInput
                     placeholder={placeholder}
                     onKeyDown={handleInputKeyDown}
@@ -321,26 +321,6 @@ const InnerTagSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder, 
                         sizes[size].text,
                     )}
                 />
-
-                {shortcut && (
-                    <div
-                        aria-hidden="true"
-                        className={cx(
-                            "absolute inset-y-0.5 right-0.5 z-10 hidden items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8 md:flex",
-                            shortcutClassName,
-                            sizes[size].shortcut,
-                        )}
-                    >
-                        <span
-                            className={cx(
-                                "pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset",
-                                isDisabled && "bg-transparent",
-                            )}
-                        >
-                            ⌘K
-                        </span>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -45,7 +45,7 @@ export interface InputBaseProps extends Omit<AriaInputProps, "size"> {
 export const InputBase = ({
     ref,
     tooltip,
-    shortcut,
+    shortcut: _shortcut,
     groupRef,
     size = "md",
     isInvalid,
@@ -182,23 +182,6 @@ export const InputBase = ({
                     {isPasswordVisible ? <EyeOff className="size-4 stroke-[2.25px]" /> : <Eye className="size-4 stroke-[2.25px]" />}
                 </AriaButton>
             )}
-
-            {/* Shortcut */}
-            {shortcut && (
-                <div
-                    className={cx(
-                        "pointer-events-none absolute inset-y-0.5 right-0.5 z-10 hidden items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8 md:flex",
-                        sizes[inputSize].shortcut,
-                    )}
-                >
-                    <span
-                        aria-hidden="true"
-                        className="pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset"
-                    >
-                        {typeof shortcut === "string" ? shortcut : "⌘K"}
-                    </span>
-                </div>
-            )}
         </AriaGroup>
     );
 };
@@ -261,7 +244,7 @@ export const Input = ({
     icon: Icon,
     label,
     hint,
-    shortcut,
+    shortcut: _shortcut,
     hideRequiredIndicator,
     className,
     ref,
@@ -296,7 +279,7 @@ export const Input = ({
                             size,
                             placeholder,
                             icon: Icon,
-                            shortcut,
+                            shortcut: _shortcut,
                             iconClassName,
                             inputClassName,
                             wrapperClassName,
