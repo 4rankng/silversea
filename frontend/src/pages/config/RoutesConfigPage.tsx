@@ -106,7 +106,6 @@ export default function RoutesConfigPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <kbd className="routes-strip__kbd">⌘K</kbd>
         </div>
         {hasActiveFilters && (
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSearch('')}>

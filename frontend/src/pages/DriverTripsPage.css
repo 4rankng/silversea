@@ -50,9 +50,9 @@
   text-align: center;
 }
 
-/* Day-view entry — the header control that reaches the M8.3 "Hai lệnh hôm
-   nay" screen (card 20260922_30). Square-cornered button, not a pill: it is
-   navigation, and pills stay reserved for status. */
+/* Day-view entry — the header control that reaches the M8.3 day-view screen
+   (card 20260922_30). Square-cornered button, not a pill: it is navigation,
+   and pills stay reserved for status. */
 .driver-journey__day-view {
   display: inline-flex;
   align-items: center;

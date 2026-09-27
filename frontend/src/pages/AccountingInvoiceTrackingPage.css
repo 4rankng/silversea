@@ -55,7 +55,6 @@
   font-family: var(--font-data);
   font-weight: 600;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 .invoice-tracking-kpi .ivt-money--flat { color: var(--ink-3); font-weight: 600; }
@@ -72,7 +71,10 @@
   min-height: 32px;
 }
 
-.invoice-tracking-range { width: 210px; }
+/* Content-sized: 210px left the range trigger's label box 10px short of the
+   value it carried, so the period ellipsized itself at every width
+   (2026-09-27 role sweep, §4). */
+.invoice-tracking-range { width: max-content; min-width: 210px; max-width: 100%; }
 
 .invoice-tracking-search {
   position: relative;
@@ -303,12 +305,13 @@
 /* ── Card 20260926_52 — table hygiene ──
    Header: compact 32px, uppercase, tracked. Money columns right-align mono
    (existed); dates and codes center and go mono. */
+/* Case/tracking intentionally NOT re-declared: the shared Table.css header
+   rule is the single authority (workboard-standard contract). Only the
+   board's own row rhythm lives here. */
 .invoice-tracking-table thead th {
   height: 34px;
   padding-block: 0;
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   vertical-align: middle;
 }
 
@@ -333,4 +336,19 @@
 .invoice-tracking-empty {
   padding: 28px 12px !important;
   text-align: center;
+}
+/* Phone filters stack (design §5): the range owns its row, the search goes
+   edge to edge — a half-width period control clipped its own value. */
+@media (max-width: 640px) {
+  .invoice-tracking-filters { align-items: stretch; }
+
+  .invoice-tracking-range,
+  .invoice-tracking-search,
+  .invoice-tracking-supplier,
+  .invoice-tracking-diff {
+    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+  }
 }

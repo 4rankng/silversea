@@ -196,7 +196,7 @@ export default function ForwarderSettlementsPage() {
           className="fset-empty-state fade-up"
           icon={FileText}
           title="Chưa có phiếu thanh toán"
-          description="Tạo phiếu đầu tiên bằng nút Thêm phiếu ở trên."
+          description="Chưa có phiếu nào trong kỳ này."
         />
       ) : (
         <div ref={listRef} className="fset-list">

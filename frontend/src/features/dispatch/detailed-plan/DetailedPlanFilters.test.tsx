@@ -96,8 +96,9 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     const ribbon = container.querySelector('[data-component="detailed-plan-ribbon"]');
     expect(ribbon).toBeTruthy();
     expect(screen.getByPlaceholderText('Bill, Cont, Tờ khai...')).toBeTruthy();
-    // ⌘K badge rides the search field (ruling a).
-    expect(screen.getByText('⌘K')).toBeTruthy();
+    // No shortcut badge: the 2026-09-27 CHIEF ruling removed every rendered
+    // ⌘K/kbd affordance (the ⌘K/Ctrl+K handler below stays live and invisible).
+    expect(screen.queryByText('⌘K')).toBeNull();
     // Label-in-control: the integrated trigger text IS the accessible name.
     expect(screen.getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();

@@ -493,7 +493,10 @@ describe('DetailedPlanGrid', () => {
     expect(filtersSource).toContain('detailed-plan-ribbon');
     expect(filtersSource).not.toContain('<ListFilterBar');
     expect(css).toContain('.detailed-plan-header {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  height: 36px;\n}');
-    expect(css).toContain('.detailed-plan-ribbon {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  height: 32px;\n}');
+    // Card 20260926_65 superseded the locked 32px ribbon height with a
+    // wrapping row (min-height keeps the 32px baseline).
+    expect(css).toContain('.detailed-plan-ribbon {\n  display: flex;\n  align-items: center;\n  gap: 8px;');
+    expect(css).toMatch(/\.detailed-plan-ribbon \{[^}]*min-height: 32px;/);
     expect(css).not.toContain('detailed-plan-filters__date-scope-controls');
     expect(css).not.toContain('detailed-plan-filters__date-mode');
     expect(css).not.toContain('detailed-plan-filters__date-shortcut');
@@ -515,13 +518,17 @@ describe('DetailedPlanGrid', () => {
     expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
     expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
-    // SCHEDULE-LAYOUT-08: labels and long identity fields stack without
-    // inherited inline separators; short cargo metadata still shares a line.
+    // 2026-09-27 phone rework ("messy and wasted lots of space"): the label
+    // rides the record line it names (short, sentence case) instead of owning
+    // an uppercase row, and the values keep the `·` separator. Pinned so the
+    // nine-stacked-label card cannot come back.
     const phoneCss = css.slice(css.indexOf('@container (max-width: 640px)'));
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*block;[^}]*margin:\s*0 0 2px;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*block;[^}]*margin-right:\s*0;[^}]*overflow-wrap:\s*break-word;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*none;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container \.detailed-plan-grid__line:not\(\.detailed-plan-grid__line--strong\)\s*\{[^}]*display:\s*inline-block;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*inline;[^}]*content:\s*attr\(data-label-short\);[^}]*text-transform:\s*none;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*inline;[^}]*margin-right:\s*8px;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*'·';/);
+    // The two values that need the whole record width stack full-row.
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--documents\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(phoneCss).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
     // SCHEDULE-LAYOUT-09: match td.cell specificity so the empty notes tail
     // actually beats the responsive display:block declaration.

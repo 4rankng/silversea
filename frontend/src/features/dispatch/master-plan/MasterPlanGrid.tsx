@@ -250,7 +250,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             const allocationLocked = item.status === ShipmentStatus.COMPLETED;
             return (
               <tr key={item.id} className="master-plan-grid__row">
-                <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
+                <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
                     <div className="master-plan-grid__schedule-block" key={`${item.id}-${blockIdx}`}>
                       {block.head && <div className="master-plan-grid__line">{block.head}</div>}
@@ -275,30 +275,30 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                   )}
                 </td>
-                <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
-                  <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">
+                <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy" data-label-short="Khách">
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
                     {item.blNumber || item.bookingRef || '—'}
                     {item.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu">
+                <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu" data-label-short="Tuyến">
                   <div className="master-plan-grid__route-shipping">
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
                       {item.routeName ?? '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
                       {item.tradeDirection === 'IMPORT' ? (
                         <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
                       ) : item.tradeDirection === 'EXPORT' ? (
                         <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
                       ) : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier">{item.shippingLineName ?? '—'}</div>
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier" data-empty={!item.shippingLineName ? 'true' : undefined}>{item.shippingLineName ?? '—'}</div>
                   </div>
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng">
+                <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng" data-label-short="Nâng">
                   {portGroupLines
                     .filter((line) => line.direction === 'lift')
                     .map((line, index) => (
@@ -310,7 +310,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       </div>
                     ))}
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ">
+                <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ" data-label-short="Hạ">
                   {portGroupLines
                     .filter((line) => line.direction === 'drop')
                     .map((line, index) => (
@@ -322,7 +322,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       </div>
                     ))}
                 </td>
-                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
+                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
                       {(() => {
@@ -359,7 +359,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           </div>
                         ));
                       })()}
-                      <div className="master-plan-grid__line master-plan-grid__line--muted">
+                      <div className="master-plan-grid__line master-plan-grid__line--muted" data-empty={item.totalCargoWeightKg == null ? 'true' : undefined}>
                         {formatWeight(item.totalCargoWeightKg)}
                       </div>
                     </div>
@@ -377,6 +377,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td
                   className="master-plan-grid__cell master-plan-grid__cell--action"
                   data-label="Phân bổ nhà xe"
+                  data-label-short="Nhà xe"
                   onClick={(event) => {
                     if (allocationLocked) return;
                     if ((event.target as HTMLElement).closest('button')) return;
@@ -423,7 +424,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     )}
                   </UUIButton>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Ghi chú">
+                <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
                   {editingNotesId === item.id ? (
                     <div className="master-plan-grid__notes-editor">
                       <textarea

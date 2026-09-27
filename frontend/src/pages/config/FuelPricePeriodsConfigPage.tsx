@@ -254,8 +254,10 @@ export default function FuelPricePeriodsConfigPage() {
         columns={[
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveFrom) },
           { header: 'Giá dầu (đ/lít)', render: r => fmtPrice(r.unitPrice) },
-          { header: 'Ghi chú', render: r => r.sourceNote || '—' },
-          { header: 'Người nhập', render: r => r.createdByName || 'Không xác định' },
+          // Missing values name their own field (design §1): a bare '—' and a
+          // generic 'Không xác định' both read as an unhandled row.
+          { header: 'Ghi chú', render: r => r.sourceNote || 'Chưa có ghi chú' },
+          { header: 'Người nhập', render: r => r.createdByName || 'Chưa rõ người nhập' },
         ]}
         renderForm={p => (
           <FuelPricePeriodForm

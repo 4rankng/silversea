@@ -2474,10 +2474,11 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     renderPage();
     await screen.findByRole('table');
     expect(document.querySelector('.shipments-control__row--filters')).toBeTruthy();
-    // Search: placeholder per spec, ⌘K badge present.
+    // Search: placeholder per spec. No shortcut badge renders (CHIEF
+    // 2026-09-27: no control may print shortcut key text).
     const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
     expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
-    expect(document.querySelector('.shipments-control__kbd')?.textContent).toBe('⌘K');
+    expect(document.querySelector('.shipments-control__kbd')).toBeNull();
     // Date-range trigger (replaces the two Từ/Đến inputs).
     expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
     expect(screen.queryByLabelText('Từ ngày giao')).toBeNull();
@@ -2607,10 +2608,10 @@ describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
     fireEvent.change(screen.getByLabelText('Tìm lô hàng'), { target: { value: 'BILL' } });
     fireEvent.keyDown(window, { key: 'Escape', bubbles: true });
     expect((screen.getByLabelText('Tìm lô hàng') as HTMLInputElement).value).toBe('');
-    // Documented at the placeholder/badge (the RAC create button drops the
-    // title attr, so the badge carries all three).
+    // The placeholder title carries the documented shortcuts (the create
+    // button drops its title attr, and the badge that used to carry them is
+    // gone per the 2026-09-27 no-shortcut-text ruling).
     expect(screen.getByLabelText('Tìm lô hàng').getAttribute('title')).toContain('/');
-    expect(document.querySelector('.shipments-control__kbd')?.getAttribute('title')).toContain('Alt+N');
     // Alt+N navigates to the create route — last, it unmounts the list.
     fireEvent.keyDown(window, { key: 'n', altKey: true, bubbles: true });
     expect(await screen.findByTestId('shipment-create-page')).toBeTruthy();

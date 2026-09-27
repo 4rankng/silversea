@@ -50,8 +50,13 @@
   height: 32px;
 }
 
+/* Content-sized: a fixed 220px left the trigger 19px short of its own
+   empty-state mask and it ellipsized itself on desktop
+   (2026-09-27 role sweep, §4). */
 .shipment-debit-ribbon__range .date-range__trigger {
-  width: 220px;
+  width: max-content;
+  min-width: 220px;
+  max-width: 100%;
 }
 
 .shipment-debit-ribbon__lock { min-width: 160px; }

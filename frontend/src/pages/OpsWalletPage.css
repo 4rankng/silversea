@@ -45,6 +45,26 @@
 @media (max-width: 640px) {
   .ops-wallet__cards { grid-template-columns: 1fr; }
   .ops-wallet-card { padding: 10px 12px; }
+
+  .ops-wallet__bar {
+    /* The app-shell topbar already prints the page title on phones; the H1
+       is hidden below, so keep the action on the trailing edge. */
+    justify-content: flex-end;
+  }
+
+  /* Same ruling as PageHeader (components/PageHeader.css): hide the in-page
+     H1 at ≤640px so the title never prints twice, keeping it for AT. */
+  .ops-wallet__bar h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .ops-wallet-card__label {
@@ -199,11 +219,10 @@
   padding: 24px 0 !important;
   /* Card 20260925_3 (CHIEF): the empty-state box reads as solid white across
      its full width — no half-transparent straddle against the page canvas.
-     display:block beats the collapsed table-cell width in the mobile
-     block-table layout. */
+     It stays a normal table cell (its colSpan already spans the row on
+     desktop); the mobile block-table band below re-applies display:block so
+     the collapsed cell also fills the width. */
   background: var(--surface);
-  display: block;
-  width: 100%;
 }
 
 .ops-wallet__loading {

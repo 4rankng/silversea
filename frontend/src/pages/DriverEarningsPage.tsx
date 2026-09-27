@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Loader2, Calendar, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Loader2, Calendar, Minus } from 'lucide-react';
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicleAlerts } from '../hooks/useQueries';
@@ -152,9 +152,6 @@ export default function DriverEarningsPage() {
               : <Minus size={24} />
           }
         </div>
-        <div className="earnings-hero-bento__watermark">
-          <DollarSign size={120} />
-        </div>
       </div>
 
       {earnings.salaryReconciliationRequired && (
@@ -192,9 +189,10 @@ export default function DriverEarningsPage() {
 
       <div className="earnings-ledger-grid fade-up-2">
         <section className="earnings-ledger-card">
+          {/* No total in the header: it restated the "Lương thực tế" row
+              inside this card. */}
           <div className="earnings-ledger-card__header">
             <span>Lương ngày công</span>
-            <strong>{formatNumber(netNum)} đ</strong>
           </div>
           <dl className="earnings-ledger-list">
             <div>
@@ -219,9 +217,10 @@ export default function DriverEarningsPage() {
         </section>
 
         <section className="earnings-ledger-card">
+          {/* No total in the header: it restated the "Lương sản xuất +
+              tiền đi đường" pair already summed in "Tóm tắt kỳ này". */}
           <div className="earnings-ledger-card__header">
             <span>Lương chuyến & thanh toán</span>
-            <strong>{formatNumber(tripIncomeNum)} đ</strong>
           </div>
           <dl className="earnings-ledger-list">
             <div>

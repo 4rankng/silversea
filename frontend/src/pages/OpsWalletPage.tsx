@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Btn } from '../components/UI';
-import { Plus, Wallet } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useOpsWalletSummary, useOpsAdvanceRequests } from '../hooks/useOpsQueries';
 import { OpsAdvanceRequestModal } from '../features/ops/OpsAdvanceRequestModal';
 import { ExpenseReconciliationHistory } from '../features/expense-accounting/ExpenseReconciliationHistory';
@@ -54,14 +54,14 @@ export default function OpsWalletPage() {
   return (
     <div className="ops-wallet page-shell">
       <header className="ops-wallet__bar">
-        <h1><Wallet size={20} aria-hidden /> Quỹ tạm ứng</h1>
+        <h1>Quỹ tạm ứng</h1>
         <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setAdvanceOpen(true)}>Xin Tạm Ứng</Btn>
       </header>
 
       <OpsQueryFeedback loading={summaryQuery.isLoading} error={summaryQuery.isError} label="số dư" onRetry={summaryQuery.refetch} />
       <section className="ops-wallet__cards" aria-label="Số dư">
         <div className="ops-wallet-card ops-wallet-card--balance">
-          <span className="ops-wallet-card__label">SỐ DƯ HIỆN TẠI</span>
+          <span className="ops-wallet-card__label">Số dư hiện tại</span>
           <strong>{summary ? `${formatVnd(summary.balance)} ₫` : '…'}</strong>
           {/* Honest debt: a negative balance is a fact, not an error state. */}
           {summary && Number(summary.balance) < 0 && (
@@ -79,6 +79,7 @@ export default function OpsWalletPage() {
           {/* Card 20260922_27: a cost total is not a success state — the green
               token made the largest number on the page read as "good news". */}
           <strong>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
+          <small>Tổng chi phí đã ghi nhận trong kỳ.</small>
         </div>
       </section>
 

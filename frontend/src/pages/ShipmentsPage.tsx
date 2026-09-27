@@ -489,7 +489,6 @@ export default function ShipmentsPage() {
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
-            <kbd className="shipments-control__kbd" title="Nhấn / để tìm kiếm · Esc để xóa · Alt+N để tạo lô mới" aria-hidden="true">⌘K</kbd>
           </div>
           <DateRangePopover
             className="shipments-control__range"

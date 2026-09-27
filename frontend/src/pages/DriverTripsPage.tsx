@@ -241,12 +241,14 @@ export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { month, year } = useMonth();
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
-  // Card 20260922_30(b): the M8.3 "Hai lệnh hôm nay" screen
-  // (/my-trips/two-orders) had no inbound link anywhere in the app — only
-  // tests reached it. It reads the same query key, so tapping through renders
-  // from cache. The count promotes the entry exactly when the day carries the
-  // 2+ orders the screen exists for; the entry itself stays put, because a
-  // driver checks the day's sequence before dispatch pushes anything.
+  // Card 20260922_30(b): the M8.3 day-view screen (/my-trips/two-orders) had
+  // no inbound link anywhere in the app — only tests reached it. It reads the
+  // same query key, so tapping through renders from cache. The entry names the
+  // day view state-free ("Lệnh trong ngày"): the old "Hai lệnh hôm nay" label
+  // asserted a count the tab counters beside it contradicted on a 0/1-order
+  // day. The count chip carries the real number only when the day actually
+  // holds 2+ orders; the entry itself stays put, because a driver checks the
+  // day's sequence before dispatch pushes anything.
   const { data: dayView } = useDriverTwoOrders();
   const todayOrders = dayView?.allToday.length ?? 0;
   // Tag labels ride on the board response — the driver portal fetches nothing
@@ -276,7 +278,7 @@ export default function DriverTripsPage() {
         action={
           <Link className="driver-journey__day-view" to="/my-trips/two-orders">
             <Truck size={16} aria-hidden="true" />
-            <span className="driver-journey__day-view-label">Hai lệnh hôm nay</span>
+            <span className="driver-journey__day-view-label">Lệnh trong ngày</span>
             {todayOrders >= 2 && <span className="driver-journey__tab-count">{todayOrders} lệnh</span>}
             <ChevronRight size={16} aria-hidden="true" />
           </Link>

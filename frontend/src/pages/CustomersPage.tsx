@@ -593,7 +593,6 @@ export default function CustomersPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            <kbd className="customers-strip__kbd">⌘K</kbd>
           </div>
           <UuiSelectField
             wrapperClassName="customers-strip__status"

@@ -76,7 +76,6 @@ export function CatalogTableShell({
             icon={SearchSm}
             inputProps={{ type: 'search' }}
           />
-          <kbd className="dispatch-catalogs__kbd">⌘K</kbd>
         </div>
         {filters}
         <span className="dispatch-catalogs__count">{totalLabel}</span>

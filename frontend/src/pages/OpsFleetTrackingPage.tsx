@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw, Truck } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
 import './OpsFleetTrackingPage.css';
 import { Btn } from '../components/UI';
@@ -66,15 +66,15 @@ export default function OpsFleetTrackingPage() {
               return (
                 <tr key={truck.truckId} className="ops-fleet__row">
                   <td className="ops-fleet__plate" data-label="Biển số xe">
-                    <Truck size={14} aria-hidden /> {truck.licensePlate}
+                    {truck.licensePlate}
                   </td>
-                  <td data-label="Rơ-moóc">{truck.trailerPlate ?? '—'}</td>
+                  <td data-label="Rơ-moóc">{truck.trailerPlate ?? <span className="ops-fleet__missing">Chưa có rơ-moóc</span>}</td>
                   <td className="ops-fleet__wide" data-label="Lệnh đang gán">
                     {truck.tripCode
                       ? `${truck.tripCode}${truck.shipmentCode ? ` · ${truck.shipmentCode}` : ''}`
-                      : '—'}
+                      : <span className="ops-fleet__missing">Chưa gán lệnh</span>}
                   </td>
-                  <td data-label="Tài xế">{truck.driverName ?? '—'}</td>
+                  <td data-label="Tài xế">{truck.driverName ?? <span className="ops-fleet__missing">Chưa có tài xế</span>}</td>
                   <td data-label="Trạng thái">
                     {status
                       ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>

@@ -150,8 +150,9 @@ describe('customers chief strip + grid (card 20260926_60)', () => {
     expect(tsx).not.toContain('colSpan={5 + Number');
   });
 
-  it('search carries the working kbd badge', () => {
-    expect(tsx).toContain('customers-strip__kbd');
+  it('search keeps the working shortcut handler without printing it', () => {
+    // CHIEF 2026-09-27: the hotkey works but stays invisible.
+    expect(tsx).not.toContain('customers-strip__kbd');
     expect(tsx).toMatch(/event\.metaKey \|\| event\.ctrlKey/);
   });
 });

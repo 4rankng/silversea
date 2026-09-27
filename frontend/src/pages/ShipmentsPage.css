@@ -126,20 +126,14 @@
   outline: none;
 }
 
-.shipments-control__kbd {
-  flex: 0 0 auto;
-  padding: 1px 5px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--surface-3);
-  color: var(--ink-3);
-  font-family: var(--font-data);
-  font-size: 10px;
-  line-height: 1.4;
-}
 
+/* Inherits the shared content-sized range trigger (a fixed 220px clipped the
+   trigger's own mask — 2026-09-27 role sweep, §4). The phone band below
+   gives the range a full row so it is never squeezed into a half-width cell. */
 .shipments-control__range .date-range__trigger--sm {
-  width: 220px;
+  width: max-content;
+  min-width: 220px;
+  max-width: 100%;
 }
 
 .shipments-control__chip {
@@ -662,7 +656,6 @@
    `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
 .cus-direction-badge--import,
 .cus-direction-badge--export { background: var(--surface-3); color: var(--ink-2) !important; }
-.cus-direction-badge--unknown { background: var(--surface-3); color: var(--ink-3) !important; }
 .cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
 
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
@@ -2561,4 +2554,22 @@
   color: var(--danger-text, #b42318);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
+}
+/* Phone tool-bar (2026-09-27 role sweep): the range control carries two
+   dates, so it needs the whole row — sharing one left it ellipsizing its own
+   mask. Search also goes edge to edge; the chip selects keep the 2-up rhythm. */
+@media (max-width: 640px) {
+  .shipments-control__search { width: 100%; flex: 1 1 100%; }
+
+  .shipments-control__range,
+  .shipments-control__range .date-range {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .shipments-control__range .date-range__trigger--sm { width: 100%; }
+
+  .shipments-control__chip,
+  .shipments-control__plan { flex: 1 1 calc(50% - 4px); }
 }

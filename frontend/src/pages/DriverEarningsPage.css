@@ -124,16 +124,6 @@
   color: var(--ink-2);
 }
 
-.earnings-hero-bento__watermark {
-  position: absolute;
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.045;
-  z-index: 0;
-  color: var(--ink);
-}
-
 .earnings-equation-card,
 .earnings-ledger-card,
 .earnings-penalties-panel {

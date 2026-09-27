@@ -285,9 +285,6 @@ export default function ForwarderAdvancesPage() {
             <Wallet size={64} />
           </div>
           <h3 className="fadv-empty__title">Chưa có phiếu tạm ứng</h3>
-          <p className="fadv-empty__desc">
-            Nhấn "Ghi nhận tạm ứng" để gửi phiếu tạm ứng mới.
-          </p>
         </div>
       ) : (
         <>

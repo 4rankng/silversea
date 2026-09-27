@@ -1014,9 +1014,102 @@
 
 /* Phone retains the semantic pairs while reducing the inherited cell inset. */
 @container (max-width: 599px) {
-  .master-plan-grid__cell { padding: 8px 10px; }
+  .master-plan-grid__cell { padding: 6px 10px; }
   .master-plan-grid__cell--action { padding: 0; }
-  .master-plan-grid__allocation-trigger { padding: 8px 10px; }
+  .master-plan-grid__allocation-trigger { padding: 6px 10px; }
+}
+
+/* ══ 2026-09-27 phone rework — the same record line as /dispatch-detail ══
+   The 390px card printed up to eight uppercase label rows of its own (label
+   line + value line per cell), which is what made one lô 370px tall on a
+   phone. The label now rides the record line it names: sentence-case SHORT
+   name (`data-label-short`), house 11px support size, values separated by
+   the exported `·`. Because most lô values are a single token ("—", a port
+   name, a route), the card drops to roughly one line per field group. */
+@container (max-width: 599px) {
+  .master-plan-grid__cell::before {
+    display: inline;
+    margin: 0 6px 0 0;
+    color: var(--fg-2);
+    content: attr(data-label-short);
+    font-size: var(--text-label-size);
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.5;
+    text-transform: none;
+  }
+
+  /* Value runs ride the record line: the plain line stack, the schedule
+     blocks and the two port location blocks all collapse to inline. */
+  .master-plan-grid__line,
+  .master-plan-grid__schedule-block,
+  .master-plan-grid__location-block {
+    display: inline;
+    margin-right: 8px;
+  }
+
+  .master-plan-grid__line + .master-plan-grid__line,
+  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block,
+  .master-plan-grid__location-block + .master-plan-grid__location-block {
+    margin-top: 0;
+  }
+
+  .master-plan-grid__line + .master-plan-grid__line::before,
+  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block::before,
+  .master-plan-grid__location-block + .master-plan-grid__location-block::before {
+    margin-right: 8px;
+    color: var(--fg-3);
+    content: '·';
+  }
+
+  /* The route block and the cargo block were fixed grids/flex runs, so their
+     label could never ride the first value. Released to inline on the phone
+     record they read as one line each — "Tuyến C12 route · Nhập · Hãng tàu"
+     and "Hàng 1 x Container · 22 t · Chi tiết". */
+  .master-plan-grid__route-shipping,
+  .master-plan-grid__route-shipping-route,
+  .master-plan-grid__route-shipping-carrier,
+  .master-plan-grid__route-shipping-direction,
+  .master-plan-grid__cargo-content,
+  .master-plan-grid__cargo-summary {
+    display: inline;
+  }
+
+  /* The direction chip and the cargo "Chi tiết" action are block-level flex
+     boxes — inline so neither forces its own line. */
+  .master-plan-grid__route-shipping-direction > span {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  /* Ghi chú's own value run (the note preview + the OPS line) never opens on
+     a stranded separator. */
+  .master-plan-grid__cell[data-label="Ghi chú"] .master-plan-grid__line + .master-plan-grid__line::before {
+    content: none;
+    margin-right: 0;
+  }
+
+  /* The action cell's trigger paints its own label inside the button, so the
+     td label above it would print the concept twice (§1 one concept, one
+     place) — the ≤900 band hid it, the label rule above must not undo that. */
+  .master-plan-grid__cell--action::before {
+    display: none;
+  }
+
+  /* A '—' placeholder no longer drags a separator through the record line
+     ("Khách C12 CUSTOMER 117 · — · —"); the desktop table keeps its column. */
+  .master-plan-grid__line[data-empty='true'] {
+    display: none;
+  }
+
+  /* The allocation trigger paints its own label inside the button; it takes
+     the same sentence-case voice so the card has one label style, not two. */
+  .master-plan-grid__allocation-label {
+    margin-bottom: 2px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
 }
 
 /* Shared Table.css paints every hovered td green. Suppress that passive wash

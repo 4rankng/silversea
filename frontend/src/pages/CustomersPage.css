@@ -295,26 +295,9 @@
   outline: none;
 }
 
-.customers-strip__kbd {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-data);
-  font-size: 10px;
-  color: var(--fg-3);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-  pointer-events: none;
-}
 
 .customers-strip__status { width: 190px; }
 .customers-strip__count { font-family: var(--font-data); font-size: var(--text-caption-size, 12px); color: var(--fg-3); }
-
-@media (max-width: 640px) {
-  .customers-strip__kbd { display: none; }
-}
 
 /* Grid: fixed columns, 38px striped rows, mono identity, stacked contact. */
 .customers-code-cell { font-family: var(--font-data); font-weight: 600; font-size: var(--text-data-size, 13px); }

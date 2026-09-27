@@ -133,15 +133,15 @@ export default function OpsOrdersPage() {
                       {order.pinned ? <Pin size={15} /> : <PinOff size={15} />}
                     </button>
                   </td>
-                  <td className="col-code" data-label="Mã lô">{order.shipmentCode ?? '—'}</td>
-                  <td className="col-customer" data-label="Khách hàng">{order.customerName ?? '—'}</td>
+                  <td className="col-code" data-label="Mã lô">{order.shipmentCode ?? <span className="ops-orders__route-missing">Chưa có mã lô</span>}</td>
+                  <td className="col-customer" data-label="Khách hàng">{order.customerName ?? <span className="ops-orders__route-missing">Chưa có khách hàng</span>}</td>
                   <td className="col-route" data-label="Tuyến">{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
                   <td data-label="Container">
                     {order.containerCount === 0
-                      ? '—'
+                      ? <span className="ops-orders__route-missing">Chưa có cont</span>
                       : `${order.containerCount} · ${order.containerNumbers.join(', ')}`}
                   </td>
-                  <td data-label="Bill / Booking">{order.billRef ?? '—'}</td>
+                  <td data-label="Bill / Booking">{order.billRef ?? <span className="ops-orders__route-missing">Chưa có Bill/Booking</span>}</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="col-actions">
                     <button type="button" className="btn btn--primary btn--sm ops-orders__expense" onClick={() => setExpenseFor(order)}>

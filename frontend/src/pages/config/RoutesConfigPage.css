@@ -58,19 +58,6 @@
   margin-left: 2px;
 }
 .routes-config-page .filter-bar__search { min-width: 280px; max-width: 320px; }
-.routes-config-page .filter-bar__kbd {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-data);
-  font-size: 10px;
-  color: var(--fg-3);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-  pointer-events: none;
-}
 
 /* The row's identity is its name. Optional empty facts remain in the edit
    form, without forcing an empty label/value block into each narrow record. */
@@ -204,22 +191,6 @@
   outline: none;
 }
 
-.routes-strip__kbd {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-data);
-  font-size: 10px;
-  color: var(--fg-3);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-  pointer-events: none;
-}
 
 .routes-strip__add { margin-left: auto; }
 
-@media (max-width: 640px) {
-  .routes-strip__kbd { display: none; }
-}

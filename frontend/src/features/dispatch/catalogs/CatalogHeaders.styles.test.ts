@@ -58,8 +58,8 @@ describe('fleet catalog command strips (card 20260926_57 — chief spec)', () =>
     expect(vehicles).toContain('Bảo trì / Ngưng');
   });
 
-  it('row 2 shell carries the kbd badge, docked counter and conditional reset', () => {
-    expect(shell).toContain('dispatch-catalogs__kbd');
+  it('row 2 shell carries the docked counter and conditional reset (no kbd badge)', () => {
+    expect(shell).not.toContain('dispatch-catalogs__kbd');
     expect(shell).toMatch(/onReset/);
     expect(shell).toMatch(/hasActiveFilters/);
     expect(shell).toMatch(/metaKey|ctrlKey/);

@@ -40,7 +40,13 @@ describe('site surface contract (card 20260925_3)', () => {
     const css = read('src/pages/OpsWalletPage.css');
     const rule = css.match(/\.ops-wallet__empty\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rule).toContain('background: var(--surface)');
-    expect(rule).toContain('display: block');
+    // 2026-09-27: `display: block` on the base rule stripped the <td> of its
+    // table-cell role, so on DESKTOP the message was confined to column 1's
+    // width instead of spanning its colSpan (role-sweep finding). The base
+    // rule stays a real cell; the phone band re-applies block/width so the
+    // collapsed card still fills the row.
+    expect(rule).not.toContain('display: block');
+    expect(css).toMatch(/@container \(max-width: 700px\)[\s\S]*?\.ops-wallet__empty \{ display: block; width: 100%; \}/);
     // Mobile collapse: the empty row's tr must not shrink-wrap (card 20260925_3).
     expect(css).toMatch(/\.ops-wallet__table tr \{ display: block; width: 100%; \}/);
   });

@@ -60,6 +60,19 @@
   padding: 10px 12px;
 }
 .btn--ghost:hover { background: var(--surface-2); color: var(--ink); }
+/* `.btn--danger-outline` is used by the dispatch catalogs (fleet vehicles,
+   suppliers) but was never defined, so the destructive action fell back to
+   the bare `.btn` shell: transparent border, plain ink text — it read as an
+   unstyled text link next to its bordered sibling (2026-09-27 role sweep). */
+.btn--danger-outline {
+  background: var(--surface);
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line-2));
+}
+.btn--danger-outline:hover {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  border-color: var(--danger);
+}
 .btn--danger {
   background: var(--danger);
   color: var(--fg-on-brand);

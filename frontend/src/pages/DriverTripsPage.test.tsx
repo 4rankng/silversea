@@ -471,11 +471,11 @@ describe('DriverTripsPage', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card()]));
     renderPage();
 
-    const entry = screen.getByRole('link', { name: /Hai lệnh hôm nay/ });
+    const entry = screen.getByRole('link', { name: /Lệnh trong ngày/ });
     expect(entry.getAttribute('href')).toBe('/my-trips/two-orders');
     // Page chrome, not tab content: the entry survives every bucket.
     fireEvent.click(screen.getByRole('tab', { name: /Đã nhận/ }));
-    expect(screen.getByRole('link', { name: /Hai lệnh hôm nay/ })).toBeVisible();
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ })).toBeVisible();
   });
 
   // The count is the promotion: it appears exactly on the 2+ orders/day the
@@ -485,7 +485,7 @@ describe('DriverTripsPage', () => {
     useDriverTwoOrdersMock.mockReturnValue(dayView(2));
     renderPage();
 
-    expect(screen.getByRole('link', { name: /Hai lệnh hôm nay/ }).textContent).toContain('2 lệnh');
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toContain('2 lệnh');
   });
 
   it('keeps the day-view entry count-free on a single-order day', async () => {
@@ -493,7 +493,7 @@ describe('DriverTripsPage', () => {
     useDriverTwoOrdersMock.mockReturnValue(dayView(1));
     renderPage();
 
-    expect(screen.getByRole('link', { name: /Hai lệnh hôm nay/ }).textContent).toBe('Hai lệnh hôm nay');
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toBe('Lệnh trong ngày');
   });
 
   // Card 20260922_30: the primitive's own count chip floated above the label

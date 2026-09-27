@@ -235,11 +235,20 @@
     align-items: stretch;
   }
 
+  /* The full-width search must be the WRAPPER's job: sizing only the inner
+     Input left the wrapper content-sized, so the phone toolbar showed the
+     search at half width with dead space beside it and the count docked on
+     the same ragged row (2026-09-27 role sweep, DISPATCHER catalogs). */
+  .dispatch-catalogs__search-wrap {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
   .dispatch-catalogs__search {
     width: 100%;
     min-width: 0;
     max-width: none;
-    flex-basis: 100%;
   }
 
   .dispatch-catalogs__carrier-filter { flex: 1 1 180px; }
@@ -425,24 +434,6 @@
 
 .dispatch-catalogs__search-wrap { position: relative; display: flex; align-items: center; }
 
-.dispatch-catalogs__kbd {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-data);
-  font-size: 10px;
-  color: var(--fg-3);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-  pointer-events: none;
-}
-
-@media (max-width: 640px) {
-  /* The badge collides with the placeholder on phone widths. */
-  .dispatch-catalogs__kbd { display: none; }
-}
 
 /* Counter docks beside the filters (no far-right push) and the reset sits
    after it. */

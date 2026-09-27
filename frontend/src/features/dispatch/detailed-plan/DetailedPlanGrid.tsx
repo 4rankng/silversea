@@ -269,23 +269,23 @@ export function DetailedPlanGrid({
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                     <div className="ops-schedule">
                       <strong className="ops-schedule__datetime">{scheduleValue}</strong>
-                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined}>
                         {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
                         {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}
                       </span>
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình" data-label-short="Khách">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.customerRoute.customerName}
                     </div>
-                    <div className="detailed-plan-grid__line">
+                    <div className="detailed-plan-grid__line" data-empty={!row.customerRoute.factoryName ? 'true' : undefined}>
                       {row.customerRoute.factoryName ?? '—'}
                     </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill">
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill" data-empty={!row.docs.billNumber ? 'true' : undefined}>
                       {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
                     </div>
                   </td>
@@ -298,13 +298,13 @@ export function DetailedPlanGrid({
                     const dropShort = row.ports.dropoffPortShortName;
                     return (
                       <>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-label-short="Nâng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{liftShort ?? liftPort ?? '—'}</div>
                           {liftShort && liftPort && liftShort !== liftPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
                           )}
                         </td>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-label-short="Trả" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{dropShort ?? dropPort ?? '—'}</div>
                           {dropShort && dropPort && dropShort !== dropPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
@@ -313,7 +313,7 @@ export function DetailedPlanGrid({
                       </>
                     );
                   })()}
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường" data-label-short="Tuyến">
                     {row.customerRoute.routeName ? (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
                     ) : row.customerRoute.deliveryPoint ? (
@@ -334,7 +334,7 @@ export function DetailedPlanGrid({
                       </span>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container" data-label-short="Cont">
                     {row.cargoMode === 'FCL' ? (
                       <>
                         {row.container.containerNumber ? (
@@ -349,21 +349,21 @@ export function DetailedPlanGrid({
                         ) : (
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
                         )}
-                        <div className="detailed-plan-grid__line">{row.container.containerTypeLabel ?? '—'}</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        <div className="detailed-plan-grid__line" data-empty={!row.container.containerTypeLabel ? 'true' : undefined}>{row.container.containerTypeLabel ?? '—'}</div>
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
                           {formatWeight(row.container.cargoWeightKg)}
                         </div>
                       </>
                     ) : (
                       <>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">Lô hàng lẻ</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
                           {formatWeight(row.container.cargoWeightKg)}
                         </div>
                       </>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối" data-label-short="Điều phối">
                     <DispatchPlanEditorCell
                       row={row}
                       onAtomicSave={onAtomicSave}
@@ -375,7 +375,7 @@ export function DetailedPlanGrid({
                       onIssueOrder={onIssueOrder}
                     />
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
@@ -393,7 +393,7 @@ export function DetailedPlanGrid({
                       </button>
                     )}
                   </td>
-                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú">
+                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú" data-label-short="Ghi chú">
                     {row.notes.vehicleNote && (
                       <button
                         type="button"

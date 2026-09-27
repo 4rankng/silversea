@@ -7,6 +7,7 @@ import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useAuth } from '../../hooks/useAuth';
 import type { Notification } from '@tingting/shared';
 import { resolveNotificationRoute } from '../../lib/notificationClient';
+import { notificationDisplayMessage } from '../../lib/notificationText';
 
 /** Relative time in Vietnamese, e.g. "5 phút trước". */
 function timeAgo(iso: string): string {
@@ -111,7 +112,7 @@ export function NotificationBell() {
                   <span className="notif-item__dot" aria-hidden="true" />
                   <div className="notif-item__body">
                     <div className="notif-item__title">{n.title}</div>
-                    {n.message && <div className="notif-item__msg">{n.message}</div>}
+                    {n.message && <div className="notif-item__msg">{notificationDisplayMessage(n.message)}</div>}
                     <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
                   </div>
                 </button>

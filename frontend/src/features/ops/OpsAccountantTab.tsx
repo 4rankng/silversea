@@ -55,11 +55,11 @@ export function OpsAccountantTab() {
               {items.map((row) => (
                 <tr key={row.id}>
                   <td>{row.paidAt}</td>
-                  <td>{row.shipmentCode ?? '—'}</td>
+                  <td>{row.shipmentCode ?? 'Chưa gắn lô'}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
                   <td className="ops-money">{formatVnd(row.amount)} ₫</td>
-                  <td>{row.paidByName ?? '—'}</td>
+                  <td>{row.paidByName ?? 'Chưa rõ người chi'}</td>
                   <td>
                     <button
                       type="button"

@@ -242,6 +242,15 @@
     gap: 12px;
   }
 
+  /* A pair holding a DATE RANGE (two dates = 'DD/MM/YYYY - DD/MM/YYYY')
+     needs the full row: at half a 390px track the trigger ellipsized its own
+     value and its empty-state mask (2026-09-27 role sweep on /shipments and
+     /shipments-debit, §4). A pair of two short single-date fields keeps the
+     2-up rhythm. */
+  .list-filter-bar > .list-filter-bar__pair:has(.date-range) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .list-filter-bar__quick {
     width: 100%;
   }

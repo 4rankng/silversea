@@ -69,7 +69,6 @@ export default function DriverPenaltyPage() {
   }, [allPenalties, currentPeriod]);
   const totalMonthAmount = monthPenalties.reduce((s, p) => s + parseFloat(p.amount), 0);
   const incidentCount = monthPenalties.length;
-  const isSafeThisMonth = incidentCount === 0;
 
   const isLoadingPeriod = periodLoading || loading;
   const summaryUnavailable = currentPeriodError || (!periodLoading && !currentPeriod);
@@ -105,7 +104,13 @@ export default function DriverPenaltyPage() {
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <PageHeader title="Kỷ luật của tôi" description="Lịch sử vi phạm và khấu trừ lương của bạn" iconName="alert" />
 
-      {/* ── Zone 1: Status banner ───────────────────────────────────────────── */}
+      {/* ── Zone 1: Period summary state ─────────────────────────────────────
+          2026-09-27: the "Không vi phạm T…" status banner restated the two
+          month-scoped KPI cards below it (count + deduction) — the same zero
+          signalled twice, plus again in the violations-card header. The KPI
+          grid is the single data surface; the banner's own facts are gone.
+          Loading + the period-read failure alert stay, because they carry
+          state the KPIs cannot (a failed read must not read as "0 vụ"). */}
       {isLoadingPeriod ? (
         <div className="penalty-loading-banner">
           <Loader2 size={16} className="spin" />
@@ -127,24 +132,7 @@ export default function DriverPenaltyPage() {
             {currentPeriodFetching ? 'Đang tải…' : 'Thử lại'}
           </button>
         </div>
-      ) : (
-        <div className={`penalty-status-banner ${isSafeThisMonth ? 'penalty-status-banner--safe' : 'penalty-status-banner--violation'}`}>
-          <div className="penalty-status-banner__icon">
-            {isSafeThisMonth ? <ShieldCheck size={22} /> : <AlertOctagon size={22} />}
-          </div>
-          <div>
-            <div className="penalty-status-banner__title">
-              {isSafeThisMonth ? `Không vi phạm ${monthLabel}` : `${incidentCount} vi phạm ${monthLabel}`}
-            </div>
-            <div className="penalty-status-banner__subtitle">
-              {isSafeThisMonth
-                ? 'Bạn đang chấp hành tốt nội quy công ty. Tiếp tục phát huy!'
-                : `Tổng khấu trừ lương: ${formatCurrency(totalMonthAmount)}`
-              }
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* ── Zone 2: KPI grid ──────────────────────────────────────────────── */}
       <div className="kpi-grid cols-3 penalty-kpi-grid">
@@ -183,9 +171,9 @@ export default function DriverPenaltyPage() {
       {/* ── Zone 3: Violations data card ───────────────────────────────────── */}
       <div className="penalty-data-card">
         <div className="penalty-data-card__header">
-          <span className="penalty-data-card__title">
-            Sổ vi phạm{!loading && !isFiltering ? ` · ${filteredPenalties.length}` : ''}
-          </span>
+          {/* No count here: the KPI grid already states the violation totals,
+              and the card header count restated them as a fourth zero. */}
+          <span className="penalty-data-card__title">Sổ vi phạm</span>
           <UuiSelectField
             id="penalty-month-filter"
             label="Thời gian"

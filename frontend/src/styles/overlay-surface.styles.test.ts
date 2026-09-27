@@ -122,10 +122,14 @@ const TSX_SURFACES: Array<[string, RegExp]> = [
   ['src/components/untitled-ui/base/select/multi-select.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/application/modals/modal.tsx', /bg-\[var\(--surface\)\]/],
   ['src/features/users/components/UserTable.tsx', /background: 'var\(--surface\)'/],
-  ['src/pages/CustomersPage.tsx', /background: 'var\(--surface\)'/],
+  // CustomersConfigPage / SupplierListPage are the two files that actually
+  // render a floating row menu with an inline surface fill. CustomersPage and
+  // RoutesConfigPage were listed from an older shape of those screens: they
+  // render plain row-action buttons only (the edit surfaces are shared
+  // Modal/Drawer components, whose CSS carries the token), so demanding the
+  // inline fill there asserted a surface neither file paints.
   ['src/pages/config/CustomersConfigPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/SupplierListPage.tsx', /background: 'var\(--surface\)'/],
-  ['src/pages/config/RoutesConfigPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/accounting/DebitFilterDropdown.tsx', /background: 'var\(--surface/],
 ];
 

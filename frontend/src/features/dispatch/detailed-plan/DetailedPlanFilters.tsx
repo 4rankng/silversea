@@ -275,66 +275,74 @@ export function DetailedPlanFilters({
             onChange={(event) => onChange({ q: event.target.value })}
           />
         </div>
-        <SearchableSelect
-          id="detailed-plan-customer"
-          className="detailed-plan-ribbon__customer"
-          value={String(filters.customerId ?? '')}
-          onChange={(value) => onChange({ customerId: value === '' ? null : Number(value) })}
-          options={customerOptions}
-          placeholder="Khách: Tất cả"
-          searchPlaceholder="Tìm khách hàng…"
-          emptyMessage="Không tìm thấy khách hàng phù hợp."
-          clearable
-          clearLabel="Khách: Tất cả"
-          size="sm"
-        />
-        <InlineLabelSelect
-          id="detailed-plan-direction"
-          label="Hướng"
-          items={DIRECTION_OPTIONS}
-          selectedKey={filters.direction || 'ALL_DIRECTIONS'}
-          onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
-          ariaLabel="Chiều hàng"
-        />
-        <InlineLabelSelect
-          id="detailed-plan-assignment"
-          label="Điều xe"
-          items={ASSIGNMENT_OPTIONS}
-          selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
-          onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
-          ariaLabel="Trạng thái điều xe"
-        />
-        <InlineLabelSelect
-          id="detailed-plan-data-status"
-          label="Dữ liệu"
-          items={DATA_STATUS_OPTIONS}
-          selectedKey={filters.dataStatus || 'ALL_DATA_STATUS'}
-          onSelectionChange={(key) => onChange({ dataStatus: key === 'ALL_DATA_STATUS' ? '' : key as DetailedPlanFilterState['dataStatus'] })}
-          ariaLabel="Trạng thái dữ liệu"
-        />
-        <UUIButton
-          size="sm"
-          color="secondary"
-          iconLeading={FilterLines}
-          onPress={() => setIsFilterDrawerOpen(true)}
-          aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
-        >
-          Bộ lọc
-          {activeDrawerFilterCount > 0 && (
-            <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
-          )}
-        </UUIButton>
-        <UUIButton
-          className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
-          size="sm"
-          color="tertiary"
-          iconLeading={RotateCcw}
-          onPress={clearFilters}
-          isDisabled={!hasActiveFilters}
-          aria-label="Xóa lọc"
-        >
-          Xóa lọc
-        </UUIButton>
+        {/* The four quick facets and the two actions are grouped (2026-09-27
+            phone rework). Both wrappers are `display: contents` at desktop, so
+            the ribbon stays the one continuous flex row it was; at phone they
+            become the 2-up facet grid and the right-pinned action row. */}
+        <div className="detailed-plan-ribbon__quick">
+          <SearchableSelect
+            id="detailed-plan-customer"
+            className="detailed-plan-ribbon__customer"
+            value={String(filters.customerId ?? '')}
+            onChange={(value) => onChange({ customerId: value === '' ? null : Number(value) })}
+            options={customerOptions}
+            placeholder="Khách: Tất cả"
+            searchPlaceholder="Tìm khách hàng…"
+            emptyMessage="Không tìm thấy khách hàng phù hợp."
+            clearable
+            clearLabel="Khách: Tất cả"
+            size="sm"
+          />
+          <InlineLabelSelect
+            id="detailed-plan-direction"
+            label="Hướng"
+            items={DIRECTION_OPTIONS}
+            selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+            onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
+            ariaLabel="Chiều hàng"
+          />
+          <InlineLabelSelect
+            id="detailed-plan-assignment"
+            label="Điều xe"
+            items={ASSIGNMENT_OPTIONS}
+            selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
+            onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
+            ariaLabel="Trạng thái điều xe"
+          />
+          <InlineLabelSelect
+            id="detailed-plan-data-status"
+            label="Dữ liệu"
+            items={DATA_STATUS_OPTIONS}
+            selectedKey={filters.dataStatus || 'ALL_DATA_STATUS'}
+            onSelectionChange={(key) => onChange({ dataStatus: key === 'ALL_DATA_STATUS' ? '' : key as DetailedPlanFilterState['dataStatus'] })}
+            ariaLabel="Trạng thái dữ liệu"
+          />
+        </div>
+        <div className="detailed-plan-ribbon__actions">
+          <UUIButton
+            size="sm"
+            color="secondary"
+            iconLeading={FilterLines}
+            onPress={() => setIsFilterDrawerOpen(true)}
+            aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+          >
+            Bộ lọc
+            {activeDrawerFilterCount > 0 && (
+              <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
+            )}
+          </UUIButton>
+          <UUIButton
+            className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
+            size="sm"
+            color="tertiary"
+            iconLeading={RotateCcw}
+            onPress={clearFilters}
+            isDisabled={!hasActiveFilters}
+            aria-label="Xóa lọc"
+          >
+            Xóa lọc
+          </UUIButton>
+        </div>
       </div>
 
       <Drawer

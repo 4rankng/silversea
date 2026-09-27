@@ -589,7 +589,12 @@ describe('MasterPlanGrid', () => {
     expect(record).toContain('"cargo allocation"');
     expect(record).toContain('"notes notes"');
     expect(record).toContain('overflow-wrap: anywhere');
-    expect(css.slice(phoneStart)).toContain('padding: 8px 10px');
+    // 2026-09-27 phone rework: the label rides the value line, so the cell
+    // inset drops from 8px to 6px and the placeholder '—' lines collapse.
+    const phone = css.slice(phoneStart);
+    expect(phone).toContain('padding: 6px 10px');
+    expect(phone).toContain("content: attr(data-label-short)");
+    expect(phone).toContain(".master-plan-grid__line[data-empty='true']");
   });
 
   // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell

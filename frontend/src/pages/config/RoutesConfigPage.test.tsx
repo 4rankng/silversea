@@ -174,11 +174,12 @@ describe('RoutesConfigPage chief table spec (20260926_53)', () => {
     expect(screen.queryByRole('button', { name: /Tùy chọn/ })).toBeNull();
   });
 
-  it('title carries the live route count and the strip search offers the ⌘K badge', async () => {
+  it('title carries the live route count and the strip search prints no shortcut text', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
     expect(container.querySelector('.routes-strip__title')?.textContent).toContain('(2)');
-    expect(container.querySelector('.routes-strip__kbd')?.textContent).toBe('⌘K');
+    // CHIEF 2026-09-27: no control prints shortcut key text.
+    expect(container.querySelector('.routes-strip__kbd')).toBeNull();
   });
 });
 
@@ -210,10 +211,10 @@ describe('routes true grid (card 20260926_59 — chief bounce)', () => {
     expect(css).toMatch(/tbody tr:nth-child\(even\)/);
   });
 
-  it('one header row: back + count + search with kbd + create', () => {
+  it('one header row: back + count + search + create', () => {
     expect(tsx).toContain('routes-strip__back');
     expect(tsx).toContain('routes-title-count');
-    expect(tsx).toContain('routes-strip__kbd');
+    expect(tsx).not.toContain('routes-strip__kbd');
     expect(tsx).toContain('Thêm tuyến');
     expect(tsx).not.toContain('ListFilterBar');
     // the month-picker law keeps the navigator off config routes

@@ -120,7 +120,12 @@ export function CusShipmentRow({
         <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => onStartQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
           <span className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
           {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
-          <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
+          {/* No direction yet means no badge at all: a filled pill holding a
+              bare '—' was chrome (and a generic placeholder) inside a data
+              cell — design law §1 (text-only cells, name the missing field). */}
+          {item.direction && (
+            <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction)}</span>
+          )}
         </span></button>
       </td>
       <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
