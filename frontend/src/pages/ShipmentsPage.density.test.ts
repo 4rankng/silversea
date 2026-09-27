@@ -143,83 +143,26 @@ describe('shipment worksheet export button — non-fighting compact (superseded 
   });
 });
 
-// Card 20260925_1: the shared ListFilterBar must (a) pin every control to
-// one height token (44px on phones, the touch floor) and (b) expose a
-// `.list-filter-bar__pair` 2-column grid for short-value pairs so Workboard
-// filters render date-pair + dropdown-pair on one row each at 390px.
+// Card 20260925_1 kept ONE promise: every control the shared bar hosts reads the
+// one height token (`--filter-control-h`). The `.list-filter-bar__pair` 2-column
+// wrapper and its `WorkboardFilters` host are deleted (card 20260927_152) — the
+// bar packs its own lines and the last page-local bar is gone.
 describe('shipment worksheet — mobile filter inheritance (card 20260925_1)', () => {
-  it('ListFilterBar carries a `.list-filter-bar__pair` 2-column grid for short-value pairing on phones', () => {
-    const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
-    // Card 20260925_8 moved the mobile break 480 → 767 (mandate: mobile <768).
-    const mobile = listCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  });
-
-  it('ListFilterBar pins every hosted control to --filter-control-h (44px) on phones — one height token', () => {
+  it('ListFilterBar pins every hosted control to --filter-control-h on phones — one height token', () => {
     const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
     // Card 20260925_8: mobile break 480 → 767.
     const mobile = listCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // The phone rule pin height on every control surface the bar hosts
+    // The phone rule pins the height on every control surface the bar hosts
     // (search, native input, date wrapper, uui select).
     expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
-  });
-
-  it('WorkboardFilters markup wraps the date pair and the short-select pair in `.list-filter-bar__pair`', () => {
-    const wfSource = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
-    // Two pair wrappers — one for the date pair, one for the short dropdown pair.
-    const wrappers = wfSource.match(/className="list-filter-bar__pair"/g) ?? [];
-    expect(wrappers.length).toBeGreaterThanOrEqual(2);
-    // Date pair is the first wrapper (Từ ngày + Đến ngày).
-    const firstPair = wfSource.match(/<div className="list-filter-bar__pair"[\s\S]*?<\/div>\s*\n/)?.[0] ?? '';
-    expect(firstPair).toContain('Từ ngày giao');
-    expect(firstPair).toContain('Đến ngày giao');
-    // Short-select pair is the second wrapper (Xuất/Nhập + Loại lô).
-    const secondPairStart = wfSource.indexOf('<div className="list-filter-bar__pair"', wfSource.indexOf('<div className="list-filter-bar__pair"') + 1);
-    const secondPair = secondPairStart >= 0 ? wfSource.slice(secondPairStart, wfSource.indexOf('</div>', secondPairStart) + 6) : '';
-    expect(secondPair).toContain('Xuất / Nhập');
-    expect(secondPair).toContain('Loại lô');
+    // The pair wrapper is gone: no RULE may reopen it (the sheet may still
+    // name it in the comment that records the deletion).
+    expect(listCss).not.toMatch(/\.list-filter-bar__pair[\s>,{]/);
   });
 });
 
-// Card 20260925_5 (CHIEF 19:09, 1920px screenshot 'Tổng quan lô hàng'): on
-// the worksheet the date pair and the short-select pair used to render as
-// a detached white panel — the `.list-filter-bar__pair` wrapper defaulted
-// to `display: block`, so the two stacked labelled inputs floated as a
-// chunky block on a row of their own, reading as a separate filter bar.
-// Card 20260925_8 (REBUILD): at any viewport above the phone break the
-// pair sits as ONE 2-col grid cell of the bar's grid row (the old inline
-// flex-cell could still re-wrap), baseline-aligned with the search /
-// Xuất-Nhập / Kế hoạch controls beside it, with zero panel chrome (no
-// background, no border, no border-radius, no shadow — flat law §3).
-describe('shipment worksheet — wide-pair inheritance (card 20260925_5)', () => {
-  it('ListFilterBar pair is one 2-col grid cell of the bar at desktop — no detached panel', () => {
-    const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
-    // Top-level default rule (the one OUTSIDE any @media block) carries
-    // the desktop pair cell, so a regression that hid it in a media query
-    // would also fail this test.
-    const desktopBlock = listCss.match(/\.list-filter-bar__pair\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(desktopBlock, 'pair default rule present at top level').not.toBe('');
-    expect(desktopBlock).toMatch(/display:\s*grid/);
-    expect(desktopBlock).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(desktopBlock).toMatch(/align-items:\s*end/);
-    expect(desktopBlock).toMatch(/gap:\s*12px/);
-    // Flat surface — never a panel (default `box-shadow: none` covers
-    // the shadow side; the rule never pins one explicitly so the page
-    // "no-shadow anywhere" assertion still holds).
-    expect(desktopBlock).toMatch(/background:\s*transparent/);
-    expect(desktopBlock).toMatch(/border:\s*0/);
-    expect(desktopBlock).toMatch(/border-radius:\s*0/);
-    // Source order: desktop default first, mobile @media below so the
-    // phone stack rule wins by order and never leaks up.
-    const desktopIdx = listCss.search(/\.list-filter-bar__pair\s*\{/);
-    const mobileIdx = listCss.search(/@media \(max-width: 767px\)/);
-    expect(desktopIdx).toBeGreaterThan(-1);
-    expect(mobileIdx).toBeGreaterThan(desktopIdx);
-    // Mobile grid contract preserved (card 20260925_1; break moved 480 →
-    // 767 by card 20260925_8): pair is a 2-col grid on phones.
-    const mobile = listCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  });
-});
+// Card 20260925_5's wide-pair contract is retired with `.list-filter-bar__pair`
+// (card 20260927_152): the bar packs its own lines, the pair wrapper's only host
+// (`WorkboardFilters`) is deleted, and the one control group that still owns a
+// 2-track grid is the shared from/to date group — pinned in
+// `filter-grid-rebuild.styles.test.ts` and `FilterBar.styles.test.ts`.

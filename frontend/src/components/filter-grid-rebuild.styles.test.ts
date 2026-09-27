@@ -57,10 +57,10 @@ describe('filter bar = one wrapping line in one card (card 20260927_152)', () =>
     expect(listCss).not.toMatch(/grid-column\s*:/);
     expect(barCss).not.toMatch(/@media \(max-width: 480px\)/);
     expect(listCss).not.toMatch(/@media \(max-width: 480px\)/);
-    // The one grid left in the sheets is the from/to pair's inner 2-track
-    // group — a control group, not the bar layout.
-    const pair = topLevelBlock(listCss, '.list-filter-bar__pair');
-    expect(pair).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // No grid is left for the bar's own layout at all: the from/to group owns
+    // its inner 2-track grid (`.date-range-fields`), and the dead
+    // `.list-filter-bar__pair` wrapper is gone with its only host.
+    expect(topLevelBlock(listCss, '.list-filter-bar__pair')).toBe('');
   });
 
   it('the toolbar card is the bar surface: hairline border, surface token, no shadow', () => {

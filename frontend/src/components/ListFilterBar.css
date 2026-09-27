@@ -153,30 +153,8 @@
   min-width: 0;
 }
 
-.list-filter-bar__pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: end;
-  gap: 12px;
-  min-width: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-.list-filter-bar__pair [data-input-wrapper] {
-  width: 168px;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.list-filter-bar__pair .ds-uui-select,
-.list-filter-bar__pair .csc-searchable-field,
-.list-filter-bar__pair [data-uui-control='combobox'] {
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-}
+/* `.list-filter-bar__pair` is deleted (card 20260927_152): its only host was
+   the dead `WorkboardFilters`, and the bar packs its own lines now. */
 
 @media (pointer: coarse) {
   .list-filter-bar {
@@ -222,15 +200,8 @@
 
   /* A bar child never takes the full row on its own; the floors below keep the
      squeezed families readable inside the packed lines. */
-  .list-filter-bar > *:not(.list-filter-bar__pair):not(.ds-tabs) {
+  .list-filter-bar > *:not(.ds-tabs) {
     min-width: 0;
-  }
-
-  .list-filter-bar > .list-filter-bar__pair {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
   }
 
   /* A pair holding a merged date-range trigger needed the full row (the
@@ -249,17 +220,6 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
-  }
-
-  /* Pair floors follow the cell (the desktop max-width:100% already does,
-     width:100% fills the half-row on phones; max-width:none releases the
-     standalone-date cap so the cell owns the width). */
-  .list-filter-bar__pair [data-input-wrapper],
-  .list-filter-bar__pair .ds-uui-select,
-  .list-filter-bar__pair .csc-searchable-field,
-  .list-filter-bar__pair [data-uui-control='combobox'] {
-    width: 100%;
-    max-width: none;
   }
 
   /* One height token (card 20260925_1): search input shell, the UUI control

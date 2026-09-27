@@ -161,11 +161,7 @@
 /* …except a member of a control group that owns its own track. Ordered after
    the reset inside this one file, so the outcome is decided here and not by
    stylesheet import order. */
-.filter-bar .date-range-fields > [data-input-wrapper],
-.filter-bar .list-filter-bar__pair > [data-input-wrapper],
-.filter-bar .list-filter-bar__pair > .ds-uui-select,
-.filter-bar .list-filter-bar__pair > .searchable-select,
-.filter-bar .list-filter-bar__pair > [data-uui-control] {
+.filter-bar .date-range-fields > [data-input-wrapper] {
   width: 100%;
 }
 

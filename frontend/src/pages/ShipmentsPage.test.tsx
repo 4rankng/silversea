@@ -2141,14 +2141,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
-    // Card 20260926_48: the worksheet owns its Row 2 toolbar in the page —
-    // search, from/to date fields, label-inside chips, Kế hoạch combobox. The
-    // shared ListFilterBar/WorkboardFilters stay for OTHER list pages.
+    // Row 2 IS the shared bar (card 20260927_151) — the page keeps its
+    // controls, the bar owns the layout (the former `WorkboardFilters` host and
+    // its `.list-filter-bar__pair` wrapper are deleted, card 20260927_152).
     expect(source).toContain("placeholder: 'Bill, Book, Cont, Tờ khai...'");
-    // Row 2 IS the shared bar now (card 20260927_151) — the page keeps its
-    // controls, the bar owns the layout.
     expect(source).toContain('<ListFilterBar');
-    expect(source).not.toContain('<WorkboardFilters');
     expect(source).toContain('<DateRangeFields');
     expect(source).toContain('<InlineLabelSelect');
     expect(source).toContain('<SearchableMultiSelect');

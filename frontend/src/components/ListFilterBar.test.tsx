@@ -88,25 +88,6 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     expect(componentCss).toMatch(/\.filter-bar\.list-filter-bar > \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
   });
 
-  // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): phones expose a
-  // 2-column pair wrapper so short-value controls (date pair, dropdown pair)
-  // share one row instead of stacking every control full-width. The shared
-  // component defines the contract; every host inherits the same pair rule.
-  it('phones pair short-value controls on a 2-column grid (card 20260925_1 short-value pairing)', () => {
-    // Card 20260925_8: the mobile break moved 480 → 767 (mandate <768 stack).
-    const mobile = componentCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // The pair wrapper exists and lays out as a 2-column grid on phones.
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    // Pair descendants release the desktop width floors so the grid can size
-    // each one to its 1/2 track.
-    expect(mobile).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][\s\S]*?max-width:\s*none/);
-    expect(mobile).toMatch(/\.list-filter-bar__pair \.ds-uui-select[\s\S]*?max-width:\s*none/);
-    // Spacer is desktop-only (pins actions to the row end); on phones it
-    // must collapse so the column stack puts actions on their own row.
-    expect(mobile).toMatch(/\.list-filter-bar \.filter-bar__spacer\s*\{\s*display:\s*none/);
-  });
-
   // Card 20260925_1: every hosted control surface reads --filter-control-h
   // on phones so search, date, select, native input all share one height
   // token (44px, the touch floor) — no more 64/80/72 mis-matches.
@@ -127,43 +108,6 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
   // flex row, reading as two different filter bars on the same page.
   // Card 20260925_8 (REBUILD): the desktop pair is one 2-col GRID cell of
   // the bar's grid row (the old inline flex-cell could still re-wrap and
-  // break the column rhythm), baseline-aligned with the rest of the row,
-  // no panel chrome (bg transparent, border 0, border-radius 0, no
-  // shadow). The mobile ≤767 rule below re-states the same 2-col layout
-  // for the phone stack.
-  it('desktop pair is one 2-col grid cell of the bar — no detached panel (cards 20260925_5 / 20260925_8)', () => {
-    // Pull the desktop-default rule (the one OUTSIDE any @media block) so
-    // a future regression that moved the rule into a media condition would
-    // also fail this assertion.
-    const desktopBlock = componentCss.match(
-      /\.list-filter-bar__pair\s*\{([^}]*)\}/,
-    )?.[1] ?? '';
-    expect(desktopBlock, 'pair has a top-level default rule').not.toBe('');
-    // The pair rows its two children horizontally via a 2-col grid (no
-    // vertical stacking, no flex re-wrap).
-    expect(desktopBlock).toMatch(/display:\s*grid/);
-    expect(desktopBlock).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(desktopBlock).toMatch(/align-items:\s*end/);
-    expect(desktopBlock).toMatch(/gap:\s*12px/);
-    // Flat sheet: no panel chrome (the default `box-shadow: none` covers
-    // that side — the rule never pins one explicitly so the page-level
-    // "no-shadow anywhere" assertion still holds).
-    expect(desktopBlock).toMatch(/background:\s*transparent/);
-    expect(desktopBlock).toMatch(/border:\s*0/);
-    expect(desktopBlock).toMatch(/border-radius:\s*0/);
-    // The desktop rule must precede the mobile @media block so the grid
-    // rule still wins on phones via source order. Catch a regression that
-    // flips the order, which would let mobile layout leak onto desktop.
-    const desktopIdx = componentCss.search(/\.list-filter-bar__pair\s*\{/);
-    const mobileIdx = componentCss.search(/@media \(max-width: 767px\)/);
-    expect(desktopIdx).toBeGreaterThan(-1);
-    expect(mobileIdx).toBeGreaterThan(desktopIdx);
-    // Mobile contract (card 20260925_1) is preserved: pair is a 2-col
-    // grid at <768, with width floors released so tracks size each cell.
-    const mobile = componentCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.list-filter-bar__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  });
 });
 
 describe('ListFilterBar control integration', () => {
