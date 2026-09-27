@@ -14,7 +14,7 @@ import {
 } from '@tingting/shared';
 import { Btn, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
-import { DateRangePopover, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangePopover';
+import { DateRangeFields, DateRangePresets, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangeFields';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { downloadCSV } from '../lib/csv';
 import {
@@ -89,7 +89,7 @@ export default function AccountingInvoiceTrackingPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const { from, to } = period;
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; row: InvoiceTrackingRow } | null>(null);
-  const { confirm, dialog } = useConfirm();
+  const { dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
 
   const query = useQuery({
@@ -198,15 +198,22 @@ export default function AccountingInvoiceTrackingPage() {
           </div>
         </div>
 
-        <div className="invoice-tracking-filters" role="search" aria-label="Bộ lọc hóa đơn">
-          <DateRangePopover
+        <div className="filter-bar invoice-tracking-filters" role="search" aria-label="Bộ lọc hóa đơn">
+          <DateRangeFields
             id="ivt-period"
             className="invoice-tracking-range"
             ariaLabel="Kỳ theo dõi"
             size="sm"
+            from={period.from}
+            to={period.to}
+            onChange={setPeriod}
+          />
+          <DateRangePresets
+            className="invoice-tracking-range__presets"
+            presets={periodPresets}
             value={period}
             onChange={setPeriod}
-            presets={periodPresets}
+            ariaLabel="Kỳ theo dõi nhanh"
           />
           <div className="invoice-tracking-search">
             <Search size={14} aria-hidden="true" />
@@ -234,6 +241,7 @@ export default function AccountingInvoiceTrackingPage() {
             onChange={(event) => setDiffOnly(event.target.value === 'diff')}
             options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
           />
+          <div className="filter-bar__spacer" />
           <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
         </div>
       </header>

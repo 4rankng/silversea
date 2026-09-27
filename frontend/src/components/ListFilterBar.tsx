@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { Search } from 'lucide-react';
 import './FilterBar.css';
 import './ListFilterBar.css';
@@ -22,6 +22,12 @@ export interface ListFilterBarSearchProps {
   placeholder: string;
   /** Accessible name for the search field. */
   ariaLabel: string;
+  /** Focus target for a page-level shortcut (e.g. `/` or ⌘K). */
+  inputRef?: RefObject<HTMLInputElement | null>;
+  /** Extra attributes for the input (title, autocomplete, data-* hooks). */
+  inputProps?: Record<string, unknown>;
+  /** Validation message rendered under the field (role="alert" when set). */
+  error?: string | null;
 }
 
 export interface ListFilterBarProps {
@@ -41,15 +47,23 @@ export function ListFilterBar({ search, children, quickFilters, quickFiltersLabe
   return (
     <div className="filter-bar list-filter-bar">
       {search && (
-        <div className="filter-bar__search">
-          <Search size={14} aria-hidden="true" />
-          <input
-            type="text"
-            aria-label={search.ariaLabel}
-            placeholder={search.placeholder}
-            value={search.value}
-            onChange={(event) => search.onChange(event.target.value)}
-          />
+        // The cell is a stack: the shell plus the field's own validation line
+        // (a bar cell that grows a second row must not become a second cell —
+        // the grid would give the message a column of its own).
+        <div className="filter-bar__search-cell">
+          <div className="filter-bar__search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              ref={search.inputRef}
+              type="text"
+              aria-label={search.ariaLabel}
+              placeholder={search.placeholder}
+              value={search.value}
+              onChange={(event) => search.onChange(event.target.value)}
+              {...search.inputProps}
+            />
+          </div>
+          {search.error ? <p className="filter-bar__search-error" role="alert">{search.error}</p> : null}
         </div>
       )}
       {children}

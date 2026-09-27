@@ -33,16 +33,9 @@
   cursor: help;
 }
 
-/* Row 2: one continuous 32px ribbon. */
-.shipment-debit-ribbon {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-}
-
+/* Row 2: one continuous ribbon. The LAYOUT is the shared `.filter-bar` grid
+   (card 20260927_151) — this sheet only sizes the page's controls. */
 .shipment-debit-ribbon__customer {
-  width: 280px;
   min-width: 0;
 }
 
@@ -50,37 +43,35 @@
   height: 32px;
 }
 
-/* Content-sized: a fixed 220px left the trigger 19px short of its own
-   empty-state mask and it ellipsized itself on desktop
-   (2026-09-27 role sweep, §4). */
-.shipment-debit-ribbon__range .date-range__trigger {
-  width: max-content;
-  min-width: 220px;
-  max-width: 100%;
+/* From/to date fields (DateRangeFields): two 149px fields plus the 12px seam
+   set the floor — a single 220px slot ellipsized the value it carried
+   (2026-09-27 role sweep, §4). The group spans two tracks in the bar grid, so
+   the floor only has to hold inside its own cell. */
+.shipment-debit-ribbon__range {
+  min-width: 0;
+  max-width: none;
 }
+
+/* Quick settlement ranges ride beside the fields as the shared boxed
+   segmented control (no range popover — CHIEF 2026-09-27). */
+.shipment-debit-ribbon__presets { min-width: 0; }
 
 .shipment-debit-ribbon__lock { min-width: 160px; }
 
-.shipment-debit-ribbon__clear {
-  margin-left: auto;
-}
+/* The clear action rides the bar's action slot (it pins to the row end). */
 
 /* 390 stack: title row holds; ribbon wraps, search-edge controls full-width. */
 @media (max-width: 640px) {
   .shipment-debit-header { height: auto; min-height: 36px; }
-  .shipment-debit-ribbon { flex-wrap: wrap; height: auto; }
-  .shipment-debit-ribbon__customer { flex: 1 1 100%; width: auto; }
-  .shipment-debit-ribbon__range { flex: 1 1 100%; }
-  .shipment-debit-ribbon__range .date-range__trigger { width: 100%; }
-  .shipment-debit-ribbon__clear { margin-left: 0; }
+  .shipment-debit-ribbon { height: auto; }
+  .shipment-debit-ribbon__range,
+  .shipment-debit-ribbon__presets { min-width: 0; }
 }
 
+/* Coarse-pointer heights come from the shared bar (FilterBar.css): the page
+   never declares a UUI field dimension (control-density contract). */
 @media (pointer: coarse) {
-  .shipment-debit-header,
-  .shipment-debit-ribbon { height: auto; }
-  .shipment-debit-ribbon__customer .searchable-select__trigger,
-  .shipment-debit-ribbon__range .date-range__trigger,
-  .shipment-debit-ribbon__lock .inline-label-select__trigger { height: 44px; }
+  .shipment-debit-header { height: auto; }
 }
 
 .shipment-debit-workspace {

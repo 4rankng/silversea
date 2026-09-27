@@ -5,7 +5,7 @@ import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
-import { DateRangePopover, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
@@ -222,7 +222,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
 
   return (
     <>
-      <div className="master-plan-filters">
+      <div className="filter-bar master-plan-filters">
         <UUIInput
           className="master-plan-filters__field master-plan-filters__search"
           inputClassName="master-plan-filters__control"
@@ -279,11 +279,12 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
             onSelectionChange={(keys) => onChange({ carrierKeys: keys })}
             loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)}
           />
-          <DateRangePopover
+          <DateRangeFields
             id="master-plan-delivery-date-range"
             ariaLabel="Khoảng ngày giao"
             size="sm"
-            value={rangeValue}
+            from={rangeValue.from}
+            to={rangeValue.to}
             onChange={applyRange}
             className="master-plan-filters__date-range"
           />
@@ -331,11 +332,12 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
               >
                 {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
               </UUISelect>
-              <DateRangePopover
+              <DateRangeFields
                 id="master-plan-delivery-date-range-drawer"
                 ariaLabel="Khoảng ngày giao"
                 size="md"
-                value={rangeValue}
+                from={rangeValue.from}
+                to={rangeValue.to}
                 onChange={applyRange}
                 className="master-plan-filters__date-range"
               />

@@ -84,8 +84,10 @@ describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () 
     expect(tsx).not.toMatch(/>Loc<|>Lọc</);
   });
 
-  it('row 2: date-range popover with presets auto-refetches, plus search, supplier, discrepancy toggle, reset', () => {
-    expect(tsx).toContain('DateRangePopover');
+  it('row 2: from/to date fields with visible quick periods auto-refetch, plus search, supplier, discrepancy toggle, reset', () => {
+    expect(tsx).toContain('<DateRangeFields');
+    expect(tsx).toContain('<DateRangePresets');
+    expect(tsx).not.toContain('DateRangePopover');
     expect(tsx).toContain('Tháng này');
     expect(tsx).toContain('Tháng trước');
     expect(tsx).toContain('Quý này');

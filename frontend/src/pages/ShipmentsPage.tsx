@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save, Search } from 'lucide-react';
+import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
@@ -14,11 +14,12 @@ import {
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangePopover, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
+import { DateRangeFields, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
@@ -472,32 +473,43 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        {/* Card 20260926_48 — Row 2: one uniform 32px toolbar. Search carries
-            the ⌘K badge (hotkeys land with card _49); the date-range popover
-            replaces the two Từ/Đến inputs; Hướng/Loại are label-inside chips;
-            Kế hoạch is a multi-select combobox. Xóa lọc rides the row end and
-            shows only when a filter deviates from default. */}
-        <div className="shipments-control__row shipments-control__row--filters">
-          <div className="shipments-control__search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={searchFieldRef}
-              type="text"
-              aria-label="Tìm lô hàng"
-              placeholder="Bill, Book, Cont, Tờ khai..."
-              title="Nhấn / để tìm kiếm · Esc để xóa"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-            />
-          </div>
-          <DateRangePopover
+        {/* Card 20260926_48 Row 2 / card 20260927_151: the filter row is the
+            ONE shared ListFilterBar (card 20260922_38) — it owns the grid, the
+            search shell, the wrap behaviour and the trailing action slot, so
+            this toolbar can never drift from the other list pages again. The
+            page contributes only its controls: from/to date fields + quick
+            ranges, the Hướng/Loại chips and the Kế hoạch combobox. */}
+        <ListFilterBar
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+            placeholder: 'Bill, Book, Cont, Tờ khai...',
+            ariaLabel: 'Tìm lô hàng',
+            inputRef: searchFieldRef,
+            inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
+          }}
+          actions={hasFilters ? (
+            <UUIButton
+              type="button" size="sm" color="tertiary"
+              className="shipment-uui-button shipment-uui-button--tertiary shipments-control__reset"
+              onPress={clearFiltersUrl} iconLeading={<RotateCcw size={15} aria-hidden="true" />}
+            >
+              Xóa lọc
+            </UUIButton>
+          ) : undefined}
+        >
+          <DateRangeFields
             className="shipments-control__range"
             id="lot-date-range"
             size="sm"
             ariaLabel="Khoảng ngày giao"
-            value={{ from: dateFrom, to: dateTo }}
+            from={dateFrom} to={dateTo} onChange={applyDateRange}
+          />
+          <DateRangePresets
+            className="shipments-control__date-presets"
             presets={LOT_DATE_PRESETS}
-            onChange={applyDateRange}
+            value={{ from: dateFrom, to: dateTo }}
+            onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh"
           />
           <InlineLabelSelect
             className="shipments-control__chip"
@@ -529,19 +541,7 @@ export default function ShipmentsPage() {
             countSuffix="đã chọn"
             clearAllLabel="Bỏ chọn"
           />
-          {hasFilters && (
-            <UUIButton
-              type="button"
-              size="sm"
-              color="tertiary"
-              className="shipment-uui-button shipment-uui-button--tertiary shipments-control__reset"
-              onPress={clearFiltersUrl}
-              iconLeading={<RotateCcw size={15} aria-hidden="true" />}
-            >
-              Xóa lọc
-            </UUIButton>
-          )}
-        </div>
+        </ListFilterBar>
 
 
         {ws.notice && <div className="cus-notice cus-notice--success" role="status">{ws.notice}</div>}

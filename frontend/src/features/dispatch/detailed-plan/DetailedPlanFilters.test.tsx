@@ -76,7 +76,7 @@ async function pickCheckbox(label: string, facetName: string) {
 }
 
 describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
-  it('renders row 1 (title + presets adjacent to the range trigger) and row 2 as one ribbon', () => {
+  it('renders row 1 (title + presets adjacent to the from/to date fields) and row 2 as one ribbon', () => {
     const onChange = vi.fn();
     const { container } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
@@ -88,7 +88,11 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     const presetGroup = screen.getByRole('tablist', { name: 'Phạm vi ngày vận chuyển' });
     expect(presetGroup.className).toContain('ds-tabs--boxed');
     expect(within(presetGroup).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
+    // CHIEF 2026-09-27: two independent date fields, no range picker.
+    expect(screen.getByRole('group', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
+    expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
+    expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
     // + Gán xe primary rides Row 1's right end (ruling c).
     expect(screen.getByRole('button', { name: 'Gán xe' })).toBeTruthy();
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
@@ -138,11 +142,10 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Tìm nhanh'));
   });
 
-  it('clicking a preset updates the trigger value instantly WITHOUT opening the picker', () => {
+  it('clicking a preset updates the date fields instantly WITHOUT opening a picker', () => {
     const onChange = vi.fn();
     const view = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
-    expect(screen.queryByRole('dialog', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(), dateFrom: '', dateTo: '' });
 
@@ -155,24 +158,25 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
         />,
       ),
     );
-    const trigger = screen.getByRole('button', { name: 'Khoảng ngày vận chuyển' });
-    expect(trigger.textContent).toContain(`${formatISODate(today)} - ${formatISODate(today)}`);
-    expect(screen.queryByRole('dialog', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
+    // Both fields carry the scope date (segmented: DD / MM / YYYY); no popover,
+    // no merged range trigger.
+    const [expectedDay, expectedMonth, expectedYear] = formatISODate(today).split('/');
+    const fromDay = screen.getByLabelText('Từ ngày') as HTMLInputElement;
+    expect(fromDay.value).toBe(expectedDay);
+    expect((screen.getByLabelText('Tháng — Từ ngày') as HTMLInputElement).value).toBe(expectedMonth);
+    expect((screen.getByLabelText('Năm — Từ ngày') as HTMLInputElement).value).toBe(expectedYear);
+    const toDay = screen.getByLabelText('Đến ngày') as HTMLInputElement;
+    expect(toDay.value).toBe(expectedDay);
+    expect((screen.getByLabelText('Tháng — Đến ngày') as HTMLInputElement).value).toBe(expectedMonth);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('writes an explicit range through the dual-calendar popover (controlled flow)', () => {
+  it('writes an explicit range through the two independent date fields (controlled flow)', () => {
     const onChange = vi.fn();
     const view = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày vận chuyển' }));
-    const popover = screen.getByRole('dialog', { name: 'Khoảng ngày vận chuyển' });
-    const fromPanel = popover.querySelector('.date-range__panel[data-side="from"]') as HTMLElement;
-    const toPanel = popover.querySelector('.date-range__panel[data-side="to"]') as HTMLElement;
-    expect(fromPanel).toBeTruthy();
-    expect(toPanel).toBeTruthy();
-    // Controlled component: the parent applies each pick, then the rerender
-    // feeds the value back before the second side is chosen.
-    fireEvent.click(within(fromPanel).getByRole('button', { name: '15 Tháng 9 2026' }));
+    // Each field commits a complete DD/MM/YYYY draft as ISO, on its own.
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/09/2026' } });
     expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '' });
     view.rerender(
       wrapFilters(
@@ -182,14 +186,34 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
         />,
       ),
     );
-    const reopened = screen.getByRole('dialog', { name: 'Khoảng ngày vận chuyển' });
-    fireEvent.click(within(reopened.querySelector('.date-range__panel[data-side="to"]') as HTMLElement).getByRole('button', { name: '22 Tháng 9 2026' }));
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '22/09/2026' } });
     expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '2026-09-22' });
+    // No picker is involved anywhere in the flow.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 
-    fireEvent.click(within(reopened).getByRole('button', { name: 'Xóa' }));
-    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '', dateTo: '' });
-    fireEvent.click(within(reopened).getByRole('button', { name: 'Xong' }));
-    expect(screen.queryByRole('dialog', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
+  it('bounds each field by the other so an out-of-order range can never be written', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dateFrom: '2026-09-15', dateTo: '2026-09-22' }}
+      />,
+    );
+    // Each field carries the other's boundary, so neither the calendar nor a
+    // typed date can invert the range.
+    expect((screen.getByLabelText('Từ ngày') as HTMLInputElement).max).toBe('2026-09-22');
+    expect((screen.getByLabelText('Đến ngày') as HTMLInputElement).min).toBe('2026-09-15');
+
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '25/09/2026' } });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '01/09/2026' } });
+    expect(onChange).not.toHaveBeenCalled();
+
+    // A date inside the boundary is written through.
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '20/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '2026-09-20' });
   });
 
   it('maps the drawer facet selects to their filter patches and keeps labels in the triggers', () => {

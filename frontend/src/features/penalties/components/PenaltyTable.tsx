@@ -201,7 +201,7 @@ export function PenaltyTable({
           </div>
 
           {/* Filter toolbar — search + driver, scoped to the salary period */}
-          <div className="penalty-filter-bar">
+          <div className="filter-bar penalty-filter-bar">
             <div className="penalty-filter-bar__search">
               <Search size={14} />
               <input
@@ -236,9 +236,12 @@ export function PenaltyTable({
               ]}
             />
             {hasActiveFilters && (
-              <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
-                <X size={12} /> Xóa bộ lọc
-              </button>
+              <>
+                <div className="filter-bar__spacer" />
+                <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
+                  <X size={12} /> Xóa bộ lọc
+                </button>
+              </>
             )}
           </div>
 

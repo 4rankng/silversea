@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FilterLines } from '@untitledui/icons';
 import { Plus, Search, RotateCcw } from 'lucide-react';
-import { DateRangePopover, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -271,12 +271,13 @@ export function DetailedPlanFilters({
           </div>
         </div>
         <div className="detailed-plan-header__row">
-        <DateRangePopover
+        <DateRangeFields
           className="detailed-plan-header__range"
           id="detailed-plan-date-range"
           ariaLabel="Khoảng ngày vận chuyển"
           size="sm"
-          value={rangeValue}
+          from={rangeValue.from}
+          to={rangeValue.to}
           onChange={applyRange}
         />
         <UUIButton

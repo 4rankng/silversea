@@ -76,10 +76,7 @@
  * select's width:100% is now bounded by its ≤320px track.
  * ========================================================================== */
 .ppc-filters,
-.ppc-filter-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
-  gap: 12px 24px; /* ListFilterBar rhythm: 12px row / 24px column */
+.ppc-filter-actions { /* ListFilterBar rhythm: 12px row / 24px column */
   align-items: end;
 }
 .ppc-filters { margin: 12px 0; }
@@ -170,13 +167,9 @@
    their own row; tracks stop banding so cells run the full row. */
 @media (max-width: 480px) {
   .ppc-filters {
-    grid-template-columns: 1fr;
-    gap: 12px;
     margin: 0 0 12px;
   }
   .ppc-filter-actions {
-    grid-template-columns: 1fr;
-    gap: 12px;
     margin: 0 0 12px;
   }
   /* Card 20260925_1: pair short-value controls on a 2-column grid. The

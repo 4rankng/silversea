@@ -130,7 +130,7 @@ export default function PortalStatementPage() {
           <strong>{appliedRange.dateFrom || appliedRange.dateTo ? 'Đang lọc theo kỳ' : 'Toàn bộ lịch sử'}</strong>
         </div>
         <form
-          className="portal-filters"
+          className="filter-bar portal-filters"
           onSubmit={(event) => {
             event.preventDefault();
             setAppliedRange({ dateFrom, dateTo });

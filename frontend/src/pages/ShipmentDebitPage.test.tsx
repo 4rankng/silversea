@@ -134,7 +134,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // Ribbon order: customer combobox → delivery range → lock → Xóa lọc tail.
     const ribbon = container.querySelector('[data-component="shipment-debit-ribbon"]') as HTMLElement;
     within(ribbon).getByRole('button', { name: 'Khách hàng' });
-    within(ribbon).getByRole('button', { name: 'Khoảng ngày giao' });
+    within(ribbon).getByRole('group', { name: 'Khoảng ngày giao' });
     within(ribbon).getByRole('button', { name: 'Khóa lô: Tất cả' });
     within(ribbon).getByRole('button', { name: 'Xóa lọc' });
     // Row 1: Xuất Debit Note rides the title baseline, disabled without a

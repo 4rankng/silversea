@@ -185,7 +185,7 @@ export default function PhoiPhieuControlPage() {
           `.ppc-filters__pair` 2-column grid, the short dropdown pair
           (Trạng thái + Sắp xếp) does the same, and the long-content search
           stays on its full row. */}
-      <div className="ppc-filters">
+      <div className="filter-bar ppc-filters">
         <div className="ppc-filters__pair">
           <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
           <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
@@ -204,7 +204,7 @@ export default function PhoiPhieuControlPage() {
           Card 20260925_1: at ≤480 the two short selects (Loại phiếu + STK)
           pair on one row; the Lập phiếu button keeps its own row, full
           width. */}
-      <div className="ppc-filter-actions">
+      <div className="filter-bar ppc-filter-actions">
         <div className="ppc-filter-actions__pair">
           <UuiSelectField label="Loại phiếu" value={direction} onChange={(e) => setDirection(e.target.value as 'IN' | 'OUT')}
             options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} />

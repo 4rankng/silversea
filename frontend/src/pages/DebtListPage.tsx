@@ -352,7 +352,7 @@ export default function DebtListPage() {
         * ══════════════════════════════════════════════════════════════════════ */}
       <div className="debt-data-card" data-tour-id="debt-customer-list">
         {/* Filter pill bar */}
-        <div className="debt-filter-bar">
+        <div className="filter-bar debt-filter-bar">
           <div className="debt-filter-chips">
             <button
               type="button"
@@ -368,7 +368,7 @@ export default function DebtListPage() {
                 two models caused the bug where 'overdue' grouped d30+d60 and
                 'high-risk' used an amount-based criterion unrelated to aging. */}
           </div>
-          <div className="debt-filter-spacer" />
+          <div className="filter-bar__spacer" />
           <div className="debt-filter-search">
             <Search size={14} />
             <input

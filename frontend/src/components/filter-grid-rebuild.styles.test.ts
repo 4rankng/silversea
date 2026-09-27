@@ -3,103 +3,98 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Card 20260925_8 — REBUILD the filter bar as a REAL CSS grid (red-first).
+ * Card 20260927_151 — the filter bar is ONE measured grid at every width.
  *
- * CHIEF evidence (26/09 09:50): the pair floated off the shared row, controls
- * staggered across rows (search low-left, selects ragged, "Kế hoạch" pushed to
- * a second row), and Tổng quan / Chi tiết lô hàng rendered two different
- * layouts. The flex row (wrap + per-child flex-basis) cannot hold columns
- * straight once anything wraps — so the shared `.list-filter-bar` becomes a
- * grid at desktop, the date pair becomes one 2-column grid item, and BOTH
- * pages ride the exact same pair class.
+ * Supersedes the card 20260925_8 band contract. That rebuild made the bar a
+ * real grid but kept a declared tablet band (`768-1279px ⇒ exactly 2 columns`),
+ * and the band is what the operator photographed on 27/09: the 8-control
+ * Chi tiết lô hàng bar spent FOUR rows on a 1187px screen where its width
+ * fitted four columns — "if layout efficiently I just need 2 rows instead
+ * currently 4 rows". Column count is now measured from the bar's own width at
+ * every size; no band declares a count.
  *
- * Breakpoint contract (mandate): desktop ≥1280 auto-fit N-col content tracks;
- * tablet 768–1279 exactly 2-col; mobile <768 one-column stack while the date
- * pair stays 2-col.
- *
- * NEPOCORP reference consulted before coding (file:line):
- * - nepocorp frontend/src/pages/ExpenseListPage.css:148 — filter bar is
- *   `display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))`.
- * - nepocorp frontend/src/pages/ExpenseListPage.css:511 — tablet 2-col
- *   override `repeat(2, minmax(0, 1fr))`.
- * - nepocorp frontend/src/pages/ForwarderTripsPage.css:96 — search+date-pair
- *   bar on grid with `grid-template-columns: minmax(220px, 1fr) minmax(260px, auto)`
- *   and the pair as a transparent grid item (`:133` `1fr 1fr`).
+ * The two structural pins that survive from the rebuild: wrapped rows land on
+ * the same tracks (equal `1fr` tracks, not content-sized ones — measured
+ * 2026-09-27: content-sized tracks gave one row 198px and 253px selects), and
+ * the wide control families (from/to date group, segmented preset group) own
+ * two tracks so they can never squeeze or wrap inside one.
  */
 
 const listCss = readFileSync(resolve(process.cwd(), 'src/components/ListFilterBar.css'), 'utf8');
+const barCss = readFileSync(resolve(process.cwd(), 'src/components/FilterBar.css'), 'utf8');
 const detailCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.css'), 'utf8');
 const detailTsx = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.tsx'), 'utf8');
-const workboardTsx = readFileSync(resolve(process.cwd(), 'src/components/WorkboardFilters.tsx'), 'utf8');
+const shipmentsTsx = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+const dateFieldsTsx = readFileSync(resolve(process.cwd(), 'src/design-system/forms/DateRangeFields.tsx'), 'utf8');
 
 /** Top-level (outside any @media) rule body for a selector. */
 function topLevelBlock(css: string, selector: string): string {
   return css.match(new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'm'))?.[1] ?? '';
 }
 
-describe('filter bar = real CSS grid (card 20260925_8 rebuild)', () => {
-  it('shared ListFilterBar bar is a grid with auto-fit content tracks at desktop', () => {
-    const bar = topLevelBlock(listCss, '.filter-bar.list-filter-bar');
-    expect(bar, 'desktop grid rule exists').not.toBe('');
+describe('filter bar = one measured grid (card 20260927_151)', () => {
+  it('the bar is a grid of EQUAL auto-fit tracks — every width, no declared column count', () => {
+    // `.filter-bar` is THE bar layout (FilterBar.css): every filter surface in
+    // the app carries it, component or hand-rolled.
+    const bar = topLevelBlock(barCss, '.filter-bar');
+    expect(bar, 'grid rule exists').not.toBe('');
     expect(bar).toMatch(/display:\s*grid/);
-    // Content-sized tracks: controls keep their natural width at wide viewports,
-    // shrink gracefully (never overflow) when the row is tight, and every wrap
-    // lands on the SAME column boundaries — that is the whole point vs flex.
-    expect(bar).toMatch(/grid-template-columns:\s*repeat\(auto-fit, minmax\(240px, max-content\)\)/);
-    // Baseline even: bottoms of every label-above-control stack align.
+    // Equal tracks are the alignment guarantee: a wrapped row's controls sit on
+    // the same column boundaries as the row above.
+    expect(bar).toMatch(/grid-template-columns:\s*repeat\(auto-fit, minmax\(200px, 1fr\)\)/);
     expect(bar).toMatch(/align-items:\s*end/);
-    expect(bar).toMatch(/gap:\s*12px 24px/);
-    // No floats — grid handles wrap.
-    expect(listCss).not.toMatch(/float\s*:/);
+    expect(bar).toMatch(/gap:\s*12px 16px/);
+    expect(barCss).not.toMatch(/float\s*:/);
   });
 
-  it('hides the flex spacer and pins actions to the end of the grid row', () => {
-    // The flex spacer would occupy a grid track; actions get the last column
-    // instead (auto / -1 + justify-self:end ⇒ right edge of their grid row).
-    expect(listCss).toMatch(/\.list-filter-bar \.filter-bar__spacer\s*\{\s*display:\s*none/);
-    expect(listCss).toMatch(/\.list-filter-bar \.filter-bar__spacer \+ \*[^{]*\{[^}]*grid-column:\s*auto \/ -1/);
-    expect(listCss).toMatch(/\.list-filter-bar \.filter-bar__spacer \+ \*[^{]*\{[^}]*justify-self:\s*end/);
+  it('no band declares a fixed column count any more (the retired tablet 2-col rule)', () => {
+    // The only grid-template-columns declarations for the bar are the measured
+    // auto-fit rule and the phone 1-column stack.
+    const barColumnRules = [...barCss.matchAll(/\.filter-bar\s*\{[^}]*grid-template-columns:\s*([^;]+);/g)]
+      .map((match) => match[1].trim());
+    expect(barColumnRules).toHaveLength(2);
+    expect(barColumnRules[0]).toBe('repeat(auto-fit, minmax(200px, 1fr))');
+    expect(barColumnRules[1]).toBe('minmax(0, 1fr)');
+    // The component sheet must never re-declare the grid.
+    expect(listCss).not.toMatch(/grid-template-columns:\s*repeat\(auto-fit/);
+    // The tablet band survives only to let the pair's children fill their cell.
+    const tablet = listCss.match(/@media \(min-width: 768px\) and \(max-width: 1279px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(tablet, 'tablet band exists').not.toBe('');
+    expect(tablet).not.toMatch(/grid-template-columns/);
   });
 
-  it('pair-group is ONE transparent grid item holding 2 dates/short-values side-by-side', () => {
-    const pair = topLevelBlock(listCss, '.list-filter-bar__pair');
-    expect(pair, 'pair desktop rule exists').not.toBe('');
-    expect(pair).toMatch(/display:\s*grid/);
-    expect(pair).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(pair).toMatch(/align-items:\s*end/);
-    // Flat law: the pair can never paint a panel of its own.
-    expect(pair).toMatch(/background:\s*transparent/);
-    expect(pair).toMatch(/border:\s*0/);
-    expect(pair).toMatch(/border-radius:\s*0/);
-    expect(pair).not.toMatch(/box-shadow:\s*(?!none)/);
-    // Children release their desktop width floors inside the pair so the 2
-    // tracks shrink together — no overlap, no overflow into neighbours:
-    // the date keeps its 168px natural size but is clamped to its cell.
-    expect(listCss).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][^{]*\{[^}]*width:\s*168px/);
-    expect(listCss).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][^{]*\{[^}]*max-width:\s*100%/);
-    expect(listCss).toMatch(/\.list-filter-bar__pair \[data-input-wrapper\][^{]*\{[^}]*min-width:\s*0/);
-    expect(listCss).toMatch(/\.list-filter-bar__pair \.ds-uui-select[^{]*\{[^}]*width:\s*100%/);
-    expect(listCss).toMatch(/\.list-filter-bar__pair \.ds-uui-select[^{]*\{[^}]*min-width:\s*0/);
+  it('hides the flex spacer and pins actions to the end of their grid row', () => {
+    expect(barCss).toMatch(/\.filter-bar__spacer\s*\{\s*display:\s*none/);
+    expect(barCss).toMatch(/\.filter-bar__spacer \+ \*\s*\{[^}]*grid-column:\s*auto \/ -1/);
+    expect(barCss).toMatch(/\.filter-bar__spacer \+ \*\s*\{[^}]*justify-self:\s*end/);
   });
 
-  it('breakpoints: tablet 768-1279 = exactly 2-col, mobile <768 = 1-col stack', () => {
-    expect(listCss).toMatch(
-      /@media \(min-width: 768px\) and \(max-width: 1279px\)\s*\{[\s\S]*?\.filter-bar\.list-filter-bar[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
-    );
-    const mobile = listCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+  it('the two structurally wide families own two tracks — the rest take one', () => {
+    expect(listCss).toMatch(/\.filter-bar\.list-filter-bar > \.date-range-fields,\s*\n?\.filter-bar\.list-filter-bar > \.ds-tabs\s*\{\s*grid-column:\s*span 2;/);
+    // The search stays a single track: two tracks pushed the detail bar onto a
+    // third row at 1024-1187px.
+    expect(listCss).not.toMatch(/\.filter-bar__search\s*\{[^}]*grid-column:\s*span/);
+    // A control floor may never exceed one track (200px) or it overflows its
+    // cell into the neighbour — the three family floors are the ones that count.
+    expect(listCss).toMatch(/\.list-filter-bar \.csc-searchable-field,[\s\S]{0,400}?min-width:\s*200px/);
+    expect(listCss).toMatch(/\.list-filter-bar \.ds-uui-select\s*\{[^}]*min-width:\s*180px/);
+    expect(listCss).toMatch(/\.list-filter-bar\s*(?:>\s*)?\[data-input-wrapper\]\s*\{[^}]*min-width:\s*149px/);
+  });
+
+  it('mobile <768 stacks one column while the pairs keep their 2-up rhythm', () => {
+    const mobile = barCss.match(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(mobile, 'mobile <768 block exists').not.toBe('');
-    expect(mobile).toMatch(/\.filter-bar\.list-filter-bar/);
+    expect(mobile).toMatch(/\.filter-bar\s*\{/);
     expect(mobile).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/);
-    // Old 480px mobile breakpoint is superseded by the mandate's <768.
-    // (Assert on the media query itself — the `max-width: 480px` *width
-    // contract* on the searchable field is a different rule and must stay.)
+    expect(barCss).not.toContain('@media (max-width: 480px)');
     expect(listCss).not.toContain('@media (max-width: 480px)');
-    // The pair stays 2-col on phones (short-value pairing, card 20260925_1).
     expect(topLevelBlock(listCss, '.list-filter-bar__pair')).toMatch(/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(topLevelBlock(listCss, '.list-filter-bar__pair')).toMatch(/background:\s*transparent/);
+    expect(topLevelBlock(listCss, '.list-filter-bar__pair')).toMatch(/border:\s*0/);
   });
 
-  it('source order: desktop rule precedes tablet media precedes mobile media', () => {
-    const desktopIdx = listCss.search(/\.filter-bar\.list-filter-bar\s*\{/);
+  it('source order: measured grid, then the tablet pair-fill block, then mobile', () => {
+    const desktopIdx = listCss.search(/\.filter-bar\.list-filter-bar/);
     const tabletIdx = listCss.search(/@media \(min-width: 768px\) and \(max-width: 1279px\)/);
     const mobileIdx = listCss.search(/@media \(max-width: 767px\)/);
     expect(desktopIdx).toBeGreaterThan(-1);
@@ -108,27 +103,34 @@ describe('filter bar = real CSS grid (card 20260925_8 rebuild)', () => {
   });
 });
 
-describe('Tổng quan + Chi tiết lô hàng share ONE pair pattern (card 20260925_8 consistency)', () => {
-  it('Chi tiết rides the shared list-filter-bar__pair with both date inputs inside it', () => {
-    expect(detailTsx).toContain('list-filter-bar__pair');
-    const pairStart = detailTsx.indexOf('list-filter-bar__pair');
-    const fromIdx = detailTsx.indexOf('shipments-detail-filter--from', pairStart);
-    const toIdx = detailTsx.indexOf('shipments-detail-filter--to', pairStart);
-    expect(pairStart).toBeGreaterThan(-1);
-    expect(fromIdx).toBeGreaterThan(pairStart);
-    expect(toIdx).toBeGreaterThan(fromIdx);
-    // The bespoke pair family (shared label + arrow row) is gone — that was
-    // the "layout KHÁC hoàn toàn" CHIEF saw next to Tổng quan.
-    expect(detailTsx).not.toContain('shipments-detail-filters__date-pair');
-    expect(detailCss).not.toContain('.shipments-detail-filters__date-pair');
-    // Group semantics survive the markup swap.
-    expect(detailTsx).toContain('aria-label="Khoảng ngày vận chuyển"');
+describe('both shipment workboards ride the ONE from/to date group (cards 20260927_150/151)', () => {
+  it('the shared group is two independent single-date fields, never a range picker', () => {
+    expect(dateFieldsTsx).toContain("fromLabel = 'Từ ngày'");
+    expect(dateFieldsTsx).toContain("toLabel = 'Đến ngày'");
+    expect(dateFieldsTsx).toContain('BufferedUuiDateInput');
+    expect(dateFieldsTsx).not.toContain('DateRangePopover');
+    expect(dateFieldsTsx).not.toContain('DatePanel');
+    // Order is enforced between the two fields: each carries the other's
+    // boundary as min/max, so neither a typed date nor a calendar pick can
+    // invert the range.
+    expect(dateFieldsTsx).toMatch(/inputProps=\{\{ max: to \|\| undefined \}\}/);
+    expect(dateFieldsTsx).toMatch(/inputProps=\{\{ min: from \|\| undefined \}\}/);
   });
 
-  it('Tổng quan keeps the same shared pair class on both pairs', () => {
-    const wrappers = workboardTsx.match(/className="list-filter-bar__pair"/g) ?? [];
-    expect(wrappers).toHaveLength(2);
-    expect(workboardTsx).toContain('data-pair="dates"');
-    expect(workboardTsx).toContain('data-pair="short-selects"');
+  it('Chi tiết lô hàng mounts the shared group inside its bar', () => {
+    expect(detailTsx).toContain('<DateRangeFields');
+    expect(detailTsx).toContain('ariaLabel="Khoảng ngày vận chuyển"');
+    expect(detailTsx).not.toContain('DateRangePopover');
+    // The page-local pair markup (and its --from/--to slots) is gone.
+    expect(detailTsx).not.toContain('list-filter-bar__pair');
+    expect(detailTsx).not.toContain('shipments-detail-filter--from');
+    expect(detailCss).not.toContain('.shipments-detail-filters__date-pair');
+  });
+
+  it('Tổng quan lô hàng mounts the group plus its visible quick ranges', () => {
+    expect(shipmentsTsx).toContain('<DateRangeFields');
+    expect(shipmentsTsx).toContain('<DateRangePresets');
+    expect(shipmentsTsx).not.toContain('DateRangePopover');
+    expect(shipmentsTsx).toContain('LOT_DATE_PRESETS');
   });
 });

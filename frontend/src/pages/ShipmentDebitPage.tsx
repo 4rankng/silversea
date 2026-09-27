@@ -14,7 +14,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangePopover, EmptyState, InlineLabelSelect, SearchableSelect, type DateRangePreset } from '../design-system';
+import { DateRangeFields, DateRangePresets, EmptyState, InlineLabelSelect, SearchableSelect, type DateRangePreset } from '../design-system';
 import { RotateCcw } from 'lucide-react';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
@@ -33,10 +33,7 @@ const LOCK_FILTERS = [
 const toIsoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const monthBounds = (offset: number) => {
   const now = new Date();
-  return {
-    from: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset, 1)),
-    to: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)),
-  };
+  return { from: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset, 1)), to: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)) };
 };
 const quarterBounds = () => {
   const now = new Date();
@@ -248,7 +245,7 @@ export function ShipmentDebitPage() {
         {/* Card 20260926_51: two-tier 76px header — Row 1 title + Xuất Debit
             Note ghost top-right (disabled without customer or locked tick,
             hover names the prerequisite); Row 2 ribbon: required customer
-            combobox, range popover with settlement presets, Khóa lô, Xóa lọc. */}
+            combobox, from/to date fields with settlement presets, Khóa lô, Xóa lọc. */}
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
           {canManage && (
@@ -265,7 +262,7 @@ export function ShipmentDebitPage() {
             </span>
           )}
         </header>
-        <div className="shipment-debit-ribbon" data-component="shipment-debit-ribbon">
+        <div className="filter-bar shipment-debit-ribbon" data-component="shipment-debit-ribbon">
           <SearchableSelect
             id="shipment-debit-customer"
             className="shipment-debit-ribbon__customer"
@@ -282,23 +279,23 @@ export function ShipmentDebitPage() {
             placeholder="Khách hàng"
             searchPlaceholder="Tìm khách hàng…"
             emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable
-            clearLabel="Bỏ khách hàng"
-            requiredMark
-            required
-            size="sm"
+            clearable clearLabel="Bỏ khách hàng" requiredMark required size="sm"
           />
-          <DateRangePopover
+          <DateRangeFields
             className="shipment-debit-ribbon__range"
             id="shipment-debit-date-range"
             ariaLabel="Khoảng ngày giao"
             size="sm"
-            value={{ from: deliveryFrom, to: deliveryTo }}
-            onChange={({ from, to }) => {
-              updateParam('from', from || null);
-              updateParam('to', to || null);
-            }}
+            from={deliveryFrom}
+            to={deliveryTo}
+            onChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
+          />
+          <DateRangePresets
+            className="shipment-debit-ribbon__presets"
             presets={SETTLEMENT_PRESETS}
+            value={{ from: deliveryFrom, to: deliveryTo }}
+            onChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
+            ariaLabel="Khoảng ngày nhanh"
           />
           <InlineLabelSelect
             id="shipment-debit-lock"
@@ -312,6 +309,7 @@ export function ShipmentDebitPage() {
             ariaLabel="Trạng thái khóa lô"
             className="shipment-debit-ribbon__lock"
           />
+          <div className="filter-bar__spacer" />
           <UUIButton
             className="shipment-debit-ribbon__clear"
             size="sm"

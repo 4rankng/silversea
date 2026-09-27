@@ -347,7 +347,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('renders one focused shipment workspace without unfinished navigation', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Tổng quan lô hàng' })).toBeTruthy();
-    expect(screen.queryByRole('tab')).toBeNull();
+    // No status tab strip before data arrives (the date-preset group in the
+    // toolbar is a different control and does render).
+    expect(screen.queryByRole('tablist', { name: 'Trạng thái lô hàng' })).toBeNull();
     expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
     expect(screen.getByLabelText('Tìm lô hàng').getAttribute('type')).toBe('text');
   });
@@ -798,10 +800,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('CUS-OVERVIEW-02: every filter control rides the one Row 2 toolbar — visible, no disclosure', async () => {
     renderPage();
     await screen.findByRole('table');
-    const toolbar = document.querySelector('.shipments-control__row--filters') as HTMLElement;
+    // Row 2 is the shared bar (card 20260927_151).
+    const toolbar = document.querySelector('.cus-workspace .filter-bar.list-filter-bar') as HTMLElement;
     expect(screen.getByLabelText('Tìm lô hàng')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Đến' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Khoảng ngày giao' })).toBeTruthy();
+    expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
+    expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     expect(toolbar.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
@@ -2129,12 +2133,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
     // Card 20260926_48: the worksheet owns its Row 2 toolbar in the page —
-    // search, date-range popover, label-inside chips, Kế hoạch combobox. The
+    // search, from/to date fields, label-inside chips, Kế hoạch combobox. The
     // shared ListFilterBar/WorkboardFilters stay for OTHER list pages.
-    expect(source).toContain('placeholder="Bill, Book, Cont, Tờ khai..."');
-    expect(source).not.toContain('<ListFilterBar');
+    expect(source).toContain("placeholder: 'Bill, Book, Cont, Tờ khai...'");
+    // Row 2 IS the shared bar now (card 20260927_151) — the page keeps its
+    // controls, the bar owns the layout.
+    expect(source).toContain('<ListFilterBar');
     expect(source).not.toContain('<WorkboardFilters');
-    expect(source).toContain('<DateRangePopover');
+    expect(source).toContain('<DateRangeFields');
     expect(source).toContain('<InlineLabelSelect');
     expect(source).toContain('<SearchableMultiSelect');
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
@@ -2431,7 +2437,7 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
     renderTabsPage();
     await screen.findByRole('table');
-    fireEvent.click(within(screen.getByRole('tablist')).getByRole('tab', { name: /Chờ điều xe/ }));
+    fireEvent.click(within(screen.getByRole('tablist', { name: 'Trạng thái lô hàng' })).getByRole('tab', { name: /Chờ điều xe/ }));
     // URL state carries the slice; the server list is untouched (client-side
     // slice of the loaded page — the API has no status param).
     await waitFor(() => {
@@ -2449,7 +2455,7 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     // Server filter still hits the API; the status tab slices the page locally.
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
     expect(document.querySelectorAll('tr.cus-dashboard-row').length).toBe(1);
-    expect(within(screen.getByRole('tablist')).getByRole('tab', { name: /Chờ đối soát/ }).getAttribute('aria-selected')).toBe('true');
+    expect(within(screen.getByRole('tablist', { name: 'Trạng thái lô hàng' })).getByRole('tab', { name: /Chờ đối soát/ }).getAttribute('aria-selected')).toBe('true');
     // Xóa lọc owns every local param it guards, including the new one.
     expect(source).toContain("'status'");
   });
@@ -2457,7 +2463,7 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
   it('readiness counts wear semantic pills: amber Chờ điều xe, info Chờ đối soát', async () => {
     apiGet.mockResolvedValue(listResponse(tabbedItems));
     renderPage();
-    await screen.findByRole('tablist');
+    await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     const tabsCss = readFileSync(resolve(process.cwd(), 'src/design-system/Tabs.css'), 'utf8');
     expect(tabsCss).toMatch(/\.ds-tabs__count--warning/);
     expect(tabsCss).toMatch(/\.ds-tabs__count--info/);
@@ -2474,16 +2480,21 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     apiGet.mockResolvedValue(listResponse([row]));
     renderPage();
     await screen.findByRole('table');
-    expect(document.querySelector('.shipments-control__row--filters')).toBeTruthy();
+    // Row 2 IS the shared ListFilterBar (card 20260927_151) — one bar layout
+    // for every list page, so this toolbar can never drift again.
+    expect(document.querySelector('.cus-workspace .filter-bar.list-filter-bar')).toBeTruthy();
     // Search: placeholder per spec. No shortcut badge renders (CHIEF
     // 2026-09-27: no control may print shortcut key text).
     const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
     expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
     expect(document.querySelector('.shipments-control__kbd')).toBeNull();
-    // Date-range: two side-by-side Từ/Đến controls (card 20260927_150 —
-    // CHIEF ruling reverses the single-trigger design).
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Khoảng ngày giao — Đến' })).toBeTruthy();
+    // Dates: two INDEPENDENT Từ ngày / Đến ngày fields (CHIEF 2026-09-27:
+    // "I dont want daterangepicker" — no merged trigger, no dual-calendar
+    // popover), plus the quick ranges as a visible segmented control.
+    expect(screen.getByRole('group', { name: 'Khoảng ngày giao' })).toBeTruthy();
+    expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
+    expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Hôm nay' })).toBeTruthy();
     // Chip selects: label inside, defaults per spec.
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
@@ -2491,27 +2502,26 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     expect(document.querySelector('.shipments-control__plan .searchable-multi-select__trigger, .shipments-control__plan button[aria-haspopup]')).toBeTruthy();
     // Xóa lọc hidden while filters are default.
     expect(screen.queryByRole('button', { name: 'Xóa lọc' })).toBeNull();
-    // Uniform 32px + width laws are CSS, not accident.
+    // The page contributes sizes only — the bar owns the layout.
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-    expect(css).toMatch(/\.shipments-control__row--filters\s*\{[^}]*min-height:\s*32px/);
-    expect(css).toMatch(/\.shipments-control__search\s*\{[^}]*width:\s*min\(280px, 100%\)/);
-    expect(css).toMatch(/\.shipments-control__range\s*\.date-range__pair\s*\{[^}]*min-width:\s*220px/);
+    expect(css).not.toMatch(/\.shipments-control__row--filters/);
+    expect(css).not.toMatch(/\.shipments-control__search/);
+    expect(css).toMatch(/\.shipments-control__range\s*\{[^}]*min-width:\s*300px/);
     expect(css).toMatch(/\.shipments-control__chip\s*\{[^}]*min-width:\s*110px/);
-    expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*width:\s*160px/);
+    expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*width:\s*100%/);
   });
 
-  it('date-range popover opens with the four 1-click presets and applies one to the URL', async () => {
+  it('the four 1-click ranges are visible controls and apply one range to the URL', async () => {
     apiGet.mockResolvedValue(listResponse([row]));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao — Từ' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Khoảng ngày giao' });
-    // Presets render inside the popover.
+    // No popover: the presets are buttons on the toolbar itself.
+    expect(screen.queryByRole('dialog', { name: 'Khoảng ngày giao' })).toBeNull();
     for (const label of ['Hôm nay', 'Hôm qua', '7 ngày qua', 'Tháng này']) {
-      expect(within(dialog).getByRole('button', { name: label })).toBeTruthy();
+      expect(screen.getByRole('tab', { name: label })).toBeTruthy();
     }
     // One click = both URL params, ordered, page reset.
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Hôm nay' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }));
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     await waitFor(() => {

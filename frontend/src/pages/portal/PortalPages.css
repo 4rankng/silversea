@@ -522,10 +522,7 @@ a.portal-list__row:focus-visible {
 }
 
 .portal-filters {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 220px)) minmax(0, 1fr);
   align-items: end;
-  gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -691,7 +688,6 @@ a.portal-list__row:focus-visible {
 
 @media (max-width: 900px) {
   .portal-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .portal-filters .portal-actions {
@@ -828,9 +824,6 @@ a.portal-list__row:focus-visible {
   }
 
   .portal-filters {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
     padding: 12px;
   }
 
@@ -896,7 +889,6 @@ a.portal-list__row:focus-visible {
 
 @media (max-width: 360px) {
   .portal-filters {
-    grid-template-columns: 1fr;
   }
 
   .portal-filters .portal-actions {

@@ -11,7 +11,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, Pagination, Tabs, BufferedUuiDateInput, UuiSelectField, type TabItem } from '../design-system';
+import { DateRangeFields, EmptyState, Pagination, Tabs, UuiSelectField, type TabItem } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   DISPATCH_STATUS,
@@ -85,8 +85,11 @@ export default function ShipmentContainersPage() {
   const sort = sortKey ? readTableSort(sortKey, searchParams.get('sortDir')) : null;
   const sortDir = sort?.dir;
   const [searchInput, setSearchInput] = useState(suffixParam);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  // Remount key for the from/to group: a reset must clear a local INVALID
+  // draft even when the URL value did not change (the controlled value alone
+  // cannot, because '' → '' is not a change the field can see).
   const [dateResetKey, setDateResetKey] = useState(0);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const appliedSearchRef = useRef(suffixParam);
 
   const detail = useCusDetail({
@@ -149,8 +152,6 @@ export default function ShipmentContainersPage() {
   const totalContainers = detail.data?.total ?? 0;
   const customers = detail.data?.filterOptions.customers ?? [];
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus || informationStatus);
-  const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus, informationStatus].filter(Boolean).length;
-  // Phone/tablet: secondary criteria collapse so records start higher.
 
   const resetFilters = () => {
     setDateResetKey((key) => key + 1);
@@ -246,8 +247,9 @@ export default function ShipmentContainersPage() {
               search={{
                 value: searchInput,
                 onChange: updateSearch,
-                placeholder: 'Bill/Book, số container hoặc tờ khai',
+                placeholder: 'Bill/Book, container, tờ khai',
                 ariaLabel: 'Container, Bill/Booking hoặc tờ khai',
+                error: searchError,
               }}
               actions={(
                 <UUIButton
@@ -261,15 +263,31 @@ export default function ShipmentContainersPage() {
                 </UUIButton>
               )}
             >
-              {/* Card 20260925_8 (REBUILD): the pair rides the shared
-                  ListFilterBar pair grid — one cell, two dates side by side,
-                  the exact pattern Tổng quan lô hàng uses. The bespoke
-                  shared label + arrow row is deleted; each input keeps its
-                  own compact label. Filter semantics byte-identical. */}
-              <div className="list-filter-bar__pair" role="group" aria-label="Khoảng ngày vận chuyển">
-                <BufferedUuiDateInput key={`from-${dateResetKey}`} label="Từ ngày" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter shipments-detail-filter--from" />
-                <BufferedUuiDateInput key={`to-${dateResetKey}`} label="Đến ngày" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter shipments-detail-filter--to" />
-              </div>
+              {/* Card 20260927_150/151: the from/to dates are the shared
+                  DateRangeFields group — two independent single-date fields,
+                  no merged trigger and no dual-calendar popover (CHIEF
+                  2026-09-27). The group owns the 2-up rhythm and takes two
+                  tracks of the bar, so a date field never squeezes below its
+                  floor. Filter semantics byte-identical. */}
+              <DateRangeFields
+                key={`shipments-detail-dates-${dateResetKey}`}
+                className="shipments-detail-filter shipments-detail-filter--dates"
+                id="shipments-detail-date-range"
+                ariaLabel="Khoảng ngày vận chuyển"
+                size="sm"
+                from={dateFrom}
+                to={dateTo}
+                onChange={({ from, to }) => {
+                  // One pass so no render pairs a new Từ with a stale Đến.
+                  setSearchParams((current) => {
+                    const next = new URLSearchParams(current);
+                    if (from) next.set('transportDateFrom', from); else next.delete('transportDateFrom');
+                    if (to) next.set('transportDateTo', to); else next.delete('transportDateTo');
+                    next.delete('page');
+                    return next;
+                  }, { replace: true });
+                }}
+              />
               <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
               <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
               <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />

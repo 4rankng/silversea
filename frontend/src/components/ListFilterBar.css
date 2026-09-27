@@ -21,17 +21,17 @@
  *     with the coarse-pointer touch floor.
  *
  * NEPOCORP reference consulted before coding (file:line):
- *   - nepocorp frontend/src/pages/ExpenseListPage.css:148 — its filter bar is
- *     `display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))`;
+ *   - nepocorp frontend/src/pages/ExpenseListPage.css:148 — its filter bar uses
+ *     auto-fit minmax(180px, 1fr);
  *   - nepocorp frontend/src/pages/ExpenseListPage.css:508 — tablet override to
  *     `repeat(2, minmax(0, 1fr))` (the 2-col breakpoint below mirrors it);
  *   - nepocorp frontend/src/components/shared/ListFilterBar.css:55 — the
  *     content-sized `flex: 0 1 280px` discipline, kept here as width floors.
  *
  * Structural dependency: ListFilterBar.tsx imports './FilterBar.css' then
- * './ListFilterBar.css' — the shared sheet keeps flex for bare `.filter-bar`
- * hosts; the `.filter-bar.list-filter-bar` combination below (higher
- * specificity) turns the component into the grid.
+ * './ListFilterBar.css' — FilterBar.css owns the one grid layout every filter
+ * surface carries; this sheet owns the component's extras (two-track control
+ * families, width floors, the pair, the phone stack).
  * ========================================================================== */
 
 .list-filter-bar {
@@ -40,41 +40,33 @@
   --uui-control-h: var(--filter-control-h);
 }
 
-/* --- The grid row (card 20260925_8) -------------------------------------
- * auto-fit content columns: every control owns a column track at its natural
- * width, wrapped rows line up on the same tracks, and `space-between`
- * distributes the leftover width between the tracks so the actions cell
- * (auto/-1 + justify-self:end below) always sits flush at the bar's right
- * edge — the flex spacer's job, done by the grid itself. Items stretch to
- * their tracks (default justify-items:stretch) so the gap before the next
- * column is the plain track gap everywhere — content-sized cells left
- * dead space inside min-240px tracks and made the column rhythm uneven;
- * align-items: end keeps every label-above-control stack bottom-aligned
- * (baseline even). The (0,2,0) selector beats the shared `.filter-bar` flex
- * sheet (0,1,0) regardless of import order.
- * A trailing `minmax(0,1fr)` spacer column was probe-tested and REJECTED —
- * it overflowed the bar (scrollWidth > clientWidth) on the 8-cell detail row. */
+/* --- What the component adds to the shared bar layout --------------------
+ * The bar LAYOUT lives in FilterBar.css: `.filter-bar` is the one grid every
+   filter surface in the app carries, so a page that hand-rolls its own bar
+   still lands on the same measured columns. This sheet adds only what the
+   COMPONENT owns — the two-track control families, the width floors, the pair
+   and the phone stack — and must never re-declare the grid. */
 .filter-bar.list-filter-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, max-content));
-  justify-content: space-between;
-  align-items: end;
-  gap: 12px 24px;
+  min-width: 0;
 }
 
-/* The flex spacer is meaningless inside the grid — the collapsed empty
-   tracks absorb the leftover width. Kept in the DOM (contract: regions in
-   order), hidden from layout. */
-.filter-bar.list-filter-bar .filter-bar__spacer {
-  display: none;
-}
-
-/* Actions: pin to the last column of their grid row (right edge of the bar
-   when everything fits one row; right edge of the wrapped row otherwise) —
-   multi-element action fragments ride together in .filter-bar__actions. */
-.filter-bar.list-filter-bar .filter-bar__spacer + * {
-  grid-column: auto / -1;
-  justify-self: end;
+/* Two-track cells: the controls that are structurally wide own two tracks so
+   they never squeeze or wrap inside one.
+   - the from/to date group (DateRangeFields): two 149px date fields + the 12px
+     seam need ~310px, more than one 200px track;
+   - a shared segmented group (`.ds-tabs` — date presets/scopes): three to four
+     cells plus the hairline container need ~250-380px, and one 200px track
+     wrapped "Tất cả" onto a second line (measured 2026-09-27 on the detail bar);
+   - the quick-filter chip row (`.list-filter-bar__quick`): one 200px track
+     wrapped four status chips onto three lines inside their own cell (measured
+     2026-09-27 on /config/customers at 768 — the bar read as a 92px-tall
+     two-row blob for a 44px chip strip).
+   Everything else — search included — takes one track, which is what keeps the
+   eight-control detail bar on two rows at 1187px instead of four. */
+.filter-bar.list-filter-bar > .date-range-fields,
+.filter-bar.list-filter-bar > .ds-tabs,
+.filter-bar.list-filter-bar > .list-filter-bar__quick {
+  grid-column: span 2;
 }
 
 /* Action cluster: the wrapper is one grid item; its buttons row up inside
@@ -113,9 +105,9 @@
    - `.csc-searchable-field` (USearchableField root) and the bare ComboBox
      trigger (`[data-uui-control='combobox']`, emitted by combobox.tsx): the
      chain under-reports its intrinsic width and squeezed to a 65px sliver
-     with a truncated placeholder → 240 floor (the old
-     `.shipment-debit-filters > .csc-searchable-field` floor); the 480 cap
-     keeps long customer names from blowing the row.
+     with a truncated placeholder → 200 floor (one track, so it can never
+     overflow its cell); the 480 cap keeps long customer names from blowing
+     the row.
    - `[data-input-wrapper]` (BufferedUuiDateInput root): its w-full chains
      report ~0, so the cluster squeezed to 95px per group with the calendar
      trigger collapsing → 149 floor (the /dispatch parity width).
@@ -124,11 +116,17 @@
      width:auto with a 180 floor. Date fields sit at content width (168px). */
 .list-filter-bar .csc-searchable-field,
 .list-filter-bar [data-uui-control='combobox'] {
-  min-width: 240px;
+  /* Floor = one track (200px), cap keeps long customer names from blowing a
+     row; the 240px floor predated the equal-track grid and overflowed it. */
+  min-width: 200px;
   max-width: 480px;
 }
 
-.list-filter-bar [data-input-wrapper] {
+/* A STANDALONE date field (a direct bar cell) keeps the 168px natural size and
+   the 149px floor; a field inside the shared from/to group (DateRangeFields)
+   fills its own track instead — DateRangeFields.css owns that width, and this
+   direct-child scope is what lets it win without a specificity fight. */
+.list-filter-bar > [data-input-wrapper] {
   width: 168px;
   min-width: 149px;
 }
@@ -155,6 +153,14 @@
  * Children release their desktop width floors INSIDE the pair so the two
  * tracks shrink together instead of overflowing: 168px kept as the natural
  * size, clamped to the cell via max-width:100%. */
+/* The shared from/to date group (DateRangeFields) is ONE control group: it
+   takes two tracks of the bar so each date field keeps its 149px floor instead
+   of being squeezed into a single track (the pair contract, card 20260925_8). */
+.filter-bar.list-filter-bar > .date-range-fields,
+.filter-bar.list-filter-bar > .ds-tabs {
+  grid-column: span 2;
+}
+
 .list-filter-bar__pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -186,17 +192,14 @@
   }
 }
 
-/* --- Tablet (card 20260925_8): exactly 2 columns -------------------------
- * Mirrors the NEPOCORP tablet override (ExpenseListPage.css:508). Pair stays
- * one cell with its two values side by side; actions pin right via auto/-1. */
+/* --- Tablet ---------------------------------------------------------------
+ * RETIRED band (card 20260927_151): a fixed 2-column tablet grid was the
+ * defect, not the fix — it turned every 8-control bar into four rows on a
+ * 1024-1187px screen. The auto-fit rule above now decides from measured width
+ * at every size, so there is no tablet-specific column count. The pair keeps
+ * its 2-up rhythm (it is one item spanning two tracks) and the actions pin
+ * right via auto/-1 at every width. */
 @media (min-width: 768px) and (max-width: 1279px) {
-  .filter-bar.list-filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /* Half-row cells are wider than the desktop 348px pair — let the pair's
-     children fill their tracks (168px would strand a dead gap inside each
-     cell and split the pair visually). */
   .list-filter-bar__pair [data-input-wrapper],
   .list-filter-bar__pair .ds-uui-select,
   .list-filter-bar__pair .csc-searchable-field,
@@ -245,14 +248,10 @@
     gap: 12px;
   }
 
-  /* A pair holding a DATE RANGE (two dates = 'DD/MM/YYYY - DD/MM/YYYY')
-     needs the full row: at half a 390px track the trigger ellipsized its own
-     value and its empty-state mask (2026-09-27 role sweep on /shipments and
-     /shipments-debit, §4). A pair of two short single-date fields keeps the
-     2-up rhythm. */
-  .list-filter-bar > .list-filter-bar__pair:has(.date-range) {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  /* A pair holding a merged date-range trigger needed the full row (the
+     trigger ellipsized at half a 390px track, §4). The merged trigger is gone
+     (CHIEF 2026-09-27: from/to are separate fields), so every pair — dates or
+     short selects — keeps the 2-up rhythm at every width. */
 
   .list-filter-bar__quick {
     width: 100%;

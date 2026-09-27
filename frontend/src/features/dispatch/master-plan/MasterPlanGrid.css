@@ -8,11 +8,9 @@
    the global query input, the chiều-hàng dropdown, the drawer trigger, and
    the primary action. The previous desktop-grid layout stranded a 120–150px
    secondary row below the search/input controls. */
+/* Layout is the shared `.filter-bar` grid (card 20260927_151); this sheet owns
+   the surface only. */
 .master-plan-filters {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 8px;
   padding: 8px 0;
   margin-bottom: 10px;
   border-bottom: 1px solid var(--line);
@@ -76,11 +74,10 @@
 }
 
 .master-plan-filters__date-range {
-  /* Case QA-2026-09-27-02 / card 20260927_2: the delivery-date control is a
-     single `DateRangePopover` trigger (one picker for Từ + Đến) — no second
-     input field is rendered below the toolbar. The component owns its own
-     popover and trigger sizing; this class is the BEM slot the drawer
-     lays out at the same rhythm as the other filter slots. */
+  /* CHIEF ruling 2026-09-27 (card 20260927_150): the delivery date is TWO
+     independent fields — Từ ngày / Đến ngày — each with its own one-month
+     calendar (DateRangeFields), never a merged range picker. This class is the
+     BEM slot; the component owns the 2-track field grid. */
   display: block;
 }
 
@@ -97,15 +94,11 @@
 
 .master-plan-filters__advanced-trigger {
   /* Always visible: the Bộ lọc drawer trigger is the entry point to the
-     advanced filter set on every viewport. */
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
+     advanced filter set on every viewport. It rides the bar's action slot. */
+  justify-self: end;
 }
 
 .master-plan-filters__actions {
-  margin-left: auto;
-  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -149,15 +142,15 @@
 }
 
 .master-plan-filters__drawer-fields .master-plan-filters__facet,
-.master-plan-filters__drawer-fields .master-plan-filters__allocation,
-.master-plan-filters__drawer-fields .master-plan-filters__date-range {
+.master-plan-filters__drawer-fields .master-plan-filters__allocation {
   grid-column: auto;
   width: 100%;
 }
 
 .master-plan-filters__drawer-fields .master-plan-filters__date-range {
+  /* Full drawer row: two date fields side by side, each ~half the row. */
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
 }
 
 /* Multi-select facet controls for ports and carriers */

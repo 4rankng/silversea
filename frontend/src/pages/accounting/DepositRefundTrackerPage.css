@@ -72,7 +72,7 @@
    the chosen 44px phone token. The flat law (no shadow, no gradient) carries
    over. */
 @media (max-width: 900px) {
-  .deposit-tracker-filters { align-items: stretch; flex-direction: column; }
+  .deposit-tracker-filters { }
   .deposit-tracker-filters > *:not(.deposit-tracker-filters__pair),
   .deposit-tracker-filters .ds-uui-select {
     flex: 0 0 auto;

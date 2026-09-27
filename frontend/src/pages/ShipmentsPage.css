@@ -69,55 +69,25 @@
   margin-left: auto;
 }
 
-/* Card 20260926_48 — Row 2: one uniform 32px toolbar. Flat chrome throughout
-   (border + surface); widths are the spec's: search 260-300, range 220,
-   chips min-w 110, Kế hoạch 160. */
-.shipments-control__row--filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-}
+/* Card 20260927_151 — Row 2 is the shared ListFilterBar (it owns the grid, the
+   search shell, the wrap and the trailing action slot); this sheet keeps only
+   the page's own control sizes. */
 
-.shipments-control__search {
-  position: relative;
-  display: flex;
+
+/* From/to date fields (DateRangeFields) are content-sized on the toolbar: two
+   date fields plus their 12px seam need ~320px, and the pair is capped so a
+   long row still wraps instead of squeezing a date below its 149px floor. */
+.shipments-control__range {
   flex: 0 1 auto;
-  align-items: center;
-  gap: 6px;
-  width: min(280px, 100%);
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  color: var(--ink-2);
-}
-
-.shipments-control__search:focus-within {
-  border-color: var(--accent);
-}
-
-.shipments-control__search input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-  outline: none;
-}
-
-
-/* Inherits the shared content-sized range trigger (a fixed 220px clipped the
-   trigger's own mask — 2026-09-27 role sweep, §4). The phone band below
-   gives the range a full row so it is never squeezed into a half-width cell. */
-.shipments-control__range .date-range__pair {
   width: max-content;
-  min-width: 220px;
-  max-width: 100%;
+  min-width: 300px;
+  max-width: 380px;
+}
+
+/* Quick ranges ride beside the fields as the shared boxed segmented control
+   (CHIEF 2026-09-27: no range popover, so the presets are visible controls). */
+.shipments-control__date-presets {
+  flex: 0 0 auto;
 }
 
 .shipments-control__chip {
@@ -128,8 +98,11 @@
   width: 100%;
 }
 
+/* The plan combobox fills its bar cell (a fixed 160px left the row's tail
+   under-filled — measured 2026-09-27: 55% of a 5-track row). */
 .shipments-control__plan {
-  width: 160px;
+  width: 100%;
+  min-width: 0;
 }
 
 .shipments-control__plan .searchable-select__trigger {
@@ -2539,22 +2512,9 @@
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }
-/* Phone tool-bar (2026-09-27 role sweep): the range control carries two
-   dates, so it needs the whole row — sharing one left it ellipsizing its own
-   mask. Search also goes edge to edge; the chip selects keep the 2-up rhythm. */
+/* Phone (2026-09-27): the shared bar stacks every cell and the from/to group
+   keeps its two fields side by side; the page only releases the desktop caps. */
 @media (max-width: 640px) {
-  .shipments-control__search { width: 100%; flex: 1 1 100%; }
-
   .shipments-control__range,
-  .shipments-control__range .date-range {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .shipments-control__range .date-range__pair { width: 100%; }
-  .shipments-control__range .date-range__trigger--sm { flex: 1 1 0; }
-
-  .shipments-control__chip,
-  .shipments-control__plan { flex: 1 1 calc(50% - 4px); }
+  .shipments-control__date-presets { width: 100%; max-width: none; min-width: 0; }
 }

@@ -140,7 +140,7 @@ export default function DepositRefundTrackerPage() {
     <div className="deposit-tracker-page">
       <PageHeader title="Theo dõi hoàn cược container" description="Theo dõi số tiền cược và ngày nộp công văn theo từng lô. Tiền hoàn cược được ghi nhận vào quỹ công ty đã cấu hình." />
       {dialog}
-      <section className="deposit-tracker-filters" aria-label="Bộ lọc">
+      <section className="filter-bar deposit-tracker-filters" aria-label="Bộ lọc">
         {/* Card 20260925_1 (sweep mandate): short-value date pair rides the
          * `.deposit-tracker-filters__pair` 2-column grid; the Trạng thái
          * select stays a full row, and the two action buttons keep their own

@@ -71,7 +71,7 @@ export function ExpenseAccountingWorkspace() {
     <Tabs ariaLabel="Nghiệp vụ chi phí" variant="bordered" className="expense-accounting-tabs" value={view} tabs={views} onChange={next => update({ view: next, payerId: '', accountantId: '', confirmed: '' })} />
     {view === 'ops' && catalog.data && <div className="expense-accounting-toolbar-actions"><button type="button" className="btn btn--secondary btn--sm" onClick={() => setAdvance(true)}>Chi tạm ứng OPS</button></div>}
     {catalog.isError && <p role="alert" className="expense-accounting-error">Không tải được danh mục thao tác. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void catalog.refetch()}>Thử lại</button></p>}
-    {['ops', 'work', 'reports'].includes(view) && <form className="expense-accounting-filters" onSubmit={event => { event.preventDefault(); update({ search: draftSearch.trim() }); }}>
+    {['ops', 'work', 'reports'].includes(view) && <form className="filter-bar expense-accounting-filters" onSubmit={event => { event.preventDefault(); update({ search: draftSearch.trim() }); }}>
       <div className="expense-accounting-search"><TextField controlSize="sm" label="Tìm công việc" value={draftSearch} maxLength={200} placeholder="Lô, khách, số cont, xe, tên phí" onChange={event => setDraftSearch(event.target.value)} /><button type="submit" className="btn btn--secondary btn--sm">Tìm</button></div>
       <DateField controlSize="sm" label={view === 'work' ? 'Lịch từ ngày' : 'Ngày chi từ'} value={filters.from ?? ''} onChange={from => update({ from })} />
       <DateField controlSize="sm" label="Đến ngày" value={filters.to ?? ''} onChange={to => update({ to })} />

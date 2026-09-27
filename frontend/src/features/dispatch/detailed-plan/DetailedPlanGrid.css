@@ -41,12 +41,14 @@
   min-width: 0;
 }
 
-/* Content-sized (never a fixed width): a 220px trigger left the row's label
-   box 3px short of the value it carried and ellipsized its own mask
-   (no-truncation law §4, found in the 2026-09-27 role sweep). */
-.detailed-plan-header__range .date-range__trigger {
+/* Content-sized (never a fixed width): the group carries TWO independent date
+   fields (Từ ngày / Đến ngày), so its floor is two 149px fields plus the 12px
+   seam. A single 220px slot ellipsized the value it carried (no-truncation law
+   §4, 2026-09-27 role sweep). */
+.detailed-plan-header__range {
+  flex: 0 1 auto;
   width: max-content;
-  min-width: 220px;
+  min-width: 320px;
   max-width: 100%;
 }
 
@@ -623,21 +625,11 @@
     white-space: nowrap;
   }
 
-  /* The calendar glyph is decoration beside a value that already reads as a
-     date (design §1: icons are for actions) — the chevron keeps the
-     affordance, the freed 20px keeps the mask from ellipsizing (§4). */
-  .detailed-plan-header__range .date-range__trigger > svg:not(.date-range__chevron) {
-    display: none;
-  }
-
+  /* Phone: the group keeps its two fields side by side (the pair law) and
+     takes the full row so neither date is squeezed below its floor. */
   .detailed-plan-header__range {
     width: 100%;
     min-width: 0;
-  }
-
-  .detailed-plan-header__range .date-range__trigger {
-    width: 100%;
-    min-height: var(--control-touch-h, 44px);
   }
 
   .detailed-plan-header__assign { justify-self: end; }

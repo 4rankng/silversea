@@ -578,22 +578,24 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    // Card 20260925_6: pair inputs are individually labelled "Từ ngày" /
-    // "Đến ngày" — the pair shell carries the combined label.
+    // The from/to group is two independent fields (card 20260927_150): each is
+    // labelled on its own, and editing ONE side writes the pair as the two
+    // fields actually read — the untouched Đến keeps the value it displays
+    // (the page's default scope is today), so the range is never implicit.
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/08/2026' } });
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&transportDateTo=${today}`));
 
     const filtersRegion2 = document.querySelector('.shipments-detail-filters') as HTMLElement;
     fireEvent.click(within(filtersRegion2).getByRole('button', { name: /Khách hàng/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Công ty Silver Sea' }));
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&transportDateTo=${today}&customerId=7`));
 
     fireEvent.click(within(filtersRegion2).getByRole('button', { name: /Nhập \/ Xuất/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&transportDateTo=${today}&customerId=7&direction=IMPORT`));
 
     fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i), { target: { value: 'abcd' } });
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&transportDateTo=${today}&customerId=7&direction=IMPORT`));
   });
 
   it('keeps filter actions together and clears active filters without a redundant summary', async () => {

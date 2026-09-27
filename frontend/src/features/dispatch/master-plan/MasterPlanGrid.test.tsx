@@ -633,11 +633,13 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
-    // Date range: one DateRangePopover trigger, two calendar panels (Từ | Đến).
-    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao' }));
-    const rangeDialog = screen.getByRole('dialog', { name: 'Khoảng ngày giao' });
-    expect(within(rangeDialog).getByRole('heading', { name: 'Từ' })).toBeTruthy();
-    expect(within(rangeDialog).getByRole('heading', { name: 'Đến' })).toBeTruthy();
+    // Dates: two INDEPENDENT fields (CHIEF 2026-09-27 — no range picker).
+    // The toolbar and the Bộ lọc drawer each mount the group, so the first
+    // Từ ngày field is the toolbar's.
+    const [fromField] = screen.getAllByLabelText('Từ ngày') as HTMLInputElement[];
+    fireEvent.change(fromField, { target: { value: '15/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-09-15', deliveryDateTo: '' });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('keeps the complete delivery-date range and create action in one responsive control group', () => {
@@ -647,15 +649,14 @@ describe('MasterPlanFilters', () => {
         onChange={vi.fn()}
       />,
     );
-    // Case QA-2026-09-27-02 / card 20260927_2: the delivery-date control is a
-    // single `DateRangePopover` trigger — one picker for Từ + Đến — and the
-    // grid-stack of separate inputs is gone.
-    expect(container.querySelector('[aria-label="Khoảng ngày giao"]')).toBeTruthy();
+    // CHIEF 2026-09-27 (card 20260927_150): the delivery date is two
+    // independent fields in one group — no merged trigger, no dual calendar.
+    const groups = container.querySelectorAll('[role="group"][aria-label="Khoảng ngày giao"]');
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups[0].querySelectorAll('[data-input-wrapper]').length).toBe(2);
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(toolbar).toMatch(/display:\s*flex/);
-    expect(toolbar).toMatch(/align-items:\s*center/);
     expect(toolbar).toContain('margin-bottom: 10px');
     expect(css).not.toContain('.master-plan-filters__date-action');
     expect(css).toContain('.master-plan-filters__actions');

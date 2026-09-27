@@ -550,9 +550,9 @@ describe('DetailedPlanGrid', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     // Card _50: ribbon controls ride the shared design-system family
-    // (SearchableSelect combobox, InlineLabelSelect chips, DateRangePopover
-    // trigger) — no self-made chrome.
-    expect(filtersSource).toContain('DateRangePopover');
+    // (SearchableSelect combobox, InlineLabelSelect chips, the from/to
+    // DateRangeFields group) — no self-made chrome.
+    expect(filtersSource).toContain('DateRangeFields');
     expect(filtersSource).toContain('InlineLabelSelect');
     expect(filtersSource).toContain('SearchableSelect');
     // Self-made bar chrome and the dead legacy picker family are deleted clean.

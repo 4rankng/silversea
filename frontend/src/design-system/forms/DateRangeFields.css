@@ -1,0 +1,41 @@
+/* DateRangeFields — the ONE from/to date filter (CHIEF ruling 2026-09-27:
+   "choose from and to separately instead of one long control", then
+   "I dont want daterangepicker").
+
+   Two independent single-date fields (BufferedUuiDateInput) in a transparent
+   2-track grid: no panel chrome, no shared range trigger, no dual-calendar
+   popover. Flat law (docs/design-guidelines.md §3): the pair never paints a
+   background, border, radius or shadow of its own — the fields carry their own
+   chrome, exactly like every other control in a filter bar.
+
+   Widths: each track is a normal date field (168px natural, 149px floor, the
+   /dispatch parity contract). Inside a filter bar the whole group takes two
+   grid tracks (ListFilterBar.css) so the pair never squeezes a date below its
+   floor; inside a page-level toolbar the host sizes the group. */
+
+.date-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.date-range-fields > [data-input-wrapper],
+.date-range-fields .date-range-fields__from,
+.date-range-fields .date-range-fields__to {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The field labels sit above their inputs (shared field anatomy), so the group
+   bottom-aligns with the selects/tabs beside it. */
+.date-range-fields [data-label],
+.date-range-fields label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}

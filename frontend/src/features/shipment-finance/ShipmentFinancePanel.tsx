@@ -57,7 +57,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
         { id: 'deposit', label: 'Cược container' },
       ]}
     />}
-    <form className="shipment-finance__filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
+    <form className="filter-bar shipment-finance__filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
       <TextField controlSize="sm" className="shipment-finance__search" label="Tìm hồ sơ" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder={activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng'} />
       <DateField controlSize="sm" label={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'} value={from} onChange={(value) => { setFrom(value); setPage(1); }} />
       <DateField controlSize="sm" label="Đến ngày" value={to} onChange={(value) => { setTo(value); setPage(1); }} />
@@ -66,6 +66,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
       <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
       {(search || from || to || depositState) && <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
         setSearch(''); setSearchDraft(''); setFrom(''); setTo(''); setDepositState(''); setPage(1);
+      <div className="filter-bar__spacer" />
       }}>Xóa lọc</button>}
     </form>
     {query.isError ? <p role="alert">Không tải được hồ sơ. <button type="button" className="btn btn--ghost" onClick={() => void query.refetch()}>Thử lại</button></p>

@@ -206,7 +206,7 @@ export default function ExpenseListPage() {
       />
 
       {/* ── Filter Bar ───────────────────────────────────────────────── */}
-      <div className="expense-filter-bar">
+      <div className="filter-bar expense-filter-bar">
         <UuiSelectField
           id="expense-supplier-filter"
           label="Nhà cung cấp"
@@ -278,9 +278,12 @@ export default function ExpenseListPage() {
         </div>
 
         {hasFilters && (
-          <button className="expense-filter-bar__reset" onClick={resetFilters}>
-            <X size={12} /> Xóa bộ lọc
-          </button>
+          <>
+            <div className="filter-bar__spacer" />
+            <button className="expense-filter-bar__reset" onClick={resetFilters}>
+              <X size={12} /> Xóa bộ lọc
+            </button>
+          </>
         )}
       </div>
 

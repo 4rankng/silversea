@@ -64,17 +64,18 @@
 .invoice-tracking-header__actions { display: flex; align-items: center; gap: 8px; }
 
 .invoice-tracking-filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
   min-height: 32px;
 }
 
-/* Content-sized: 210px left the range trigger's label box 10px short of the
-   value it carried, so the period ellipsized itself at every width
+/* Content-sized: two from/to date fields (DateRangeFields) plus the 12px seam
+   set the floor — a single 210px slot left the period's label box short of the
+   value it carried and it ellipsized itself at every width
    (2026-09-27 role sweep, §4). */
-.invoice-tracking-range { width: max-content; min-width: 210px; max-width: 100%; }
+.invoice-tracking-range { flex: 0 1 auto; width: max-content; min-width: 300px; max-width: 100%; }
+
+/* Quick period ranges ride beside the fields as the shared boxed segmented
+   control (no range popover — CHIEF 2026-09-27). */
+.invoice-tracking-range__presets { flex: 0 0 auto; }
 
 .invoice-tracking-search {
   position: relative;
@@ -340,9 +341,10 @@
 /* Phone filters stack (design §5): the range owns its row, the search goes
    edge to edge — a half-width period control clipped its own value. */
 @media (max-width: 640px) {
-  .invoice-tracking-filters { align-items: stretch; }
+  .invoice-tracking-filters { }
 
   .invoice-tracking-range,
+  .invoice-tracking-range__presets,
   .invoice-tracking-search,
   .invoice-tracking-supplier,
   .invoice-tracking-diff {

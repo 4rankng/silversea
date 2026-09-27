@@ -355,7 +355,6 @@
 @media (max-width: 1023px) {
   .expense-filter-bar {
     padding: 10px 0;
-    gap: 10px;
   }
 
   /* Filter-bar law, mobile: stack one column — each field takes a full row. */

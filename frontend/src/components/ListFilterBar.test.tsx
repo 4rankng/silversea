@@ -8,17 +8,16 @@ const componentCss = readFileSync(resolve(process.cwd(), 'src/components/ListFil
 const filterBarCss = readFileSync(resolve(process.cwd(), 'src/components/FilterBar.css'), 'utf8');
 
 describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
-  it('is one wrapping row: wrap only when out of space, consistent rows below, never ragged floats', () => {
-    // The bar row itself rides the shared .filter-bar sheet.
+  it('is one measured grid: rows land on the same tracks, never ragged floats', () => {
+    // The bar row itself rides the shared .filter-bar sheet — a grid whose
+    // column count is measured from the bar's own width (card 20260927_151;
+    // the flex row + its declared tablet 2-column band are retired).
     const bar = filterBarCss.match(/\.filter-bar\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(bar).toMatch(/display:\s*flex;/);
-    expect(bar).toMatch(/flex-wrap:\s*wrap;/);
+    expect(bar).toMatch(/display:\s*grid;/);
+    expect(bar).toMatch(/grid-template-columns:\s*repeat\(auto-fit, minmax\(200px, 1fr\)\);/);
     expect(bar).toMatch(/align-items:\s*end;/);
-    // One gap rhythm — a wrapped second row aligns exactly like the first.
-    // Nepocorp reference rhythm after case QA-2026-09-22-02: 12px row gap,
-    // 24px column gap, flat chrome (the old 8px uniform + border-block bands
-    // read as unfinished scaffolding — operator 2026-09-22).
-    expect(bar).toMatch(/gap:\s*12px 24px;/);
+    // One gap rhythm — a wrapped row aligns exactly like the row above.
+    expect(bar).toMatch(/gap:\s*12px 16px;/);
     expect(bar).not.toMatch(/border-block/);
     // No floating controls: wrap goes through the flex row only
     // (fix family 20260919_48 / 20260920_34 — the ragged-float defects).
@@ -35,14 +34,16 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // Card 20260920_19: siblings in one bar share one computed height. The
     // blanket [data-control-size] pair outranks every control-geometry size
     // rule regardless of stylesheet order.
-    expect(componentCss).toMatch(
-      /\.list-filter-bar \[data-uui-control\],\s*\.list-filter-bar \[data-uui-control\]\[data-control-size\]\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\);/,
+    // Card 20260927_151: the rule lives on `.filter-bar` (FilterBar.css) so a
+    // bare host cannot drift and no page declares a UUI field height.
+    expect(filterBarCss).toMatch(
+      /\.filter-bar \[data-uui-control\],\s*\.filter-bar \[data-uui-control\]\[data-control-size\]\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\);/,
     );
     // Segmented date groups read --uui-control-h through inheritance/fallback.
-    expect(componentCss).toMatch(/\.list-filter-bar\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\);/);
+    expect(filterBarCss).toMatch(/\.filter-bar\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\);/);
     // Coarse pointers re-floor the whole bar at the 44px touch minimum.
-    expect(componentCss).toMatch(
-      /@media \(pointer: coarse\)\s*\{[^}]*\.list-filter-bar\s*\{[^}]*--filter-control-h:\s*var\(--control-touch-h\);/,
+    expect(filterBarCss).toMatch(
+      /@media \(pointer: coarse\)\s*\{[^}]*\.filter-bar\s*\{[^}]*--filter-control-h:\s*var\(--control-touch-h\);/,
     );
   });
 
@@ -51,11 +52,12 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // trigger): 240 floor against the documented 65px sliver + placeholder
     // truncation; 480 cap keeps long customer names off the row width.
     expect(componentCss).toMatch(
-      /\.list-filter-bar \.csc-searchable-field,\s*\.list-filter-bar \[data-uui-control='combobox'\]\s*\{[^}]*min-width:\s*240px;[^}]*max-width:\s*480px;/,
+      /\.list-filter-bar \.csc-searchable-field,[\s\S]{0,400}?min-width:\s*200px;[\s\S]{0,80}?max-width:\s*480px;/,
     );
-    // Segmented date groups ([data-input-wrapper] root): 149 floor against the
-    // documented 95px squeeze with the calendar trigger collapsing.
-    expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*min-width:\s*149px;/);
+    // A STANDALONE date field (a direct bar cell) keeps the 149 floor against
+    // the documented 95px squeeze with the calendar trigger collapsing; a
+    // field inside the from/to group fills its own track instead.
+    expect(componentCss).toMatch(/\.list-filter-bar > \[data-input-wrapper\]\s*\{[^}]*min-width:\s*149px;/);
     // Selects (.ds-uui-select root): width:auto + 180 floor against the
     // documented width:100% overflow of the trailing action past the viewport.
     expect(componentCss).toMatch(/\.list-filter-bar \.ds-uui-select\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*180px;/);
@@ -71,7 +73,7 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // plus the per-family width floors below.
     expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*min-width:\s*0;/);
     expect(componentCss).not.toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:/);
-    expect(componentCss).toMatch(/\.list-filter-bar \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
+    expect(componentCss).toMatch(/\.list-filter-bar > \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
   });
 
   // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): phones expose a
@@ -170,7 +172,10 @@ describe('ListFilterBar control integration', () => {
     expect(bar).not.toBeNull();
     const kids = Array.from(bar.children);
     expect(kids).toHaveLength(5);
-    expect(bar.querySelector('.filter-bar__search')).toBe(kids[0]);
+    // The search cell is a stack (the shell plus its own validation line) so a
+    // validation message never becomes a grid cell of its own.
+    expect(kids[0].classList.contains('filter-bar__search-cell')).toBe(true);
+    expect(kids[0].querySelector('.filter-bar__search')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Trạng thái' })).toBe(kids[1]);
     expect(bar.querySelector('.list-filter-bar__quick')).toBe(kids[2]);
     expect(bar.querySelector('.filter-bar__spacer')).toBe(kids[3]);

@@ -163,11 +163,7 @@
 /* ── Filter bar inside data card ── */
 
 .debt-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin-bottom: 18px;
-  flex-wrap: wrap;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
@@ -207,10 +203,6 @@
   color: var(--fg-inverse, #f7fbf8);
 }
 
-.debt-filter-spacer {
-  flex: 1;
-  min-width: 0;
-}
 
 .debt-filter-search {
   position: relative;
@@ -354,7 +346,6 @@
 
   /* Filter bar mobile */
   .debt-filter-bar {
-    gap: 6px;
     padding: 8px;
   }
   .debt-filter-chips {

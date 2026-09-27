@@ -9,10 +9,6 @@
 /* ─── Violation log filter toolbar ─── */
 
 .penalty-filter-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   min-height: var(--filter-control-h, 44px);
