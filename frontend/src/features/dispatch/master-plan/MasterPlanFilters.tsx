@@ -5,8 +5,7 @@ import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
-import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
-import { SearchableMultiSelect } from '../../../design-system';
+import { DateRangePopover, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
@@ -179,13 +178,14 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const [zonesError, setZonesError] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const drawerContentRef = useRef<HTMLDivElement>(null);
+  const rangeValue: DateRangeValue = {
+    from: filters.deliveryDateFrom,
+    to: filters.deliveryDateTo,
+  };
+  const applyRange = (next: DateRangeValue) => {
+    onChange({ deliveryDateFrom: next.from, deliveryDateTo: next.to });
+  };
   const applyDrawerFilters = () => {
-    const invalid = drawerContentRef.current?.querySelector<HTMLInputElement>('input:invalid');
-    if (invalid) {
-      invalid.focus();
-      invalid.reportValidity();
-      return;
-    }
     setIsFilterDrawerOpen(false);
   };
   const activeDrawerFilterCount = [
@@ -279,28 +279,14 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
             onSelectionChange={(keys) => onChange({ carrierKeys: keys })}
             loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)}
           />
-          <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
-            <span className="master-plan-filters__label">Ngày giao</span>
-            <div className="master-plan-filters__date-inputs">
-              <BufferedUuiDateInput
-                className="master-plan-filters__date-input"
-                inputClassName="master-plan-filters__control"
-                size="sm"
-                 max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom}
-                onChange={(value) => onChange({ deliveryDateFrom: value })}
-                inputProps={{ 'aria-label': 'Từ ngày giao' }}
-              />
-              <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-              <BufferedUuiDateInput
-                className="master-plan-filters__date-input"
-                inputClassName="master-plan-filters__control"
-                size="sm"
-                 min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo}
-                onChange={(value) => onChange({ deliveryDateTo: value })}
-                inputProps={{ 'aria-label': 'Đến ngày giao' }}
-              />
-            </div>
-          </div>
+          <DateRangePopover
+            id="master-plan-delivery-date-range"
+            ariaLabel="Khoảng ngày giao"
+            size="sm"
+            value={rangeValue}
+            onChange={applyRange}
+            className="master-plan-filters__date-range"
+          />
         </div>
         <UUIButton
           className="master-plan-filters__advanced-trigger"
@@ -345,14 +331,14 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
               >
                 {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
               </UUISelect>
-              <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
-                <span className="master-plan-filters__label">Ngày giao</span>
-                <div className="master-plan-filters__date-inputs">
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm"  max={filters.deliveryDateTo || undefined} value={filters.deliveryDateFrom} onChange={(value) => onChange({ deliveryDateFrom: value })} inputProps={{ 'aria-label': 'Từ ngày giao' }} />
-                  <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-                  <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm"  min={filters.deliveryDateFrom || undefined} value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
-                </div>
-              </div>
+              <DateRangePopover
+                id="master-plan-delivery-date-range-drawer"
+                ariaLabel="Khoảng ngày giao"
+                size="md"
+                value={rangeValue}
+                onChange={applyRange}
+                className="master-plan-filters__date-range"
+              />
             </div>
           </section>
           <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-location">

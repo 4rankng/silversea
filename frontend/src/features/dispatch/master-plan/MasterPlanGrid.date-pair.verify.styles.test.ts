@@ -3,31 +3,33 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Card 20260925_6 — site-wide pairing sweep verify-only check on
- * MasterPlanGrid `.master-plan-filters__date-range`. The Từ / Đến
- * inputs sit in `.master-plan-filters__date-inputs`, a 3-track grid
- * (1fr | separator | 1fr) inside the parent 9-col filter grid. The
- * date shortcuts live in `.master-plan-filters__date-actions`, an
- * inline grid row in their own cell — they share one row with the
- * dates so the row never splits into two orphan-strip rows.
+ * Case QA-2026-09-27-02 / card 20260927_2 — the dispatch master-plan date
+ * filter is now a single `DateRangePopover` trigger (one picker for Từ +
+ * Đến) replacing the previous two `BufferedUuiDateInput` controls. The
+ * 3-track "1fr | separator | 1fr" grid pattern from card 20260925_6 is
+ * retired; the new contract is one BEM slot owned by a component that
+ * ships its own popover and trigger sizing.
  */
 
 const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
-describe('MasterPlanGrid date-range regression guard (card 20260925_6 verify)', () => {
-  it('the date range is a single grid cell with an internal 3-track row', () => {
-    expect(css).toMatch(/\.master-plan-filters__date-range\s*\{[^}]*display:\s*grid;/);
-    expect(css).toMatch(/\.master-plan-filters__date-inputs\s*\{[^}]*display:\s*grid;/);
-    expect(css).toMatch(/\.master-plan-filters__date-inputs\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+minmax\(0,\s*1fr\);/);
+describe('MasterPlanGrid date-range regression guard (case QA-2026-09-27-02)', () => {
+  it('the dispatch date filter renders as a single DateRangePopover slot', () => {
+    // BEM slot still exists so the drawer layout grid places the new
+    // popover trigger at the same rhythm as other filter fields.
+    expect(css).toMatch(/\.master-plan-filters__date-range\s*\{/);
+    const block = css.match(/\.master-plan-filters__date-range\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toContain('display: block');
+    // The retired 3-track input grid and the side-by-side field/label
+    // cell are gone — there is exactly ONE date control, not two.
+    expect(css).not.toMatch(/\.master-plan-filters__date-inputs\s*\{/);
+    expect(css).not.toMatch(/\.master-plan-filters__date-input\s*\{/);
+    expect(css).not.toMatch(/\.master-plan-filters__date-sep\s*\{/);
   });
 
-  it('the pair rides the surface — no shadow / no background on the cell', () => {
+  it('the slot rides the surface — no shadow / no background on the cell', () => {
     const block = css.match(/\.master-plan-filters__date-range\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(block).not.toMatch(/box-shadow/);
     expect(block).not.toMatch(/background/);
-  });
-
-  it('label sits above the inputs (grid-column 1/-1), not floating at the edge', () => {
-    expect(css).toMatch(/\.master-plan-filters__date-range > \.master-plan-filters__label\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   });
 });

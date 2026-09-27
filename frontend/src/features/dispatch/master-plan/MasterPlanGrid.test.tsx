@@ -627,13 +627,11 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
-    fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '01/08/2026' } });
-    fireEvent.blur(screen.getByLabelText('Từ ngày giao'));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-08-01' });
-
-    fireEvent.change(screen.getByLabelText('Đến ngày giao'), { target: { value: '31/08/2026' } });
-    fireEvent.blur(screen.getByLabelText('Đến ngày giao'));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
+    // Date range: one DateRangePopover trigger, two calendar panels (Từ | Đến).
+    fireEvent.click(screen.getByRole('button', { name: 'Khoảng ngày giao' }));
+    const rangeDialog = screen.getByRole('dialog', { name: 'Khoảng ngày giao' });
+    expect(within(rangeDialog).getByRole('heading', { name: 'Từ' })).toBeTruthy();
+    expect(within(rangeDialog).getByRole('heading', { name: 'Đến' })).toBeTruthy();
   });
 
   it('keeps the complete delivery-date range and create action in one responsive control group', () => {
@@ -643,17 +641,18 @@ describe('MasterPlanFilters', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
+    // Case QA-2026-09-27-02 / card 20260927_2: the delivery-date control is a
+    // single `DateRangePopover` trigger — one picker for Từ + Đến — and the
+    // grid-stack of separate inputs is gone.
+    expect(container.querySelector('[aria-label="Khoảng ngày giao"]')).toBeTruthy();
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(toolbar).toContain('display: grid');
-    expect(toolbar).toContain('grid-template-columns: repeat(12, minmax(0, 1fr))');
-    expect(toolbar).toContain('align-items: end');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
-    expect(css).toContain('grid-template-columns: minmax(0, 320px) max-content');
+    expect(toolbar).toMatch(/display:\s*flex/);
+    expect(toolbar).toMatch(/align-items:\s*center/);
+    expect(toolbar).toContain('margin-bottom: 10px');
     expect(css).not.toContain('.master-plan-filters__date-action');
-    expect(css).not.toContain('.master-plan-filters__actions');
+    expect(css).toContain('.master-plan-filters__actions');
     expect(css).toContain('.drawer.master-plan-filters__drawer');
     expect(css).toContain('max-width: 100%');
     expect(css).toContain('padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;');
@@ -661,12 +660,15 @@ describe('MasterPlanFilters', () => {
   });
 
   it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {
+    // The toolbar still has no nested surface (no shadow, no rounded
+    // background) — only a hairline divider separating it from the
+    // summary rail and the grid below (case QA-2026-09-27-02).
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(toolbar).not.toMatch(/\bpadding\s*:/);
-    expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
-    expect(toolbar).not.toMatch(/\bbackground\s*:/);
+    expect(toolbar).not.toMatch(/border-radius\s*:/);
+    expect(toolbar).not.toMatch(/background\s*:/);
+    expect(toolbar).not.toMatch(/box-shadow\s*:/);
   });
 
   it('keeps the master plan edge-to-edge on wide application screens without a manual reload control', () => {
@@ -674,9 +676,11 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
 
     expect(page).not.toContain('Tải lại');
-    expect(page).toContain('dispatch-plan-page__toolbar');
+    // The standalone toolbar row above the filter row is gone — the primary
+    // action is now passed as `action={…}` directly into MasterPlanFilters.
+    expect(page).not.toContain('dispatch-plan-page__toolbar');
     expect(page).not.toContain('<PageHeader');
-    expect(page).not.toContain('action={(');
+    expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
     expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');

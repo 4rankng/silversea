@@ -2,12 +2,20 @@
    ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
    dispatch-plan-page__* BEM conventions. */
 
+/* Unified dispatch toolbar (case QA-2026-09-27-02 / card 20260927_2): the
+   advanced fields (allocation, port zones, carriers, date range) are routed
+   through the Bộ lọc drawer at every viewport — the inline row carries only
+   the global query input, the chiều-hàng dropdown, the drawer trigger, and
+   the primary action. The previous desktop-grid layout stranded a 120–150px
+   secondary row below the search/input controls. */
 .master-plan-filters {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: end;
-  gap: 10px;
-  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
 }
 
 .master-plan-filters__zones-error {
@@ -20,8 +28,26 @@
    these rules only shape them inside the flex bar. */
 
 .master-plan-filters__search {
-  grid-column: span 5;
+  max-width: 320px;
   min-width: 0;
+  flex: 1 1 240px;
+}
+
+/* Search input + chiều-hàng dropdown drop their floating UUI label inside
+   the toolbar — the control shows its placeholder / selected value instead,
+   keeping the toolbar row at one control height. The drawer still has the
+   full label rendered on top of each control. */
+.master-plan-filters__search [data-label="true"],
+.master-plan-filters__direction [data-label="true"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .master-plan-filters__field {
@@ -39,9 +65,8 @@
 }
 
 .master-plan-filters__direction {
-  /* The field label needs a little more room than the selected "Tất cả"
-     value; anything wider is unused toolbar space. */
-  grid-column: span 2;
+  width: clamp(140px, 14vw, 180px);
+  flex: 0 0 auto;
 }
 
 .master-plan-filters__allocation {
@@ -51,46 +76,39 @@
 }
 
 .master-plan-filters__date-range {
-  /* Keep the date inputs and their related actions in one operational row.
-     The date field intentionally takes a complete flex line when needed so
-     its shortcuts and the create action never become an orphaned button row. */
-  grid-column: span 9;
-  display: grid;
-  grid-template-columns: minmax(0, 320px) max-content;
-  /* 6px row gap keeps this label on the same rhythm as the rail above. */
-  gap: 6px 8px;
-  align-items: end;
+  /* Case QA-2026-09-27-02 / card 20260927_2: the delivery-date control is a
+     single `DateRangePopover` trigger (one picker for Từ + Đến) — no second
+     input field is rendered below the toolbar. The component owns its own
+     popover and trigger sizing; this class is the BEM slot the drawer
+     lays out at the same rhythm as the other filter slots. */
+  display: block;
 }
 
 .master-plan-filters__date-range > .master-plan-filters__label {
   grid-column: 1 / -1;
 }
 
-.master-plan-filters__date-inputs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-}
-
-.master-plan-filters__date-input {
-  min-width: 0;
-}
-
-.master-plan-filters__date-input input {
-  min-width: 0;
-}
-
-.master-plan-filters__date-sep {
-  color: var(--text-secondary, #94a3b8);
-}
-
 .master-plan-filters__advanced-fields {
-  display: contents;
+  /* Always hidden in the inline toolbar — allocation, port/carrier facets,
+     and the date range live in the Bộ lọc drawer at every viewport.
+     See case QA-2026-09-27-02 / card 20260927_2. */
+  display: none;
 }
 
 .master-plan-filters__advanced-trigger {
-  display: none;
+  /* Always visible: the Bộ lọc drawer trigger is the entry point to the
+     advanced filter set on every viewport. */
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.master-plan-filters__actions {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .master-plan-filters__count {
@@ -403,51 +421,35 @@
   color: var(--fg-2);
 }
 
-@container (max-width: 1040px) {
-  .master-plan-filters {
-    grid-template-columns: minmax(0, 1fr) minmax(124px, 160px) auto auto;
-  }
-
-  .master-plan-filters__search,
-  .master-plan-filters__direction,
-  .master-plan-filters__advanced-trigger {
-    grid-column: auto;
-  }
-
-  .master-plan-filters__direction,
-  .master-plan-filters__advanced-trigger {
-    min-width: 0;
-  }
-
-  .master-plan-filters__advanced-fields {
-    display: none;
-  }
-
-  .master-plan-filters__advanced-trigger {
-    display: inline-flex;
-    justify-content: center;
-  }
-
-  .master-plan-filters__facet-picker {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    max-height: 60vh;
-    border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
-    animation: slideUp 200ms var(--ease);
-  }
+/* Search results inside the advanced-search popover go full-screen on
+   phone-sized containers so the keyboard does not crush the picker (case
+   QA-2026-09-27-02 / card 20260927_2 retires the previous inline-grid
+   container query above — the inline row no longer exists). */
+.master-plan-filters__facet-picker {
+  position: fixed;
+  top: auto;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
+  animation: slideUp 200ms var(--ease);
 }
 
-@container (max-width: 640px) {
-  .master-plan-filters { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 6px; }
-  .master-plan-filters__search { grid-column: 1 / -1; }
-  .master-plan-filters__direction { grid-column: 1; }
-  .master-plan-filters__advanced-trigger { grid-column: 2; }
+@media (max-width: 640px) {
+  .master-plan-filters {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  /* Search input claims the full toolbar width so the magnifier stays
+     tapped without the controls next to it spilling off the row. */
+  .master-plan-filters__search { flex: 1 1 100%; max-width: none; }
+  /* Direction + action spacer sit on row 2 with the Bộ lọc trigger. */
+  .master-plan-filters__direction { flex: 0 0 auto; }
+  .master-plan-filters__actions { margin-left: auto; }
 }
 
 @media (max-width: 767px) {

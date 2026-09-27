@@ -83,6 +83,52 @@ describe('MasterPlanFilters', () => {
     expect(screen.queryByRole('button', { name: 'Hôm sau' })).toBeNull();
   });
 
+  it('hosts the page primary action inside the same toolbar row as the filters (case QA-2026-09-27-02)', () => {
+    render(
+      <MasterPlanFilters
+        filters={EMPTY_FILTERS}
+        onChange={vi.fn()}
+        action={<button type="button" className="btn btn--primary btn--sm">Tạo lô hàng</button>}
+      />,
+    );
+
+    // The action now lives inside the master-plan-filters shell, in a
+    // dedicated actions slot. No standalone toolbar row exists above the
+    // filters anymore.
+    const trigger = screen.getByRole('button', { name: 'Bộ lọc' });
+    const toolbar = trigger.closest('.master-plan-filters') as HTMLElement;
+    expect(toolbar).toBeTruthy();
+    const action = within(toolbar).getByRole('button', { name: 'Tạo lô hàng' });
+    expect(action).toBeTruthy();
+    const slots = toolbar.querySelectorAll('.master-plan-filters__actions');
+    expect(slots.length).toBe(1);
+    expect(within(slots[0] as HTMLElement).getByRole('button', { name: 'Tạo lô hàng' })).toBe(action);
+
+    // The action slot is the LAST child so margin-left: auto keeps it flush
+    // right; the Bộ lọc trigger is its left neighbor.
+    const slot = slots[0] as HTMLElement;
+    expect(slot.previousElementSibling).toBe(trigger);
+
+    // The toolbar itself is one flex row; the advanced fields stay in the
+    // DOM but are hidden by the CSS contract — they live in the drawer that
+    // opens via the Bộ lọc trigger. jsdom doesn't always apply stylesheets,
+    // so the CSS contract is pinned separately in MasterPlanGrid.test.tsx.
+    const advancedFields = toolbar.querySelector('.master-plan-filters__advanced-fields') as HTMLElement | null;
+    expect(advancedFields).toBeTruthy();
+  });
+
+  it('renders the Bộ lọc count badge whenever an advanced filter is applied (case QA-2026-09-27-02)', () => {
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, allocationStatus: 'NOT_ALLOCATED', deliveryDateFrom: '2026-08-01', portIds: [7] }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: /Bộ lọc/ });
+    expect(within(trigger).getByText('3')).toBeTruthy();
+  });
+
   it('uses the compact control tokens for the bespoke desktop carrier facet', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const triggerRule = css.match(/\.master-plan-filters__facet-trigger\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';

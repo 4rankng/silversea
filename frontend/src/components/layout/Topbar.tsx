@@ -55,13 +55,16 @@ function MonthNavigator() {
         onClick={() => setOpen(v => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label="Chọn tháng"
+        aria-label={`Chọn tháng · Tháng ${month}/${year}${periodLabel ? `, ${periodLabel}` : ''}`}
       >
         <Calendar size={14} className="topbar-date__icon" />
-        <div className="topbar-date__body">
-          <span className="topbar-date__label">Tháng {month}/{year}</span>
-          {periodLabel && <span className="topbar-date__period">{periodLabel}</span>}
-        </div>
+        <span className="topbar-date__label">Tháng {month}/{year}</span>
+        {periodLabel && (
+          <>
+            <span className="topbar-date__sep" aria-hidden="true">·</span>
+            <span className="topbar-date__period">{periodLabel}</span>
+          </>
+        )}
         <ChevronDown size={12} className="topbar-date__caret" />
       </button>
 

@@ -157,6 +157,18 @@
   box-shadow: none;
   transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
 }
+/* Case QA-2026-09-27-02 / card 20260927_2: the desktop topbar shrinks the
+   month trigger to 36px so the row matches the page-level input row.
+   Driver topbar keeps the 44px touch-floor rule — the driver identity
+   beside it is the two-line subtitle the customer asked to keep. */
+.topbar:not(.topbar--driver) .topbar-date__trigger {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 8px;
+  line-height: 1.2;
+}
 .topbar-date__trigger:hover {
   background: var(--surface-2);
   border-color: var(--line-strong);
@@ -173,22 +185,22 @@
 .topbar-date.is-open .topbar-date__icon {
   color: var(--accent);
 }
-.topbar-date__body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  text-align: left;
-}
+/* Single-row trigger body — case QA-2026-09-27-02. Label (month/year) and
+   period sit on the same line, separated by a · glyph. The two-line
+   `.topbar-date__body` wrapper from the previous design retired. */
 .topbar-date__label {
-
-  line-height: 1.35;
+  line-height: 1.2;
 }
 .topbar-date__period {
-  font-size: var(--text-caption-size);
   font-family: var(--font-data);
   color: var(--ink-3);
   font-weight: var(--fw-semibold);
-  line-height: 1.35;
+  line-height: 1.2;
+}
+.topbar-date__sep {
+  color: var(--ink-3);
+  line-height: 1.2;
+  user-select: none;
 }
 .topbar-date__caret {
   color: var(--ink-3);
@@ -467,10 +479,15 @@
 .topbar__breadcrumb strong { color: var(--ink); font-weight: var(--fw-semibold); font-size: var(--text-body-size); }
 
 .topbar__search {
-  flex: 1;
+  /* Case QA-2026-09-27-02 / card 20260927_2: the global nav search is the
+     secondary tool (page-level table search runs below it) — clamp it to
+     360px max so the canvas does not stretch the input across the entire
+     viewport width. Flex keeps it from collapsing below its min-width. */
+  flex: 1 1 0;
   margin-left: 0;
   position: relative;
-  min-width: 240px;
+  min-width: 200px;
+  max-width: 360px;
 }
 .topbar__search > svg {
   position: absolute;
@@ -482,19 +499,23 @@
 }
 .topbar__search > input {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 48px 10px 40px;
+  min-height: 36px;
+  /* 36px follows the dense toolbar contract of the page-level inputs; the
+     global search is intentionally lower-contrast than the local one. */
+  padding: 6px 36px 6px 32px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--ink);
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-data-size);
   outline: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .topbar__search > input::placeholder { color: var(--ink-3); }
 .topbar__search > input:focus {
   background: var(--surface);
   border-color: var(--accent);
+  color: var(--ink);
   outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
   outline-offset: 1px;
 }
