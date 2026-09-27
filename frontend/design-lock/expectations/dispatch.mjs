@@ -16,6 +16,31 @@ const pageWide = (role, path, width, note) => ([
   { id: `${path}/w${width}/min-font`, role, path, width, kind: 'minFont', note },
 ]);
 
+// Added 2026-09-27: the 6-width sweep (360…1440) flagged /dispatch-detail at
+// 1024 only — 15 clipped nodes, all in the assignment cell (driver name 92px of
+// text in an 88px box, carrier "Chưa phân nhà xe" 106px in 88px, nowrap+ellipsis).
+// 390 and 768 already had these locks; the 1024 and 1440 bands did not, which is
+// why the sweep's new 6-width matrix was the first thing to see it. Names wrap
+// now — these two bands hold the fix.
+const dispatchDetailTextLocks = [1024, 1440].flatMap((width) => ([
+  {
+    id: `/dispatch-detail/w${width}/no-clipped-text`,
+    role: 'dieuvan',
+    path: '/dispatch-detail',
+    width,
+    kind: 'noClippedText',
+    note: 'assignment-cell driver/carrier are names — they wrap (two-line clamp), never a one-line token; 15 nodes clipped at 1024 before the fix',
+  },
+  {
+    id: `/dispatch-detail/w${width}/no-page-overflow`,
+    role: 'dieuvan',
+    path: '/dispatch-detail',
+    width,
+    kind: 'noPageOverflow',
+    note: 'wrapping the names must not push the dense plan table sideways',
+  },
+]));
+
 export default [
   // --- Chrome budget: the space the header+filter block steals from the
   // list. Measured on the approved state (2026-09-27) after the operator's
@@ -101,4 +126,5 @@ export default [
     kind: 'computed', selector: '.master-plan-grid__cell--lift-port', prop: 'white-space', equals: 'normal',
     note: 'specificity-proof card band for the master-plan cells',
   },
+  ...dispatchDetailTextLocks,
 ];
