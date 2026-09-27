@@ -80,6 +80,7 @@ const DispatchDetailPlanPage = lazy(() => import('./pages/DispatchDetailPlanPage
 // Dispatcher resource-catalog lookups (read-only views over /api/trucks,
 // /api/drivers, /api/suppliers).
 const FleetVehiclesPage = lazy(() => import('./pages/FleetVehiclesPage'));
+const ExternalFleetPage = lazy(() => import('./pages/ExternalFleetPage'));
 const FleetDriversPage = lazy(() => import('./pages/FleetDriversPage'));
 const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
@@ -276,6 +277,7 @@ export function AppRoutes() {
           {/* Dispatcher resource catalogs — read-only lookups for staffing
               dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
           <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />
+          <Route path="/fleet/external" element={dispatchOnly(page(<ExternalFleetPage />))} />
           <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
           <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />

@@ -107,12 +107,13 @@ describe('role-aware search destinations', () => {
     }
   });
 
-  it('gives dispatchers their five nav destinations instead of an empty palette', () => {
+  it('gives dispatchers their six nav destinations instead of an empty palette', () => {
     const items = getSearchItems('DISPATCHER');
     expect(items.map(item => item.path)).toEqual([
       '/dispatch',
       '/dispatch-detail',
       '/fleet/vehicles',
+      '/fleet/external',
       '/fleet/drivers',
       '/suppliers',
     ]);

@@ -119,6 +119,7 @@ describe('getNavItems', () => {
       ['Kế hoạch chi tiết', '/dispatch-detail'],
       ['Xe nội bộ', '/fleet/vehicles'],
       ['Tài xế', '/fleet/drivers'],
+      ['Xe ngoài', '/fleet/external'],
       ['Nhà thầu', '/suppliers'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],

@@ -102,6 +102,7 @@ const DISPATCHER_ITEMS: SearchItem[] = [
   { id: 'dispatch-master-plan',  type: 'page', label: 'Kế hoạch tổng quát',  path: '/dispatch',        iconName: 'dispatch' },
   { id: 'dispatch-detail-plan',  type: 'page', label: 'Kế hoạch chi tiết',   path: '/dispatch-detail', iconName: 'route' },
   { id: 'fleet-vehicles',        type: 'page', label: 'Xe nội bộ',  path: '/fleet/vehicles',  iconName: 'tractor-head' },
+  { id: 'fleet-external',        type: 'page', label: 'Xe ngoài',    path: '/fleet/external',  iconName: 'tractor-head' },
   { id: 'fleet-drivers',         type: 'page', label: 'Tài xế',     path: '/fleet/drivers',   iconName: 'driver' },
   { id: 'suppliers',             type: 'page', label: 'Nhà thầu',        path: '/suppliers',       iconName: 'supplier' },
 ];

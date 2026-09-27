@@ -260,6 +260,7 @@ export function getNavItems(
         // Quản lý Tài nguyên (Resources) per spec
         { key: 'fleet-vehicles', label: 'Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
         { key: 'fleet-drivers', label: 'Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
+        { key: 'fleet-external', label: 'Xe ngoài', path: routes.fleetExternal, icon: Truck, section: 'resources' },
         { key: 'suppliers', label: 'Nhà thầu', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
 
         // Danh mục (Master Data) — dispatchers may add the missing customer or

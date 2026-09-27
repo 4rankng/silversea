@@ -74,6 +74,11 @@ export const PAGE_CATALOG = {
     path: '/fleet/drivers',
     section: 'resources',
   },
+  fleetExternal: {
+    title: 'Xe ngoài',
+    path: '/fleet/external',
+    section: 'resources',
+  },
   fleetTires: {
     title: 'Lốp xe đầu kéo',
     path: (p: Record<string, string | number>) => `/fleet/${p.truckId}/tires`,
