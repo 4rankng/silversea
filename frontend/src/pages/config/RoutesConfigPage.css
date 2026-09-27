@@ -22,16 +22,16 @@
 }
 .routes-config-page .routes-table td.routes-table__distance { font-family: var(--font-data); }
 
-/* 36px single-line rows: names never wrap — ellipsis + title tooltip;
-   fine-pointer action buttons shrink to 24px so the row floors at 36px
-   (coarse pointers keep the 44px touch floors via the container query). */
-.routes-config-page .routes-table td.routes-table__name .row-strong {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 560px;
-}
+/* No-truncation doctrine (docs/design-guidelines.md §4): the route name is a
+   data value, so it WRAPS. The wrap contract lives in the shared bands —
+   config-page.css `td.routes-table__name .row-strong { white-space: normal;
+   overflow-wrap: anywhere }` plus the card-band release. This page must not
+   re-declare nowrap/overflow/ellipsis here: at this specificity a page rule
+   silently out-ranks the band's release, which is how the name cell clipped
+   at 180px inside the 768px tablet band (2026-09-27 nowrap bug class). */
 .routes-config-page .routes-table tbody td { padding-block: 6px; }
+/* Fine-pointer action buttons shrink to 24px so the row floors at 36px
+   (coarse pointers keep the 44px touch floors via the container query). */
 @media (hover: hover) and (pointer: fine) {
   .routes-config-page .routes-table .row-action {
     min-width: 24px;
@@ -117,7 +117,8 @@
 
 /* ── Card 20260926_59 (chief bounce) — fixed-column data grid ──
    Mã 160 mono · Tên flex · Rút gọn 200 · Cự ly 100 right mono · Thao tác 80;
-   36px single-line rows with hairline dividers and an even-row stripe. */
+   hairline dividers and an even-row stripe. Long values WRAP (§4) — the
+   short-name column keeps its 200px budget but never clips. */
 .routes-config-page .routes-table th.routes-table__code,
 .routes-config-page .routes-table td.routes-table__code { width: 160px; }
 .routes-config-page .routes-table th.routes-table__name,
@@ -133,7 +134,6 @@
 .routes-config-page .routes-table tbody tr { border-bottom: 1px solid var(--line); }
 .routes-config-page .routes-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--ink) 2%, transparent); }
 .routes-config-page .routes-table tbody td { padding-block: 6px; }
-.routes-config-page .routes-table tbody td:nth-child(3) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 
 /* ── Card 20260926_59 — single 36px header row: back + title(count) +
    search 280 with ⌘K badge + conditional reset + create action. ── */

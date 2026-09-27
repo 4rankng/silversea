@@ -220,4 +220,18 @@ describe('routes true grid (card 20260926_59 — chief bounce)', () => {
     // the month-picker law keeps the navigator off config routes
     expect(topbar).toMatch(/config\|fleet/);
   });
+
+  // §4 no-truncation: a page-level nowrap/ellipsis on the name cell out-ranked
+  // the shared band's release and clipped 289 route names at 180px inside the
+  // 768px tablet band (2026-09-27 nowrap bug class). The page must not re-clip;
+  // the wrap contract stays in the shared bands that the bands can out-specify.
+  it('route name/short-name values wrap — the page never re-clips them (§4)', () => {
+    expect(css).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(css).not.toMatch(/td\.routes-table__name \.row-strong[^}]*overflow:\s*hidden/);
+
+    const shared = readFileSync(resolve(process.cwd(), 'src/pages/config/config-page.css'), 'utf8');
+    expect(shared).toMatch(/\.routes-table tbody td\.routes-table__name \.row-strong \{\s*white-space:\s*normal;\s*overflow-wrap:\s*anywhere;\s*\}/);
+    // the ≤1100px card band releases the desktop one-line geometry
+    expect(shared).toMatch(/@container \(max-width: 1100px\)[\s\S]*?\.routes-table tbody td \{\s*overflow:\s*visible;\s*white-space:\s*normal;\s*text-overflow:\s*clip;\s*\}/);
+  });
 });
