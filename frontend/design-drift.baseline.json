@@ -4,11 +4,11 @@
     "scannedFiles": 179,
     "hexDirect": 269,
     "hexFallback": 731,
-    "radiusOffLadder": 98,
+    "radiusOffLadder": 97,
     "rawShadow": 65,
     "rawZIndex": 85,
-    "untokenizedTransition": 213,
-    "mediaWidthValues": 47,
+    "untokenizedTransition": 211,
+    "mediaWidthValues": 46,
     "containerWidthValues": 21
   },
   "worstFiles": [
