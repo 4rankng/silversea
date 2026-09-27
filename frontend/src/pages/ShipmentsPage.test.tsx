@@ -715,9 +715,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
     expect(css).toMatch(/@media \(max-width: 999px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
-    expect(recordCss).toMatch(/\.cus-dashboard-table tbody > tr > td\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(recordCss).toMatch(/td\[data-label='Phân loại & hãng tàu'\],[\s\S]*?td\[data-label='Tổng quan hàng hóa'\]\s*\{[^}]*grid-column:\s*auto;/);
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*white-space:\s*normal;/);
+    // Data-dense card (operator 2026-09-27: "redesign this to make it data dense
+    // card"): the row is a two-column FACT grid — only the identity cell spans
+    // both columns, every other cell pairs with its neighbour, and the section
+    // label rides the first value's line instead of owning one.
+    expect(recordCss).toMatch(/th\[data-label='Khách hàng & nhà máy'\]\s*\{\s*grid-column:\s*1 \/ -1;/);
+    expect(recordCss).toMatch(/th:not\(\[data-label='Khách hàng & nhà máy'\]\),[\s\S]*?td\s*\{\s*grid-column:\s*auto;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*white-space:\s*nowrap;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger\[data-cell-short\]::before\s*\{[^}]*content:\s*attr\(data-cell-short\);/);
+    expect(recordCss).toMatch(/\[data-facts='inline'\][\s\S]*?content:\s*' ·';/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
   });
@@ -2316,9 +2322,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(row).toMatch(/title=\{item\.routeName \|\| item\.deliveryLocation \|\| 'Chưa có tuyến đường'\}/);
   });
 
-  it('CUS-OVERVIEW-01 gives labels their own line and wraps complete identifiers without inherited fixed columns', () => {
-    expect(recordCss).toMatch(/\.cus-inline-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*white-space:\s*normal;/);
+  it('CUS-OVERVIEW-01 rides the label on the value line and wraps complete identifiers without inherited fixed columns', () => {
+    // The dense rework (operator 2026-09-27) replaces the stacked label line with
+    // a fact row: the trigger is a label column + a value column, and the label
+    // itself never wraps (its short form is what the paired cells print).
+    expect(recordCss).toMatch(/\.cus-inline-trigger:has\(\.cus-multiline-cell\)[\s\S]*?grid-template-columns:\s*auto minmax\(0, 1fr\);/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*white-space:\s*nowrap;/);
     expect(recordCss).toMatch(/\.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');

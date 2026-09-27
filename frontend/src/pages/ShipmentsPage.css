@@ -817,17 +817,23 @@
   .cus-dashboard-table tbody > tr > th,
   .cus-dashboard-table tbody > tr > td {
     display: block;
-    grid-column: 1 / -1;
     min-width: 0;
     height: auto;
     min-height: 0;
-    padding: 6px 8px;
+    padding: 5px 8px;
     border: 0;
     border-bottom: 1px solid var(--line);
     background: transparent;
   }
-  .cus-dashboard-table tbody > tr > td[data-label='Phân loại & hãng tàu'],
-  .cus-dashboard-table tbody > tr > td[data-label='Tổng quan hàng hóa'] {
+  /* Data-dense card (operator 2026-09-27: "redesign this to make it data dense
+     card"): the row is a TWO-COLUMN fact grid, not a stack of full-width
+     sections. Only the identity cell (the row's name) spans both columns; the
+     other six pair up two per line, which halves the card. */
+  .cus-dashboard-table tbody > tr > th[data-label='Khách hàng & nhà máy'] {
+    grid-column: 1 / -1;
+  }
+  .cus-dashboard-table tbody > tr > th:not([data-label='Khách hàng & nhà máy']),
+  .cus-dashboard-table tbody > tr > td {
     grid-column: auto;
   }
   .cus-dashboard-table tbody > tr > th::before,
@@ -836,11 +842,16 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-content: start;
-    gap: 3px;
+    align-items: baseline;
+    gap: 2px;
     height: 100%;
-    min-height: 44px;
-    padding: 7px 8px;
+    min-height: 40px;
+    padding: 6px 8px;
   }
+  /* Dense fact row: the section label rides the SAME line as the first value
+     ("Khách hàng  CARD8 CUSTFREE …") instead of owning a line of its own — one
+     line saved per cell, which is most of the card's height. `data-cell-short`
+     is the short form of the label the narrow half-width cells use. */
   .cus-dashboard-table .cus-inline-trigger::before {
     position: static;
     width: auto;
@@ -849,7 +860,33 @@
     font-size: var(--text-label-size);
     font-weight: var(--fw-medium);
     line-height: 1.3;
-    white-space: normal;
+    white-space: nowrap;
+  }
+  .cus-dashboard-table .cus-inline-trigger[data-cell-short]::before {
+    content: attr(data-cell-short);
+  }
+  /* Density: a cell whose facts are ALL placeholders prints them on one line
+     ("Chưa có nhà máy · Chưa có tuyến đường") instead of one line each — the
+     markup marks those cells `data-facts="inline"` (operator 2026-09-27:
+     "redesign this to make it data dense card"). */
+  .cus-dashboard-table [data-facts='inline'] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+  }
+  .cus-dashboard-table [data-facts='inline'] > *:not(:last-child)::after {
+    color: var(--ink-3);
+    content: ' ·';
+    margin-left: 6px;
+  }
+  /* The label takes its own column and the values take the rest, so a cell with
+     several facts stacks them beside its label rather than under it. */
+  .cus-dashboard-table .cus-inline-trigger:has(.cus-multiline-cell),
+  .cus-dashboard-table .cus-inline-trigger:has(.cus-cargo-summary) {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: start;
   }
   .cus-dashboard-table .cus-multiline-cell strong,
   .cus-dashboard-table .cus-multiline-cell span {
