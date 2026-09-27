@@ -67,6 +67,13 @@ function probePage() {
   const small = [];
   for (const el of document.querySelectorAll('a[href], button, [role=button], input:not([type=hidden]), select, textarea')) {
     if (!visible(el) || el.closest('[aria-hidden="true"]')) continue;
+    // A digit segment inside a segmented date/time field is not its own tap
+    // target: the GROUP is (it click-opens the picker), and each box width is
+    // em-measured to its own glyphs at 12px so `DD` never shaves into an
+    // E-like sliver (design-system/forms/DateTimeSegments.css + its styles
+    // test pin 1.706em/1.956em/2.91em). Counting them made every sweep report
+    // a false sub-44 hit on /shipments-detail.
+    if (el.classList.contains('date-seg')) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 44 || r.height < 44) small.push({ el: describe(el), w: Math.round(r.width), h: Math.round(r.height) });
   }

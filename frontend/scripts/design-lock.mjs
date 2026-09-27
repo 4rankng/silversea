@@ -75,6 +75,11 @@ function evaluateLock(lock) {
       const hits = [];
       for (const el of document.querySelectorAll('a[href], button, [role=button], input:not([type=hidden]), select, textarea')) {
         if (!vis(el) || el.closest('[aria-hidden="true"]')) continue;
+        // A digit segment in a segmented date/time field is not its own target
+        // — the GROUP is (it click-opens the picker) and each box is
+        // em-measured to its glyphs at 12px so `DD` never shaves into an
+        // E-like sliver. Pin the group with minWidth/minHeight instead.
+        if (el.classList.contains('date-seg')) continue;
         const r = el.getBoundingClientRect();
         if (r.width < min - 0.5 || r.height < min - 0.5) hits.push({ el: desc(el), w: num(r.width), h: num(r.height) });
       }
