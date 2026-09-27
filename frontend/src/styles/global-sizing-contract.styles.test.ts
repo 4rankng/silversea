@@ -37,7 +37,9 @@ describe('global sizing contract', () => {
   it('keeps filter density on the compact desktop / mobile contract', () => {
     const tokens = read('src/styles/tokens.css');
     expect(tokens).toContain('--filter-control-h: var(--control-compact-h);');
-    // Compact geometry remains independent from the readable text scale.
-    expect(tokens).toMatch(/@media \(max-width: 640px\)\s*\{[^]*--filter-control-h: var\(--control-mobile-h\)/);
+    // Compact geometry remains independent from the readable text scale — and
+    // holds on phones too (operator 2026-09-27: the strip follows the tab-row
+    // height, so the ≤640 band no longer raises it to the touch size).
+    expect(tokens).toMatch(/@media \(max-width: 640px\)\s*\{[^]*--filter-control-h: var\(--control-compact-h\)/);
   });
 });

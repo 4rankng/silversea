@@ -509,7 +509,7 @@ export default function ShipmentsPage() {
             ariaLabel="Khoảng ngày giao"
             from={dateFrom} to={dateTo} onChange={applyDateRange}
           />
-          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" onReset={resetSecondary}>
+          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" presets={presetNode} onReset={resetSecondary}>
             <InlineLabelSelect
               className="shipments-control__chip"
               id="lot-direction-filter"

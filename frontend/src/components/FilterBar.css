@@ -120,13 +120,19 @@
  * These selectors are (0,2,0) against the families' (0,1,0), so the reset wins
  * regardless of import order. DESCENDANT scope, not `>`: a page wrapper around
  * a control (`.shipments-detail-filters > div > .ds-uui-select`) is exactly how
- * the family default came back twice on 2026-09-27. */
-.filter-bar .searchable-select,
-.filter-bar .inline-label-select,
-.filter-bar .ds-uui-select,
-.filter-bar .csc-searchable-field,
-.filter-bar [data-input-wrapper],
-.filter-bar [data-uui-control] {
+ * the family default came back twice on 2026-09-27.
+ *
+ * `.filter-dropdown__body` is the SECOND scope for the same contract: the
+ * dialog is portalled to <body>, so the criteria in it leave the bar's subtree
+ * entirely — without this the two-word "Kế hoạch" took a full row of the
+ * dialog too (operator 2026-09-27: "Ke hoach values are very short why the
+ * fuck full width"). */
+:is(.filter-bar, .filter-dropdown__body) .searchable-select,
+:is(.filter-bar, .filter-dropdown__body) .inline-label-select,
+:is(.filter-bar, .filter-dropdown__body) .ds-uui-select,
+:is(.filter-bar, .filter-dropdown__body) .csc-searchable-field,
+:is(.filter-bar, .filter-dropdown__body) [data-input-wrapper],
+:is(.filter-bar, .filter-dropdown__body) [data-uui-control] {
   width: auto;
 }
 /* `BufferedUuiDateInput` stacks label-over-control with `align-items:
@@ -137,7 +143,21 @@
    box 75px away. Stretching the wrapper lets the group's own `width: 100%`
    fill the cell, so a grouped field fills its track and a standalone field
    hugs its value (its wrapper is `width: auto` above). */
-.filter-bar [data-input-wrapper] { align-items: stretch; }
+:is(.filter-bar, .filter-dropdown__body) [data-input-wrapper] { align-items: stretch; }
+
+/* One control height in a filter context, including the families whose own
+   sheets raise themselves on phones: `SearchableSelect.css` sets the trigger to
+   `--control-mobile-h` (40px) at ≤640px, so the Kế hoạch dropdown stood taller
+   than the InlineLabelSelect chips beside it — operator 2026-09-27: "the height
+   of component ke hoach dropdown too high, please reduce to be same as other
+   dropdown". (0,3,0) out-ranks that (0,2,0) band, so the outcome does not
+   depend on stylesheet import order. */
+:is(.filter-bar, .filter-dropdown__body) .searchable-select .searchable-select__trigger,
+:is(.filter-bar, .filter-dropdown__body) .searchable-select .searchable-select__trigger--sm,
+:is(.filter-bar, .filter-dropdown__body) .inline-label-select .inline-label-select__trigger {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+}
 /* …except a member of a control group that owns its own track. Ordered after
    the reset inside this one file, so the outcome is decided here and not by
    stylesheet import order. */
@@ -183,6 +203,28 @@
   flex: 0 0 auto;
   align-items: center;
   min-width: 0;
+}
+
+/* The ranges are CONTROLS, not a second tab bar: their chips take the strip's
+   own height token and the boxed group drops its 2px inset inside the bar, so
+   the group measures exactly what the search, the date fields and `Bộ lọc`
+   measure (operator 2026-09-27: "component height are inconsistent [...] please
+   follow same height as [the tab row]"). Without this the shared `Tabs` phone
+   floor (40px) left the range group ~1.5x the height of the field beside it. */
+.filter-bar__presets .ds-tabs__btn,
+.filter-bar__presets .filter-tab {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filter-bar__presets.ds-tabs--boxed,
+.filter-bar__presets .ds-tabs--boxed {
+  /* The chips already carry their own boundary; the group's inset would add
+     2px on every side and break the single-height row. */
+  padding: 0;
+  align-items: center;
 }
 
 /* Search cell: the shell plus an optional validation line under it, so the

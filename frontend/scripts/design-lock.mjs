@@ -118,6 +118,20 @@ function evaluateLock(lock) {
       const pass = lock.kind === 'maxWidth' ? w <= limit + tol : w >= limit - tol;
       return { pass, actual: `${num(w)}px (${lock.kind} ${limit}px)`, detail: desc(el) };
     }
+    case 'matchHeight': {
+      // One control must be the same height as a REFERENCE element (operator
+      // 2026-09-27: "component height are inconsistent [...] please follow same
+      // height as [the tab row]"). Relative, because the reference height itself
+      // legitimately changes with the pointer (a tab chip is 32px with a mouse,
+      // 40px on touch) — a magic number would lock one of the two in.
+      const el = first(lock.selector);
+      const ref = first(lock.of);
+      if (!el) return { pass: false, actual: 'selector matched nothing' };
+      if (!ref) return { pass: false, actual: `reference ${lock.of} matched nothing` };
+      const delta = Math.abs(el.getBoundingClientRect().height - ref.getBoundingClientRect().height);
+      const allowed = lock.tol ?? 4;
+      return { pass: delta <= allowed, actual: `${num(el.getBoundingClientRect().height)}px vs ${num(ref.getBoundingClientRect().height)}px (Δ${num(delta)}, max ${allowed})`, detail: desc(el) };
+    }
     case 'maxTop': {
       // Chrome budget: how far down the viewport the first record starts.
       // Height is the vertical space the header, filters and tabs steal from

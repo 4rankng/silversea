@@ -28,7 +28,7 @@ import { createContext, useContext, useLayoutEffect, useRef, useState, type RefO
  * never oscillated per frame.
  */
 
-export type FilterBarMode = 'inline' | 'dialog';
+export type FilterBarMode = 'inline' | 'dialog' | 'dialog-presets';
 
 const MODE_CONTEXT = createContext<FilterBarMode>('dialog');
 
@@ -69,18 +69,28 @@ function countLines(bar: HTMLElement): number {
 
 /**
  * Measures a bar against the two-row budget and returns the mode its criteria
- * should render in. Pass the returned ref to the bar element.
+ * (and, in the last step, its quick ranges) should render in.
+ *
+ * The ladder has three rungs, each decided by a MEASURED row count, never by a
+ * breakpoint:
+ *   `inline`         criteria in the bar, ranges in the bar;
+ *   `dialog`         criteria in `Bộ lọc`, ranges still in the bar (the shape
+ *                    the strip uses from ~594px down to ~460px);
+ *   `dialog-presets` criteria AND ranges in `Bộ lọc` — the phone shape, where
+ *                    the two-row rule can only hold if the ranges leave the bar
+ *                    (operator 2026-09-27: "if need more than 2 rows then group
+ *                    into bo loc button").
+ * Pass the returned ref to the bar element.
  */
 export function useFilterBarFit(barRef: RefObject<HTMLElement | null>, maxLines = 2): FilterBarMode {
   const [mode, setMode] = useState<FilterBarMode>('inline');
-  // `fitWidth` = widest content width observed to fit; `needWidth` = a width the
-  // criteria could not fit at, plus a dead band. Both persist across renders,
-  // which is what makes the verdict width-deterministic instead of
-  // frame-deterministic. The dead band matters because the FIRST measure can run
-  // against a half-settled shell: measuring the overflowing item widths there
-  // would lock the dialog on forever.
-  const fitWidth = useRef(0);
-  const needWidth = useRef(0);
+  // Two thresholds, one per retry step, each = a width the step could NOT fit
+  // at, plus a dead band. They persist across renders, which is what makes the
+  // verdict width-deterministic instead of frame-deterministic — the first
+  // measure can run against a half-settled shell, and measuring the overflowing
+  // item widths there would lock the deepest fold on forever.
+  const needInline = useRef(0);
+  const needRanges = useRef(0);
 
   useLayoutEffect(() => {
     const bar = barRef.current;
@@ -88,16 +98,25 @@ export function useFilterBarFit(barRef: RefObject<HTMLElement | null>, maxLines 
     const measure = () => {
       const content = bar.clientWidth;
       if (content <= 0) return;
-      if (mode === 'dialog') {
-        if (content >= needWidth.current) setMode('inline');
+      // Step back one rung when the width has grown past the threshold that
+      // folded it. Re-learning is what keeps a fold from being permanent after a
+      // one-off narrow frame.
+      if (mode === 'dialog' && content >= needInline.current) {
+        setMode('inline');
         return;
       }
-      if (countLines(bar) <= maxLines) {
-        fitWidth.current = Math.max(fitWidth.current, content);
+      if (mode === 'dialog-presets' && content >= needRanges.current) {
+        setMode('dialog');
         return;
       }
-      needWidth.current = Math.max(needWidth.current, content + RETRY_SLACK);
-      setMode('dialog');
+      if (countLines(bar) <= maxLines) return;
+      if (mode === 'inline') {
+        needInline.current = Math.max(needInline.current, content + RETRY_SLACK);
+        setMode('dialog');
+        return;
+      }
+      needRanges.current = Math.max(needRanges.current, content + RETRY_SLACK);
+      if (mode === 'dialog') setMode('dialog-presets');
     };
     measure();
     // The shell can settle (sidebar collapse, container max-width, web fonts)

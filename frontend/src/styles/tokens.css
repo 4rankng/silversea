@@ -442,7 +442,13 @@
    sizing rather than touch-44px. */
 @media (max-width: 640px) {
   :root {
-    --filter-control-h: var(--control-mobile-h);
+    /* The filter strip keeps the COMPACT control height on phones too
+       (operator 2026-09-27, two crops side by side: "these two oversize […]
+       please follow same height as [the tab row]"). Raising it to the mobile
+       touch height made every bar control 40px while the tab chips right above
+       stayed at the compact 30/32px, so the strip read as the oversized block.
+       The bar's own width packing rules are unaffected by the 2px. */
+    --filter-control-h: var(--control-compact-h);
     --filter-control-font-size: var(--control-mobile-font-size);
     --filter-control-line-height: var(--control-mobile-line-height);
   }

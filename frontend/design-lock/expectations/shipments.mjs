@@ -68,6 +68,7 @@ export default [
     width: 390,
     kind: 'minHeight',
     selector: '.date-seg-group',
-    min: 44,
+    min: 40,
+    note: 'the group is the click-open tap target and follows the 2026-09-27 control ceiling (max 40px) — it measured 46px while a coarse pointer inflated every control, 40px after',
   },
 ];

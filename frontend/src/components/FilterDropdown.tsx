@@ -40,8 +40,14 @@ export interface FilterDropdownProps {
   ariaLabel: string;
   /** Accessible name of the dialog. */
   dialogLabel?: string;
-  /** The secondary criteria — labelled controls, one per row. */
+  /** The secondary criteria — labelled controls, packed into as few rows as the dialog holds. */
   children: ReactNode;
+  /**
+   * Quick ranges, rendered INSIDE the dialog only while the bar has folded them
+   * (`dialog-presets`, the phone shape). The caller passes the same node to the
+   * bar, and exactly one of the two renders it.
+   */
+  presets?: ReactNode;
   /** Clear every secondary criterion (footer, left). */
   onReset: () => void;
   /**
@@ -64,6 +70,7 @@ export function FilterDropdown({
   ariaLabel,
   dialogLabel = 'Bộ lọc nâng cao',
   children,
+  presets,
   onReset,
   inlineWhenRoom = true,
   className = '',
@@ -124,12 +131,20 @@ export function FilterDropdown({
       role="dialog"
       aria-label={dialogLabel}
     >
-      <div className="filter-dropdown__body">{children}</div>
-      <div className="filter-dropdown__footer">
-        <span className="filter-dropdown__hint">
-          {applied ? `${count} điều kiện đang áp dụng` : 'Chưa chọn điều kiện nào'}
-        </span>
-        <div className="filter-dropdown__footer-actions">
+      {/* No footer row (operator 2026-09-27: "move the buttons same row with ke
+          hoach dropdown, remove the footer row with text chua dat dieu kien
+          nao"): the actions are a flex item INSIDE the body, pinned to the end
+          of the last criteria line. The applied count already rides the
+          trigger's accessible name, so the hint was a second voice for it. */}
+      <div className="filter-dropdown__body">
+        {/* The quick ranges join the criteria when the bar folded them in here
+            (`dialog-presets`) — the caller passes the same node it gives the
+            bar, and only one of the two renders it. */}
+        {presets && barMode === 'dialog-presets' ? (
+          <div className="filter-dropdown__presets">{presets}</div>
+        ) : null}
+        {children}
+        <div className="filter-dropdown__actions">
           <button type="button" className="filter-dropdown__reset" onClick={onReset}>
             Đặt lại
           </button>

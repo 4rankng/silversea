@@ -84,7 +84,7 @@ describe('selection-state contract', () => {
     // contract (ticket 6770b9cb) keeps it proportional (32px, ≥28px floor).
     expect(read('src/pages/salary-attendance/calendar.css')).toContain('  min-height: var(--filter-control-h);');
     expect(read('src/styles/tokens.css')).toMatch(
-      /@media \(max-width: 640px\)\s*\{[\s\S]*?--filter-control-h:\s*var\(--control-mobile-h\);/,
+      /@media \(max-width: 640px\)\s*\{[\s\S]*?--filter-control-h:\s*var\(--control-compact-h\);/,
     );
     expect(read('src/pages/SalaryAttendancePage.tsx')).toContain('aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}');
   });

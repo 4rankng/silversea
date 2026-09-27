@@ -110,8 +110,8 @@ describe('filter bar = one wrapping line in one card (card 20260927_152)', () =>
     // ~340px bar.
     const searchFloor = Number(barCss.match(/\.filter-bar__search-cell\s*\{[^}]*min-width:\s*(\d+)px/)?.[1]);
     expect(searchFloor).toBeGreaterThanOrEqual(220);
-    // The trigger is content-sized and first to be considered on that line.
-    expect(barCss).toMatch(/\.filter-bar \.filter-dropdown|\.filter-bar \.searchable-select/);
+    // The trigger is content-sized and shares the width contract with the bar.
+    expect(barCss).toMatch(/:is\(\.filter-bar, \.filter-dropdown__body\)[^{]*\.searchable-select/);
     expect(barTsx.indexOf('{search &&')).toBeLessThan(barTsx.indexOf('{children}'));
     expect(barTsx.indexOf('{children}')).toBeLessThan(barTsx.indexOf('{presets &&'));
   });

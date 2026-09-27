@@ -60,7 +60,7 @@ export default [
   { id: 'dispatch-detail/desktop/no-ribbon-facet-grid', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'hidden', selector: '.detailed-plan-ribbon__quick', note: 'one home per filter at every device size' },
   { id: 'dispatch-detail/phone/facets-in-drawer', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'visible', selector: '.detailed-plan-filter-panel__quick', open: 'drawer', note: 'grouping the facets must give them a real home, not delete them' },
   { id: 'dispatch-detail/desktop/facets-in-drawer', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'visible', selector: '.detailed-plan-filter-panel__quick', open: 'drawer' },
-  { id: 'dispatch-detail/phone/drawer-facet-group-count', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'count', selector: '.detailed-plan-filter-panel__quick > *', max: 4, open: 'drawer', note: 'Khách + Hướng + Điều xe + Dữ liệu — the group must not grow back into the header' },
+  { id: 'dispatch-detail/phone/drawer-facet-group-count', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'count', selector: '.detailed-plan-filter-panel__quick > *', max: 5, open: 'drawer', note: 'the facet group lives in the drawer (Khách + Hướng + Điều xe + Dữ liệu + Xe/Tài xế — the vehicle facet landed in 0a2b2864 and this max was left at 4, a stale pin); the two `no-ribbon-facet-grid` hidden locks are what keep it out of the header' },
 
   // --- Header shape --------------------------------------------------------
   { id: 'dispatch-detail/desktop/header-one-row', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxHeight', selector: '.detailed-plan-header', max: 40, note: 'title + presets + range + Gán xe on one 36px row at desk width' },

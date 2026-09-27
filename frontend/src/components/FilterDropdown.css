@@ -111,44 +111,90 @@
 
 .filter-dropdown__popover[data-positioned='true'] { visibility: visible; }
 
+/* The dialog is portalled OUT of the bar, so it inherits neither the bar's
+   height token nor its per-control override. Without this, every criterion in
+   the dialog fell back to the 34px form-control default while the bar's own
+   controls sat on the compact 30px token — the taller "Kế hoạch" box the
+   operator flagged ("the height of component ke hoach dropdown too high,
+   please reduce to be same as other dropdown"). One token, both scopes. */
+.filter-dropdown__popover {
+  --uui-control-h: var(--filter-control-h);
+}
+
+.filter-dropdown__popover [data-uui-control],
+.filter-dropdown__popover [data-uui-control][data-control-size],
+.filter-dropdown__popover [data-input-wrapper] {
+  --uui-control-h: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+}
+
 .filter-dropdown__popover[data-open='true'] {
   opacity: 1;
 }
 
 .filter-dropdown__body {
-  display: grid;
-  gap: 12px;
+  /* The criteria pack into as few rows as the 320px dialog allows (operator
+     2026-09-27: "can be two rows (Ke hoach values are very short why the fuck
+     full width)"). One wrapping line, same packing rules as the bar itself —
+     the two short selects share row 1, the multi-select takes row 2 only
+     because it does not fit beside them. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
   padding: 14px;
   min-height: 0;
   overflow-y: auto;
 }
 
-/* One criterion per row: label above its control (the shared field anatomy),
-   never side by side — a 320px dialog has no room for two labelled controls. */
-.filter-dropdown__body > * {
+/* Dialog-scoped floors: the bar's 200px floor is the bar's rule — inside the
+   320px dialog a 200px criterion is what left the Kế hoạch dropdown owning a
+   full row (operator 2026-09-27: "reduce the width of Ke hoach dropdown and
+   then move the buttons same row with ke hoach dropdown"). 120px holds the
+   placeholder + chevron and still leaves room for the action pair beside it. */
+.filter-dropdown__body .csc-searchable-field,
+.filter-dropdown__body [data-uui-control='combobox'],
+.filter-dropdown__body .searchable-select,
+.filter-dropdown__body .ds-uui-select {
+  min-width: 120px;
+  max-width: 100%;
+}
+
+.filter-dropdown__body > [data-input-wrapper] {
+  width: 168px;
+  min-width: 149px;
+}
+
+/* Folded quick ranges: they own a line of their own inside the dialog (four
+   chips never share a 290px inner width with a criterion) and wrap rather than
+   overflow it. */
+.filter-dropdown__presets {
+  display: flex;
+  flex: 1 1 100%;
   min-width: 0;
 }
 
-.filter-dropdown__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--line);
-}
-
-.filter-dropdown__hint {
+.filter-dropdown__presets .ds-tabs,
+.filter-dropdown__presets .ds-tabs--boxed {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   min-width: 0;
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
+  padding: 0;
 }
 
-.filter-dropdown__footer-actions {
+.filter-dropdown__presets .ds-tabs__btn {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+}
+
+/* The actions ride the last criteria line, right-aligned: `margin-left: auto`
+   pushes them to the end of whichever line they land on. */
+.filter-dropdown__actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .filter-dropdown__reset,

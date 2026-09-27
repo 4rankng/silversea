@@ -83,7 +83,10 @@ export function ListFilterBar({ search, children, presets, quickFilters, quickFi
           </div>
         )}
         {children}
-        {presets && <div className="filter-bar__presets">{presets}</div>}
+        {/* The ranges ride the bar until even the folded criteria cannot hold
+            two rows; then they join the criteria inside `Bộ lọc` (one copy
+            either way — the page passes the same node to the dialog). */}
+        {presets && mode !== 'dialog-presets' && <div className="filter-bar__presets">{presets}</div>}
         {quickFilters && (
           <div
             className="list-filter-bar__quick"
