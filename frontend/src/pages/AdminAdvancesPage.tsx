@@ -6,7 +6,8 @@ import {
   AdvanceRequestStatus,
   type AdvanceRequestWithRefs,
 } from '@tingting/shared';
-import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
+import { PageHeader, StatusPill, FilterPill } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Money } from '../components/shared/Money';
 import { useAdminAdvanceBalances } from '../hooks/useQueries';
@@ -14,7 +15,7 @@ import { forwarderClient } from '../api/forwarderClient';
 import { qk } from '../api/keys';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
-import { EmptyState, Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './AdminAdvancesPage.css';
@@ -357,9 +358,12 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
 
       {/* ── Card wrapper ──────────────────────────────────────────────── */}
       <div className="adv-panel">
-        {/* Filter tabs */}
-        <Toolbar>
-          {TABS.map((tab) => (
+        {/* Card 20260927_152 — one shared bar replaces the desktop toolbar +
+            the phone-only status select (one implementation per datum); the
+            full-set tab counts ride the quick-filter slot. */}
+        <ListFilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={TABS.map((tab) => (
             <FilterPill
               key={tab.key}
               active={statusFilter === tab.key}
@@ -369,21 +373,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
               {tab.label}
             </FilterPill>
           ))}
-        </Toolbar>
-        <label className="adv-mobile-filter">
-          <span>Lọc theo trạng thái</span>
-          <UuiSelectField
-            id="adv-status-filter"
-            label="Lọc theo trạng thái"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            options={TABS.map((tab) => ({
-              value: tab.key,
-              label: `${tab.label} (${tabCounts[tab.key]})`,
-            }))}
-          />
-        </label>
+        />
 
         {table.isLoading ? (
           <div className="adv-loading">

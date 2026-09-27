@@ -266,7 +266,6 @@
 
 /* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
 .adv-page .adv-cards { display: none; }
-.adv-page .adv-mobile-filter { display: none; }
 
 .adv-page .adv-mcard {
   background: var(--surface);
@@ -423,14 +422,6 @@
     overflow: visible;
     box-shadow: none;
   }
-
-  /* Toolbar stays readable without panel backdrop */
-  .adv-page .adv-panel .toolbar {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-sm);
-    margin-bottom: 8px;
-  }
 }
 
 @media (max-width: 420px) {
@@ -440,36 +431,6 @@
 
   .adv-page .adv-decision-reason {
     grid-column: auto;
-  }
-}
-
-@media (max-width: 767px) {
-  .adv-page .adv-panel .toolbar {
-    display: none;
-  }
-
-  .adv-page .adv-mobile-filter {
-    display: grid;
-    gap: 6px;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--r-sm);
-    background: var(--surface);
-    color: var(--ink-2);
-    font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold);
-  }
-
-  .adv-page .adv-mobile-filter select {
-    width: 100%;
-    min-height: 44px;
-    border: 1px solid var(--line-2);
-    border-radius: var(--r-sm);
-    background: var(--surface);
-    color: var(--ink);
-    padding: 0 12px;
-    font: inherit;
-    font-size: var(--control-field-font-size);
   }
 }
 
@@ -483,7 +444,6 @@
   .adv-page .adv-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .adv-page .adv-kpi { padding: 8px; }
   .adv-page .adv-kpi__label, .adv-page .adv-kpi__meta { white-space: normal; overflow-wrap: anywhere; }
-  .adv-page .adv-mobile-filter { padding: 8px 0; border-inline: 0; border-radius: 0; background: transparent; }
   .adv-page .adv-cards { gap: 0; }
   .adv-page .adv-mcard { border-radius: 0; border-inline: 0; box-shadow: none; }
 }

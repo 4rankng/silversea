@@ -3,7 +3,8 @@ import { Wallet, Loader2, Plus, X, User, AlertCircle, Clock, FileText, CheckCirc
 import { formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
-import { PageHeader, FormGroup } from '../components/UI';
+import { PageHeader, FormGroup, FilterPill } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { Pagination } from '../design-system';
 import { useForwarderAdvanceRequestsTable, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
@@ -11,12 +12,6 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import './ForwarderAdvancesPage.css';
 import '../components/shared/HeroKpiRow.css';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
-
-const STATUS_COLORS: Record<string, string> = {
-  RECORDED: 'var(--success-text)',
-  VOIDED: 'var(--danger)',
-  DRAFT: 'var(--ink-muted)',
-};
 
 type StatusFilter = '' | AdvanceRequestStatus;
 
@@ -39,7 +34,7 @@ export default function ForwarderAdvancesPage() {
   const settledPaid = recordedSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
   const { rootRef } = usePageAnimations({
     ready: !loading,
-    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-chips', '.fadv-card-trip'],
+    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.filter-bar', '.fadv-card-trip'],
   });
   const createAdvanceRequest = useCreateAdvanceRequest();
   const requests = table.rows;
@@ -250,32 +245,38 @@ export default function ForwarderAdvancesPage() {
         </div>
       )}
 
-      {/* Filter pills */}
+      {/* Card 20260927_152 — the shared bar owns the strip's layout and every
+          control width; the full-set status counts ride the quick-filter slot
+          as the shared `.filter-chip`. */}
       {totalRequests > 0 && (
-        <div className="fwd-filter-chips">
-          <button
-            className={`fwd-filter-chip ${activeFilter === '' ? 'fwd-filter-chip--active' : ''}`}
-            onClick={() => table.setFilter('status', undefined)}
-          >
-            Tất cả
-            <span className="fwd-filter-chip__count">{totalRequests}</span>
-          </button>
-          {(Object.entries(ADVANCE_REQUEST_STATUS_LABELS) as [AdvanceRequestStatus, string][]).map(([status, label]) => {
-            const count = counts[status] ?? 0;
-            if (count === 0) return null;
-            return (
-              <button
-                key={status}
-                className={`fwd-filter-chip ${activeFilter === status ? 'fwd-filter-chip--active' : ''}`}
-                onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
+        <ListFilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={(
+            <>
+              <FilterPill
+                active={activeFilter === ''}
+                onClick={() => table.setFilter('status', undefined)}
+                count={totalRequests}
               >
-                <span className="fwd-filter-chip__dot" style={{ background: STATUS_COLORS[status] }} />
-                {label}
-                <span className="fwd-filter-chip__count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+                Tất cả
+              </FilterPill>
+              {(Object.entries(ADVANCE_REQUEST_STATUS_LABELS) as [AdvanceRequestStatus, string][]).map(([status, label]) => {
+                const count = counts[status] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <FilterPill
+                    key={status}
+                    active={activeFilter === status}
+                    onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
+                    count={count}
+                  >
+                    {label}
+                  </FilterPill>
+                );
+              })}
+            </>
+          )}
+        />
       )}
 
       {/* Empty state */}

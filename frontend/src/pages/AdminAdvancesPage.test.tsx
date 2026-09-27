@@ -122,6 +122,13 @@ describe('AdminAdvancesPage server-driven listing', () => {
     // (Pill label + count spans concatenate without a space in the accname.)
     expect(screen.getByRole('button', { name: 'Đã ghi nhận7' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tất cả12' })).toBeTruthy();
+
+    // Card 20260927_152 — ONE status plane: the same chips are the shared
+    // bar's quick-filter group (the desktop toolbar and the phone-only select
+    // are gone, so the label lives on the group instead of a second control).
+    const statusGroup = screen.getByRole('group', { name: 'Lọc theo trạng thái' });
+    expect(statusGroup.classList.contains('list-filter-bar__quick')).toBe(true);
+    expect(statusGroup.parentElement?.classList.contains('filter-bar')).toBe(true);
   });
 
   it('renders Pagination with the server total and navigates pages', async () => {
@@ -188,18 +195,18 @@ describe('AdminAdvancesPage server-driven listing', () => {
   });
 });
 
-// FIN-POL-03a: the phone control must use the same empty/all value as desktop.
-it('labels the mobile all-status selection and never submits a literal all filter', async () => {
-  const { container } = renderPage();
+// FIN-POL-03a: the status filter has ONE implementation — the shared bar's
+// quick-filter chips — and picking "Tất cả" must drop the param, never send a
+// literal `all` the endpoint would treat as a status.
+it('drives the status filter from the bar chips and never submits a literal all filter', async () => {
+  renderPage();
   await screen.findAllByText('An Nguyễn');
-  const mobile = container.querySelector('.adv-mobile-filter') as HTMLElement;
-  const trigger = within(mobile).getByRole('button');
-  expect(trigger).toHaveTextContent('Tất cả (12)');
-  fireEvent.click(trigger);
-  fireEvent.click(await screen.findByRole('option', { name: 'Đã ghi nhận (7)' }));
+
+  const allChip = screen.getByRole('button', { name: 'Tất cả12' });
+  fireEvent.click(screen.getByRole('button', { name: 'Đã ghi nhận7' }));
   await waitFor(() => expect(lastCallParams().status).toBe('RECORDED'));
-  fireEvent.click(trigger);
-  fireEvent.click(await screen.findByRole('option', { name: 'Tất cả (12)' }));
-  await waitFor(() => expect(trigger).toHaveTextContent('Tất cả (12)'));
+
+  fireEvent.click(allChip);
+  await waitFor(() => expect(allChip.className).toContain('is-active'));
   expect(listAllAdvanceRequests.mock.calls.every(([params]) => params.status !== 'all')).toBe(true);
 });

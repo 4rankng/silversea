@@ -6,7 +6,8 @@ import { EmptyState, Pagination } from '../design-system';
 import { formatCurrency, formatDate } from '../lib/format';
 import { groupExpensesByContainer } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
-import { PageHeader } from '../components/UI';
+import { PageHeader, FilterPill } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useForwarderSettlements } from '../hooks/useForwarderQueries';
@@ -62,7 +63,7 @@ export default function ForwarderSettlementsPage() {
   });
   const { rootRef } = usePageAnimations({
     ready: !loadingSettlements,
-    selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-chips', '.fset-card'],
+    selectors: ['.page-header', '.hero-kpi-row', '.filter-bar', '.fset-card'],
   });
   const { data: catalogs } = useCatalogs();
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
@@ -161,33 +162,38 @@ export default function ForwarderSettlementsPage() {
         </div>
       )}
 
-      {/* Status filter pills — matching ForwarderTripsPage design */}
+      {/* Card 20260927_152 — the shared bar owns the strip's layout; the
+          full-set status counts ride the quick-filter slot as the shared
+          `.filter-chip`. */}
       {totalCount > 0 && (
-        <div className="fwd-filter-chips">
-          <button
-            className={`fwd-filter-chip ${activeFilter === '' ? 'fwd-filter-chip--active' : ''}`}
-            onClick={() => setActiveFilter('')}
-          >
-            Tất cả
-            <span className="fwd-filter-chip__count">{settlements.length}</span>
-          </button>
-          {(Object.entries(ADVANCE_SETTLEMENT_STATUS_LABELS) as [AdvanceSettlementStatus, string][]).map(([status, label]) => {
-            const count = statusCounts[status] ?? 0;
-            if (count === 0) return null;
-            return (
-              <button
-                key={status}
-                className={`fwd-filter-chip ${activeFilter === status ? 'fwd-filter-chip--active' : ''}`}
-                data-status={status}
-                onClick={() => setActiveFilter(prev => prev === status ? '' : status)}
+        <ListFilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={(
+            <>
+              <FilterPill
+                active={activeFilter === ''}
+                onClick={() => setActiveFilter('')}
+                count={settlements.length}
               >
-                <span className="fwd-filter-chip__dot" style={{ background: STATUS_STRIP[status] }} />
-                {label}
-                <span className="fwd-filter-chip__count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+                Tất cả
+              </FilterPill>
+              {(Object.entries(ADVANCE_SETTLEMENT_STATUS_LABELS) as [AdvanceSettlementStatus, string][]).map(([status, label]) => {
+                const count = statusCounts[status] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <FilterPill
+                    key={status}
+                    active={activeFilter === status}
+                    onClick={() => setActiveFilter(prev => (prev === status ? '' : status))}
+                    count={count}
+                  >
+                    {label}
+                  </FilterPill>
+                );
+              })}
+            </>
+          )}
+        />
       )}
 
       {/* Empty state */}

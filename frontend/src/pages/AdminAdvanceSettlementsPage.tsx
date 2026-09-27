@@ -8,7 +8,8 @@ import {
   AdvanceSettlementStatus,
 } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
-import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
+import { PageHeader, StatusPill, FilterPill } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import {
@@ -23,7 +24,7 @@ import {
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
 import '../styles/operational-table-typography.css';
-import { Pagination, UuiSelectField } from '../design-system';
+import { Pagination } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -412,9 +413,12 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
 
       {/* ── Card wrapper ──────────────────────────────────────────────── */}
       <div className="as-panel">
-        {/* Filter tabs */}
-        <Toolbar>
-          {TABS.map((tab) => (
+        {/* Card 20260927_152 — one shared bar replaces the desktop toolbar +
+            the phone-only status select (one implementation per datum); the
+            full-set tab counts ride the quick-filter slot. */}
+        <ListFilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={TABS.map((tab) => (
             <FilterPill
               key={tab.key}
               active={statusFilter === tab.key}
@@ -424,21 +428,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
               {tab.label}
             </FilterPill>
           ))}
-        </Toolbar>
-        <label className="as-mobile-filter">
-          <span>Lọc theo trạng thái</span>
-          <UuiSelectField
-            id="as-status-filter"
-            label="Lọc theo trạng thái"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => applyFilter(event.target.value === 'all' ? '' : event.target.value as StatusFilter)}
-            options={TABS.map((tab) => ({
-              value: tab.key,
-              label: `${tab.label} (${tabCounts[tab.key]})`,
-            }))}
-          />
-        </label>
+        />
 
         {isLoading ? (
           <div className="as-loading">

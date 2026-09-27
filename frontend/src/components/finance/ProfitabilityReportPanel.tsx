@@ -7,6 +7,7 @@ import { customerServiceFinanceClient, type ProfitabilityDimension } from '../..
 import { qk } from '../../api/keys';
 import { Pagination, SummaryRail } from '../../design-system';
 import { UuiSelectField } from '../../design-system';
+import { ListFilterBar } from '../ListFilterBar';
 
 const DIMENSIONS: Array<{ value: ProfitabilityDimension; label: string }> = [
   { value: 'CUSTOMER', label: 'Khách hàng' }, { value: 'ROUTE', label: 'Tuyến' },
@@ -60,7 +61,32 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
   }, [dimension, lowMarginOnly, month, year]);
   const margin = data && data.totals.revenue !== 0 ? (data.totals.profit / data.totals.revenue) * 100 : 0;
   return <section className="workflow-profitability" aria-labelledby="profitability-heading">
-    <div className="workflow-profitability__head"><div><h2 id="profitability-heading">Lợi nhuận vận hành theo chiều phân tích</h2><p>Chỉ dùng các bản ghi tài chính đã chốt trong kỳ hoàn thành.</p></div><div className="workflow-profitability__controls"><UuiSelectField id="profitability-dimension" label="Phân tích theo" value={dimension} onChange={(e) => { setDimension(e.target.value as ProfitabilityDimension); setPage(1); }} options={DIMENSIONS.map((item) => ({ value: item.value, label: item.label }))} /><label className="workflow-profitability__low-filter"><input type="checkbox" checked={lowMarginOnly} disabled={data?.lowMarginPolicy.status === 'UNCONFIGURED'} onChange={(event) => { setLowMarginOnly(event.target.checked); setPage(1); }} /> <span>Chỉ hiện nhóm biên lợi nhuận thấp</span></label><button className="btn btn--ghost" type="button" disabled={loading || exporting} onClick={() => void exportReport()}><Download size={16}/> {exporting ? 'Đang xuất…' : 'Xuất XLSX'}</button></div></div>
+    <div className="workflow-profitability__head"><div><h2 id="profitability-heading">Lợi nhuận vận hành theo chiều phân tích</h2><p>Chỉ dùng các bản ghi tài chính đã chốt trong kỳ hoàn thành.</p></div></div>
+    {/* Card 20260927_152 — the control row is the shared bar: the analysis
+        dimension is a criterion, the low-margin toggle a quick filter (the
+        shared `.filter-chip` shape, so it reads the strip's own height token)
+        and the export the right-end action. The page declares no filter layout. */}
+    <ListFilterBar
+      quickFiltersLabel="Lọc báo cáo lợi nhuận"
+      quickFilters={(
+        <label className="filter-chip">
+          <input
+            type="checkbox"
+            checked={lowMarginOnly}
+            disabled={data?.lowMarginPolicy.status === 'UNCONFIGURED'}
+            onChange={(event) => { setLowMarginOnly(event.target.checked); setPage(1); }}
+          />
+          <span>Chỉ hiện nhóm biên lợi nhuận thấp</span>
+        </label>
+      )}
+      actions={(
+        <button className="btn btn--ghost" type="button" disabled={loading || exporting} onClick={() => void exportReport()}>
+          <Download size={16}/> {exporting ? 'Đang xuất…' : 'Xuất XLSX'}
+        </button>
+      )}
+    >
+      <UuiSelectField id="profitability-dimension" label="Phân tích theo" value={dimension} onChange={(e) => { setDimension(e.target.value as ProfitabilityDimension); setPage(1); }} options={DIMENSIONS.map((item) => ({ value: item.value, label: item.label }))} />
+    </ListFilterBar>
     {data && <div className="workflow-profitability__meta"><span>Cập nhật đến {new Date(data.asOf).toLocaleString('vi-VN')}</span><span>{calculationVersionLabel(data.definitionVersion)}</span></div>}
     {error && <div className="workflow-notice workflow-notice--error" role="alert">{error}<button className="btn btn--ghost" onClick={() => { setActionError(null); void reportQuery.refetch(); }}><RotateCcw size={15}/> Thử lại</button></div>}
     {data?.lowMarginPolicy.status === 'UNCONFIGURED' && <div className="workflow-notice workflow-notice--partial" role="status"><CircleHelp size={18}/><span>{data.lowMarginPolicy.note}</span></div>}
