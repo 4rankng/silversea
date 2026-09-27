@@ -7,8 +7,10 @@ import type { DriverTaskDetail } from '../../api/driverClient';
 /**
  * Card 20260926_26 item 4: the title block is two lines (~120px, was ~250px).
  *
- * Line 1 — back + mã (Số Bill / Booking — the internal-ids display key; the
- * fallback chain mirrors the old title: factory → route → generic label).
+ * Line 1 — back + số chứng từ (Số Bill / Số Booking — the carrier's business
+ * number; fallback chain: document number → factory → route → generic label).
+ * Card 20260927_1: the internal shipment code (SHP-YYMM-NNNNN) never titles
+ * this line — it means nothing to the driver.
  * Line 2 — location (factory short name, full-name fallback) + status pill,
  * plus the Đóng/Trả chip and customer name inline. The eyebrow ("Tác vụ tài
  * xế") and the standalone route line are gone: the eyebrow is shell chrome
@@ -20,8 +22,13 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
   // Route text only — the factory site address never rides this line.
   const routeLine = fulfillment?.routeSummary ?? trip.routeName ?? null;
   const factoryTitle = fulfillment?.factoryShortName || fulfillment?.factoryName || null;
-  // Display key leads (Số Bill / Booking); old title chain is the fallback.
-  const title = fulfillment?.code || factoryTitle || routeLine || 'Lệnh vận chuyển';
+  // Card 20260927_1: the driver reads the CARRIER'S document
+  // number, never our system key. `fulfillment.code` is the internal
+  // SHP-YYMM-NNNNN shipment code (ops/dispatch bookkeeping) — the business key
+  // is Số Bill (IMPORT) / Số Booking (EXPORT), resolved direction-first by the
+  // API client. Factory/route remain the honest fallback for records whose
+  // documents were never filled in.
+  const title = fulfillment?.documentNumber || factoryTitle || routeLine || 'Lệnh vận chuyển';
   // Line-2 location: the destination the driver scans for first. Hidden when
   // it would duplicate the title (no-code trips render the location as it).
   const location = factoryTitle || routeLine;

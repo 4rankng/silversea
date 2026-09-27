@@ -379,17 +379,27 @@ function DriverTripDetailContent() {
 
       {/* Card 20260926_30 item 15: the completion checklist LEADS the screen —
           it is the one thing the driver must act on, so it renders before
-          Thông tin lệnh instead of at the bottom. */}
+          Thông tin lệnh instead of at the bottom.
+          Card 20260927_1: densified for the driver's small phone screen —
+          title + the missing-documents line only. The old 2-line instruction
+          and the two-row bullet list restated what the sticky bar already says
+          (Còn thiếu N chứng từ) and cost ~60px of the first screenful. */}
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
-            <p>{closed ? 'Xem lại phiếu bãi và biên bản giao nhận đã lưu.' : 'Thêm phiếu bãi / phiếu hạ và biên bản giao nhận, rồi hoàn thành chuyến.'}</p>
-            {!closed && (!hasYardReceipt || !hasSignedNote) && (
-              <ul className="driver-task-footer__issues">
-                {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
-                {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
-              </ul>
+            {closed ? (
+              <p className="driver-task-footer__hint">Xem lại phiếu bãi và biên bản giao nhận đã lưu.</p>
+            ) : (!hasYardReceipt || !hasSignedNote) ? (
+              <p className="driver-task-footer__issues" role="list">
+                {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
+                {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
+              </p>
+            ) : (
+              <p className="driver-task-footer__ready">
+                <CheckCircle2 size={14} />
+                <span>Đủ chứng từ, chờ hoàn thành chuyến.</span>
+              </p>
             )}
           </div>
           {closed && (

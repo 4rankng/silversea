@@ -60,6 +60,7 @@ function makeTrip(overrides: {
       id: 88,
       code: 'FUL-88',
       taskCode: 'FUL-88',
+      documentNumber: overrides.fulfillment?.documentNumber ?? null,
       type: 'FCL_CONTAINER',
       modeLabel: 'FCL',
       factoryName: 'Nhà máy Askey Việt Nam',

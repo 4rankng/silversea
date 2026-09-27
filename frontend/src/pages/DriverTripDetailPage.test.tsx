@@ -130,6 +130,9 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
       id: 88,
       code: 'FUL-88',
       taskCode: 'TASK-88',
+      // Card 20260927_1: the header leads with the carrier document number
+      // (Số Bill) — the internal FUL-/SHP- shipment code never titles it.
+      documentNumber: 'BL-2026-001',
       type: 'FCL_CONTAINER',
       modeLabel: 'FCL',
       factoryName: 'Nhà máy Bình Dương',
@@ -248,7 +251,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('FUL-88');
+    await screen.findByText('BL-2026-001');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
@@ -259,7 +262,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status: TripStatus.CANCELED }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('FUL-88');
+    await screen.findByText('BL-2026-001');
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
@@ -1152,17 +1155,17 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
     expect(document.querySelector('.driver-task-header__toggle')).toBeNull();
     // Full header content renders without any toggle interaction.
-    // Card _26: the bill/booking code leads the title; the factory short
-    // name renders as the line-2 location.
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('FUL-88');
+    // Card _26 + _63: the carrier document number leads the title; the
+    // factory short name renders as the line-2 location.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     expect(screen.getByText('SilverSea')).toBeTruthy();
   });
 
   // 20260926_20 + card _26: without factory data the line-2 location falls
-  // back to the route name; the title keeps leading with the code. No
-  // collapse toggle — the header is static.
-  it('20260926_20: falls back to the route location while the code still leads', async () => {
+  // back to the route name; the title keeps leading with the document
+  // number. No collapse toggle — the header is static.
+  it('20260926_20: falls back to the route location while the document number still leads', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -1179,7 +1182,7 @@ describe('DriverTripDetailPage', () => {
 
     await screen.findByText(/Số cont & seal/);
     // No factory → the route summary becomes the location; no toggle exists.
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('FUL-88');
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Cát Lái → Bình Dương');
     expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();

@@ -145,8 +145,18 @@
   z-index: var(--z-sticky, 100);
   display: flex;
   justify-content: center;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  /* Card 20260927_1: the bar stacks ABOVE the tab bar at ≤1023px, which
+     already reserves the home-indicator inset — adding it here again pushes
+     the gradient (and the button) ~34px off the nav on a real iPhone. Only
+     the ≥1024px tier, where no tab bar exists under it, owns the inset. */
+  padding: 10px 14px;
   background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 92%, transparent) 20%, var(--surface-2, #f8fafc) 100%);
+}
+
+@media (min-width: 1024px) {
+  .driver-task-complete-sticky {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (max-width: 1023px) {
@@ -670,8 +680,10 @@
   width: 100%;
   margin: 0;
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  /* Card 20260927_1: the card is the driver's first-screenful checklist, not
+     a document — 6px between the title and its one status line, 10px padding. */
+  gap: 6px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -680,27 +692,48 @@
 
 .driver-task-footer__summary {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .driver-task-footer__summary strong {
-  font-size: var(--text-body-size);
+  /* Card 20260927_1: the card title takes the shared section-title role —
+     at 12px it read as one more line of body text and the driver could not
+     find the checklist at a glance. */
+  font-size: var(--text-section-size);
   color: var(--ink);
 }
 
-.driver-task-footer__summary p {
+.driver-task-footer__summary p,
+.driver-task-footer__hint {
   margin: 0;
-  font-size: var(--text-body-size);
-  line-height: 1.5;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
   color: var(--ink-3);
 }
 
+/* Missing-document line: one wrapped row of ' · '-separated items instead of
+   a two-row bullet list (Card 20260927_1 — the list cost 33px of a 390px
+   screen for two 11px words the driver already reads in the sticky bar). */
 .driver-task-footer__issues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   color: var(--danger);
   font-size: var(--text-caption-size);
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+/* Both markup variants feed this line: the trip-detail page renders spans,
+   the e-POD page keeps its <li> list (it shares the card). */
+.driver-task-footer__issues li + li::before,
+.driver-task-footer__issues span + span::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--ink-3);
 }
 
 .driver-task-complete {
@@ -730,9 +763,9 @@
 .driver-task-footer__ready {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: var(--ok, #166534);
-  font-size: var(--text-data-size);
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
@@ -752,8 +785,16 @@
   z-index: var(--z-sticky, 100);
   display: flex;
   justify-content: center;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  /* Card 20260927_1: inset owned by the ≥1024px tier only — at ≤1023px the
+     tab bar below already reserves the home-indicator strip. */
+  padding: 10px 14px;
   background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 92%, transparent) 20%, var(--surface-2, #f8fafc) 100%);
+}
+
+@media (min-width: 1024px) {
+  .driver-task-accept-sticky {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (max-width: 1023px) {

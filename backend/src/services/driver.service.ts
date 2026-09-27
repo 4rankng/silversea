@@ -532,6 +532,10 @@ export interface DriverFulfillmentDetail {
   shipmentId: number;
   shipmentCode: string | null;
   bookingRef: string | null;
+  /** Business document number (MDN §4.4): Số Bill on IMPORT, Số Booking on
+   *  EXPORT. The driver header leads with this — the internal shipmentCode
+   *  (SHP-YYMM-NNNNN) is the system/ops key and never the driver's title. */
+  blNumber: string | null;
   cargoMode: typeof s.shipments.$inferSelect.cargoMode;
   /** IMPORT (trả hàng) vs EXPORT (đóng hàng) — branches the driver-side
    *  container-photo OCR behavior (cross-check vs auto-fill; spec A6). */
@@ -601,6 +605,7 @@ export async function getDriverFulfillmentDetail(
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     bookingRef: s.shipments.bookingRef,
+    blNumber: s.shipments.blNumber,
     cargoMode: s.shipments.cargoMode,
     tradeDirection: s.shipments.tradeDirection,
     fulfillmentType: s.shipmentFulfillments.fulfillmentType,
@@ -723,6 +728,7 @@ export async function getDriverFulfillmentDetail(
     shipmentId: shipmentRow.shipmentId,
     shipmentCode: shipmentRow.shipmentCode,
     bookingRef: shipmentRow.bookingRef,
+    blNumber: shipmentRow.blNumber,
     cargoMode: shipmentRow.cargoMode,
     tradeDirection: shipmentRow.tradeDirection,
     fulfillmentType: shipmentRow.fulfillmentType,

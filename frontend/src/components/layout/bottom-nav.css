@@ -34,6 +34,15 @@ body:has(.app.is-driver) {
   background: var(--surface, #fff);
 }
 
+/* Card 20260927_1: the ROOT canvas is what paints any strip the browser
+   reveals beyond the layout viewport (the same collapsed-toolbar slack the
+   .bottom-nav::after band covers). Body keeps the page tone for the visible
+   box; the canvas takes the tab bar's surface so nothing foreign shows at the
+   physical bottom edge. */
+html:has(body .app.is-driver) {
+  background: var(--surface, #fff);
+}
+
 .app.is-driver .app-body {
   background: var(--surface);
 }
@@ -103,6 +112,28 @@ body:has(.app.is-driver) {
     padding-inline: max(0px, calc((100% - var(--driver-measure)) / 2));
     padding-bottom: env(safe-area-inset-bottom, 12px);
     box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
+  }
+
+  /* Card 20260927_1: the tab bar must reach the physical
+     bottom of the phone. A mobile browser can lay the fixed shell out against
+     a SHORTER layout viewport than the visual one (its bottom toolbar
+     collapses after layout, or an in-app WebView keeps the toolbar strip), so
+     the nav is pinned to the smaller box and a bare strip is revealed BELOW
+     it — the "big gray gap under the tabs" in the phone capture. Nothing in
+     CSS can re-anchor a fixed element to the larger box, so the bar's own
+     surface is painted into that strip instead: `top: 100%` resolves against
+     the viewport (the pseudo's containing block), so this band starts exactly
+     at the layout viewport's bottom edge and extends past any revealed slack.
+     Invisible in every browser whose viewport matches its layout viewport. */
+  .bottom-nav::after {
+    content: '';
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 160px;
+    background: var(--surface, #fff);
+    z-index: -1;
   }
   
   .bottom-nav-item {

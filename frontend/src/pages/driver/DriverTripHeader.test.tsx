@@ -65,13 +65,14 @@ describe('DriverTripHeader — 20260926_26 two-line title block', () => {
       factoryShortName: null,
       routeSummary: null,
       code: null,
+      documentNumber: null,
       ...fulfillment,
     },
   } as unknown as DriverTaskDetail);
 
-  it('leads with the bill/booking code; location, status pill and customer follow on line 2', () => {
+  it('titles the screen with the carrier document number; location, status pill and customer follow on line 2', () => {
     render(<DriverTripHeader
-      trip={codedTrip({ code: 'BL-2026-001', factoryShortName: 'ASKEY', routeSummary: 'Cát Lái → Thuận An' })}
+      trip={codedTrip({ documentNumber: 'BL-2026-001', code: 'SHP-2609-00208', factoryShortName: 'ASKEY', routeSummary: 'Cát Lái → Thuận An' })}
       onBack={() => {}}
     />);
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
@@ -87,7 +88,19 @@ describe('DriverTripHeader — 20260926_26 two-line title block', () => {
     expect(document.querySelector('.driver-task-header__route')).toBeNull();
   });
 
-  it('falls back to the factory title and hides the duplicating location when no code exists', () => {
+  // Card 20260927_1 (user report): the internal shipmentCode (SHP-YYMM-NNNNN)
+  // is an ops key — it must never be the driver's title, not even as a
+  // fallback.
+  it('never renders the internal SHP- shipment code as the title', () => {
+    render(<DriverTripHeader
+      trip={codedTrip({ documentNumber: null, code: 'SHP-2609-00208', factoryShortName: 'ASKEY' })}
+      onBack={() => {}}
+    />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
+    expect(document.querySelector('.driver-task-header__title')?.textContent).not.toContain('SHP-');
+  });
+
+  it('falls back to the factory title and hides the duplicating location when no document number exists', () => {
     render(<DriverTripHeader trip={codedTrip({ factoryShortName: 'ASKEY', factoryName: 'Nhà máy Askey' })} onBack={() => {}} />);
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
     expect(document.querySelector('.driver-task-header__location')).toBeNull();
