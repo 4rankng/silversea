@@ -6,7 +6,8 @@ import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { Drawer } from '../../components/UI';
-import { CONFIG } from '@tingting/shared';
+import { CONFIG, Role } from '@tingting/shared';
+import { useAuth } from '../../hooks/useAuth';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
 import { DateInput } from '../../design-system/forms/DateInput';
@@ -239,9 +240,16 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
 
 export default function FuelPricePeriodsConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  const { user } = useAuth();
+  // The quotation-approval inbox is an accountant surface: `decide` is
+  // ACCOUNTANT/ADMIN on the server and the list route is closed by the
+  // '/api/config' Casbin guard for every other role. CUS may ENTER fuel prices
+  // on this page (docx §5-1), so without this gate the page fired a request
+  // that 403s for them (2026-09-27 role sweep: /config/fuel-price-periods).
+  const canApproveQuotationFuel = user?.role === Role.ACCOUNTANT || user?.role === Role.ADMIN;
   return (
     <div ref={pageRef}>
-      <QuotationFuelApprovalAlert />
+      {canApproveQuotationFuel && <QuotationFuelApprovalAlert />}
       <CrudTable<FuelPricePeriodRow>
         title="Giá dầu theo kỳ"
         description="Giá dầu Petrolimex công bố theo kỳ — nhập một bản ghi mỗi lần công bố giá mới"
