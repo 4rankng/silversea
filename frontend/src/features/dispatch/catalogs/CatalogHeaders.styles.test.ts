@@ -67,6 +67,31 @@ describe('fleet catalog command strips (card 20260926_57 — chief spec)', () =>
     expect(shell).toMatch(/metaKey|ctrlKey/);
   });
 
+  it('row 2 IS the shared filter plane — no page-local toolbar anywhere (card 20260927_152)', () => {
+    expect(shell).toContain("import { ListFilterBar } from '../../../components/ListFilterBar';");
+    expect(shell).toContain('<ListFilterBar');
+    // The bespoke toolbar, its search wrapper and the page-owned widths are gone
+    // from BOTH the shell's markup and the sheet's rules: a page rule may not
+    // size or lay out a filter control, and the search cap belongs to
+    // ListFilterBar.css (300px). The deleted selectors survive only inside the
+    // explanatory comments, so the assertions read rule headers.
+    expect(shell).not.toMatch(/className="dispatch-catalogs__toolbar"/);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__toolbar\s*,?\s*\{/m);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__search(?:-wrap)?\s*\{/m);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__carrier-filter\s*\{/m);
+    // Every catalog view renders through that ONE shell, so no route keeps a
+    // second filter plane.
+    for (const view of ['FleetVehiclesView.tsx', 'FleetDriversView.tsx', 'SuppliersView.tsx', 'ExternalFleetView.tsx']) {
+      expect(readFileSync(resolve(catalogDirectory, view), 'utf8')).toContain('<CatalogTableShell');
+    }
+  });
+
+  it('puts the one secondary criterion behind the shared Bộ lọc trigger', () => {
+    expect(vehicles).toContain('<FilterDropdown');
+    expect(vehicles).toContain('ariaLabel="Bộ lọc"');
+    expect(vehicles).not.toContain('wrapperClassName="dispatch-catalogs__carrier-filter"');
+  });
+
   it('carrier select reads "Nhà xe: Tất cả" as a chevron select', () => {
     expect(vehicles).toContain('Nhà xe: Tất cả');
   });

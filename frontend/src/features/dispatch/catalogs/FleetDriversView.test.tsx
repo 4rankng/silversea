@@ -158,6 +158,19 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     expect(screen.getAllByText('Đinh Thanh Thịnh').length).toBeGreaterThan(0);
   });
 
+  it('renders its toolbar as the shared filter plane', () => {
+    fleetState.data = { trucks: [truck()], drivers: [driver()] };
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
+
+    expect(container.querySelector('.filter-bar.filter-bar--card.list-filter-bar')).toBeTruthy();
+    expect(container.querySelector('.dispatch-catalogs__toolbar')).toBeNull();
+    expect(screen.getByText('1/1 tài xế')).toBeTruthy();
+  });
+
   it('creates a driver without salary fields and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});

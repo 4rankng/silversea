@@ -104,7 +104,7 @@ export function FleetFilterFields(props: {
       <div className="detailed-plan-filter-panel__fields">
         <div className="detailed-plan-filters__field">
           <span className="detailed-plan-filters__label">Đội xe</span>
-          <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Đội xe" selectedKey={props.filters.carrierClass || 'ALL_CLASSES'} onSelectionChange={(key) => props.onChange({ carrierClass: key === 'ALL_CLASSES' ? '' : key as DetailedPlanFilterState['carrierClass'] })} items={[
+          <UUISelect size="sm" aria-label="Đội xe" selectedKey={props.filters.carrierClass || 'ALL_CLASSES'} onSelectionChange={(key) => props.onChange({ carrierClass: key === 'ALL_CLASSES' ? '' : key as DetailedPlanFilterState['carrierClass'] })} items={[
             { id: 'ALL_CLASSES', label: 'Tất cả' },
             { id: 'OWN', label: 'Xe nhà (nội bộ)' },
             { id: 'EXTERNAL', label: 'Thầu ngoài' },
@@ -114,7 +114,7 @@ export function FleetFilterFields(props: {
         </div>
         <div className="detailed-plan-filters__field">
           <span className="detailed-plan-filters__label">Loại rơ-moóc</span>
-          <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Loại rơ-moóc" selectedKey={props.filters.trailerType || 'ALL_TRAILERS'} onSelectionChange={(key) => props.onChange({ trailerType: key === 'ALL_TRAILERS' ? '' : key as DetailedPlanFilterState['trailerType'] })} items={[
+          <UUISelect size="sm" aria-label="Loại rơ-moóc" selectedKey={props.filters.trailerType || 'ALL_TRAILERS'} onSelectionChange={(key) => props.onChange({ trailerType: key === 'ALL_TRAILERS' ? '' : key as DetailedPlanFilterState['trailerType'] })} items={[
             { id: 'ALL_TRAILERS', label: 'Tất cả' },
             { id: '20FT', label: '20 feet' },
             { id: '40FT', label: '40 feet' },
@@ -124,7 +124,7 @@ export function FleetFilterFields(props: {
         </div>
         <div className="detailed-plan-filters__field">
           <span className="detailed-plan-filters__label">Tuyến đường</span>
-          <UUISelect className="detailed-plan-filters__select" size="sm" aria-label="Tuyến đường" selectedKey={props.filters.routeId == null ? 'ALL_ROUTES' : String(props.filters.routeId)} onSelectionChange={(key) => props.onChange({ routeId: key === 'ALL_ROUTES' ? null : Number(key) })} items={[
+          <UUISelect size="sm" aria-label="Tuyến đường" selectedKey={props.filters.routeId == null ? 'ALL_ROUTES' : String(props.filters.routeId)} onSelectionChange={(key) => props.onChange({ routeId: key === 'ALL_ROUTES' ? null : Number(key) })} items={[
             { id: 'ALL_ROUTES', label: 'Tất cả' },
             ...props.routeOptions.map((route) => ({ id: String(route.id), label: route.name })),
           ]}>

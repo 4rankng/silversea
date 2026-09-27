@@ -15,6 +15,7 @@ import { invalidateAllCatalogs, qk } from '../../../api/keys';
 import { listDispatchFleetResources, reassignTruckDriver } from '../../../api/dispatchPlanningClient';
 import { Tabs, type TabItem } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { FilterDropdown } from '../../../components/FilterDropdown';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
 import { opsClient } from '../../../api/opsClient';
@@ -205,19 +206,30 @@ export function FleetVehiclesView() {
         hasActiveFilters={statusFilter !== 'all' || carrierFilter !== '' || search.trim() !== ''}
         onReset={() => { setStatusFilter('all'); setCarrierFilter(''); setSearch(''); }}
         filters={(
-          <UuiSelectField
-            label="Lọc theo nhà xe"
-            hideLabel
-            ariaLabel="Lọc theo nhà xe"
-            wrapperClassName="dispatch-catalogs__carrier-filter"
-            value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)}
-            options={[
-              { value: '', label: 'Nhà xe: Tất cả' },
-              { value: 'UNASSIGNED', label: 'Nhà xe: Chưa phân' },
-              ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
-            ]}
-          />
+          // ONE criterion beyond the status group: the owning carrier rides the
+          // bar inline while the strip fits two rows and folds into `Bộ lọc`
+          // when the width leaves no other choice (card 20260927_152) — the
+          // measured fold, not a breakpoint. Its width belongs to
+          // FilterBar.css/ListFilterBar.css (`width:auto`, 180px floor).
+          <FilterDropdown
+            count={carrierFilter === '' ? 0 : 1}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc xe đầu kéo"
+            onReset={() => setCarrierFilter('')}
+          >
+            <UuiSelectField
+              label="Lọc theo nhà xe"
+              hideLabel
+              ariaLabel="Lọc theo nhà xe"
+              value={carrierFilter}
+              onChange={(e) => setCarrierFilter(e.target.value)}
+              options={[
+                { value: '', label: 'Nhà xe: Tất cả' },
+                { value: 'UNASSIGNED', label: 'Nhà xe: Chưa phân' },
+                ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+            />
+          </FilterDropdown>
         )}
       >
         {loading ? (

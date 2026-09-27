@@ -478,7 +478,7 @@ describe('DetailedPlanGrid', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it('keeps search and date scope visible while moving secondary filters into a drawer', () => {
+  it('rides the shared filter strip — search and date scope on the bar, every other criterion behind Bộ lọc', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchDetailPlanPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx'), 'utf8');
@@ -486,27 +486,27 @@ describe('DetailedPlanGrid', () => {
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    // Card 20260926_50: the two-tier header replaces the _10 bar — Row 1
-    // header (title+presets+range trigger), Row 2 one continuous ribbon;
-    // the old date-scope/mode/shortcut chrome is gone.
+    // Card 20260927_152: the strip IS the shared bar. The page-local two-tier
+    // header and its ribbon are deleted, so neither may come back through this
+    // file — only the page's own title row survives.
     expect(filtersSource).toContain('detailed-plan-header');
-    expect(filtersSource).toContain('detailed-plan-ribbon');
-    expect(filtersSource).not.toContain('<ListFilterBar');
-    expect(css).toContain('.detailed-plan-header {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  height: 36px;\n}');
-    // Card 20260926_65 superseded the locked 32px ribbon height with a
-    // wrapping row (min-height keeps the 32px baseline).
-    expect(css).toContain('.detailed-plan-ribbon {\n  display: flex;\n  align-items: center;\n  gap: 8px;');
-    expect(css).toMatch(/\.detailed-plan-ribbon \{[^}]*min-height: 32px;/);
+    expect(filtersSource).toContain('<ListFilterBar');
+    expect(filtersSource).toContain('<FilterDropdown');
+    expect(filtersSource).not.toContain('detailed-plan-ribbon');
+    expect(filtersSource).not.toContain('<Drawer');
+    // …and the page declares no strip layout: no ribbon rules, no header row
+    // slot, no per-control width, no drawer sizing.
+    expect(css).not.toMatch(/^\.detailed-plan-ribbon/m);
+    expect(css).not.toMatch(/^\.detailed-plan-header__(?:row|date|range|assign)/m);
+    expect(css).not.toMatch(/^\.(?:drawer\.)?detailed-plan-filter-drawer/m);
     expect(css).not.toContain('detailed-plan-filters__date-scope-controls');
     expect(css).not.toContain('detailed-plan-filters__date-mode');
     expect(css).not.toContain('detailed-plan-filters__date-shortcut');
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
-    expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
+    // The dialog body is the panel the drawer used to hold: the design-lock
+    // selection `[role="dialog"]:has(.detailed-plan-filter-panel)` and the
+    // visible `.detailed-plan-filter-panel__quick` must keep resolving.
     expect(css).toContain('.detailed-plan-filter-panel__fields,\n.detailed-plan-filter-panel__quick {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
-    // The facet cluster lives in the drawer; the ribbon facet grid is gone and
-    // must never come back (operator 2026-09-27: "why don't we group them in
-    // bộ lọc") — a re-added ribbon grid would restart the stacked-dropdown
-    // header this redesign removed.
     expect(css).not.toContain('detailed-plan-ribbon__quick');
     expect(css).not.toContain('detailed-plan-ribbon__customer');
     expect(css).not.toContain('detailed-plan-filters__advanced');
@@ -561,8 +561,9 @@ describe('DetailedPlanGrid', () => {
       '__point-feedback', '__point-footer', '__point-search', '__zone-toggle']) {
       expect(css).not.toContain(dead);
     }
-    // Drawer-interior arrangement helpers survive the cutover.
-    expect(css).toContain('.detailed-plan-filters__field--zone');
+    // Dialog-interior arrangement helpers survive the cutover (label-above-
+    // control stacks and the group that owns its own pair of tracks).
+    expect(css).toContain('.detailed-plan-filters__label');
     expect(css).toContain('.detailed-plan-filters__hour-control');
   });
 

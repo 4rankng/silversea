@@ -1,14 +1,22 @@
 /**
- * Shared shell for the dispatcher resource-catalog views: a two-row command
- * strip (title + tabs + action / search + filters + docked count + reset),
- * then the panel-wrapped table. Read-only chrome — mutations live in the
- * views' own modals.
+ * Shared shell for the dispatcher resource-catalog views: a command strip
+ * (title + status tabs + primary action), then the ONE shared filter plane
+ * (`ListFilterBar`), then the panel-wrapped table. Read-only chrome — mutations
+ * live in the views' own modals.
+ *
+ * The strip used to be a page-local `.dispatch-catalogs__toolbar` flex row with
+ * its own search wrapper, counter and reset (card 20260926_57). Card
+ * 20260927_152 makes the shared `ListFilterBar` the only filter plane, so the
+ * toolbar IS that bar now: the search rides the bar's own search slot, the
+ * view's criteria arrive as bar children (secondary ones behind `Bộ lọc`), the
+ * result counter is the `status` node and the conditional reset is the page
+ * action in `actions`. The bar owns the row, the wrapping and every control
+ * width, so this shell declares no filter layout of its own.
  */
 import { useEffect, useRef, type ReactNode } from 'react';
-import { SearchSm } from '@untitledui/icons';
 import { RotateCcw } from 'lucide-react';
 import { Panel } from '../../../components/UI';
-import { Input } from '../../../components/untitled-ui/base/input/input';
+import { ListFilterBar } from '../../../components/ListFilterBar';
 
 export function CatalogTableShell({
   title,
@@ -34,6 +42,8 @@ export function CatalogTableShell({
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
   totalLabel: string;
+  /** Criteria for the bar — a direct bar child, or a `FilterDropdown` when the
+   * view has secondary criteria to fold. */
   filters?: ReactNode;
   /** Conditional reset — rendered only when filters are active. */
   onReset?: () => void;
@@ -63,32 +73,29 @@ export function CatalogTableShell({
           {actions && <div className="dispatch-catalogs__strip-actions">{actions}</div>}
         </div>
       )}
-      <div className="dispatch-catalogs__toolbar">
-        <div className="dispatch-catalogs__search-wrap">
-          <Input
-            ref={searchRef}
-            aria-label={searchPlaceholder}
-            className="dispatch-catalogs__search"
-            size="sm"
-            value={search}
-            onChange={onSearchChange}
-            placeholder={searchPlaceholder}
-            icon={SearchSm}
-            inputProps={{ type: 'search' }}
-          />
-        </div>
-        {filters}
-        <span className="dispatch-catalogs__count">{totalLabel}</span>
-        {onReset && hasActiveFilters && (
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: onSearchChange,
+          placeholder: searchPlaceholder,
+          // The catalog search carries no visible label, so the placeholder IS
+          // its accessible name (unchanged by the cutover).
+          ariaLabel: searchPlaceholder,
+          inputRef: searchRef,
+        }}
+        status={totalLabel ? <span className="dispatch-catalogs__count">{totalLabel}</span> : undefined}
+        actions={onReset && hasActiveFilters ? (
           <button
             type="button"
-            className="btn btn--ghost btn--sm dispatch-catalogs__reset"
+            className="btn btn--ghost btn--sm"
             onClick={onReset}
           >
-            <RotateCcw size={13} /> Xóa lọc
+            <RotateCcw size={13} aria-hidden="true" /> Xóa lọc
           </button>
-        )}
-      </div>
+        ) : undefined}
+      >
+        {filters}
+      </ListFilterBar>
       <Panel flush>{children}</Panel>
     </div>
   );

@@ -3,26 +3,19 @@
    scrollport and cells wrap instead of owning a horizontal rail. Follows the
    dispatch-plan-page__* BEM conventions. */
 
-/* ══ Card 20260926_50: two-tier 80px header ══════════════════════════════
-   Row 1 (36px): title + preset segment ADJACENT to the dual-calendar
-   range trigger (220px). Row 2 (32px): one continuous ribbon — search 260,
-   Khách w-180 trailing chevron, Hướng/Điều xe/Dữ liệu inline-label selects,
-   Bộ lọc drawer trigger, Xóa lọc ghost at the tail. No label rows. */
-
-/* Desk: the two wrapper rows are layout-transparent, so the header is still
-   the one 36px flex row (title + group + range + Gán xe). */
-.detailed-plan-header__row { display: contents; }
-
+/* ══ Page chrome above the strip ════════════════════════════════════════
+   The filter plane of this screen IS the shared `ListFilterBar` (card
+   20260927_152): one wrapping flex line inside one card, the search the only
+   grower, every other control as wide as the value it holds, and the fold
+   MEASURED by `filter-bar-mode.ts` rather than declared here. This sheet
+   therefore declares no strip layout, no control width and no control height —
+   what stays is the page's own chrome: the visible title above the strip. */
 .detailed-plan-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 36px;
+  margin: 0 0 10px;
 }
 
 .detailed-plan-header__title {
   margin: 0;
-  margin-right: auto;
   color: var(--color-fg-primary, var(--text-primary, #101828));
   font-size: var(--text-section-size, 16px);
   font-weight: 700;
@@ -30,118 +23,42 @@
   white-space: nowrap;
 }
 
-.detailed-plan-header__date {
-  /* Layout slot only — the shared `ds-tabs--boxed` group (operator ruling
-     2026-09-27: one button group app-wide) draws the container, the hairline
-     and the active pill. The phone band sizes its cells to keep the segment
-     plus the page title inside one 390px row (the range trigger below keeps
-     its full mask because of it, §4). */
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-}
+/* DELETED (card 20260927_152) — page-declared strip layout, never re-add:
+     `.detailed-plan-header__row`   (`display: contents` — the wrapper rows)
+     `.detailed-plan-header` flex row + `__date` slot + `__range` (320px floor)
+     `.detailed-plan-header__assign`, the two-tier 80px header bands
+     `.detailed-plan-ribbon`, `__search`, `__search input`, `__actions` and the
+     `.inline-label-select` height/min-width overrides
+   The bar owns all of it now: `display:/flex-wrap/gap` live in FilterBar.css,
+   the search cap in FilterBar.css, the date group's width in FilterBar.css and
+   the control height in the `--filter-control-h` token. A page rule here is
+   what stretched a short-value control across a whole line on 2026-09-27
+   ("some control the value very short but why the fuck it does take full
+   row"). */
 
-/* Content-sized (never a fixed width): the group carries TWO independent date
-   fields (Từ ngày / Đến ngày), so its floor is two 149px fields plus the 12px
-   seam. A single 220px slot ellipsized the value it carried (no-truncation law
-   §4, 2026-09-27 role sweep). */
-.detailed-plan-header__range {
-  flex: 0 1 auto;
-  width: max-content;
-  min-width: 320px;
-  max-width: 100%;
-}
-
-/* + Gán xe rides the Row 1 cluster's right end (card 20260926_55). */
-.detailed-plan-header__assign {
-  flex: 0 0 auto;
-}
-
-/* ⌘K affordance inside the ribbon search (card 20260926_55). */
-
-@media (pointer: coarse), (max-width: 640px) {
-}
-
-.detailed-plan-ribbon {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  /* Card 20260926_65: the ribbon WRAPS (nepocorp Toolbar pattern) — chips
-     keep one-line labels (nowrap in InlineLabelSelect) and flow to a tidy
-     second row at intermediate widths instead of squeezing. */
-  flex-wrap: wrap;
-  height: auto;
-  min-height: 32px;
-}
-
-.detailed-plan-ribbon__search {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  width: 260px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-  border-radius: 8px;
-  background: var(--surface, #fff);
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-}
-
-.detailed-plan-ribbon__search input {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: var(--text-control-compact-size, 13px);
-}
-
-/* The facet cluster lives in the Bộ lọc drawer at every width (operator
-   2026-09-27: "why don't we group them in bộ lọc"), so the ribbon is the
-   search plus the action cluster — no facet grid exists to style. */
-.detailed-plan-ribbon__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Ribbon selects ride the shared InlineLabelSelect chrome (h-8, trailing
-   chevron, integrated label); widths: Hướng min-w-110, Điều xe/Dữ liệu 150. */
-.detailed-plan-ribbon .inline-label-select__trigger { height: 32px; }
-.detailed-plan-ribbon .inline-label-select:first-of-type { min-width: 110px; }
-
-/* The action cluster packs: the drawer trigger and Xóa lọc sit next to each
-   other at the head of the row (the old tail-pin stranded the clear control
-   at the far edge of a full-width row, reading as an orphan). */
-.detailed-plan-filters__clear {
-  flex: 0 0 auto;
-  margin-left: 0;
-}
-
+/* Xóa lọc is a bar ACTION now: its size and its place on the line belong to
+   the shared action cluster (`FilterBar.css` / `ListFilterBar.css`), so the
+   page keeps only its disabled/idle voice. The bespoke badge
+   (`.detailed-plan-filters__count`) is deleted with the hand-rolled trigger —
+   the shared `FilterDropdown` renders its own `.filter-dropdown__count`. */
 .detailed-plan-filters__clear:disabled {
   opacity: 0.45;
 }
 
-.detailed-plan-filters__count {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  place-items: center;
-  border-radius: 4px;
-  background: var(--background-color-brand-primary, #e6f6ec);
-  color: var(--color-fg-brand-primary, #005a2d);
-  font-size: var(--text-caption-size);
-  font-weight: 700;
-  margin-inline-start: 6px;
-}
-
+/* ── Bộ lọc dialog interior ──────────────────────────────────────────────
+   The secondary criteria live in the shared `FilterDropdown` popover, and its
+   body owns the packing, the width and the control height (FilterDropdown.css:
+   one wrapping line, `.filter-dropdown__body` floors). What this sheet declares
+   is only the INTERIOR grouping of the panel: the section stack, the
+   label-above-control stacks (the same shape `.master-plan-filters__facet`
+   keeps), and the two groups that own their own tracks (the quick-facet pair,
+   the two time fields). No strip layout, no control width, no `width: 100%`
+   and no `flex: 1 1 …` on a control: a rule that stretches a short-value
+   control is the operator's "why the fuck it does take full row" defect. */
 .detailed-plan-filters__field {
   display: grid;
   gap: 5px;
-  min-width: 150px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__label {
@@ -150,29 +67,11 @@
   font-weight: 600;
 }
 
-.detailed-plan-filters__select {
-  min-width: 0;
-}
-
-.detailed-plan-filters__points {
-  position: relative;
-  display: grid;
-  min-width: 0;
-}
-
 .detailed-plan-filters__points {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
-  min-width: 0;
-}
-
-.detailed-plan-filters__points > .detailed-plan-filters__field {
-  min-width: 0;
-}
-
-.detailed-plan-filters__hour {
   min-width: 0;
 }
 
@@ -184,14 +83,24 @@
   font-size: var(--text-control-compact-size);
 }
 
+/* The two time fields are ONE control group: they share their row evenly
+   instead of sizing to the browser's default text-input width. */
 .detailed-plan-filters__hour-control {
   flex: 1 1 0;
   min-width: 0;
 }
 
-.drawer.detailed-plan-filter-drawer { max-width: 430px; }
-
-.detailed-plan-filter-panel { display: grid; gap: 20px; }
+.detailed-plan-filter-panel {
+  display: grid;
+  gap: 20px;
+  /* A criterion is as wide as the value it holds (operator 2026-09-27: "the
+     width of control should relative to value it holds", the same law
+     `FilterDropdown.css` answers with its 120px dialog floor). Without this the
+     panel's sections stretch every item in a section to the widest criterion
+     beside it, so a two-word "Tất cả khu vực" select owned the panel's full
+     width — the drawer-era shape the operator rejected. */
+  justify-items: start;
+}
 
 .detailed-plan-filter-panel__group {
   display: grid;
@@ -562,98 +471,14 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@media (max-width: 960px) {
-  /* [title | presets] / [range | Gán xe]: two real rows, each with its own
-     track split, so no control rides a row of its own AND the range is not
-     sized by the preset group in the row above it. */
-  .detailed-plan-header {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    height: auto;
-  }
+/* The ≤960px and ≤767px header/ribbon bands are DELETED with the page-local
+   strip (card 20260927_152). They declared a column direction, a row split and
+   per-control widths for a two-tier header that no longer exists; the shared
+   bar wraps by MEASURED rows at every width, and the date scope, the search and
+   the `Bộ lọc` trigger pack themselves. Nothing here may come back: a band that
+   re-declares the strip's layout is the defect the bar's own sheet replaced. */
 
-  .detailed-plan-header__row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .detailed-plan-header__title { margin-right: auto; }
-
-  .detailed-plan-header__date { flex: 0 0 auto; }
-
-  .detailed-plan-header__range {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-  }
-
-  .detailed-plan-header__assign { flex: 0 0 auto; }
-}
-
-/* ══ Phone band ══════════════════════════════════════════════════════════
-   The header is already the two deterministic rows the ≤960 block defines
-   ([title | presets] / [range | Gán xe]); this band only owns the touch
-   sizing, and the ribbon owns the phone contract the Director's filter law
-   sets: search edge-to-edge, every other control hugging its own content
-   (no control stretched across a half-empty cell), 44px floor throughout.
-   The four quick facets are NOT here — they live in the Bộ lọc drawer at
-   every width (operator, 2026-09-27: "why don't we group them in bộ lọc").
-   This band owns the preset segment's compact size only. */
-@media (max-width: 767px) {
-  .detailed-plan-header__title {
-    margin-right: 0;
-    font-size: 15px;
-    white-space: normal;
-  }
-
-  /* Phone sizing of the SAME group: 11px label + 6px inset so the three
-     labels, the page title and the 8px gap fit one 374px row. The shape
-     (container, hairline, active pill) is untouched — only the type scale
-     drops, which is the house label size anyway (§5). */
-  .detailed-plan-header__date {
-    width: max-content;
-    max-width: 100%;
-  }
-
-  .detailed-plan-header__date .ds-tabs__btn {
-    padding-inline: 6px;
-    font-size: var(--text-label-size, 11px);
-    white-space: nowrap;
-  }
-
-  /* Phone: the group keeps its two fields side by side (the pair law) and
-     takes the full row so neither date is squeezed below its floor. */
-  .detailed-plan-header__range {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .detailed-plan-header__assign { justify-self: end; }
-
-  .detailed-plan-ribbon {
-    flex-wrap: wrap;
-    height: auto;
-  }
-
-  /* The search is the one control the law gives the full width on a phone;
-     the action cluster below it hugs its own content instead of stretching
-     two buttons across the row. */
-  .detailed-plan-ribbon__search {
-    flex: 1 1 100%;
-    width: auto;
-    min-height: var(--control-touch-h, 44px);
-  }
-
-  .detailed-plan-ribbon__actions {
-    width: 100%;
-    min-height: var(--control-touch-h, 44px);
-    justify-content: flex-start;
-  }
-}
+/* ── Phone records ─────────────────────────────────────────────────────── */
 
 /* Nine operational columns no longer have a usable decision width below
    this measure. Match the master-plan workspace and switch to labelled
@@ -947,11 +772,6 @@
 }
 
 
-@media (max-width: 767px) {
-  .drawer.detailed-plan-filter-drawer { max-width: 100%; }
-
-}
-
 /* Classification column (Phân loại): every saved value uses one neutral,
    regular-weight tag. Card 20260922_27: a VALUE renders as plain text —
    the rounded border read as a button and contradicted the workboard text
@@ -967,10 +787,6 @@
 
 .detailed-plan-grid__classification--unclassified {
   color: var(--text-tertiary, #667085);
-}
-
-.detailed-plan-filters__field--zone {
-  min-width: 0;
 }
 
 /* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain

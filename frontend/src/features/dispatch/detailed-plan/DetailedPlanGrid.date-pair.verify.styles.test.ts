@@ -3,64 +3,79 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Card 20260926_50 — two-tier 80px header lock. Row 1 (36px): title +
- * preset segment directly adjacent to the 220px dual-calendar range trigger.
- * Row 2 (32px): one continuous ribbon (search 260, Khách w-180, inline-label
- * selects, Xóa lọc at the tail). Flat chrome throughout — no shadows.
+ * Card 20260927_152 — /dispatch-detail's filter plane is the SHARED strip.
+ *
+ * The screen used to declare its own two-tier 80px header and its own ribbon
+ * (card 20260926_50: a 36px flex row, a 260px search shell, a hand-rolled range
+ * trigger, a drawer trigger with its own count badge). The operator's ruling of
+ * 2026-09-27 replaced every page-local filter plane with one law: the strip is
+ * `ListFilterBar`, the criteria a list does not share live in `FilterDropdown`,
+ * and the page declares NO filter layout at all.
+ *
+ * These guards hold the cutover and `DetailedPlanGrid.css`'s DELETED note: a
+ * re-added `display:flex`, width floor or `grid-column` on the strip is the
+ * regression the operator photographed ("some control the value very short but
+ * why the fuck it does take full row").
  */
 
-const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
-describe('DetailedPlanGrid two-tier header regression guard (card 20260926_50)', () => {
-  it('row 1 is a locked 36px flex row carrying title, preset segment and range trigger', () => {
-    const header = css.match(/\.detailed-plan-header\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(header).toMatch(/display:\s*flex;/);
-    expect(header).toMatch(/height:\s*36px;/);
+const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+const tsx = read('src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx');
+
+describe('DetailedPlanFilters rides the shared strip (card 20260927_152)', () => {
+  it('mounts the shared bar, its search slot and the shared Bộ lọc dropdown', () => {
+    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterDropdown');
+    expect(tsx).toContain('<DateRangeFields');
+    expect(tsx).toContain('ariaLabel="Khoảng ngày vận chuyển"');
+    // The day scope is the shared boxed button group (operator ruling
+    // 2026-09-27: one segmented shape app-wide), and the from/to group is the
+    // one shared two-field control — never a range picker, never a page-local
+    // pair.
+    expect(tsx).toContain('variant="boxed"');
+    expect(tsx).not.toContain('DateRangePopover');
+    expect(tsx).not.toContain('DateRangePresetSelect');
+    // No page-owned trigger, badge, search shell or drawer.
+    expect(tsx).not.toContain('detailed-plan-ribbon');
+    expect(tsx).not.toContain('detailed-plan-filters__count');
+    expect(tsx).not.toContain('<Drawer');
   });
 
-  // Operator ruling 2026-09-27 ("this is our existing working button group and
-  // I like it, please use this consistently globally"): the date scope is the
-  // shared `ds-tabs--boxed` group. The page owns layout only — a bespoke
-  // segment shape must not come back.
-  it('the date scope is the shared button group inside row 1, with layout-only page CSS', () => {
+  it('keeps the panel — and its quick-facet group — as the dialog body (the lock selectors)', () => {
+    // `design-lock/expectations/dispatch.mjs` opens `Bộ lọc` by clicking the
+    // first `/^Bộ lọc/` button and then asserts `.detailed-plan-filter-panel__quick`
+    // is visible inside the dialog; both selectors must keep resolving.
+    expect(tsx).toContain('detailed-plan-filter-panel__quick');
+    expect(css).toMatch(/^\.detailed-plan-filter-panel \{[^}]*display:\s*grid/m);
+    expect(css).toMatch(/\.detailed-plan-filter-panel__quick\s*\{[^}]*display:\s*grid/);
+    // Xóa lọc stays a rendered bar action under its locked class.
+    expect(tsx).toContain('detailed-plan-filters__clear');
+    expect(css).toContain('.detailed-plan-filters__clear.is-idle');
+  });
+
+  it('declares no strip layout of its own — no ribbon rules, no header row slot, no control width', () => {
+    // Rule blocks (line-start selectors), not prose: the DELETED note above
+    // names the retired selectors on purpose.
+    expect(css).not.toMatch(/^\.detailed-plan-ribbon/m);
+    expect(css).not.toMatch(/^\.detailed-plan-header__(?:row|date|range|assign)/m);
+    expect(css).not.toMatch(/^\.(?:drawer\.)?detailed-plan-filter-drawer/m);
+    expect(css).not.toMatch(/^\.detailed-plan-filters__(?:count|select|hour)\s*\{/m);
+    // No page rule gives a filter control a fixed width or a stretch.
+    expect(css).not.toMatch(/^\.detailed-plan-filters__field\s*\{[^}]*min-width:\s*\d+px/m);
+    expect(css).not.toMatch(/^\.detailed-plan-filters__(?:field|points|hour-inputs)[^{]*\{[^}]*width:\s*100%/m);
+    // The page chrome left is the title row, and it is layout-free.
     const header = css.match(/\.detailed-plan-header\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(header).toMatch(/gap:\s*10px;/);
-    const segment = css.match(/\.detailed-plan-header__date\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(segment).toMatch(/display:\s*inline-flex;/);
-    expect(segment).not.toMatch(/border:\s*1px/);
-    expect(segment).not.toMatch(/border-radius/);
+    expect(header).not.toBe('');
+    expect(header).not.toMatch(/display:\s*(?:flex|grid)/);
+    expect(header).not.toMatch(/(?:^|;)\s*(?:width|min-width|height)\s*:/);
+    expect(header).not.toMatch(/box-shadow/);
+  });
+
+  it('keeps the shared button group the only segment shape (no bespoke segment CSS)', () => {
     expect(css).not.toMatch(/\.detailed-plan-header__preset/);
-    const primitive = readFileSync(resolve(__dirname, '../../../design-system/Tabs.css'), 'utf8');
+    const primitive = read('src/design-system/Tabs.css');
     expect(primitive).toMatch(/\.ds-tabs--boxed \{[^}]*border:\s*1px solid var\(--line\);/);
     expect(primitive).toMatch(/\.ds-tabs--boxed \.ds-tabs__btn--active \{[^}]*outline:\s*1px solid var\(--line-2/);
-  });
-
-  // Superseded by the 2026-09-27 operator ruling ("why don't we group them in
-  // bộ lọc"): the ribbon is the search plus the action cluster, and the four
-  // quick facets live in the drawer. The guard now pins THAT, so a later
-  // session cannot quietly restore the stacked-dropdown header.
-  it('row 2 is one continuous 32px ribbon — search plus the action cluster, no facet grid', () => {
-    const ribbon = css.match(/\.detailed-plan-ribbon\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(ribbon).toMatch(/display:\s*flex;/);
-    expect(ribbon).toMatch(/min-height:\s*32px;/);
-    expect(ribbon).toMatch(/gap:\s*8px;/);
-    const search = css.match(/\.detailed-plan-ribbon__search\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(search).toMatch(/width:\s*260px;/);
-    expect(css).not.toMatch(/\.detailed-plan-ribbon__quick/);
-    expect(css).not.toMatch(/\.detailed-plan-ribbon__customer/);
-    const actions = css.match(/\.detailed-plan-ribbon__actions\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(actions).toMatch(/display:\s*flex;/);
-    expect(actions).toMatch(/gap:\s*8px;/);
-    const clear = css.match(/\.detailed-plan-filters__clear\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(clear).toMatch(/margin-left:\s*0;/);
-    const panel = css.match(/\.detailed-plan-filter-panel__quick\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(panel).toMatch(/display:\s*grid;/);
-  });
-
-  it('no elevated panel chrome on the new rows (flat law)', () => {
-    const header = css.match(/\.detailed-plan-header\s*\{([^}]*)\}/)?.[1] ?? '';
-    const ribbon = css.match(/\.detailed-plan-ribbon\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(header).not.toMatch(/box-shadow/);
-    expect(ribbon).not.toMatch(/box-shadow/);
   });
 });

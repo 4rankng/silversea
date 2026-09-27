@@ -119,6 +119,19 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByRole('button', { name: /thêm nhà thầu phụ/i })).toBeTruthy();
   });
 
+  it('renders its toolbar as the shared filter plane', () => {
+    suppliersState.data = { items: [supplier()], total: 1 };
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+
+    expect(container.querySelector('.filter-bar.filter-bar--card.list-filter-bar')).toBeTruthy();
+    expect(container.querySelector('.dispatch-catalogs__toolbar')).toBeNull();
+    expect(screen.getByText('1 nhà thầu phụ')).toBeTruthy();
+  });
+
   it('creates a subcontractor through the form modal and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});

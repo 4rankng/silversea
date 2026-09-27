@@ -252,7 +252,7 @@ export function ExternalFleetView() {
           label="Nhà xe"
           hideLabel
           ariaLabel="Nhà xe"
-          wrapperClassName="dispatch-catalogs__carrier-filter"
+          wrapperClassName="dispatch-catalogs__drawer-select"
           value={draftCarrier}
           onChange={(e) => setDraftCarrier(e.target.value)}
           options={[

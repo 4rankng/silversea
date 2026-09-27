@@ -54,7 +54,7 @@ function baseProps(onChange = vi.fn()) {
   };
 }
 
-function openFilterDrawer() {
+function openFilterDialog() {
   fireEvent.click(screen.getByRole('button', { name: /^Bộ lọc/ }));
   return screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' });
 }
@@ -75,8 +75,8 @@ async function pickCheckbox(label: string, facetName: string) {
   return option;
 }
 
-describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
-  it('renders row 1 (title + presets adjacent to the from/to date fields) and row 2 as one ribbon', () => {
+describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
+  it('rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc', () => {
     const onChange = vi.fn();
     const { container } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
@@ -84,37 +84,46 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
     // Card 20260926_55: the h1 matches the app chrome — 'Kế hoạch Chi tiết Xe'
     // (supersedes the _50-era 'Chi tiết lô hàng' pin; topbar context hidden).
     expect(screen.getByRole('heading', { name: 'Kế hoạch Chi tiết Xe' })).toBeTruthy();
-    // The date scope is the shared button group (operator ruling 2026-09-27).
+
+    // Card 20260927_152: the filter plane IS the shared bar — one wrapping line
+    // inside one card. The page-local two-tier header and its ribbon are gone.
+    const bar = container.querySelector('.filter-bar.filter-bar--card.list-filter-bar') as HTMLElement;
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('[data-component="detailed-plan-ribbon"]')).toBeNull();
+    expect(screen.getByPlaceholderText('Bill, Cont, Tờ khai...')).toBeTruthy();
+    // No shortcut badge: the 2026-09-27 CHIEF ruling removed every rendered
+    // ⌘K/kbd affordance (the ⌘K/Ctrl+K handler below stays live and invisible).
+    expect(screen.queryByText('⌘K')).toBeNull();
+    // The date scope is the shared button group (operator ruling 2026-09-27) and
+    // rides the bar's `presets` slot — the slot the bar gives the quick ranges
+    // beside the dates they set.
     const presetGroup = screen.getByRole('tablist', { name: 'Phạm vi ngày vận chuyển' });
     expect(presetGroup.className).toContain('ds-tabs--boxed');
     expect(within(presetGroup).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
+    expect(bar.querySelector('.filter-bar__presets')?.contains(presetGroup)).toBe(true);
     // CHIEF 2026-09-27: two independent date fields, no range picker.
     expect(screen.getByRole('group', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
     expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
     expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
-    // + Gán xe primary rides Row 1's right end (ruling c).
-    expect(screen.getByRole('button', { name: 'Gán xe' })).toBeTruthy();
+    // The page's own actions ride the bar's action cluster: Gán xe and Xóa lọc.
+    const actions = bar.querySelector('.filter-bar__actions') as HTMLElement;
+    expect(within(actions).getByRole('button', { name: 'Gán xe' })).toBeTruthy();
+    expect(within(actions).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
+    // Every criterion the lists do NOT share lives behind ONE trigger ON the bar
+    // (card 20260927_152) — the four quick facets included (operator,
+    // 2026-09-27: "why don't we group them in bộ lọc"), so no band stacks four
+    // dropdown rows.
+    expect(within(actions).queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
+    expect(within(bar).getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
+    expect(container.querySelector('.detailed-plan-ribbon__quick')).toBeNull();
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
     expect(screen.queryByText('Thời gian')).toBeNull();
 
-    const ribbon = container.querySelector('[data-component="detailed-plan-ribbon"]');
-    expect(ribbon).toBeTruthy();
-    expect(screen.getByPlaceholderText('Bill, Cont, Tờ khai...')).toBeTruthy();
-    // No shortcut badge: the 2026-09-27 CHIEF ruling removed every rendered
-    // ⌘K/kbd affordance (the ⌘K/Ctrl+K handler below stays live and invisible).
-    expect(screen.queryByText('⌘K')).toBeNull();
-    // The ribbon is the search plus the action cluster: the four quick facets
-    // moved into the Bộ lọc drawer (operator, 2026-09-27: "why don't we group
-    // them in bộ lọc") so no band has to stack four dropdown rows.
-    expect(container.querySelector('.detailed-plan-ribbon__quick')).toBeNull();
-    expect(within(ribbon as HTMLElement).getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
-    expect(within(ribbon as HTMLElement).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
-
     // Label-in-control: the integrated trigger text IS the accessible name —
-    // now inside the drawer, in one group.
-    const drawer = openFilterDrawer();
-    const quick = within(drawer).getByRole('heading', { name: 'Bộ lọc nhanh' }).parentElement as HTMLElement;
+    // now inside the shared dialog, in one group.
+    const dialog = openFilterDialog();
+    const quick = within(dialog).getByRole('heading', { name: 'Bộ lọc nhanh' }).parentElement as HTMLElement;
     expect(quick.className).toContain('detailed-plan-filter-panel__group');
     expect(within(quick).getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
     expect(within(quick).getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
@@ -219,7 +228,7 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
   it('maps the drawer facet selects to their filter patches and keeps labels in the triggers', () => {
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
-    openFilterDrawer();
+    openFilterDialog();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
@@ -257,36 +266,36 @@ describe('DetailedPlanFilters — two-tier header (card 20260926_50)', () => {
   });
 });
 
-describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
-  it('keeps structured filters in the drawer and off the ribbon', () => {
+describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => {
+  it('keeps structured filters inside Bộ lọc and off the bar', () => {
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
-    const drawer = openFilterDrawer();
-    expect(within(drawer).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
-    expect(within(drawer).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
-    expect(within(drawer).getByText('Điểm nâng')).toBeTruthy();
-    expect(within(drawer).getByRole('heading', { name: 'Giờ chạy và khu vực' })).toBeTruthy();
-    expect(within(drawer).getByRole('heading', { name: 'Điểm giao nhận' })).toBeTruthy();
-    // Ribbon-owned filters must NOT duplicate inside the drawer.
-    expect(within(drawer).queryByText('Xuất / Nhập')).toBeNull();
-    expect(within(drawer).queryByText('Phân xe')).toBeNull();
+    const dialog = openFilterDialog();
+    expect(within(dialog).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
+    expect(within(dialog).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
+    expect(within(dialog).getByText('Điểm nâng')).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Giờ chạy và khu vực' })).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Điểm giao nhận' })).toBeTruthy();
+    // Criteria owned elsewhere must NOT duplicate inside the dialog.
+    expect(within(dialog).queryByText('Xuất / Nhập')).toBeNull();
+    expect(within(dialog).queryByText('Phân xe')).toBeNull();
 
-    const hourFrom = within(drawer).getByLabelText('Giờ từ');
+    const hourFrom = within(dialog).getByLabelText('Giờ từ');
     expect(hourFrom).toHaveAttribute('type', 'text');
     expect(hourFrom).toHaveAttribute('placeholder', 'HH:mm');
     fireEvent.change(hourFrom, { target: { value: '07:30' } });
     fireEvent.blur(hourFrom);
     expect(onChange).toHaveBeenCalledWith({ hourFrom: '07:30' });
 
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Đặt lại' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
     expect(onChange).toHaveBeenCalledWith({
       ...EMPTY_DETAILED_PLAN_FILTERS,
       date: '',
     });
   });
 
-  it('forwards zone selection and drawer badge counts', async () => {
+  it('forwards zone selection and the trigger badge count', async () => {
     const onChange = vi.fn();
     renderFilters(
       <DetailedPlanFilters
@@ -294,8 +303,8 @@ describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
         filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, zone: 'LACH_HUYEN', hourFrom: '07:30' }}
       />,
     );
-    const drawer = openFilterDrawer();
-    expect(within(drawer).getByRole('button', { name: 'Lạch Huyện Khu vực' })).toBeTruthy();
+    const dialog = openFilterDialog();
+    expect(within(dialog).getByRole('button', { name: 'Lạch Huyện Khu vực' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' })).toBeTruthy();
   });
 
@@ -310,7 +319,7 @@ describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
         loadDeliveryPointFacets={loadDeliveryPointFacets}
       />,
     );
-    openFilterDrawer();
+    openFilterDialog();
     const trigger = screen.getByRole('button', { name: /Đã chọn 0 điểm trả|Chọn điểm trả…/ });
     fireEvent.click(trigger);
     const search = within(getPicker('điểm trả')).getByLabelText(/Tìm điểm trả/);
@@ -329,7 +338,7 @@ describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
       />,
     );
-    openFilterDrawer();
+    openFilterDialog();
     const trigger = screen.getByRole('button', { name: /Chọn điểm trả…/ });
     fireEvent.click(trigger);
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
@@ -339,20 +348,28 @@ describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
   });
 
-  it('closes the popover with Escape and returns focus to the trigger', async () => {
+  it('closes the facet popover with Escape — one shared dismissal, no stranded focus', async () => {
+    // The facet picker is the innermost layer and `Bộ lọc` is a shared
+    // `FilterDropdown` popover: both own the same Escape dismissal
+    // (`useClickOutside(…, { escapeKey: true })`), so one press leaves neither
+    // layer open. That is the primitive's contract, not this page's
+    // (`components/FilterDropdown.test.tsx` pins it for the trigger alone).
     renderFilters(
       <DetailedPlanFilters
         {...baseProps()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
       />,
     );
-    openFilterDrawer();
+    openFilterDialog();
     const trigger = screen.getByRole('button', { name: /Chọn điểm trả…/ });
     fireEvent.click(trigger);
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
-    await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'));
+    expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull();
+    // The bar itself is untouched: its trigger is still there to reopen, so the
+    // dismissal never strands the dispatcher outside the filter plane.
+    expect(screen.getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
   });
 
   it('lets a user clear all selections from inside the popover footer', async () => {
@@ -364,7 +381,7 @@ describe('DetailedPlanFilters — advanced drawer (hours/zone/points)', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
       />,
     );
-    openFilterDrawer();
+    openFilterDialog();
     expect(screen.getByRole('button', { name: /Đã chọn 1 điểm trả/ })).toBeTruthy();
     const trigger = screen.getByRole('button', { name: /Đã chọn 1 điểm trả/ });
     fireEvent.click(trigger);

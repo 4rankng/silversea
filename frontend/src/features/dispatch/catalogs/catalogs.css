@@ -67,26 +67,22 @@
   background: transparent;
 }
 
-.dispatch-catalogs__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.dispatch-catalogs__search {
-  flex: 1;
-  min-width: 220px;
-  max-width: 360px;
-}
-
+/* The catalog toolbar is the shared `ListFilterBar` (card 20260927_152), so this
+   sheet declares NO filter layout and no control width: `.dispatch-catalogs__toolbar`,
+   `.dispatch-catalogs__search` (`flex:1; max-width:360px` — a page cap above the
+   300px search ceiling) and `.dispatch-catalogs__search-wrap` are gone with the
+   bespoke row they sized, and the carrier criterion is content-sized by
+   ListFilterBar.css (a page `min(160px, 100%)` is exactly how a short-value
+   control gets pinned to the wrong width). The counter keeps its typography
+   only — the bar's own spacer + action cluster own where it sits. */
 .dispatch-catalogs__count {
-  margin-left: auto;
   font-size: var(--text-data-size);
   color: var(--fg-3);
 }
 
-.dispatch-catalogs__carrier-filter {
+/* The "Nhà xe" picker inside the Xe ngoài register drawer — a form field, not a
+   filter control (the filter instance dropped the class). */
+.dispatch-catalogs__drawer-select {
   width: min(160px, 100%);
   min-width: 0;
 }
@@ -231,31 +227,10 @@
     min-height: var(--control-mobile-h);
   }
 
-  .dispatch-catalogs__toolbar {
-    align-items: stretch;
-  }
-
-  /* The full-width search must be the WRAPPER's job: sizing only the inner
-     Input left the wrapper content-sized, so the phone toolbar showed the
-     search at half width with dead space beside it and the count docked on
-     the same ragged row (2026-09-27 role sweep, DISPATCHER catalogs). */
-  .dispatch-catalogs__search-wrap {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .dispatch-catalogs__search {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-
-  .dispatch-catalogs__carrier-filter { flex: 1 1 180px; }
-
-  .dispatch-catalogs__count {
-    margin-left: 0;
-  }
+  /* The toolbar's phone shape is the bar's own business (ListFilterBar.css): the
+     search grows to the slack its line leaves, every other control stays
+     content-sized and the lines pack 2-3 deep, so no page band may stretch a
+     control across the row. */
 
   .dispatch-catalogs__table {
     display: block;
@@ -387,10 +362,3 @@
 }
 
 .dispatch-catalogs__strip-actions { margin-left: auto; display: flex; align-items: center; }
-
-.dispatch-catalogs__search-wrap { position: relative; display: flex; align-items: center; }
-
-
-/* Counter docks beside the filters (no far-right push) and the reset sits
-   after it. */
-.dispatch-catalogs__count { margin-left: 0; }
