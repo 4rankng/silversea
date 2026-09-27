@@ -88,7 +88,11 @@ html:has(body .app.is-driver) {
     display: flex;
     position: relative;
     flex-shrink: 0;
-    height: calc(60px + env(safe-area-inset-bottom, 12px));
+    /* Card 20260927_149 (CHIEF research fix #1): env() applies ONCE — as the
+       home-indicator padding below. The old height calc() added the same
+       inset a second time, inflating the bar and misplacing it on iOS. */
+    height: auto;
+    box-sizing: border-box;
     /* Fully opaque — list/detail content scrolls underneath this fixed bar at
        every scroll position (not just the bottom), so any transparency lets
        scrolled-past content bleed through. Was rgba(...,0.95) relying on
@@ -108,7 +112,7 @@ html:has(body .app.is-driver) {
        tabs from being flung to the far corners while the content column
        sits at 720px. Same inset idiom as .topbar--driver. */
     padding-inline: max(0px, calc((100% - var(--driver-measure)) / 2));
-    padding-bottom: env(safe-area-inset-bottom, 12px);
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
   }
 
