@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'; // useEffect remains for the form modal's reset-on-open
-import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Download, Search,
+  Plus, Download,
   Pencil, Trash2, X, Save, Loader2, Truck,
   Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
@@ -10,12 +9,12 @@ import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
-import { UuiSelectField } from '../design-system/forms/UuiSelectField';
+import { PageHeader, StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination, Tabs, useTableQueryState } from '../design-system';
+import { EmptyState, Pagination, useTableQueryState } from '../design-system';
+import { CustomerFilters, type CustomerFilterKey } from '../features/customers/CustomerFilters';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency } from '../lib/format';
 import type { Customer, LedgerEntry } from '@tingting/shared';
@@ -39,8 +38,6 @@ type CustomerTableFilters = {
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
 };
-
-type FilterKey = 'all' | 'locked' | 'active' | 'risk';
 
 const STATUS_LABELS: Record<string, string> = {
   [CustomerStatus.ACTIVE]: 'Hoạt động',
@@ -323,7 +320,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
 
 export default function CustomersPage() {
   const { toast } = useToast();
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilter] = useState<CustomerFilterKey>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -360,7 +357,7 @@ export default function CustomersPage() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const hasActiveFilters = Boolean(search.trim() || filter !== 'all');
 
-  // KBD: Meta/Ctrl+K focuses the customer search (badge on the search shell).
+  // KBD: Meta/Ctrl+K focuses the customer search inside the shared bar.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -508,6 +505,26 @@ export default function CustomersPage() {
     } finally { setNotifySending(false); }
   }
 
+  /** The strip's Xuất Excel action: the button is `CustomerFilters`', the data
+   *  (and the toast) stay on the page that owns the filtered rows. */
+  async function exportCustomers() {
+    const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái'];
+    const rows = filtered.map(c => [
+      c.name,
+      c.taxCode || '',
+      c.contactPerson || '',
+      c.phone || '',
+      c.creditLimit || '',
+      STATUS_LABELS[c.status] || c.status,
+    ]);
+    await downloadCSV(`khach-hang-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
+      title: 'DANH SÁCH KHÁCH HÀNG',
+      subtitle: `${filtered.length} khách hàng đang quản lý`,
+      columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text'],
+    });
+    toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
+  }
+
   return (
     <div className="customers-page" ref={rootRef}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 0.8s linear infinite; }`}</style>
@@ -519,96 +536,30 @@ export default function CustomersPage() {
           { label: 'Khách hàng' },
         ]}
       />
-      <div className="customers-strip" role="banner">
-        <div className="customers-strip__row1">
-          <button type="button" className="customers-strip__back" aria-label="Quay lại" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft size={16} />
-          </button>
-          <h1 className="customers-strip__title">Khách hàng & Đối tác</h1>
-          {/* Status group — shared boxed Tabs primitive (2026-09-27 ruling). */}
-          <Tabs variant="boxed"
-            tabs={[
-              { id: 'all', label: 'Tất cả', count: total },
-              { id: 'active', label: 'Hoạt động', count: activeCount, countTone: 'accent' },
-              { id: 'locked', label: 'Tạm khoá', count: lockedCount, countTone: 'warning' },
-            ]}
-            value={filter}
-            onChange={(id) => setFilter(id as FilterKey)}
-            ariaLabel="Lọc theo trạng thái khách hàng"
-          />
-          {concentration.anyDebt && (
-            <div className="customers-strip__risk" tabIndex={0}>
-              <span aria-hidden="true">⚠️</span> Top 4 KH chiếm {concentration.topShare}% công nợ
-              <div className="customers-strip__risk-pop" role="tooltip">
-                <strong>Công nợ tập trung — top 4 khách hàng</strong>
-                {concentration.top.map((row) => (
-                  <div key={row.id} className="customers-strip__risk-row">
-                    <span>{row.name}</span>
-                    <span className="customers-strip__risk-share">{row.share}% · {formatCurrency(row.debt)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="customers-strip__actions">
-            <button className="btn btn--secondary btn--sm" onClick={async () => {
-              const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái'];
-              const rows = filtered.map(c => [
-                c.name,
-                c.taxCode || '',
-                c.contactPerson || '',
-                c.phone || '',
-                c.creditLimit || '',
-                STATUS_LABELS[c.status] || c.status,
-              ]);
-              await downloadCSV(`khach-hang-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
-                title: 'DANH SÁCH KHÁCH HÀNG',
-                subtitle: `${filtered.length} khách hàng đang quản lý`,
-                columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text'],
-              });
-              toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
-            }}>
-              <Download size={14} /> Xuất Excel
-            </button>
-            <button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
-              <Plus size={14} /> Thêm khách hàng
-            </button>
-          </div>
-        </div>
-        <div className="customers-strip__row2">
-          <div className="customers-strip__search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              name="customerSearch"
-              aria-label="Tìm khách hàng theo tên, mã, MST hoặc điện thoại"
-              placeholder="Tên, mã, MST, điện thoại..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <UuiSelectField
-            wrapperClassName="customers-strip__status"
-            label="Trạng thái"
-            hideLabel
-            ariaLabel="Lọc theo trạng thái"
-            value={filter === 'active' ? 'active' : filter === 'locked' ? 'locked' : 'all'}
-            onChange={(event) => setFilter(event.target.value as FilterKey)}
-            options={[
-              { value: 'all', label: 'Trạng thái: tất cả' },
-              { value: 'active', label: 'Trạng thái: hoạt động' },
-              { value: 'locked', label: 'Trạng thái: tạm khoá' },
-            ]}
-          />
-          <span className="customers-strip__count">{filtered.length}/{total} khách hàng</span>
-          {hasActiveFilters && (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setSearch(''); setFilter('all'); }}>
-              <RotateCcw size={13} /> Xóa lọc
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Page chrome is the shared `PageHeader`; the strip IS the shared
+          `ListFilterBar` (card 20260927_152), rendered by `CustomerFilters` so
+          this page declares no strip box, no search shell and no control width.
+          The status axis keeps both of its controls (see the component). */}
+      <PageHeader
+        title="Khách hàng & Đối tác"
+        onBack={() => navigate('/dashboard')}
+      />
+      <CustomerFilters
+        search={search}
+        onSearch={setSearch}
+        searchInputRef={searchInputRef}
+        filter={filter}
+        onFilter={setFilter}
+        total={total}
+        activeCount={activeCount}
+        lockedCount={lockedCount}
+        resultCount={filtered.length}
+        concentration={concentration}
+        onExport={exportCustomers}
+        onAdd={() => { setShowAddForm(true); setEditingId(null); }}
+        onReset={() => { setSearch(''); setFilter('all'); }}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       {/* ── Mobile card list (≤820px) ──────────────────────────────────── */}
       <div className="mobile-only mobile-table-wrap">

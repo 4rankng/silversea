@@ -10,6 +10,7 @@ import { useCRUD } from '../../hooks/useCRUD';
 import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/UI';
 import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import type { PenaltyReason } from '@tingting/shared';
 import { EmptyState } from '../../design-system';
 
@@ -416,39 +417,44 @@ export default function PenaltyReasonsConfigPage() {
       </div>
 
       {/* ── Filter Bar ──────────────────────────────────────────── */}
-      <div className="filter-bar">
-        <div className="filter-bar__search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            name="penaltyReasonSearch"
-            aria-label="Tìm kiếm lỗi vi phạm"
-            placeholder="Tìm kiếm lỗi vi phạm…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button className={`filter-tab ${activeSev === 'all' ? 'is-active' : ''}`} onClick={() => setActiveSev('all')}>
-          Tất cả
-        </button>
-        <button className={`filter-tab ${activeSev === 'high' ? 'is-active' : ''}`} onClick={() => setActiveSev('high')}>
-          <span className="dot" style={{ background: 'var(--danger)' }} />Nghiêm trọng
-        </button>
-        <button className={`filter-tab ${activeSev === 'mid' ? 'is-active' : ''}`} onClick={() => setActiveSev('mid')}>
-          <span className="dot" style={{ background: 'var(--warning)' }} />Trung bình
-        </button>
-        <button className={`filter-tab ${activeSev === 'low' ? 'is-active' : ''}`} onClick={() => setActiveSev('low')}>
-          <span className="dot" style={{ background: 'var(--ink-3)' }} />Nhẹ
-        </button>
-        <div className="filter-bar__spacer" />
-        <button className="btn btn--secondary btn--sm" onClick={() => setSortDesc(!sortDesc)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" />
-          </svg>
-          {sortDesc ? 'Cao → thấp' : 'Thấp → cao'}
-        </button>
-      </div>
+      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+          declares no bar markup, no search shell and no spacer. The four
+          severity toggles are quick filters (one axis, mutually exclusive), and
+          the sort toggle is the strip's action. */}
+      <ListFilterBar
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Tìm kiếm lỗi vi phạm…',
+          ariaLabel: 'Tìm kiếm lỗi vi phạm',
+          inputProps: { name: 'penaltyReasonSearch' },
+        }}
+        quickFiltersLabel="Lọc theo mức độ"
+        quickFilters={(
+          <>
+            <button type="button" aria-pressed={activeSev === 'all'} className={`filter-chip ${activeSev === 'all' ? 'is-active' : ''}`} onClick={() => setActiveSev('all')}>
+              Tất cả
+            </button>
+            <button type="button" aria-pressed={activeSev === 'high'} className={`filter-chip ${activeSev === 'high' ? 'is-active' : ''}`} onClick={() => setActiveSev('high')}>
+              <span className="dot" style={{ background: 'var(--danger)' }} />Nghiêm trọng
+            </button>
+            <button type="button" aria-pressed={activeSev === 'mid'} className={`filter-chip ${activeSev === 'mid' ? 'is-active' : ''}`} onClick={() => setActiveSev('mid')}>
+              <span className="dot" style={{ background: 'var(--warning)' }} />Trung bình
+            </button>
+            <button type="button" aria-pressed={activeSev === 'low'} className={`filter-chip ${activeSev === 'low' ? 'is-active' : ''}`} onClick={() => setActiveSev('low')}>
+              <span className="dot" style={{ background: 'var(--ink-3)' }} />Nhẹ
+            </button>
+          </>
+        )}
+        actions={(
+          <button className="btn btn--secondary btn--sm" onClick={() => setSortDesc(!sortDesc)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" />
+            </svg>
+            {sortDesc ? 'Cao → thấp' : 'Thấp → cao'}
+          </button>
+        )}
+      />
 
       {/* ── Content ─────────────────────────────────────────────── */}
       {isLoading ? (

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { PageHeader } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { AssetIcon } from '../components/AssetIcon';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -181,15 +182,25 @@ export default function ConfigPage() {
         description="Quản lý định mức, quy tắc tính toán, người dùng & tích hợp hệ thống"
       />
 
-      <div className="config-search-toolbar">
-        <div className="config-search-field">
-          <label htmlFor="config-search" className="sr-only">Tìm cấu hình</label>
-          <Search size={15} aria-hidden="true" />
-          <input id="config-search" type="search" className="input" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Tìm cấu hình theo tên hoặc chức năng" />
-        </div>
-        <span className="config-search-count" aria-live="polite">{filteredCards.length} mục</span>
-        {searchQuery && <button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearchQuery('')}>Xóa tìm kiếm</button>}
-      </div>
+      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+          declares no toolbar markup, no search shell and no width of its own.
+          The match count keeps its own `aria-live` slot as the bar's status. */}
+      <ListFilterBar
+        search={{
+          value: searchQuery,
+          onChange: setSearchQuery,
+          placeholder: 'Tìm cấu hình theo tên hoặc chức năng',
+          ariaLabel: 'Tìm cấu hình',
+          // Keep the native search role (`searchbox`): the slot spreads
+          // `inputProps` last and globals.css hides the UA clear button, so the
+          // field stays byte-for-byte the control this page always rendered.
+          inputProps: { type: 'search' },
+        }}
+        status={<span className="config-search-count" aria-live="polite">{filteredCards.length} mục</span>}
+        actions={searchQuery ? (
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearchQuery('')}>Xóa tìm kiếm</button>
+        ) : undefined}
+      />
       {failedQueries.length > 0 && <div className="config-read-error" role="alert">
         <span>Một số thông tin tổng hợp chưa tải được. Bạn vẫn có thể mở các mục bên dưới.</span>
         <button type="button" className="btn btn--secondary btn--sm" disabled={retrying} onClick={() => { void Promise.all(failedQueries.map(query => query.refetch())); }}>{retrying ? 'Đang thử lại…' : 'Thử lại'}</button>

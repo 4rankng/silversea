@@ -130,23 +130,31 @@ describe('CustomersPage server-side sort headers', () => {
   });
 });
 
-describe('customers chief strip + grid (card 20260926_60)', () => {
+describe('customers command strip + grid (card 20260927_152)', () => {
   const css = readFileSync(resolve(process.cwd(), 'src/pages/CustomersPage.css'), 'utf8');
   const tsx = readFileSync(resolve(process.cwd(), 'src/pages/CustomersPage.tsx'), 'utf8');
+  const plane = readFileSync(resolve(process.cwd(), 'src/features/customers/CustomerFilters.tsx'), 'utf8');
 
-  it('command strip replaces the metric-card band: pills in row 1, filters in row 2', () => {
+  it('the strip is the shared ListFilterBar plane, not a page-local command strip', () => {
     expect(tsx).not.toContain('<SummaryRail');
-    expect(tsx).toContain('customers-strip__row1');
-    expect(tsx).toContain('customers-strip__row2');
-    expect(tsx).toContain('Top 4 KH chiếm');
+    // The plane is extracted (the page sits on a hard line ceiling) and it
+    // renders the shared bar; the page-local strip box, its row1/row2 split and
+    // its own search shell are deleted.
+    expect(tsx).toContain('<CustomerFilters');
+    expect(plane).toContain('ListFilterBar');
+    expect(plane).toContain('Top 4 KH chiếm');
     expect(tsx).not.toContain('Rủi ro cao');
+    expect(tsx).not.toContain('customers-strip__row');
+    expect(tsx).not.toContain('customers-strip__search');
+    expect(css).not.toMatch(/\.customers-strip__row[12]\s*\{/);
+    expect(css).not.toMatch(/\.customers-strip__search/);
   });
 
   it('grid: fixed spec columns over 38px striped rows, stacked contact, copyable phone', () => {
     expect(css).toMatch(/\.customers-code-cell\s*\{[^}]*font-family:\s*var\(--font-data\)/);
     // The strip status group is the shared boxed Tabs primitive (one group
     // shape app-wide, operator ruling 2026-09-27) — no page-local tab CSS.
-    expect(tsx).toMatch(/<Tabs[\s\S]*variant="boxed"[\s\S]*ariaLabel="Lọc theo trạng thái khách hàng"/);
+    expect(plane).toMatch(/<Tabs[\s\S]*variant="boxed"[\s\S]*ariaLabel="Lọc theo trạng thái khách hàng"/);
     expect(css).not.toMatch(/\.customers-strip__tab/);
     expect(css).toMatch(/\.customers-contact-stack\s*\{[^}]*display:\s*grid/);
     expect(css).toMatch(/\.customers-copy-phone/);
@@ -156,6 +164,7 @@ describe('customers chief strip + grid (card 20260926_60)', () => {
   it('search keeps the working shortcut handler without printing it', () => {
     // CHIEF 2026-09-27: the hotkey works but stays invisible.
     expect(tsx).not.toContain('customers-strip__kbd');
+    expect(plane).not.toContain('customers-strip__kbd');
     expect(tsx).toMatch(/event\.metaKey \|\| event\.ctrlKey/);
   });
 });

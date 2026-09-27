@@ -3,9 +3,10 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
-import { useConfirm } from '../../components/UI';
+import { PageHeader, useConfirm } from '../../components/UI';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
@@ -48,7 +49,7 @@ export default function RoutesConfigPage() {
   const searchRef = useRef<HTMLInputElement | null>(null);
   const hasActiveFilters = Boolean(search.trim());
 
-  // ⌘K / Ctrl+K focuses the route search (badge on the search shell).
+  // ⌘K / Ctrl+K focuses the route search inside the shared bar's search cell.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -91,29 +92,33 @@ export default function RoutesConfigPage() {
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
-      <div className="routes-strip" role="banner">
-        <button type="button" className="routes-strip__back" aria-label="Quay lại" onClick={handleBack}>
-          <ArrowLeft size={16} />
-        </button>
-        <h1 className="routes-strip__title">Tuyến đường <span className="routes-title-count">({totalCount})</span></h1>
-        <div className="routes-strip__search">
-          <Search size={14} aria-hidden="true" />
-          <input
-            ref={searchRef}
-            type="text"
-            aria-label="Tìm tuyến đường"
-            placeholder="Tìm mã, tên tuyến…"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-        {hasActiveFilters && (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSearch('')}>
-            <RotateCcw size={13} /> Xóa lọc
-          </button>
+      {/* Page chrome is the shared `PageHeader`; the strip itself IS the shared
+          `ListFilterBar` (card 20260927_152) — the page declares no bar markup,
+          no search shell and no spacer of its own, and its actions (the reset
+          and the create CTA) ride the plane's own action cluster. */}
+      <PageHeader
+        title={<>Tuyến đường <span className="routes-title-count">({totalCount})</span></>}
+        onBack={handleBack}
+      />
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Tìm mã, tên tuyến…',
+          ariaLabel: 'Tìm tuyến đường',
+          inputRef: searchRef,
+        }}
+        actions={(
+          <>
+            {hasActiveFilters && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSearch('')}>
+                <RotateCcw size={13} /> Xóa lọc
+              </button>
+            )}
+            <button className="btn btn--primary btn--sm" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
+          </>
         )}
-        <button className="btn btn--primary routes-strip__add" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
-      </div>
+      />
 
       <RouteFormModal
         isOpen={crud.showAddForm || crud.editingId != null}

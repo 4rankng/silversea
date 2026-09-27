@@ -129,13 +129,18 @@ describe('UI-CD-09 catalog query whitespace', () => {
   });
 });
 
-describe('ListFilterBar adoption (card 20260922_38)', () => {
-  it('search lives in the chief-strip header row (ListFilterBar superseded by card 20260926_59)', async () => {
+describe('ListFilterBar adoption (card 20260927_152)', () => {
+  it('search lives in the shared ListFilterBar, never in a page-local strip', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
-    expect(container.querySelector('.routes-strip__search input')).not.toBeNull();
+    const bar = container.querySelector('.list-filter-bar');
+    expect(bar).not.toBeNull();
+    expect(bar?.querySelector('.filter-bar__search input')).not.toBeNull();
+    // The chief strip (card 20260926_59) and its search shell are deleted: the
+    // page declares no bar markup and no control width of its own.
+    expect(container.querySelector('.routes-strip')).toBeNull();
     expect(container.querySelector('.toolbar__search')).toBeNull();
-    screen.getByRole('textbox', { name: 'Tìm tuyến đường' });
+    expect(screen.getByRole('textbox', { name: 'Tìm tuyến đường' })).toBeInTheDocument();
   });
 
   it('routes the empty face through the shared EmptyState', async () => {
@@ -174,12 +179,13 @@ describe('RoutesConfigPage chief table spec (20260926_53)', () => {
     expect(screen.queryByRole('button', { name: /Tùy chọn/ })).toBeNull();
   });
 
-  it('title carries the live route count and the strip search prints no shortcut text', async () => {
+  it('title carries the live route count and the strip prints no shortcut text', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
-    expect(container.querySelector('.routes-strip__title')?.textContent).toContain('(2)');
+    expect(container.querySelector('.routes-title-count')?.textContent).toContain('(2)');
     // CHIEF 2026-09-27: no control prints shortcut key text.
     expect(container.querySelector('.routes-strip__kbd')).toBeNull();
+    expect(container.querySelector('.filter-bar__kbd')).toBeNull();
   });
 });
 
@@ -211,12 +217,14 @@ describe('routes true grid (card 20260926_59 — chief bounce)', () => {
     expect(css).toMatch(/tbody tr:nth-child\(even\)/);
   });
 
-  it('one header row: back + count + search + create', () => {
-    expect(tsx).toContain('routes-strip__back');
+  it('header is the shared PageHeader and the strip is the shared ListFilterBar', () => {
+    // Card 20260927_152: the page-local 36px strip (with its own search shell)
+    // is deleted — header chrome is PageHeader, the plane is ListFilterBar.
+    expect(tsx).not.toContain('routes-strip');
+    expect(tsx).toContain('<PageHeader');
+    expect(tsx).toContain('ListFilterBar');
     expect(tsx).toContain('routes-title-count');
-    expect(tsx).not.toContain('routes-strip__kbd');
     expect(tsx).toContain('Thêm tuyến');
-    expect(tsx).not.toContain('ListFilterBar');
     // the month-picker law keeps the navigator off config routes
     expect(topbar).toMatch(/config\|fleet/);
   });

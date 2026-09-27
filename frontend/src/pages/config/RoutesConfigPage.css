@@ -57,7 +57,6 @@
   color: var(--fg-3);
   margin-left: 2px;
 }
-.routes-config-page .filter-bar__search { min-width: 280px; max-width: 320px; }
 
 /* The row's identity is its name. Optional empty facts remain in the edit
    form, without forcing an empty label/value block into each narrow record. */
@@ -135,62 +134,8 @@
 .routes-config-page .routes-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--ink) 2%, transparent); }
 .routes-config-page .routes-table tbody td { padding-block: 6px; }
 
-/* ── Card 20260926_59 — single 36px header row: back + title(count) +
-   search 280 with ⌘K badge + conditional reset + create action. ── */
-.routes-strip {
-  display: flex;
-  align-items: center;
-  gap: 10px 14px;
-  min-height: 36px;
-  flex-wrap: wrap;
-}
-
-.routes-strip__back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--fg-2);
-  cursor: pointer;
-}
-
-.routes-strip__title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-}
-
-.routes-strip__search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 280px;
-  max-width: 100%;
-  height: var(--filter-control-h, 32px);
-  background: var(--surface);
-  border: 1px solid var(--control-border, var(--line));
-  border-radius: 8px;
-}
-
-.routes-strip__search svg { position: absolute; left: 10px; color: var(--fg-3); pointer-events: none; }
-
-.routes-strip__search input {
-  width: 100%;
-  height: 100%;
-  padding: 0 44px 0 30px;
-  border: 0;
-  background: none;
-  font-size: var(--text-control-size, 13px);
-  color: var(--ink);
-  outline: none;
-}
-
-
-.routes-strip__add { margin-left: auto; }
+/* The single 36px header row (back + title(count) + search 280 + conditional
+   reset + create action) is retired with card 20260927_152: the header is the
+   shared `PageHeader` and the strip is the shared `ListFilterBar`, so the page
+   declares no header row, no search shell and no control width of its own. */
 

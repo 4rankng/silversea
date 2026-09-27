@@ -2,8 +2,10 @@
  * Config sub-page scoped polish — shared elegance pass (2026-06-03)
  *
  * All rules under .cfg-page so changes only affect /config/* surfaces.
- * Tightens table density (sparse single-line rows) and unifies the toolbar,
- * empty state, and inline meta pill treatment across CrudTable-based pages.
+ * Tightens table density (sparse single-line rows) and unifies the empty
+ * state and inline meta pill treatment across CrudTable-based pages. The
+ * catalogue toolbar is NOT here: the strip is the shared `ListFilterBar`
+ * (card 20260927_152), so this sheet declares no filter layout or width.
  * ========================================================================== */
 
 /* Two-word numeric headers ("Chuyến 09/26", "Doanh thu 09/26") are narrower
@@ -42,13 +44,11 @@
 .cfg-page .tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 
 /* ── Toolbar refinement: tighter, no border separation under it ── */
-.cfg-page .toolbar {
-  padding: 14px 20px 6px;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-}
-.cfg-page .toolbar > div:first-child:empty { display: none; }
+/* Card 20260927_152: the `.cfg-page .toolbar` block is deleted with the shell's
+   hand-rolled row — the catalogue strip is the shared `ListFilterBar` card
+   above the table panel now, and the bar owns its own padding, gap and row
+   budget. `.cfg-page .toolbar` had exactly one renderer (CrudTable), so no
+   surface is left unskinned. */
 
 /* Touch-target extension for the shared sort-header buttons: the visual
    stays at the header's density contract, but the hit area meets the 44px
@@ -63,7 +63,8 @@
   inset: -7px 0;
 }
 
-/* Inline meta summary that lives in the toolbar (replaces ad-hoc inline styles) */
+/* Inline meta summary that rides the filter bar's `status` slot (replaces
+   ad-hoc inline styles) */
 .cfg-page__summary {
   font-size: var(--text-caption-size);
   color: var(--ink-3);
@@ -470,7 +471,6 @@
 @media (max-width: 1400px) {
   .cfg-page .tt-table thead th { padding: 11px 12px; }
   .cfg-page .tt-table tbody td { padding: 12px 12px; }
-  .cfg-page .toolbar { padding: 12px 14px 4px; gap: 8px; }
   .cfg-page__summary { font-size: var(--text-caption-size); }
   .cfg-page .table-scroll { overflow: visible; }
 
@@ -1301,14 +1301,12 @@
   .factories-table td[data-label='Chi tiết']::before { display: none; }
   .factories-table tbody tr td::before { text-transform: none; letter-spacing: 0; font-size: var(--text-label-size); }
 }
-.cfg-page .cfg-catalogue-search { flex: 1 1 180px; min-width: 0; max-width: 360px; }
-.cfg-page .cfg-catalogue-search .input { width: 100%; }
-.cfg-page .cfg-catalogue-summary { flex: 1 1 auto; min-width: 0; }
+/* Card 20260927_152: the shell's `.cfg-catalogue-search` cell, its 360px cap
+   and the `.cfg-catalogue-summary` growth are deleted — the search is the bar's
+   own `search` slot (its 300px ceiling) and the counter is the bar's `status`
+   node, so no page rule sizes either one. */
 .cfg-page .cfg-catalogue-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 8px; color: var(--ink-2); }
 @media (max-width: 640px) {
-  .cfg-page .toolbar:has(.cfg-catalogue-search) { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 8px; gap: 6px 8px; }
-  .cfg-page .cfg-catalogue-search { max-width: none; flex-basis: calc(100% - 96px); }
-  .cfg-page .cfg-catalogue-summary { order: 3; grid-column: 1 / -1; }
   .cfg-page--fuel-price-periods .record-table tbody td[data-label='STT'] { display: none; }
   .cfg-page--fuel-price-periods .record-table tbody td { text-align: left; }
   .cfg-page--fuel-price-periods .record-table tbody td[data-label='Ghi chú'] { grid-column: 1 / -1; }
