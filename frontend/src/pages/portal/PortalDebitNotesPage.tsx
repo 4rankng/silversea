@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, FileSpreadsheet, FileText, Printer, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Printer, TriangleAlert } from 'lucide-react';
 import type { BillingDocument } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
@@ -178,7 +178,7 @@ export default function PortalDebitNotesPage() {
             <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
             <strong>0 chứng từ</strong>
           </div>
-          <EmptyState icon={FileText} title="Chưa có giấy báo nợ" description="Giấy báo nợ đã phát hành sẽ xuất hiện tại đây." />
+          <EmptyState context="debts" title="Chưa có giấy báo nợ" description="Giấy báo nợ đã phát hành sẽ xuất hiện tại đây." />
         </div>
       ) : (
         <div className="portal-panel">

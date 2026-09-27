@@ -142,7 +142,7 @@ export default function DriverPayslipsPage() {
       <EmptyState
         role="alert"
         variant="compact"
-        icon={AlertTriangle}
+        context="salary"
         title={error}
         description="Hệ thống tạm thời không phản hồi."
         action={<button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
@@ -159,7 +159,7 @@ export default function DriverPayslipsPage() {
       <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <EmptyState
         variant="compact"
-        context="trips"
+        context="salary"
         title="Chưa có kỳ lương nào"
         description="Bảng lương sẽ xuất hiện ở đây khi kế toán chốt kỳ."
       />

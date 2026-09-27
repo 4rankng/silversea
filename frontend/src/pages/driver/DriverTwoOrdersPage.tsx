@@ -98,7 +98,7 @@ export default function DriverTwoOrdersPage() {
       <EmptyState
         role="alert"
         variant="compact"
-        icon={AlertTriangle}
+        context="driver-tasks"
         title={error}
         description="Hệ thống tạm thời không phản hồi."
         action={<button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
@@ -122,7 +122,7 @@ export default function DriverTwoOrdersPage() {
       <PageHeader title={pageTitle} description={pageDescription} />
       <EmptyState
         variant="compact"
-        context="trips"
+        context="driver-tasks"
         title="Hôm nay không có lệnh"
         description="Bạn chưa được phân công lệnh nào cho hôm nay."
       />
@@ -201,7 +201,7 @@ export default function DriverTwoOrdersPage() {
               <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
             ) : (
               <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
-                Chưa có lệnh nào đang chạy.
+                <EmptyState variant="compact" context="driver-tasks" title="Chưa có lệnh nào đang chạy." />
               </div>
             )}
 
@@ -209,7 +209,7 @@ export default function DriverTwoOrdersPage() {
               <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
             ) : (
               <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
-                Không có lệnh tiếp theo.
+                <EmptyState variant="compact" context="driver-tasks" title="Không có lệnh tiếp theo." />
               </div>
             )}
           </>

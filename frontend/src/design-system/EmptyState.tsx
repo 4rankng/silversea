@@ -74,7 +74,20 @@ export function EmptyState({
             alt=""
             aria-hidden="true"
             className="ds-empty-state__illustration"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onError={(e) => {
+              // A missing/unreadable art file used to vanish without a trace
+              // (the deployed 403 on empty-fuel.webp made two empty states
+              // render text-only and nothing said so). Keep the art hidden —
+              // a broken-image glyph is worse — but leave machine- and
+              // human-visible evidence: `data-art-missing` is asserted by the
+              // role sweep and design-lock, and DEV logs the URL.
+              const img = e.currentTarget as HTMLImageElement;
+              img.style.display = 'none';
+              img.dataset.artMissing = 'true';
+              if (import.meta.env.DEV) {
+                console.warn(`[EmptyState] illustration not loadable: ${img.src}`);
+              }
+            }}
           />
         ) : Icon ? (
           <div className="ds-empty-state__icon" aria-hidden="true">

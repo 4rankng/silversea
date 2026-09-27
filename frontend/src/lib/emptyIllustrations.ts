@@ -28,7 +28,22 @@
 
 const BASE = '/assets/illustrations';
 
-export type EmptyCategory = 'trips' | 'fleet' | 'ops' | 'finance' | 'driver-tasks' | 'driver-documents' | 'driver-fuel' | 'driver-costs';
+export type EmptyCategory =
+  | 'trips'
+  | 'fleet'
+  | 'ops'
+  | 'finance'
+  | 'driver-tasks'
+  | 'driver-documents'
+  | 'driver-fuel'
+  | 'driver-costs'
+  // Surfaces that had no purpose-made art until 2026-09-27 (operator-provided set).
+  | 'shipments'
+  | 'no-results'
+  | 'notifications'
+  | 'wallet'
+  // Positive/cleared states (no violations, nothing owed, nothing deducted).
+  | 'cleared';
 
 export const EMPTY_ILLUSTRATIONS: Record<EmptyCategory, string> = {
   trips: `${BASE}/empty-1.png`,
@@ -40,6 +55,13 @@ export const EMPTY_ILLUSTRATIONS: Record<EmptyCategory, string> = {
   'driver-documents': `${BASE}/empty-documents.webp`,
   'driver-fuel': `${BASE}/empty-fuel.webp`,
   'driver-costs': `${BASE}/empty-costs.webp`,
+  // Operator-provided set (2026-09-27): container doors, magnifier-over-box,
+  // ringing bell, wallet with a sprout.
+  shipments: `${BASE}/empty-shipments.webp`,
+  'no-results': `${BASE}/empty-no-results.webp`,
+  notifications: `${BASE}/empty-notifications.webp`,
+  wallet: `${BASE}/empty-wallet.webp`,
+  cleared: `${BASE}/empty-approvals-cleared.webp`,
 };
 
 /**
@@ -57,6 +79,7 @@ export type EmptyContext =
   | 'fleet'
   | 'trucks'
   | 'clients'
+  | 'shipments'
   // planner / office / general operations
   | 'ops'
   | 'dispatch'
@@ -68,6 +91,8 @@ export type EmptyContext =
   | 'error'
   // finance / documents / compliance
   | 'finance'
+  | 'wallet'
+  | 'cleared'
   | 'advances'
   | 'audit'
   | 'debts'
@@ -87,6 +112,8 @@ export type EmptyContext =
   | 'forwarder-advance'
   | 'forwarder-expense'
   | 'debit-note-template'
+  // documents (driver slips, shipment documents) — one art for every document list
+  | 'documents'
   // driver task/trip empties (card 20260926_29, CHIEF-provided green set)
   | 'driver-tasks'
   | 'driver-documents'
@@ -102,26 +129,30 @@ const ART_BY_CONTEXT: Record<EmptyContext, string> = {
   fleet: EMPTY_ILLUSTRATIONS.fleet,
   trucks: EMPTY_ILLUSTRATIONS.fleet,
   clients: EMPTY_ILLUSTRATIONS.fleet,
+  shipments: EMPTY_ILLUSTRATIONS.shipments,
   ops: EMPTY_ILLUSTRATIONS.ops,
   dispatch: EMPTY_ILLUSTRATIONS.ops,
-  search: EMPTY_ILLUSTRATIONS.ops,
+  search: EMPTY_ILLUSTRATIONS['no-results'],
   users: EMPTY_ILLUSTRATIONS.ops,
   config: EMPTY_ILLUSTRATIONS.ops,
-  notifications: EMPTY_ILLUSTRATIONS.ops,
+  notifications: EMPTY_ILLUSTRATIONS.notifications,
   welcome: EMPTY_ILLUSTRATIONS.ops,
   error: EMPTY_ILLUSTRATIONS.ops,
   finance: EMPTY_ILLUSTRATIONS.finance,
-  advances: EMPTY_ILLUSTRATIONS.finance,
+  wallet: EMPTY_ILLUSTRATIONS.wallet,
+  cleared: EMPTY_ILLUSTRATIONS.cleared,
+  advances: EMPTY_ILLUSTRATIONS.wallet,
   audit: EMPTY_ILLUSTRATIONS.finance,
   debts: EMPTY_ILLUSTRATIONS.finance,
-  earnings: EMPTY_ILLUSTRATIONS.finance,
-  expenses: EMPTY_ILLUSTRATIONS.finance,
+  earnings: EMPTY_ILLUSTRATIONS.wallet,
+  expenses: EMPTY_ILLUSTRATIONS['driver-costs'],
   payables: EMPTY_ILLUSTRATIONS.finance,
   penalties: EMPTY_ILLUSTRATIONS.finance,
   'penalty-reasons': EMPTY_ILLUSTRATIONS.finance,
-  salary: EMPTY_ILLUSTRATIONS.finance,
+  salary: EMPTY_ILLUSTRATIONS.wallet,
   pie: EMPTY_ILLUSTRATIONS.finance,
   pricing: EMPTY_ILLUSTRATIONS.finance,
+  documents: EMPTY_ILLUSTRATIONS['driver-documents'],
   'driver-tasks': EMPTY_ILLUSTRATIONS['driver-tasks'],
   'driver-documents': EMPTY_ILLUSTRATIONS['driver-documents'],
   'driver-fuel': EMPTY_ILLUSTRATIONS['driver-fuel'],

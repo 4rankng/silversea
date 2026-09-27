@@ -85,6 +85,17 @@ function probePage() {
     if (fs > 0 && fs < 11) tiny.push({ el: describe(el), fs });
   }
 
+  // Missing illustration art: `EmptyState` hides an img it cannot load and
+  // marks it `data-art-missing` — a deploy that ships an unreadable/absent
+  // asset then renders text-only empty states and NOTHING said so (the
+  // 2026-09-27 staging 403 on empty-fuel.webp). Any broken illustration is a
+  // finding in every environment, not just the one the operator happened to
+  // look at.
+  const brokenArt = [...document.querySelectorAll('img')]
+    .filter((img) => (img.getAttribute('src') || '').includes('/assets/illustrations/'))
+    .filter((img) => img.dataset.artMissing === 'true' || img.naturalWidth === 0)
+    .map((img) => (img.getAttribute('src') || '').slice(-48));
+
   const appBody = document.querySelector('.app-body, .app-main, main');
   return {
     url: location.pathname + location.search,
@@ -99,6 +110,8 @@ function probePage() {
     smallCount: small.length,
     tiny: tiny.slice(0, 12),
     tinyCount: tiny.length,
+    brokenArt: brokenArt.slice(0, 10),
+    brokenArtCount: brokenArt.length,
   };
 }
 
@@ -244,7 +257,7 @@ for (const role of ROLES) {
       }
       void page;
       report[role].pages.push({ width, path, ...probe, netErrors: [...new Set(errors)].slice(0, 5) });
-      process.stderr.write(`${role} ${width} ${path} ovf=${probe.horizontalOverflow} clip=${probe.clippedCount} small=${probe.smallCount} tiny=${probe.tinyCount} err=${[...new Set(errors)].length} h=${probe.docHeight}\n`);
+      process.stderr.write(`${role} ${width} ${path} ovf=${probe.horizontalOverflow} clip=${probe.clippedCount} small=${probe.smallCount} tiny=${probe.tinyCount} err=${[...new Set(errors)].length} art=${probe.brokenArtCount} h=${probe.docHeight}\n`);
 
       if (DETAILS) {
         // The nav only reaches list roots; half the surface area is the record

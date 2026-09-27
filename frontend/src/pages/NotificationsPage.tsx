@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, BellOff, CheckCheck, Loader2 } from 'lucide-react';
+import { CheckCheck, Loader2 } from 'lucide-react';
 import {
   useInfiniteNotifications,
   useMarkAsRead,
@@ -11,6 +11,7 @@ import { resolveNotificationRoute } from '../lib/notificationClient';
 import { notificationDisplayMessage } from '../lib/notificationText';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification } from '@tingting/shared';
+import { EmptyState } from '../design-system';
 import './NotificationsPage.css';
 
 function timeAgo(iso: string): string {
@@ -97,23 +98,24 @@ export default function NotificationsPage() {
             <p>Đang tải thông báo…</p>
           </div>
         ) : error && allItems.length === 0 ? (
-          <div className="notif-page__state notif-page__state--error" role="alert">
-            <BellOff size={28} />
-            <p>Không thể tải thông báo.</p>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={() => void refetch()}
-              disabled={isFetching}
-            >
-              Thử lại
-            </button>
-          </div>
+          <EmptyState
+            variant="compact"
+            role="alert"
+            context="error"
+            title="Không thể tải thông báo."
+            action={
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+              >
+                Thử lại
+              </button>
+            }
+          />
         ) : allItems.length === 0 ? (
-          <div className="notif-page__state">
-            <Bell size={28} />
-            <p>Chưa có thông báo nào.</p>
-          </div>
+          <EmptyState variant="compact" context="notifications" title="Chưa có thông báo nào." />
         ) : (
           <>
             {error && !isFetchNextPageError && (

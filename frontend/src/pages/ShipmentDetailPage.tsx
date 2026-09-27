@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, FileText, FileCheck2, Container, History,
+  ArrowLeft, FileText, FileCheck2, Container, History,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
@@ -114,7 +114,7 @@ export default function ShipmentDetailPage() {
       <div className="shipment-detail" ref={rootRef}>
         <Breadcrumbs items={[{ label: 'Lô hàng', to: '/shipments' }, { label: 'Chi tiết' }]} />
         <EmptyState
-          icon={Package}
+          context="search"
           title={error ?? 'Không có dữ liệu'}
           description={error?.includes('Không tìm thấy')
             ? 'Lô hàng có thể đã bị xóa hoặc không tồn tại.'
@@ -253,7 +253,7 @@ export default function ShipmentDetailPage() {
             <Container size={16} /> Containers ({containers.length})
           </h3>
           {containers.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có container nào.</p>
+            <EmptyState variant="compact" context="shipments" title="Chưa có container nào." />
           ) : (
             <table className="shipment-detail__table">
               <thead>
@@ -309,7 +309,7 @@ export default function ShipmentDetailPage() {
             <FileText size={16} /> Tài liệu ({documents.length})
           </h3>
           {documents.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có tài liệu nào.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có tài liệu nào." />
           ) : (
             <ul className="shipment-detail__docs">
               {documents.map((d) => (
@@ -330,7 +330,7 @@ export default function ShipmentDetailPage() {
             <FileCheck2 size={16} /> Tờ khai hải quan ({declarations.length})
           </h3>
           {declarations.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có tờ khai nào.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có tờ khai nào." />
           ) : (
             <ul className="shipment-detail__decls">
               {declarations.map((d) => (
@@ -352,7 +352,7 @@ export default function ShipmentDetailPage() {
             <History size={16} /> Lịch sử trạng thái ({statusHistory.length})
           </h3>
           {statusHistory.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có lịch sử trạng thái.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có lịch sử trạng thái." />
           ) : (
             <ol className="shipment-detail__timeline">
               {statusHistory.map((h) => (

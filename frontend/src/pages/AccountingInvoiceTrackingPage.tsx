@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, FileSearch, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Download, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 import {
   INVOICE_TRACKING_PROGRESS,
   INVOICE_TRACKING_PROGRESS_LABELS,
@@ -271,7 +271,7 @@ export default function AccountingInvoiceTrackingPage() {
               <tr><td colSpan={colCount} className="invoice-tracking-empty">
                 <EmptyState
                   variant="compact"
-                  icon={FileSearch}
+                  context="finance"
                   title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
                   description={hasActiveFilters ? undefined : 'Thêm chi phí lô hàng để bắt đầu theo dõi.'}
                   action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button> : undefined}
@@ -282,7 +282,7 @@ export default function AccountingInvoiceTrackingPage() {
               <tr><td colSpan={colCount} className="invoice-tracking-empty">
                 <EmptyState
                   variant="compact"
-                  icon={FileSearch}
+                  context="finance"
                   title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
                   description="Không dòng nào khớp bộ lọc hiện tại."
                   action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button>}

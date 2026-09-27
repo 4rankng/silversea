@@ -5,7 +5,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { getModernRole } from '../../lib/role-helpers';
 import {
   AlertCircle,
-  FileCheck2,
   FileText,
   RefreshCw,
   Scale,
@@ -335,7 +334,7 @@ export function RecoverableCostsWorkspace() {
         </div>
       ) : !error && data?.items.length === 0 ? (
         <EmptyState
-          icon={FileCheck2}
+          context="expenses"
           title="Không có chi phí phù hợp"
           description={status ? 'Xóa hoặc thay đổi bộ lọc để xem các khoản chi phí khác.' : 'Các khoản chi phí cần kiểm tra sẽ xuất hiện tại đây.'}
         />

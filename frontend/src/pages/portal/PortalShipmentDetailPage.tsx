@@ -136,7 +136,7 @@ export default function PortalShipmentDetailPage() {
   if (error || !data) return (
     <div className="portal-page">
       <Link to={returnListHref} className="portal-back"><ArrowLeft size={16} /> Quay lại danh sách</Link>
-      <div role="alert"><EmptyState title={error ?? 'Không có dữ liệu'} action={<button type="button" className="portal-button" onClick={() => setRetryKey((current) => current + 1)}>Thử lại</button>} /></div>
+      <div role="alert"><EmptyState context="error" title={error ?? 'Không có dữ liệu'} action={<button type="button" className="portal-button" onClick={() => setRetryKey((current) => current + 1)}>Thử lại</button>} /></div>
     </div>
   );
 

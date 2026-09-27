@@ -62,7 +62,7 @@ export default function DriverEarningsPage() {
       <EmptyState
         role="alert"
         variant="compact"
-        icon={AlertTriangle}
+        context="earnings"
         title={error}
         action={<button
           type="button"
@@ -263,15 +263,20 @@ export default function DriverEarningsPage() {
           {!penaltiesError && <span className="earnings-penalties-panel__count">{penalties.length} khoản khấu trừ</span>}
         </div>
         {penaltiesError ? (
-          <div className="earnings-penalties-empty" role="alert">
-            <p>Không thể tải lịch sử khấu trừ</p>
-            <button type="button" className="btn btn--secondary btn--sm" aria-label="Thử lại lịch sử khấu trừ" disabled={penaltiesFetching} onClick={() => void refetchPenalties()}>
-              Thử lại
-            </button>
+          <div className="earnings-penalties-empty">
+            <EmptyState
+              role="alert"
+              variant="compact"
+              context="error"
+              title="Không thể tải lịch sử khấu trừ"
+              action={<button type="button" className="btn btn--secondary btn--sm" aria-label="Thử lại lịch sử khấu trừ" disabled={penaltiesFetching} onClick={() => void refetchPenalties()}>
+                Thử lại
+              </button>}
+            />
           </div>
         ) : penalties.length === 0 ? (
           <div className="earnings-penalties-empty">
-            <EmptyState variant="compact" context="earnings" title="Chưa có khoản khấu trừ nào" />
+            <EmptyState variant="compact" context="cleared" title="Chưa có khoản khấu trừ nào" />
           </div>
         ) : (
           penalties.map((p) => (

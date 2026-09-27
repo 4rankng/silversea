@@ -11,6 +11,14 @@
 const WIDTHS = [390, 768];
 
 export default [
+  {
+    id: 'my-trips/phone/no-broken-art',
+    role: 'laixe',
+    path: '/my-trips',
+    width: 390,
+    kind: 'noBrokenArt',
+    note: 'the deployed empty states rendered text-only because empty-fuel/costs.webp returned 403 (unreadable on the host) while the code was correct — an unloadable illustration must fail a measurement, not just look plainer',
+  },
   ...WIDTHS.flatMap((width) => ([
     {
       id: `/shipments-detail/w${width}/no-page-overflow`,

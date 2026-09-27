@@ -112,7 +112,7 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
         Mức tiền là mặc định sửa được (TẠM — khách sẽ báo số chốt sau); ô trống = chờ khách hoặc nhập tay theo lô.
       </p>
       {rows.length === 0 && !dirty ? (
-        <EmptyState context="trips" title="Chưa có dòng chi phí nào cho khách này." />
+        <EmptyState context="pricing" title="Chưa có dòng chi phí nào cho khách này." />
       ) : (
         <table className="tt-table quotation-fees__table">
           <thead>

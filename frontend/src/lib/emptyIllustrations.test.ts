@@ -5,8 +5,8 @@ const BASE = '/assets/illustrations';
 
 /**
  * The complete context -> art mapping contract (card 20260922_40, docs §6).
- * Every `EmptyContext` appears exactly once: this table is the parity record
- * proving each surface keeps the art it renders today. `Record<EmptyContext,
+ * Every `EmptyContext` used below appears exactly once: this table is the parity
+ * record proving each surface keeps the art it renders today. `Record<EmptyContext,
  * string>` in the module makes the union complete at compile time; this test
  * pins the values, the legacy normalization, and the passthrough contract.
  */
@@ -20,26 +20,31 @@ const EXPECTED: Array<[EmptyContext, string]> = [
   ['fleet', `${BASE}/empty-2.png`],
   ['trucks', `${BASE}/empty-2.png`],
   ['clients', `${BASE}/empty-2.png`],
+  ['shipments', `${BASE}/empty-shipments.webp`],
+  // operator-provided set (2026-09-27)
   // shared set — ops (empty-3.png)
   ['ops', `${BASE}/empty-3.png`],
   ['dispatch', `${BASE}/empty-3.png`],
-  ['search', `${BASE}/empty-3.png`],
+  ['search', `${BASE}/empty-no-results.webp`],
   ['users', `${BASE}/empty-3.png`],
   ['config', `${BASE}/empty-3.png`],
-  ['notifications', `${BASE}/empty-3.png`],
+  ['notifications', `${BASE}/empty-notifications.webp`],
   ['welcome', `${BASE}/empty-3.png`],
   ['error', `${BASE}/empty-3.png`],
   // shared set — finance (empty-4.png)
   ['finance', `${BASE}/empty-4.png`],
-  ['advances', `${BASE}/empty-4.png`],
+  ['wallet', `${BASE}/empty-wallet.webp`],
+  ['cleared', `${BASE}/empty-approvals-cleared.webp`],
+  ['advances', `${BASE}/empty-wallet.webp`],
   ['audit', `${BASE}/empty-4.png`],
   ['debts', `${BASE}/empty-4.png`],
-  ['earnings', `${BASE}/empty-4.png`],
-  ['expenses', `${BASE}/empty-4.png`],
+  ['earnings', `${BASE}/empty-wallet.webp`],
+  ['expenses', `${BASE}/empty-costs.webp`],
   ['payables', `${BASE}/empty-4.png`],
   ['penalties', `${BASE}/empty-4.png`],
   ['penalty-reasons', `${BASE}/empty-4.png`],
-  ['salary', `${BASE}/empty-4.png`],
+  ['salary', `${BASE}/empty-wallet.webp`],
+  ['documents', `${BASE}/empty-documents.webp`],
   ['pie', `${BASE}/empty-4.png`],
   ['pricing', `${BASE}/empty-4.png`],
   // pre-existing bespoke art slots (byte-identical for visual parity)
@@ -53,8 +58,8 @@ const EXPECTED: Array<[EmptyContext, string]> = [
 ];
 
 describe('resolveEmptyIllustration', () => {
-  it('maps all 34 typed context keys to their expected art, deterministically', () => {
-    expect(EXPECTED).toHaveLength(34);
+  it('maps all 38 typed context keys to their expected art, deterministically', () => {
+    expect(EXPECTED).toHaveLength(38);
     const keys = EXPECTED.map(([key]) => key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const [context, art] of EXPECTED) {

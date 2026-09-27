@@ -115,7 +115,7 @@ export default function ForwarderSettlementsPage() {
     <div className="fset-page">
       <PageHeader title="Phiếu thanh toán" description="Thanh toán tạm ứng" iconName="settlement" />
       <div className="empty-state">
-        <p style={{ color: 'var(--danger)' }}>{error}</p>
+        <EmptyState variant="compact" context="forwarder" title={error} />
       </div>
     </div>
   );
@@ -194,7 +194,7 @@ export default function ForwarderSettlementsPage() {
       {settlements.length === 0 ? (
         <EmptyState
           className="fset-empty-state fade-up"
-          icon={FileText}
+          context="forwarder"
           title="Chưa có phiếu thanh toán"
           description="Chưa có phiếu nào trong kỳ này."
         />

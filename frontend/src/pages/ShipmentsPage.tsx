@@ -556,7 +556,7 @@ export default function ShipmentsPage() {
           <div className="cus-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải lô hàng…</div>
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            icon={Search}
+            context={hasFilters ? 'search' : 'shipments'}
             title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
             description={hasFilters ? 'Điều chỉnh hoặc xóa bộ lọc để xem lại danh sách.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
             action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFiltersUrl}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}

@@ -65,6 +65,16 @@ export default [
 | `rows` | a container lays its children out in N visual rows | `selector`, `n` |
 | `computed` | **the winning** declaration equals a value | `selector`, `prop`, `equals` |
 | `unscrolled` | an inner container does not hide its own overflow | `selector` |
+| `noBrokenArt` | no shared illustration on the page failed to load | `max` (default 0) |
+| `artShown` | at least N shared illustrations are on screen **and decoded** | `min` (default 1) |
+
+`noBrokenArt` / `artShown` are the two halves of the empty-state art promise
+(docs §6). An illustration the browser could not load is *invisible by design* —
+`EmptyState` hides it and renders text-only — so an unloadable file looks merely
+plainer in review, never broken. `noBrokenArt` catches that case; `artShown`
+catches the other one, a surface that forgot its art entirely (a text-only face
+has zero illustration images). Both are measured on a page that is reliably
+empty, otherwise the lock is vacuous.
 
 `computed` is the specificity-proof kind: it asks the browser for the value
 that actually won, not the value some rule in the file declares. Use it for

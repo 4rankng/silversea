@@ -84,7 +84,7 @@ export default function DriverPenaltyPage() {
       <EmptyState
         role="alert"
         variant="compact"
-        icon={AlertTriangle}
+        context="error"
         title="Không thể tải biên bản vi phạm"
         action={<button
           type="button"
@@ -201,22 +201,22 @@ export default function DriverPenaltyPage() {
             <p className="penalty-empty-state__loading-text">Đang tải…</p>
           </div>
         ) : monthFilter && (filterPeriodError || filteredError) ? (
-          <div className="penalty-empty-state" role="alert">
-            <p className="penalty-empty-state__title">Không thể tải kỳ đã chọn</p>
-            <button type="button" className="btn btn--secondary btn--sm" onClick={() => void (filterPeriodError ? refetchFilterPeriod() : refetchFiltered())}>
+          <EmptyState
+            role="alert"
+            variant="compact"
+            context="error"
+            title="Không thể tải kỳ đã chọn"
+            action={<button type="button" className="btn btn--secondary btn--sm" onClick={() => void (filterPeriodError ? refetchFilterPeriod() : refetchFiltered())}>
               Thử lại
-            </button>
-          </div>
+            </button>}
+          />
         ) : filteredPenalties.length === 0 ? (
-          <div className="penalty-empty-state">
-            <div className="penalty-empty-state__icon">
-              <ShieldCheck size={32} />
-            </div>
-            <p className="penalty-empty-state__title">Không có biên bản vi phạm</p>
-            <p className="penalty-empty-state__desc">
-              {monthFilter ? 'Không có vi phạm trong khoảng thời gian này.' : 'Bạn chưa có biên bản vi phạm nào.'}
-            </p>
-          </div>
+          <EmptyState
+            variant="compact"
+            context="cleared"
+            title="Không có biên bản vi phạm"
+            description={monthFilter ? 'Không có vi phạm trong khoảng thời gian này.' : 'Bạn chưa có biên bản vi phạm nào.'}
+          />
         ) : (
           <div ref={listRef} className="penalty-violation-list">
             {filteredPenalties.map(p => (

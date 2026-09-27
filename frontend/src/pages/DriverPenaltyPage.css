@@ -255,26 +255,8 @@
 .penalty-empty-state > svg {
   margin-inline: auto;
 }
-.penalty-empty-state__icon {
-  display: flex;
-  justify-content: center;
-  color: var(--success);
-  margin-bottom: 12px;
-}
 .penalty-empty-state__loading-text {
   margin-top: 12px;
-}
-.penalty-empty-state__title {
-  font-size: var(--text-section-size);
-  font-weight: 600;
-  color: var(--ink);
-  margin: 0;
-  line-height: var(--lh-snug);
-}
-.penalty-empty-state__desc {
-  margin: 6px 0 0;
-  font-size: var(--text-caption-size);
-  line-height: var(--lh-normal);
 }
 
 /* ═══ ZONE 4 — Footer Note ═══ */

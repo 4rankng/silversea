@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Landmark, Printer } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { EmptyState, DateInput } from '../../design-system';
@@ -156,7 +156,7 @@ export default function PortalStatementPage() {
             </div>
           </div>
         ) : !data ? (
-          <EmptyState icon={Landmark} title="Chưa có dữ liệu sao kê" />
+          <EmptyState context="finance" title="Chưa có dữ liệu sao kê" />
         ) : (
           <>
             <div className="portal-balance-equation" aria-label={balanceEquationLabel}>
@@ -195,7 +195,7 @@ export default function PortalStatementPage() {
               </section>
             )}
             {rows.length === 0 ? (
-              <EmptyState icon={Landmark} title="Không có phát sinh trong khoảng thời gian này" />
+              <EmptyState context="finance" title="Không có phát sinh trong khoảng thời gian này" />
             ) : (
               <section className="portal-ledger" aria-labelledby="portal-ledger-title">
                 <div className="portal-ledger__heading">

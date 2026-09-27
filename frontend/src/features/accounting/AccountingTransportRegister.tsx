@@ -202,6 +202,7 @@ export function AccountingTransportRegister({
       ) : rows.length === 0 ? (
         <EmptyState
           className="accounting-register__empty"
+          context="trips"
           title="Không có chuyến phù hợp trong kỳ đã chọn"
           description="Nới rộng kỳ làm việc hoặc xóa bộ lọc để xem lại toàn bộ chuyến đủ điều kiện tài chính."
           action={

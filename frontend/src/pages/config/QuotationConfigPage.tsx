@@ -267,12 +267,12 @@ export default function QuotationConfigPage() {
             </tbody>
           </table>
           {!frames.isLoading && filteredFrames.length === 0 && (
-            <EmptyState context="trips" title="Không có báo giá khớp bộ lọc." />
+            <EmptyState context="search" title="Không có báo giá khớp bộ lọc." />
           )}
         </section>
 
         <section className="quotation-detail" aria-label="Lưới giá">
-          {selectedId == null && <EmptyState context="trips" title="Chọn một báo giá để xem lưới giá." />}
+          {selectedId == null && <EmptyState context="pricing" title="Chọn một báo giá để xem lưới giá." />}
           {selectedId != null && detail.isError && <Alert variant="error" style="soft">{String(detail.error)}</Alert>}
           {selectedId != null && detail.isLoading && <p className="quotation-status">Đang tải lưới giá…</p>}
           {detail.data && routeBlocks.map((block) => (

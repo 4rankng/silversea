@@ -127,6 +127,30 @@ function evaluateLock(lock) {
       const n = all(lock.selector).length;
       return { pass: n <= (lock.max ?? 0), actual: `${n} matches (max ${lock.max ?? 0})`, detail: all(lock.selector).slice(0, 4).map(desc) };
     }
+    case 'noBrokenArt': {
+      // An illustration the browser could not load is invisible by design
+      // (`EmptyState` hides it), so only a measurement can see it.
+      const hits = [...document.querySelectorAll('img')]
+        .filter((img) => (img.getAttribute('src') || '').includes('/assets/illustrations/'))
+        .filter((img) => img.dataset.artMissing === 'true' || img.naturalWidth === 0)
+        .map((img) => (img.getAttribute('src') || '').slice(-48));
+      return { pass: hits.length <= (lock.max ?? 0), actual: `${hits.length} illustration(s) not loadable`, detail: hits.slice(0, 6) };
+    }
+    case 'artShown': {
+      // The complement of noBrokenArt: at least `min` shared illustrations are
+      // on screen AND decoded. A page whose empty state forgot its art, or
+      // hid a broken image, has zero illustration images — so this is the lock
+      // that proves the shared art is actually being rendered.
+      const imgs = [...document.querySelectorAll('img')]
+        .filter((img) => (img.getAttribute('src') || '').includes('/assets/illustrations/'));
+      const ok = imgs.filter((img) => img.dataset.artMissing !== 'true' && img.naturalWidth > 0);
+      const min = lock.min ?? 1;
+      return {
+        pass: ok.length >= min,
+        actual: `${ok.length}/${imgs.length} illustration(s) shown (min ${min})`,
+        detail: ok.slice(0, 4).map((img) => (img.getAttribute('src') || '').slice(-48)),
+      };
+    }
     case 'visible':
       return { pass: all(lock.selector).length > 0, actual: `${all(lock.selector).length} visible` };
     case 'hidden':

@@ -6,6 +6,7 @@ import { api, fileCommandFingerprint } from '../lib/api';
 import { ExpenseEntryStatus } from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill, useConfirm } from '../components/UI';
+import { EmptyState } from '../design-system';
 import { useReasonPrompt } from '../components/reason-prompt';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { qk } from '../api/keys';
@@ -358,9 +359,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
         />
 
         {expenses.length === 0 ? (
-          <div className="fwd-expenses-empty">
-            Chưa có chi phí phát sinh nào
-          </div>
+          <EmptyState variant="compact" context="expenses" title="Chưa có chi phí phát sinh nào" />
         ) : (
           <div className="fwd-expenses-list">
             {expenseGroups.map(group => {
@@ -381,7 +380,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                     {completed ? <><RotateCcw size={15} /> Mở lại</> : <><CheckCircle2 size={15} /> Đã kê xong</>}
                   </button>
                 </div>
-                {group.expenses.length === 0 && <div className="fwd-expense-group__empty">Chưa có khoản chi nào trong nhóm này</div>}
+                {group.expenses.length === 0 && <EmptyState variant="compact" context="expenses" title="Chưa có khoản chi nào trong nhóm này" />}
                 {group.expenses.map((exp) => {
                   return (
                     <div key={exp.id}>
