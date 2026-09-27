@@ -10,7 +10,10 @@ import './Tabs.css';
  *   - DebtDetailPage.tsx (workspace tabs — owned by sibling plan, migrate later)
  *
  * Two variants cover both existing patterns:
- *   - 'boxed': pill-style container (daisyUI `d-tabs-boxed`) — good for primary navigation.
+ *   - 'boxed': THE canonical button group (operator ruling 2026-09-27: the
+ *     fleet-vehicle status group is the reference look, used "consistently
+ *     globally") — hairline container, flat white active pill, plain tone-
+ *     coloured counts.
  *   - 'bordered': underline-style (daisyUI `d-tabs-border`) — good for in-card sections.
  *   - 'plain': raw chips with active state — drop-in for Payables' category chips.
  *
@@ -27,8 +30,9 @@ export interface TabItem {
   label: ReactNode;
   /** Optional count badge (e.g. open items count). */
   count?: number;
-  /** Semantic tone of the count badge — 'warning' = amber, 'info' = info-teal. */
-  countTone?: 'warning' | 'info';
+  /** Tone of the count numeral — 'accent' = green (healthy), 'warning' =
+   *  amber (down/waiting on us), 'info' = neutral teal. */
+  countTone?: 'accent' | 'warning' | 'info';
   /** Disable this tab. */
   disabled?: boolean;
 }
@@ -40,10 +44,13 @@ export interface TabsProps {
   variant?: TabsVariant;
   /** Accessible label for the tablist. Always provide in Vietnamese. */
   ariaLabel: string;
+  /** Optional shared panel id — sets `aria-controls` on every tab (the
+   *  one-panel-per-group pattern, e.g. the work inbox queues). */
+  panelId?: string;
   className?: string;
 }
 
-export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, className }: TabsProps) {
+export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, panelId, className }: TabsProps) {
   const groupId = useId();
   const tablistRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -101,6 +108,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
             role="tab"
             id={`ds-tab-${groupId}-${t.id}`}
             aria-selected={isActive}
+            aria-controls={panelId}
             tabIndex={t.id === tabbableId ? 0 : -1}
             disabled={t.disabled}
             className={`ds-tabs__btn d-tab${isActive ? ' ds-tabs__btn--active' : ''}`}
