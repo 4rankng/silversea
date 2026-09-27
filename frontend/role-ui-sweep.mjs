@@ -23,6 +23,9 @@ const ROLES = (process.env.ROLES || 'cus,dieuvan,laixe,ops').split(',').map((r) 
 // Role label -> local-dev login (testplan/testaccounts.txt).
 const ROLE_USER = { chungtu: 'cus', cus: 'cus', dieuvan: 'dieuvan', laixe: 'laixe', ops: 'giaonhan' };
 const WIDTHS = (process.env.WIDTHS || '390,1440').split(',').map(Number);
+// Touch-capable devices: `pointer: coarse` media queries (the 44px floors, the
+// tablet bands) key off this, and a 768/1024 tablet is a touch device.
+const TOUCH_MAX = Number(process.env.TOUCH_MAX || 1024);
 
 mkdirSync(OUT, { recursive: true });
 
@@ -50,6 +53,9 @@ function probePage() {
     if (el.children.length > 0) continue;
     const text = (el.textContent || '').trim();
     if (!text || !visible(el)) continue;
+    // Visually-hidden a11y text (sr-only route announcer, live regions) is a
+    // 1-2px box by design — it is not a clipped column value.
+    if (el.clientWidth <= 2 || el.closest('.sr-only, [aria-live]')) continue;
     if (el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0) {
       const s = getComputedStyle(el);
       if (s.overflowX === 'hidden' || s.textOverflow === 'ellipsis') {
@@ -117,7 +123,16 @@ async function recordOpeners(page) {
     const name = ((await b.getAttribute('aria-label')) || (await b.textContent()) || '').trim();
     if (safeNames.test(name)) buttons.push(b);
   }
-  return [...deeper, ...buttons].slice(0, 4);
+  // Rows that open their record from a row/cell click carry no anchor and no
+  // button. A plain-text cell is a read-only target: pressing it either
+  // navigates or does nothing — it never mutates data (destructive actions are
+  // always buttons, which are excluded here).
+  const rows = [];
+  for (const td of await page.locator('main tbody tr:first-child td').all()) {
+    const hasControl = await td.locator('button, a, input, select').count();
+    if (hasControl === 0 && (await td.textContent() || '').trim()) { rows.push(td); break; }
+  }
+  return [...deeper, ...buttons, ...rows].slice(0, 4);
 }
 
 const captureCtx = { page: null, ctx: null };
@@ -189,7 +204,7 @@ for (const role of ROLES) {
     // A real phone: `pointer: coarse` + touch is what the app's 44px floors
     // and several responsive bands key off — a plain narrow desktop window
     // would hide those defects.
-    if (width < 600 && !captureCtx.mobile) {
+    if (width <= TOUCH_MAX && !captureCtx.mobile) {
       const mobileCtx = await browser.newContext({
         viewport: { width, height: 844 },
         deviceScaleFactor: 2,
@@ -202,12 +217,12 @@ for (const role of ROLES) {
       captureCtx.page = mobilePage;
       captureCtx.ctx = mobileCtx;
       captureCtx.mobile = true;
-    } else if (width >= 600 && captureCtx.mobile) {
+    } else if (width > TOUCH_MAX && captureCtx.mobile) {
       await captureCtx.ctx.close().catch(() => {});
       captureCtx.mobile = false;
       captureCtx.page = page;
     }
-    await captureCtx.page.setViewportSize({ width, height: width < 600 ? 844 : 900 });
+    await captureCtx.page.setViewportSize({ width, height: width <= TOUCH_MAX ? 844 : 900 });
     for (const path of report[role].routes) {
       const page = captureCtx.page;
       const slug = (path.replace(/^\//, '').replace(/[/?=&]/g, '_') || 'home').slice(0, 60);
