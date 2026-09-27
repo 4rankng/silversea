@@ -47,7 +47,9 @@ const TWO_ROW_FLOOR = Number(process.env.TWO_ROW_FLOOR || 560);
 const SHOTS = process.env.SHOTS !== '0';
 
 // Role -> local dev username (backend/src/seed.ts demo users).
-const ACCOUNT = { cus: 'cus', ketoan: 'ketoan', dieuvan: 'dieuvan', admin: 'admin' };
+// Seeded demo users (backend/src/seed.ts). `ops` is the forwarder/OPS role
+// (giaonhan) that owns /ops/orders, /my-advances and /my-settlements.
+const ACCOUNT = { cus: 'cus', ketoan: 'ketoan', dieuvan: 'dieuvan', admin: 'admin', ops: 'giaonhan' };
 
 /** label, route, role — the shared-bar surfaces this cutover owns. */
 const SURFACES = [
@@ -69,7 +71,9 @@ const SURFACES = [
   // plane moved onto the same strip. These carry the promise at the widths where
   // the page-local toolbar actually failed, so the sweep stays under a minute per
   // surface; `widths` overrides the global WIDTHS for the entry.
-  { label: 'trips', path: '/trips', role: 'dieuvan', widths: [1440, 1024, 768] },
+  // tripDetailOnly = ADMIN | MANAGER | ACCOUNTANT — the dispatcher is deliberately
+  // excluded from Sổ chuyến đi, so this surface audits as `ketoan`.
+  { label: 'trips', path: '/trips', role: 'ketoan', widths: [1440, 1024, 768] },
   { label: 'dispatch-detail', path: '/dispatch-detail', role: 'dieuvan', widths: [1440, 1024, 768] },
   { label: 'fleet-vehicles', path: '/fleet/vehicles', role: 'dieuvan', widths: [1440, 1024, 768] },
   { label: 'fleet-drivers', path: '/fleet/drivers', role: 'dieuvan', widths: [1440, 1024, 768] },
@@ -80,21 +84,23 @@ const SURFACES = [
   { label: 'salary', path: '/salary', role: 'ketoan', widths: [1440, 1024, 768] },
   { label: 'users', path: '/users', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'audit-logs', path: '/audit-logs', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'ops-orders', path: '/ops/orders', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'ops-orders', path: '/ops/orders', role: 'ops', widths: [1440, 1024, 768] },
   { label: 'customers', path: '/customers', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'config-routes', path: '/config/routes', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'config-ports', path: '/config/ports', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'config-factories', path: '/config/factories', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'config-penalty-reasons', path: '/config/penalty-reasons', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'admin-advance-settlements', path: '/admin/advance-settlements', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'accounting-register', path: '/accounting', role: 'ketoan', widths: [1440, 1024, 768] },
+  // `/admin/advance-settlements` is a legacy redirect to /advances, which embeds
+  // BOTH admin advance pages (`AdminAdvancesPage` / `AdminAdvanceSettlementsPage`),
+  // so the settlements plane is audited through /advances.
+  // The transport register is a view of the accounting workspace (`?view=transport`),
+  // not the workspace default.
+  { label: 'accounting-register', path: '/accounting?view=transport', role: 'ketoan', widths: [1440, 1024, 768] },
   // `/advances` mounts AdminAdvancesPage embedded; `/config` is the config home.
   { label: 'advances', path: '/advances', role: 'ketoan', widths: [1440, 1024, 768] },
   { label: 'config-home', path: '/config', role: 'admin', widths: [1440, 1024, 768] },
-  // The forwarder role may not exist in the local seed — the runner records a
-  // `redirected` skip instead of failing.
-  { label: 'my-advances', path: '/my-advances', role: 'forwarder', widths: [1440, 1024, 768] },
-  { label: 'my-settlements', path: '/my-settlements', role: 'forwarder', widths: [1440, 1024, 768] },
+  { label: 'my-advances', path: '/my-advances', role: 'ops', widths: [1440, 1024, 768] },
+  { label: 'my-settlements', path: '/my-settlements', role: 'ops', widths: [1440, 1024, 768] },
 ];
 const ROUTE_FILTER = process.env.ROUTES ? process.env.ROUTES.split(',').map((s) => s.trim()) : null;
 

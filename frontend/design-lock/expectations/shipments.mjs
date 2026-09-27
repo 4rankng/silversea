@@ -70,7 +70,7 @@ export default [
     selector: '.date-seg-group',
     min: 40,
     note: 'the group is the click-open tap target and follows the 2026-09-27 control ceiling (max 40px) — it measured 46px while a coarse pointer inflated every control, 40px after',
-  },,
+  },
   // Data-dense record card (operator 2026-09-27, screenshot of one card at ~500px:
   // "also redesign this to make it data dense card"). The card used to stack seven
   // full-width sections, each with its own label line, at 375px for a row with no
