@@ -12,6 +12,13 @@
 > sweep cards cite the sweep). A later law supersedes an earlier one and says so in its source line.
 > Unwritten does not mean unruled — when a design call is uncertain, see *Design process* below.
 
+## 0. Read order
+
+This file is the **history of rulings** (why). The **system** — what exists, which one to use for a job,
+what is banned, and which check holds it — is `docs/design-system/README.md` (tokens, controls and forms,
+data display and feedback, layout/navigation/overlays). Read the map first; come here for the reason and
+the date. A ruling row should name the test or `design-lock` entry that now enforces it.
+
 ## 1. Status and data cells
 
 - **No pill-shaped buttons.** Buttons are rectangles with a small radius (~8px); never `border-radius: 999px`.

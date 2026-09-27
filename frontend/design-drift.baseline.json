@@ -1,0 +1,56 @@
+{
+  "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
+  "measured": {
+    "scannedFiles": 179,
+    "hexDirect": 269,
+    "hexFallback": 731,
+    "radiusOffLadder": 98,
+    "rawShadow": 65,
+    "rawZIndex": 85,
+    "untokenizedTransition": 213,
+    "mediaWidthValues": 47,
+    "containerWidthValues": 21
+  },
+  "worstFiles": [
+    {
+      "file": "src/pages/config/debit-note-template-editor.css",
+      "score": 169
+    },
+    {
+      "file": "src/pages/salary-attendance/calendar.css",
+      "score": 71
+    },
+    {
+      "file": "src/pages/payables-fuel-invoices.css",
+      "score": 51
+    },
+    {
+      "file": "src/pages/portal/CustomerPortalLayout.css",
+      "score": 50
+    },
+    {
+      "file": "src/components/billing/BillingDocumentBuilder.css",
+      "score": 48
+    },
+    {
+      "file": "src/pages/DashboardPage.css",
+      "score": 46
+    },
+    {
+      "file": "src/pages/TruckTiresPage.css",
+      "score": 38
+    },
+    {
+      "file": "src/pages/salary-attendance/responsive.css",
+      "score": 35
+    },
+    {
+      "file": "src/pages/LoginPage.css",
+      "score": 30
+    },
+    {
+      "file": "src/pages/ShipmentDetailPage.css",
+      "score": 30
+    }
+  ]
+}

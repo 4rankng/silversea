@@ -33,6 +33,13 @@ if [ "$fe" -eq 1 ]; then
   # bar above, not rely on a full-suite run catching it later.
   echo "[pre-commit] structure guard (LOC ceilings)…"
   (cd "$root/frontend" && pnpm vitest run src/tests/structure.guard.test.ts) || fail=1
+  # Design-drift ratchet (operator 2026-09-27: "UI UX are all random piecemeals
+  # per page"). ~0.2s, no browser: counts raw hex / off-ladder radii / raw
+  # shadows / raw z-index / untokenized transitions / distinct breakpoints in
+  # page CSS and refuses any increase over the committed baseline. Cleaning up
+  # is free; adding a raw value must be deliberate.
+  echo "[pre-commit] design drift ratchet…"
+  (cd "$root/frontend" && node scripts/check-design-drift.mjs) || fail=1
 fi
 if [ "$be" -eq 1 ]; then
   echo "[pre-commit] typechecking backend…"
