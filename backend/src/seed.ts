@@ -976,9 +976,27 @@ async function resolveSeedReferenceIds() {
     if (r.name === 'ASKEY') ROUTE_ASKEY = r.id;
     if (r.name === 'SUNRISE+  SJ') ROUTE_SUNRISE = r.id;
   }
-  if (!SEED_PORT_IDS_BY_CODE['HPH'] || !SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Hải Phòng')] || !SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Đình Vũ')] || !SEED_PORT_IDS_BY_CODE['HICT'] || !CONTAINER_TYPE_40DC || !CONTAINER_TYPE_40HC) {
+  if (!hasHaPhongFerrySeedAnchors()) {
     throw new Error('Seed reference lookup failed: ports/container types missing — run the earlier seeders first.');
   }
+}
+
+/**
+ * The Wave-0 shipment seeding drives the Hải Phòng ferry-lane demo, so it
+ * needs all six catalog anchors resolved by the earlier seeders: the two
+ * ferry ports by code, the same two by Vietnamese name (the lookups the
+ * ferry schedules reference), the HICT port, and both 40-foot container
+ * types. Any miss means the catalog seed order changed.
+ */
+function hasHaPhongFerrySeedAnchors(): boolean {
+  return Boolean(
+    SEED_PORT_IDS_BY_CODE['HPH']
+    && SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Hải Phòng')]
+    && SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Đình Vũ')]
+    && SEED_PORT_IDS_BY_CODE['HICT']
+    && CONTAINER_TYPE_40DC
+    && CONTAINER_TYPE_40HC
+  );
 }
 
 export async function seedShipments(passwordHash: string) {
