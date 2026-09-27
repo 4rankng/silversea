@@ -57,9 +57,31 @@ export async function censusVisible(surface: QaFixtureSurface): Promise<number> 
 
 /** Referencing rows that block a guarded delete of `id`. */
 /** The referencing column may not exist on older schema versions - inert then. */
+// The catalog never changes during a purge run, so every information_schema
+// lookup memoizes — the guard and scrub loops each hit the catalog once per
+// distinct table.column instead of once per fixture row (card 20260927_147).
+const columnExistsCache = new Map<string, boolean>();
+
 async function columnExists(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`;
+  const cached = columnExistsCache.get(key);
+  if (cached !== undefined) return cached;
   const check = await rows(`SELECT 1 AS hit FROM information_schema.columns WHERE table_name = '${table}' AND column_name = '${column}'`);
-  return check.length > 0;
+  const exists = check.length > 0;
+  columnExistsCache.set(key, exists);
+  return exists;
+}
+
+const nullableCache = new Map<string, boolean>();
+
+async function columnIsNullable(table: string, column: string): Promise<boolean> {
+  const key = `${table}.${column}`;
+  const cached = nullableCache.get(key);
+  if (cached !== undefined) return cached;
+  const check = await rows(`SELECT is_nullable FROM information_schema.columns WHERE table_name = '${table}' AND column_name = '${column}'`);
+  const nullable = check[0]?.is_nullable === 'YES';
+  nullableCache.set(key, nullable);
+  return nullable;
 }
 
 async function isGuarded(surface: QaFixtureSurface, id: number): Promise<boolean> {
@@ -92,8 +114,7 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
   } else if (surface.action === 'scrub') {
     for (const column of surface.scrubColumns ?? []) {
       if (!(await columnExists(surface.table, column))) continue;
-      const nullable = await rows(`SELECT is_nullable FROM information_schema.columns WHERE table_name = '${surface.table}' AND column_name = '${column}'`);
-      const value = nullable[0]?.is_nullable === 'YES' ? 'NULL' : `'Chưa xác định'`;
+      const value = await columnIsNullable(surface.table, column) ? 'NULL' : `'Chưa xác định'`;
       const res = await rows(`UPDATE ${surface.table} SET ${column} = ${value} WHERE ${surface.predicate} RETURNING id`);
       deleted += res.length;
     }
