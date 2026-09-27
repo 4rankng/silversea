@@ -393,8 +393,11 @@
     background: var(--surface);
   }
 
-  /* Release the token one-line rule: on a card every value wraps. */
-  .invoice-tracking-table tbody td,
+  /* Release the token one-line rule: on a card every value wraps — never
+     clip. `:nth-child(n)` matches every cell and out-specifies the desktop
+     `tbody td:nth-child(N) { white-space: nowrap }` token group above, so a
+     long code widens the card line instead of painting past the edge. */
+  .invoice-tracking-table tbody td:nth-child(n),
   .invoice-tracking-table .ivt-stack > span {
     white-space: normal;
     overflow-wrap: anywhere;
