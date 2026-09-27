@@ -291,31 +291,31 @@ export default function AccountingInvoiceTrackingPage() {
             )}
             {filtered.map((row, index) => (
               <tr key={row.id}>
-                <td>{index + 1}</td>
-                <td>{formatISODate(row.expenseDate)}</td>
-                <td>
+                <td data-label="STT">{index + 1}</td>
+                <td data-label="Ngày">{formatISODate(row.expenseDate)}</td>
+                <td data-label="Thông tin lô hàng">
                   <span className="ivt-stack">
                     <span className="ivt-stack__primary">{formatBusinessRef(row.shipmentCode)}</span>
                     <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
                   </span>
                 </td>
-                <td>{formatBusinessRef(row.containerNumber)}</td>
-                <td>{formatBusinessRef(row.taxCode)}</td>
-                <td>{formatBusinessRef(row.supplierName)}</td>
-                <td>
+                <td data-label="Cont">{formatBusinessRef(row.containerNumber)}</td>
+                <td data-label="MST">{formatBusinessRef(row.taxCode)}</td>
+                <td data-label="Nhà cung cấp hđ">{formatBusinessRef(row.supplierName)}</td>
+                <td data-label="Thông tin hđ">
                   <span className="ivt-stack">
                     <span>Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
                     <span>Số tiền: {formatMoney(Number(row.invoiceAmount))} ₫</span>
                   </span>
                 </td>
-                <td>{formatMoney(Number(row.supplierPayment))} ₫</td>
-                <td>{formatBusinessRef(row.comNote)}</td>
-                <td title="Số tiền hóa đơn − Số tiền trả">
+                <td data-label="Số tiền trả">{formatMoney(Number(row.supplierPayment))} ₫</td>
+                <td data-label="COM">{formatBusinessRef(row.comNote)}</td>
+                <td data-label="Chênh lệch" title="Số tiền hóa đơn − Số tiền trả">
                   {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
                 </td>
-                <td>{formatISODate(row.invoiceSentAt)}</td>
-                <td>{formatBusinessRef(row.note)}</td>
-                <td>
+                <td data-label="Ngày gửi hđ">{formatISODate(row.invoiceSentAt)}</td>
+                <td data-label="Ghi chú">{formatBusinessRef(row.note)}</td>
+                <td data-label="Tiến độ">
                   {canWrite ? (
                     <UuiSelectField
                       wrapperClassName="invoice-tracking-progress"
@@ -331,7 +331,7 @@ export default function AccountingInvoiceTrackingPage() {
                   )}
                 </td>
                 {canWrite && (
-                  <td className="invoice-tracking-actions">
+                  <td data-label="Thao tác" className="invoice-tracking-actions">
                     <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Sửa" onClick={() => setModal({ mode: 'edit', row })}>
                       <Pencil size={14} />
                     </button>

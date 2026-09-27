@@ -96,20 +96,28 @@ const browser = await chromium.launch({
 
 const report = {};
 
-/** First row/link that opens a record page (list -> detail). */
-async function firstRecordOpener(page) {
-  const candidates = [
-    'tbody tr[data-row-key] a[href^="/"]',
-    'tbody tr a[href^="/"]',
-    'tbody tr button:visible',
-    'ul li a[href^="/"]',
-    'article a[href^="/"]',
-  ];
-  for (const sel of candidates) {
-    const loc = page.locator(sel).first();
-    if (await loc.count()) return loc;
+/** Navigable/read-only openers that lead from a list page to a record page.
+ *  Deliberately NOT "the first button in the row": row buttons open inline
+ *  editors (URL unchanged) and often include destructive actions, which a
+ *  sweep must never press on live data. Anchors whose href is deeper than the
+ *  current route, plus buttons whose visible name is a read/see verb. */
+async function recordOpeners(page) {
+  const here = new URL(page.url()).pathname.replace(/\/$/, '');
+  const anchors = await page.locator('main a[href^="/"]').all();
+  const deeper = [];
+  for (const a of anchors) {
+    const href = await a.getAttribute('href').catch(() => null);
+    if (!href) continue;
+    const path = href.split('?')[0].replace(/\/$/, '');
+    if (path !== here && path.startsWith(here + '/')) deeper.push(a);
   }
-  return null;
+  const safeNames = /^(chi tiết|xem|mở|xem chi tiết|chi tiết lô|chi tiết container)/i;
+  const buttons = [];
+  for (const b of await page.locator('main button:visible').all()) {
+    const name = ((await b.getAttribute('aria-label')) || (await b.textContent()) || '').trim();
+    if (safeNames.test(name)) buttons.push(b);
+  }
+  return [...deeper, ...buttons].slice(0, 4);
 }
 
 const captureCtx = { page: null, ctx: null };
@@ -217,25 +225,25 @@ for (const role of ROLES) {
       process.stderr.write(`${role} ${width} ${path} ovf=${probe.horizontalOverflow} clip=${probe.clippedCount} small=${probe.smallCount} tiny=${probe.tinyCount} err=${[...new Set(errors)].length} h=${probe.docHeight}\n`);
 
       if (DETAILS) {
-        // The nav only reaches list roots; the record pages behind them are
-        // half the surface area, so open the first record of each list too.
-        const opener = await firstRecordOpener(page);
-        if (opener) {
-          const before = new URL(page.url()).pathname;
+        // The nav only reaches list roots; half the surface area is the record
+        // page behind a row. Walk the safe openers until one changes the route.
+        const before = new URL(page.url()).pathname;
+        for (const opener of await recordOpeners(page)) {
           await opener.click({ timeout: 2500 }).catch(() => {});
-          await page.waitForTimeout(1100);
+          await page.waitForTimeout(1000);
           const after = new URL(page.url()).pathname;
-          if (after !== before && !after.includes('login')) {
-            const dslug = (after.replace(/^\//, '').replace(/[/?=&]/g, '_') || 'detail').slice(0, 60);
-            errors.length = 0;
-            const dprobe = await page.evaluate(probePage);
-            if (SHOT) {
-              const dir = `${OUT}/${role}`;
-              await page.screenshot({ path: `${dir}/${dslug}-${width}.png`, fullPage: FULL }).catch(() => {});
-            }
-            report[role].pages.push({ width, path: after, from: path, ...dprobe, netErrors: [...new Set(errors)].slice(0, 5) });
-            process.stderr.write(`${role} ${width} ${after} (detail) ovf=${dprobe.horizontalOverflow} clip=${dprobe.clippedCount} small=${dprobe.smallCount} err=${[...new Set(errors)].length} h=${dprobe.docHeight}\n`);
+          if (after === before || after.includes('login')) continue;
+          const dslug = (after.replace(/^\//, '').replace(/[/?=&]/g, '_') || 'detail').slice(0, 60);
+          errors.length = 0;
+          const dprobe = await page.evaluate(probePage);
+          if (SHOT) {
+            const dir = `${OUT}/${role}`;
+            await page.screenshot({ path: `${dir}/${dslug}-${width}.png`, fullPage: FULL }).catch(() => {});
           }
+          report[role].pages.push({ width, path: after, from: path, ...dprobe, netErrors: [...new Set(errors)].slice(0, 5) });
+          process.stderr.write(`${role} ${width} ${after} (detail of ${path}) ovf=${dprobe.horizontalOverflow} clip=${dprobe.clippedCount} small=${dprobe.smallCount} err=${[...new Set(errors)].length} h=${dprobe.docHeight}\n`);
+          await page.goto(`${FE}${path}`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+          break;
         }
       }
     }

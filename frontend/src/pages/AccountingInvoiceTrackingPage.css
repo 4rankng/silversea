@@ -352,3 +352,74 @@
     max-width: none;
   }
 }
+
+/* ── Card 20260927_ivt (role sweep 2026-09-27) — phone record-card mode ──
+   A 14-column register cannot hold readable columns on a phone: at 390px the
+   viewport collapsed the desktop token table so a row's values were cut at
+   the edge and MST / Nhà cung cấp hđ / Thông tin hđ / Số tiền trả / COM /
+   Chênh lệch / Ngày gửi hđ / Ghi chú / Tiến độ needed a sideways swipe.
+   Design law §4 reserves horizontal scroll for the desktop token table, so
+   below 900px of CONTAINER width the board collapses to the house labelled
+   record card (record-table.css / dispatch catalogs pattern): thead hidden,
+   one bordered card per row on --surface, every cell a block prefixed by its
+   own `data-label`, values wrapping — never clipped. Above the breakpoint the
+   token-table rail is byte-identical to the desktop layout. */
+.invoice-tracking-page .table-scroll {
+  container-type: inline-size;
+}
+
+@container (max-width: 900px) {
+  .invoice-tracking-table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Header (and with it every column floor / sticky pin) leaves the card. */
+  .invoice-tracking-table thead {
+    display: none;
+  }
+
+  .invoice-tracking-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .invoice-tracking-table tbody tr {
+    display: block;
+    padding: 4px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--app-radius-md, var(--r, 12px));
+    background: var(--surface);
+  }
+
+  /* Release the token one-line rule: on a card every value wraps. */
+  .invoice-tracking-table tbody td,
+  .invoice-tracking-table .ivt-stack > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .invoice-tracking-table tbody td {
+    display: block;
+    min-width: 0;
+    padding: 6px 14px;
+    border: 0;
+  }
+
+  .invoice-tracking-table tbody td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--ink-3);
+    content: attr(data-label);
+    font-size: var(--text-label-size, 11px);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  /* Loading / error / empty rows carry no data-label — no stray eyebrow. */
+  .invoice-tracking-table tbody td:not([data-label])::before {
+    display: none;
+  }
+}
