@@ -166,7 +166,7 @@ export default function ShipmentDetailPage() {
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
-            <div><dt>Chiều hàng</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập khẩu' : shipment.tradeDirection === 'EXPORT' ? 'Xuất khẩu' : '—'}</dd></div>
+            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
             <div><dt>Loại lô</dt><dd>{shipment.cargoMode === 'FCL' ? 'Container (FCL)' : shipment.cargoMode === 'LCL' ? 'Hàng lẻ (LCL)' : '—'}</dd></div>
             <div><dt>Nhà máy / công trường</dt><dd>{shipment.effectiveFactoryName ?? shipment.factoryName ?? '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>

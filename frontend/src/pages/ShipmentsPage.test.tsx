@@ -634,7 +634,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
     expect(within(screen.getByRole('table')).getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
@@ -801,11 +801,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const toolbar = document.querySelector('.shipments-control__row--filters') as HTMLElement;
     expect(screen.getByLabelText('Tìm lô hàng')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Khoảng ngày giao' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     expect(toolbar.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Bộ lọc nâng cao/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
   });
@@ -2484,7 +2484,7 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     expect(screen.queryByLabelText('Từ ngày giao')).toBeNull();
     expect(screen.queryByLabelText('Đến ngày giao')).toBeNull();
     // Chip selects: label inside, defaults per spec.
-    expect(screen.getByRole('button', { name: 'Hướng: Tất cả' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     // Kế hoạch combobox present (multi-select with chips).
     expect(document.querySelector('.shipments-control__plan .searchable-multi-select__trigger, .shipments-control__plan button[aria-haspopup]')).toBeTruthy();
@@ -2524,10 +2524,10 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     apiGet.mockResolvedValue(listResponse([row]));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Hướng: Tất cả' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
-    expect(screen.getByRole('button', { name: 'Hướng: Xuất' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xuất / Nhập: Xuất' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Loại: Tất cả' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Lệnh chạy ngoài' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('isAdHoc=true')));

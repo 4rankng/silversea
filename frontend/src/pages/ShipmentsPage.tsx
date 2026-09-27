@@ -502,8 +502,8 @@ export default function ShipmentsPage() {
           <InlineLabelSelect
             className="shipments-control__chip"
             id="lot-direction-filter"
-            label="Hướng"
-            ariaLabel="Hướng vận chuyển"
+            label="Xuất / Nhập"
+            ariaLabel="Xuất / Nhập"
             items={[{ id: '', label: 'Tất cả' }, { id: 'EXPORT', label: 'Xuất' }, { id: 'IMPORT', label: 'Nhập' }]}
             selectedKey={direction}
             onSelectionChange={(key) => updateParam('direction', key || null)}

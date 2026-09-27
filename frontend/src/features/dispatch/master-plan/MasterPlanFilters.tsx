@@ -238,7 +238,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         <UUISelect
           className="master-plan-filters__field master-plan-filters__select master-plan-filters__direction"
           size="sm"
-          label="Chiều hàng"
+          label="Xuất / Nhập"
           selectedKey={filters.tradeDirection || 'ALL_DIRECTIONS'}
           onSelectionChange={(key) => onChange({
             tradeDirection: key === 'ALL_DIRECTIONS' ? '' : key as FilterState['tradeDirection'],

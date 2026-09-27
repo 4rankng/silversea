@@ -51,7 +51,7 @@ describe('MasterPlanFilters', () => {
     );
 
     expect(screen.getByLabelText('Tìm kiếm lô hàng')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tất cả Chiều hàng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tất cả Xuất / Nhập' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bộ lọc, 3 đang áp dụng' })).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' })).toBeNull();
 

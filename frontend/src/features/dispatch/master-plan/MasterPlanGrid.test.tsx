@@ -625,7 +625,7 @@ describe('MasterPlanFilters', () => {
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Chiều hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
