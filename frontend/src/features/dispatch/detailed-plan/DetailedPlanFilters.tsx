@@ -274,7 +274,6 @@ export function DetailedPlanFilters({
             value={filters.q}
             onChange={(event) => onChange({ q: event.target.value })}
           />
-          <kbd className="detailed-plan-ribbon__kbd" aria-hidden="true">⌘K</kbd>
         </div>
         <SearchableSelect
           id="detailed-plan-customer"
