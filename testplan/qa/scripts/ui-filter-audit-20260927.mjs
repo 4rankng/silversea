@@ -87,6 +87,14 @@ const SURFACES = [
   { label: 'config-factories', path: '/config/factories', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'config-penalty-reasons', path: '/config/penalty-reasons', role: 'admin', widths: [1440, 1024, 768] },
   { label: 'admin-advance-settlements', path: '/admin/advance-settlements', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'accounting-register', path: '/accounting', role: 'ketoan', widths: [1440, 1024, 768] },
+  // `/advances` mounts AdminAdvancesPage embedded; `/config` is the config home.
+  { label: 'advances', path: '/advances', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'config-home', path: '/config', role: 'admin', widths: [1440, 1024, 768] },
+  // The forwarder role may not exist in the local seed — the runner records a
+  // `redirected` skip instead of failing.
+  { label: 'my-advances', path: '/my-advances', role: 'forwarder', widths: [1440, 1024, 768] },
+  { label: 'my-settlements', path: '/my-settlements', role: 'forwarder', widths: [1440, 1024, 768] },
 ];
 const ROUTE_FILTER = process.env.ROUTES ? process.env.ROUTES.split(',').map((s) => s.trim()) : null;
 

@@ -55,10 +55,12 @@ describe('canvas-fit responsive polish contract', () => {
 
   it('payables category chips wrap without the swipe fade mask', () => {
     const css = read('src/pages/PayableListPage.css');
-    // The category group is the shared boxed Tabs primitive (wraps on its own);
-    // this file only spaces it above the table.
-    expect(css).toContain('.payables-page .payables-category-chips {\n  margin-bottom: 16px;\n}');
+    // The category group is the shared boxed Tabs primitive inside the bar's
+    // quick-filter slot now, so the page owns NO rule for it at all — the old
+    // `.payables-category-chips { margin-bottom }` spacing rule went with the
+    // page-local toolbar (card 20260927_152).
     expect(css).not.toContain('mask-image: linear-gradient(90deg, #000 calc(100% - 28px)');
     expect(css).not.toContain('.payables-category-chip ');
+    expect(css).not.toMatch(/\.payables-category-chips\s*\{/);
   });
 });
