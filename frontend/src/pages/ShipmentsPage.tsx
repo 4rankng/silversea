@@ -14,6 +14,7 @@ import {
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { FilterDropdown } from '../components/FilterDropdown';
 import { ListFilterBar } from '../components/ListFilterBar';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
@@ -367,6 +368,11 @@ export default function ShipmentsPage() {
     ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
+  // Card 20260927_152: the three criteria behind `Bộ lọc` — the count feeds the
+  // trigger badge, `Đặt lại` clears exactly those three and nothing else.
+  const secondaryCount = (direction ? 1 : 0) + (adHoc ? 1 : 0) + (selectedBuckets.length ? 1 : 0);
+  const resetSecondary = () => { updateParam('direction', null); updateParam('adHoc', null); updateBuckets([]); };
+  const presetNode = <DateRangePresets className="shipments-control__date-presets" presets={LOT_DATE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh" />;
   const exportWorksheet = async () => {
     setExporting(true);
     ws.setError(null);
@@ -473,12 +479,9 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        {/* Card 20260926_48 Row 2 / card 20260927_151: the filter row is the
-            ONE shared ListFilterBar (card 20260922_38) — it owns the grid, the
-            search shell, the wrap behaviour and the trailing action slot, so
-            this toolbar can never drift from the other list pages again. The
-            page contributes only its controls: from/to date fields + quick
-            ranges, the Hướng/Loại chips and the Kế hoạch combobox. */}
+        {/* Card 20260927_152: the shared bar. Xuất/Nhập, Loại and Kế hoạch
+            render INLINE while the strip still fits two rows and only collapse
+            into `Bộ lọc (N)` when the width leaves no other choice. */}
         <ListFilterBar
           search={{
             value: searchInput,
@@ -488,6 +491,7 @@ export default function ShipmentsPage() {
             inputRef: searchFieldRef,
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
           }}
+          presets={presetNode}
           actions={hasFilters ? (
             <UUIButton
               type="button" size="sm" color="tertiary"
@@ -505,42 +509,38 @@ export default function ShipmentsPage() {
             ariaLabel="Khoảng ngày giao"
             from={dateFrom} to={dateTo} onChange={applyDateRange}
           />
-          <DateRangePresets
-            className="shipments-control__date-presets"
-            presets={LOT_DATE_PRESETS}
-            value={{ from: dateFrom, to: dateTo }}
-            onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh"
-          />
-          <InlineLabelSelect
-            className="shipments-control__chip"
-            id="lot-direction-filter"
-            label="Xuất / Nhập"
-            ariaLabel="Xuất / Nhập"
-            items={[{ id: '', label: 'Tất cả' }, { id: 'EXPORT', label: 'Xuất' }, { id: 'IMPORT', label: 'Nhập' }]}
-            selectedKey={direction}
-            onSelectionChange={(key) => updateParam('direction', key || null)}
-          />
-          <InlineLabelSelect
-            className="shipments-control__chip"
-            id="lot-kind-filter"
-            label="Loại"
-            ariaLabel="Loại lô"
-            items={[{ id: '', label: 'Tất cả' }, { id: 'true', label: 'Lệnh chạy ngoài' }, { id: 'false', label: 'Thường' }]}
-            selectedKey={adHoc}
-            onSelectionChange={(key) => updateParam('adHoc', key || null)}
-          />
-          <SearchableMultiSelect
-            className="shipments-control__plan"
-            id="lot-plan-filter"
-            size="sm"
-            values={selectedBuckets}
-            onChange={updateBuckets}
-            options={LOT_PLAN_BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] }))}
-            placeholder="Kế hoạch"
-            selectionLabel="kế hoạch"
-            countSuffix="đã chọn"
-            clearAllLabel="Bỏ chọn"
-          />
+          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" onReset={resetSecondary}>
+            <InlineLabelSelect
+              className="shipments-control__chip"
+              id="lot-direction-filter"
+              label="Xuất / Nhập"
+              ariaLabel="Xuất / Nhập"
+              items={[{ id: '', label: 'Tất cả' }, { id: 'EXPORT', label: 'Xuất' }, { id: 'IMPORT', label: 'Nhập' }]}
+              selectedKey={direction}
+              onSelectionChange={(key) => updateParam('direction', key || null)}
+            />
+            <InlineLabelSelect
+              className="shipments-control__chip"
+              id="lot-kind-filter"
+              label="Loại"
+              ariaLabel="Loại lô"
+              items={[{ id: '', label: 'Tất cả' }, { id: 'true', label: 'Lệnh chạy ngoài' }, { id: 'false', label: 'Thường' }]}
+              selectedKey={adHoc}
+              onSelectionChange={(key) => updateParam('adHoc', key || null)}
+            />
+            <SearchableMultiSelect
+              className="shipments-control__plan"
+              id="lot-plan-filter"
+              size="sm"
+              values={selectedBuckets}
+              onChange={updateBuckets}
+              options={LOT_PLAN_BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] }))}
+              placeholder="Kế hoạch"
+              selectionLabel="kế hoạch"
+              countSuffix="đã chọn"
+              clearAllLabel="Bỏ chọn"
+            />
+          </FilterDropdown>
         </ListFilterBar>
 
 

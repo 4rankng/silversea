@@ -69,45 +69,33 @@
   margin-left: auto;
 }
 
-/* Card 20260927_151 — Row 2 is the shared ListFilterBar (it owns the grid, the
-   search shell, the wrap and the trailing action slot); this sheet keeps only
-   the page's own control sizes. */
-
-
-/* From/to date fields (DateRangeFields) are content-sized on the toolbar: two
-   date fields plus their 12px seam need ~320px, and the pair is capped so a
-   long row still wraps instead of squeezing a date below its 149px floor. */
-.shipments-control__range {
-  flex: 0 1 auto;
-  width: max-content;
-  min-width: 300px;
-  max-width: 380px;
+/* Below the width where title + tab group + actions can share one 36px
+   baseline, the ACTION CLUSTER rides the title's row and the tab group takes
+   the line under it (operator 2026-09-27: "let button same row with page
+   title"). Order, not markup: the desktop reading order stays
+   title · tabs · actions. */
+@media (max-width: 1024px) {
+  .shipments-control__row--primary { row-gap: 10px; }
+  .shipments-control__title { order: 1; }
+  .shipments-control__actions { order: 2; flex: 0 0 auto; }
+  .shipments-control__tabs { order: 3; flex: 1 1 100%; }
 }
 
-/* Quick ranges ride beside the fields as the shared boxed segmented control
-   (CHIEF 2026-09-27: no range popover, so the presets are visible controls). */
-.shipments-control__date-presets {
-  flex: 0 0 auto;
-}
+/* Card 20260927_152 — Row 2 is the shared ListFilterBar and `.filter-bar`
+   owns every width contract (FilterBar.css L2/L3): the from/to group, the
+   presets group and the `Bộ lọc` trigger are content-sized by the shared
+   sheets, so this page no longer declares a single filter width. Only the
+   plan combobox keeps a page rule, because 320px is the dialog's own body
+   width ceiling and the pool of bucket names can outgrow the trigger. */
 
-.shipments-control__chip {
-  min-width: 110px;
-}
-
-.shipments-control__chip .inline-label-select__trigger {
-  width: 100%;
-}
-
-/* The plan combobox fills its bar cell (a fixed 160px left the row's tail
-   under-filled — measured 2026-09-27: 55% of a 5-track row). */
+/* The plan combobox is sized by the value it holds, never by the row
+   (card 20260927_152, operator 2026-09-27: a two-word value must not take a
+   full row). The old `width: 100%` made it a whole-line item — measured 1480px
+   of empty box at 1568px. */
 .shipments-control__plan {
-  width: 100%;
-  min-width: 0;
-}
-
-.shipments-control__plan .searchable-select__trigger {
-  width: 100%;
-  min-height: 32px;
+  width: auto;
+  min-width: 200px;
+  max-width: 320px;
 }
 
 /* The reset action keeps the ghost look at the row end. */
@@ -2512,9 +2500,9 @@
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }
-/* Phone (2026-09-27): the shared bar stacks every cell and the from/to group
-   keeps its two fields side by side; the page only releases the desktop caps. */
-@media (max-width: 640px) {
-  .shipments-control__range,
-  .shipments-control__date-presets { width: 100%; max-width: none; min-width: 0; }
-}
+/* Phone (2026-09-27): the bar wraps into packed lines, so the page releases
+   nothing to full width — the from/to group keeps its two fields side by side
+   at their own 168px, and a short-value control stays short. Card
+   20260927_152: a control as wide as the row is the defect, not the fix, and
+   the shared `.filter-bar` sheet owns every one of those widths, so this band
+   has no page rule left to make. */

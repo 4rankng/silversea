@@ -800,16 +800,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('CUS-OVERVIEW-02: every filter control rides the one Row 2 toolbar — visible, no disclosure', async () => {
     renderPage();
     await screen.findByRole('table');
-    // Row 2 is the shared bar (card 20260927_151).
+    // Row 2 is the shared bar (card 20260927_152).
     const toolbar = document.querySelector('.cus-workspace .filter-bar.list-filter-bar') as HTMLElement;
     expect(screen.getByLabelText('Tìm lô hàng')).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Khoảng ngày giao' })).toBeTruthy();
     expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
     expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
+    // While the strip fits two rows every criterion renders INLINE — no
+    // `Bộ lọc` trigger at all (operator 2026-09-27: "when there is enough space
+    // we try our best to display all filters, not group inside bo loc").
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     expect(toolbar.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^Bộ lọc nâng cao/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
@@ -2476,11 +2479,11 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
 
 
 describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chips + Kế hoạch', () => {
-  it('renders one uniform 32px toolbar row: search 260-300 + popover 220 + chips 110 + combobox 160 + Xóa lọc gated', async () => {
+  it('renders one uniform toolbar: search + two date fields + presets + inline criteria', async () => {
     apiGet.mockResolvedValue(listResponse([row]));
     renderPage();
     await screen.findByRole('table');
-    // Row 2 IS the shared ListFilterBar (card 20260927_151) — one bar layout
+    // Row 2 IS the shared ListFilterBar (card 20260927_152) — one bar layout
     // for every list page, so this toolbar can never drift again.
     expect(document.querySelector('.cus-workspace .filter-bar.list-filter-bar')).toBeTruthy();
     // Search: placeholder per spec. No shortcut badge renders (CHIEF
@@ -2495,20 +2498,26 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
     expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Hôm nay' })).toBeTruthy();
-    // Chip selects: label inside, defaults per spec.
+    // The quick ranges ride the bar's own `presets` slot, not the page's.
+    expect(document.querySelector('.filter-bar__presets .shipments-control__date-presets')).toBeTruthy();
+    // Chip selects: label inside, defaults per spec — INLINE, because the
+    // measured mode only folds them when the strip cannot hold two rows.
     expect(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Loại: Tất cả' })).toBeTruthy();
     // Kế hoạch combobox present (multi-select with chips).
-    expect(document.querySelector('.shipments-control__plan .searchable-multi-select__trigger, .shipments-control__plan button[aria-haspopup]')).toBeTruthy();
+    expect(document.querySelector('.shipments-control__plan button[aria-haspopup]')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
     // Xóa lọc hidden while filters are default.
     expect(screen.queryByRole('button', { name: 'Xóa lọc' })).toBeNull();
     // The page contributes sizes only — the bar owns the layout.
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
     expect(css).not.toMatch(/\.shipments-control__row--filters/);
     expect(css).not.toMatch(/\.shipments-control__search/);
-    expect(css).toMatch(/\.shipments-control__range\s*\{[^}]*min-width:\s*300px/);
-    expect(css).toMatch(/\.shipments-control__chip\s*\{[^}]*min-width:\s*110px/);
-    expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*width:\s*100%/);
+    // Card 20260927_152: the page declares ONE filter width (the combobox cap);
+    // the from/to group and the chip floors moved into the shared sheets.
+    expect(css).not.toMatch(/\.shipments-control__range\s*\{/);
+    expect(css).not.toMatch(/\.shipments-control__chip\s*\{/);
+    expect(css).toMatch(/\.shipments-control__plan\s*\{[^}]*max-width:\s*320px/);
   });
 
   it('the four 1-click ranges are visible controls and apply one range to the URL', async () => {
