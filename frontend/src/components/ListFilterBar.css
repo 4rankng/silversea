@@ -1,30 +1,30 @@
 /* ============================================================================
  * ListFilterBar — the one shared filter bar for list pages (card 20260922_38).
  *
- * Card 20260925_8 REBUILD — the row is a REAL CSS GRID, not a flex row:
- * flex wrap can never hold column alignment (each wrapped line re-packs by
- * content, so the date pair floated off as its own panel and controls
- * staggered — CHIEF 26/09 09:50 evidence). A grid gives every cell a column
- * track, so a wrapped row still lines up with the row above and the pair is
- * one grid item that can never escape the bar.
+ * Card 20260927_152 — the row is ONE WRAPPING FLEX LINE, the same shape
+ * Untitled UI PRO ships for its own filter bar (`FilterBar.Root` =
+ * `flex flex-wrap items-end gap-3`, Content grows and wraps, Actions
+ * shrink-to-fit). Card 20260925_8 had replaced flex with a real CSS grid to hold
+ * column alignment across wrapped lines; that alignment cost more than it was
+ * worth — equal tracks stretched the first row and left the wrapped row 7-33%
+ * full (measured 2026-09-27 at 1187/1402 on /shipments, /shipments-detail and
+ * /accounting/invoice-tracking), which is the ragged tail the operator rejected.
+ * Flex packs every line to its own content, so no line has a hole; the actions
+ * pin right through the spacer's `margin-left:auto`.
  *
- * Contract (card 20260925_8, self-verified at 1280/1440/1920/2560 + 390):
- *   - desktop ≥1280: auto-fit N content-sized columns + a trailing minmax(0,1fr)
- *     track that absorbs the leftover width and hosts the right-pinned actions
- *     (the old flex spacer's job) — controls keep their intrinsic widths
- *     (the width floors below still guard them), wrapped rows share tracks;
- *   - tablet 768–1279: exactly 2 columns;
- *   - mobile <768: one-column stack, the date/short-select pair stays 2-col;
- *   - pair-group = one transparent grid item holding its 2 values side by
- *     side — no panel chrome, ever (flat law, design §3);
+ * Contract (card 20260927_152, self-verified at 390/768/1024/1187/1402):
+ *   - one wrapping row at every width; a control keeps its intrinsic width, and
+ *     the width floors below guard the families that under-report theirs;
+ *   - the reset/action cluster pins to the right end of its own line;
+ *   - the from/to date group is ONE item holding two fields side by side — no
+ *     panel chrome, ever (flat law, design §3);
+ *   - no narrow-width band: the row wraps to as few packed lines as the width
+ *     allows, never a tower of full-bleed controls (the ≤480px stack that this
+ *     sheet used to declare was retired by _152);
  *   - one control height per context via --filter-control-h (card 20260920_19)
  *     with the coarse-pointer touch floor.
  *
  * NEPOCORP reference consulted before coding (file:line):
- *   - nepocorp frontend/src/pages/ExpenseListPage.css:148 — its filter bar uses
- *     auto-fit minmax(180px, 1fr);
- *   - nepocorp frontend/src/pages/ExpenseListPage.css:508 — tablet override to
- *     `repeat(2, minmax(0, 1fr))` (the 2-col breakpoint below mirrors it);
  *   - nepocorp frontend/src/components/shared/ListFilterBar.css:55 — the
  *     content-sized `flex: 0 1 280px` discipline, kept here as width floors.
  *
@@ -50,27 +50,17 @@
   min-width: 0;
 }
 
-/* Two-track cells: the controls that are structurally wide own two tracks so
-   they never squeeze or wrap inside one.
-   - the from/to date group (DateRangeFields): two 149px date fields + the 12px
-     seam need ~310px, more than one 200px track;
-   - a shared segmented group (`.ds-tabs` — date presets/scopes): three to four
-     cells plus the hairline container need ~250-380px, and one 200px track
-     wrapped "Tất cả" onto a second line (measured 2026-09-27 on the detail bar);
-   - the quick-filter chip row (`.list-filter-bar__quick`): one 200px track
-     wrapped four status chips onto three lines inside their own cell (measured
-     2026-09-27 on /config/customers at 768 — the bar read as a 92px-tall
-     two-row blob for a 44px chip strip).
-   Everything else — search included — takes one track, which is what keeps the
-   eight-control detail bar on two rows at 1187px instead of four. */
-.filter-bar.list-filter-bar > .date-range-fields,
-.filter-bar.list-filter-bar > .ds-tabs,
-.filter-bar.list-filter-bar > .list-filter-bar__quick {
-  grid-column: span 2;
-}
+/* Two-track cells retired with the grid (card 20260927_152): the bar is one
+   wrapping row now, so a control family is sized by its own content instead of
+   a track count. `.date-range-fields` keeps its two 168px fields (its inner
+   2-track grid, DateRangeFields.css) and `.ds-tabs` / `.list-filter-bar__quick`
+   keep their intrinsic width — no `grid-column` can apply outside a grid, and
+   leaving the rules in would silently re-declare a layout the bar no longer
+   has. Width floors for the families that under-report theirs stay below. */
 
-/* Action cluster: the wrapper is one grid item; its buttons row up inside
-   with a tight gap (the bar's 24px column-gap no longer separates them). */
+/* Action cluster: the wrapper is one item on the wrapping row; its buttons row
+   up inside with a tight gap (the bar's 16px column-gap no longer separates
+   them). */
 .filter-bar.list-filter-bar .filter-bar__actions {
   display: flex;
   align-items: center;
@@ -90,15 +80,14 @@
   --uui-control-h: var(--filter-control-h);
 }
 
-/* Width discipline (case QA-2026-09-22-01, operator 2026-09-22): min-width:
-   0 lets a bar child shrink inside its track instead of overflowing a
-   neighbour (grid items default to min-width:auto = min-content, which would
-   blow past a squeezed track; the old flex rule pinned `flex: 0 1 auto`,
-   inert in grid). It sits ABOVE the family floors so their 240/149/180px
-   contracts (same specificity, later in the file) keep winning. */
-.list-filter-bar > *:not(.filter-bar__spacer) {
-  min-width: 0;
-}
+/* `min-width: 0` used to be re-asserted on every bar child here, because grid
+   items default to `min-width: auto` = min-content and used to overflow their
+   track (case QA-2026-09-22-01). The bar is a flex line again, and in flex the
+   engine default (`min-width: auto`) is the SAFE one: it stops a control from
+   being squeezed below its own content. The blanket reset was also silently
+   cancelling every family floor that a page declared (`min-width: 200px` on the
+   plan combobox measured 102px), so it is deleted and the families own their
+   floors. */
 
 /* Width contracts — scoped to the grid cells these control families actually
    emit (verified against the sources):
@@ -125,8 +114,11 @@
 /* A STANDALONE date field (a direct bar cell) keeps the 168px natural size and
    the 149px floor; a field inside the shared from/to group (DateRangeFields)
    fills its own track instead — DateRangeFields.css owns that width, and this
-   direct-child scope is what lets it win without a specificity fight. */
-.list-filter-bar > [data-input-wrapper] {
+   direct-child scope is what lets it win without a specificity fight. Scoped
+   `.filter-bar.list-filter-bar` so it also out-ranks FilterBar.css's
+   descendant `[data-input-wrapper] { width: auto }` regardless of import
+   order. */
+.filter-bar.list-filter-bar > [data-input-wrapper] {
   width: 168px;
   min-width: 149px;
 }
@@ -144,21 +136,21 @@
   min-width: 0;
 }
 
-/* --- Pair-group (card 20260925_8 REBUILD) -------------------------------
- * One grid item, two equal tracks, side by side at EVERY width — desktop
- * included (the old flex-cell was still a flex layout and could re-wrap).
+/* --- Pair-group (card 20260925_8, re-cut 20260927_152) -------------------
+ * ONE bar item holding two equal tracks, side by side at EVERY width — desktop
+ * included. The 2-track grid lives INSIDE this control group (a short-value
+ * pair), never on the bar itself.
  * Transparent: no background/border/radius/shadow — the pair can never paint
  * a panel of its own (flat law §3; CHIEF evidence 1–2: the pair floated as a
  * detached white panel with the "Từ ngày giao" label clipped at its edge).
  * Children release their desktop width floors INSIDE the pair so the two
  * tracks shrink together instead of overflowing: 168px kept as the natural
  * size, clamped to the cell via max-width:100%. */
-/* The shared from/to date group (DateRangeFields) is ONE control group: it
-   takes two tracks of the bar so each date field keeps its 149px floor instead
-   of being squeezed into a single track (the pair contract, card 20260925_8). */
-.filter-bar.list-filter-bar > .date-range-fields,
-.filter-bar.list-filter-bar > .ds-tabs {
-  grid-column: span 2;
+/* The shared from/to date group (DateRangeFields) is ONE control group: its two
+   fields stay side by side inside it and the group takes the width its content
+   asks for (two 168px fields + the 12px seam), instead of a track count. */
+.list-filter-bar > .date-range-fields {
+  min-width: 0;
 }
 
 .list-filter-bar__pair {
@@ -193,20 +185,14 @@
 }
 
 /* --- Tablet ---------------------------------------------------------------
- * RETIRED band (card 20260927_151): a fixed 2-column tablet grid was the
- * defect, not the fix — it turned every 8-control bar into four rows on a
- * 1024-1187px screen. The auto-fit rule above now decides from measured width
- * at every size, so there is no tablet-specific column count. The pair keeps
- * its 2-up rhythm (it is one item spanning two tracks) and the actions pin
- * right via auto/-1 at every width. */
-@media (min-width: 768px) and (max-width: 1279px) {
-  .list-filter-bar__pair [data-input-wrapper],
-  .list-filter-bar__pair .ds-uui-select,
-  .list-filter-bar__pair .csc-searchable-field,
-  .list-filter-bar__pair [data-uui-control='combobox'] {
-    width: 100%;
-  }
-}
+ * RETIRED band (card 20260927_151, kept retired by _152): a fixed 2-column
+ * tablet grid was the defect, not the fix — it turned every 8-control bar into
+ * four rows on a 1024-1187px screen. Nothing declares a tablet column count
+ * now, and the `width: 100%` re-assertions that only existed to feed that
+ * grid's tracks are deleted with it: the wrapping row decides from measured
+ * width at every size, the pair keeps its 2-up rhythm from its BASE rule (one
+ * item holding two tracks), and the actions pin right through the spacer's
+ * auto margin at every width. */
 
 /* --- Mobile (cards 20260924_6 / 20260925_1 / 20260925_8) -----------------
  * Phones collapse the filter rail to a one-column stack so labels stay above
@@ -214,34 +200,33 @@
  * The pair keeps its 2-column grid (short-value pairing) — DD/MM/YYYY reads
  * cleanly at half a 390px track minus 12px gap and 12px page margin (~177px).
  * Authority: docs/design-guidelines.md § 3 (flat by contract).
- * 2026-09-26 (card 20260925_8): breakpoint moved 480 → 767 per the mandate
- * ("mobile <768 stack 1 cột"); grid-specific properties are re-stated on the
- * (0,2,0) `.filter-bar.list-filter-bar` selector so they beat the desktop
- * block above regardless of order. */
+ */
+/* 2026-09-26 (card 20260925_8): breakpoint moved 480 → 767 per the mandate
+ * ("mobile <768 stack 1 cột"). 2026-09-27 (card 20260927_152): the full-width
+ * one-column stack is RETIRED — it produced the six-row tower of stretched
+ * controls the operator photographed at ~647px CSS. A narrow bar keeps the
+ * wrapping row: the search grows, every other control stays content-sized, and
+ * lines pack 2-3 controls deep. Only the pair keeps its 2-up rhythm and the
+ * actions keep their own right-aligned line. */
 @media (max-width: 767px) {
-  .filter-bar.list-filter-bar {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: 12px 0;
-    margin: 0 12px 12px;
-    padding: 0;
-    border: 0;
-    box-shadow: none;
-    background: transparent;
-  }
+  /* The card stays at every width (operator 2026-09-27: the tab row above it is
+     a full-width bordered group, and a bar stripped of its card here read as a
+     narrower, misaligned row — "tab row longer than row below"). */
 
-  /* Direct children keep their full row: search, the long-content "Kế hoạch"
-     select, quick filters, actions. Pair wrappers also take a full row.
-     A shared button group (`.ds-tabs`) is the exception: it is a
-     content-sized control, and stretching it paints an empty box past its
-     last cell (measured 350px around 195px of cells on /shipments-detail). */
+  /* The from/to fields drop their visible cue and keep it as the accessible
+     name only, so the pair measures 2 x 125px instead of 2 x 149px. That is
+     what lets `search + dates + Bộ lọc` share ONE line here and hold the strip
+     to two rows (operator 2026-09-27: "reduce the width of date picker"). */
+  .filter-bar .date-range-fields .uui-date-prefix { display: none; }
+  .filter-bar .date-range-fields { flex: 1 1 274px; }
+
+  /* A bar child never takes the full row on its own; the floors below keep the
+     squeezed families readable inside the packed lines. */
   .list-filter-bar > *:not(.list-filter-bar__pair):not(.ds-tabs) {
-    width: 100%;
     min-width: 0;
   }
 
   .list-filter-bar > .list-filter-bar__pair {
-    width: 100%;
     min-width: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -257,14 +242,12 @@
     width: 100%;
   }
 
-  /* Multi-element actions stack (the old direct-children behaviour); buttons
-     hug the END of each row — the mobile law reserves full-width for the main
-     search only (law §5), so a lone 'Bộ lọc' never stretches into a floating
-     mid-band (Chief 26/09, card 20260926_4). Specificity matches the desktop
-     (0,3,0) cluster rule so this wins inside the breakpoint. */
+  /* Multi-element actions stay one right-aligned cluster on their own line
+     (card 20260927_152): they wrap among themselves if the line is too narrow,
+     but never stack into a column of full-height buttons. */
   .filter-bar.list-filter-bar .filter-bar__actions {
-    flex-direction: column;
-    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 8px;
   }
 

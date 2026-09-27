@@ -41,7 +41,7 @@ export function InlineLabelSelect({
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(panelRef, triggerRef, true, 220, 260);
+  const position = usePopoverPosition(panelRef, triggerRef, isOpen, 220, 260);
   const close = useCallback(() => setIsOpen(false), []);
   useClickOutside(panelRef, close, { escapeKey: true, enabled: isOpen, additionalRefs: [triggerRef] });
 
@@ -57,7 +57,9 @@ export function InlineLabelSelect({
   }, [isOpen]);
 
   const panel = isOpen ? (
-    <div ref={panelRef} id={listboxId} className="inline-label-select__popover" style={{ top: position?.top ?? 12, left: position?.left ?? 12 }} role="listbox" aria-label={ariaLabel}>
+    <div ref={panelRef} id={listboxId} className="inline-label-select__popover"
+      data-positioned={position ? 'true' : undefined}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0 }} role="listbox" aria-label={ariaLabel}>
       {items.map((item) => (
         <button
           key={item.id}

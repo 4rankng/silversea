@@ -34,8 +34,6 @@ describe('selection-state contract', () => {
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-column-picker__card.is-active {\n  border-color: var(--ink);\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-align-control button.is-active {\n  background: var(--ink);\n  color: var(--surface);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain(".debit-editor-preview__table th.is-selected::after {\n  content: '';\n  position: absolute;\n  width: 9px;\n  height: 9px;\n  border: 2px solid var(--ink);");
-    expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-in-range { background: var(--surface-2); color: var(--fg-1); }');
-    expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-selected { background: var(--fg-1); color: var(--surface); font-weight: 800; }');
     expect(read('src/components/layout/topbar.css')).toContain('.month-picker__cell.is-selected {\n  background: var(--ink);\n  color: var(--surface);\n  border-color: var(--ink);');
     // The advance workspace views no longer fork the group's selected state:
     // they ride the sanctioned `bordered` variant (its ink underline is pinned

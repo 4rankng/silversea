@@ -164,7 +164,6 @@ export function SearchableMultiSelect({
 
   useSearchableSelectPosition({
     isOpen,
-    isMobile,
     triggerRef,
     popoverRef,
     onClose: close,

@@ -1,5 +1,6 @@
-import type { ReactNode, RefObject } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 import { Search } from 'lucide-react';
+import { FilterBarModeProvider, useFilterBarFit } from './filter-bar-mode';
 import './FilterBar.css';
 import './ListFilterBar.css';
 
@@ -7,12 +8,18 @@ import './ListFilterBar.css';
  * ListFilterBar — the one shared filter bar for list pages (card 20260922_38).
  *
  * One layout contract for the filter surfaces pages used to hand-roll (and
- * repeatedly drift): text search, filter controls (selects, segmented date
- * fields, comboboxes), quick filters and right-side actions/reset. The row is
- * one row when space allows and wraps to a consistent second row below; wrap
- * happens only when genuinely out of space (fix family 20260919_48 /
- * 20260920_34). Control chrome comes from the shared design system and the
- * shared `.filter-bar` sheet — pages arrange, they never re-skin.
+ * repeatedly drift): the strip is ONE wrapping line inside ONE toolbar card,
+ * and it packs to as few rows as the width allows — two is the rule of thumb at
+ * every device size (operator 2026-09-27).
+ *
+ * DOM order IS the reading order: search cell → children (the criteria, with
+ * `Bộ lọc` last) → presets → quick filters → spacer → actions.
+ *
+ * Which criteria are VISIBLE is measured, not declared: `useFilterBarFit` counts
+ * the rendered rows and tells every `FilterDropdown` whether its criteria still
+ * fit inline. While they do, no `Bộ lọc` trigger renders at all — everything is
+ * a chip on the bar. When the width leaves no other choice they collapse behind
+ * the trigger, and only then.
  */
 
 export interface ListFilterBarSearchProps {
@@ -33,54 +40,69 @@ export interface ListFilterBarSearchProps {
 export interface ListFilterBarProps {
   /** Text search slot — the bar owns the icon, chrome and placeholder. */
   search?: ListFilterBarSearchProps;
-  /** Filter controls (selects, date fields, comboboxes) — content-sized in row order. */
+  /** Criteria in row order. Put the `Bộ lọc` trigger LAST: it is the item that
+   *  arrives and leaves as the width changes. */
   children?: ReactNode;
-  /** Quick filters (presets/toggles) — one group row that wraps with the bar. */
+  /** Quick ranges (the shared segmented group), beside the dates they set. */
+  presets?: ReactNode;
+  /** Quick filters (toggles/chips) — after the presets. */
   quickFilters?: ReactNode;
   /** Accessible name of the quick-filter group (renders `role="group"`). */
   quickFiltersLabel?: string;
-  /** Right-side actions (reset, export) — pinned right of the row when it fits. */
+  /** Applied-count line, right-aligned ahead of the actions. */
+  status?: ReactNode;
+  /** Right-side actions (reset, export) — pinned to the right end. */
   actions?: ReactNode;
 }
 
-export function ListFilterBar({ search, children, quickFilters, quickFiltersLabel, actions }: ListFilterBarProps) {
+export function ListFilterBar({ search, children, presets, quickFilters, quickFiltersLabel, status, actions }: ListFilterBarProps) {
+  const barRef = useRef<HTMLDivElement>(null);
+  // Keep every criterion inline while the strip still fits two rows; fold them
+  // into `Bộ lọc` only when the width leaves no other choice.
+  const mode = useFilterBarFit(barRef);
   return (
-    <div className="filter-bar list-filter-bar">
-      {search && (
-        // The cell is a stack: the shell plus the field's own validation line
-        // (a bar cell that grows a second row must not become a second cell —
-        // the grid would give the message a column of its own).
-        <div className="filter-bar__search-cell">
-          <div className="filter-bar__search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={search.inputRef}
-              type="text"
-              aria-label={search.ariaLabel}
-              placeholder={search.placeholder}
-              value={search.value}
-              onChange={(event) => search.onChange(event.target.value)}
-              {...search.inputProps}
-            />
+    <FilterBarModeProvider value={mode}>
+      <div className="filter-bar filter-bar--card list-filter-bar" ref={barRef}>
+        {search && (
+          // The cell is a stack: the shell plus the field's own validation line
+          // (a cell that grows a second row must stay one bar item).
+          <div className="filter-bar__search-cell">
+            <div className="filter-bar__search">
+              <Search size={14} aria-hidden="true" />
+              <input
+                ref={search.inputRef}
+                type="text"
+                aria-label={search.ariaLabel}
+                placeholder={search.placeholder}
+                value={search.value}
+                onChange={(event) => search.onChange(event.target.value)}
+                {...search.inputProps}
+              />
+            </div>
+            {search.error ? <p className="filter-bar__search-error" role="alert">{search.error}</p> : null}
           </div>
-          {search.error ? <p className="filter-bar__search-error" role="alert">{search.error}</p> : null}
-        </div>
-      )}
-      {children}
-      {quickFilters && (
-        <div
-          className="list-filter-bar__quick"
-          role={quickFiltersLabel ? 'group' : undefined}
-          aria-label={quickFiltersLabel}
-        >
-          {quickFilters}
-        </div>
-      )}
-      {/* Actions are one grid item (auto/-1 + justify-self:end pins the
-          cluster at the bar's right edge); multi-element fragments row up
-          inside .filter-bar__actions instead of becoming stray grid cells. */}
-      {actions && <div className="filter-bar__spacer" />}
-      {actions && <div className="filter-bar__actions">{actions}</div>}
-    </div>
+        )}
+        {children}
+        {presets && <div className="filter-bar__presets">{presets}</div>}
+        {quickFilters && (
+          <div
+            className="list-filter-bar__quick"
+            role={quickFiltersLabel ? 'group' : undefined}
+            aria-label={quickFiltersLabel}
+          >
+            {quickFilters}
+          </div>
+        )}
+        {/* The applied-count and the reset are ONE cluster at the right end of
+            the line they land on; the spacer's `margin-left:auto` pins it. */}
+        {(status || actions) && <div className="filter-bar__spacer" />}
+        {(status || actions) && (
+          <div className="filter-bar__actions">
+            {status}
+            {actions}
+          </div>
+        )}
+      </div>
+    </FilterBarModeProvider>
   );
 }

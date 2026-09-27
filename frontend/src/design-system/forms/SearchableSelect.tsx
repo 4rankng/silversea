@@ -162,7 +162,6 @@ export function SearchableSelect({
 
   useSearchableSelectPosition({
     isOpen,
-    isMobile,
     triggerRef,
     popoverRef,
     onClose: close,

@@ -76,7 +76,14 @@
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: var(--r);
+  /* Card 20260927_152: anchored at every width, and invisible until the
+     positioning pass has written real coordinates. Before that the custom
+     properties above fall back to 0 and the panel would paint in the
+     top-left corner (the operator's 2026-09-27 complaint). */
+  visibility: hidden;
 }
+
+.searchable-select__popover[data-positioned='true'] { visibility: visible; }
 
 .searchable-select__backdrop { display: none; }
 
@@ -263,20 +270,11 @@
     cursor: default;
   }
 
-  .searchable-select__popover {
-    position: fixed;
-    z-index: var(--z-popover, 400);
-    top: max(72px, env(safe-area-inset-top));
-    right: 8px;
-    left: 8px;
-    width: auto;
-    min-width: 0;
-    max-width: calc(100vw - 16px);
-    max-height: min(70dvh, 560px, calc(100dvh - max(72px, env(safe-area-inset-top)) - 16px));
-    border-radius: 16px;
-    animation: searchableSelectSheetIn 180ms ease-out both;
-    transform: none;
-  }
+  /* 2026-09-27 (card 20260927_152): the ≤640px top-pinned sheet — a fixed
+     origin near the safe-area top with `right`/`left: 8px` — is DELETED, because
+     it painted the picker over the page header instead of under the trigger the
+     operator pressed. The panel is anchored to its trigger at every width now,
+     so this band keeps only the touch sizing of the shared chrome. */
 
   .searchable-select__search {
     min-height: 48px;
@@ -337,10 +335,9 @@
   }
 }
 
-@keyframes searchableSelectSheetIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* The `searchableSelectSheetIn` slide-up animation is deleted with the
+   ≤640px top-pinned sheet it belonged to (card 20260927_152): the panel is
+   anchored to its trigger at every width, so it has no sheet story to tell. */
 
 /* Multi-select trigger: chip row inside the picker button. */
 .searchable-select__trigger-chips {

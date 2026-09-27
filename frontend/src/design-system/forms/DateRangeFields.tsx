@@ -77,15 +77,20 @@ export function DateRangeFields({
         id={id}
         className="date-range-fields__from"
         label={fromLabel}
+        fieldPrefix="Từ"
         size={size}
         value={from}
         onChange={setFrom}
         inputProps={{ max: to || undefined }}
       />
+      {/* The seam marker: decorative only — the two fields stay independent
+          controls (CHIEF 2026-09-27: "I dont want daterangepicker"). */}
+      <span className="date-range-fields__arrow" aria-hidden="true">→</span>
       <BufferedUuiDateInput
         id={id ? `${id}-to` : undefined}
         className="date-range-fields__to"
         label={toLabel}
+        fieldPrefix="Đến"
         size={size}
         value={to}
         onChange={setTo}

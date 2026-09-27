@@ -8,16 +8,17 @@ const componentCss = readFileSync(resolve(process.cwd(), 'src/components/ListFil
 const filterBarCss = readFileSync(resolve(process.cwd(), 'src/components/FilterBar.css'), 'utf8');
 
 describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
-  it('is one measured grid: rows land on the same tracks, never ragged floats', () => {
-    // The bar row itself rides the shared .filter-bar sheet — a grid whose
-    // column count is measured from the bar's own width (card 20260927_151;
-    // the flex row + its declared tablet 2-column band are retired).
+  it('is one wrapping row: lines pack to content, actions pin right', () => {
+    // The bar row itself rides the shared .filter-bar sheet — ONE wrapping flex
+    // line (card 20260927_152, the shape Untitled UI PRO ships for its own
+    // filter bar; the measured grid of _151 and its declared bands are retired).
     const bar = filterBarCss.match(/\.filter-bar\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(bar).toMatch(/display:\s*grid;/);
-    expect(bar).toMatch(/grid-template-columns:\s*repeat\(auto-fit, minmax\(200px, 1fr\)\);/);
-    expect(bar).toMatch(/align-items:\s*end;/);
-    // One gap rhythm — a wrapped row aligns exactly like the row above.
+    expect(bar).toMatch(/display:\s*flex;/);
+    expect(bar).toMatch(/flex-wrap:\s*wrap;/);
+    expect(bar).toMatch(/align-items:\s*flex-end;/);
+    // One gap rhythm for both axes of the wrap.
     expect(bar).toMatch(/gap:\s*12px 16px;/);
+    expect(bar).not.toMatch(/grid-template-columns/);
     expect(bar).not.toMatch(/border-block/);
     // No floating controls: wrap goes through the flex row only
     // (fix family 20260919_48 / 20260920_34 — the ragged-float defects).
@@ -64,16 +65,27 @@ describe('ListFilterBar layout/wrap contract (card 20260922_38)', () => {
     // Quick filters stay one wrapping group.
     expect(componentCss).toMatch(/\.list-filter-bar__quick\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
   });
-  it('never grows a bar child — grid cells shrink, floors hold (case QA-2026-09-22-01)', () => {
+  it('never grows a bar child beyond its own value (case QA-2026-09-22-01)', () => {
     // The operator-reported stacking defect: the date root flex-grew to the
     // full row (1145px for DD/MM/YYYY) and forced one-control-per-row wrap.
-    // Card 20260925_8: the bar is a real grid now — no child can flex-grow
-    // (inert flex pins removed); the invariant that remains is min-width:0
-    // (a cell shrinks inside its track instead of overflowing a neighbour)
-    // plus the per-family width floors below.
-    expect(componentCss).toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*min-width:\s*0;/);
-    expect(componentCss).not.toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*flex:/);
-    expect(componentCss).toMatch(/\.list-filter-bar > \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
+    // Card 20260927_152: the bar is a wrapping flex line, so `flex-grow: 0` is
+    // re-asserted on every child and only TWO items grow — the search (it fills
+    // the line's slack, capped at 640px) and the from/to group (capped at its
+    // own 348px natural width). Nothing can stretch across a line.
+    expect(filterBarCss).toMatch(/\.filter-bar > \*\s*\{\s*flex-grow:\s*0;\s*\}/);
+    // The search floor is a parameter (≥220 readable, ≤300 so it never owns a
+    // line), not a magic number — 240 is the measured value that holds
+    // /shipments to 2 rows at a 594px viewport.
+    const searchFloor = Number(filterBarCss.match(/\.filter-bar__search-cell\s*\{[^}]*min-width:\s*(\d+)px/)?.[1]);
+    expect(searchFloor).toBeGreaterThanOrEqual(220);
+    expect(searchFloor).toBeLessThanOrEqual(300);
+    expect(filterBarCss).toMatch(/\.filter-bar \.date-range-fields\s*\{[^}]*max-width:\s*348px;/);
+    // The grid-era blanket `min-width: 0` on every child is gone: in flex the
+    // engine default (min-content) is the safe one, and the blanket reset used
+    // to cancel every family floor a page declared.
+    expect(componentCss).not.toMatch(/\.list-filter-bar > \*:not\(\.filter-bar__spacer\)\s*\{[^}]*min-width:\s*0/);
+    // A standalone date field keeps its 168px natural width and the 149 floor.
+    expect(componentCss).toMatch(/\.filter-bar\.list-filter-bar > \[data-input-wrapper\]\s*\{[^}]*width:\s*168px;[^}]*min-width:\s*149px;/);
   });
 
   // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): phones expose a
@@ -184,6 +196,32 @@ describe('ListFilterBar control integration', () => {
     const actions = bar.querySelector('.filter-bar__actions');
     expect(actions).toBe(kids[4]);
     expect(actions?.contains(screen.getByRole('button', { name: 'Đặt lại' }))).toBe(true);
+  });
+
+  it('renders the presets slot and the applied-count status as their own regions', () => {
+    const { container } = render(
+      <ListFilterBar
+        search={{ value: '', onChange: () => {}, placeholder: 'Tìm…', ariaLabel: 'Tìm kiếm' }}
+        presets={<button type="button">Hôm nay</button>}
+        status={<span>2 bộ lọc đang áp dụng</span>}
+        actions={<button type="button">Xóa lọc</button>}
+      >
+        <select aria-label="Trạng thái">
+          <option>Tất cả</option>
+        </select>
+      </ListFilterBar>,
+    );
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    const kids = Array.from(bar.children);
+    // search cell → control → presets → spacer → actions
+    expect(kids).toHaveLength(5);
+    expect(bar.querySelector('.filter-bar__presets')).toBe(kids[2]);
+    expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
+    const actions = bar.querySelector('.filter-bar__actions') as HTMLElement;
+    expect(actions).toBe(kids[4]);
+    // The applied-count and the reset are ONE cluster at the right end.
+    expect(actions.textContent).toContain('2 bộ lọc đang áp dụng');
+    expect(actions.contains(screen.getByRole('button', { name: 'Xóa lọc' }))).toBe(true);
   });
 
   it('passes typed search text through unmodified', () => {

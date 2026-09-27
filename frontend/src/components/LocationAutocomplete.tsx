@@ -140,7 +140,6 @@ export function LocationAutocomplete({
 
   useSearchableSelectPosition({
     isOpen,
-    isMobile: false,
     triggerRef: inputRef,
     popoverRef: listRef,
     onClose: closeDropdown,

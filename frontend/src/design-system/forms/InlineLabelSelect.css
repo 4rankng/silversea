@@ -38,7 +38,13 @@
   border: 1px solid var(--line, #d1d5db);
   border-radius: 8px;
   background: var(--surface, #fff);
+  /* Card 20260927_152: unmeasured means invisible. The panel is portalled and
+     positioned one layout pass after it mounts; before that its coordinates
+     are unknown, and painting it at (0,0) put it over the page header. */
+  visibility: hidden;
 }
+
+.inline-label-select__popover[data-positioned='true'] { visibility: visible; }
 
 .inline-label-select__option {
   display: flex;

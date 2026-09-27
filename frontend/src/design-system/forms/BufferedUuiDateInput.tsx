@@ -24,6 +24,15 @@ export interface BufferedUuiDateInputProps
   hint?: ReactNode;
   /** Optional wrapper class (the label/input column). */
   className?: string;
+  /**
+   * Inline cue rendered INSIDE the field, ahead of the segments — the from/to
+   * marker of the shared range filter ("Từ 01/09/2026 → Đến 30/09/2026"). When
+   * set, the label is kept for the accessibility name only (`sr-only`) and the
+   * field's border moves to the wrapper, so the cue reads as part of the control
+   * instead of floating above it. (Not `prefix`: `InputBaseProps` already uses
+   * that name for the UUI input's own currency prefix.)
+   */
+  fieldPrefix?: ReactNode;
   /** Optional class on the input group. */
   wrapperClassName?: string;
   /** Optional class on the input element. */
@@ -47,6 +56,7 @@ export function BufferedUuiDateInput({
   inputClassName,
   groupRef,
   hint,
+  fieldPrefix,
   inputProps,
   ...rest
 }: BufferedUuiDateInputProps) {
@@ -111,9 +121,13 @@ export function BufferedUuiDateInput({
       }}
       data-input-wrapper
       data-input-size={size}
+      data-has-prefix={fieldPrefix != null ? '' : undefined}
       className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
     >
-      {label && <Label isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
+      {/* A prefix field keeps the label for its accessibility name only: the
+          visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
+      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
+      {fieldPrefix != null && <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>}
       <DateTimeSegments
         id={`${id}-segments`}
         part="date"
