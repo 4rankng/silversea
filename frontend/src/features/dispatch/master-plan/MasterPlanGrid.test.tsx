@@ -625,24 +625,27 @@ describe('MasterPlanFilters', () => {
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
-    expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
-    expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
-
-    // Dates: two INDEPENDENT fields (CHIEF 2026-09-27 — no range picker).
-    // The toolbar and the Bộ lọc drawer each mount the group, so the first
-    // Từ ngày field is the toolbar's.
+    // Dates: two INDEPENDENT fields (CHIEF 2026-09-27 — no range picker) in the
+    // bar itself; the dialog stays closed while they are edited.
     const [fromField] = screen.getAllByLabelText('Từ ngày') as HTMLInputElement[];
     fireEvent.change(fromField, { target: { value: '15/09/2026' } });
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-09-15', deliveryDateTo: '' });
     expect(screen.queryByRole('dialog')).toBeNull();
+
+    // The categorical criteria live behind `Bộ lọc` (card 20260927_152).
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
+    expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
+    expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
   });
 
-  it('keeps the complete delivery-date range and create action in one responsive control group', () => {
+  it('keeps the complete delivery-date pair as one control group in the bar', () => {
     const { container } = render(
       <MasterPlanFilters
         filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
@@ -652,30 +655,35 @@ describe('MasterPlanFilters', () => {
     // CHIEF 2026-09-27 (card 20260927_150): the delivery date is two
     // independent fields in one group — no merged trigger, no dual calendar.
     const groups = container.querySelectorAll('[role="group"][aria-label="Khoảng ngày giao"]');
-    expect(groups.length).toBeGreaterThan(0);
+    expect(groups.length).toBe(1);
     expect(groups[0].querySelectorAll('[data-input-wrapper]').length).toBe(2);
 
+    // The pair rides the shared bar sheet; the page declares no width, no
+    // surface and no layout for it (card 20260927_152).
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(toolbar).toContain('margin-bottom: 10px');
     expect(css).not.toContain('.master-plan-filters__date-action');
-    expect(css).toContain('.master-plan-filters__actions');
-    expect(css).toContain('.drawer.master-plan-filters__drawer');
-    expect(css).toContain('max-width: 100%');
-    expect(css).toContain('padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;');
-    expect(css).toContain('padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));');
+    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[\{>]/m);
   });
 
-  it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {
-    // The toolbar still has no nested surface (no shadow, no rounded
-    // background) — only a hairline divider separating it from the
-    // summary rail and the grid below (case QA-2026-09-27-02).
-    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  it('leaves the strip to the shared bar instead of nesting it in a page-local surface', () => {
+    const { container } = render(
+      <MasterPlanFilters
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
+        onChange={vi.fn()}
+      />,
+    );
+    // The strip IS the shared ListFilterBar card — no second surface, no
+    // page-local filter container around it (card 20260927_152).
+    expect(container.querySelector('.filter-bar.filter-bar--card.list-filter-bar')).toBeTruthy();
+    expect(container.querySelector('.master-plan-filters')).toBeNull();
 
-    expect(toolbar).not.toMatch(/border-radius\s*:/);
-    expect(toolbar).not.toMatch(/background\s*:/);
-    expect(toolbar).not.toMatch(/box-shadow\s*:/);
+    // And the page sheet owns no rule for the strip's chrome or for any of the
+    // page-local filter families the shared bar replaced.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).not.toMatch(/^\.master-plan-filters\s*\{/m);
+    expect(css).not.toMatch(
+      /^\.master-plan-filters__(search|actions|count|field|select|direction|allocation|advanced-fields|advanced-trigger|drawer|facet-trigger|facet-picker)\s*[\{>]/m,
+    );
   });
 
   it('keeps the master plan edge-to-edge on wide application screens without a manual reload control', () => {

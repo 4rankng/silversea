@@ -1,9 +1,7 @@
-import { FilterLines, SearchLg } from '@untitledui/icons';
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
-import { Drawer } from '../../../components/UI';
-import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
+import { FilterDropdown } from '../../../components/FilterDropdown';
+import { ListFilterBar } from '../../../components/ListFilterBar';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { DateRangeFields, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
@@ -172,12 +170,19 @@ function portZoneFacetLabel(zoneLabel: string): string {
 }
 
 /** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
- *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
+ *  zone-scoped: one block per active zone in the DB taxonomy (label included).
+ *
+ *  The strip is the shared `ListFilterBar` (card 20260927_152): the bar carries
+ *  the criteria every list shares — search, the from/to date group, the page's
+ *  own action — and every master-plan criterion beyond them (Xuất/Nhập, Phân xe,
+ *  the zone facets, Nhà xe) lives in `Bộ lọc`, which reports how many are
+ *  applied. The criteria never render inline here: this surface mints one facet
+ *  per active dispatch zone, so the set can never hold the bar's two-row budget
+ *  at any width — exactly the searchable-facet case `FilterDropdown` documents
+ *  for `inlineWhenRoom={false}`. */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
   const [zones, setZones] = useState<Array<{ code: string; label: string; showPortFacet?: boolean }>>([]);
   const [zonesError, setZonesError] = useState(false);
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const drawerContentRef = useRef<HTMLDivElement>(null);
   const rangeValue: DateRangeValue = {
     from: filters.deliveryDateFrom,
     to: filters.deliveryDateTo,
@@ -185,22 +190,20 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const applyRange = (next: DateRangeValue) => {
     onChange({ deliveryDateFrom: next.from, deliveryDateTo: next.to });
   };
-  const applyDrawerFilters = () => {
-    setIsFilterDrawerOpen(false);
-  };
-  const activeDrawerFilterCount = [
-    filters.allocationStatus,
-    filters.deliveryDateFrom,
-    filters.deliveryDateTo,
+  // The criteria behind `Bộ lọc`: the count feeds the trigger badge and `Đặt
+  // lại` clears exactly these. The delivery dates are NOT among them — they are
+  // the bar's own control now, and the field itself clears its value.
+  const secondaryCount = [
+    filters.tradeDirection !== '',
+    filters.allocationStatus !== '',
     filters.portIds.length > 0,
     filters.carrierKeys.length > 0,
   ].filter(Boolean).length;
 
-  const clearDrawerFilters = () => {
+  const clearSecondaryFilters = () => {
     onChange({
+      tradeDirection: '',
       allocationStatus: '',
-      deliveryDateFrom: '',
-      deliveryDateTo: '',
       portIds: [],
       carrierKeys: [],
     });
@@ -221,22 +224,32 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const visibleZones = zones.filter((zone) => zone.showPortFacet !== false);
 
   return (
-    <>
-      <div className="filter-bar master-plan-filters">
-        <UUIInput
-          className="master-plan-filters__field master-plan-filters__search"
-          inputClassName="master-plan-filters__control"
-          type="search"
-          size="sm"
-          icon={SearchLg}
-          label="Tìm kiếm"
-          placeholder="Tìm theo B/L, Booking, khách hàng…"
-          value={filters.q}
-          onChange={(value) => onChange({ q: value })}
-          aria-label="Tìm kiếm lô hàng"
-        />
+    <ListFilterBar
+      search={{
+        value: filters.q,
+        onChange: (value) => onChange({ q: value }),
+        placeholder: 'Tìm theo B/L, Booking, khách hàng…',
+        ariaLabel: 'Tìm kiếm lô hàng',
+      }}
+      actions={action}
+    >
+      <DateRangeFields
+        className="master-plan-filters__date-range"
+        id="master-plan-delivery-date-range"
+        ariaLabel="Khoảng ngày giao"
+        size="sm"
+        from={rangeValue.from}
+        to={rangeValue.to}
+        onChange={applyRange}
+      />
+      <FilterDropdown
+        count={secondaryCount}
+        ariaLabel="Bộ lọc"
+        dialogLabel="Bộ lọc kế hoạch tổng quát"
+        onReset={clearSecondaryFilters}
+        inlineWhenRoom={false}
+      >
         <UUISelect
-          className="master-plan-filters__field master-plan-filters__select master-plan-filters__direction"
           size="sm"
           label="Xuất / Nhập"
           selectedKey={filters.tradeDirection || 'ALL_DIRECTIONS'}
@@ -247,114 +260,37 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         >
           {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
         </UUISelect>
-        <div className="master-plan-filters__advanced-fields">
-          <UUISelect
-            className="master-plan-filters__field master-plan-filters__select master-plan-filters__allocation"
-            size="sm"
-            label="Phân xe"
-            selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}
-            onSelectionChange={(key) => onChange({
-              allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
-            })}
-            items={ALLOCATION_OPTIONS}
-          >
-            {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-          </UUISelect>
-          {visibleZones.map((zone) => (
-            <FacetMultiSelect
-              key={zone.code}
-              label={portZoneFacetLabel(zone.label)}
-              selected={filters.portIds}
-              onSelectionChange={(ids) => onChange({ portIds: ids })}
-              loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}
-            />
-          ))}
-          {zonesError && (
-            <span className="master-plan-filters__zones-error" role="status">
-              Không tải được khu vực cảng — thử lại sau.
-            </span>
-          )}
-          <CarrierFacetMultiSelect
-            selected={filters.carrierKeys}
-            onSelectionChange={(keys) => onChange({ carrierKeys: keys })}
-            loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)}
-          />
-          <DateRangeFields
-            id="master-plan-delivery-date-range"
-            ariaLabel="Khoảng ngày giao"
-            size="sm"
-            from={rangeValue.from}
-            to={rangeValue.to}
-            onChange={applyRange}
-            className="master-plan-filters__date-range"
-          />
-        </div>
-        <UUIButton
-          className="master-plan-filters__advanced-trigger"
+        <UUISelect
           size="sm"
-          color="secondary"
-          iconLeading={FilterLines}
-          onPress={() => setIsFilterDrawerOpen(true)}
-          aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+          label="Phân xe"
+          selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}
+          onSelectionChange={(key) => onChange({
+            allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
+          })}
+          items={ALLOCATION_OPTIONS}
         >
-          Bộ lọc
-          {activeDrawerFilterCount > 0 && <span className="master-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>}
-        </UUIButton>
-        {action && <div className="master-plan-filters__actions">{action}</div>}
-      </div>
-
-      <Drawer
-        isOpen={isFilterDrawerOpen}
-        onClose={() => setIsFilterDrawerOpen(false)}
-        title="Bộ lọc kế hoạch tổng quát"
-        subtitle={activeDrawerFilterCount > 0 ? `${activeDrawerFilterCount} điều kiện đang áp dụng` : `Lọc theo trạng thái, ngày giao${visibleZones.length ? ', cảng' : ''} và nhà xe`}
-        className="master-plan-filters__drawer"
-        footer={(
-          <>
-            <UUIButton size="sm" color="secondary" onPress={clearDrawerFilters}>Đặt lại</UUIButton>
-            <UUIButton size="sm" color="primary" onPress={applyDrawerFilters}>Xem kết quả</UUIButton>
-          </>
+          {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+        </UUISelect>
+        {visibleZones.map((zone) => (
+          <FacetMultiSelect
+            key={zone.code}
+            label={portZoneFacetLabel(zone.label)}
+            selected={filters.portIds}
+            onSelectionChange={(ids) => onChange({ portIds: ids })}
+            loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}
+          />
+        ))}
+        <CarrierFacetMultiSelect
+          selected={filters.carrierKeys}
+          onSelectionChange={(keys) => onChange({ carrierKeys: keys })}
+          loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)}
+        />
+        {zonesError && (
+          <span className="master-plan-filters__zones-error" role="status">
+            Không tải được khu vực cảng — thử lại sau.
+          </span>
         )}
-      >
-        <div ref={drawerContentRef} className="master-plan-filters__drawer-content">
-          <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-allocation">
-            <h3 id="master-plan-filter-allocation" className="master-plan-filters__drawer-title">Phân xe và ngày giao</h3>
-            <div className="master-plan-filters__drawer-fields">
-              <UUISelect
-                className="master-plan-filters__field master-plan-filters__select master-plan-filters__allocation"
-                size="sm"
-                label="Phân xe"
-                selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}
-                onSelectionChange={(key) => onChange({
-                  allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
-                })}
-                items={ALLOCATION_OPTIONS}
-              >
-                {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-              </UUISelect>
-              <DateRangeFields
-                id="master-plan-delivery-date-range-drawer"
-                ariaLabel="Khoảng ngày giao"
-                size="md"
-                from={rangeValue.from}
-                to={rangeValue.to}
-                onChange={applyRange}
-                className="master-plan-filters__date-range"
-              />
-            </div>
-          </section>
-          <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-location">
-            <h3 id="master-plan-filter-location" className="master-plan-filters__drawer-title">{visibleZones.length ? 'Cảng và nhà xe' : 'Nhà xe'}</h3>
-            <div className="master-plan-filters__drawer-fields">
-              {visibleZones.map((zone) => (
-                <FacetMultiSelect key={zone.code} label={portZoneFacetLabel(zone.label)} selected={filters.portIds} onSelectionChange={(ids) => onChange({ portIds: ids })} loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)} />
-              ))}
-              <CarrierFacetMultiSelect selected={filters.carrierKeys} onSelectionChange={(keys) => onChange({ carrierKeys: keys })} loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)} />
-              {zonesError && <span className="master-plan-filters__zones-error" role="status">Không tải được khu vực cảng — thử lại sau.</span>}
-            </div>
-          </section>
-        </div>
-      </Drawer>
-    </>
+      </FilterDropdown>
+    </ListFilterBar>
   );
 }

@@ -3,11 +3,11 @@
   "measured": {
     "scannedFiles": 179,
     "hexDirect": 269,
-    "hexFallback": 731,
+    "hexFallback": 727,
     "radiusOffLadder": 94,
     "rawShadow": 63,
-    "rawZIndex": 83,
-    "untokenizedTransition": 211,
+    "rawZIndex": 82,
+    "untokenizedTransition": 203,
     "mediaWidthValues": 46,
     "containerWidthValues": 21
   },

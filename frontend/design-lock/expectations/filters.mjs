@@ -136,4 +136,33 @@ export default [
     kind: 'minFont',
     note: 'control text stays on the 11-12px role scale — the other half of "text 11px 12px component size max 40px"',
   },
+
+  // The same promise on the surfaces the operator's audit found worst — each of
+  // these measured 3-4 rows (or a full-width short-value control) before the
+  // cutover, and every one of them now inherits the one bar. Widths are the ones
+  // the pre-cutover audit actually failed on.
+  ...[
+    ['shipments-detail', 'cus', '/shipments-detail', [1440, 1187, 1024, 768]],
+    ['shipments-debit', 'cus', '/shipments-debit', [1440, 1024, 768]],
+    ['invoice-tracking', 'ketoan', '/accounting/invoice-tracking', [1440, 1024, 768]],
+    ['expenses', 'ketoan', '/expenses', [1440, 1024, 768]],
+    ['debt', 'ketoan', '/debt', [1440, 768]],
+    ['penalties', 'ketoan', '/penalties', [1440, 1024, 768]],
+    ['phoi-phieu', 'ketoan', '/accounting/phoi-phieu', [1440, 1024, 768]],
+    ['deposit-tracker', 'ketoan', '/accounting/deposit-tracker', [1440, 1024, 768]],
+    ['expense-accounting', 'ketoan', '/accounting/expenses', [1440, 1024, 768]],
+    ['dispatch', 'dieuvan', '/dispatch', [1440, 1024, 768]],
+    ['config-customers', 'admin', '/config/customers', [1440, 768]],
+  ].flatMap(([label, role, path, widths]) =>
+    widths.map((width) => ({
+      id: `filters/${label}/w${width}/max-two-rows`,
+      role,
+      path,
+      width,
+      kind: 'rows',
+      selector: '.filter-bar > *',
+      max: 2,
+      note: `${TWO_ROWS} — measured on /${label} (this surface failed the 2026-09-27 pre-cutover audit)`,
+    })),
+  ),
 ];

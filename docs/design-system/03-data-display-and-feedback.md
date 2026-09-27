@@ -85,12 +85,26 @@ The table/record surface is where per-page invention is worst: one shared
 - **Gap** — no check forces `Pagination`; per-page size controls are unpinned.
 
 ### List filter bars
-- **Use** — `.filter-bar` (`frontend/src/components/FilterBar.css`) is THE bar layout and every filter surface carries it: one measured grid `repeat(auto-fit, minmax(200px, 1fr))` at every width, `align-items: end`, 16px/12px gaps; the phone stack (`<768px`, one column) is the only band. Two structurally wide families own two tracks: the from/to date group (`DateRangeFields`) and a segmented group (`.ds-tabs`, e.g. `DateRangePresets`). `ListFilterBar` (`frontend/src/components/ListFilterBar.tsx`, card `20260922_38`) is the component host (search shell, regions, trailing action slot). Adopters include /shipments Row 2, /shipments-detail, /shipments-debit, /accounting/invoice-tracking, /expense-list, /debt-list, penalty log, /phoi-phieu-control, /deposit-refund-tracker, expense accounting/history, shipment-finance, /portal statement. §5: row-packing, dropdown ≤~320px, full-width only for the primary search.
-- **Never** — a page-local bar layout: no page may declare `display: flex/grid`, `flex-wrap`, `grid-template-columns`, `align-items` or `gap` for its filter container (page CSS may size only). No band may declare a column COUNT — the retired `768–1279px ⇒ exactly 2 columns` band turned the 8-control detail bar into four rows at 1187px (CHIEF 27/09).
-- **Never** — 28 CSS files own filter styling; `.filter-chip` recoloured from 6 sheets (`.fwd-filter-chip`, `.dd-filter-chip`, `.users .filter-chip`); old hand-rolled bars persist (`.expense-filters`, `.fset-search-bar`, `.penalty-filter-bar`).
-- **Divergence** — 10 shared hosts vs 28 filter stylesheets / 6 `.filter-chip` forks.
-- **Enforced by** — `src/components/filter-grid-rebuild.styles.test.ts` (one measured grid, no declared column count, two-track families, control floors ≤ one track, phone stack); `src/styles/filter-density.test.ts` (pins `--filter-control-h` in `FilterBar.css` + accounting/expense/debt/trip-list); `src/components/FilterBar.styles.test.ts`; `src/styles/responsive-polish.styles.test.ts` (≤640px stack); measured at every width by `testplan/qa/scripts/ui-filter-layout-sweep-20260927.mjs`.
-- **Gap** — the contract is pinned per named file; a new bespoke filter bar is unchecked.
+- **Use** — `.filter-bar` (`frontend/src/components/FilterBar.css`) is THE bar layout, and every shared filter surface carries it: **one wrapping flex line** (`display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 16px`), never a grid and never a declared column count (the retired `repeat(auto-fit, minmax(200px,1fr))` grid and its `768–1279px ⇒ 2 columns` band are what turned an 8-control bar into four rows at 1187px). `ListFilterBar` (`frontend/src/components/ListFilterBar.tsx`) is the host; its DOM order is search cell → criteria (`children`) → `presets` → `quickFilters` → spacer → actions.
+- **Where a criterion goes** — the criteria every list shares (search, `DateRangeFields` from/to pair, quick ranges, the `Bộ lọc` trigger, reset) stay visible in the bar. Every other criterion lives in `FilterDropdown` (`frontend/src/components/FilterDropdown.tsx`): a flat repo-native trigger reading `Bộ lọc` / `Bộ lọc, N đang áp dụng`, a dialog body that is the *same* wrapping line as the bar, and `Đặt lại`/`Áp dụng` riding its last line. Its panel is `min(520px, calc(100vw - 24px))` wide so the whole criterion set lands in two rows.
+- **Quick ranges, one implementation per container** — `DateRangePresets` (`design-system/forms/DateRangeFields.tsx`) renders the chips where the bar can hold them; `DateRangePresetSelect` renders the same preset array as a dropdown inside the dialog, where the chips group would wrap onto lines of its own.
+- **Width follows the value** — a filter control is as wide as the value it holds, bounded by its family:
+
+| family | floor | cap |
+|---|---|---|
+| search cell (`flex: 1 1 220px`) | 220px | 300px |
+| date field (`[data-input-wrapper]`) | 149px | 168px |
+| `DateRangeFields` (two fields + 12px seam) | 310px | 348px |
+| `UuiSelectField` (`.ds-uui-select`) | 180px | 280px |
+| `SearchableSelect` / `SearchableMultiSelect` | 200px | 320px |
+| `FilterDropdown` trigger | content | 180px |
+| reset action | content | 120px |
+
+- **Row budget** — at most **two** visual rows at every width ≥460px; the only grower is the search cell. The fold is **measured, not a breakpoint**: `frontend/src/components/filter-bar-mode.ts` counts the rendered rows and picks `inline` → `dialog` (criteria fold into `Bộ lọc`) → `dialog-presets` (the ranges follow them). Below the physical floor (≤430px) the strip wraps to three lines; nothing stretches.
+- **Never** — a page-local bar layout: no page may declare `display:flex/grid`, `flex-wrap`, `grid-template-columns`, `align-items` or `gap` on its filter container (a page may size only). Never `width:100%` on a filter control (the search cell is the one exception, capped at 300px). Never a `box-shadow` on a filter surface or its popover. Never a popover painted before it has coordinates — the `top: position?.top ?? 12` fallback is the "dropdown jumps over the page header" bug; the panel stays `visibility:hidden` until `usePopoverPosition` returns.
+- **Divergence** — 10 shared hosts vs 28 filter stylesheets; page-local containers still outside this law (trips `.filters-card`, dispatch detailed-plan ribbon, admin toolbars, forwarder chips, `PeriodFilter`, audit log, users).
+- **Enforced by** — `src/components/filter-grid-rebuild.styles.test.ts` (one flex line, no grid, exactly one grower, the search cap, no `?? 12`); `src/components/FilterDropdown.test.tsx`; `src/styles/filter-density.test.ts`; `frontend/design-lock/expectations/filters.mjs` (`rows ≤2` on `/shipments` at 1440/1187/1024/768/594/500/460, the `maxWidth` caps above, `matchHeight` against the tab row, `minFont ≥11`); `testplan/qa/scripts/ui-filter-audit-20260927.mjs` (the same promises walked across surfaces × widths).
+- **Gap** — the contract is pinned per named file/surface; a *new* bespoke filter bar is still unchecked, and the page-local containers listed under Divergence keep their own layout until the follow-up cutover.
 
 ### Quick-filter chips / badges / pills
 - **Use** — `.filter-chip` (`components/FilterBar.css:102`, 8px radius); shared badge chrome pinned at 4–6px (never a pill).
