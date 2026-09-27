@@ -9,6 +9,10 @@
    Khách w-180 trailing chevron, Hướng/Điều xe/Dữ liệu inline-label selects,
    Bộ lọc drawer trigger, Xóa lọc ghost at the tail. No label rows. */
 
+/* Desk: the two wrapper rows are layout-transparent, so the header is still
+   the one 36px flex row (title + group + range + Gán xe). */
+.detailed-plan-header__row { display: contents; }
+
 .detailed-plan-header {
   display: flex;
   align-items: center;
@@ -27,38 +31,14 @@
 }
 
 .detailed-plan-header__date {
-  display: inline-grid;
-  grid-auto-flow: column;
-  height: 32px;
-  overflow: hidden;
-  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-  border-radius: 8px;
-}
-
-.detailed-plan-header__preset {
-  height: 100%;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: var(--surface, #fff);
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: var(--text-control-compact-size, 13px);
-}
-
-.detailed-plan-header__preset + .detailed-plan-header__preset {
-  border-left: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-}
-
-.detailed-plan-header__preset.is-active {
-  background: var(--background-color-brand-primary, #e6f6ec);
-  color: var(--color-fg-brand-primary, #005a2d);
-  font-weight: 600;
-}
-
-.detailed-plan-header__preset:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-fg-brand-primary, #005a2d));
-  outline-offset: -2px;
+  /* Layout slot only — the shared `ds-tabs--boxed` group (operator ruling
+     2026-09-27: one button group app-wide) draws the container, the hairline
+     and the active pill. The phone band sizes its cells to keep the segment
+     plus the page title inside one 390px row (the range trigger below keeps
+     its full mask because of it, §4). */
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 /* Content-sized (never a fixed width): a 220px trigger left the row's label
@@ -116,23 +96,13 @@
   font-size: var(--text-control-compact-size, 13px);
 }
 
-.detailed-plan-ribbon__customer {
-  width: 180px;
-  min-width: 0;
-}
-
-.detailed-plan-ribbon__customer .searchable-select__trigger {
-  height: 32px;
-}
-
-/* The quick-facet and action wrappers (2026-09-27 phone rework) are
-   layout-transparent at desktop: `display: contents` keeps each control a
-   direct flex item of the ribbon, so the continuous 32px row is byte-for-byte
-   the row it was. The ≤767 band turns them into the phone's equal 2-up facet
-   grid and the right-pinned action row. */
-.detailed-plan-ribbon__quick,
+/* The facet cluster lives in the Bộ lọc drawer at every width (operator
+   2026-09-27: "why don't we group them in bộ lọc"), so the ribbon is the
+   search plus the action cluster — no facet grid exists to style. */
 .detailed-plan-ribbon__actions {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Ribbon selects ride the shared InlineLabelSelect chrome (h-8, trailing
@@ -140,10 +110,12 @@
 .detailed-plan-ribbon .inline-label-select__trigger { height: 32px; }
 .detailed-plan-ribbon .inline-label-select:first-of-type { min-width: 110px; }
 
-/* Drawer trigger + Xóa lọc pin right. */
+/* The action cluster packs: the drawer trigger and Xóa lọc sit next to each
+   other at the head of the row (the old tail-pin stranded the clear control
+   at the far edge of a full-width row, reading as an orphan). */
 .detailed-plan-filters__clear {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .detailed-plan-filters__clear:disabled {
@@ -236,10 +208,17 @@
   line-height: 1.4;
 }
 
-.detailed-plan-filter-panel__fields {
+.detailed-plan-filter-panel__fields,
+.detailed-plan-filter-panel__quick {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+
+.detailed-plan-filter-panel__quick > * { min-width: 0; }
+
+@media (min-width: 641px) {
+  .detailed-plan-filter-panel__quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .detailed-plan-grid__lot-banner {
@@ -582,68 +561,66 @@
 }
 
 @media (max-width: 960px) {
+  /* [title | presets] / [range | Gán xe]: two real rows, each with its own
+     track split, so no control rides a row of its own AND the range is not
+     sized by the preset group in the row above it. */
   .detailed-plan-header {
-    flex-wrap: wrap;
-    height: auto;
-    min-height: 36px;
-  }
-
-  .detailed-plan-header__title { flex-basis: 100%; }
-}
-
-/* ══ Phone rework 2026-09-27 (user: "messy and wasted lots of space") ═════
-   The 390px header was four stacked bands (title / segment / range / Gán xe)
-   with two controls left alone on near-empty rows, and the ribbon wrapped
-   three different-width controls per line — ragged edges against ragged
-   edges. Two deterministic grids replace it:
-   · header = [title | presets] on row 1, [range | + Gán xe] on row 2, so no
-     control rides a row of its own and the range trigger keeps the widest
-     cell (it must never clip the DD/MM/YYYY - DD/MM/YYYY mask, §4);
-   · ribbon = search edge-to-edge, the four quick facets on an equal 2-up
-     grid (the same tracks, so rows line up), actions right-pinned — the
-     ListFilterBar phone contract (§5 one-column stack, actions hug the row
-     end, full width reserved for the main search only).
-   Every control keeps the 44px touch floor (design §5). */
-@media (max-width: 767px) {
-  .detailed-plan-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
     height: auto;
   }
 
+  .detailed-plan-header__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .detailed-plan-header__title { margin-right: auto; }
+
+  .detailed-plan-header__date { flex: 0 0 auto; }
+
+  .detailed-plan-header__range {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .detailed-plan-header__assign { flex: 0 0 auto; }
+}
+
+/* ══ Phone band ══════════════════════════════════════════════════════════
+   The header is already the two deterministic rows the ≤960 block defines
+   ([title | presets] / [range | Gán xe]); this band only owns the touch
+   sizing, and the ribbon owns the phone contract the Director's filter law
+   sets: search edge-to-edge, every other control hugging its own content
+   (no control stretched across a half-empty cell), 44px floor throughout.
+   The four quick facets are NOT here — they live in the Bộ lọc drawer at
+   every width (operator, 2026-09-27: "why don't we group them in bộ lọc").
+   This band owns the preset segment's compact size only. */
+@media (max-width: 767px) {
   .detailed-plan-header__title {
     margin-right: 0;
     font-size: 15px;
     white-space: normal;
   }
 
-  /* The segment keeps its content width (the auto track) and every preset
-     drops to the compact control size: 3 presets at ~150px total is what
-     buys the range trigger its full DD/MM/YYYY - DD/MM/YYYY mask on the
-     390px row below. The trigger must never ellipsize (design §4) — the
-     unit button padding is a utility class, hence the scoped override. */
+  /* Phone sizing of the SAME group: 11px label + 6px inset so the three
+     labels, the page title and the 8px gap fit one 374px row. The shape
+     (container, hairline, active pill) is untouched — only the type scale
+     drops, which is the house label size anyway (§5). */
   .detailed-plan-header__date {
     width: max-content;
     max-width: 100%;
-    height: var(--control-touch-h, 44px);
-    grid-auto-columns: minmax(0, 1fr);
   }
 
-  .detailed-plan-header__date .detailed-plan-header__preset {
-    padding-inline: 2px !important;
-    white-space: nowrap;
-  }
-
-  /* The unit button paints the label in an inner span with its own utility
-     size, so the compact size has to land there. 11px is the house label
-     size (§5) — the presets are labels, and the 44px tap target that the
-     three of them share is unchanged. */
-  .detailed-plan-header__date .detailed-plan-header__preset [data-text] {
-    padding-inline: 0;
+  .detailed-plan-header__date .ds-tabs__btn {
+    padding-inline: 6px;
     font-size: var(--text-label-size, 11px);
-    line-height: 1;
+    white-space: nowrap;
   }
 
   /* The calendar glyph is decoration beside a value that already reads as a
@@ -670,46 +647,19 @@
     height: auto;
   }
 
+  /* The search is the one control the law gives the full width on a phone;
+     the action cluster below it hugs its own content instead of stretching
+     two buttons across the row. */
   .detailed-plan-ribbon__search {
     flex: 1 1 100%;
     width: auto;
     min-height: var(--control-touch-h, 44px);
   }
 
-  .detailed-plan-ribbon__quick {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    width: 100%;
-  }
-
-  .detailed-plan-ribbon__quick > * {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .detailed-plan-ribbon__quick .searchable-select,
-  .detailed-plan-ribbon__quick .searchable-select__trigger,
-  .detailed-plan-ribbon__quick .inline-label-select,
-  .detailed-plan-ribbon__quick .inline-label-select__trigger {
-    width: 100%;
-    min-width: 0;
-    height: var(--control-touch-h, 44px);
-  }
-
-  /* Bộ lọc / Xóa lọc ride the SAME two tracks as the facet grid above them,
-     so the six controls read as one aligned block instead of a facet grid
-     with a pair of buttons floating on a half-empty row underneath. */
   .detailed-plan-ribbon__actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
     width: 100%;
     min-height: var(--control-touch-h, 44px);
-  }
-
-  .detailed-plan-filters__clear {
-    margin-left: 0;
+    justify-content: flex-start;
   }
 }
 

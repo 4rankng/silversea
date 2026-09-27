@@ -2,7 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FilterLines } from '@untitledui/icons';
 import { Plus, Search, RotateCcw } from 'lucide-react';
-import { DateRangePopover, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, type DateRangeValue } from '../../../design-system';
+import { DateRangePopover, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
+import type { TabItem } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
@@ -114,6 +115,12 @@ function FacetMultiSelect({
  * (hours/zone/points), and Xóa lọc as a ghost at the tail, disabled until a
  * filter deviates from default. Labels live inside the controls.
  */
+const DATE_SCOPE_TABS: TabItem[] = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: 'tomorrow', label: 'Hôm sau' },
+  { id: 'all', label: 'Tất cả' },
+];
+
 export function DetailedPlanFilters({
   filters,
   onChange,
@@ -139,6 +146,13 @@ export function DetailedPlanFilters({
     from: filters.date || filters.dateFrom,
     to: filters.date || filters.dateTo,
   };
+  // The group renders no active cell while a custom range is in force (the
+  // range trigger, not a preset, is then the scope's source of truth).
+  const activeDateScope = filters.date === today
+    ? 'today'
+    : filters.date === tomorrow
+      ? 'tomorrow'
+      : (filters.date === '' && rangeValue.from === '' ? 'all' : '');
 
   const activeDrawerFilterCount = [
     filters.zone !== '',
@@ -148,6 +162,15 @@ export function DetailedPlanFilters({
     filters.hourFrom !== '',
     filters.hourTo !== '',
   ].filter(Boolean).length;
+  // The badge is the only place a collapsed filter announces itself, so it
+  // counts the four quick facets too — they live in the same drawer now.
+  const activeQuickFacetCount = [
+    filters.customerId != null,
+    filters.direction !== '',
+    filters.assignmentStatus !== '',
+    filters.dataStatus !== '',
+  ].filter(Boolean).length;
+  const appliedFilterCount = activeDrawerFilterCount + activeQuickFacetCount;
   const hasActiveFilters = activeDrawerFilterCount > 0
     || filters.direction !== ''
     || filters.assignmentStatus !== ''
@@ -214,36 +237,27 @@ export function DetailedPlanFilters({
   return (
     <>
       <header className="detailed-plan-header" data-component="detailed-plan-header">
-        <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
-        <div className="detailed-plan-header__date" role="group" aria-label="Phạm vi ngày vận chuyển">
-          <UUIButton
-            className={`detailed-plan-header__preset${filters.date === today ? ' is-active' : ''}`}
-            size="sm"
-            color="secondary"
-            onPress={() => selectDate(today)}
-            aria-pressed={filters.date === today}
-          >
-            Hôm nay
-          </UUIButton>
-          <UUIButton
-            className={`detailed-plan-header__preset${filters.date === tomorrow ? ' is-active' : ''}`}
-            size="sm"
-            color="secondary"
-            onPress={() => selectDate(tomorrow)}
-            aria-pressed={filters.date === tomorrow}
-          >
-            Hôm sau
-          </UUIButton>
-          <UUIButton
-            className={`detailed-plan-header__preset${filters.date === '' && rangeValue.from === '' ? ' is-active' : ''}`}
-            size="sm"
-            color="secondary"
-            onPress={() => selectDate('')}
-            aria-pressed={filters.date === '' && rangeValue.from === ''}
-          >
-            Tất cả
-          </UUIButton>
+        {/* Two wrapper rows, `display: contents` at desk width so the four
+            controls still form ONE 36px row: a single CSS grid cannot give
+            row 2 its own track split — the preset group's 181px track starved
+            the range trigger below it and ellipsized its mask (§4 violation,
+            found by design-lock at 390px). */}
+        <div className="detailed-plan-header__row">
+          <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
+        {/* Operator ruling 2026-09-27: the fleet-vehicle status group is THE
+            button group — this date scope uses the shared primitive, so the
+            app has exactly one segmented-control shape. */}
+        <div className="detailed-plan-header__date">
+          <Tabs
+            tabs={DATE_SCOPE_TABS}
+            value={activeDateScope}
+            onChange={(id) => selectDate(id === 'today' ? today : id === 'tomorrow' ? tomorrow : '')}
+            variant="boxed"
+            ariaLabel="Phạm vi ngày vận chuyển"
+          />
+          </div>
         </div>
+        <div className="detailed-plan-header__row">
         <DateRangePopover
           className="detailed-plan-header__range"
           id="detailed-plan-date-range"
@@ -261,6 +275,7 @@ export function DetailedPlanFilters({
         >
           Gán xe
         </UUIButton>
+        </div>
       </header>
 
       <div className="detailed-plan-ribbon" data-component="detailed-plan-ribbon">
@@ -275,60 +290,17 @@ export function DetailedPlanFilters({
             onChange={(event) => onChange({ q: event.target.value })}
           />
         </div>
-        {/* The four quick facets and the two actions are grouped (2026-09-27
-            phone rework). Both wrappers are `display: contents` at desktop, so
-            the ribbon stays the one continuous flex row it was; at phone they
-            become the 2-up facet grid and the right-pinned action row. */}
-        <div className="detailed-plan-ribbon__quick">
-          <SearchableSelect
-            id="detailed-plan-customer"
-            className="detailed-plan-ribbon__customer"
-            value={String(filters.customerId ?? '')}
-            onChange={(value) => onChange({ customerId: value === '' ? null : Number(value) })}
-            options={customerOptions}
-            placeholder="Khách: Tất cả"
-            searchPlaceholder="Tìm khách hàng…"
-            emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable
-            clearLabel="Khách: Tất cả"
-            size="sm"
-          />
-          <InlineLabelSelect
-            id="detailed-plan-direction"
-            label="Hướng"
-            items={DIRECTION_OPTIONS}
-            selectedKey={filters.direction || 'ALL_DIRECTIONS'}
-            onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
-            ariaLabel="Chiều hàng"
-          />
-          <InlineLabelSelect
-            id="detailed-plan-assignment"
-            label="Điều xe"
-            items={ASSIGNMENT_OPTIONS}
-            selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
-            onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
-            ariaLabel="Trạng thái điều xe"
-          />
-          <InlineLabelSelect
-            id="detailed-plan-data-status"
-            label="Dữ liệu"
-            items={DATA_STATUS_OPTIONS}
-            selectedKey={filters.dataStatus || 'ALL_DATA_STATUS'}
-            onSelectionChange={(key) => onChange({ dataStatus: key === 'ALL_DATA_STATUS' ? '' : key as DetailedPlanFilterState['dataStatus'] })}
-            ariaLabel="Trạng thái dữ liệu"
-          />
-        </div>
         <div className="detailed-plan-ribbon__actions">
           <UUIButton
             size="sm"
             color="secondary"
             iconLeading={FilterLines}
             onPress={() => setIsFilterDrawerOpen(true)}
-            aria-label={activeDrawerFilterCount > 0 ? `Bộ lọc, ${activeDrawerFilterCount} đang áp dụng` : 'Bộ lọc'}
+            aria-label={appliedFilterCount > 0 ? `Bộ lọc, ${appliedFilterCount} đang áp dụng` : 'Bộ lọc'}
           >
             Bộ lọc
-            {activeDrawerFilterCount > 0 && (
-              <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
+            {appliedFilterCount > 0 && (
+              <span className="detailed-plan-filters__count" aria-hidden="true">{appliedFilterCount}</span>
             )}
           </UUIButton>
           <UUIButton
@@ -349,7 +321,7 @@ export function DetailedPlanFilters({
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
         title="Bộ lọc kế hoạch"
-        subtitle="Thu hẹp theo giờ chạy, khu vực và điểm giao nhận (Hướng/Điều xe đã dọn về ribbon)."
+        subtitle="Khách, hướng, điều xe, dữ liệu, giờ chạy, khu vực và điểm giao nhận — mọi bộ lọc nằm ở đây."
         className="detailed-plan-filter-drawer"
         footer={
           <>
@@ -363,6 +335,52 @@ export function DetailedPlanFilters({
         }
       >
         <div ref={filterPanelRef} className="detailed-plan-filter-panel">
+          {/* The four quick facets live HERE, not on the ribbon (operator,
+              2026-09-27: "why don't we group them in bộ lọc"). Four stacked
+              dropdowns measured 176px of chrome above the list at 390px and
+              five full-width rows in the header at every narrow width; the
+              drawer keeps one home per filter at every device size. */}
+          <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-quick">
+            <h3 id="detailed-plan-filter-quick" className="detailed-plan-filter-panel__title">Bộ lọc nhanh</h3>
+            <div className="detailed-plan-filter-panel__quick">
+              <SearchableSelect
+                id="detailed-plan-customer"
+                value={String(filters.customerId ?? '')}
+                onChange={(value) => onChange({ customerId: value === '' ? null : Number(value) })}
+                options={customerOptions}
+                placeholder="Khách: Tất cả"
+                searchPlaceholder="Tìm khách hàng…"
+                emptyMessage="Không tìm thấy khách hàng phù hợp."
+                clearable
+                clearLabel="Khách: Tất cả"
+                size="sm"
+              />
+              <InlineLabelSelect
+                id="detailed-plan-direction"
+                label="Xuất / Nhập"
+                items={DIRECTION_OPTIONS}
+                selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+                onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
+                ariaLabel="Xuất / Nhập"
+              />
+              <InlineLabelSelect
+                id="detailed-plan-assignment"
+                label="Điều xe"
+                items={ASSIGNMENT_OPTIONS}
+                selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
+                onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
+                ariaLabel="Trạng thái điều xe"
+              />
+              <InlineLabelSelect
+                id="detailed-plan-data-status"
+                label="Dữ liệu"
+                items={DATA_STATUS_OPTIONS}
+                selectedKey={filters.dataStatus || 'ALL_DATA_STATUS'}
+                onSelectionChange={(key) => onChange({ dataStatus: key === 'ALL_DATA_STATUS' ? '' : key as DetailedPlanFilterState['dataStatus'] })}
+                ariaLabel="Trạng thái dữ liệu"
+              />
+            </div>
+          </section>
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-assignment">
             <h3 id="detailed-plan-filter-assignment" className="detailed-plan-filter-panel__title">Giờ chạy và khu vực</h3>
             <div className="detailed-plan-filter-panel__fields">

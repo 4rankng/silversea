@@ -502,7 +502,13 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('detailed-plan-filters__date-shortcut');
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
     expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
-    expect(css).toContain('.detailed-plan-filter-panel__fields {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
+    expect(css).toContain('.detailed-plan-filter-panel__fields,\n.detailed-plan-filter-panel__quick {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
+    // The facet cluster lives in the drawer; the ribbon facet grid is gone and
+    // must never come back (operator 2026-09-27: "why don't we group them in
+    // bộ lọc") — a re-added ribbon grid would restart the stacked-dropdown
+    // header this redesign removed.
+    expect(css).not.toContain('detailed-plan-ribbon__quick');
+    expect(css).not.toContain('detailed-plan-ribbon__customer');
     expect(css).not.toContain('detailed-plan-filters__advanced');
     expect(css).not.toContain('detailed-plan-filters__primary-row');
     expect(css).not.toContain('detailed-plan-filters__secondary-row');
