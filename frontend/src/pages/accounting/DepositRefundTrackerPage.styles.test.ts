@@ -53,71 +53,50 @@ describe('deposit tracker table — scroll + token integrity (card 20260922_53)'
   });
 });
 
-describe('deposit tracker filter row-packing (card 20260924_13, law §5)', () => {
-  it('bar children are content-sized — no control stretches to a full row', () => {
-    expect(ruleFor('\\.deposit-tracker-filters > \\*')).toMatch(/flex:\s*0 1 auto/);
-    expect(ruleFor('\\.deposit-tracker-filters > \\.btn')).toMatch(/flex:\s*0 0 auto/);
+// Card 20260927_152 (operator 2026-09-27: "try to keep filter section max 2
+// rows only", "the width of control should relative to value it holds"): the
+// page no longer owns the filter strip. `ListFilterBar` owns the layout and the
+// shared sheet owns every control's width, so this sheet may declare NOTHING
+// about a filter control. The row-packing pins that described the deleted
+// `.deposit-tracker-filters` rules (content-sizing, the 168/149px date floors,
+// the 240–280px select slot, the ≤900 full-width band) are replaced by the
+// contract they were hiding — never re-pinned onto a rule that no longer
+// exists.
+const FILTER_SURFACE = /\.list-filter-bar|\.filter-bar|\.date-range-fields|\.ds-uui-select|\.filter-dropdown|\[data-input-wrapper\]|\[data-uui-control\]/;
+const FILTER_LAYOUT_OR_WIDTH = /(?:^|;)\s*(?:display|flex|flex-wrap|flex-grow|grid|grid-template-columns|grid-column|align-items|justify-content|gap|width|min-width|max-width)\s*:/;
+
+/** Every rule in the sheet whose selector names a filter surface. */
+const filterRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+  .map(([, selector, declarations]) => ({ selector: selector.trim(), declarations }))
+  .filter((rule) => FILTER_SURFACE.test(rule.selector));
+
+describe('deposit tracker filter strip (card 20260927_152)', () => {
+  it('the page sheet declares no filter layout and no control width', () => {
+    const offenders = filterRules
+      .filter((rule) => FILTER_LAYOUT_OR_WIDTH.test(rule.declarations))
+      .map((rule) => rule.selector);
+    expect(offenders).toEqual([]);
   });
 
-  it('the date pair shares fixed compact widths (ListFilterBar parity: 168px, 149 floor)', () => {
-    expect(ruleFor('\\.deposit-tracker-filters \\[data-input-wrapper\\]')).toMatch(/width:\s*168px/);
-    expect(ruleFor('\\.deposit-tracker-filters \\[data-input-wrapper\\]')).toMatch(/min-width:\s*149px/);
+  it('no page-owned filter markup or grid survives', () => {
+    expect(css).not.toMatch(/deposit-tracker-filters/);
+    expect(css).not.toMatch(/grid-template-columns|grid-column\s*:/);
+    expect(tsx).not.toContain('className="filter-bar');
+    expect(tsx).not.toContain('deposit-tracker-filters__pair');
   });
 
-  it('Trạng thái sits in a 240–280px slot — auto width, never width:100%', () => {
-    const select = ruleFor('\\.deposit-tracker-filters \\.ds-uui-select');
-    expect(select).toMatch(/width:\s*auto/);
-    expect(select).toMatch(/min-width:\s*240px/);
-    expect(select).toMatch(/max-width:\s*280px/);
-    expect(select).not.toMatch(/width:\s*100%/);
+  it('renders the shared strip — date pair, the status criterion, the two actions', () => {
+    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<DateRangeFields');
+    expect(tsx).toContain('<FilterDropdown');
+    // Behaviour preserved: the page's own two actions stay reachable and the
+    // status criterion keeps its accessible name.
+    expect(tsx).toContain('>Lọc</Btn>');
+    expect(tsx).toContain('>Thêm dòng</Btn>');
+    expect(tsx).toContain('ariaLabel="Trạng thái hoàn cược"');
   });
 
-  it('mobile ≤900 — Từ/Đến pair on one row, Trạng thái full row, action buttons row (card 20260925_1 short-value pairing)', () => {
-    const mobile = css.match(/@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // The date pair rides the pair wrapper: 2-column grid, not a column stack.
-    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    // Mark-up: date pair wrapper carries Từ ngày + Đến ngày.
-    expect(tsx).toMatch(/className="deposit-tracker-filters__pair"[\s\S]*?Từ ngày[\s\S]*?Đến ngày/);
-    // Select + buttons keep their full row under the pair (the direct-child
-    // selector above covers both `.ds-uui-select` and `.btn` siblings).
-    expect(mobile).toMatch(/\.deposit-tracker-filters \.ds-uui-select/);
-    // One control height per context — phones rise to 44px touch floor.
-    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
-    // The standing flat law carries over: no shadow, no gradient.
-    expect(mobile).not.toMatch(/box-shadow|gradient/);
-  });
-
-  it('the filter bar stays flat — no shadow or 3D surface (§3)', () => {
-    expect(ruleFor('\\.deposit-tracker-filters')).not.toMatch(/box-shadow|gradient/);
-  });
-
-  // Card 20260925_5 (CHIEF 19:09, wide viewport, class sweep mandate): the
-  // date pair wrapper `.deposit-tracker-filters__pair` defaulted to
-  // display: block, so the two stacked labelled fields read as a detached
-  // panel above the Trạng thái / Lọc / Thêm dòng row. At every pre-mobile
-  // breakpoint the pair is one inline flex-cell of the bar's flex row —
-  // flat (transparent bg, 0 border / radius / shadow) so it never promotes
-  // to a card. The mobile ≤900 grid rule still owns phone pairing.
-  it('desktop pair wrapper is one inline flex-cell of the bar — flat, not a panel (card 20260925_5 wide-pair)', () => {
-    const depositPairRule = ruleFor('\\.deposit-tracker-filters__pair');
-    // The rule must be at top level (NOT inside the ≤900 media block).
-    expect(depositPairRule, 'pair default rule present at top level').not.toBe('');
-    expect(depositPairRule).toMatch(/display:\s*flex/);
-    expect(depositPairRule).toMatch(/align-items:\s*flex-end/);
-    expect(depositPairRule).toMatch(/gap:\s*var\(--space-3, 12px\)/);
-    expect(depositPairRule).toMatch(/background:\s*transparent/);
-    expect(depositPairRule).toMatch(/border:\s*0/);
-    expect(depositPairRule).toMatch(/border-radius:\s*0/);
-    // Source order: desktop default first, mobile @media below so the grid
-    // rule still wins on phones and never leaks above the breakpoint.
-    const desktopIdx = css.search(/\.deposit-tracker-filters__pair\s*\{/);
-    const mobileIdx = css.search(/@media \(max-width: 900px\)/);
-    expect(desktopIdx).toBeGreaterThan(-1);
-    expect(mobileIdx).toBeGreaterThan(desktopIdx);
-    // Mobile grid contract preserved (card 20260925_1).
-    const mobile = css.match(/@media \(max-width: 900px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*display:\s*grid/);
-    expect(mobile).toMatch(/\.deposit-tracker-filters__pair\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  it('the filter surface stays flat — no shadow, gradient or 3D (§3)', () => {
+    expect(css).not.toMatch(/box-shadow|gradient|perspective|rotate3d/);
   });
 });

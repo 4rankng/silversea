@@ -126,13 +126,19 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     const { container } = renderPage();
     expect(container.querySelector('[data-component="shipment-debit-header"]')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Chi phí - Quyết toán' })).toBeTruthy();
-    expect(container.querySelector('[data-component="shipment-debit-ribbon"]')).not.toBeNull();
+    // Row 2 is the shared filter strip (card 20260927_153): the page no longer
+    // declares a bar container, so the strip IS `.filter-bar.list-filter-bar`
+    // and the shared sheet owns its layout.
+    const ribbon = container.querySelector('.shipment-debit-workspace .filter-bar.list-filter-bar') as HTMLElement;
+    expect(ribbon).not.toBeNull();
     // Label-in-control: no floating label rows remain.
     expect(screen.queryByText('Từ ngày giao')).toBeNull();
     expect(screen.queryByText('Đến ngày giao')).toBeNull();
     expect(screen.queryByText('Trạng thái khóa lô')).toBeNull();
-    // Ribbon order: customer combobox → delivery range → lock → Xóa lọc tail.
-    const ribbon = container.querySelector('[data-component="shipment-debit-ribbon"]') as HTMLElement;
+    // The criteria ride the strip: the delivery range on the bar itself, with
+    // Khách hàng and Khóa lô as the criteria `Bộ lọc` owns (inline while the
+    // strip still fits two rows, folded behind the trigger when it does not)
+    // and Xóa lọc at the tail.
     within(ribbon).getByRole('button', { name: 'Khách hàng' });
     within(ribbon).getByRole('group', { name: 'Khoảng ngày giao' });
     within(ribbon).getByRole('button', { name: 'Khóa lô: Tất cả' });

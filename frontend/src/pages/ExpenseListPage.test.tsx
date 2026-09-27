@@ -230,20 +230,20 @@ describe('ExpenseListPage direct records', () => {
 });
 
 // FIN-POL-01a: empty date fields still have visible context and reversible filters.
-// Card 20260925_6: Từ/Đến now ship as ONE paired cell (one shared label
-// "Từ ngày — Đến ngày", one grid row of two date inputs). The contract is
-// preserved — both inputs are still empty by default, still individually
-// keyboard-addressable, and the reset still wipes both.
+// Card 20260927_152: Từ/Đến are the shared `DateRangeFields` group — two
+// independent fields inside one `role="group"`. The contract is preserved:
+// both inputs are empty by default, individually keyboard-addressable, and the
+// reset still wipes both.
 it('keeps visible date labels and clears the selected date range', async () => {
   renderPage();
   await screen.findByText('Garage Auto 123');
-  // The single shared pair label sits above both inputs.
-  expect(screen.getByText('Từ ngày — Đến ngày')).toBeTruthy();
-  // Both inputs are individually addressable via aria-label inside the
-  // role="group" pair container.
-  const pairGroup = screen.getByRole('group', { name: 'Khoảng ngày' });
-  expect(pairGroup).toContainElement(screen.getByLabelText('Từ ngày'));
-  expect(pairGroup).toContainElement(screen.getByLabelText('Đến ngày'));
+  // Both inputs are individually addressable by their labels inside the
+  // shared date-range group.
+  const rangeGroup = screen.getByRole('group', { name: 'Khoảng ngày' });
+  expect(rangeGroup).toContainElement(screen.getByLabelText('Từ ngày'));
+  expect(rangeGroup).toContainElement(screen.getByLabelText('Đến ngày'));
+  expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
+  expect(screen.getByLabelText('Đến ngày')).toHaveValue('');
   fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
   fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));

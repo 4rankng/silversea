@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   INVOICE_TRACKING_PROGRESS,
   INVOICE_TRACKING_PROGRESS_LABELS,
@@ -14,7 +14,9 @@ import {
 } from '@tingting/shared';
 import { Btn, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
-import { DateRangeFields, DateRangePresets, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangeFields';
+import { ListFilterBar } from '../components/ListFilterBar';
+import { FilterDropdown } from '../components/FilterDropdown';
+import { DateRangeFields, DateRangePresets, DateRangePresetSelect, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangeFields';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { downloadCSV } from '../lib/csv';
 import {
@@ -117,6 +119,13 @@ export default function AccountingInvoiceTrackingPage() {
   const clearFilters = () => { setSearch(''); setSupplier(''); setDiffOnly(false); };
   const hasActiveFilters = Boolean(search.trim() || supplier || diffOnly);
 
+  // Card 20260927_152: the two criteria behind `Bộ lọc` — the count feeds the
+  // trigger badge, `Đặt lại` clears exactly those two and nothing else.
+  const secondaryCount = (supplier ? 1 : 0) + (diffOnly ? 1 : 0);
+  const resetSecondary = () => { setSupplier(''); setDiffOnly(false); };
+  const presetNode = <DateRangePresets presets={periodPresets} value={period} onChange={setPeriod} ariaLabel="Kỳ theo dõi nhanh" />;
+  const presetDialogNode = <DateRangePresetSelect presets={periodPresets} value={period} onChange={setPeriod} ariaLabel="Kỳ theo dõi nhanh" />;
+
   const exportExcel = () => {
     const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
     const body = filtered.map((row, index) => [
@@ -198,52 +207,48 @@ export default function AccountingInvoiceTrackingPage() {
           </div>
         </div>
 
-        <div className="filter-bar invoice-tracking-filters" role="search" aria-label="Bộ lọc hóa đơn">
+        {/* Card 20260927_152: the shared bar owns the strip layout. Period
+            fields, quick ranges and reset are the primary controls;
+            `Nhà cung cấp` / `Chênh lệch` render INLINE while the strip still
+            fits two rows and only collapse into `Bộ lọc (N)` when the width
+            leaves no other choice. */}
+        <ListFilterBar
+          search={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Số HĐ, MST, Lô, Cont...',
+            ariaLabel: 'Tìm theo số HĐ, MST, lô, cont',
+          }}
+          presets={presetNode}
+          actions={(
+            <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
+          )}
+        >
           <DateRangeFields
             id="ivt-period"
-            className="invoice-tracking-range"
             ariaLabel="Kỳ theo dõi"
             size="sm"
             from={period.from}
             to={period.to}
             onChange={setPeriod}
           />
-          <DateRangePresets
-            className="invoice-tracking-range__presets"
-            presets={periodPresets}
-            value={period}
-            onChange={setPeriod}
-            ariaLabel="Kỳ theo dõi nhanh"
-          />
-          <div className="invoice-tracking-search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              type="text"
-              aria-label="Tìm theo số HĐ, MST, lô, cont"
-              placeholder="Số HĐ, MST, Lô, Cont..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc hóa đơn" presets={presetDialogNode} onReset={resetSecondary}>
+            <UuiSelectField
+              label="Nhà cung cấp"
+              hideLabel
+              value={supplier}
+              onChange={(event) => setSupplier(event.target.value)}
+              options={[{ value: '', label: 'Nhà cung cấp: tất cả' }, ...supplierOptions.map((name) => ({ value: name, label: name }))]}
             />
-          </div>
-          <UuiSelectField
-            wrapperClassName="invoice-tracking-supplier"
-            label="Nhà cung cấp"
-            hideLabel
-            value={supplier}
-            onChange={(event) => setSupplier(event.target.value)}
-            options={[{ value: '', label: 'Nhà cung cấp: tất cả' }, ...supplierOptions.map((name) => ({ value: name, label: name }))]}
-          />
-          <UuiSelectField
-            wrapperClassName="invoice-tracking-diff"
-            label="Chênh lệch"
-            hideLabel
-            value={diffOnly ? 'diff' : 'all'}
-            onChange={(event) => setDiffOnly(event.target.value === 'diff')}
-            options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
-          />
-          <div className="filter-bar__spacer" />
-          <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
-        </div>
+            <UuiSelectField
+              label="Chênh lệch"
+              hideLabel
+              value={diffOnly ? 'diff' : 'all'}
+              onChange={(event) => setDiffOnly(event.target.value === 'diff')}
+              options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
+            />
+          </FilterDropdown>
+        </ListFilterBar>
       </header>
 
       {actionError && <p className="invoice-tracking-alert" role="alert">{actionError}</p>}

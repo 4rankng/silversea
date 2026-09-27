@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
+import { FilterDropdown } from '../components/FilterDropdown';
 import { ListFilterBar } from '../components/ListFilterBar';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
@@ -11,7 +12,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangeFields, EmptyState, Pagination, Tabs, UuiSelectField, type TabItem } from '../design-system';
+import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, Pagination, UuiSelectField, type DateRangePreset, type DateRangeValue } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   DISPATCH_STATUS,
@@ -30,12 +31,20 @@ import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
 import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
 import './ShipmentContainersPage.css';
 
-// Date-scope presets — the same segmented control as the dispatch date scope.
-const DATE_PRESET_TABS: TabItem[] = [
-  { id: 'today', label: 'Hôm nay' },
-  { id: 'tomorrow', label: 'Hôm sau' },
-  { id: 'all', label: 'Tất cả' },
+// Date-scope quick ranges — the scopes the page always offered, in the shared
+// preset shape: `DateRangePresets` (boxed chips) rides the bar and
+// `DateRangePresetSelect` (the same ranges as a dropdown) rides the `Bộ lọc`
+// dialog once the strip has folded its quick ranges there. `range()` is
+// evaluated on click, so `Hôm nay` stays anchored to the day it is clicked.
+const DATE_RANGE_PRESETS: DateRangePreset[] = [
+  { id: 'today', label: 'Hôm nay', range: () => { const today = formatVietnamDateInput(new Date()); return { from: today, to: today }; } },
+  { id: 'tomorrow', label: 'Hôm sau', range: () => { const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const iso = formatVietnamDateInput(tomorrow); return { from: iso, to: iso }; } },
 ];
+
+// The all-dates scope is a CHIP of the bar only: the dialog's dropdown appends
+// its own "Tất cả" (the clear option, `DateRangePresetSelect`), so passing this
+// entry to it as well would list the same range twice.
+const ALL_DATES_PRESET: DateRangePreset = { id: 'all', label: 'Tất cả', range: () => ({ from: '', to: '' }) };
 
 function ShipmentContainerLedgerSkeleton() {
   return (
@@ -173,62 +182,51 @@ export default function ShipmentContainersPage() {
     }, { replace: true });
   };
 
-  const showAllDates = () => {
-    setDateResetKey((key) => key + 1);
+  // Card 20260927_152: the four criteria behind `Bộ lọc` — the count feeds the
+  // trigger badge, `Đặt lại` clears exactly those four and never the search or
+  // the dates.
+  const secondaryCount = (customerId ? 1 : 0) + (direction ? 1 : 0) + (dispatchStatus ? 1 : 0) + (informationStatus ? 1 : 0);
+
+  const resetSecondary = () => {
+    updateParam('customerId', null);
+    updateParam('direction', null);
+    updateParam('dispatchStatus', null);
+    updateParam('informationStatus', null);
+  };
+
+  // One pass writes both date params, so no render pairs a new Từ with a stale
+  // Đến. The date fields hand it the range they hold; a quick range asks it to
+  // settle `dateScope` as well, because an EMPTY range IS the "Tất cả" scope —
+  // without the flag the page would snap back to today the moment both ends are
+  // empty.
+  const writeDateRange = useCallback((range: DateRangeValue, settleScope: boolean) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      next.delete('transportDateFrom');
-      next.delete('transportDateTo');
-      next.set('dateScope', 'all');
+      if (range.from) next.set('transportDateFrom', range.from); else next.delete('transportDateFrom');
+      if (range.to) next.set('transportDateTo', range.to); else next.delete('transportDateTo');
+      if (settleScope) {
+        if (range.from || range.to) next.delete('dateScope');
+        else next.set('dateScope', 'all');
+      }
       next.delete('page');
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
 
-  const tomorrow = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return formatVietnamDateInput(d);
-  }, []);
+  const applyDateRange = useCallback((range: DateRangeValue) => writeDateRange(range, false), [writeDateRange]);
 
-  const showToday = () => {
+  // A quick range also drops a local invalid draft (remount key) — the duty the
+  // retired `show*` handlers carried.
+  const applyDatePreset = (range: DateRangeValue) => {
     setDateResetKey((key) => key + 1);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete('dateScope');
-      next.set('transportDateFrom', today);
-      next.set('transportDateTo', today);
-      next.delete('page');
-      return next;
-    }, { replace: true });
+    writeDateRange(range, true);
   };
 
-  const showTomorrow = () => {
-    setDateResetKey((key) => key + 1);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete('dateScope');
-      next.set('transportDateFrom', tomorrow);
-      next.set('transportDateTo', tomorrow);
-      next.delete('page');
-      return next;
-    }, { replace: true });
-  };
-
-  // No preset is active while a custom range (or a one-sided date) is in force.
-  const datePreset = allDates
-    ? 'all'
-    : dateFrom === today && dateTo === today
-      ? 'today'
-      : dateFrom === tomorrow && dateTo === tomorrow
-        ? 'tomorrow'
-        : '';
-
-  const selectDatePreset = (id: string) => {
-    if (id === 'today') showToday();
-    else if (id === 'tomorrow') showTomorrow();
-    else showAllDates();
-  };
+  // The same quick ranges in the two forms the strip needs: boxed chips on the
+  // bar (plus the all-dates chip), the ranges alone as a dropdown inside
+  // `Bộ lọc` once the bar has folded them there.
+  const presetNode = <DateRangePresets presets={[...DATE_RANGE_PRESETS, ALL_DATES_PRESET]} value={{ from: dateFrom, to: dateTo }} onChange={applyDatePreset} ariaLabel="Lọc nhanh theo ngày" />;
+  const presetDialogNode = <DateRangePresetSelect presets={DATE_RANGE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDatePreset} ariaLabel="Lọc nhanh theo ngày" />;
 
   return (
     <div className="shipments-detail-page">
@@ -239,10 +237,12 @@ export default function ShipmentContainersPage() {
       <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={detail.loading}>
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
-            {/* Card 20260922_42: shared ListFilterBar (card _38 contract).
-                Search + all controls ride the shared bar in one wrapping row;
-                the self-made disclosure chrome is deleted. Filter semantics
-                are byte-identical: same params, same handlers, same presets. */}
+            {/* Card 20260927_152: the shared bar. The search, the from/to pair
+                and the quick ranges ride the bar; Khách hàng, Nhập/Xuất, Trạng
+                thái điều xe and Trạng thái dữ liệu render INLINE while the
+                strip still fits two rows and fold into `Bộ lọc (N)` only when
+                the width leaves no other choice. Filter semantics identical:
+                same params, same handlers, same ranges. */}
             <ListFilterBar
               search={{
                 value: searchInput,
@@ -251,6 +251,7 @@ export default function ShipmentContainersPage() {
                 ariaLabel: 'Container, Bill/Booking hoặc tờ khai',
                 error: searchError,
               }}
+              presets={presetNode}
               actions={(
                 <UUIButton
                   size="sm"
@@ -266,39 +267,29 @@ export default function ShipmentContainersPage() {
               {/* Card 20260927_150/151: the from/to dates are the shared
                   DateRangeFields group — two independent single-date fields,
                   no merged trigger and no dual-calendar popover (CHIEF
-                  2026-09-27). The group owns the 2-up rhythm and takes two
-                  tracks of the bar, so a date field never squeezes below its
-                  floor. Filter semantics byte-identical. */}
+                  2026-09-27). */}
               <DateRangeFields
                 key={`shipments-detail-dates-${dateResetKey}`}
-                className="shipments-detail-filter shipments-detail-filter--dates"
+                className="shipments-detail-filter"
                 id="shipments-detail-date-range"
                 ariaLabel="Khoảng ngày vận chuyển"
                 size="sm"
                 from={dateFrom}
                 to={dateTo}
-                onChange={({ from, to }) => {
-                  // One pass so no render pairs a new Từ with a stale Đến.
-                  setSearchParams((current) => {
-                    const next = new URLSearchParams(current);
-                    if (from) next.set('transportDateFrom', from); else next.delete('transportDateFrom');
-                    if (to) next.set('transportDateTo', to); else next.delete('transportDateTo');
-                    next.delete('page');
-                    return next;
-                  }, { replace: true });
-                }}
+                onChange={applyDateRange}
               />
-              <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--customer" />
-              <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
-              <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />
-              <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--info" />
-              <Tabs
-                variant="boxed"
-                ariaLabel="Lọc nhanh theo ngày"
-                tabs={DATE_PRESET_TABS}
-                value={datePreset}
-                onChange={selectDatePreset}
-              />
+              <FilterDropdown
+                count={secondaryCount}
+                ariaLabel="Bộ lọc"
+                dialogLabel="Bộ lọc container"
+                presets={presetDialogNode}
+                onReset={resetSecondary}
+              >
+                <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-criterion" />
+                <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-criterion" />
+                <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-criterion" />
+                <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-criterion" />
+              </FilterDropdown>
             </ListFilterBar>
           </div>
         </div>

@@ -5,8 +5,8 @@ import { formatCurrency, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { SortHeader } from '../components/shared/SortHeader';
+import { ListFilterBar } from '../components/ListFilterBar';
 import {
-  Search,
   Users,
   Clock,
   CalendarCheck2,
@@ -351,9 +351,21 @@ export default function DebtListPage() {
         *  ZONE 3 — Data Section (full-width card with filters + table/cards)
         * ══════════════════════════════════════════════════════════════════════ */}
       <div className="debt-data-card" data-tour-id="debt-customer-list">
-        {/* Filter pill bar */}
-        <div className="filter-bar debt-filter-bar">
-          <div className="debt-filter-chips">
+        {/* Card 20260927_152 — the shared bar owns the strip's layout, the
+            search chrome and every control width; this surface has no secondary
+            criterion, so the one status chip rides the quick-filter slot.
+            Cross-bucket "Quá hạn" / "Rủi ro cao" pills stay removed: per-bucket
+            filtering lives on the aging cards above, and mixing the two models
+            grouped d30+d60 against an amount-based criterion. */}
+        <ListFilterBar
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+            placeholder: 'Tìm khách hàng...',
+            ariaLabel: 'Tìm công nợ theo khách hàng',
+            inputProps: { name: 'customerDebtSearch' },
+          }}
+          quickFilters={(
             <button
               type="button"
               className={`filter-chip${filterMode === 'all' ? ' is-active' : ''}`}
@@ -363,24 +375,8 @@ export default function DebtListPage() {
               <span>Tất cả</span>
               <span className="filter-chip__count">{customerDebts.length}</span>
             </button>
-            {/* Cross-bucket "Quá hạn" / "Rủi ro cao" pills removed — per-bucket
-                filtering now lives on the 4 aging cards above, and mixing the
-                two models caused the bug where 'overdue' grouped d30+d60 and
-                'high-risk' used an amount-based criterion unrelated to aging. */}
-          </div>
-          <div className="filter-bar__spacer" />
-          <div className="debt-filter-search">
-            <Search size={14} />
-            <input
-              type="text"
-              name="customerDebtSearch"
-              aria-label="Tìm công nợ theo khách hàng"
-              placeholder="Tìm khách hàng..."
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
-          </div>
-        </div>
+          )}
+        />
 
         {error && (
           <div style={{ padding: 16, color: 'var(--danger)', marginBottom: 20 }}>

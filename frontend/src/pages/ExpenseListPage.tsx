@@ -8,7 +8,11 @@ import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 
-import { EmptyState, Pagination, DateInput, SummaryRail, UuiSelectField, useTableQueryState } from '../design-system';
+import { EmptyState, Pagination, DateRangeFields, SummaryRail, UuiSelectField, useTableQueryState } from '../design-system';
+import type { DateRangeValue } from '../design-system';
+import { ListFilterBar } from '../components/ListFilterBar';
+import { FilterDropdown } from '../components/FilterDropdown';
+import { Btn } from '../components/UI';
 import { Money } from '../components/shared/Money';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { SortHeader } from '../components/shared/SortHeader';
@@ -138,6 +142,23 @@ export default function ExpenseListPage() {
 
   const hasFilters = Object.keys(filters).length > 0;
 
+  // Card 20260927_152: the three selects behind `Bộ lọc` — the count feeds the
+  // trigger badge, `Đặt lại` clears exactly those three (the dates and the
+  // sort stay where they are). Each `setFilter(key, undefined)` deletes the
+  // key, so an unset criterion never leaves a key behind for `hasFilters`.
+  const secondaryCount = (filters.supplierId ? 1 : 0) + (filters.categoryId ? 1 : 0) + (filters.truckId ? 1 : 0);
+  const resetSecondary = () => {
+    setFilter('supplierId', undefined);
+    setFilter('categoryId', undefined);
+    setFilter('truckId', undefined);
+  };
+  // The shared from/to group emits the whole range; each side is written
+  // through `setFilter` so clearing a field removes its param entirely.
+  const applyDateRange = (range: DateRangeValue) => {
+    setFilter('fromDate', range.from || undefined);
+    setFilter('toDate', range.to || undefined);
+  };
+
   const renderStatusBadge = (expense: ExpenseWithRefs) => {
     const approval = expense.approvalStatus ?? 'APPROVED';
     if (approval === 'DRAFT' || approval === 'PENDING') {
@@ -206,86 +227,68 @@ export default function ExpenseListPage() {
       />
 
       {/* ── Filter Bar ───────────────────────────────────────────────── */}
-      <div className="filter-bar expense-filter-bar">
-        <UuiSelectField
-          id="expense-supplier-filter"
-          label="Nhà cung cấp"
-          value={filters.supplierId == null ? '' : String(filters.supplierId)}
-          disabled={loadingExpenseCatalogs}
-          onChange={e => setFilter('supplierId', e.target.value ? Number(e.target.value) : undefined)}
-          controlClassName="expense-filter-bar__select"
-          options={[
-            { value: '', label: loadingExpenseCatalogs ? 'Đang tải NCC…' : 'Tất cả NCC' },
-            ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
-          ]}
+      {/* Card 20260927_152: the shared bar owns the strip layout. Từ/Đến are
+          the shared two-field group, the three selects live behind `Bộ lọc`
+          (they render inline while the strip still fits two rows), and the
+          reset rides the bar's own action cluster. */}
+      <ListFilterBar
+        actions={hasFilters ? (
+          <Btn
+            variant="ghost"
+            size="sm"
+            icon={<X size={12} />}
+            className="expense-list-page__reset"
+            onClick={resetFilters}
+          >
+            Xóa bộ lọc
+          </Btn>
+        ) : undefined}
+      >
+        <DateRangeFields
+          id="expense-date-range"
+          ariaLabel="Khoảng ngày"
+          size="sm"
+          from={filters.fromDate ?? ''}
+          to={filters.toDate ?? ''}
+          onChange={applyDateRange}
         />
+        <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc chi phí" onReset={resetSecondary}>
+          <UuiSelectField
+            id="expense-supplier-filter"
+            label="Nhà cung cấp"
+            value={filters.supplierId == null ? '' : String(filters.supplierId)}
+            disabled={loadingExpenseCatalogs}
+            onChange={e => setFilter('supplierId', e.target.value ? Number(e.target.value) : undefined)}
+            options={[
+              { value: '', label: loadingExpenseCatalogs ? 'Đang tải NCC…' : 'Tất cả NCC' },
+              ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+            ]}
+          />
 
-        <UuiSelectField
-          id="expense-category-filter"
-          label="Hạng mục"
-          value={filters.categoryId == null ? '' : String(filters.categoryId)}
-          disabled={loadingExpenseCatalogs}
-          onChange={e => setFilter('categoryId', e.target.value ? Number(e.target.value) : undefined)}
-          controlClassName="expense-filter-bar__select"
-          options={[
-            { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Tất cả hạng mục' },
-            ...categories.map(c => ({ value: String(c.id), label: c.name })),
-          ]}
-        />
+          <UuiSelectField
+            id="expense-category-filter"
+            label="Hạng mục"
+            value={filters.categoryId == null ? '' : String(filters.categoryId)}
+            disabled={loadingExpenseCatalogs}
+            onChange={e => setFilter('categoryId', e.target.value ? Number(e.target.value) : undefined)}
+            options={[
+              { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Tất cả hạng mục' },
+              ...categories.map(c => ({ value: String(c.id), label: c.name })),
+            ]}
+          />
 
-        <UuiSelectField
-          id="expense-truck-filter"
-          label="Xe"
-          value={filters.truckId == null ? '' : String(filters.truckId)}
-          onChange={e => setFilter('truckId', e.target.value ? Number(e.target.value) : undefined)}
-          controlClassName="expense-filter-bar__select"
-          options={[
-            { value: '', label: 'Tất cả xe' },
-            ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
-          ]}
-        />
-
-        {/* Card 20260925_6 (site sweep, Từ/Đến pair): the two date fields are
-            one filter cell — one shared label + one row of two date inputs
-            in an internal 2-col grid, sharing the surface and baseline with
-            the selects. They no longer render as two separate grid items
-            that float up beside the selects. */}
-        <div className="expense-filter-bar__date-pair" role="group" aria-label="Khoảng ngày">
-          <span id="expense-filter-bar__date-pair-label" className="expense-filter-bar__date-pair-label">Từ ngày — Đến ngày</span>
-          <div className="expense-filter-bar__date-pair-row">
-            <DateInput
-              name="expenseDateFrom"
-              aria-labelledby="expense-filter-bar__date-pair-label expense-filter-bar__date-from-label"
-              aria-label="Từ ngày"
-              className="expense-filter-bar__date"
-              value={filters.fromDate ?? ''}
-              onChange={(value) => setFilter('fromDate', value || undefined)}
-              placeholder="Từ ngày"
-            />
-            <span id="expense-filter-bar__date-from-label" hidden>Từ ngày</span>
-            <span className="expense-filter-bar__date-pair-sep" aria-hidden="true">→</span>
-            <DateInput
-              name="expenseDateTo"
-              aria-labelledby="expense-filter-bar__date-pair-label expense-filter-bar__date-to-label"
-              aria-label="Đến ngày"
-              className="expense-filter-bar__date"
-              value={filters.toDate ?? ''}
-              onChange={(value) => setFilter('toDate', value || undefined)}
-              placeholder="Đến ngày"
-            />
-            <span id="expense-filter-bar__date-to-label" hidden>Đến ngày</span>
-          </div>
-        </div>
-
-        {hasFilters && (
-          <>
-            <div className="filter-bar__spacer" />
-            <button className="expense-filter-bar__reset" onClick={resetFilters}>
-              <X size={12} /> Xóa bộ lọc
-            </button>
-          </>
-        )}
-      </div>
+          <UuiSelectField
+            id="expense-truck-filter"
+            label="Xe"
+            value={filters.truckId == null ? '' : String(filters.truckId)}
+            onChange={e => setFilter('truckId', e.target.value ? Number(e.target.value) : undefined)}
+            options={[
+              { value: '', label: 'Tất cả xe' },
+              ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
+            ]}
+          />
+        </FilterDropdown>
+      </ListFilterBar>
 
       {error && (
         <Alert

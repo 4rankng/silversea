@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
-import { EmptyState, DateInput } from '../../design-system';
+import { EmptyState, DateRangeFields } from '../../design-system';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { useCustomerPortalScope } from './CustomerPortalScope';
@@ -129,20 +130,36 @@ export default function PortalStatementPage() {
           <div><span>Khoảng thời gian</span><h2>Lọc và xuất sao kê</h2></div>
           <strong>{appliedRange.dateFrom || appliedRange.dateTo ? 'Đang lọc theo kỳ' : 'Toàn bộ lịch sử'}</strong>
         </div>
+        {/* One bar, app-wide (card 20260927_152): the from/to group is the
+            shared `DateRangeFields` and `Áp dụng kỳ` + the exports ride the
+            bar's actions slot. The form stays the submit boundary: Enter in
+            either date field still applies the period. */}
         <form
-          className="filter-bar portal-filters"
           onSubmit={(event) => {
             event.preventDefault();
             setAppliedRange({ dateFrom, dateTo });
           }}
         >
-          <label>Từ ngày<DateInput value={dateFrom} max={dateTo || undefined} onChange={setDateFrom} /></label>
-          <label>Đến ngày<DateInput value={dateTo} min={dateFrom || undefined} onChange={setDateTo} /></label>
-          <div className="portal-actions">
-            <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
-            <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
-            <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
-          </div>
+          <ListFilterBar
+            actions={(
+              <>
+                <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
+                <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
+                <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
+              </>
+            )}
+          >
+            <DateRangeFields
+              id="portal-statement-date-range"
+              ariaLabel="Khoảng ngày sao kê"
+              from={dateFrom}
+              to={dateTo}
+              onChange={(next) => {
+                setDateFrom(next.from);
+                setDateTo(next.to);
+              }}
+            />
+          </ListFilterBar>
         </form>
 
         {exportError && <div className="portal-notice portal-notice--error" role="alert">{exportError}</div>}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -34,5 +34,28 @@ describe('PhoiPhieuControlPage date filter control contract', () => {
     await screen.findByText('Từ ngày');
     expect(container.querySelector('input[type="date"]')).toBeNull();
     expect(container.querySelectorAll('[data-date-input]').length).toBe(2);
+  });
+
+  // Card 20260927_152: the filter region is the ONE shared strip. The search
+  // slot, the shared from/to pair and the voucher action are the bar's own
+  // items; the four secondary criteria render inline while the strip still fits
+  // two rows (jsdom measures no width, so `inline` is the mode under test).
+  it('renders the shared strip with the search slot and the Lập phiếu action', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Từ ngày');
+    const bar = container.querySelector('.list-filter-bar') as HTMLElement;
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('.date-range-fields')).toBeTruthy();
+    expect(within(bar).getByLabelText('Tìm kiếm')).toHaveAttribute('placeholder', 'Mã chuyến, container, khách');
+    expect(within(bar).getByRole('button', { name: /Lập phiếu/ })).toBeTruthy();
+  });
+
+  it('keeps the four secondary criteria and their Vietnamese labels reachable', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Từ ngày');
+    const bar = container.querySelector('.list-filter-bar') as HTMLElement;
+    for (const label of ['Trạng thái', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
+      expect(within(bar).getByText(label)).toBeTruthy();
+    }
   });
 });

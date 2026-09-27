@@ -111,14 +111,6 @@
   font-weight: 800;
 }
 
-.credit-override-queue__filters {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
 .credit-override-queue__field {
   min-width: 0;
 }
@@ -379,11 +371,6 @@
     flex-direction: column;
   }
 
-  .credit-override-queue__filters {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
   .credit-override-queue__field.is-search {
     width: min(360px, 100%);
   }
@@ -411,11 +398,6 @@
 
   .credit-override-queue__toolbar {
     padding: 14px;
-  }
-
-  .credit-override-queue__filters {
-    display: grid;
-    grid-template-columns: 1fr;
   }
 
   .credit-override-queue__field.is-status,

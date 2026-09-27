@@ -5,162 +5,22 @@
 
 /* ── Filter Bar ─────────────────────────────────────────────────────────── */
 
-.expense-filter-bar {
-  background: var(--surface);
-  border-block: 1px solid var(--line);
-  padding: 12px 0;
-  margin-bottom: 12px;
-  /* Filter-bar law (2026-09-24): row-packing, not an equal-stretch grid —
-     controls pack at content width within the 220–320px band; only the
-     primary search may take full width. */
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 12px;
-  transition: box-shadow 0.2s ease;
-}
+/* Card 20260927_152 — the filter strip is the shared `ListFilterBar`
+   (FilterBar.css L1-L4 owns the row packing and every control width). The
+   page-local bar and its control widths are gone: the bar container (flex row
+   + gap + its own chrome), the field wrapper and the direct-child select
+   wrapper (`flex: 1 1 220px; max-width: 320px`), the `width: 100%`
+   re-assertions on the select/date chips, their chip skin, the divider, the
+   whole date-pair family (label + 2-col row + arrow), the ≤1023px phone stack
+   and the ≤640px full-row / `grid-column: 1 / -1` bands. */
 
-.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; max-width: 320px; }
-.expense-filter-bar__field > span { color: var(--ink-2); font-size: var(--text-label-size); font-weight: 600; }
-/* Select wrappers are direct bar children (div.ds-uui-select) — they ride the
-   same 220–320px band as the __field date pair. */
-.expense-filter-bar > .ds-uui-select { flex: 1 1 220px; max-width: 320px; min-width: 0; }
-.expense-filter-bar__select,
-.expense-filter-bar__date { width: 100%; }
-.expense-filter-bar__reset { flex: 0 0 auto; align-self: end; }
-
-.expense-filter-bar__select,
-.expense-filter-bar__date {
+/* The reset action rides the bar's own counter/action cluster; it keeps the
+   shared compact density tokens (`filter-density.test.ts`) and nothing else —
+   the shared bar owns its position on the line. */
+.expense-list-page__reset {
   min-height: var(--filter-control-h);
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--ink);
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B919B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 10px center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-  min-width: 0;
-  width: 100%;
-}
-
-/* controlClassName lands on the UUI trigger button itself — wear the chip
-   skin directly, and keep the grouped native-chevron image off it (the UUI
-   trigger draws its own chevron; __date likewise nulls it further down). */
-.expense-filter-bar__select {
-  padding: 0 32px 0 12px;
-  background-image: none;
   font-size: var(--filter-control-font-size);
   line-height: var(--filter-control-line-height);
-}
-.expense-filter-bar__date {
-  padding: 0 12px;
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-}
-
-.expense-filter-bar__select:hover,
-.expense-filter-bar__date:hover {
-  background: var(--surface);
-  border-color: var(--line-2);
-}
-
-.expense-filter-bar__select:focus,
-.expense-filter-bar__date:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.expense-filter-bar__date {
-  min-width: 140px;
-  padding-right: 12px;
-  background-image: none;
-}
-
-.expense-filter-bar__divider {
-  width: 1px;
-  height: 24px;
-  background: var(--line-2);
-  flex-shrink: 0;
-}
-
-.expense-filter-bar__reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: var(--filter-control-h);
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-  font-weight: 600;
-  color: var(--ink-3);
-  background: transparent;
-  border: 1px dashed var(--line-2);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.expense-filter-bar__reset:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-soft);
-}
-
-/* Card 20260925_6 (site sweep, Từ/Đến pair): the pair is one filter cell.
-   It occupies exactly two track-cells of the 5-col bar grid (so the 3
-   selects sit columns 1–3 and the pair spans 4–5), shares the surface
-   chrome with its siblings (no white panel, no shadow), aligns its row
-   baseline on the same align-items:end rhythm as the selects, and never
-   leaks a label past the row edge. The internal row uses a 2-col grid
-   with an arrow separator so the two inputs read as one logical unit. */
-.expense-filter-bar__date-pair {
-  grid-column: span 2;
-  display: grid;
-  grid-template-rows: auto auto;
-  gap: 4px;
-  min-width: 0;
-}
-
-.expense-filter-bar__date-pair-label {
-  color: var(--ink-2);
-  font-size: var(--text-label-size);
-  font-weight: 600;
-  line-height: 1.4;
-  /* nowrap keeps the combined label from wrapping past the cell edge — at
-     1023px the bar switches to 2-col grid and the pair can shrink; the
-     single-line label is the contract that lets the row stay aligned. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.expense-filter-bar__date-pair-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.expense-filter-bar__date-pair-row .expense-filter-bar__date {
-  width: 100%;
-  min-width: 0;
-}
-
-.expense-filter-bar__date-pair-sep {
-  color: var(--ink-4);
-  font-size: var(--text-caption-size);
-  line-height: 1;
-  text-align: center;
 }
 
 /* ── Data Table ─────────────────────────────────────────────────────────── */
@@ -352,31 +212,9 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 1023px) {
-  .expense-filter-bar {
-    padding: 10px 0;
-  }
-
-  /* Filter-bar law, mobile: stack one column — each field takes a full row. */
-  .expense-filter-bar__field,
-  .expense-filter-bar > .ds-uui-select {
-    flex: 1 1 100%;
-    max-width: none;
-  }
-
-  .expense-filter-bar__select,
-  .expense-filter-bar__date {
-    min-width: 0;
-  }
-
-  .expense-filter-bar__divider {
-    display: none;
-  }
-
-  .expense-filter-bar__reset {
-    margin-inline: auto;
-  }
-}
+/* The ≤1023px one-column filter stack is deleted (card 20260927_152): the
+   shared bar packs its own lines, and `flex: 1 1 100%` on every field is the
+   full-row stretch the operator rejected. */
 
 /* ── Status Strip ──────────────────────────────────────────────────────── */
 
@@ -389,10 +227,10 @@
 }
 
 /* ── Pass 15 mobile tweaks (2026-06-02) ──
-   The 3-select + date + reset filter bar was 150px tall on phone with
-   3 wrap rows of 36px controls. Tighten to ~110px by shrinking the
-   controls and padding. Page-scoped so it doesn't affect any other page
-   that reuses .expense-filter-bar styles. */
+   Page-scoped phone tightening for the header, the record table and the
+   summary rail. The filter-bar half of this pass is deleted with the
+   page-local bar (card 20260927_152): the shared `ListFilterBar` owns the
+   strip at every width. */
 @media (max-width: 640px) {
   .expense-list-page .page-header {
     margin-bottom: 12px;
@@ -424,51 +262,6 @@
     padding-inline: 18px;
     flex: 0 0 auto;
     justify-content: center;
-  }
-
-  .expense-list-page .expense-filter-bar {
-    padding: 8px 0;
-    gap: 8px;
-    border-radius: 0;
-    margin-bottom: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .expense-list-page .expense-filter-bar__select,
-  .expense-list-page .expense-filter-bar__date {
-    min-height: var(--filter-control-h);
-    font-size: var(--filter-control-font-size);
-    padding: 0 11px;
-    background-size: 14px 14px;
-    background-position: right 8px center;
-    border-radius: 10px;
-    border-color: rgba(16, 24, 20, 0.05);
-  }
-  .expense-list-page .expense-filter-bar__date {
-    padding-right: 10px;
-  }
-  /* Trigger button needs chevron clearance; the shared padding above is
-     date-input geometry. */
-  .expense-list-page .expense-filter-bar__select {
-    padding: 0 28px 0 11px;
-  }
-  .expense-list-page .expense-filter-bar__reset {
-    min-height: var(--filter-control-h);
-    padding: 0 11px;
-    font-size: var(--filter-control-font-size);
-    grid-column: 1 / -1;
-  }
-
-  /* Card 20260925_6 (site sweep): the Từ/Đến pair stays one inline row on
-     phones (not stacked). Keeping both on one row saves ~32px vertical
-     against the 150px → ~110px tightening; stacking would push the bar
-     back to 3 wrap rows. The arrow separator hides when the row gets
-     crowded. */
-  .expense-list-page .expense-filter-bar__date-pair {
-    grid-column: 1 / -1;
-  }
-
-  .expense-list-page .expense-filter-bar__date-pair-sep {
-    display: none;
   }
 
   .expense-list-page .mobile-table-wrap {

@@ -11,8 +11,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { useToast } from '../../components/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
+import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
-import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import {
   createDepositTracker,
   listDepositTrackers,
@@ -140,29 +142,48 @@ export default function DepositRefundTrackerPage() {
     <div className="deposit-tracker-page">
       <PageHeader title="Theo dõi hoàn cược container" description="Theo dõi số tiền cược và ngày nộp công văn theo từng lô. Tiền hoàn cược được ghi nhận vào quỹ công ty đã cấu hình." />
       {dialog}
-      <section className="filter-bar deposit-tracker-filters" aria-label="Bộ lọc">
-        {/* Card 20260925_1 (sweep mandate): short-value date pair rides the
-         * `.deposit-tracker-filters__pair` 2-column grid; the Trạng thái
-         * select stays a full row, and the two action buttons keep their own
-         * full row under it. Every control surface rides the chosen
-         * `--filter-control-h` token at ≤900. */}
-        <div className="deposit-tracker-filters__pair">
-          <BufferedUuiDateInput label="Từ ngày" size="sm" value={from} onChange={setFrom} />
-          <BufferedUuiDateInput label="Đến ngày" size="sm" value={to} onChange={setTo} />
-        </div>
-        <UuiSelectField
-          label="Trạng thái"
-          ariaLabel="Trạng thái hoàn cược"
-          value={status}
-          onChange={(event) => setStatus(event.target.value as DepositStatus | '')}
-          options={[
-            { value: '', label: 'Tất cả' },
-            { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
-            { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
-          ]}
-        />
-        <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
-        <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm dòng</Btn>
+      {/* Card 20260927_152: the ONE shared strip. The from/to pair is the group
+          every list shares and `Trạng thái` is the only secondary criterion, so
+          it renders inline while the strip still fits two rows and folds into
+          `Bộ lọc` only when the width leaves no other choice. The two page
+          actions ride the bar's action slot; the page declares no filter layout
+          of its own. The surrounding `<section aria-label="Bộ lọc">` is the
+          landmark the page always exposed — it carries no styling. */}
+      <section aria-label="Bộ lọc">
+        <ListFilterBar
+          actions={(
+            <>
+              <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
+              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm dòng</Btn>
+            </>
+          )}
+        >
+          <DateRangeFields
+            id="deposit-date-range"
+            ariaLabel="Khoảng ngày nộp công văn"
+            from={from}
+            to={to}
+            onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); }}
+          />
+          <FilterDropdown
+            count={status ? 1 : 0}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc hoàn cược"
+            onReset={() => setStatus('')}
+          >
+            <UuiSelectField
+              label="Trạng thái"
+              ariaLabel="Trạng thái hoàn cược"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as DepositStatus | '')}
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
+                { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
+              ]}
+            />
+          </FilterDropdown>
+        </ListFilterBar>
       </section>
 
       {(showCvAlert || unrefundedTotal > 0) && (

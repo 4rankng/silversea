@@ -1,9 +1,10 @@
 /* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
-   controls own control density; this file owns the page grid and the
-   settlement table only. Card 20260926_51 adds the two-tier 76px header:
-   Row 1 (36px) title + Xuất Debit Note ghost top-right; Row 2 (32px) one
-   continuous ribbon (required customer combobox 280, delivery-range popover
-   220 with settlement preset pills, Khóa lô 160, Xóa lọc tail). */
+   controls own control density; this file owns the page header and the
+   settlement table only. Card 20260926_51 adds the two-tier header: Row 1
+   title + Xuất Debit Note ghost top-right; Row 2 the shared filter strip
+   (card 20260927_153 — ShipmentDebitRibbon), whose layout and control widths
+   belong to FilterBar.css / ListFilterBar.css. The ONLY filter rule left here
+   is the customer combobox's floor/cap, below. */
 
 .shipment-debit-page {
   display: grid;
@@ -33,39 +34,28 @@
   cursor: help;
 }
 
-/* Row 2: one continuous ribbon. The LAYOUT is the shared `.filter-bar` grid
-   (card 20260927_151) — this sheet only sizes the page's controls. */
+/* Row 2 is the shared `ListFilterBar` strip (card 20260927_153) and it owns
+   its layout, its wrapping and every control width (FilterBar.css L1-L3), so
+   this sheet declares NO filter layout: a page rule that re-declares the bar's
+   flex/grid is exactly how a family default `width: 100%` came back twice on
+   2026-09-27. */
+
+/* The ONE bar control the page still sizes: the customer combobox. The shared
+   bar floors/caps the display families it knows (`.csc-searchable-field`,
+   `.ds-uui-select`), and a bare `.searchable-select` has neither — while the
+   customer-name pool is unbounded, so a long legal name would stretch the
+   control past the value it holds. Sizing only, inside L3's 200/320 for the
+   family, and it holds in the `Bộ lọc` dialog too (320 = that body's ceiling). */
 .shipment-debit-ribbon__customer {
-  min-width: 0;
+  width: auto;
+  min-width: 200px;
+  max-width: 320px;
 }
 
-.shipment-debit-ribbon__customer .searchable-select__trigger {
-  height: 32px;
-}
-
-/* From/to date fields (DateRangeFields): two 149px fields plus the 12px seam
-   set the floor — a single 220px slot ellipsized the value it carried
-   (2026-09-27 role sweep, §4). The group spans two tracks in the bar grid, so
-   the floor only has to hold inside its own cell. */
-.shipment-debit-ribbon__range {
-  min-width: 0;
-  max-width: none;
-}
-
-/* Quick settlement ranges ride beside the fields as the shared boxed
-   segmented control (no range popover — CHIEF 2026-09-27). */
-.shipment-debit-ribbon__presets { min-width: 0; }
-
-.shipment-debit-ribbon__lock { min-width: 160px; }
-
-/* The clear action rides the bar's action slot (it pins to the row end). */
-
-/* 390 stack: title row holds; ribbon wraps, search-edge controls full-width. */
+/* The title row holds at 390; the strip packs its own lines and folds its
+   criteria into `Bộ lọc` — the shared bar carries no phone band by design. */
 @media (max-width: 640px) {
   .shipment-debit-header { height: auto; min-height: 36px; }
-  .shipment-debit-ribbon { height: auto; }
-  .shipment-debit-ribbon__range,
-  .shipment-debit-ribbon__presets { min-width: 0; }
 }
 
 /* Coarse-pointer heights come from the shared bar (FilterBar.css): the page

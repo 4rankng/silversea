@@ -444,16 +444,14 @@
   .penalty-page .kpi-grid { gap: 8px; }
 } /* end 640px */
 
-/* ── Record-card mode (container ≤900px): full 44px touch targets for the
-      cancel action and the search/clear controls ride along with the shared
-      filter-control density. ── */
+/* ── Record-card mode (container ≤900px): full 44px touch target for the
+      cancel action. The strip's own controls take their height from the shared
+      filter-control density (`ListFilterBar`), so this file re-declares none of
+      them — the page-local search/clear pair is gone with the cutover
+      (card 20260927_152). ── */
 @media (max-width: 899px) {
   .penalty-page .penalty-log-table .record-table__action .penalty-row-act {
     min-width: 44px;
     min-height: 44px;
-  }
-  .penalty-page .penalty-filter-bar__clear {
-    width: 32px;
-    height: 32px;
   }
 }

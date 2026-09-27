@@ -160,98 +160,25 @@
   box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
 }
 
-/* ── Filter bar inside data card ── */
-
-.debt-filter-bar {
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.debt-filter-chips {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.debt-filter-bar .filter-chip {
-  padding: 8px 14px;
-  background: var(--surface);
-  border-color: rgba(15, 23, 42, 0.08);
-  color: var(--ink-2);
-}
-
-.debt-filter-bar .filter-chip:hover {
-  background: var(--surface-2);
-  border-color: rgba(0, 177, 79, 0.18);
-  color: var(--ink);
-}
-
-.debt-filter-bar .filter-chip.is-active {
-  background: var(--ink);
-  border-color: var(--ink, #101814);
-  color: var(--fg-inverse, #f7fbf8);
-}
-
-.debt-filter-bar .filter-chip__count {
-  background: rgba(15, 23, 42, 0.08);
-  color: var(--ink-2);
-}
-
-.debt-filter-bar .filter-chip.is-active .filter-chip__count {
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--fg-inverse, #f7fbf8);
-}
-
-
-.debt-filter-search {
-  position: relative;
-  display: flex;
-  align-items: center;
+/* ── Filter strip ──
+ * Card 20260927_152 — the strip, its search chrome and every control width
+ * belong to the shared bar (FilterBar.css / ListFilterBar.css own the row
+ * packing, the growing search cell and the value-sized controls). What the page
+ * used to declare here — `.debt-filter-bar` (its own padding + divider),
+ * `.debt-filter-chips` (a flex row) and `.debt-filter-search` (`flex: 1 1 320px`
+ * and a second copy of the bar's chrome) — was exactly how the operator's
+ * "some control the value very short but why the fuck it does take full row"
+ * regression came back twice: a page rule with higher specificity silently
+ * outranks the shared band.
+ *
+ * The one control this surface still renders itself is the `Tất cả` status chip
+ * (there is no shared status family), so it is the only thing left to size — and
+ * it takes the strip's own density tokens so it measures with the search beside
+ * it rather than with a standalone pill's metrics. */
+.debt-list-page .filter-chip {
+  height: var(--filter-control-h);
   min-height: var(--filter-control-h);
-  flex: 1 1 320px;
-  background: var(--surface);
-  border: 1px solid rgba(15, 23, 42, 0.10);
-  border-radius: 12px;
-  min-width: 180px;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.debt-filter-search:focus-within {
-  background: var(--surface, #ffffff);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.debt-filter-search svg {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: color-mix(in srgb, var(--ink-3) 78%, var(--accent) 22%);
-  pointer-events: none;
-  flex-shrink: 0;
-}
-
-.debt-filter-search input {
-  /* Fills the search pill (primary search keeps full-width rights under the
-     filter-bar law); min-width: 0 guards the padded box against overflow. */
-  width: 100%;
-  min-width: 0;
-  padding: 0 10px 0 32px;
-  background: transparent;
-  border: none;
-  outline: none;
   font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-  color: var(--ink);
-  font-weight: 500;
-  min-height: var(--filter-control-h);
-}
-
-.debt-filter-search input::placeholder {
-  color: color-mix(in srgb, var(--ink-3) 84%, white);
-  opacity: 1;
 }
 
 .debt-list-table {
@@ -344,20 +271,10 @@
     padding: 12px 14px;
   }
 
-  /* Filter bar mobile */
-  .debt-filter-bar {
-    padding: 8px;
-  }
-  .debt-filter-chips {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .debt-filter-search {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    order: 99;
-  }
+  /* Filter strip mobile: the shared bar's wrapping row already handles every
+     narrow width (card 20260927_152), so the ≤640 band declares nothing about
+     it — the deleted `width: 100%` + `order: 99` search was the full-row
+     stretch the operator rejected. */
 
   /* Mobile card amount styling */
   .debt-list-page .m-card .debt-list-page__amount {

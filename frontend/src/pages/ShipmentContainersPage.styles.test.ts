@@ -32,18 +32,27 @@ describe('shipment detail workboard styling', () => {
   it('uses a compact filter-only header and aligns the mixed control families', () => {
     expect(css).not.toContain('.shipments-detail-workspace__intro');
     expect(css).not.toContain('.shipments-detail-eyebrow');
-    expect(css).toMatch(/\.shipments-detail-filter \[data-label\],\s*\n?\.shipments-detail-filter label\s*\{[^}]*margin-bottom:\s*0;[^}]*font-weight:\s*var\(--fw-semibold\);/);
-    expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*6px;/);
-    expect(css).toMatch(/\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*gap:\s*4px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
     // Card 20260922_42: the shared ListFilterBar owns row layout; the
     // self-made 12-col owner grid (card _36) is superseded and deleted.
     expect(source).toContain('<ListFilterBar');
     expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns/);
-    // Date presets ride the shared boxed Tabs primitive (operator ruling
-    // 2026-09-27) — no page-local segmented-control CSS survives.
-    expect(source).toMatch(/<Tabs[\s\S]*ariaLabel="Lọc nhanh theo ngày"[\s\S]*tabs=\{DATE_PRESET_TABS\}/);
+    // Card 20260927_152: the page declares no filter layout and no filter
+    // width — `.filter-bar`'s wrapping row sizes every control, and the four
+    // secondary criteria ride `FilterDropdown` while they fit. The deleted
+    // rules must not come back (the 320px wrapper, the input stretch, the
+    // page-local `gap` declarations).
+    expect(source).toContain('<FilterDropdown');
+    expect(css).not.toMatch(/\.shipments-detail-filter\s*\{[^}]*(?:flex|width|gap)\s*:/);
+    expect(css).not.toMatch(/\.shipments-detail-filter > \*\s*\{/);
+    expect(css).not.toMatch(/\.shipments-detail-filter input\s*\{[^}]*width\s*:/);
+    expect(css).not.toMatch(/\.shipments-detail-filter[^{]*\{[^}]*gap\s*:/);
+    // Date presets ride the shared preset primitives (operator ruling
+    // 2026-09-27): boxed chips on the bar, the same ranges as a dropdown in
+    // `Bộ lọc` — no page-local segmented-control CSS survives.
+    expect(source).toMatch(/<DateRangePresets[\s\S]*ariaLabel="Lọc nhanh theo ngày"/);
+    expect(source).toMatch(/<DateRangePresetSelect[\s\S]*ariaLabel="Lọc nhanh theo ngày"/);
     expect(css).not.toMatch(/\.shipments-detail-presets/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
@@ -59,11 +68,13 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
-    // Card 20260922_42: the shared bar hosts the controls; the page keeps
-    // only the owner-spec compact 36px control geometry and control-family
-    // alignment rules. The self-made disclosure family is deleted.
+    // Card 20260922_42 then 20260927_152: the shared bar hosts the controls and
+    // owns their layout, widths AND height token; the page keeps only the flat
+    // treatment of the from/to fields' own input. The self-made disclosure
+    // family is deleted, and no page rule declares a control dimension.
     expect(source).toContain('<ListFilterBar');
-    expect(css).toMatch(/\.shipments-detail-filters \[data-uui-control\]\s*\{[^}]*--uui-control-h:\s*36px;/);
+    expect(css).not.toMatch(/\.shipments-detail-filters \[data-uui-control\]\s*\{[^}]*--uui-control-h/);
+    expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*--uui-control-h/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*box-shadow:\s*none;/);

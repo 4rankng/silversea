@@ -16,6 +16,24 @@ const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrier
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
 beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDepositTrackers.mockResolvedValue({ items: [row], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } }); });
 describe('deposit tracker workflows', () => {
+  // Card 20260927_152: the filter region is the ONE shared strip — the from/to
+  // pair, the status criterion (inline while the strip fits two rows) and the
+  // page's own Lọc / Thêm dòng actions in the bar's action slot.
+  it('renders the shared filter strip and keeps both page actions', async () => {
+    const { container } = page();
+    await screen.findByText('QA-BILL');
+    const bar = container.querySelector('.list-filter-bar') as HTMLElement;
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('.date-range-fields')).toBeTruthy();
+    expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
+    expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
+    expect(within(bar).getByText('Trạng thái')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lọc' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm dòng' })).toBeTruthy();
+    // Blank range + blank status still queries all dates (behaviour preserved).
+    expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined);
+  });
+
   it('refreshes a stale refund amount and requires confirmation of the refreshed value', async () => {
     const initial = { ...row, depositAmount: '4000000' };
     const fresh = { ...row, depositAmount: '5000000' };

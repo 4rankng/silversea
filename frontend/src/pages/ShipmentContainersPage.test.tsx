@@ -262,6 +262,12 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     // The presets ride the shared boxed Tabs primitive (operator ruling
     // 2026-09-27); the reset stays a standalone button at the row's right edge.
     const presetGroup = screen.getByRole('tablist', { name: 'Lọc nhanh theo ngày' });
+    // The ranges ride the BAR's own presets slot (not the page's), and while the
+    // strip fits two rows every criterion rides the bar itself — the `Bộ lọc`
+    // trigger exists only once the measured mode folds them, so it is absent
+    // here (card 20260927_152: the fold is measured, never hardcoded).
+    expect(document.querySelector('.filter-bar__presets')?.contains(presetGroup)).toBe(true);
+    expect(screen.queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
     const todayBtn = within(presetGroup).getByRole('tab', { name: 'Hôm nay' });
     const tomorrowBtn = within(presetGroup).getByRole('tab', { name: 'Hôm sau' });
     const allBtn = within(presetGroup).getByRole('tab', { name: 'Tất cả' });

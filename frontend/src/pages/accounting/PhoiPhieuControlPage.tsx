@@ -6,8 +6,9 @@ import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
 import { PageHeader } from '../../components/UI';
-import { UuiSelectField } from '../../design-system';
-import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
+import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import './PhoiPhieuControlPage.css';
@@ -174,54 +175,64 @@ export default function PhoiPhieuControlPage() {
     }
   }
 
+  // Card 20260927_152: the four criteria behind `Bộ lọc` — the count feeds the
+  // trigger badge, `Đặt lại` clears exactly those four and nothing else.
+  const secondaryCount = (filters.status ? 1 : 0) + (filters.sortBy !== 'grouped' ? 1 : 0)
+    + (direction !== 'OUT' ? 1 : 0) + (treasuryAccountId ? 1 : 0);
+  const resetSecondary = () => {
+    setFilters((current) => ({ ...current, status: '', sortBy: 'grouped' }));
+    setDirection('OUT');
+    setTreasuryAccountId('');
+  };
+  const voucherLabel = issuing
+    ? 'Đang lập…'
+    : selected.size === 0
+      ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} — chọn dòng đã duyệt`
+      : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${[...selected].reduce((sum, tripId) => {
+          const row = rows.find((candidate) => candidate.tripId === tripId);
+          return sum + (row ? (direction === 'IN' ? row.eligibleIn : row.eligibleOut) : 0);
+        }, 0)} khoản)`;
+
   return (
     <div className="page-shell">
       <PageHeader title="Kiểm soát phơi phiếu - Tiền đường" />
-      {/* Card 20260924_12: page-owned auto-fit grid (filter-bar law §5) —
-          tracks band 220–320px pack every control along one row and wrap only
-          when out of space; the shared .ds-uui-select width:100% now fills a
-          ≤320px cell instead of claiming the whole row.
-          Card 20260925_1 (sweep mandate): at ≤480 the date pair rides the
-          `.ppc-filters__pair` 2-column grid, the short dropdown pair
-          (Trạng thái + Sắp xếp) does the same, and the long-content search
-          stays on its full row. */}
-      <div className="filter-bar ppc-filters">
-        <div className="ppc-filters__pair">
-          <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
-          <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
-        </div>
-        <div className="ppc-filters__pair">
+      {/* Card 20260927_152: the ONE shared strip. The search, the from/to pair
+          and the Lập phiếu action are the bar's own items; the four secondary
+          criteria render inline while the strip still fits two rows and fold
+          into `Bộ lọc (N)` only when the width leaves no other choice. The page
+          declares no filter layout — that is the bar's job (filter-bar law). */}
+      <ListFilterBar
+        search={{
+          value: filters.search,
+          onChange: (search) => setFilters((current) => ({ ...current, search })),
+          placeholder: 'Mã chuyến, container, khách',
+          ariaLabel: 'Tìm kiếm',
+        }}
+        actions={(
+          <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
+            {voucherLabel}
+          </button>
+        )}
+      >
+        <DateRangeFields
+          id="phoi-phieu-date-range"
+          ariaLabel="Khoảng ngày chuyến"
+          from={filters.dateFrom}
+          to={filters.dateTo}
+          onChange={({ from, to }) => setFilters((current) => ({ ...current, dateFrom: from, dateTo: to }))}
+        />
+        <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc phơi phiếu" onReset={resetSecondary}>
           <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} />
           <UuiSelectField label="Sắp xếp" value={filters.sortBy} onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'grouped' | 'date' })} options={[{ value: 'grouped', label: 'Gom theo số xe' }, { value: 'date', label: 'Theo ngày' }]} />
-        </div>
-        <label>Tìm kiếm <input className="input" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Mã chuyến, container, khách" /></label>
-      </div>
-
-      {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
-      {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}
-      {/* Voucher bar keeps its own row; the button rides a right-aligned
-          full row below the two selects — never over them (card 20260924_12).
-          Card 20260925_1: at ≤480 the two short selects (Loại phiếu + STK)
-          pair on one row; the Lập phiếu button keeps its own row, full
-          width. */}
-      <div className="filter-bar ppc-filter-actions">
-        <div className="ppc-filter-actions__pair">
           <UuiSelectField label="Loại phiếu" value={direction} onChange={(e) => setDirection(e.target.value as 'IN' | 'OUT')}
             options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} />
           <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
             options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} />
-        </div>
-        <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
-          {issuing
-            ? 'Đang lập…'
-            : selected.size === 0
-              ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} — chọn dòng đã duyệt`
-              : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${[...selected].reduce((sum, tripId) => {
-                  const row = rows.find((candidate) => candidate.tripId === tripId);
-                  return sum + (row ? (direction === 'IN' ? row.eligibleIn : row.eligibleOut) : 0);
-                }, 0)} khoản)`}
-        </button>
-      </div>
+        </FilterDropdown>
+      </ListFilterBar>
+
+      {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
+      {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}
 
       <div className="shipment-container-ledger" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
         <table className="tt-table ppc-board">

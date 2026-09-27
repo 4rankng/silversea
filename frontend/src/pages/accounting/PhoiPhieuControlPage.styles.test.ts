@@ -53,92 +53,66 @@ describe('báo cáo tháng report header (card 20260924_1, image11)', () => {
   });
 });
 
-// Card 20260924_12 (CHIEF 15:40): the "Trạng thái" / "Sắp xếp" dropdowns each
-// claimed a whole ~1100px desktop row — the bespoke bar rode inline flex-wrap
-// plus the borrowed .shipments-detail-filters class, and the shared
-// .ds-uui-select { width: 100% } gave every select a full-row flex basis.
-// RED-first: all six asserts below fail at HEAD (no .ppc-filters markup/CSS).
-describe('phôi phiếu filter row-packing (card 20260924_12, filter-bar law §5)', () => {
-  it('desktop bar row-packs on an auto-fit grid banded 220–320px — no dropdown owns a full row', () => {
-    expect(css).toMatch(/grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(220px,\s*320px\)\)/);
+// Card 20260927_152 (operator 2026-09-27: "try to keep filter section max 2
+// rows only", "the width of control should relative to value it holds"): the
+// page no longer owns the filter strip. `ListFilterBar` owns the layout and the
+// shared sheet owns every control's width, so this sheet may declare NOTHING
+// about a filter control — the auto-fit grid, the pair wrappers, the ≤480 phone
+// band and the page-owned height overrides are deleted with the markup that
+// used them (the bespoke bar was the CHIEF 15:40 incident: "Trạng thái" /
+// "Sắp xếp" each ate the whole ~1100px row). The old pins described those
+// deleted rules; they are replaced by the contract they were hiding — never
+// re-pinned onto a rule that no longer exists.
+const FILTER_SURFACE = /\.list-filter-bar|\.filter-bar|\.date-range-fields|\.ds-uui-select|\.filter-dropdown|\[data-input-wrapper\]|\[data-uui-control\]/;
+const FILTER_LAYOUT_OR_WIDTH = /(?:^|;)\s*(?:display|flex|flex-wrap|flex-grow|grid|grid-template-columns|grid-column|align-items|justify-content|gap|width|min-width|max-width)\s*:/;
+
+/** Every rule in the sheet whose selector names a filter surface. */
+const filterRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+  .map(([, selector, declarations]) => ({ selector: selector.trim(), declarations }))
+  .filter((rule) => FILTER_SURFACE.test(rule.selector));
+
+describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
+  it('the page sheet declares no filter layout and no control width', () => {
+    const offenders = filterRules
+      .filter((rule) => FILTER_LAYOUT_OR_WIDTH.test(rule.declarations))
+      .map((rule) => rule.selector);
+    expect(offenders).toEqual([]);
   });
 
-  it('page owns its filter markup — no borrowed shipments class, no inline flex layout on either bar', () => {
-    expect(source).toContain('className="ppc-filters"');
-    expect(source).toContain('className="ppc-filter-actions"');
+  it('no page-owned filter grid, bar markup or pair wrapper survives', () => {
+    expect(css).not.toMatch(/ppc-filter/);
+    expect(css).not.toMatch(/grid-template-columns|grid-column\s*:/);
+    expect(source).not.toContain('className="filter-bar');
+    expect(source).not.toContain('ppc-filters');
     expect(source).not.toContain('shipments-detail-filters');
-    expect(source).not.toContain("flexWrap: 'wrap'");
-    expect(source).not.toContain("style={{ display: 'flex', gap: 12, alignItems: 'end'");
-    // The dead wrapper class had no stylesheet anywhere — dropped with the rewrap.
-    expect(source).not.toContain('phoi-phieu-filter');
   });
 
-  it('the Lập phiếu button rides its own right-aligned final row — never over the selects', () => {
-    const actions = css.match(/\.ppc-filter-actions > \.btn\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(actions).toContain('grid-column: 1 / -1');
-    expect(actions).toContain('justify-self: end');
+  it('the bar carries the shared search slot and the two fields of the shared date pair', () => {
+    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    expect(bar).toContain("placeholder: 'Mã chuyến, container, khách'");
+    expect(bar).toContain("ariaLabel: 'Tìm kiếm'");
+    expect(bar).toContain('<DateRangeFields');
+    // ONE from/to implementation — the page no longer mounts bare date fields.
+    expect(source).not.toContain('<BufferedUuiDateInput');
   });
 
-  it('Từ/Đến stay the first two adjacent cells (one row), labels stack above their controls', () => {
-    // Capture up to the message paragraph — the bar's own </div> would cut
-    // the slice before "Trạng thái" and silently order-check an empty tail.
-    const bar = source.match(/className="ppc-filters"([\s\S]*?)\{message/)?.[1] ?? '';
-    expect(bar.indexOf('Từ ngày')).toBeGreaterThan(-1);
-    expect(bar.indexOf('Từ ngày')).toBeLessThan(bar.indexOf('Đến ngày'));
-    expect(bar.indexOf('Đến ngày')).toBeLessThan(bar.indexOf('label="Trạng thái"'));
-    const label = css.match(/\.ppc-filters > label\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(label).toContain('display: grid');
+  it('the four secondary criteria live inside the dropdown, which comes last', () => {
+    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    const dropdown = bar.match(/<FilterDropdown([\s\S]*?)<\/FilterDropdown>/)?.[1] ?? '';
+    for (const label of ['Trạng thái', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
+      expect(dropdown).toContain(`label="${label}"`);
+    }
+    expect(dropdown).toContain('onReset={resetSecondary}');
+    expect(bar.indexOf('<DateRangeFields')).toBeLessThan(bar.indexOf('<FilterDropdown'));
   });
 
-  it('mobile ≤480 — Từ/Đến pair on one row, Trạng thái + Sắp xếp pair on one row (card 20260925_1 short-value pairing)', () => {
-    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // The date pair rides the pair wrapper: 2-column grid, not 1fr stack.
-    // (Selector may be combined with .ppc-filter-actions__pair.)
-    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?display:\s*grid/);
-    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    // Mark-up: date pair wrapper carries Từ ngày + Đến ngày.
-    expect(source).toMatch(/className="ppc-filters__pair"[\s\S]*?Từ ngày[\s\S]*?Đến ngày/);
-    // The filter-actions bar (Loại phiếu + STK) pairs the two short selects too.
-    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?display:\s*grid/);
-    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(source).toMatch(/className="ppc-filter-actions__pair"[\s\S]*?Loại phiếu[\s\S]*?Số tài khoản quỹ/);
-    // One control height per context — coarse pointer rises to 44px touch floor.
-    expect(mobile).toMatch(/min-height:\s*var\(--filter-control-h\)/);
-  });
-
-  it('one control height per context: inputs and UUI selects both read --filter-control-h, coarse rises to 44px', () => {
-    // Card 20260925_46: [data-seg] digit boxes inside the shared segmented
-    // date field keep their own geometry — the bare-input height rule scopes
-    // them out; the date group rides --uui-control-h via [data-uui-control].
-    expect(css).toMatch(/\.ppc-filters input:not\(\[data-seg\]\)\s*\{[^}]*height:\s*var\(--filter-control-h\)/);
-    expect(css).toMatch(/\.ppc-filters \[data-uui-control\]\[data-control-size\]\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\)/);
-    expect(css).toMatch(/pointer:\s*coarse[\s\S]*?--filter-control-h:\s*var\(--control-touch-h\)/);
-  });
-
-  // Card 20260925_5 (CHIEF 19:09, wide viewport, class sweep mandate): on
-  // accounting boards that borrow the date-pair pattern, the pair wrapper
-  // defaulted to `display: block` so the two stacked labelled fields read
-  // as a detached panel. Each pair is one inline flex-cell of the bar at
-  // every pre-mobile breakpoint — flat (transparent bg, 0 border / radius
-  // / shadow) so the wrapper never promotes to a card. The mobile ≤480
-  // grid rule still owns phone pairing.
-  it('desktop pair wrapper is one inline flex-cell of the bar — flat, not a panel (card 20260925_5 wide-pair)', () => {
-    // The desktop default has to be a top-level rule that the mobile @media
-    // block can override via source order.
-    const ppcBlock = css.match(/\.ppc-filters__pair,\s*\.ppc-filter-actions__pair\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(ppcBlock, 'ppc pair default rule present at top level').not.toBe('');
-    expect(ppcBlock).toMatch(/display:\s*flex/);
-    expect(ppcBlock).toMatch(/align-items:\s*flex-end/);
-    expect(ppcBlock).toMatch(/gap:\s*12px/);
-    expect(ppcBlock).toMatch(/background:\s*transparent/);
-    expect(ppcBlock).toMatch(/border:\s*0/);
-    expect(ppcBlock).toMatch(/border-radius:\s*0/);
-    // Mobile grid contract intact (card 20260925_1).
-    const mobile = css.match(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?display:\s*grid/);
-    expect(mobile).toMatch(/\.ppc-filters__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?display:\s*grid/);
-    expect(mobile).toMatch(/\.ppc-filter-actions__pair[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  it('the Lập phiếu action rides the bar action slot — the page owns no filter row', () => {
+    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    const actionsIndex = bar.indexOf('actions={(');
+    expect(actionsIndex).toBeGreaterThan(-1);
+    expect(actionsIndex).toBeLessThan(bar.indexOf('<DateRangeFields'));
+    expect(bar).toContain('onClick={() => void issueVoucher()}');
+    expect(bar).toContain('{voucherLabel}');
   });
 
   it('flat sheet — no shadow, gradient, or 3D anywhere (design law §3)', () => {

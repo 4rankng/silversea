@@ -1,34 +1,14 @@
 .deposit-tracker-page { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
-/* Card 20260924_13 (CHIEF 15:45, law §5 filter row-pack): the date root's
-   w-full chain and .ds-uui-select's width:100% each forced one control per
-   full-width row on desktop. Content-size every control like ListFilterBar —
-   Từ/Đến ngày ride one row as a pair, Trạng thái sits beside them (or wraps
-   next row with Lọc / Thêm dòng); no control goes full-width. */
-.deposit-tracker-filters { display: flex; flex-wrap: wrap; gap: var(--space-3, 12px); align-items: end; }
-.deposit-tracker-filters > * { flex: 0 1 auto; min-width: 0; }
-.deposit-tracker-filters > .btn { flex: 0 0 auto; }
-.deposit-tracker-filters [data-input-wrapper] { flex: 0 0 auto; width: 168px; min-width: 149px; }
-.deposit-tracker-filters .ds-uui-select { width: auto; min-width: 240px; max-width: 280px; }
-
-/* 2026-09-25 (card 20260925_5, CHIEF 19:09, 1920px screenshot): the
- * date-pair wrapper `.deposit-tracker-filters__pair` defaults to display:
- * block, so the Từ/Đến ngày fields stack vertically inside one chunky box
- * that floats above the Trạng thái / Lọc / Thêm dòng row — reading as a
- * detached panel. The bar's flex layout already owns the row's cell
- * positions; we just need the pair to be one inline flex-cell of it, not
- * a separate floating block. Mobile @media below keeps the 2-column grid.
- * Belt-and-braces: no chrome (transparent bg, 0 border / radius / shadow) —
- * the flat law on this surface stays a flat surface. */
-.deposit-tracker-filters__pair {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3, 12px);
-  min-width: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
+/* Card 20260927_152 — the filter region moved onto the ONE shared strip
+   (`ListFilterBar` + `FilterDropdown` + `DateRangeFields`): the bar's own
+   content-sizing rules (`flex: 0 1 auto`), the 168/149px date floors, the
+   240–280px select slot and the ≤900 full-width band are all deleted with it.
+   The shared sheet owns filter layout and every control's width (operator
+   2026-09-27: the strip holds ≤2 rows, and the width of a control follows the
+   value it holds — the audit measured four rows and a 366px date field at
+   768px here). A page rule that re-declares either is exactly how this surface
+   drifted on 2026-09-24 and 2026-09-25. Nothing below styles a filter
+   control. */
 .deposit-tracker-warnings { position: relative; border: 1px solid var(--color-warning, #b45309); background: var(--color-warning-bg, #fef3c7); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .deposit-tracker-warnings__item { margin: 0; color: var(--color-warning-text, #92400e); overflow-wrap: anywhere; }
 .deposit-tracker-warnings__item--danger { color: var(--danger-text, #7F2D37); }
@@ -63,42 +43,3 @@
 .deposit-tracker-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted, #64748b); }
 .deposit-tracker-table tr.is-refunded { opacity: 0.72; }
-/* Card 20260924_13: phones keep the standing 1-column stack (law hiện hành,
-   _14 QA'd) — the desktop width floors/caps above yield to full-row cells.
-   Card 20260925_1 (sweep mandate): pair the date pair on one 2-column grid
-   row so DD/MM/YYYY fits half a 390px track minus the page margin, while the
-   Trạng thái select and the two action buttons keep their full rows under
-   it. Every control surface reads `--filter-control-h` so all heights match
-   the chosen 44px phone token. The flat law (no shadow, no gradient) carries
-   over. */
-@media (max-width: 900px) {
-  .deposit-tracker-filters { }
-  .deposit-tracker-filters > *:not(.deposit-tracker-filters__pair),
-  .deposit-tracker-filters .ds-uui-select {
-    flex: 0 0 auto;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-  /* The pair wrapper itself takes its own full row, then lays its two
-     children side-by-side. Pair children release the desktop 168/149 floor
-     so the grid can size each one to its 1/2 track. */
-  .deposit-tracker-filters__pair {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    width: 100%;
-    min-width: 0;
-  }
-  .deposit-tracker-filters__pair [data-input-wrapper] {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-  /* One height token — every filter surface pins to --filter-control-h. */
-  .deposit-tracker-filters [data-input-wrapper],
-  .deposit-tracker-filters [data-uui-control],
-  .deposit-tracker-filters .ds-uui-select {
-    min-height: var(--filter-control-h);
-  }
-}

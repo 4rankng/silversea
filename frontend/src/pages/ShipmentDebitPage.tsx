@@ -14,37 +14,13 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangeFields, DateRangePresets, EmptyState, InlineLabelSelect, SearchableSelect, type DateRangePreset } from '../design-system';
-import { RotateCcw } from 'lucide-react';
+import { EmptyState } from '../design-system';
+import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
 
 /** sessionStorage key for the L2 open-state restore (reload persistence). */
 const EXPANDED_LOT_KEY = 'shipment-debit.expanded-lot';
-
-const LOCK_FILTERS = [
-  { id: 'ALL', label: 'Tất cả' },
-  { id: 'OPEN', label: 'Đang mở' },
-  { id: 'LOCKED', label: 'Đã khóa' },
-];
-
-/** Settlement quick ranges (card 20260926_51) — evaluated on click so the
- *  pills stay anchored to "now" whenever the popover opens. */
-const toIsoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const monthBounds = (offset: number) => {
-  const now = new Date();
-  return { from: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset, 1)), to: toIsoDate(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)) };
-};
-const quarterBounds = () => {
-  const now = new Date();
-  const start = Math.floor(now.getMonth() / 3) * 3;
-  return { from: toIsoDate(new Date(now.getFullYear(), start, 1)), to: toIsoDate(new Date(now.getFullYear(), start + 3, 0)) };
-};
-const SETTLEMENT_PRESETS: DateRangePreset[] = [
-  { id: 'this-month', label: 'Tháng này', range: () => monthBounds(0) },
-  { id: 'prev-month', label: 'Tháng trước', range: () => monthBounds(-1) },
-  { id: 'this-quarter', label: 'Quý này', range: quarterBounds },
-];
 
 /** A 409 from the batched issue call can carry the selection's lot codes that
  *  are already inside an issued debit note — surface exactly those, falling
@@ -230,10 +206,14 @@ export function ShipmentDebitPage() {
   const customers = bootstrap.data?.customers ?? [];
   const items = summary.data?.items ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
-
-  const hasDebitFilters = customerId !== ''
-    || deliveryFrom !== '' || deliveryTo !== ''
-    || lockStatus !== 'ALL';
+  // The ribbon is presentational, so the API shape is mapped to the shared
+  // combobox options here and the URL semantics stay on this side too
+  // (card 20260927_153).
+  const customerOptions = customers.map((customer) => ({
+    value: String(customer.id),
+    label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
+    searchText: `${customer.name} ${customer.fullName ?? ''}`,
+  }));
 
   return (
     <div className="shipment-debit-page data-workspace">
@@ -242,10 +222,10 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card 20260926_51: two-tier 76px header — Row 1 title + Xuất Debit
-            Note ghost top-right (disabled without customer or locked tick,
-            hover names the prerequisite); Row 2 ribbon: required customer
-            combobox, from/to date fields with settlement presets, Khóa lô, Xóa lọc. */}
+        {/* Card 20260926_51: two-tier header — Row 1 title + Xuất Debit Note
+            ghost top-right (disabled without customer or locked tick, hover
+            names the prerequisite); Row 2 is the shared filter strip
+            (card 20260927_153). */}
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
           {canManage && (
@@ -262,72 +242,28 @@ export function ShipmentDebitPage() {
             </span>
           )}
         </header>
-        <div className="filter-bar shipment-debit-ribbon" data-component="shipment-debit-ribbon">
-          <SearchableSelect
-            id="shipment-debit-customer"
-            className="shipment-debit-ribbon__customer"
-            value={customerId}
-            onChange={(value) => {
-              setSelectedIds(new Set());
-              updateParam('customer', value || null);
-            }}
-            options={customers.map((customer) => ({
-              value: String(customer.id),
-              label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
-              searchText: `${customer.name} ${customer.fullName ?? ''}`,
-            }))}
-            placeholder="Khách hàng"
-            searchPlaceholder="Tìm khách hàng…"
-            emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable clearLabel="Bỏ khách hàng" requiredMark required size="sm"
-          />
-          <DateRangeFields
-            className="shipment-debit-ribbon__range"
-            id="shipment-debit-date-range"
-            ariaLabel="Khoảng ngày giao"
-            size="sm"
-            from={deliveryFrom}
-            to={deliveryTo}
-            onChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
-          />
-          <DateRangePresets
-            className="shipment-debit-ribbon__presets"
-            presets={SETTLEMENT_PRESETS}
-            value={{ from: deliveryFrom, to: deliveryTo }}
-            onChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
-            ariaLabel="Khoảng ngày nhanh"
-          />
-          <InlineLabelSelect
-            id="shipment-debit-lock"
-            label="Khóa lô"
-            items={LOCK_FILTERS}
-            selectedKey={lockStatus}
-            onSelectionChange={(key) => {
-              setSelectedIds(new Set());
-              updateParam('lock', key === 'ALL' ? null : key);
-            }}
-            ariaLabel="Trạng thái khóa lô"
-            className="shipment-debit-ribbon__lock"
-          />
-          <div className="filter-bar__spacer" />
-          <UUIButton
-            className="shipment-debit-ribbon__clear"
-            size="sm"
-            color="tertiary"
-            iconLeading={RotateCcw}
-            isDisabled={!hasDebitFilters}
-            onPress={() => {
-              setSelectedIds(new Set());
-              updateParam('customer', null);
-              updateParam('from', null);
-              updateParam('to', null);
-              updateParam('lock', null);
-            }}
-            aria-label="Xóa lọc"
-          >
-            Xóa lọc
-          </UUIButton>
-        </div>
+        {/* Card 20260927_153: Row 2 is the shared filter strip. It owns its own
+            layout and every control width (FilterBar.css L1-L3), so the page
+            hands it criteria values and URL writers only — no filter rule, no
+            applied-count and no reset markup lives here. */}
+        <ShipmentDebitRibbon
+          customerOptions={customerOptions}
+          customerId={customerId}
+          deliveryFrom={deliveryFrom}
+          deliveryTo={deliveryTo}
+          lockStatus={lockStatus}
+          onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
+          onLockChange={(key) => { setSelectedIds(new Set()); updateParam('lock', key === 'ALL' ? null : key); }}
+          onDeliveryRangeChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
+          onResetSecondary={() => { setSelectedIds(new Set()); updateParam('customer', null); updateParam('lock', null); }}
+          onClear={() => {
+            setSelectedIds(new Set());
+            updateParam('customer', null);
+            updateParam('from', null);
+            updateParam('to', null);
+            updateParam('lock', null);
+          }}
+        />
         {customerId === '' ? (
           <EmptyState illustration="finance" title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
         ) : summary.isPending ? (

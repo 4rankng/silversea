@@ -413,6 +413,25 @@ describe('customer portal pages', () => {
     expect(screen.getByText('Đã chuyển sang ngày làm việc tiếp theo')).toBeTruthy();
   });
 
+  it('applies the period from the shared from/to group on the filter bar', async () => {
+    apiGet.mockResolvedValue({ customer: { id: 3, name: 'Khách A' }, totalOutstanding: 0, ledgerRows: [], unpaidTrips: [], agingBuckets: [] });
+    const { container } = render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/statement'));
+
+    // The filters ARE the shared bar (card 20260927_152): one `DateRangeFields`
+    // group — no page-local label+input pair, and still two independent fields.
+    const groups = container.querySelectorAll('[role="group"][aria-label="Khoảng ngày sao kê"]');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].querySelectorAll('[data-input-wrapper]')).toHaveLength(2);
+
+    // Typing both fields and submitting still applies the period through the
+    // page's own draft/applied split.
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng kỳ' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/portal/statement?dateFrom=2026-08-01&dateTo=2026-08-31'));
+  });
+
   it('downloads statement PDF bytes and shows a visible export error on failure', async () => {
     apiGet.mockResolvedValue({
       customer: { id: 3, name: 'Khách hàng A', contactInfo: null },

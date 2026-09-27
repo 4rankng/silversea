@@ -367,8 +367,7 @@ a.portal-list__row:focus-visible {
   color: var(--ink);
 }
 
-.portal-button:focus-visible,
-.portal-filters input:focus-visible {
+.portal-button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 24%, transparent);
   outline-offset: 1px;
 }
@@ -521,35 +520,6 @@ a.portal-list__row:focus-visible {
   font-weight: var(--fw-semibold);
 }
 
-.portal-filters {
-  align-items: end;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.portal-filters label {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-  color: var(--ink-2);
-  font-size: var(--text-label-size);
-  font-weight: var(--fw-semibold);
-}
-
-.portal-filters input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--filter-control-h);
-  padding: 0 10px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-control-size);
-}
-
 .portal-balance-equation {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.15fr);
@@ -686,16 +656,6 @@ a.portal-list__row:focus-visible {
   }
 }
 
-@media (max-width: 900px) {
-  .portal-filters {
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-}
-
 @media (max-width: 700px) {
   .portal-page__header {
     grid-template-columns: minmax(0, 1fr);
@@ -823,16 +783,6 @@ a.portal-list__row:focus-visible {
     padding: 10px;
   }
 
-  .portal-filters {
-    padding: 12px;
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
   .portal-balance-equation {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     border-bottom: 1px solid var(--line);
@@ -887,21 +837,6 @@ a.portal-list__row:focus-visible {
   }
 }
 
-@media (max-width: 360px) {
-  .portal-filters {
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .portal-filters .portal-button--primary {
-    grid-column: 1 / -1;
-  }
-
-}
-
 @media (max-width: 390px) {
   .portal-panel__heading--split {
     display: grid;
@@ -933,15 +868,5 @@ a.portal-list__row:focus-visible {
 }
 @media(max-width:639px){.portal-timeline__meta{align-items:flex-start;flex-direction:column;gap:2px}.portal-timeline .portal-button{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));width:100%;min-height:48px}}
 
-/* One rhythm for statement filters, including the shared date input. */
-.portal-filters input,
-.portal-filters .portal-button {
-  min-height: var(--control-default-h);
-}
-
-@media (max-width: 700px), (pointer: coarse) {
-  .portal-filters input,
-  .portal-filters .portal-button {
-    min-height: var(--control-touch-h);
-  }
-}
+/* The statement's filter controls take their height from the shared bar
+   (`--filter-control-h`, touch floor on coarse pointers) — see FilterBar.css. */
