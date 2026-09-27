@@ -22,10 +22,6 @@ export interface ListFilterBarSearchProps {
   placeholder: string;
   /** Accessible name for the search field. */
   ariaLabel: string;
-  /** Optional keyboard-shortcut badge (e.g. "⌘K") rendered inside the search
-   * shell's right edge. Purely visual here — the owning page wires the
-   * actual key handler. */
-  shortcut?: string;
 }
 
 export interface ListFilterBarProps {

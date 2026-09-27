@@ -10,6 +10,9 @@
   min-width: 110px;
   height: 32px;
   padding: 0 10px;
+  /* Card 20260926_65: the integrated label never wraps — a wrapped label
+     inflates the 32px trigger and breaks the ribbon baseline. */
+  white-space: nowrap;
   border: 1px solid var(--line, #d1d5db);
   border-radius: 8px;
   background: var(--surface, #fff);
