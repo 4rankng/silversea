@@ -205,22 +205,24 @@
   min-width: 0;
 }
 
-/* The ranges are CONTROLS, not a second tab bar: their chips take the strip's
-   own height token and the boxed group drops its 2px inset inside the bar, so
-   the group measures exactly what the search, the date fields and `Bộ lọc`
-   measure (operator 2026-09-27: "component height are inconsistent [...] please
-   follow same height as [the tab row]"). Without this the shared `Tabs` phone
-   floor (40px) left the range group ~1.5x the height of the field beside it. */
-.filter-bar__presets .ds-tabs__btn,
-.filter-bar__presets .filter-tab {
+/* A segmented group INSIDE the bar is a control, not a second tab bar: its
+   chips take the strip's own height token and the boxed group drops its 2px
+   inset, so the group measures exactly what the search, the date fields and
+   `Bộ lọc` measure (operator 2026-09-27: "component height are inconsistent
+   [...] please follow same height as [the tab row]"). Scoped to the whole bar,
+   not just the quick-ranges slot: a status/role/category `Tabs variant="boxed"`
+   placed as a bar child otherwise stands 36px (50px on phones) beside 30px
+   siblings. Without this the shared `Tabs` phone floor (40px) left the range
+   group ~1.5x the height of the field beside it. */
+.filter-bar .ds-tabs__btn,
+.filter-bar .filter-tab {
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
   padding-top: 0;
   padding-bottom: 0;
 }
 
-.filter-bar__presets.ds-tabs--boxed,
-.filter-bar__presets .ds-tabs--boxed {
+.filter-bar .ds-tabs--boxed {
   /* The chips already carry their own boundary; the group's inset would add
      2px on every side and break the single-height row. */
   padding: 0;

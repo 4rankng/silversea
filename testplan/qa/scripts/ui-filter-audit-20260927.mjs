@@ -64,6 +64,29 @@ const SURFACES = [
   { label: 'dispatch', path: '/dispatch', role: 'dieuvan' },
   { label: 'portal-statement', path: '/portal/statement', role: 'cus' },
   { label: 'config-customers', path: '/config/customers', role: 'admin' },
+
+  // Wave 2 + 3 of the cutover (2026-09-27/28): every remaining page-local filter
+  // plane moved onto the same strip. These carry the promise at the widths where
+  // the page-local toolbar actually failed, so the sweep stays under a minute per
+  // surface; `widths` overrides the global WIDTHS for the entry.
+  { label: 'trips', path: '/trips', role: 'dieuvan', widths: [1440, 1024, 768] },
+  { label: 'dispatch-detail', path: '/dispatch-detail', role: 'dieuvan', widths: [1440, 1024, 768] },
+  { label: 'fleet-vehicles', path: '/fleet/vehicles', role: 'dieuvan', widths: [1440, 1024, 768] },
+  { label: 'fleet-drivers', path: '/fleet/drivers', role: 'dieuvan', widths: [1440, 1024, 768] },
+  { label: 'fleet-external', path: '/fleet/external', role: 'dieuvan', widths: [1440, 1024, 768] },
+  { label: 'suppliers', path: '/suppliers', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'payables', path: '/payables', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'fuel-evidence', path: '/accounting/fuel-evidence', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'salary', path: '/salary', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'users', path: '/users', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'audit-logs', path: '/audit-logs', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'ops-orders', path: '/ops/orders', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'customers', path: '/customers', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'config-routes', path: '/config/routes', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'config-ports', path: '/config/ports', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'config-factories', path: '/config/factories', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'config-penalty-reasons', path: '/config/penalty-reasons', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'admin-advance-settlements', path: '/admin/advance-settlements', role: 'admin', widths: [1440, 1024, 768] },
 ];
 const ROUTE_FILTER = process.env.ROUTES ? process.env.ROUTES.split(',').map((s) => s.trim()) : null;
 
@@ -235,7 +258,7 @@ const report = { at: new Date().toISOString(), base: BASE, widths: WIDTHS, findi
 const surfaces = ROUTE_FILTER ? SURFACES.filter((s) => ROUTE_FILTER.includes(s.path)) : SURFACES;
 
 for (const surface of surfaces) {
-  for (const width of WIDTHS) {
+  for (const width of (surface.widths ?? WIDTHS)) {
     const { page } = await contextEntry(surface.role, ACCOUNT[surface.role], width);
     await page.goto(`${BASE}${surface.path}`, { waitUntil: 'networkidle' }).catch(() => {});
     await page.waitForTimeout(700);

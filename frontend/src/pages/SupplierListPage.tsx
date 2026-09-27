@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, UserCheck, Plus, Download, Search,
+  Users, UserCheck, Plus, Download,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
   Building2, Hash, User, Phone, Landmark, Clock, FileText,
 } from 'lucide-react';
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
@@ -374,32 +375,37 @@ export default function SupplierListPage() {
         />
       </div>
 
-      <div className="filter-bar">
-        <button className={`filter-tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {statusCountsQuery.data?.all ?? total}</button>
-        <button className={`filter-tab${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
-          <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
-          Hoạt động · {activeCount}
-        </button>
-        <button className={`filter-tab${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>
-          <StatusDot status="INACTIVE" style={{ marginRight: 4 }} />
-          Ngừng HĐ · {inactiveCount}
-        </button>
-        <div className="filter-bar__spacer" />
-        <button className={`filter-tab${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
-        <button className={`filter-tab${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
-        <button className={`filter-tab${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
-        <div className="filter-bar__search">
-          <Search size={14} />
-          <input
-            type="text"
-            name="supplierSearch"
-            aria-label="Tìm nhà cung cấp theo tên"
-            placeholder="Tên nhà thầu, MST, người liên hệ, SĐT…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+          declares no bar markup, no search shell and no spacer — the component
+          owns `.filter-bar`, its search cell and its pinning. The six toggles
+          narrow the same list (they are quick filters, not secondary criteria),
+          so they ride `quickFilters` with the shared chip shape. */}
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Tên nhà thầu, MST, người liên hệ, SĐT…',
+          ariaLabel: 'Tìm nhà cung cấp theo tên',
+          inputProps: { name: 'supplierSearch' },
+        }}
+        quickFiltersLabel="Lọc nhà cung cấp"
+        quickFilters={(
+          <>
+            <button type="button" aria-pressed={filter === 'all'} className={`filter-chip${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {statusCountsQuery.data?.all ?? total}</button>
+            <button type="button" aria-pressed={filter === 'active'} className={`filter-chip${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
+              <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
+              Hoạt động · {activeCount}
+            </button>
+            <button type="button" aria-pressed={filter === 'inactive'} className={`filter-chip${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>
+              <StatusDot status="INACTIVE" style={{ marginRight: 4 }} />
+              Ngừng HĐ · {inactiveCount}
+            </button>
+            <button type="button" aria-pressed={typeFilter === 'all'} className={`filter-chip${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
+            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
+            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
+          </>
+        )}
+      />
 
       <div className="mobile-only mobile-table-wrap">
         <div className="m-card-list">

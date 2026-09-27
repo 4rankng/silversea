@@ -420,7 +420,11 @@
   /* Search follows DOM order; inputs inside other field groups must not
      reorder the whole group behind unrelated actions. */
   .toolbar > .toolbar__search { flex-basis: 100%; }
-  .filter-tabs, .dispatch-page .filter-tabs, .pill-row, .toolbar {
+  /* `.filter-tabs` / `.dispatch-page .filter-tabs` / `.pill-row` were dropped from
+     this band (card 20260927_152): the last element carrying them was
+     `DispatchFilters`, now the shared `Tabs variant="boxed"`, and `.pill-row` had
+     no consumer left. `.toolbar` stays — `components/UI.tsx` still exports it. */
+  .toolbar {
     display: flex;
     flex-wrap: wrap;
     overflow-x: visible;
@@ -429,11 +433,7 @@
     padding-bottom: 2px;
     gap: 6px;
   }
-  .filter-tabs::-webkit-scrollbar,
-  .dispatch-page .filter-tabs::-webkit-scrollbar,
-  .pill-row::-webkit-scrollbar,
   .toolbar::-webkit-scrollbar { display: none; }
-  .filter-tabs > *, .pill-row > * { flex-shrink: 0; }
   .filter-chip {
     min-height: var(--control-mobile-h);
     padding: 4px 8px;
