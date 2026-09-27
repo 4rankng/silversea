@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseListQuery } from '@tingting/shared';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Drawer } from '../../components/UI';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import { expenseAccountingClient, type ExpenseReportRow } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { DateField, UuiSelectField } from '../../design-system';
@@ -42,7 +44,23 @@ export function ExpenseReport({ filters }: { filters: ExpenseListQuery }) {
     finally { setExporting(false); }
   }
   return <section className="expense-accounting" aria-label="Báo cáo công nợ chi phí">
-    <div className="expense-accounting-toolbar"><div className="expense-accounting-fields"><UuiSelectField label="Loại báo cáo" value={direction} onChange={event => setFilter('reportDirection', event.target.value)} options={[{ value: 'IN', label: 'Phải thu khách hàng' }, { value: 'OUT', label: 'Phải trả / chi phí xe' }]} /><DateField controlSize="sm" label="Thanh toán tính đến" value={dateValue} onChange={changeDate} required /></div><button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()} disabled={exporting || report.isPending || report.isError}>{exporting ? 'Đang xuất…' : 'Tải XLSX'}</button></div>
+    {/* Card 20260927_152: the strip is the shared `ListFilterBar` — the cutoff
+        date is the page's own single-date field (no from/to pair exists here),
+        `Loại báo cáo` is the only criterion the dialog owns, and the export
+        rides the bar's action slot. No page rule sizes either control. */}
+    <ListFilterBar
+      actions={<button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()} disabled={exporting || report.isPending || report.isError}>{exporting ? 'Đang xuất…' : 'Tải XLSX'}</button>}
+    >
+      <DateField controlSize="sm" label="Thanh toán tính đến" value={dateValue} onChange={changeDate} required />
+      <FilterDropdown
+        count={direction === 'OUT' ? 1 : 0}
+        ariaLabel="Bộ lọc"
+        dialogLabel="Bộ lọc báo cáo công nợ"
+        onReset={() => setFilter('reportDirection', 'IN')}
+      >
+        <UuiSelectField label="Loại báo cáo" value={direction} onChange={event => setFilter('reportDirection', event.target.value)} options={[{ value: 'IN', label: 'Phải thu khách hàng' }, { value: 'OUT', label: 'Phải trả / chi phí xe' }]} />
+      </FilterDropdown>
+    </ListFilterBar>
     <p className="expense-accounting-hint">Khoảng ngày lọc theo ngày phát sinh chi phí. Đã thu / trả tính đến ngày được chọn; cùng bộ lọc được dùng khi xuất.</p>
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {report.isError ? <p role="alert">Không tải được báo cáo. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void report.refetch()}>Thử lại</button></p> : report.isPending ? <p role="status">Đang tải báo cáo…</p> : <>

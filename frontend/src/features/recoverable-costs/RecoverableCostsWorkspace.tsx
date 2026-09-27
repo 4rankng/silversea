@@ -10,6 +10,8 @@ import {
   Scale,
 } from 'lucide-react';
 import { Btn, StatusPill, type PillVariant } from '../../components/UI';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, type TableSortState } from '../../lib/table-sort';
@@ -301,22 +303,39 @@ export function RecoverableCostsWorkspace() {
         </div>
       </section>
 
-      <section className="recoverable-costs__toolbar" aria-label="Bộ lọc chi phí">
-        <UuiSelectField
-          label="Trạng thái khoản chi"
-          value={status}
-          options={[
-            { value: '', label: 'Tất cả trạng thái' },
-            { value: 'DRAFT', label: 'Cần hoàn thiện' },
-            { value: 'RECORDED', label: 'Đã ghi nhận' },
-            { value: 'VOIDED', label: 'Đã hủy' },
-          ]}
-          onChange={(event) => { setStatus(event.target.value); setPage(1); }}
-        />
-        <div className="recoverable-costs__toolbar-meta" aria-live="polite">
-          <Scale size={17} aria-hidden="true" />
-          <span>{loading ? 'Đang cập nhật dữ liệu…' : `${data?.total ?? 0} khoản chi phí`}</span>
-        </div>
+      {/* Card 20260927_152: the shared strip. `Trạng thái khoản chi` is the one
+          criterion this list does not share with every other list, so it lives
+          in `Bộ lọc` (rendered inline while the strip still fits two rows) and
+          the result count rides the bar's status slot. The landmark the page
+          always exposed is kept; it carries no styling. */}
+      <section aria-label="Bộ lọc chi phí">
+        <ListFilterBar
+          status={(
+            <div className="recoverable-costs__toolbar-meta" aria-live="polite">
+              <Scale size={17} aria-hidden="true" />
+              <span>{loading ? 'Đang cập nhật dữ liệu…' : `${data?.total ?? 0} khoản chi phí`}</span>
+            </div>
+          )}
+        >
+          <FilterDropdown
+            count={status ? 1 : 0}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc chi phí"
+            onReset={() => { setStatus(''); setPage(1); }}
+          >
+            <UuiSelectField
+              label="Trạng thái khoản chi"
+              value={status}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'DRAFT', label: 'Cần hoàn thiện' },
+                { value: 'RECORDED', label: 'Đã ghi nhận' },
+                { value: 'VOIDED', label: 'Đã hủy' },
+              ]}
+              onChange={(event) => { setStatus(event.target.value); setPage(1); }}
+            />
+          </FilterDropdown>
+        </ListFilterBar>
       </section>
 
       {error && (

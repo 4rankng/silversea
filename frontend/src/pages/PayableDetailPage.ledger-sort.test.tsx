@@ -162,7 +162,10 @@ describe('PayableDetailPage ledger column sorting', () => {
     fireEvent.click(screen.getByRole('button', { name: 'PHÁT SINH PHẢI TRẢ' }));
     expect(screen.getByRole('columnheader', { name: 'PHÁT SINH PHẢI TRẢ' }).getAttribute('aria-sort')).toBe('ascending');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chi phí nhiên liệu' }));
+    // Card 20260927_152: the ledger-type selector is the shared boxed `Tabs`
+    // primitive, so the view switch is a tab (the behaviour — fuel header set +
+    // sort reset — is unchanged).
+    fireEvent.click(screen.getByRole('tab', { name: 'Chi phí nhiên liệu' }));
 
     // Fuel view headers replace the all-view set, and no column stays active.
     expect(screen.getByRole('columnheader', { name: 'SỐ LÍT DẦU' }).getAttribute('aria-sort')).toBe('none');
@@ -174,5 +177,18 @@ describe('PayableDetailPage ledger column sorting', () => {
     expect(renderedReferenceOrder(container)).toEqual(['TRIP-FUEL-A', 'TRIP-FUEL-B']);
     fireEvent.click(screen.getByRole('button', { name: 'SỐ LÍT DẦU' }));
     expect(renderedReferenceOrder(container)).toEqual(['TRIP-FUEL-B', 'TRIP-FUEL-A']);
+  });
+
+  // Card 20260927_152: the page's filter plane is the ONE shared `ListFilterBar`
+  // — the ledger-type group (the shared boxed `Tabs`) and the period plane are
+  // both items of it, and the page-local `.dd-filters` chip row is gone.
+  it('renders the shared strip with both the ledger-type group and the period plane inside it', () => {
+    const { container } = renderPage();
+
+    const bar = container.querySelector('.filter-bar');
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('.dd-filters')).toBeNull();
+    expect(bar?.contains(screen.getByRole('tablist', { name: 'Lọc loại giao dịch' }))).toBe(true);
+    expect(bar?.contains(screen.getByRole('group', { name: 'Bộ lọc thời gian' }))).toBe(true);
   });
 });

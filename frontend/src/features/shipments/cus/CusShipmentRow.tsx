@@ -150,7 +150,14 @@ export function CusShipmentRow({
             if (hasDateFilter && !summary) {
               return <span className="cus-cargo-summary__containers cus-empty">Không có cont chạy ngày đã chọn</span>;
             }
-            return <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>;
+            const quantity = worksheetQuantity(item);
+            // Density + the text-only-cell law: when the card knows NOTHING about
+            // the cargo, name the missing fact once instead of printing two em
+            // dashes ("—" beside "— kg") on the dense fact row.
+            if (quantity === '—' && item.cargoMode !== 'LCL' && item.weightKg == null) {
+              return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
+            }
+            return <strong className="cus-cargo-summary__containers">{quantity}</strong>;
           })()}
           <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
             <span className="cus-cargo-summary__weight">

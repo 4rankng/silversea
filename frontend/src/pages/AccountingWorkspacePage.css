@@ -57,15 +57,20 @@
 .accounting-register__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--fs-md); }
 .accounting-register__heading p { margin: 0; color: var(--fg-3); font-size: var(--fs-xs); }
 
-/* Shared labelled controls align at the bottom of each wrapping row. */
-.accounting-register__toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
-.accounting-register__search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 0; flex: 1 1 300px; max-width: 440px; min-width: 0; }
-.accounting-register__search-label { grid-column: 1 / -1; color: var(--fg-1); font-size: var(--text-label-size); line-height: 1.5; font-weight: 600; }
-.accounting-register__search input { min-width: 0; min-height: var(--filter-control-h); padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
-.accounting-register__search button { min-height: var(--filter-control-h); padding: 0 12px; border: 1px solid var(--border-2); border-left: 0; border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); font-weight: 700; cursor: pointer; }
-.accounting-register__toolbar .ds-uui-select { flex: 1 1 150px; min-width: 0; }
-.accounting-register__reset { display: inline-flex; align-items: center; gap: 5px; min-height: var(--filter-control-h); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--filter-control-font-size); font-weight: 700; cursor: pointer; }
-.accounting-register__reset:hover { color: var(--fg-1); background: var(--bg-2); }
+/* Card 20260927_152 — the strip is the shared `ListFilterBar`, which owns the
+   wrapping row, the search cell and every control width. The page-local bar
+   (flex row + gap), the search cell (its label/input/submit trio), the
+   `flex: 1 1 150px` select stretch and the two toolbar grid bands (701-1100px
+   4-track, ≤700px 2-track) are deleted with it; the criteria now live in the
+   `Bộ lọc` dialog and pick up the bar's width contract (`FilterBar.css`). */
+
+/* The reset action rides the bar's own action cluster and keeps only the shared
+   compact density tokens — the shared bar owns its position on the line. */
+.accounting-register__reset {
+  min-height: var(--filter-control-h);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
+}
 
 /* The shared table owns its row treatment; no second card around it. */
 .accounting-register__wrap { background: transparent; }
@@ -107,12 +112,6 @@
   .accounting-register__table .record-table__action a { min-height: var(--control-touch-h); }
 }
 
-@media (min-width: 701px) and (max-width: 1100px) {
-  .accounting-register__toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .accounting-register__search { grid-column: 1 / -1; max-width: none; }
-  .accounting-register__reset { grid-column: 1 / -1; justify-self: end; }
-}
-
 @media (max-width: 700px) {
   .accounting-page { gap: 14px; }
   .accounting-period { align-items: stretch; flex-direction: column; padding: 10px 0; }
@@ -127,11 +126,6 @@
   .accounting-workflow__metric { grid-column: 2; white-space: normal; }
   .accounting-workflow__arrow { grid-column: 3; grid-row: 1 / span 2; }
 
-  /* Toolbar stacks: search full-width, filters pair two-up. */
-  .accounting-register__toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .accounting-register__search { grid-column: 1 / -1; max-width: none; flex-basis: auto; }
-  .accounting-register__toolbar .ds-uui-select { min-width: 0; }
-  .accounting-register__reset { grid-column: 1 / -1; justify-content: center; }
   .accounting-selection { align-items: stretch; flex-wrap: wrap; padding: 12px 14px; }
   .accounting-selection > div { flex-basis: 100%; }
   .accounting-selection button,

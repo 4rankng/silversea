@@ -23,6 +23,7 @@ export function AccountingWorkspaceRoot() {
     setTransportPage,
     setTransportSort,
     resetTransportSearch,
+    resetTransportSecondary,
   } = useAccountingWorkspaceUrlState();
   const queries = useAccountingWorkspaceQueries(state);
 
@@ -129,6 +130,7 @@ export function AccountingWorkspaceRoot() {
           onPageChange={setTransportPage}
           onRetry={() => queries.transportRegister.refetch()}
           onReset={resetTransportSearch}
+          onResetSecondary={resetTransportSecondary}
         />
       )}
     </div>

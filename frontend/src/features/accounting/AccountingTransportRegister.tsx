@@ -13,6 +13,8 @@ import {
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
 import { EmptyState, Pagination } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -38,7 +40,11 @@ type AccountingTransportRegisterProps = {
   onSearch: () => void;
   onPageChange: (page: number) => void;
   onRetry: () => void;
+  /** The strip's `Xóa bộ lọc` action — clears the applied search (URL semantics
+   *  unchanged by this cutover). */
   onReset: () => void;
+  /** Clears exactly the four criteria `Bộ lọc` owns (the dialog's `Đặt lại`). */
+  onResetSecondary: () => void;
 };
 
 export function AccountingTransportRegister({
@@ -65,6 +71,7 @@ export function AccountingTransportRegister({
   onPageChange,
   onRetry,
   onReset,
+  onResetSecondary,
 }: AccountingTransportRegisterProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
 
@@ -106,6 +113,9 @@ export function AccountingTransportRegister({
   const hasActiveFilters = Boolean(
     search || customerId || carrierId || ownership || readiness,
   );
+  // Card 20260927_152: the badge counts exactly the criteria the `Bộ lọc` dialog
+  // owns, so its `Bộ lọc, N đang áp dụng` name and `Đặt lại` describe the same set.
+  const secondaryCount = [customerId, carrierId, ownership, readiness].filter(Boolean).length;
 
   return (
     <section
@@ -118,72 +128,84 @@ export function AccountingTransportRegister({
         <p>{total} chuyến đủ điều kiện tài chính trong kỳ</p>
       </header>
 
+      {/* Card 20260927_152: the shared `ListFilterBar` owns the strip — one
+          wrapping row, no page-declared layout. The search is the bar's own
+          cell; the four criteria live in `Bộ lọc` (rendered inline while the
+          strip still fits two rows) and the submit/reset pair rides the actions
+          slot. The `<form>` stays only so Enter still applies the draft search. */}
       <form
-        className="accounting-register__toolbar"
         onSubmit={(event) => {
           event.preventDefault();
           onSearch();
         }}
         role="search"
       >
-        <div className="accounting-register__search">
-          <label className="accounting-register__search-label" htmlFor="accounting-transport-search">Tìm chuyến</label>
-          <input
-            id="accounting-transport-search"
-            name="transportSearch"
-            type="search"
-            autoComplete="off"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Ví dụ: C-009, Silver Sea, TGHU…"
-            aria-label="Tìm chuyến, khách hàng hoặc container"
-          />
-          <button type="submit">Tìm</button>
-        </div>
-        <UuiSelectField
-          label="Khách hàng"
-          value={customerId}
-          onChange={(event) => onFilterChange('customerId', event.target.value)}
-          options={[
-            { value: '', label: 'Tất cả khách hàng' },
-            ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
-          ]}
-        />
-        <UuiSelectField
-          label="Nhà xe"
-          value={carrierId}
-          onChange={(event) => onFilterChange('carrierId', event.target.value)}
-          options={[
-            { value: '', label: 'Tất cả nhà xe' },
-            ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
-          ]}
-        />
-        <UuiSelectField
-          label="Loại xe"
-          value={ownership}
-          onChange={(event) => onFilterChange('ownership', event.target.value)}
-          options={[
-            { value: '', label: 'Tất cả' },
-            { value: 'OWN', label: 'Xe nhà' },
-            { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
-          ]}
-        />
-        <UuiSelectField
-          label="Điều kiện"
-          value={readiness}
-          onChange={(event) => onFilterChange('readiness', event.target.value)}
-          options={[
-            { value: '', label: 'Tất cả' },
-            { value: 'READY', label: 'Sẵn sàng' },
-            { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
-            { value: 'MISSING_ACCEPTED_POD', label: 'Chờ POD' },
-          ]}
-        />
-        {hasActiveFilters && (
-          <button type="button" className="accounting-register__reset" onClick={onReset}>
-            <X size={12} aria-hidden="true" /> Xóa bộ lọc
-          </button>
-        )}
+        <ListFilterBar
+          search={{
+            value: search,
+            onChange: onSearchChange,
+            placeholder: 'Ví dụ: C-009, Silver Sea, TGHU…',
+            ariaLabel: 'Tìm chuyến, khách hàng hoặc container',
+            inputProps: { id: 'accounting-transport-search', name: 'transportSearch', autoComplete: 'off' },
+          }}
+          actions={(
+            <>
+              <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
+              {hasActiveFilters && (
+                <button type="button" className="btn btn--secondary btn--sm accounting-register__reset" onClick={onReset}>
+                  <X size={12} aria-hidden="true" /> Xóa bộ lọc
+                </button>
+              )}
+            </>
+          )}
+        >
+          <FilterDropdown
+            count={secondaryCount}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc sổ đối chiếu vận tải"
+            onReset={onResetSecondary}
+          >
+            <UuiSelectField
+              label="Khách hàng"
+              value={customerId}
+              onChange={(event) => onFilterChange('customerId', event.target.value)}
+              options={[
+                { value: '', label: 'Tất cả khách hàng' },
+                ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
+              ]}
+            />
+            <UuiSelectField
+              label="Nhà xe"
+              value={carrierId}
+              onChange={(event) => onFilterChange('carrierId', event.target.value)}
+              options={[
+                { value: '', label: 'Tất cả nhà xe' },
+                ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
+              ]}
+            />
+            <UuiSelectField
+              label="Loại xe"
+              value={ownership}
+              onChange={(event) => onFilterChange('ownership', event.target.value)}
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'OWN', label: 'Xe nhà' },
+                { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
+              ]}
+            />
+            <UuiSelectField
+              label="Điều kiện"
+              value={readiness}
+              onChange={(event) => onFilterChange('readiness', event.target.value)}
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'READY', label: 'Sẵn sàng' },
+                { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
+                { value: 'MISSING_ACCEPTED_POD', label: 'Chờ POD' },
+              ]}
+            />
+          </FilterDropdown>
+        </ListFilterBar>
       </form>
 
       {error && (

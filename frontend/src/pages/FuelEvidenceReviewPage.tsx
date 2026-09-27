@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { qk } from '../api/keys';
 
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
-import { StatusPill } from '../components/UI';
+import { PageHeader, StatusPill } from '../components/UI';
+import { FilterDropdown } from '../components/FilterDropdown';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { formatCurrency } from '../lib/format';
 import { Pagination, UuiSelectField } from '../design-system';
 
@@ -52,37 +53,6 @@ export default function FuelEvidenceReviewPage() {
   return (
     <main style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 16px 40px' }}>
       <style>{`
-        .fuel-evidence-review__toolbar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-        }
-        .fuel-evidence-review__toolbar-main {
-          flex: 1;
-          min-width: 200px;
-        }
-        .fuel-evidence-review__select {
-          /* Use min/max rather than width so the global .ds-uui-select
-           * (width: 100% inside a flex container) and the
-           * --operational variant can't squeeze the H1 toolbar to zero
-           * width. Cap and floor both at 220px so the select always
-           * renders as a fixed-width control — the !important is required
-           * because the .ds-uui-select--operational variant loads after
-           * this inline style and overrides max-width. */
-          min-width: 220px !important;
-          max-width: 220px !important;
-          min-height: 44px;
-        }
-        /* The select's WRAPPER is the toolbar's flex child; its width:100%
-         * sets flex-basis to the full row, so with flex-shrink on, the
-         * guidance (min-width: 0) collapsed to a 0px word-column beneath it.
-         * Give the wrapper an explicit 220px flex-basis (matching the
-         * control's min/max cap) so the guidance owns the remaining space. */
-        .fuel-evidence-review__toolbar > .ds-uui-select {
-          flex: 0 0 220px;
-        }
         .fuel-evidence-review__card {
           display: grid;
           gap: 14px;
@@ -100,49 +70,44 @@ export default function FuelEvidenceReviewPage() {
             grid-template-columns: minmax(0, 1fr);
           }
         }
-        @media (max-width: 640px) {
-          .fuel-evidence-review__toolbar {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .fuel-evidence-review__select {
-            width: 100%;
-            min-width: 0 !important;
-            max-width: 100% !important;
-          }
-          .fuel-evidence-review__toolbar > .ds-uui-select {
-            flex: 0 0 auto;
-          }
-        }
       `}</style>
-      <div className="fuel-evidence-review__toolbar">
-        <button className="btn btn--ghost btn--icon" onClick={() => navigate(-1)} aria-label="Quay lại">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="fuel-evidence-review__toolbar-main">
-          <h1 className="sr-only">Ảnh và số liệu OCR nhiên liệu</h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--fg-3)' }}>
-            Ảnh đã được lưu. Số liệu OCR chưa xác minh; đối chiếu ảnh gốc khi nhập liệu.
-          </p>
-        </div>
-        <UuiSelectField
-          id="fuel-status-filter"
-          label="Trạng thái"
-          hideLabel
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as FuelEvidenceReviewStatus | 'ALL');
+      <PageHeader title="Ảnh và số liệu OCR nhiên liệu" showTitle={false} onBack={() => navigate(-1)} />
+      <p style={{ margin: '0 0 12px', color: 'var(--fg-3)' }}>
+        Ảnh đã được lưu. Số liệu OCR chưa xác minh; đối chiếu ảnh gốc khi nhập liệu.
+      </p>
+      {/* Card 20260927_152: the filter part of the old toolbar is the shared
+          `ListFilterBar` — `Trạng thái` is the only criterion, so it lives in
+          `Bộ lọc` (inline while the strip still fits two rows). The page-local
+          toolbar flex row and the 220px select cap it used to declare are
+          deleted: no page rule sizes a filter control any more. */}
+      <ListFilterBar>
+        <FilterDropdown
+          count={status === 'ALL' ? 0 : 1}
+          ariaLabel="Bộ lọc"
+          dialogLabel="Bộ lọc ảnh nhiên liệu"
+          onReset={() => {
+            setStatus('ALL');
             setPage(1);
           }}
-          controlClassName="fuel-evidence-review__select"
-          options={[
-            { value: 'ALL', label: 'Tất cả trạng thái' },
-            { value: 'PENDING', label: 'Chưa xác minh' },
-            { value: 'CONFIRMED', label: 'Đã đối chiếu trước đây' },
-            { value: 'REJECTED', label: 'Không sử dụng (lịch sử)' },
-          ]}
-        />
-      </div>
+        >
+          <UuiSelectField
+            id="fuel-status-filter"
+            label="Trạng thái"
+            hideLabel
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as FuelEvidenceReviewStatus | 'ALL');
+              setPage(1);
+            }}
+            options={[
+              { value: 'ALL', label: 'Tất cả trạng thái' },
+              { value: 'PENDING', label: 'Chưa xác minh' },
+              { value: 'CONFIRMED', label: 'Đã đối chiếu trước đây' },
+              { value: 'REJECTED', label: 'Không sử dụng (lịch sử)' },
+            ]}
+          />
+        </FilterDropdown>
+      </ListFilterBar>
 
       {query.isLoading && <div className="panel" style={{ padding: 20 }}>Đang tải danh sách OCR nhiên liệu…</div>}
       {query.isError && <div className="panel" style={{ padding: 20, color: 'var(--danger)' }}>Không thể tải danh sách OCR nhiên liệu.</div>}
