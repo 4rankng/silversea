@@ -38,6 +38,12 @@ Measured 2026-09-27 on the working tree. Counts are greps over
 - **Divergence** — shared `ListFilterBar` (`frontend/src/components/ListFilterBar.css`) is the canonical filter host, yet ≥10 pages ship their own filter markup (`.detailed-plan-ribbon`, `.dispatch-catalogs__strip`, `.expense-filter-bar`, `.cus-worksheet` controls, `.cfg-*`).
 - **Enforced by** — `frontend/src/styles/filter-density.test.ts` (desktop compact, touch restored <900px); `frontend/scripts/check-ui-contract.mjs:109` pins `.stab-pill` 30px etc.
 - **Gap** — the mobile "stack to 1 column" half of §5 is asserted nowhere (grep: no test references filter stacking).
+### Driver phone topbar
+- **Use** — `.topbar--driver` with the identity block (`DriverIdentity`: name + plate column), the month navigator (`.topbar-date`, `MonthNavigator`) and the notification bell. At ≤640px all three share ONE row (`topbar.css` driver phone band: `order: 1` identity, `2` month, `3` bell; wrap is the ≤340px fallback), and the chip drops its period range there — the month is the state, the range stays in the trigger's `aria-label` and returns at ≥641px. Height is `auto` (the identity column + the 44px chip floor exceed `--topbar-h`); content is inset to `--driver-measure`.
+- **Never** — a second row for the month navigator at phone width; a driver-phone date chip carrying the period range (the name then ellipsises to pay for it); a page-local month chip variant.
+- **Divergence** — 0 (one implementation, `frontend/src/components/layout/topbar.css`; the ≤640 band is the only phone-specific rule).
+- **Enforced by** — `testplan/qa/scripts/ui-driver-chrome-20260927.mjs` (TC-DRIVER-CHROME-01: one visual row, chip visible, period `display:none`, name not clipped, at 390/768 against a live dev or staging build). Ruling: `docs/design-guidelines.md` 2026-09-27.
+- **Gap** — no `design-lock` entry (the driver topbar carries no lock; `topbar.css` has only the visibility contract in `Topbar.styles.test.ts`).
 ### Bottom navigation (driver)
 - **Use** — `.bottom-nav` fixed bar, `height: calc(60px + env(safe-area-inset-bottom,12px))`, tabs `min-height:48px`, shown only `@media (max-width:1023px)` at `frontend/src/components/layout/bottom-nav.css:69,93,150`.
 - **Never** — transparency on the bar (fully opaque `--surface`, `bottom-nav.styles.test.ts`); a second inset/background around full-bleed driver screens (`bottom-nav.css:8`).

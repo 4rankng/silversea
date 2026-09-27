@@ -107,6 +107,7 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 ## Disabled / read-only states
 
 - **Use** — `.input:disabled` / `.input[aria-disabled="true"]` (`Input.css:25`), `.ds-field__input:disabled` (`TextField.css:46`), `.btn[disabled]` (`Button.css:93`, opacity .45).
+- **Use (solid/emphasis controls)** — a disabled control whose fill is `--ink`/`--accent` swaps to a quiet surface, it does not dim the fill: `--surface-3` fill + `--line-2` border + `--ink-2` text at `opacity: 1` (≥4.5:1). A 55%-opacity ink fill over live content reads as a grey slab, not a disabled control (2026-09-27 operator report, `docs/design-guidelines.md` same date; reference impl `.driver-task-complete-sticky__btn:disabled`).
 - **Never** — 91 page-level `:disabled` rules, 764 `disabled` attributes, 85 `readOnly` (1 `aria-readonly`) — every page re-declares the disabled look.
 - **Divergence** — 764 disabled sites / 91 page rules vs 3 primitive rules.
 - **Enforced by** — — none (⇒ flag).

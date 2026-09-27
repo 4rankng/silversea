@@ -657,12 +657,16 @@
 .notif-panel__push:disabled { opacity: 0.5; cursor: default; }
 .notif-panel__push-err { font-size: var(--text-caption-size); line-height: 1.35; color: var(--danger); margin-top: 6px; }
 
-/* ─── Driver phone bar: two rows, bell always reachable ─────────────────────
-   Drivers have no other in-app notification entry, so at ≤640 the bar wraps
-   into two rows instead of letting `.topbar__actions` (the bell) be squeezed
-   to zero width beside the greeting + 209px month navigator:
-     row 1 — greeting (left) + the bell (right, natural width)
-     row 2 — the month navigator, full width
+/* ─── Driver phone bar: ONE row — identity · date · bell ────────────────────
+   Operators rejected the two-row bar (2026-09-27: "move the date to compact
+   size and to header, why two rows here"): the month navigator no longer
+   takes a full-width row of its own under the greeting, it rides the greeting
+   row right-aligned, and the bar only grows if the row genuinely cannot fit
+   (flex-wrap stays as the ≤340px fallback).
+   The date chip drops its period range ("01/09 – 30/09") in this band — the
+   month is the control's state and the range is repeated in the picker and in
+   the trigger's aria-label — so chip + name + plate + bell share 390px without
+   truncating the driver name.
    styles/responsive.css hides every `.topbar .icon-btn` on phones; the
    (0,3,0) driver selector below opts the bell back in regardless of that
    file's later source order. Selectors carry the `.topbar` class so they also
@@ -673,8 +677,8 @@
     row-gap: 6px;
     align-items: center;
     /* responsive.css pins .topbar to the single-row --topbar-h at ≤640; the
-       two-row driver bar must grow or row 2 (month navigator) overlaps the
-       page below it. */
+       driver bar keeps its own height because the identity column (name +
+       plate, 2 lines) plus the 44px touch floor on the date chip exceed it. */
     height: auto;
     min-height: 0;
   }
@@ -683,17 +687,20 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  .topbar.topbar--driver .topbar__actions {
-    order: 2;
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
   .topbar.topbar--driver .topbar__center-driver {
-    order: 3;
-    flex: 1 1 100%;
+    order: 2;
+    flex: 0 1 auto;
     min-width: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+  .topbar.topbar--driver .topbar__actions {
+    order: 3;
+    flex: 0 0 auto;
     margin-left: 0;
-    justify-content: flex-start;
+  }
+  .topbar.topbar--driver .topbar-date__period {
+    display: none;
   }
   .topbar.topbar--driver .icon-btn {
     display: inline-flex;

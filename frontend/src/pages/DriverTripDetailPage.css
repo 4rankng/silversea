@@ -177,8 +177,12 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: var(--text-data-size);
-  font-weight: 600;
+  /* Subtlety ruling 2026-09-27 (operator: the bar "too big … make it subtle"):
+     the live count is a caption beside the action, not a headline — it was
+     rendered at the data size in the warning hue and read as the largest
+     thing on the screen. */
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
   color: var(--warning, #d97706);
 }
 
@@ -186,27 +190,37 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: 14px;
+  /* Shared control floor. The bar is a navigation affordance into the e-POD
+     screen, not the completion action itself (that button is
+     `.driver-task-complete`), so it holds 44px, not the 48px cabin size. */
+  min-height: var(--control-h);
+  padding: 0 14px;
+  border-radius: var(--radius-field);
   border: 1px solid transparent;
   background: var(--ink);
   color: var(--fg-inverse, #fff);
   font-size: var(--text-body-size);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   cursor: pointer;
 }
 
+/* A dimmed `--ink` fill over live content is a grey slab, not a disabled
+   control (operator 2026-09-27, screenshot of the 2-document warning).
+   Quiet surface + muted ink, full opacity. */
 .driver-task-complete-sticky__btn:disabled {
-  opacity: 0.55;
+  background: var(--surface-3);
+  border-color: var(--line-2);
+  /* --ink-2, not --ink-3: 5.7:1 on --surface-3, so the label still clears the
+     4.5:1 text floor at 12px. */
+  color: var(--ink-2);
   cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
   #root .driver-task-complete-sticky__btn {
-    min-height: 48px;
+    min-height: var(--control-touch-h);
   }
 }
 
