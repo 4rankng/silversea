@@ -19,7 +19,7 @@
 }
 
 .cfg-page--customers .cfg-customer-summary .kpi__value {
-  font-size: 26px;
+  font-size: var(--text-metric-size);
   font-weight: var(--fw-semibold, 600);
 }
 

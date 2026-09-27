@@ -1,8 +1,9 @@
 import { Search } from 'lucide-react';
 import {
-  TripStatus, TRIP_STATUS_COLORS,
+  TripStatus,
   type TripDetail,
 } from '@tingting/shared';
+import { Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 export interface StatusCounts {
@@ -53,26 +54,18 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
   return (
     <div className="filters-card">
       <div className="filters-row-top">
-        <div className="status-tabs">
-          {STATUS_TABS.map((tab) => {
-            const isAll = tab.key === '';
-            const colorVar = isAll ? '#0F1A14' : TRIP_STATUS_COLORS[tab.key as TripStatus];
-            const count = isAll ? statusCounts.all : statusCounts[tab.key as TripStatus];
-            const isActive = statusFilter === tab.key;
-            const isZero = count === 0;
-            return (
-              <button
-                key={tab.key || 'all'}
-                className={`stab-pill${isActive ? ' active' : ''}${isZero ? ' zero' : ''}`}
-                onClick={() => onStatusFilter(tab.key)}
-              >
-                <span className="stab-dot" style={{ '--dot': colorVar } as React.CSSProperties} />
-                {tab.label}
-                <span className="stab-count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+        <Tabs
+          className="status-tabs"
+          variant="boxed"
+          ariaLabel="Lọc theo trạng thái chuyến"
+          value={statusFilter === '' ? 'all' : statusFilter}
+          onChange={(id) => onStatusFilter(id === 'all' ? '' : id as TripStatus)}
+          tabs={STATUS_TABS.map((tab) => ({
+            id: tab.key || 'all',
+            label: tab.label,
+            count: tab.key === '' ? statusCounts.all : statusCounts[tab.key as TripStatus],
+          }))}
+        />
       </div>
 
       <div className="filters-divider" />

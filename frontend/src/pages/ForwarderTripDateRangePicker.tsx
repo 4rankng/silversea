@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Tabs } from '../design-system';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
 import { DOW_LABELS } from '../features/salary-attendance/salary-attendance-constants';
 import './ForwarderTripDateRangePicker.css';
@@ -108,10 +109,17 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
             <div><span>Khoảng ngày</span><strong>Chọn {activeDate === 'from' ? 'ngày bắt đầu' : 'ngày kết thúc'}</strong></div>
             <button type="button" onClick={() => onChange({ dateFrom: '', dateTo: '' })}><RotateCcw size={15} aria-hidden="true" /> Xóa</button>
           </header>
-          <div className="ftrip-date-picker__range-tabs" role="group" aria-label="Phần ngày đang chọn">
-            <button type="button" className={activeDate === 'from' ? 'is-active' : ''} onClick={() => setActiveDate('from')}>Từ: {displayDate(dateFrom)}</button>
-            <button type="button" className={activeDate === 'to' ? 'is-active' : ''} onClick={() => setActiveDate('to')}>Đến: {displayDate(dateTo)}</button>
-          </div>
+          <Tabs
+            className="ftrip-date-picker__range-tabs"
+            variant="boxed"
+            ariaLabel="Phần ngày đang chọn"
+            value={activeDate}
+            onChange={(id) => setActiveDate(id as ActiveDate)}
+            tabs={[
+              { id: 'from', label: <>Từ: {displayDate(dateFrom)}</> },
+              { id: 'to', label: <>Đến: {displayDate(dateTo)}</> },
+            ]}
+          />
           <div className="ftrip-date-picker__month"><button type="button" aria-label="Tháng trước" onClick={() => setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}><ChevronLeft size={18} /></button><strong>{monthLabel(viewMonth)}</strong><button type="button" aria-label="Tháng sau" onClick={() => setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}><ChevronRight size={18} /></button></div>
           <div className="ftrip-date-picker__weekdays">{DOW_LABELS.map((day) => <span key={day}>{day}</span>)}</div>
           <div className="ftrip-date-picker__days">{days.map((date, index) => date ? <button key={isoDate(date)} type="button" className={`${selected === isoDate(date) ? 'is-selected' : ''}${dateFrom && dateTo && isoDate(date) >= dateFrom && isoDate(date) <= dateTo ? ' is-in-range' : ''}`} onClick={() => select(isoDate(date))}>{date.getDate()}</button> : <span key={`blank-${index}`} />)}</div>

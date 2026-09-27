@@ -387,7 +387,6 @@
   .wf-btn { min-height: 44px; }
 
   /* ── Status pills & pagination ── */
-  .stab-pill { min-height: 30px; padding: 4px 10px; font-size: var(--text-caption-size); }
   .page-btn { min-width: 36px; min-height: 36px; }
 
   /* ── Panels ── */
@@ -720,7 +719,6 @@
   #root .csc-container-cell__value,
   #root .csc-container-cell__editor { min-height: var(--control-mobile-h); }
   #root .filter-chip,
-  #root .stab-pill,
   #root .wf-link,
   #root .wf-minibtn,
   #root .wf-btn,
@@ -738,7 +736,7 @@
 
    The blanket floors below mirror the phone block's ID-scoped rules for
    EVERY bare button/input/trigger — measured offenders at 768-1024 were
-   `.stab-pill` 24px, `#config-search` 34px, `.row-action` 30px, CUS note/
+   `#config-search` 34px, `.row-action` 30px, CUS note/
    detail triggers 32-36px, `.detailed-plan-grid__note` 17px. Links
    (`a[href]`) stay OUT: inline table links vs row density is an open
    operator ruling (case QA-2026-09-26-03 residuals). */

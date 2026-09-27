@@ -51,29 +51,13 @@
   min-width: 0;
 }
 
-.shipments-control__tabs.d-tabs-boxed {
-  padding: 2px;
-  background: var(--surface-3);
-}
-
-/* Flat law: the boxed variant's active-tab elevation is stripped inside the
-   control surface — selection reads from surface contrast, not shadow. */
-.shipments-control__tabs .ds-tabs__btn--active {
-  box-shadow: none;
-  background: var(--surface);
-}
-
+/* Layout + density hook only: the group hugs its cells on the toolbar row and
+   keeps its labels on one line at the shared 32px control height. Shape,
+   selected state and count styling come from the canonical `boxed` variant
+   (design-system/Tabs.css). */
 .shipments-control__tabs .ds-tabs__btn {
   min-height: 32px;
-  padding-top: 0;
-  padding-bottom: 0;
-  font-size: 13px;
   white-space: nowrap;
-}
-
-.shipments-control__tabs .ds-tabs__count {
-  height: 18px;
-  min-width: 18px;
 }
 
 .shipments-control__actions {

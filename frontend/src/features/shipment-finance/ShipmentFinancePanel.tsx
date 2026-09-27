@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Link } from 'react-router-dom';
 import { Role, type ContainerDepositRecord } from '@tingting/shared';
 import { shipmentFinanceClient } from '../../api/shipmentFinanceClient';
-import { DateField, TextField } from '../../design-system';
+import { DateField, Tabs, TextField } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
@@ -46,10 +46,17 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
         {activeView === 'invoice' ? 'Thêm hóa đơn' : 'Thêm cược'}
       </button>}
     </header>
-    {financial && <div className="shipment-finance__tabs" role="group" aria-label="Loại hồ sơ">
-      <button type="button" aria-pressed={activeView === 'invoice'} onClick={() => { setView('invoice'); setPage(1); }}>Hóa đơn kết hợp</button>
-      <button type="button" aria-pressed={activeView === 'deposit'} onClick={() => { setView('deposit'); setPage(1); }}>Cược container</button>
-    </div>}
+    {financial && <Tabs
+      className="shipment-finance__tabs"
+      variant="boxed"
+      ariaLabel="Loại hồ sơ"
+      value={activeView}
+      onChange={(id) => { setView(id as 'invoice' | 'deposit'); setPage(1); }}
+      tabs={[
+        { id: 'invoice', label: 'Hóa đơn kết hợp' },
+        { id: 'deposit', label: 'Cược container' },
+      ]}
+    />}
     <form className="shipment-finance__filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
       <TextField controlSize="sm" className="shipment-finance__search" label="Tìm hồ sơ" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder={activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng'} />
       <DateField controlSize="sm" label={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'} value={from} onChange={(value) => { setFrom(value); setPage(1); }} />

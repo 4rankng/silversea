@@ -25,69 +25,6 @@
   gap: 16px;
 }
 
-.trip-list-page .status-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-wrap: wrap;
-  overflow-x: visible;
-  scrollbar-width: none;
-  flex: 0 0 auto;
-  min-width: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--fc-radius-pill);
-  padding: 3px;
-}
-.trip-list-page .status-tabs::-webkit-scrollbar { display: none; }
-
-.trip-list-page .stab-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: calc(var(--filter-control-h) - 6px);
-  padding: 0 12px;
-  border: 0;
-  background: transparent;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  color: var(--ink-2);
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-  font-weight: 600;
-  font-family: var(--font-body);
-  transition: background .16s ease, border-color .16s ease, color .16s ease;
-}
-.trip-list-page .stab-pill:hover { background: var(--surface); }
-.trip-list-page .stab-pill .stab-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  flex: none;
-  background: var(--dot, var(--ink-3));
-}
-.trip-list-page .stab-pill .stab-count {
-  font-family: var(--font-data);
-  font-size: var(--fs-xs); font-weight: 600;
-  min-width: 20px; height: 20px;
-  padding: 0 5px; border-radius: 6px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--fc-line-2);
-  color: var(--ink-2);
-  transition: background .16s ease, color .16s ease;
-}
-/* zero-count tabs read quieter */
-.trip-list-page .stab-pill.zero { color: var(--ink-3); }
-.trip-list-page .stab-pill.zero .stab-dot { opacity: .45; }
-.trip-list-page .stab-pill.zero .stab-count { color: var(--ink-3); }
-/* active tab */
-.trip-list-page .stab-pill.active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--fg-on-brand);
-}
-.trip-list-page .stab-pill.active .stab-dot { background: rgba(255,255,255,.85); opacity: 1; }
-.trip-list-page .stab-pill.active .stab-count { background: rgba(255,255,255,.20); color: var(--fg-on-brand); }
-
 /* ── Search ───────────────────────────────────────────────────────────── */
 .trip-list-page .filters-search {
   position: relative;

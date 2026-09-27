@@ -12,7 +12,7 @@ const sharedColorFiles = [
   'components/Table.css',
   'components/Toolbar.css',
   'components/FilterBar.css',
-  'components/FwdFilterPills.css',
+  'components/FwdFilterChips.css',
   'components/Pill.css',
   'components/PageHeader.css',
 ];
@@ -92,7 +92,7 @@ const phoneCss = phoneBlockStart >= 0 ? responsiveCss.slice(phoneBlockStart) : '
 const phoneControlSelectors = [
   ':where(#root) button',
   ':where(#root) [role="button"]',
-  ':where(#root) a[href]',
+  ':where(#root) :where(a[href])',
   '#root input:not([type="checkbox"]):not([type="radio"])',
   '#root select',
 ];
@@ -106,7 +106,7 @@ for (const selector of phoneControlSelectors) {
 }
 // The PM selected compact phone controls. Preserve low specificity so larger
 // semantic controls (save/close/touch fields) keep their own sizing.
-for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44], ['.stab-pill', 30]]) {
+for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44]]) {
   const escapedSelector = selector.replace('.', '\\.');
   const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*${height}px`, 'i');
   if (!rule.test(phoneCss)) {
@@ -114,23 +114,11 @@ for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44], ['.stab-pil
   }
 }
 
-const customerPageCss = await readFile(
-  new URL('../src/pages/CustomersPage.css', import.meta.url),
-  'utf8',
-);
-const customerMobileCss = customerPageCss.match(
-  /@media\s*\(max-width:\s*820px\)\s*\{([\s\S]*)\}\s*$/i,
-)?.[1] ?? '';
-const customerToolbarRule = customerMobileCss.match(
-  /\.customers-page\s*>\s*\.toolbar\s*\{[^}]*\}/i,
-)?.[0] ?? '';
-if (!/background:\s*transparent/i.test(customerToolbarRule)
-  || !/border-bottom:\s*0\b/i.test(customerToolbarRule)
-  || !/margin-bottom:\s*8px\b/i.test(customerToolbarRule)) {
-  failures.push(
-    'pages/CustomersPage.css: customer filters must share the mobile page background and stay separated from the card list through 820px',
-  );
-}
+// Retired 2026-09-27: this asserted `.customers-page > .toolbar` was a
+// transparent mobile filter plane. That plane no longer exists — the page
+// renders `.customers-strip` (shared boxed `Tabs` in row 1, search + status in
+// row 2), painted on the page canvas by construction. The pin and its two dead
+// CSS rules were deleted with the structure they described.
 
 const driverPenaltyCss = await readFile(
   new URL('../src/pages/DriverPenaltyPage.css', import.meta.url),

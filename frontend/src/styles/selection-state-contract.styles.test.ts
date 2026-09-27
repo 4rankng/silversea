@@ -34,14 +34,15 @@ describe('selection-state contract', () => {
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-column-picker__card.is-active {\n  border-color: var(--ink);\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-align-control button.is-active {\n  background: var(--ink);\n  color: var(--surface);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain(".debit-editor-preview__table th.is-selected::after {\n  content: '';\n  position: absolute;\n  width: 9px;\n  height: 9px;\n  border: 2px solid var(--ink);");
-    expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__range-tabs button.is-active { border-color: var(--fg-1); background: var(--surface); color: var(--fg-1); font-weight: 750; box-shadow: inset 3px 0 0 var(--fg-1); }');
     expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-in-range { background: var(--surface-2); color: var(--fg-1); }');
     expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-selected { background: var(--fg-1); color: var(--surface); font-weight: 800; }');
     expect(read('src/components/layout/topbar.css')).toContain('.month-picker__cell.is-selected {\n  background: var(--ink);\n  color: var(--surface);\n  border-color: var(--ink);');
-    expect(read('src/pages/AdvanceWorkspacePage.css')).toContain('.advance-workspace__views .ds-tabs__btn--active {\n  background: var(--surface);\n  color: var(--ink);\n  border-bottom-color: var(--ink);\n  box-shadow: none;\n}');
+    // The advance workspace views no longer fork the group's selected state:
+    // they ride the sanctioned `bordered` variant (its ink underline is pinned
+    // on design-system/Tabs.css above), per the operator ruling 2026-09-27.
+    expect(read('src/pages/AdvanceWorkspacePage.tsx')).toContain('variant="bordered"');
     expect(read('src/pages/config/SalaryPeriodConfigPage.css')).toContain('.sp-mode-card.active {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/portal/CustomerPortalLayout.css')).toContain('.customer-shell__bottom-nav a.is-active {\n    background: var(--surface, #fff);\n    color: var(--ink, #101828);\n    box-shadow: inset 0 2px 0 var(--ink, #101828);');
-    expect(read('src/pages/trip-list/filters.css')).toContain('.trip-list-page .stab-pill.active {\n  background: var(--ink);\n  border-color: var(--ink);');
     expect(read('src/pages/trip-list/table-extras.css')).toContain('.trip-list-page .page-btn.active { background: var(--ink);');
     expect(read('src/components/layout/bottom-nav.css')).toContain('.bottom-nav-item.active .bottom-nav-icon-wrap {\n    background: var(--surface-3);\n    color: var(--ink);');
     expect(read('src/components/layout/bottom-nav.css')).toContain('  .bottom-nav-indicator {');

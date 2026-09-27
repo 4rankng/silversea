@@ -9,15 +9,6 @@
   .customers-page .mobile-only  { display: block; }
 }
 
-/* Keep customer filters on the page canvas instead of painting a second
-   white panel against the bordered mobile card list. */
-@media (max-width: 820px) {
-  .customers-page > .toolbar {
-    background: transparent;
-    border-bottom: 0;
-  }
-}
-
 /* Card _37: KPI cards read as separate soft cards, not one flat strip. */
 .customers-page .summary-rail dl { gap: 8px; }
 .customers-page .summary-rail__item {
@@ -39,9 +30,6 @@
   border-color: var(--accent);
   outline: 1px solid var(--accent);
 }
-
-/* Card _37: one horizontal filter plane. */
-.customers-page .toolbar { align-items: center; gap: 8px; }
 
 /* Card _37: dense table upgrades. */
 .customers-page .record-table-wrap {

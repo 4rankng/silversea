@@ -2,9 +2,7 @@
 .shipment-finance { min-width: 0; padding: 12px; background: var(--surface, #fff); }
 .shipment-finance__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shipment-finance__header h3 { margin: 0; font-size: var(--text-body-size, 14px); }
-.shipment-finance__tabs { display: flex; gap: 16px; border-bottom: 1px solid var(--border-2); margin: 8px 0; }
-.shipment-finance__tabs button { border: 0; background: none; padding: 10px 0; color: var(--fg-2); border-bottom: 2px solid transparent; }
-.shipment-finance__tabs button[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+.shipment-finance__tabs { margin: 8px 0; }
 .shipment-finance__filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .shipment-finance__filters > .ds-field { flex: 1 1 140px; min-width: 0; }
 .shipment-finance__filters .shipment-finance__search { flex: 1 1 200px; }
