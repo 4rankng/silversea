@@ -7,7 +7,7 @@
 // shipmentCode / customerName verbatim. Design law 2026-09-19 (cards
 // 20260919_38/39): internal ids and machine-generated codes never render as
 // visible text — the cell shows the house empty value instead.
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -93,5 +93,24 @@ describe('invoice-tracking board never paints internal identifiers', () => {
     expect(screen.getByText('SHP-2609-00020')).toBeInTheDocument();
     expect(screen.getByText('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH')).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toContain('Số hóa đơn: —');
+  });
+});
+
+// Card 20260927_152: the bespoke `.invoice-tracking-search` shell is gone — the
+// text query now rides the shared `ListFilterBar` search slot. The filtering
+// behaviour it drove is unchanged, so this pins the behaviour, not the shell.
+describe('invoice-tracking filter bar search', () => {
+  beforeEach(() => {
+    Object.values(client).forEach((fn) => fn.mockReset());
+  });
+
+  it('narrows the rows through the shared search slot', async () => {
+    renderBoard([realRow, { ...realRow, id: 13, invoiceNumber: 'HD-XYZ-9' }]);
+    await screen.findByText('Số hóa đơn: HD-C18-01');
+
+    fireEvent.change(screen.getByLabelText('Tìm theo số HĐ, MST, lô, cont'), { target: { value: 'HD-XYZ-9' } });
+
+    expect(screen.queryByText('Số hóa đơn: HD-C18-01')).toBeNull();
+    expect(screen.getByText('Số hóa đơn: HD-XYZ-9')).toBeInTheDocument();
   });
 });

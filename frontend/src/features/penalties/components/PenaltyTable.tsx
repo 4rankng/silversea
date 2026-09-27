@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X, ChevronDown } from 'lucide-react';
+import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
 import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
@@ -14,6 +14,8 @@ import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
 import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
+import { ListFilterBar } from '../../../components/ListFilterBar';
+import { FilterDropdown } from '../../../components/FilterDropdown';
 import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
@@ -200,50 +202,44 @@ export function PenaltyTable({
             </div>
           </div>
 
-          {/* Filter toolbar — search + driver, scoped to the salary period */}
-          <div className="filter-bar penalty-filter-bar">
-            <div className="penalty-filter-bar__search">
-              <Search size={14} />
-              <input
-                type="text"
-                aria-label="Tìm biên bản"
-                placeholder="Tìm lái xe, mã chuyến, lý do..."
-                value={search}
-                onChange={e => onSearchChange(e.target.value)}
+          {/* Filter strip (card 20260927_152) — the shared bar keeps the search
+              and the reset; `Lái xe` is this surface's only secondary criterion,
+              so it rides `Bộ lọc` and the trigger reports how many are applied.
+              The criterion renders inline in the bar while the strip still fits
+              two rows (the measured filter-bar mode) and folds in only when the
+              width leaves no other choice. */}
+          <ListFilterBar
+            search={{
+              value: search,
+              onChange: onSearchChange,
+              placeholder: 'Tìm lái xe, mã chuyến, lý do...',
+              ariaLabel: 'Tìm biên bản',
+            }}
+            actions={hasActiveFilters ? (
+              <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
+                <X size={12} /> Xóa bộ lọc
+              </button>
+            ) : undefined}
+          >
+            <FilterDropdown
+              count={driverFilter == null ? 0 : 1}
+              ariaLabel="Bộ lọc"
+              dialogLabel="Bộ lọc biên bản"
+              onReset={() => onDriverFilterChange(undefined)}
+            >
+              <UuiSelectField
+                id="penalty-driver-filter"
+                label="Lái xe"
+                inline
+                value={driverFilter == null ? '' : String(driverFilter)}
+                onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
+                options={[
+                  { value: '', label: 'Tất cả lái xe' },
+                  ...drivers.map(d => ({ value: String(d.id), label: d.name })),
+                ]}
               />
-              {search && (
-                <button
-                  className="penalty-filter-bar__clear"
-                  onClick={() => onSearchChange('')}
-                  title="Xóa tìm kiếm"
-                  aria-label="Xóa nội dung tìm kiếm"
-                  type="button"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            <UuiSelectField
-              id="penalty-driver-filter"
-              label="Lái xe"
-              inline
-              value={driverFilter == null ? '' : String(driverFilter)}
-              onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
-              controlClassName="penalty-filter-bar__select"
-              options={[
-                { value: '', label: 'Tất cả lái xe' },
-                ...drivers.map(d => ({ value: String(d.id), label: d.name })),
-              ]}
-            />
-            {hasActiveFilters && (
-              <>
-                <div className="filter-bar__spacer" />
-                <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
-                  <X size={12} /> Xóa bộ lọc
-                </button>
-              </>
-            )}
-          </div>
+            </FilterDropdown>
+          </ListFilterBar>
 
           {listLoading ? (
             <div className="penalty-loading penalty-loading--padded">

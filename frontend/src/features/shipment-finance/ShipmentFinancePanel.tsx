@@ -4,8 +4,10 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Link } from 'react-router-dom';
 import { Role, type ContainerDepositRecord } from '@tingting/shared';
 import { shipmentFinanceClient } from '../../api/shipmentFinanceClient';
-import { DateField, Tabs, TextField } from '../../design-system';
+import { DateRangeFields, Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { ListFilterBar } from '../../components/ListFilterBar';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
 import { formatDate } from '../../lib/format';
@@ -57,17 +59,43 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
         { id: 'deposit', label: 'Cược container' },
       ]}
     />}
-    <form className="filter-bar shipment-finance__filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
-      <TextField controlSize="sm" className="shipment-finance__search" label="Tìm hồ sơ" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder={activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng'} />
-      <DateField controlSize="sm" label={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'} value={from} onChange={(value) => { setFrom(value); setPage(1); }} />
-      <DateField controlSize="sm" label="Đến ngày" value={to} onChange={(value) => { setTo(value); setPage(1); }} />
-      {activeView === 'deposit' && <UuiSelectField label="Trạng thái" value={depositState} onChange={(event) => { setDepositState(event.target.value); setPage(1); }}
-        options={[{ value: '', label: 'Tất cả' }, { value: 'OPEN', label: 'Chưa hoàn đủ' }, { value: 'REFUNDED', label: 'Đã hoàn đủ' }]} />}
-      <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
-      {(search || from || to || depositState) && <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
-        setSearch(''); setSearchDraft(''); setFrom(''); setTo(''); setDepositState(''); setPage(1);
-      <div className="filter-bar__spacer" />
-      }}>Xóa lọc</button>}
+    <form onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
+      <ListFilterBar
+        search={{
+          value: searchDraft,
+          onChange: setSearchDraft,
+          placeholder: activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng',
+          ariaLabel: 'Tìm hồ sơ',
+        }}
+        actions={<>
+          <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
+          {(search || from || to || depositState) && <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
+            setSearch(''); setSearchDraft(''); setFrom(''); setTo(''); setDepositState(''); setPage(1);
+          }}>Xóa lọc</button>}
+        </>}
+      >
+        <DateRangeFields
+          size="sm"
+          ariaLabel="Khoảng ngày hồ sơ"
+          fromLabel={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'}
+          toLabel="Đến ngày"
+          from={from}
+          to={to}
+          onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); setPage(1); }}
+        />
+        {/* The deposit status is the one secondary criterion here: it rides the
+            bar inline while the strip fits two rows and folds into `Bộ lọc`
+            when it does not (the invoice view hosts no deposit criterion). */}
+        {activeView === 'deposit' && <FilterDropdown
+          count={depositState ? 1 : 0}
+          ariaLabel="Bộ lọc"
+          dialogLabel="Bộ lọc cược container"
+          onReset={() => { setDepositState(''); setPage(1); }}
+        >
+          <UuiSelectField label="Trạng thái" value={depositState} onChange={(event) => { setDepositState(event.target.value); setPage(1); }}
+            options={[{ value: '', label: 'Tất cả' }, { value: 'OPEN', label: 'Chưa hoàn đủ' }, { value: 'REFUNDED', label: 'Đã hoàn đủ' }]} />
+        </FilterDropdown>}
+      </ListFilterBar>
     </form>
     {query.isError ? <p role="alert">Không tải được hồ sơ. <button type="button" className="btn btn--ghost" onClick={() => void query.refetch()}>Thử lại</button></p>
       : query.isPending ? <p role="status">Đang tải hồ sơ…</p>

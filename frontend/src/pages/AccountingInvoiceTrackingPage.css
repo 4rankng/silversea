@@ -63,46 +63,15 @@
 
 .invoice-tracking-header__actions { display: flex; align-items: center; gap: 8px; }
 
-.invoice-tracking-filters {
-  min-height: 32px;
-}
-
-/* Content-sized: two from/to date fields (DateRangeFields) plus the 12px seam
-   set the floor — a single 210px slot left the period's label box short of the
-   value it carried and it ellipsized itself at every width
-   (2026-09-27 role sweep, §4). */
-.invoice-tracking-range { flex: 0 1 auto; width: max-content; min-width: 300px; max-width: 100%; }
-
-/* Quick period ranges ride beside the fields as the shared boxed segmented
-   control (no range popover — CHIEF 2026-09-27). */
-.invoice-tracking-range__presets { flex: 0 0 auto; }
-
-.invoice-tracking-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 240px;
-  height: var(--filter-control-h, 32px);
-  background: var(--surface);
-  border: 1px solid var(--control-border, var(--line));
-  border-radius: 8px;
-}
-
-.invoice-tracking-search svg { position: absolute; left: 10px; color: var(--fg-3); pointer-events: none; }
-
-.invoice-tracking-search input {
-  width: 100%;
-  height: 100%;
-  padding: 0 10px 0 30px;
-  border: 0;
-  background: none;
-  font-size: var(--text-control-size, 13px);
-  color: var(--ink);
-  outline: none;
-}
-
-.invoice-tracking-supplier { width: 180px; }
-.invoice-tracking-diff { width: 190px; }
+/* Card 20260927_152 — row 2 is the shared `ListFilterBar` (FilterBar.css L1-L4
+   owns every filter width and the line packing). The deleted page-local rules
+   were `.invoice-tracking-filters` (min-height), `.invoice-tracking-range`
+   (min-width: 300px), `.invoice-tracking-range__presets`,
+   `.invoice-tracking-search` (+ svg/input, a bespoke 240px search shell),
+   `.invoice-tracking-supplier` (180px) and `.invoice-tracking-diff` (190px) —
+   six width/layout declarations on filter controls, and the search shell was
+   one of the sixteen the design-system map bans outright. Nothing in this
+   sheet may size a control in the bar. */
 
 .invoice-tracking-alert {
   margin: 0;
@@ -338,22 +307,10 @@
   padding: 28px 12px !important;
   text-align: center;
 }
-/* Phone filters stack (design §5): the range owns its row, the search goes
-   edge to edge — a half-width period control clipped its own value. */
-@media (max-width: 640px) {
-  .invoice-tracking-filters { }
-
-  .invoice-tracking-range,
-  .invoice-tracking-range__presets,
-  .invoice-tracking-search,
-  .invoice-tracking-supplier,
-  .invoice-tracking-diff {
-    width: 100%;
-    flex: 1 1 100%;
-    min-width: 0;
-    max-width: none;
-  }
-}
+/* Phone filters: the shared bar packs its own lines (FilterBar.css L1/L4) —
+   the ≤640px full-width / `flex: 1 1 100%` stretch that used to live here is
+   deleted. It is the exact rule the operator's "short value taking a full row"
+   report names. */
 
 /* ── Card 20260927_ivt (role sweep 2026-09-27) — phone record-card mode ──
    A 14-column register cannot hold readable columns on a phone: at 390px the

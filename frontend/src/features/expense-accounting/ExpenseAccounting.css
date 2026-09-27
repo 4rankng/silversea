@@ -10,9 +10,11 @@
 .expense-accounting-header, .expense-accounting-toolbar, .expense-accounting-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .expense-accounting-header h2, .expense-accounting-header h3, .expense-accounting-subtitle { margin: 0; font-size: var(--text-dialog-title-size); }
 .expense-accounting-header p, .expense-accounting-hint { margin: 4px 0 0; color: var(--fg-2); }
-.expense-accounting-filters { align-items: end; }
-.expense-accounting-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
-.expense-accounting-filters > *, .expense-accounting-fields > * { min-width: 0; }
+/* The `/accounting/expenses` strip is the shared `ListFilterBar` (card
+   20260927_152): the bar owns the row, the search cell and the gaps, so this
+   sheet declares no filter layout and no control width — a page rule here is
+   what stretched a short-value select across a whole line on 2026-09-27. */
+.expense-accounting-fields > * { min-width: 0; }
 .expense-accounting-form { display: grid; min-width: 0; gap: 12px; }
 .expense-accounting-form > * { min-width: 0; }
 .expense-accounting-fields { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -62,19 +64,11 @@
 .expense-accounting-group-list > button small { color: var(--fg-2); display: block; margin-top: 4px; }
 .expense-accounting-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .expense-accounting-file > span { overflow-wrap: anywhere; }
-.expense-history-filters { align-items: end; }
-/* Card 20260925_3: action buttons stay compact fit-content — no full-width slab. */
-.expense-history-filters > .btn { justify-self: start; width: fit-content; }
 .expense-work-road-breakdown { margin: 0; }
 .expense-work-road-breakdown > div { display: flex; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--line); }
 .expense-work-road-breakdown dd { margin: 0; }
-@media (max-width: 1100px) { .expense-accounting-filters { } }
 @media (max-width: 767px) {
-  .expense-history-filters { }
-  .expense-history-filters > :first-child { grid-column: 1 / -1; }
   .expense-accounting { gap: 10px; }
-  .expense-accounting-filters { }
-  .expense-accounting-filters > :first-child { grid-column: 1 / -1; }
   .expense-register-table-wrap { overflow: visible; }
   .expense-register-table, .expense-register-table tbody { display: block; }
   .expense-register-table thead { display: none; }

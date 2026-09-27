@@ -84,9 +84,13 @@ describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () 
     expect(tsx).not.toMatch(/>Loc<|>Lọc</);
   });
 
-  it('row 2: from/to date fields with visible quick periods auto-refetch, plus search, supplier, discrepancy toggle, reset', () => {
+  it('row 2: the shared bar owns the strip — period fields, quick ranges, search slot, Bộ lọc dialog', () => {
+    // Card 20260927_152: the page hands its criteria to the shared bar; the
+    // layout (row packing, every filter width) lives in FilterBar.css.
+    expect(tsx).toContain('<ListFilterBar');
     expect(tsx).toContain('<DateRangeFields');
     expect(tsx).toContain('<DateRangePresets');
+    expect(tsx).toContain('<FilterDropdown');
     expect(tsx).not.toContain('DateRangePopover');
     expect(tsx).toContain('Tháng này');
     expect(tsx).toContain('Tháng trước');
@@ -94,6 +98,13 @@ describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () 
     expect(tsx).toMatch(/Số HĐ, MST, Lô, Cont/);
     expect(tsx).toContain('Chỉ xem dòng có lệch');
     expect(tsx).toContain('Xóa lọc');
+    expect(tsx).toContain('dialogLabel="Bộ lọc hóa đơn"');
+  });
+
+  it('the page declares no rule of its own for a filter control — the bar owns every width', () => {
+    // Comments name the deleted rules on purpose; only the rule bodies count.
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).not.toMatch(/\.invoice-tracking-(filters|range|search|supplier|diff)\b/);
   });
 
   it('empty state centers the muted search icon with period copy and a clear-filters sub-link', () => {

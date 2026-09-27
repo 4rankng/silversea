@@ -222,6 +222,37 @@ describe('PenaltyTable', () => {
     expect(onPageChange).toHaveBeenCalledWith(3);
   });
 
+  it('drives the shared filter bar: search writes through, reset clears the filters', () => {
+    const onSearchChange = vi.fn();
+    const onResetFilters = vi.fn();
+    renderTable({
+      rows: [row()],
+      total: 1,
+      search: 'an',
+      onSearchChange,
+      hasActiveFilters: true,
+      onResetFilters,
+    });
+
+    const bar = document.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+
+    const input = within(bar).getByRole('textbox', { name: 'Tìm biên bản' }) as HTMLInputElement;
+    expect(input.value).toBe('an');
+    expect(input.getAttribute('placeholder')).toBe('Tìm lái xe, mã chuyến, lý do...');
+    fireEvent.change(input, { target: { value: 'an 2' } });
+    expect(onSearchChange).toHaveBeenCalledWith('an 2');
+
+    // With room on the strip the `Lái xe` criterion stays inline — one copy,
+    // inside the bar; it folds into `Bộ lọc` only when the width demands it.
+    expect(within(bar).getByText('Lái xe')).toBeTruthy();
+    expect(bar.querySelector('#penalty-driver-filter')).not.toBeNull();
+    expect(within(bar).queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
+
+    fireEvent.click(within(bar).getByRole('button', { name: 'Xóa bộ lọc' }));
+    expect(onResetFilters).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the empty state with server YTD figures when the page has no rows', () => {
     renderTable({ rows: [], total: 0, insights: insights() });
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ExpenseReconciliation } from '@tingting/shared';
-import { DateField, TextField } from '../../design-system';
+import { ListFilterBar } from '../../components/ListFilterBar';
+import { DateRangeFields } from '../../design-system';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatDate } from '../../lib/format';
@@ -38,8 +39,20 @@ export function ExpenseReconciliationHistory({ people = [], onPay, canRelease = 
   }
   return <section className="expense-accounting" aria-label="Lịch sử đối chiếu hoàn ứng">
     <h2 className="expense-accounting-subtitle">Đối chiếu hoàn ứng</h2>
-<div className="filter-bar__spacer" />
-    <div className="filter-bar expense-history-filters"><TextField controlSize="sm" label="Mã / nhân viên / ghi chú" value={search} onChange={event => setSearch(event.target.value)} /><DateField controlSize="sm" label="Kỳ từ ngày" value={from} onChange={setFrom} /><DateField controlSize="sm" label="Kỳ đến ngày" value={to} onChange={setTo} /><button type="button" className="btn btn--secondary" disabled={!valid || query.isPending || query.isError || exporting} onClick={() => void download()}>{exporting ? 'Đang xuất…' : 'Tải XLSX'}</button></div>
+    <ListFilterBar
+      search={{ value: search, onChange: setSearch, placeholder: 'Mã, nhân viên, ghi chú', ariaLabel: 'Mã / nhân viên / ghi chú' }}
+      actions={<button type="button" className="btn btn--secondary" disabled={!valid || query.isPending || query.isError || exporting} onClick={() => void download()}>{exporting ? 'Đang xuất…' : 'Tải XLSX'}</button>}
+    >
+      <DateRangeFields
+        size="sm"
+        ariaLabel="Kỳ đối chiếu"
+        fromLabel="Kỳ từ ngày"
+        toLabel="Kỳ đến ngày"
+        from={from}
+        to={to}
+        onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); }}
+      />
+    </ListFilterBar>
     {!valid && <p role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}{error && <p role="alert">{error}</p>}
     {query.isError ? <p role="alert">Không tải được đối chiếu. <button type="button" className="btn btn--secondary" onClick={() => void query.refetch()}>Thử lại</button></p> : query.isPending ? <p role="status">Đang tải đối chiếu…</p> : <div className="expense-accounting-history">{rows.map(item => <article key={item.id}>
       <header><button type="button" className="expense-register-open" onClick={() => setOpened(item)}>{item.code}</button><span>{names.get(item.opsUserId) ?? ''} · {formatDate(item.from)} – {formatDate(item.to)}</span></header>

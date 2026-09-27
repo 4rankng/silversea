@@ -3,9 +3,10 @@
 .shipment-finance__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shipment-finance__header h3 { margin: 0; font-size: var(--text-body-size, 14px); }
 .shipment-finance__tabs { margin: 8px 0; }
-.shipment-finance__filters { align-items: flex-end; margin: 12px 0; }
-.shipment-finance__filters > .ds-field { flex: 1 1 140px; min-width: 0; }
-.shipment-finance__filters .shipment-finance__search { flex: 1 1 200px; }
+/* The panel's strip is the shared `ListFilterBar` (card 20260927_152): it owns
+   the wrapping row, the search cell and every control's width, so this sheet
+   declares no filter layout. `/shipments/:id` and the expenses `records` view
+   both inherit the same strip from here. */
 .shipment-finance__count, .shipment-finance__hint { color: var(--fg-2); font-size: var(--text-caption-size, 12px); }
 .shipment-finance__rows { display: grid; }
 .shipment-finance__row { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 1fr); gap: 10px 20px; padding: 12px 0; border-top: 1px solid var(--border-2); }
@@ -23,8 +24,4 @@
 @media (max-width: 600px) {
   .shipment-finance { padding: 8px; }
   .shipment-finance__row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .shipment-finance__filters { }
-  .shipment-finance__filters .shipment-finance__search { flex-basis: 100%; }
-  .shipment-finance__filters > .ds-field { flex: 1 1 120px; }
-
 }
