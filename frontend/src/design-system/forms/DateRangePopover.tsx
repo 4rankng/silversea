@@ -69,8 +69,10 @@ export function DateRangePopover({
     onChange({ from: value.from && date < value.from ? date : value.from, to: date });
   };
 
-  const fromLabel = value.from ? side(value.from) : placeholder;
-  const toLabel = value.to ? side(value.to) : placeholder;
+  // Each half carries a SINGLE-date mask — the shared range placeholder
+  // ('DD/MM/YYYY - DD/MM/YYYY') would be wrong inside one half.
+  const fromLabel = value.from ? side(value.from) : 'DD/MM/YYYY';
+  const toLabel = value.to ? side(value.to) : 'DD/MM/YYYY';
   const rootClass = ['date-range', className].filter(Boolean);
 
   const panel = isOpen ? (
