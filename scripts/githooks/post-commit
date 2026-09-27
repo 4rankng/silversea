@@ -18,12 +18,16 @@
   } >> "$LOG" 2>/dev/null || true
   (
     cd "$ROOT" || exit 1
+    # --no-agents: without it every post-commit sync rewrites the managed
+    # REPOWISE_AGENTS block in AGENTS.md (commit hash + rescores), leaving the
+    # tree dirty after every commit on trunk. The block is still (re)generated
+    # by `repowise agents add` / `repowise init`, i.e. deliberately, not here.
     if command -v repowise >/dev/null 2>&1; then
-      repowise update >> "$LOG" 2>&1
+      repowise update --no-agents >> "$LOG" 2>&1
     elif [ -x "$ROOT/.venv/bin/repowise" ]; then
-      "$ROOT/.venv/bin/repowise" update >> "$LOG" 2>&1
+      "$ROOT/.venv/bin/repowise" update --no-agents >> "$LOG" 2>&1
     elif [ -x "$ROOT/.venv/Scripts/repowise.exe" ]; then
-      "$ROOT/.venv/Scripts/repowise.exe" update >> "$LOG" 2>&1
+      "$ROOT/.venv/Scripts/repowise.exe" update --no-agents >> "$LOG" 2>&1
     fi
   ) &
 } >/dev/null 2>&1
