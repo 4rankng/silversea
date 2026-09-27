@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { downloadCSV } from '../lib/csv';
 import {
-  Search, Activity, Users, Clock, TrendingUp, Download, FileText,
-  Truck, Settings, DollarSign, LogIn,
+  Activity, Users, Clock, TrendingUp, Download,
   Globe, Terminal, Copy, Check, Info, Eye, X,
 } from 'lucide-react';
 import { Panel, KPI, PageHeader } from '../components/UI';
@@ -16,7 +15,8 @@ import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-he
 import './AuditLogPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { EmptyState } from '../design-system';
+import { EmptyState, Tabs } from '../design-system';
+import { ListFilterBar } from '../components/ListFilterBar';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -50,13 +50,13 @@ function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-const CATEGORIES: { key: Category; label: string; icon: React.ElementType }[] = [
-  { key: 'all',     label: 'Tất cả',    icon: FileText },
-  { key: 'trip',    label: 'Chuyến đi', icon: Truck },
-  { key: 'config',  label: 'Cấu hình',  icon: Settings },
-  { key: 'finance', label: 'Tài chính', icon: DollarSign },
-  { key: 'auth',    label: 'Xác thực',  icon: LogIn },
-  { key: 'penalty', label: 'Kỷ luật',   icon: Activity },
+const CATEGORIES: { key: Category; label: string }[] = [
+  { key: 'all',     label: 'Tất cả' },
+  { key: 'trip',    label: 'Chuyến đi' },
+  { key: 'config',  label: 'Cấu hình' },
+  { key: 'finance', label: 'Tài chính' },
+  { key: 'auth',    label: 'Xác thực' },
+  { key: 'penalty', label: 'Kỷ luật' },
 ];
 
 function formatExactTime(iso: string): string {
@@ -359,40 +359,34 @@ fontSize: 'var(--text-data-size)',
       </div>
 
       {/* ── Filter Bar ── */}
-      <div data-tour-id="audit-filters" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {CATEGORIES.map(cat => {
-          const isActive = filter === cat.key;
-          return (
-            <button
-              key={cat.key}
-              className={`filter-chip${isActive ? ' is-active' : ''}`}
-              onClick={() => {
-                setFilter(cat.key);
-              }}
-            >
-              {cat.label}
-              {filter === cat.key && (
-                <span className="filter-chip__count">{total}</span>
-              )}
-            </button>
-          );
-        })}
-
-        <div style={{ flex: 1 }} />
-
-        <div className="toolbar__search" style={{ minWidth: 280 }}>
-          <Search size={14} />
-          <input
-            type="text"
-            name="auditSearch"
-            aria-label="Tìm trong nhật ký người dùng"
-            placeholder="Tìm tên, nội dung, hành động…"
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value);
-            }}
+      {/* Card 20260927_152: the ONE shared strip. The category group is the
+          shared boxed `Tabs` (a segmented group is never a page-local chip
+          row), the search is the bar's own cell, and the total rides `Tabs`'
+          plain numeral slot — the count pill it replaced is gone. Only the
+          selected category prints a total: that is the one count the query
+          returns, so no invented per-category number is shown. */}
+      <div data-tour-id="audit-filters">
+        <ListFilterBar
+          search={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Tìm tên, nội dung, hành động…',
+            ariaLabel: 'Tìm trong nhật ký người dùng',
+            inputProps: { name: 'auditSearch' },
+          }}
+        >
+          <Tabs
+            variant="boxed"
+            ariaLabel="Lọc theo nhóm hoạt động"
+            value={filter}
+            onChange={(id) => setFilter(id as Category)}
+            tabs={CATEGORIES.map(cat => ({
+              id: cat.key,
+              label: cat.label,
+              count: filter === cat.key ? total : undefined,
+            }))}
           />
-        </div>
+        </ListFilterBar>
       </div>
 
       {/* ── Full-width activity list ── */}

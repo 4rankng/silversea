@@ -146,9 +146,18 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(pageStyles).toContain('@container (max-width: 900px)');
     expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
-    expect(pageStyles).toMatch(/\.ops-orders__controls\s*\{[^}]*grid-template-columns:\s*minmax\(0, 148px\) minmax\(0, 1fr\);/);
-    expect(pageStyles).toContain('.ops-orders__search:focus-within');
     expect(pageStyles).toContain('@media (pointer: coarse)');
+  });
+
+  it('declares no filter plane of its own — the strip is the shared ListFilterBar', () => {
+    // Card 20260927_152: the page shipped its own control container, control
+    // shell and a 220px search width. The shared bar owns all three now, so a
+    // page-local filter rule reappearing here is the regression this pins.
+    // Comments are stripped first: the sheet records the deleted selectors in
+    // the note that explains why they are gone.
+    const rules = pageStyles.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).not.toMatch(/\.ops-orders__(controls|date|search)\b/);
+    expect(rules).not.toMatch(/width:\s*220px/);
   });
 
   it('preserves debounced search and selected-date filtering', async () => {
@@ -171,7 +180,9 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
     expect(await screen.findByText('SS-A')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Tìm kiếm' })).toHaveValue('');
-    expect(screen.getByLabelText('Ngày giao dự kiến')).toHaveValue('20/09/2026');
+    // The shared date field keeps its value: the three segments still read
+    // DD/MM/YYYY (the field shows a draft, so the value lives per segment).
+    expect(Array.from(document.querySelectorAll<HTMLInputElement>('[data-seg]')).map((node) => node.value).join('/')).toBe('20/09/2026');
     expect(apiGet).toHaveBeenLastCalledWith('/ops/orders?date=2026-09-20');
   });
 

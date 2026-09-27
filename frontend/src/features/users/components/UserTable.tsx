@@ -1,6 +1,6 @@
 import {
   Plus, Pencil, Trash2,
-  Loader2, KeyRound, Mail, Search, UserX, MoreVertical, X,
+  Loader2, KeyRound, Mail, UserX, MoreVertical,
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
   Users, ShieldCheck, UserCog,
 } from 'lucide-react';
@@ -10,7 +10,8 @@ import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
 import { PageHeader } from '../../../components/UI';
-import { EmptyState, Pagination, SummaryRail } from '../../../design-system';
+import { EmptyState, Pagination, SummaryRail, Tabs } from '../../../design-system';
+import { ListFilterBar } from '../../../components/ListFilterBar';
 import '../../../styles/record-table.css';
 import '../../../styles/operational-table-typography.css';
 
@@ -70,17 +71,6 @@ const AVATAR_ICON: Record<Role, typeof Users> = {
   [Role.DISPATCHER]: UserCog,
 };
 
-const ROLE_FILTER_CLS: Record<string, string> = {
-  [Role.ADMIN]: 'filter-chip--admin',
-  [Role.MANAGER]: 'filter-chip--manager',
-  [Role.ACCOUNTANT]: 'filter-chip--accountant',
-  [Role.DRIVER]: 'filter-chip--driver',
-  [Role.OPS]: 'filter-chip--forwarder',
-  [Role.CUSTOMER]: 'filter-chip--forwarder',
-  [Role.CUS]: 'filter-chip--accountant',
-  [Role.DISPATCHER]: 'filter-chip--manager',
-};
-
 function RoleAvatar({ role }: { role: Role }) {
   const Icon = AVATAR_ICON[role] || Users;
   return (
@@ -135,54 +125,36 @@ export function UserTable({
         ]}
       />
 
-      {/* ── Unified panel: toolbar + table + footer ─────────────────────── */}
-      <div className="users-table-panel" data-tour-id="users-table">
-        {/* Filter toolbar */}
-        <div
-          className="toolbar users-role-toolbar"
-          data-tour-id="users-role-filters"
-          role="group"
-          aria-label="Lọc tài khoản theo vai trò"
+      {/* ── Filters: the ONE shared strip (card 20260927_152) ────────────── */}
+      {/* The role group is the shared boxed `Tabs` — counts ride its own plain
+          numeral slot, so the role-tinted count pill this row used to render is
+          gone — and the search is the bar's own cell. No page rule declares the
+          strip's layout, its control widths or its heights. */}
+      <div data-tour-id="users-role-filters">
+        <ListFilterBar
+          search={{
+            value: search,
+            onChange: onSearchChange,
+            placeholder: 'Tìm theo username, email, SĐT...',
+            ariaLabel: 'Tìm tài khoản',
+          }}
         >
-          {(['all', ...Object.values(Role)] as FilterKey[]).map(f => {
-            const count = f === 'all' ? total : roleCounts?.[f] ?? 0;
-            const label = f === 'all' ? 'Tất cả' : ROLE_LABELS[f as Role];
-            return (
-              <button
-                key={f}
-                className={`filter-chip${filter === f ? ' is-active' : ''} ${ROLE_FILTER_CLS[f] || ''}`}
-                onClick={() => onFilterChange(f)}
-                aria-pressed={filter === f}
-              >
-                <span>{label}</span>
-                {filter === f && <span className="filter-chip__count">{count}</span>}
-              </button>
-            );
-          })}
-          <div className="toolbar__spacer" />
-          <div className="toolbar__search" style={{ position: 'relative' }}>
-            <Search size={14} />
-            <input
-              type="text"
-              aria-label="Tìm tài khoản"
-              placeholder="Tìm theo username, email, SĐT..."
-              value={search}
-              onChange={e => onSearchChange(e.target.value)}
-              style={{ paddingRight: search ? '28px' : '10px' }}
-            />
-            {search && (
-              <button
-                className="search-clear-btn"
-                onClick={() => onSearchChange('')}
-                title="Xóa tìm kiếm"
-                aria-label="Xóa nội dung tìm kiếm"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        </div>
+          <Tabs
+            variant="boxed"
+            ariaLabel="Lọc tài khoản theo vai trò"
+            value={filter}
+            onChange={(id) => onFilterChange(id as FilterKey)}
+            tabs={(['all', ...Object.values(Role)] as FilterKey[]).map(f => ({
+              id: f,
+              label: f === 'all' ? 'Tất cả' : ROLE_LABELS[f as Role],
+              count: f === 'all' ? total : roleCounts?.[f] ?? 0,
+            }))}
+          />
+        </ListFilterBar>
+      </div>
 
+      {/* ── Unified panel: table + footer ───────────────────────────────── */}
+      <div className="users-table-panel" data-tour-id="users-table">
         {/* Legend */}
         {(canManage || canEditDriversOnly) && (
           <div className="users-list-legend">

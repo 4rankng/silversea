@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Pin, PinOff, Plus, Search } from 'lucide-react';
+import { Pin, PinOff, Plus } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
-import { DateInput } from '../design-system/forms/DateInput';
+import { BufferedUuiDateInput } from '../design-system';
+import { ListFilterBar } from '../components/ListFilterBar';
 import { formatDate } from '../lib/format';
 import { useToast } from '../components/shared/Toast';
 
@@ -72,26 +73,26 @@ export default function OpsOrdersPage() {
     <div className="ops-orders page-shell">
       <header className="ops-orders__bar">
         <h1>Kế hoạch làm hàng</h1>
-        <div className="ops-orders__controls">
-          <label className="ops-orders__date">
-            <CalendarDays size={15} aria-hidden />
-            <DateInput
-              value={date}
-              onChange={setDate}
-              aria-label="Ngày giao dự kiến"
-            />
-          </label>
-          <label className="ops-orders__search">
-            <Search size={15} aria-hidden />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Mã lô · Khách hàng · Số cont"
-              aria-label="Tìm kiếm"
-            />
-          </label>
-        </div>
       </header>
+
+      {/* Card 20260927_152: the filters are the ONE shared strip — the search
+          takes the bar's own cell, the expected-delivery day is the shared
+          labelled date field beside it, and no page rule sizes either one. */}
+      <ListFilterBar
+        search={{
+          value: searchInput,
+          onChange: setSearchInput,
+          placeholder: 'Mã lô · Khách hàng · Số cont',
+          ariaLabel: 'Tìm kiếm',
+        }}
+      >
+        <BufferedUuiDateInput
+          label="Ngày giao dự kiến"
+          size="sm"
+          value={date}
+          onChange={setDate}
+        />
+      </ListFilterBar>
 
       <p className="ops-orders__meta">
         {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${formatDate(date)}`}

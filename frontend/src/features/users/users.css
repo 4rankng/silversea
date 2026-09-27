@@ -121,51 +121,10 @@
   flex-shrink: 0;
 }
 
-/* ── Filter pills with subtle role-colored tints ───────────────────────── */
-
-.filter-chip--admin {
-  --fp-color: var(--danger);
-  --fp-soft: var(--danger-soft);
-}
-.filter-chip--manager {
-  --fp-color: var(--warning);
-  --fp-soft: var(--warning-soft);
-}
-.filter-chip--accountant {
-  --fp-color: var(--ink-2);
-  --fp-soft: var(--surface-3);
-}
-.filter-chip--driver {
-  --fp-color: var(--success);
-  --fp-soft: var(--success-soft);
-}
-.filter-chip--forwarder {
-  --fp-color: var(--info);
-  --fp-soft: var(--info-soft);
-}
-
-/* Inactive state: subtle tinted border hint */
-.filter-chip[class*="filter-chip--"] {
-  border-color: color-mix(in srgb, var(--fp-color) 20%, transparent);
-}
-
-.filter-chip[class*="filter-chip--"]:hover {
-  background: var(--fp-soft);
-  border-color: color-mix(in srgb, var(--fp-color) 40%, transparent);
-  color: var(--fp-color);
-}
-
-/* Active state: neutral high-contrast selection */
-.filter-chip[class*="filter-chip--"].is-active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--fg-on-brand);
-}
-
-.filter-chip[class*="filter-chip--"].is-active .filter-chip__count {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--fg-on-brand);
-}
+/* The role-tinted filter pills (`.filter-chip--admin` … and their
+   `.filter-chip__count` fill) are deleted (card 20260927_152): the role group
+   is the shared boxed `Tabs` now, whose count numeral is plain tone-coloured
+   text — a page-local tint would be a second segment vocabulary beside it. */
 
 /* ── Users table panel (unified wrapper) ────────────────────────────────── */
 
@@ -181,12 +140,9 @@
   border-color: var(--line-2);
 }
 
-/* Toolbar inside the panel — flush with top, no bottom border */
-.users-table-panel .toolbar {
-  border-bottom: 1px solid var(--line);
-  padding: 12px 14px;
-  background: var(--surface-2);
-}
+/* The in-panel toolbar skin (`.users-table-panel .toolbar`) is deleted with the
+   toolbar itself (card 20260927_152): the filter strip is the shared
+   `ListFilterBar` card above the panel, so the panel's first row is the legend. */
 
 .users-list-legend {
   display: flex;
@@ -640,36 +596,6 @@
     min-width: 0;
   }
 
-  .users-table-panel .users-role-toolbar {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
-    padding: 10px;
-  }
-
-  .users-role-toolbar .filter-chip {
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
-    padding-inline: 8px;
-    line-height: 1.25;
-    text-align: center;
-    white-space: normal;
-  }
-
-  .users-role-toolbar .toolbar__spacer {
-    display: none;
-  }
-
-  .users-role-toolbar .toolbar__search {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-width: 0;
-  }
-
   .users-list-legend {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -861,37 +787,11 @@
   cursor: not-allowed;
 }
 
-/* Clear search button styling */
-.search-clear-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ink-3);
-  background: none;
-  border: none;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s;
-  z-index: 2;
-}
-
-.search-clear-btn:hover {
-  background: var(--surface-3);
-  color: var(--ink-2);
-}
-
-.users-table-panel .toolbar__search input {
-  padding-right: 28px;
-  line-height: 1.35;
-  min-height: 44px;
-}
+/* The page-local search shell (`search-clear-btn` and the in-panel
+   `.toolbar__search input` skin) is deleted (card 20260927_152): the strip's
+   own search cell owns that affordance, and a second clear button beside a
+   shared field is exactly the page-local variant the one-implementation rule
+   bans. */
 
 /* KPI Premium Styling overrides */
 .users-admin-page .kpi-grid .kpi {

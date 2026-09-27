@@ -71,3 +71,41 @@ describe('UserTable username display', () => {
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 });
+
+describe('UserTable role filter strip (card 20260927_152)', () => {
+  it('renders every role as a shared boxed tab carrying its own count numeral', () => {
+    renderTable({
+      filter: Role.DRIVER,
+      total: 12,
+      staffCount: 5,
+      driverCount: 6,
+      roleCounts: { [Role.ADMIN]: 2, [Role.DRIVER]: 6 },
+    });
+
+    const tablist = screen.getByRole('tablist', { name: 'Lọc tài khoản theo vai trò' });
+    // The label set is the one the chip row carried; only the segment shape and
+    // the pill around the numeral changed.
+    for (const label of ['Tất cả', 'Quản trị viên', 'Quản lý', 'Kế toán', 'Lái xe', 'Nhân viên vận hành', 'Khách hàng', 'Chứng từ', 'Điều vận']) {
+      expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
+    }
+    // Every tab prints a count: the account total on `Tất cả`, the per-role
+    // count on the rest (a role the server did not count reads 0).
+    expect(within(tablist).getByRole('tab', { name: /^Tất cả\s*12$/ })).toBeTruthy();
+    expect(within(tablist).getByRole('tab', { name: /^Lái xe\s*6$/ })).toBeTruthy();
+    expect(within(tablist).getByRole('tab', { name: /^Quản trị viên\s*2$/ })).toBeTruthy();
+    expect(within(tablist).getByRole('tab', { name: /^Kế toán\s*0$/ })).toBeTruthy();
+  });
+
+  it('keeps the shared tab and search writers wired to the page state', () => {
+    const onFilterChange = vi.fn();
+    const onSearchChange = vi.fn();
+    renderTable({ onFilterChange, onSearchChange });
+
+    const tablist = screen.getByRole('tablist', { name: 'Lọc tài khoản theo vai trò' });
+    fireEvent.click(within(tablist).getByRole('tab', { name: /^Lái xe/ }));
+    expect(onFilterChange).toHaveBeenCalledWith('DRIVER');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm tài khoản' }), { target: { value: 'phuong' } });
+    expect(onSearchChange).toHaveBeenCalledWith('phuong');
+  });
+});
