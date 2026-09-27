@@ -46,14 +46,6 @@ describe('operational-canvas (≤1500px) record-table hand-off', () => {
   });
 });
 
-describe('expense filter bar (≤640px)', () => {
-  it('stacks every filter into a single column on phones so the Untitled-UI select label is not truncated', () => {
-    expect(responsiveCss).toMatch(
-      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.expense-filters,\s*\.expense-filter-bar\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
-    );
-  });
-});
-
 describe('accounting work-inbox (≤1500px) hand-off', () => {
   it('rides the shared record-table card hand-off instead of a page media rail', () => {
     // The inbox table moved onto the shared record-table base (sticky thead +

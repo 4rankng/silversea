@@ -32,8 +32,16 @@ describe('site surface contract (card 20260925_3)', () => {
   });
 
   it('reconciliation export button stays compact inside its filter grid', () => {
-    const css = read('src/features/expense-accounting/ExpenseAccounting.css');
-    expect(css).toMatch(/\.expense-history-filters > \.btn\s*\{[^}]*width:\s*fit-content/);
+    // The page-local `.expense-history-filters > .btn { width: fit-content }`
+    // rule this used to pin is deleted with the page's filter grid (card
+    // 20260927_152): the export button is one item of `ListFilterBar`'s actions
+    // slot now, and that cluster sizes to its children.
+    const barCss = read('src/components/ListFilterBar.css');
+    const actionsRule = barCss.match(/\.filter-bar\.list-filter-bar \.filter-bar__actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(actionsRule, 'the actions cluster lays its items out in a row').toContain('display: flex');
+    expect(actionsRule, 'nothing in the cluster grows a button across the line').not.toMatch(/flex:\s*1|width:\s*100%/);
+    const sheet = read('src/features/expense-accounting/ExpenseAccounting.css');
+    expect(sheet, 'the page no longer owns a filter grid').not.toMatch(/\.expense-history-filters/);
   });
 
   it('wallet empty-state row renders on solid --surface at full width', () => {

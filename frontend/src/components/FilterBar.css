@@ -235,13 +235,15 @@
    bar still take most of the space"). The 240px floor is measured: at 240 the
    search still fits beside the 322px from/to group on a 566px bar (594px
    viewport), so the strip holds TWO rows there instead of pushing the search
-   onto a line of its own at full width. Capped at 640px so it cannot sprawl on
-   an ultrawide canvas. */
+   onto a line of its own at full width. Capped at 300px (the family ceiling —
+   "search bar will never need to occupy full row width"): a 484px phone bar
+   then packs `search + Bộ lọc` on one line and the from/to group on the next
+   instead of the search owning a line of its own. */
 .filter-bar > .filter-bar__search,
 .filter-bar__search-cell {
   flex: 1 1 240px;
   min-width: 240px;
-  max-width: 640px;
+  max-width: 300px;
 }
 .filter-bar__search-cell {
   display: grid;

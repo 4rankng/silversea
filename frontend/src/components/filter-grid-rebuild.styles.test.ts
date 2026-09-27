@@ -97,7 +97,7 @@ describe('filter bar = one wrapping line in one card (card 20260927_152)', () =>
     const searchFloor = Number(barCss.match(/\.filter-bar__search-cell\s*\{[^}]*min-width:\s*(\d+)px/)?.[1]);
     expect(searchFloor).toBeGreaterThanOrEqual(220);
     expect(searchFloor).toBeLessThanOrEqual(300);
-    expect(barCss).toMatch(/\.filter-bar__search-cell\s*\{[^}]*max-width:\s*640px/);
+    expect(barCss).toMatch(/\.filter-bar__search-cell\s*\{[^}]*max-width:\s*300px/);
     expect(barCss).toMatch(/\.filter-bar \.date-range-fields\s*\{[^}]*flex:\s*1 1 322px/);
     expect(barCss).toMatch(/\.filter-bar \.date-range-fields\s*\{[^}]*max-width:\s*348px/);
     expect(barCss).not.toMatch(/\.filter-bar > \*:not\([^)]*\)\s*\{[^}]*width:\s*100%/);
