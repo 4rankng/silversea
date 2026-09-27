@@ -888,35 +888,35 @@
       "breakpoints": true
     },
     {
-      "idx": 128,
+      "idx": 127,
       "version": "7",
       "when": 1790219709224,
       "tag": "20260924035509_seed_name_suffix_strip",
       "breakpoints": true
     },
     {
-      "idx": 129,
+      "idx": 128,
       "version": "7",
       "when": 1790220798228,
       "tag": "20260924113318_dedicated_depot_routing_rename",
       "breakpoints": true
     },
     {
-      "idx": 130,
+      "idx": 129,
       "version": "7",
       "when": 1790221951063,
       "tag": "20260924115231_strip_residual_disambiguate",
       "breakpoints": true
     },
     {
-      "idx": 131,
+      "idx": 130,
       "version": "7",
       "when": 1790227656074,
       "tag": "20260924021509_high_valkyrie",
       "breakpoints": true
     },
     {
-      "idx": 132,
+      "idx": 131,
       "version": "7",
       "when": 1790404801327,
       "tag": "20260926064001_classy_stick",
