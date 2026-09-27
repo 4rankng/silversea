@@ -129,3 +129,6 @@ testplan/qa/evidence/
 
 # OpenWiki machine run-state (resumable run bookkeeping; pages/claims/indexes are the tracked knowledge)
 openwiki/.run.json
+
+# repowise local index (machine-generated; the post-commit hook resyncs) + keys
+.repowise/
