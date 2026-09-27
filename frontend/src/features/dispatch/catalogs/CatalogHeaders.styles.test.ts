@@ -19,7 +19,9 @@ describe('dispatcher catalogue headers', () => {
     (view) => {
       const source = readFileSync(resolve(catalogDirectory, view), 'utf8');
       expect(source).toContain('title="Danh mục');
-      expect(source).toContain('dispatch-catalogs__tabs');
+      // Row-1 segmented group is the shared Tabs primitive (operator ruling
+      // 2026-09-27: the fleet-vehicle status group is the app-wide reference).
+      expect(source).toContain("variant=\"boxed\"");
     },
   );
 
@@ -53,7 +55,7 @@ describe('fleet catalog command strips (card 20260926_57 — chief spec)', () =>
   });
 
   it('vehicles row 1 carries clickable segmented status tabs that filter', () => {
-    expect(vehicles).toContain('dispatch-catalogs__tabs');
+    expect(vehicles).toContain('<Tabs');
     expect(vehicles).toContain('statusFilter');
     expect(vehicles).toContain('Bảo trì / Ngưng');
   });

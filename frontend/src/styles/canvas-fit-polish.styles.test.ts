@@ -27,9 +27,12 @@ describe('canvas-fit responsive polish contract', () => {
     const css = read('src/components/work-inbox/RoleWorkInbox.css');
     expect(css).toMatch(/@media \(max-width: 1145px\) \{\s*\.role-work-inbox__table-wrap \{ overflow: visible;/);
     // Three queue tabs must stay in one row; narrow/large-count cases scroll
-    // within the tablist instead of creating an ambiguous second row.
+    // within the tablist instead of creating an ambiguous second row. The
+    // buttons themselves are the shared boxed Tabs primitive now (its own
+    // Tabs.css carries the 44px touch floor), so this file keeps only the
+    // layout hook.
     expect(css).toMatch(/\.role-work-inbox__tabs \{[^}]*flex-wrap: nowrap;[^}]*overflow-x: auto;/);
-    expect(css).toMatch(/\.role-work-inbox__tabs button \{[^}]*min-height: 44px;[^}]*min-width: max-content;/);
+    expect(css).not.toMatch(/\.role-work-inbox__tabs button/);
     expect(css).not.toContain('.role-work-inbox__refresh { width: 100%; }');
   });
 
@@ -52,7 +55,10 @@ describe('canvas-fit responsive polish contract', () => {
 
   it('payables category chips wrap without the swipe fade mask', () => {
     const css = read('src/pages/PayableListPage.css');
-    expect(css).toContain('.payables-page .payables-category-chips {\n    gap: 6px;\n    flex-wrap: wrap;');
+    // The category group is the shared boxed Tabs primitive (wraps on its own);
+    // this file only spaces it above the table.
+    expect(css).toContain('.payables-page .payables-category-chips {\n  margin-bottom: 16px;\n}');
     expect(css).not.toContain('mask-image: linear-gradient(90deg, #000 calc(100% - 28px)');
+    expect(css).not.toContain('.payables-category-chip ');
   });
 });

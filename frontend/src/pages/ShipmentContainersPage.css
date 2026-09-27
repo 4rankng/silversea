@@ -49,17 +49,6 @@
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
 
-/* Date presets: ONE connected segmented group (owner spec) riding the shared
-   bar's control row — compact geometry survives the ListFilterBar adoption. */
-.shipments-detail-presets { display: inline-flex; align-items: stretch; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); overflow: hidden; }
-.shipments-detail-presets button { flex: 1 1 auto; height: 34px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; padding-inline: 10px; }
-.shipments-detail-presets button + button { border-left: 1px solid var(--line-2); }
-.shipments-detail-presets button:hover,
-.shipments-detail-presets button[data-hovered] { background: var(--surface-2); color: var(--ink); }
-/* Selected segment = FILLED ink block with contrasting text (addendum 2:
-   a green tint read as unselected); unselected stays transparent + muted. */
-.shipments-detail-presets button[aria-pressed='true'] { background: var(--ink); color: var(--surface); }
-
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
 /* The app shell already supplies the page gutter. */

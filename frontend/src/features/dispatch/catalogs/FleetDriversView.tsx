@@ -12,6 +12,7 @@ import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
+import { Tabs } from '../../../design-system';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
@@ -112,11 +113,13 @@ export function FleetDriversView() {
       <CatalogTableShell
         title="Danh mục Tài xế"
         tabs={(
-          <div className="dispatch-catalogs__tabs" role="tablist" aria-label="Số tài xế">
-            <button type="button" role="tab" aria-selected className="dispatch-catalogs__tab is-active">
-              Tổng <span className="dispatch-catalogs__tab-count">{drivers.length}</span>
-            </button>
-          </div>
+          <Tabs
+            tabs={[{ id: 'total', label: 'Tổng', count: drivers.length }]}
+            value="total"
+            onChange={() => {}}
+            variant="boxed"
+            ariaLabel="Số tài xế"
+          />
         )}
         actions={(
           <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>

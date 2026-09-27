@@ -228,8 +228,11 @@
   }
 
   /* Direct children keep their full row: search, the long-content "Kế hoạch"
-     select, quick filters, actions. Pair wrappers also take a full row. */
-  .list-filter-bar > *:not(.list-filter-bar__pair) {
+     select, quick filters, actions. Pair wrappers also take a full row.
+     A shared button group (`.ds-tabs`) is the exception: it is a
+     content-sized control, and stretching it paints an empty box past its
+     last cell (measured 350px around 195px of cells on /shipments-detail). */
+  .list-filter-bar > *:not(.list-filter-bar__pair):not(.ds-tabs) {
     width: 100%;
     min-width: 0;
   }

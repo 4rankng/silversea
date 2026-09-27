@@ -207,7 +207,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sổ điều hành container')).toBeNull();
     expect(screen.queryByText('Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Tất cả' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Tất cả' })).toBeTruthy();
     expect(document.querySelector('.shipment-container-ledger__route i')).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
@@ -249,9 +249,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   it('can show all dates and return to today', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Tất cả' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tất cả' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
@@ -259,29 +259,29 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
-    // Card _36: presets live in their connected segmented group; the reset is
-    // a standalone rail item at the row's right edge.
-    const actionGroup = document.querySelector('.shipments-detail-presets') as HTMLElement;
-    const todayBtn = within(actionGroup).getByRole('button', { name: 'Hôm nay' });
-    const tomorrowBtn = within(actionGroup).getByRole('button', { name: 'Hôm sau' });
-    const allBtn = within(actionGroup).getByRole('button', { name: 'Tất cả' });
+    // The presets ride the shared boxed Tabs primitive (operator ruling
+    // 2026-09-27); the reset stays a standalone button at the row's right edge.
+    const presetGroup = screen.getByRole('tablist', { name: 'Lọc nhanh theo ngày' });
+    const todayBtn = within(presetGroup).getByRole('tab', { name: 'Hôm nay' });
+    const tomorrowBtn = within(presetGroup).getByRole('tab', { name: 'Hôm sau' });
+    const allBtn = within(presetGroup).getByRole('tab', { name: 'Tất cả' });
     const resetBtn = screen.getByRole('button', { name: 'Xóa bộ lọc' });
     for (const button of [todayBtn, tomorrowBtn, allBtn, resetBtn]) expect(button).toBeEnabled();
-    expect(todayBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
-    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(todayBtn).toHaveAttribute('aria-selected', 'true');
+    expect(tomorrowBtn).toHaveAttribute('aria-selected', 'false');
+    expect(allBtn).toHaveAttribute('aria-selected', 'false');
 
     fireEvent.click(tomorrowBtn);
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${tomorrow}&transportDateTo=${tomorrow}`));
-    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(todayBtn).toHaveAttribute('aria-pressed', 'false');
-    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(tomorrowBtn).toHaveAttribute('aria-selected', 'true');
+    expect(todayBtn).toHaveAttribute('aria-selected', 'false');
+    expect(allBtn).toHaveAttribute('aria-selected', 'false');
 
     fireEvent.click(allBtn);
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(todayBtn).toHaveAttribute('aria-pressed', 'false');
-    expect(tomorrowBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn).toHaveAttribute('aria-selected', 'true');
+    expect(todayBtn).toHaveAttribute('aria-selected', 'false');
+    expect(tomorrowBtn).toHaveAttribute('aria-selected', 'false');
     // Even when the URL is unfiltered, reset must clear a local invalid draft.
     // Card 20260925_6: the per-input labels trimmed to "Từ ngày" / "Đến ngày"
     // (the combined "Từ ngày vận chuyển" / "Đến ngày vận chuyển" label now
@@ -601,9 +601,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-15&customerId=7&direction=IMPORT&searchSuffix=abcd']}><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');
-    const actionGroup = document.querySelector('.shipments-detail-presets');
+    const actionGroup = screen.getByRole('tablist', { name: 'Lọc nhanh theo ngày' });
     expect(actionGroup).toBeTruthy();
-    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Tất cả' })).toBeTruthy();
+    expect(within(actionGroup).getByRole('tab', { name: 'Tất cả' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
     expect(screen.queryByText('Đang lọc')).toBeNull();
     expect(screen.queryByText(/Ngày vận chuyển:/)).toBeNull();

@@ -178,42 +178,8 @@
 
 .customers-strip__title { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
 
-.customers-strip__tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--surface-2, rgba(0, 0, 0, 0.03));
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 2px;
-}
-
-.customers-strip__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  background: none;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: var(--text-caption-size, 12px);
-  font-weight: 600;
-  color: var(--fg-2);
-  cursor: pointer;
-}
-
-.customers-strip__tab:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-
-.customers-strip__tab.is-active {
-  background: var(--surface);
-  color: var(--ink);
-  outline: 1px solid var(--line-2, var(--line));
-}
-
-.customers-strip__tab-count { font-family: var(--font-data); font-size: 11px; font-weight: 600; color: var(--fg-3); }
-.customers-strip__tab.is-active .customers-strip__tab-count { color: var(--ink); }
-.customers-strip__tab--active.is-on .customers-strip__tab-count--active { color: var(--accent, #177448); }
-.customers-strip__tab--locked.is-on .customers-strip__tab-count--locked { color: var(--warning, #A45D1C); }
+/* Status filter group is the shared boxed Tabs primitive (operator ruling
+   2026-09-27); the group shape lives in design-system/Tabs.css. */
 
 .customers-strip__risk {
   position: relative;

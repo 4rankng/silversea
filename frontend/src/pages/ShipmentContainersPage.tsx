@@ -11,7 +11,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, Tabs, BufferedUuiDateInput, UuiSelectField, type TabItem } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   DISPATCH_STATUS,
@@ -29,6 +29,13 @@ import {
 import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
 import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
 import './ShipmentContainersPage.css';
+
+// Date-scope presets — the same segmented control as the dispatch date scope.
+const DATE_PRESET_TABS: TabItem[] = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: 'tomorrow', label: 'Hôm sau' },
+  { id: 'all', label: 'Tất cả' },
+];
 
 function ShipmentContainerLedgerSkeleton() {
   return (
@@ -207,6 +214,21 @@ export default function ShipmentContainersPage() {
     }, { replace: true });
   };
 
+  // No preset is active while a custom range (or a one-sided date) is in force.
+  const datePreset = allDates
+    ? 'all'
+    : dateFrom === today && dateTo === today
+      ? 'today'
+      : dateFrom === tomorrow && dateTo === tomorrow
+        ? 'tomorrow'
+        : '';
+
+  const selectDatePreset = (id: string) => {
+    if (id === 'today') showToday();
+    else if (id === 'tomorrow') showTomorrow();
+    else showAllDates();
+  };
+
   return (
     <div className="shipments-detail-page">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi tiết lô hàng' }]} />
@@ -252,17 +274,13 @@ export default function ShipmentContainersPage() {
               <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--direction" />
               <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter shipments-detail-filter--dispatch" />
               <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-filter shipments-detail-filter--info" />
-              <div className="shipments-detail-presets" role="group" aria-label="Lọc nhanh theo ngày">
-                <UUIButton size="sm" color="secondary" onPress={showToday} aria-pressed={dateFrom === today && dateTo === today}>
-                  Hôm nay
-                </UUIButton>
-                <UUIButton size="sm" color="secondary" onPress={showTomorrow} aria-pressed={dateFrom === tomorrow && dateTo === tomorrow}>
-                  Hôm sau
-                </UUIButton>
-                <UUIButton size="sm" color="secondary" onPress={showAllDates} aria-pressed={allDates}>
-                  Tất cả
-                </UUIButton>
-              </div>
+              <Tabs
+                variant="boxed"
+                ariaLabel="Lọc nhanh theo ngày"
+                tabs={DATE_PRESET_TABS}
+                value={datePreset}
+                onChange={selectDatePreset}
+              />
             </ListFilterBar>
           </div>
         </div>

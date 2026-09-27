@@ -21,6 +21,7 @@ import { api, ApiError } from '../../lib/api';
 import { buildIdempotencyKey } from '../../lib/idempotency';
 import { formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
+import { Tabs } from '../../design-system';
 
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
@@ -37,6 +38,9 @@ const labels: Record<Role, readonly [string, string, string]> = {
 };
 const states = ['ACTION', 'WAITING', 'DONE'] as const;
 const countKeys = ['action', 'waiting', 'done'] as const;
+// Tone rides each queue's meaning (operator reference 2026-09-27): amber for
+// work waiting on us, teal for a neutral wait on others, green for done.
+const countTones = ['warning', 'info', 'accent'] as const;
 const STALE_AFTER_MS = 5 * 60 * 1000;
 
 type Props = {
@@ -125,7 +129,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const [disputeReason, setDisputeReason] = useState('');
   const [responseMessage, setResponseMessage] = useState<{ kind: 'success' | 'error' | 'conflict'; text: string } | null>(null);
   const responseKeys = useRef(new Map<string, string>());
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const latestLoadRequest = useRef(0);
   const endpoint = endpointFor(role, customerId, states[active], page);
 
@@ -201,17 +204,15 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     setPage(1);
   };
 
-  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let next = index;
-    if (event.key === 'ArrowRight') next = (index + 1) % labels[role].length;
-    else if (event.key === 'ArrowLeft') next = (index - 1 + labels[role].length) % labels[role].length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = labels[role].length - 1;
-    else return;
-    event.preventDefault();
-    selectTab(next);
-    window.requestAnimationFrame(() => tabRefs.current[next]?.focus());
-  };
+  // Queue group — the shared boxed Tabs primitive (operator ruling
+  // 2026-09-27). Ids are the queue index so the URL/state contract is intact;
+  // the primitive owns roving focus and arrow-key navigation.
+  const queueTabs = labels[role].map((label, index) => ({
+    id: String(index),
+    label,
+    count: data?.counts?.[countKeys[index]] ?? 0,
+    countTone: countTones[index],
+  }));
 
   const sendOrderExchange = async (item: OperationsWorkInboxItem) => {
     if (item.orderExchangeState === 'COMPLETED') return;
@@ -312,27 +313,17 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
         </div>
       )}
 
-      <div className="role-work-inbox__tabs" role="tablist" aria-label="Trạng thái công việc">
-        {labels[role].map((label, index) => (
-          <button
-            key={label}
-            id={`role-inbox-tab-${role}-${index}`}
-            type="button"
-            role="tab"
-            aria-selected={active === index}
-            aria-controls={panelId}
-            tabIndex={active === index ? 0 : -1}
-            className={active === index ? 'is-active' : ''}
-            ref={(element) => { tabRefs.current[index] = element; }}
-            onClick={() => selectTab(index)}
-            onKeyDown={(event) => handleTabKeyDown(event, index)}
-          >
-            {label}<span>{data?.counts?.[countKeys[index]] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="role-work-inbox__tabs"
+        variant="boxed"
+        tabs={queueTabs}
+        value={String(active)}
+        onChange={(id) => selectTab(Number(id))}
+        ariaLabel="Trạng thái công việc"
+        panelId={panelId}
+      />
 
-      <section id={panelId} role="tabpanel" aria-labelledby={`role-inbox-tab-${role}-${active}`}>
+      <section id={panelId} role="tabpanel" aria-label={labels[role][active]}>
         {loading && !data ? (
           <div className="role-work-inbox__state" role="status"><Loader2 className="spin" /> Đang tải công việc…</div>
         ) : refreshError && !data ? (

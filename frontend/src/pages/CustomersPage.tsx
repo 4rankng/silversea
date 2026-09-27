@@ -16,7 +16,7 @@ import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination, useTableQueryState } from '../design-system';
+import { EmptyState, Pagination, Tabs, useTableQueryState } from '../design-system';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency } from '../lib/format';
 import type { Customer, LedgerEntry } from '@tingting/shared';
@@ -531,17 +531,17 @@ export default function CustomersPage() {
             <ArrowLeft size={16} />
           </button>
           <h1 className="customers-strip__title">Khách hàng & Đối tác</h1>
-          <div className="customers-strip__tabs" role="tablist" aria-label="Lọc theo trạng thái khách hàng">
-            <button type="button" role="tab" aria-selected={filter === 'all'} className={`customers-strip__tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>
-              Tất cả <span className="customers-strip__tab-count">{total}</span>
-            </button>
-            <button type="button" role="tab" aria-selected={filter === 'active'} className={`customers-strip__tab customers-strip__tab--active is-on${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
-              Hoạt động <span className="customers-strip__tab-count customers-strip__tab-count--active">{activeCount}</span>
-            </button>
-            <button type="button" role="tab" aria-selected={filter === 'locked'} className={`customers-strip__tab customers-strip__tab--locked is-on${filter === 'locked' ? ' is-active' : ''}`} onClick={() => setFilter('locked')}>
-              Tạm khoá <span className="customers-strip__tab-count customers-strip__tab-count--locked">{lockedCount}</span>
-            </button>
-          </div>
+          {/* Status group — shared boxed Tabs primitive (2026-09-27 ruling). */}
+          <Tabs variant="boxed"
+            tabs={[
+              { id: 'all', label: 'Tất cả', count: total },
+              { id: 'active', label: 'Hoạt động', count: activeCount, countTone: 'accent' },
+              { id: 'locked', label: 'Tạm khoá', count: lockedCount, countTone: 'warning' },
+            ]}
+            value={filter}
+            onChange={(id) => setFilter(id as FilterKey)}
+            ariaLabel="Lọc theo trạng thái khách hàng"
+          />
           {concentration.anyDebt && (
             <div className="customers-strip__risk" tabIndex={0}>
               <span aria-hidden="true">⚠️</span> Top 4 KH chiếm {concentration.topShare}% công nợ

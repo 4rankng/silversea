@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../../hooks/animations';
 import { invalidateAllCatalogs, qk } from '../../../api/keys';
 import { listDispatchFleetResources, reassignTruckDriver } from '../../../api/dispatchPlanningClient';
+import { Tabs, type TabItem } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
@@ -167,6 +168,15 @@ export function FleetVehiclesView() {
     return present;
   }, [rows, trailerById]);
 
+  // Status group — the reference segmented control (operator ruling
+  // 2026-09-27): shared Tabs primitive, tone rides the bucket's meaning
+  // (accent = healthy, warning = downtime), the selection rides the cell.
+  const statusTabs = useMemo<TabItem[]>(() => [
+    { id: 'all', label: 'Tất cả', count: trucks.length },
+    { id: 'active', label: 'Hoạt động', count: active, countTone: 'accent' },
+    { id: 'down', label: 'Bảo trì / Ngưng', count: maintenance, countTone: 'warning' },
+  ], [trucks.length, active, maintenance]);
+
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
@@ -175,35 +185,13 @@ export function FleetVehiclesView() {
       <CatalogTableShell
         title="Danh mục Xe nội bộ"
         tabs={(
-          <div className="dispatch-catalogs__tabs" role="tablist" aria-label="Lọc theo trạng thái xe">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={statusFilter === 'all'}
-              className={`dispatch-catalogs__tab${statusFilter === 'all' ? ' is-active' : ''}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              Tất cả <span className="dispatch-catalogs__tab-count">{trucks.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={statusFilter === 'active'}
-              className={`dispatch-catalogs__tab dispatch-catalogs__tab--active is-on${statusFilter === 'active' ? ' is-active' : ''}`}
-              onClick={() => setStatusFilter('active')}
-            >
-              Hoạt động <span className="dispatch-catalogs__tab-count">{active}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={statusFilter === 'down'}
-              className={`dispatch-catalogs__tab dispatch-catalogs__tab--down is-on${statusFilter === 'down' ? ' is-active' : ''}`}
-              onClick={() => setStatusFilter('down')}
-            >
-              Bảo trì / Ngưng <span className="dispatch-catalogs__tab-count">{maintenance}</span>
-            </button>
-          </div>
+          <Tabs
+            tabs={statusTabs}
+            value={statusFilter}
+            onChange={(id) => setStatusFilter(id as 'all' | 'active' | 'down')}
+            variant="boxed"
+            ariaLabel="Lọc theo trạng thái xe"
+          />
         )}
         actions={(
           <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>

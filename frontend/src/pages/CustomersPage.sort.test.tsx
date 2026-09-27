@@ -144,7 +144,10 @@ describe('customers chief strip + grid (card 20260926_60)', () => {
 
   it('grid: fixed spec columns over 38px striped rows, stacked contact, copyable phone', () => {
     expect(css).toMatch(/\.customers-code-cell\s*\{[^}]*font-family:\s*var\(--font-data\)/);
-    expect(css).toMatch(/\.customers-strip__tab-count--active/);
+    // The strip status group is the shared boxed Tabs primitive (one group
+    // shape app-wide, operator ruling 2026-09-27) — no page-local tab CSS.
+    expect(tsx).toMatch(/<Tabs[\s\S]*variant="boxed"[\s\S]*ariaLabel="Lọc theo trạng thái khách hàng"/);
+    expect(css).not.toMatch(/\.customers-strip__tab/);
     expect(css).toMatch(/\.customers-contact-stack\s*\{[^}]*display:\s*grid/);
     expect(css).toMatch(/\.customers-copy-phone/);
     expect(tsx).not.toContain('colSpan={5 + Number');

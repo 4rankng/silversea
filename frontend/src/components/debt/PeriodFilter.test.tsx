@@ -25,9 +25,13 @@ describe('PeriodFilter', () => {
     expect(root.className).toContain('period-filter');
     expect(root.className).toContain('border-y');
 
+    // Mode switch is the shared boxed Tabs primitive (one group shape app-wide).
     const modeToggle = screen.getByRole('tablist', { name: 'Chế độ lọc' });
-    expect(modeToggle.className).toContain('d-join-vertical');
-    expect(modeToggle.className).toContain('lg:d-join-horizontal');
+    expect(modeToggle.className).toContain('ds-tabs');
+    expect(modeToggle.className).toContain('ds-tabs--boxed');
+    expect(modeToggle.className).not.toContain('d-join');
+    expect(screen.getByRole('tab', { name: 'Theo tháng' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Theo khoảng' }).getAttribute('aria-selected')).toBe('false');
 
     // UuiSelectField renders a button trigger for short option lists, or a
     // searchable combobox input once the list is long enough (month/year here).

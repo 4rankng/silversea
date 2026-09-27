@@ -9,6 +9,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
+import { Tabs } from '../../design-system';
 import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
@@ -83,19 +84,13 @@ export function OpsExpenseHistory() {
     <section className="ops-wallet__section" aria-label="Lịch sử chi phí">
       <header className="ops-wallet__section-head">
         <h2>Lịch sử chi phí</h2>
-        <div className="ops-wallet__filters" role="group" aria-label="Lọc theo trạng thái">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.label}
-              type="button"
-              className={status === filter.value ? 'is-active' : ''}
-              aria-pressed={status === filter.value}
-              onClick={() => setStatus(filter.value)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="boxed"
+          ariaLabel="Lọc theo trạng thái"
+          value={status ?? 'all'}
+          onChange={(id) => setStatus(id === 'all' ? undefined : id as OpsExpenseStatus)}
+          tabs={STATUS_FILTERS.map((filter) => ({ id: filter.value ?? 'all', label: filter.label }))}
+        />
       </header>
 
       <div className="ops-wallet__scroll">

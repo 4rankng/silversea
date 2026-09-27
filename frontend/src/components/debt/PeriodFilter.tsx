@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { Tabs, UuiSelectField } from '../../design-system';
+import type { TabItem } from '../../design-system';
 
 /**
  * Period filter for the AR/AP detail ledger tab. Two modes:
@@ -35,6 +36,14 @@ export interface PeriodFilterProps {
   isApplying?: boolean;
   isApplyDisabled?: boolean;
 }
+
+/** Mode switch — the shared boxed segmented group (one group shape app-wide,
+ *  operator ruling 2026-09-27). Ids match PeriodMode so the switch maps
+ *  straight through. */
+const MODE_TABS: TabItem[] = [
+  { id: 'month', label: 'Theo tháng' },
+  { id: 'range', label: 'Theo khoảng' },
+];
 
 const MONTH_LABELS = [
   'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
@@ -84,27 +93,15 @@ export function PeriodFilter(props: PeriodFilterProps) {
       <fieldset className="d-fieldset">
         <legend className="d-fieldset-legend text-xs">Kỳ xem sổ</legend>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          {/* Mode switch — two segmented buttons inside a join */}
-          <div className="d-join d-join-vertical w-full shrink-0 lg:w-auto lg:d-join-horizontal" role="tablist" aria-label="Chế độ lọc">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'month'}
-              className={`d-btn d-btn-sm d-join-item w-full lg:w-auto ${mode === 'month' ? 'd-btn-primary' : 'd-btn-outline'}`}
-              onClick={() => onModeChange('month')}
-            >
-              Theo tháng
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'range'}
-              className={`d-btn d-btn-sm d-join-item w-full lg:w-auto ${mode === 'range' ? 'd-btn-primary' : 'd-btn-outline'}`}
-              onClick={() => onModeChange('range')}
-            >
-              Theo khoảng
-            </button>
-          </div>
+          {/* Mode switch — the shared boxed segmented group */}
+          <Tabs
+            className="shrink-0"
+            variant="boxed"
+            tabs={MODE_TABS}
+            value={mode}
+            onChange={(id) => onModeChange(id as PeriodMode)}
+            ariaLabel="Chế độ lọc"
+          />
 
           {mode === 'month' ? (
             <div className="flex w-full shrink-0 gap-2 lg:w-auto">

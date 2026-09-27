@@ -41,7 +41,10 @@ describe('shipment detail workboard styling', () => {
     // self-made 12-col owner grid (card _36) is superseded and deleted.
     expect(source).toContain('<ListFilterBar');
     expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns/);
-    expect(css).toMatch(/\.shipments-detail-presets button \+ button\s*\{[^}]*border-left:\s*1px solid var\(--line-2\);/);
+    // Date presets ride the shared boxed Tabs primitive (operator ruling
+    // 2026-09-27) — no page-local segmented-control CSS survives.
+    expect(source).toMatch(/<Tabs[\s\S]*ariaLabel="Lọc nhanh theo ngày"[\s\S]*tabs=\{DATE_PRESET_TABS\}/);
+    expect(css).not.toMatch(/\.shipments-detail-presets/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
     expect(source).not.toContain('shipments-detail-filters__footer');

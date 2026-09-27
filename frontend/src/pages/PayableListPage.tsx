@@ -27,7 +27,7 @@ import '../styles/operational-table-typography.css';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { EmptyState, Pagination, SearchableSelect, SummaryRail, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -473,24 +473,16 @@ export default function PayableListPage() {
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">
-        {/* Category chips */}
-        <div className="payables-category-chips" role="tablist" aria-label="Lọc theo loại công nợ">
-          {CATEGORY_CHIPS.map(chip => {
-            const isActive = chip.value === category;
-            return (
-              <button
-                key={chip.label}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`payables-category-chip${isActive ? ' is-active' : ''}`}
-                onClick={() => table.setFilter('category', chip.value)}
-              >
-                {chip.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Category filter group — the shared boxed Tabs primitive (operator
+            ruling 2026-09-27); className is a layout-only spacing hook. */}
+        <Tabs
+          className="payables-category-chips"
+          variant="boxed"
+          tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
+          value={category ?? 'all'}
+          onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
+          ariaLabel="Lọc theo loại công nợ"
+        />
 
         {/* Toolbar row */}
         <div className="payables-toolbar">
