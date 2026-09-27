@@ -27,7 +27,7 @@ import {
   listDispatchHandoffs,
   listDispatchQueue,
 } from '../../services/dispatch-planning.service';
-import {
+import { listAllExternalFleet, 
   createCarrierFleetVehicle,
   listCarrierFleetVehicles,
   resolveCarrierByPlate,
@@ -469,6 +469,14 @@ dispatchPlanningRoutes.post(
 );
 
 dispatchPlanningRoutes.get(
+  '/carrier-fleet-vehicles/all',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listAllExternalFleet());
+  }),
+);
+
+dispatchPlanningRoutes.get(
   '/carrier-fleet-vehicles',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
@@ -480,7 +488,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.post(
   '/carrier-fleet-vehicles',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = carrierFleetVehicleSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -505,7 +513,7 @@ dispatchPlanningRoutes.post(
 
 dispatchPlanningRoutes.patch(
   '/carrier-fleet-vehicles/:vehicleId',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const vehicleId = Number(req.params.vehicleId);
     if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw new ApiError(400, 'vehicleId không hợp lệ.');

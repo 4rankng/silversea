@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -159,3 +159,44 @@ export async function updateCarrierFleetVehicle(id: number, input: {
   return vehicle;
 }
 
+
+/**
+ * Union read for the external-fleet management page (/fleet/external):
+ * the dispatch catalog (carrier_fleet_vehicles — the plates the dispatch
+ * picker offers) plus supplier-linked internal trucks (trucks.carrier_id)
+ * as read-only context rows. Tombstoned trucks ride along so the page can
+ * point at the suppliers-side restore remedy instead of hiding them.
+ */
+export async function listAllExternalFleet() {
+  const catalog = await db.select({
+    id: s.carrierFleetVehicles.id,
+    licensePlate: s.carrierFleetVehicles.licensePlate,
+    isActive: s.carrierFleetVehicles.isActive,
+    carrierId: s.carrierFleetVehicles.carrierId,
+    carrierName: s.customers.name,
+    carrierStatus: s.customers.status,
+    updatedAt: s.carrierFleetVehicles.updatedAt,
+  })
+    .from(s.carrierFleetVehicles)
+    .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
+    .where(isNull(s.carrierFleetVehicles.deletedAt))
+    .orderBy(asc(s.carrierFleetVehicles.licensePlate), asc(s.carrierFleetVehicles.id));
+
+  const linkedTrucks = await db.select({
+    id: s.trucks.id,
+    licensePlate: s.trucks.licensePlate,
+    status: s.trucks.status,
+    carrierId: s.trucks.carrierId,
+    carrierName: s.customers.name,
+    tombstonedAt: s.trucks.deletedAt,
+  })
+    .from(s.trucks)
+    .innerJoin(s.customers, eq(s.customers.id, s.trucks.carrierId))
+    .where(and(
+      isNotNull(s.trucks.carrierId),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(asc(s.trucks.licensePlate), asc(s.trucks.id));
+
+  return { catalog, linkedTrucks };
+}
