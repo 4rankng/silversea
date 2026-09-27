@@ -563,7 +563,10 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('@media (hover: hover) and (pointer: fine)');
     expect(css).toContain('.master-plan-grid__row:hover');
     expect(css).toContain('background: color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
-    expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
+    // Card 20260926_63: NO background transition on rows — the grid refetch
+    // replaces hovered nodes mid-hover and a transition lets the painted tint
+    // stick after the pointer leaves.
+    expect(css).not.toMatch(/\.master-plan-grid__row\s*{[^}]*transition/);
     expect(css).toContain('@container (max-width: 599px)');
     expect(css).toContain('.master-plan-grid__cell--lift-port { grid-area: lift; }');
     expect(css).toContain('.master-plan-grid__cell--drop-port { grid-area: drop;');

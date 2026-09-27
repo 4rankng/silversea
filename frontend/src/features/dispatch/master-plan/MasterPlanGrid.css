@@ -542,20 +542,18 @@
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
    fine pointers: touch browsers otherwise retain :hover while the user is
-   merely scrolling, which made whole records look selected. */
-@media (prefers-reduced-motion: no-preference) {
-  .master-plan-grid__row {
-    transition: background-color 150ms var(--ease);
-  }
-}
-
+   merely scrolling, which made whole records look selected.
+   NO background transition here (card 20260926_63): the grid refetch
+   replaces hovered rows mid-hover, and a 150ms background transition lets
+   the painted hover tint stick on the replacement nodes after the pointer
+   has left — multiple rows rendered permanently tinted (CHIEF 27/09). */
 @media (hover: hover) and (pointer: fine) {
   .master-plan-grid__row:hover {
-    /* A neutral two-percent ink wash provides orientation in a dense desktop
-       grid without impersonating an active, selected, or status state. */
     background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
 }
+
+
 
 .master-plan-grid__cell {
   padding: 10px 12px;
