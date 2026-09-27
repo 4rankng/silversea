@@ -296,4 +296,22 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     expect(screen.getByText(/Bản lương giữ nguyên; ghi điều chỉnh vào kỳ đang mở/)).toBeInTheDocument();
   });
 
+  it('renders the strip as the shared filter bar: driver search and the month cluster in one bar', () => {
+    renderPage();
+    const bar = document.querySelector('.filter-bar.list-filter-bar');
+    expect(bar).not.toBeNull();
+
+    const search = screen.getByLabelText('Tìm lái xe trong bảng lương');
+    expect(bar!.contains(search)).toBe(true);
+    expect(search.getAttribute('name')).toBe('salaryDriverSearch');
+    expect(search.getAttribute('placeholder')).toBe('Tìm lái xe...');
+
+    expect(bar!.contains(screen.getByRole('button', { name: 'Tháng trước' }))).toBe(true);
+    expect(bar!.contains(screen.getByRole('button', { name: 'Tháng sau' }))).toBe(true);
+    expect(bar!.contains(screen.getByText('Tháng 7'))).toBe(true);
+
+    fireEvent.change(search, { target: { value: 'Nguyen' } });
+    expect((search as HTMLInputElement).value).toBe('Nguyen');
+  });
+
 });

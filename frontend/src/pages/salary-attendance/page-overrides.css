@@ -3,12 +3,6 @@
  * BEM-style classes replacing style={{…}} objects in the TSX.
  * ========================================================================== */
 
-/* ── Search input wrapper ─────────────────────────────────────────────── */
-.salary-attendance__search-input {
-  width: 100%;
-  max-width: 340px;
-}
-
 /* ── Icon spacer (Wallet icon in hero actions) ────────────────────────── */
 .salary-attendance__icon-spacer {
   margin-right: 6px;
