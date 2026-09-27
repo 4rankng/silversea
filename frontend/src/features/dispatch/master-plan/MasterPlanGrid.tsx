@@ -81,7 +81,9 @@ function formatWeight(kg: number | null): string {
  * an older backend that still used `*` or `×` during a rolling deployment.
  */
 function formatContainerSummaryLines(summary: string | null): string[] {
-  if (!summary) return ['—'];
+  // Missing cargo demand names the missing fact instead of a bare '—'
+  // (design §1: empty values name the field).
+  if (!summary) return ['Chưa có cont'];
 
   return summary
     .split(/\s*\+\s*/)
@@ -155,14 +157,15 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
   if (containerPortGroups.length === 0) {
     if (allGroups.length === 0) {
       return [
-        { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
-        { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+        { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
+        { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
       ];
     }
-    // Date filter active but no conts on that day — render placeholders
+    // Date filter active but no conts on that day — same named placeholder,
+    // never a bare '—' (design §1).
     return [
-      { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+      { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
     ];
   }
 

@@ -508,7 +508,9 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('detailed-plan-filters__secondary-row');
     expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;');
     expect(css).toContain('.detailed-plan-grid__cell::before');
-    expect(css).toContain('content: attr(data-label)');
+    // The record bands print the SHORT label name; the desktop table pins
+    // headers instead (2026-09-27 record rework).
+    expect(css).toContain('content: attr(data-label-short)');
   });
 
   it('condenses phone records into a two-column decision layout without shrinking the dispatch target', () => {
@@ -529,7 +531,9 @@ describe('DetailedPlanGrid', () => {
     // The two values that need the whole record width stack full-row.
     expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--documents\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
+    // The direction chip is un-blocked in the tablet record band (phones are a
+    // subset), so it rides the route line at every card width.
+    expect(css).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
     // SCHEDULE-LAYOUT-09: match td.cell specificity so the empty notes tail
     // actually beats the responsive display:block declaration.
     expect(css).toContain('td.detailed-plan-grid__cell--blank {\n    display: none;\n  }');

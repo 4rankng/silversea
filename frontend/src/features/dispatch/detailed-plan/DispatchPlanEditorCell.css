@@ -482,7 +482,7 @@
    now print a sentence-case label, so its own label stops shouting in caps —
    one label voice across the whole card. It stays its own grid row (the
    trigger is the button surface; the label must not steal its tap area). */
-@container (max-width: 640px) {
+@container (max-width: 900px) {
   .dispatch-assignment-cell__trigger::before {
     margin-bottom: 2px;
     font-weight: 600;

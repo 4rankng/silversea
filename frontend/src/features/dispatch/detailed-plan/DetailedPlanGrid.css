@@ -773,12 +773,12 @@
     display: inline;
     margin: 0 6px 0 0;
     color: var(--text-secondary, #64748b);
-    content: attr(data-label);
+    content: attr(data-label-short);
     font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    letter-spacing: 0;
     line-height: 1.6;
-    text-transform: uppercase;
+    text-transform: none;
   }
 
   .detailed-plan-grid__cell .detailed-plan-grid__line {
@@ -793,6 +793,39 @@
     margin-right: 10px;
     color: var(--text-tertiary, #98a2b3);
     content: '·';
+  }
+
+  /* The schedule cell stacks time over direction inside `.ops-schedule` (the
+     shared ops-table flex column). Inlined, the schedule reads as ONE record
+     line — "Giờ 08:00 07/09/2026 trả hàng" — instead of three stacked ones. */
+  .detailed-plan-grid__cell--schedule .ops-schedule {
+    display: inline;
+  }
+
+  .detailed-plan-grid__cell--schedule .ops-schedule > * + * {
+    margin-left: 6px;
+  }
+
+  /* Cargo codes are single tokens ("20'HC", "EMCU6163403"): they move as a
+     unit to the next line instead of breaking mid-token. */
+  .detailed-plan-grid__cell--container .detailed-plan-grid__line {
+    overflow-wrap: normal;
+  }
+
+  /* The direction chip used to own a second line under the route value, with
+     the record separator stranded at the end of the first. Inline — and the
+     badge itself un-blocked from its `size-max flex` default — the route cell
+     reads "Tuyến Hải Phòng · [Nhập]" on one line, which is what sets this
+     row's height. */
+  .detailed-plan-grid__documents-direction {
+    display: inline;
+    align-self: start;
+    justify-self: start;
+  }
+
+  .detailed-plan-grid__documents-direction > span {
+    display: inline-flex;
+    vertical-align: middle;
   }
 
   /* The dispatch decision cell keeps its editor layout — never inline it. */
@@ -815,8 +848,7 @@
   .detailed-plan-grid__cell--container { grid-row: 2; }
   .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
   .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
-  .detailed-plan-grid__cell--editable { grid-row: 4; }
-  .detailed-plan-grid__cell--notes { grid-row: 5; }
+  /* (row/column of the two interactive cells: see the paired rule below) */
 
   .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
   .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--border-color, #eef2f7); }
@@ -825,10 +857,22 @@
   .detailed-plan-grid__cell--ports + .detailed-plan-grid__cell--ports { padding-left: 0; }
   .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--border-color, #eef2f7); }
 
-  /* The interactive dispatch decision and the notes stay full-width. */
-  .detailed-plan-grid__cell--editable,
+  /* The two interactive blocks PAIR at tablet instead of each owning a
+     full-width row: at 768px a 742px row holding 30%-wide content (the
+     dispatch trigger, the note preview) reads as a hole in the middle of the
+     card. Paired, both columns close and the card ends on a straight edge.
+     The phone band below re-spans them — there a half column is too narrow
+     for the trigger. */
+  .detailed-plan-grid__cell--editable {
+    grid-row: 4;
+    grid-column: 1;
+    border-top: 0;
+    border-right: 1px solid var(--border-color, #eef2f7);
+  }
+
   .detailed-plan-grid__cell--notes {
-    grid-column: 1 / -1;
+    grid-row: 4;
+    grid-column: 2;
     border-top: 0;
   }
 
@@ -907,48 +951,12 @@
     content: '·';
   }
 
-  /* The schedule cell stacks time over direction inside `.ops-schedule`
-     (shared ops-table flex column). Inlining it lets the schedule read as
-     one record line — "Giờ 08:00 07/09/2026 trả hàng" — instead of three. */
-  .detailed-plan-grid__cell--schedule .ops-schedule {
-    display: inline;
-  }
-
-  /* The inlined flex-column drops its own gap; the time and the direction
-     word keep one word-gap so "07/09/2026" and "trả hàng" never fuse. */
-  .detailed-plan-grid__cell--schedule .ops-schedule > * + * {
-    margin-left: 6px;
-  }
-
-  /* Cargo codes are single tokens ("20'HC", "EMCU6163403"): they move as a
-     unit to the next line instead of breaking mid-token. */
-  .detailed-plan-grid__cell--container .detailed-plan-grid__line {
-    overflow-wrap: normal;
-  }
-
   /* A missing field no longer drags its '—' through the middle of a record
      line ("Khách LONG MINH · — · Bill: …"). The phone record drops the
      placeholder slot exactly the way it already drops an empty Nâng/Trả pair
      (card 20260926_5); the desktop table still prints it in its own column. */
   .detailed-plan-grid__line[data-empty='true'] {
     display: none;
-  }
-
-  /* The direction chip used to own a second line under the route value, with
-     the separator left stranded at the end of the first. Inline, the route
-     cell reads "Tuyến Hải Phòng · [Nhập]" on one record line. */
-  .detailed-plan-grid__documents-direction {
-    display: inline;
-    align-self: start;
-    justify-self: start;
-  }
-
-  /* The direction chip is a block-level flex badge (`size-max flex`), so it
-     always dropped to its own line and stranded the record separator above
-     it. Inline on the record line instead. */
-  .detailed-plan-grid__documents-direction > span {
-    display: inline-flex;
-    vertical-align: middle;
   }
 
   .detailed-plan-grid__cell--schedule,

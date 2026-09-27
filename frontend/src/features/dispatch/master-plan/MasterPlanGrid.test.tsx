@@ -179,7 +179,8 @@ describe('MasterPlanGrid', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Cảng nâng' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Cảng hạ' })).toBeTruthy();
-    expect(screen.getAllByText('—')).toHaveLength(2);
+    // Missing cargo/port data names the fact (§1) instead of printing '—'.
+    expect(screen.getAllByText('Chưa có cont').length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('Địa điểm nâng cũ theo lô')).toBeNull();
     expect(screen.queryByText('Địa điểm hạ cũ theo lô')).toBeNull();
   });
@@ -589,12 +590,12 @@ describe('MasterPlanGrid', () => {
     expect(record).toContain('"cargo allocation"');
     expect(record).toContain('"notes notes"');
     expect(record).toContain('overflow-wrap: anywhere');
-    // 2026-09-27 phone rework: the label rides the value line, so the cell
-    // inset drops from 8px to 6px and the placeholder '—' lines collapse.
-    const phone = css.slice(phoneStart);
-    expect(phone).toContain('padding: 6px 10px');
-    expect(phone).toContain("content: attr(data-label-short)");
-    expect(phone).toContain(".master-plan-grid__line[data-empty='true']");
+    // 2026-09-27 record rework: the SHORT label rides the value line across the
+    // whole record range (tablet band), and the phone band only tightens the
+    // inset. Placeholder lines collapse rather than printing a bare '—'.
+    expect(record).toContain('content: attr(data-label-short)');
+    expect(record).toContain(".master-plan-grid__line[data-empty='true']");
+    expect(css.slice(phoneStart)).toContain('padding: 6px 10px');
   });
 
   // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell

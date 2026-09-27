@@ -951,15 +951,15 @@
   .master-plan-grid__cell[data-label="Ghi chú"] { grid-area: notes; }
 
   .master-plan-grid__cell::before {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--fg-3);
-    content: attr(data-label);
+    display: inline;
+    margin: 0 6px 0 0;
+    color: var(--fg-2);
+    content: attr(data-label-short);
     font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    line-height: 1.3;
-    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.6;
+    text-transform: none;
   }
 
   .master-plan-grid__line {
@@ -1000,6 +1000,8 @@
     min-height: 44px;
   }
 
+  /* (this rule's sentence-case override for the phone/tablet record lives at
+     the end of this band — see the 2026-09-27 record-line block) */
   .master-plan-grid__allocation-label {
     display: block;
     margin-bottom: 4px;
@@ -1009,34 +1011,6 @@
     letter-spacing: 0.04em;
     line-height: 1.3;
     text-transform: uppercase;
-  }
-}
-
-/* Phone retains the semantic pairs while reducing the inherited cell inset. */
-@container (max-width: 599px) {
-  .master-plan-grid__cell { padding: 6px 10px; }
-  .master-plan-grid__cell--action { padding: 0; }
-  .master-plan-grid__allocation-trigger { padding: 6px 10px; }
-}
-
-/* ══ 2026-09-27 phone rework — the same record line as /dispatch-detail ══
-   The 390px card printed up to eight uppercase label rows of its own (label
-   line + value line per cell), which is what made one lô 370px tall on a
-   phone. The label now rides the record line it names: sentence-case SHORT
-   name (`data-label-short`), house 11px support size, values separated by
-   the exported `·`. Because most lô values are a single token ("—", a port
-   name, a route), the card drops to roughly one line per field group. */
-@container (max-width: 599px) {
-  .master-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
-    color: var(--fg-2);
-    content: attr(data-label-short);
-    font-size: var(--text-label-size);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.5;
-    text-transform: none;
   }
 
   /* Value runs ride the record line: the plain line stack, the schedule
@@ -1110,6 +1084,13 @@
     letter-spacing: 0;
     text-transform: none;
   }
+}
+
+/* Phone retains the semantic pairs while reducing the inherited cell inset. */
+@container (max-width: 599px) {
+  .master-plan-grid__cell { padding: 6px 10px; }
+  .master-plan-grid__cell--action { padding: 0; }
+  .master-plan-grid__allocation-trigger { padding: 6px 10px; }
 }
 
 /* Shared Table.css paints every hovered td green. Suppress that passive wash
