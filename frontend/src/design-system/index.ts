@@ -39,7 +39,7 @@ export { UuiSelectField } from './forms/UuiSelectField';
 export type { UuiSelectFieldProps } from './forms/UuiSelectField';
 export { SearchableSelect } from './forms/SearchableSelect';
 export type { SearchableSelectOption, SearchableSelectProps } from './forms/SearchableSelect';
-export { DateRangeFields, DateRangePresets } from './forms/DateRangeFields';
+export { DateRangeFields, DateRangePresetSelect, DateRangePresets } from './forms/DateRangeFields';
 export type { DateRangeValue, DateRangePreset, DateRangeFieldsProps, DateRangePresetsProps } from './forms/DateRangeFields';
 export { InlineLabelSelect } from './forms/InlineLabelSelect';
 export type { InlineLabelSelectItem } from './forms/InlineLabelSelect';

@@ -20,7 +20,7 @@ import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangeFields, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
+import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
@@ -373,6 +373,7 @@ export default function ShipmentsPage() {
   const secondaryCount = (direction ? 1 : 0) + (adHoc ? 1 : 0) + (selectedBuckets.length ? 1 : 0);
   const resetSecondary = () => { updateParam('direction', null); updateParam('adHoc', null); updateBuckets([]); };
   const presetNode = <DateRangePresets className="shipments-control__date-presets" presets={LOT_DATE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh" />;
+  const presetDialogNode = <DateRangePresetSelect presets={LOT_DATE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh" />;
   const exportWorksheet = async () => {
     setExporting(true);
     ws.setError(null);
@@ -509,7 +510,7 @@ export default function ShipmentsPage() {
             ariaLabel="Khoảng ngày giao"
             from={dateFrom} to={dateTo} onChange={applyDateRange}
           />
-          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" presets={presetNode} onReset={resetSecondary}>
+          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" presets={presetDialogNode} onReset={resetSecondary}>
             <InlineLabelSelect
               className="shipments-control__chip"
               id="lot-direction-filter"

@@ -94,8 +94,10 @@
 .filter-dropdown__popover {
   position: fixed;
   z-index: var(--z-popover, 400);
-  width: 320px;
-  max-width: calc(100vw - 24px);
+  /* Wide enough for the whole criterion set on two rows (operator 2026-09-27:
+     "we can increse width of dialog so that all filters and buttons fit 2 rows,
+     instead of 3") — the panel is the dialog's own measure, never the bar's. */
+  width: min(520px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   display: flex;
   flex-direction: column;
@@ -165,26 +167,13 @@
   min-width: 149px;
 }
 
-/* Folded quick ranges: they own a line of their own inside the dialog (four
-   chips never share a 290px inner width with a criterion) and wrap rather than
-   overflow it. */
+/* Folded quick ranges: the dropdown form (one content-sized control) rides the
+   dialog line like any other criterion, so nothing has to wrap. */
 .filter-dropdown__presets {
   display: flex;
-  flex: 1 1 100%;
+  flex: 0 0 auto;
+  align-items: center;
   min-width: 0;
-}
-
-.filter-dropdown__presets .ds-tabs,
-.filter-dropdown__presets .ds-tabs--boxed {
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  min-width: 0;
-  padding: 0;
-}
-
-.filter-dropdown__presets .ds-tabs__btn {
-  height: var(--filter-control-h);
-  min-height: var(--filter-control-h);
 }
 
 /* The actions ride the last criteria line, right-aligned: `margin-left: auto`

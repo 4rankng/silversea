@@ -1,5 +1,6 @@
 import { Tabs, type TabItem } from '../Tabs';
 import { BufferedUuiDateInput } from './BufferedUuiDateInput';
+import { InlineLabelSelect } from './InlineLabelSelect';
 import './DateRangeFields.css';
 
 /**
@@ -126,6 +127,35 @@ export function DateRangePresets({ presets, value, onChange, ariaLabel, classNam
         const preset = presets.find((candidate) => candidate.id === id);
         if (preset) onChange(preset.range());
       }}
+    />
+  );
+}
+
+/**
+ * The same quick ranges as a DROPDOWN — the form used inside the `Bộ lọc`
+ * dialog, where the segmented group would wrap onto two lines of its own and
+ * push the dialog past its row budget (operator 2026-09-27: "please use
+ * dropdown here instead of [the wrapped chips]"). One implementation of the
+ * ranges per container: `DateRangePresets` in the bar (visible chips — the
+ * operator ruled they stay visible there) and this select in the dialog.
+ */
+export function DateRangePresetSelect({ presets, value, onChange, ariaLabel, className }: DateRangePresetsProps) {
+  const active = presets.find((preset) => {
+    const range = preset.range();
+    return range.from === value.from && range.to === value.to;
+  })?.id ?? '';
+  return (
+    <InlineLabelSelect
+      className={className}
+      id="date-range-preset"
+      label="Ngày"
+      items={[...presets.map((preset) => ({ id: preset.id, label: preset.label })), { id: '', label: 'Tất cả' }]}
+      selectedKey={active}
+      onSelectionChange={(id) => {
+        const preset = presets.find((candidate) => candidate.id === id);
+        onChange(preset ? preset.range() : { from: '', to: '' });
+      }}
+      ariaLabel={ariaLabel}
     />
   );
 }
