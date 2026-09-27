@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { api } from '../../lib/api/client';
 import { fetchAllPaginated } from '../../lib/http/paginate';
 import type { Truck } from '@tingting/shared';

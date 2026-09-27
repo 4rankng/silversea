@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
+import { qk } from '../../api/keys';
 import { businessDateISO } from '../../lib/format';
 import { driverExpenseOption, driverExpenseOptions } from './driver-expense-options';
 
@@ -14,7 +15,7 @@ const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', payerKind: 'USER
 type Entry = Awaited<ReturnType<typeof driverClient.listIncidentalCosts>>[number];
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
-  const norms = useQuery({ queryKey: ['driver', 'fee-norms'], queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
+  const norms = useQuery({ queryKey: qk.driverFeeNorms, queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
   const options = driverExpenseOptions(norms.data?.items ?? []);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);

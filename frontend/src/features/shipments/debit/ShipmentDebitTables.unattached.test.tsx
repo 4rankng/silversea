@@ -1,6 +1,6 @@
 // Card 20260924_3 — the display-only unattached-trips section. Pins: hidden
 // at empty, verbatim fee rendering, totals untouched, chốt semantics visible.
-import { render, screen, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 

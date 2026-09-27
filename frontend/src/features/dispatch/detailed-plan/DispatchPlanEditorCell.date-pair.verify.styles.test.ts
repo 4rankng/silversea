@@ -12,7 +12,6 @@ import { describe, expect, it } from 'vitest';
  */
 
 const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
-const source = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx'), 'utf8');
 
 describe('DispatchPlanEditorCell pair regression guard (card 20260925_6 verify)', () => {
   it('the time pair is a 2-col grid container, not two independent flex items', () => {

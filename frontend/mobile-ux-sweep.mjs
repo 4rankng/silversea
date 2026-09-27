@@ -105,7 +105,7 @@ const auditPage = () => {
     const offenders = [...doc.querySelectorAll('body *')]
       .filter(shown)
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
-      .filter(({ r }) => r.right > vw + 1 && !inScroller({ parentElement: el.parentElement }))
+      .filter(({ el, r }) => r.right > vw + 1 && !inScroller({ parentElement: el.parentElement }))
       .sort((a, b) => b.r.right - a.r.right)
       .slice(0, 6);
     samples.hscroll = offenders.map(({ el, r }) => ({ sel: path(el), detail: `right=${Math.round(r.right)} vw=${vw}` }));

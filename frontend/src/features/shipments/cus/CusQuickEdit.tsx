@@ -1,10 +1,17 @@
 import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { TimeInput } from '../../../design-system/forms/TimeInput';
 import { BufferedUuiDateInput, UuiSelectField } from '../../../design-system';
 import { vehicleReadinessLabel, type QuickEditDeclarationRow, type ShipmentQuickEditDraft } from './cusUtils';
+
+const DECLARATION_CHANNEL_OPTIONS: Array<{ value: QuickEditDeclarationRow['declarationChannel']; label: string }> = [
+  { value: '', label: '— Chưa có —' },
+  { value: 'RED', label: 'Luồng đỏ' },
+  { value: 'YELLOW', label: 'Luồng vàng' },
+  { value: 'GREEN', label: 'Luồng xanh' },
+];
 
 export function ShipmentQuickEditFields({
   draft,
@@ -50,14 +57,15 @@ export function ShipmentQuickEditFields({
               <label className="cus-quick-edit-modal__declaration-number"><span>Số tờ khai</span>
                 <input value={row.declarationNumber} onChange={(event) => updateDeclarationRow(index, { declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} />
               </label>
-              <label className="cus-quick-edit-modal__declaration-channel"><span>Luồng hải quan</span>
-                <select value={row.declarationChannel} onChange={(event) => updateDeclarationRow(index, { declarationChannel: event.target.value as QuickEditDeclarationRow['declarationChannel'] })} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason}>
-                  <option value="">— Chưa có —</option>
-                  <option value="RED">Luồng đỏ</option>
-                  <option value="YELLOW">Luồng vàng</option>
-                  <option value="GREEN">Luồng xanh</option>
-                </select>
-              </label>
+              <div className="cus-quick-edit-modal__declaration-channel" title={item.fieldAccess.declarationNumber.reason}>
+                <UuiSelectField
+                  label="Luồng hải quan"
+                  value={row.declarationChannel}
+                  onChange={(event) => updateDeclarationRow(index, { declarationChannel: event.target.value as QuickEditDeclarationRow['declarationChannel'] })}
+                  disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'}
+                  options={DECLARATION_CHANNEL_OPTIONS}
+                />
+              </div>
               <button type="button" className="btn btn--secondary btn--sm cus-quick-edit-modal__declaration-remove" onClick={() => removeDeclarationRow(index)} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} aria-label={`Xóa tờ khai ${row.declarationNumber.trim() || 'trống'}`}>
                 <X size={14} aria-hidden="true" />
                 <span className="sr-only">Xóa tờ khai</span>

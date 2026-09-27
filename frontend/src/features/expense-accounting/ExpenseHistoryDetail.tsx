@@ -2,12 +2,13 @@ import { useQueries } from '@tanstack/react-query';
 import type { ExpenseReconciliation, ExpenseSourceRef, ExpenseVoucher } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { qk } from '../../api/keys';
 import { formatDate } from '../../lib/format';
 import { expenseMoney } from './expense-accounting-model';
 
 function SourceRows({ sources }: { sources: Array<ExpenseSourceRef & { amount?: number }> }) {
   const queries = useQueries({ queries: sources.map(source => ({
-    queryKey: ['expense-accounting', 'entry', source.sourceKind, source.sourceId],
+    queryKey: qk.expenseAccounting.entry(source.sourceKind, source.sourceId),
     queryFn: () => expenseAccountingClient.get(source),
   })) });
   return <div className="expense-accounting-history">{sources.map((source, index) => {

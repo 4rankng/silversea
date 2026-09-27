@@ -214,7 +214,7 @@ export default function SupplierListPage() {
   // Card 20260926_58 (CHIEF): status pills count the WHOLE dataset, never
   // the loaded pagination chunk ('TRANG NÀY' anti-pattern).
   const statusCountsQuery = useQuery({
-    queryKey: ['suppliers', 'status-counts'],
+    queryKey: qk.suppliersStatusCounts,
     queryFn: () => api.get<{ all: number; active: number; inactive: number; vehicles: Record<string, number> }>('/suppliers/status-counts'),
   });
   const vehicleCounts = statusCountsQuery.data?.vehicles ?? {};

@@ -259,7 +259,7 @@ describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
     fireEvent.change(screen.getByLabelText('Số tiền mặc định Lưu ca xe'), { target: { value: '1000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu danh mục' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
-    const [path, body] = apiPut.mock.calls[0];
+    const [, body] = apiPut.mock.calls[0];
     expect(body.fees[0]).toEqual({ feeName: 'Lưu ca xe', subType: null, defaultAmount: 1000000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 });
   });
 });

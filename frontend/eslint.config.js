@@ -276,6 +276,24 @@ export default defineConfig([
     },
   },
 
+  // Browser harnesses (`frontend/**/*.mjs` — the Playwright/Puppeteer sweeps
+  // and probes at the root and under scripts/ + design-lock/): they run in Node
+  // but execute callbacks INSIDE the page
+  // via `page.evaluate`/`$$eval`, where `document`, `window`, `getComputedStyle`
+  // are the page's globals. Both sets are intentional, exactly like the
+  // `qa/scripts/*.cjs` probes below; without this block every probe callback
+  // reported a false `no-undef`.
+  {
+    files: ['**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+  },
+
   // Standalone QA probes run in Node but execute callbacks in the browser via
   // Puppeteer, so both sets of globals are intentional.
   {

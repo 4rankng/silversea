@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { MasterPlanGrid } from './MasterPlanGrid';

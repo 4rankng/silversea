@@ -229,7 +229,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
   // when it is truthful (a row is actually checked).
   it('phiếu toolbar zero state instructs instead of showing a false "(0 dòng)" (case QA-2026-09-24-01)', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0101');
+    expect(await findRow('ST-2609-0101')).toBeTruthy();
     await screen.findByText('ST-2609-0102');
     const button = screen.getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).not.toContain('(0 dòng)');

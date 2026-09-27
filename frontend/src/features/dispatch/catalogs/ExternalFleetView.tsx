@@ -25,6 +25,7 @@ import {
   updateCarrierFleetVehicle,
 } from '../../../api/dispatchPlanningClient';
 import { listAllExternalFleet } from '../../../api/externalFleetClient';
+import { qk } from '../../../api/keys';
 import { CatalogTableShell } from './CatalogTableShell';
 import './catalogs.css';
 
@@ -36,15 +37,6 @@ type CatalogRow = {
   carrierName: string;
   carrierStatus: string;
   updatedAt: string;
-};
-
-type LinkedTruckRow = {
-  id: number;
-  licensePlate: string;
-  status: string;
-  carrierId: number;
-  carrierName: string;
-  tombstonedAt: string | null;
 };
 
 /**
@@ -65,16 +57,16 @@ export function ExternalFleetView() {
   const [formError, setFormError] = useState('');
 
   const fleet = useQuery({
-    queryKey: ['external-fleet-union'],
+    queryKey: qk.externalFleet.union,
     queryFn: listAllExternalFleet,
   });
 
   const carriers = useQuery({
-    queryKey: ['external-carrier-options'],
+    queryKey: qk.externalFleet.carrierOptions,
     queryFn: () => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }),
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['external-fleet-union'] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: qk.externalFleet.union });
 
   const register = useMutation({
     mutationFn: () => createCarrierFleetVehicle({

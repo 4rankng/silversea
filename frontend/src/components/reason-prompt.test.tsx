@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { REASON_MAX_LENGTH, ReasonPromptDialog, useReasonPrompt } from './reason-prompt';
+import { REASON_MAX_LENGTH, ReasonPromptDialog } from './reason-prompt';
 
 function Probe({ onReason }: { onReason: (value: string | null) => void }) {
   const [isOpen, setOpen] = useState(true);

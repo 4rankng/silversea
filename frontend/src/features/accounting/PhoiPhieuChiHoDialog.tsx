@@ -32,7 +32,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
   const [ngayLayPhoi, setNgayLayPhoi] = useState<string | null>(null);
-  const [trangThaiLay, setTrangThaiLay] = useState<string | null>(null);
+  const [trangThaiLay] = useState<string | null>(null);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
   const { confirm, dialog } = useConfirm();
 

@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react'; // useEffect remains for the form modal's reset-on-open
+import { useState, useEffect, useMemo, useRef } from 'react'; // useEffect remains for the form modal's reset-on-open
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Search,
-  MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
+  Pencil, Trash2, X, Save, Loader2, Truck,
   Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -14,7 +14,6 @@ import { StatusPill, Modal, Drawer, ModalChip, ModalChipLive, useConfirm } from 
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
-import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, Tabs, useTableQueryState } from '../design-system';
 import { useToast } from '../components/shared/Toast';
@@ -28,7 +27,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
-import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
+import { StatusStrip } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -40,11 +39,6 @@ type CustomerTableFilters = {
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
 };
-
-/** Numeric header cells right-align to match the .num body cells. Every other
- * header property (padding, background, case, tracking, sticky pinning) is the
- * shared record-table base. */
-const thNumStyle: CSSProperties = { textAlign: 'right' };
 
 type FilterKey = 'all' | 'locked' | 'active' | 'risk';
 
@@ -774,7 +768,7 @@ export default function CustomersPage() {
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
-              {filtered.map((c, index) => (
+              {filtered.map((c) => (
                   <tr key={c.id} role="button" tabIndex={0}
                     style={{ cursor: 'pointer' }}
                     onClick={() => openCustomerDrawer(c.id)}

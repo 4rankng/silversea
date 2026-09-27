@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
-import { animate, utils, spring, type JSAnimation } from 'animejs';
+import { animate, utils, type JSAnimation } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 export { PageHeader } from './PageHeader';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
@@ -11,7 +11,6 @@ import { Tooltip } from './shared/Tooltip';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
 import { Sparkline } from '../design-system/Sparkline';
 import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitled-ui/base/buttons/button';
-import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/base/badges/badges';
 import { Label as UILabel } from './untitled-ui/base/input/label';
 import { HintText as UIHintText } from './untitled-ui/base/input/hint-text';
 
@@ -387,16 +386,6 @@ export function Badge({ variant = 'neutral', children, className = '', style }: 
     </StatusText>
   );
 }
-
-/** Legacy badge variant → UUI badge color ("outline" and "neutral" both read as gray). */
-const BADGE_COLOR_MAP: Record<NonNullable<BadgeProps['variant']>, 'success' | 'warning' | 'error' | 'gray'> = {
-  success: 'success',
-  warning: 'warning',
-  danger: 'error',
-  info: 'gray',
-  outline: 'gray',
-  neutral: 'gray',
-};
 
 /* ─── Form group ────────────────────────────────────────────────────────── */
 

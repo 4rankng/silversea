@@ -1,5 +1,6 @@
 import { expenseQueryKeys } from './expenseQueryKeys';
 import { shipmentDebitQueryKeys } from './shipmentDebitQueryKeys';
+import { pageQueryKeys } from './pageQueryKeys';
 
 /**
  * Centralized TanStack Query key factory.
@@ -29,6 +30,7 @@ import { shipmentDebitQueryKeys } from './shipmentDebitQueryKeys';
 export const qk = {
   ...expenseQueryKeys,
   ...shipmentDebitQueryKeys,
+  ...pageQueryKeys,
   support: {
     serverBuild: ['support', 'server-build'] as const,
   },

@@ -9,6 +9,7 @@ import {
 import { Loader2, Save, Trash2 } from 'lucide-react';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { UuiSelectField } from '../../design-system';
 import { usePageAnimations } from '../../hooks/animations';
 
 interface ForwarderExpenseType {
@@ -142,18 +143,16 @@ function ExpenseTypeForm({
         </div>
       </div>
 
-      <Field label="Nhóm chi phí (quyết toán)">
-        <select
-          className="input"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        >
-          <option value="">— Chưa phân nhóm —</option>
-          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </Field>
+      <UuiSelectField
+        label="Nhóm chi phí (quyết toán)"
+        size="md"
+        value={category}
+        onChange={(event) => setCategory(event.target.value)}
+        options={[
+          { value: '', label: '— Chưa phân nhóm —' },
+          ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
+        ]}
+      />
 
       <Field label="Nhãn trên giấy báo nợ">
         <input

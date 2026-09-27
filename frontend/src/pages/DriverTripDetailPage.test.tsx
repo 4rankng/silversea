@@ -756,7 +756,7 @@ describe('DriverTripDetailPage', () => {
     await screen.findByText(/Số cont & seal/);
     // Trip IN_TRANSIT, 0/2 POD files → the bar shows the missing count and
     // the completion action navigates to the e-POD screen.
-    const bar = screen.getByTestId('complete-sticky-bar');
+    expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
     expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Còn thiếu 2 chứng từ');
     const btn = screen.getByRole('button', { name: /Hoàn thành/ });
     expect(btn).toBeEnabled();

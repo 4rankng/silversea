@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { Dot } from "@/components/untitled-ui/foundations/dot-icon";
 import { cx } from "@/utils/cx";
-import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, IconComponentType, Sizes } from "./badge-types";
+import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, Sizes } from "./badge-types";
 import { badgeTypes } from "./badge-types";
 
 export const filledColors: Record<BadgeColors, { root: string; addon: string; addonButton: string }> = {

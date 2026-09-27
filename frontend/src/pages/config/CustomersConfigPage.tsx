@@ -4,7 +4,7 @@ import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';

@@ -80,15 +80,6 @@ function categoryDotClass(c: string): string {
   return 'audit-dot--create';
 }
 
-function categoryIcon(c: string) {
-  if (c === 'trip') return <Truck size={13} />;
-  if (c === 'config') return <Settings size={13} />;
-  if (c === 'finance') return <DollarSign size={13} />;
-  if (c === 'auth') return <LogIn size={13} />;
-  if (c === 'penalty') return <Activity size={13} />;
-  return <FileText size={13} />;
-}
-
 // ─── Component ──────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
@@ -370,7 +361,6 @@ fontSize: 'var(--text-data-size)',
       {/* ── Filter Bar ── */}
       <div data-tour-id="audit-filters" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {CATEGORIES.map(cat => {
-          const Icon = cat.icon;
           const isActive = filter === cat.key;
           return (
             <button

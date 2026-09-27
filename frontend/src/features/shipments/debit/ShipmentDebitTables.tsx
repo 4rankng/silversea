@@ -12,10 +12,10 @@
 // Customer charges and actual OPS costs remain separate on their own wires.
 import { AlertTriangle } from 'lucide-react';
 import { defaultFeeRouting } from '@tingting/shared';
-import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
+import type { ShipmentDebitDetail } from '../../../api/shipmentDebit';
 import type { QuotationFeeRow } from '../../../api/quotationClient';
 import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './ShipmentDebitTables.routing';
-import { buildDraft, num, type DraftState } from './ShipmentDebitTables.draft';
+import { num, type DraftState } from './ShipmentDebitTables.draft';
 import { formatMoney } from '../../../lib/format';
 
 export { DRAFT_EMPTY, buildDraft, deltaIsEmpty, buildDelta, type DraftState } from './ShipmentDebitTables.draft';

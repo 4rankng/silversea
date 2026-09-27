@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { qk } from '../../api/keys';
 import { ExpenseProofs } from '../expense-accounting/ExpenseProofs';
 import { useRef, useState } from 'react';
 import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
@@ -57,7 +58,7 @@ export function OpsExpenseHistory() {
   const { toast } = useToast();
   const deleteLock = useRef(false);
   const [deleting, setDeleting] = useState(false);
-  const { confirm, dialog } = useConfirm();
+  const { dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
@@ -186,7 +187,7 @@ export function OpsExpenseHistory() {
 }
 
 function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose: () => void }) {
-  const query = useQuery({ queryKey: ['ops-legacy-expense', row.sourceId], queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
+  const query = useQuery({ queryKey: qk.opsLegacyExpense(row.sourceId), queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
   return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
     <p>{row.shipmentCode} · {row.feeName ?? row.expenseTypeName}</p>
     <p>Thực chi: <strong>{formatVnd(row.amount)} ₫</strong></p>

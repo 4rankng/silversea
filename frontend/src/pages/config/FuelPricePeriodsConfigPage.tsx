@@ -10,6 +10,7 @@ import { CONFIG, Role } from '@tingting/shared';
 import { useAuth } from '../../hooks/useAuth';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
+import { qk } from '../../api/keys';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { formatDate } from '../../lib/format';
 
@@ -21,7 +22,7 @@ function QuotationFuelApprovalAlert() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const pendingQuery = useQuery({
-    queryKey: ['quotation-fuel-approvals', 'PENDING'],
+    queryKey: qk.quotationFuelApprovals.pending,
     queryFn: () => quotationClient.listFuelApprovals('PENDING'),
   });
   const decide = useMutation({
@@ -29,7 +30,7 @@ function QuotationFuelApprovalAlert() {
       quotationClient.decideFuelApprovals(input.ids, input.decision),
     onSuccess: async () => {
       setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ['quotation-fuel-approvals'] });
+      await queryClient.invalidateQueries({ queryKey: qk.quotationFuelApprovals.all });
     },
   });
 

@@ -743,7 +743,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
 describe('card 20260922_32 — topbar month scope actually filters', () => {
   it('initial mount seeds the inclusive month range into the query', async () => {
     monthState.month = 9; monthState.year = 2026;
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    renderHook(() => useDispatchDetailPlan());
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
     expect(call.dateFrom).toBe('2026-09-01');
@@ -753,7 +753,7 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
 
   it('switching the topbar month rewrites the range and re-queries', async () => {
     monthState.month = 9; monthState.year = 2026;
-    const { result, rerender } = renderHook(() => useDispatchDetailPlan());
+    const { rerender } = renderHook(() => useDispatchDetailPlan());
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     const callsBefore = listDispatchDetailPlanRowsMock.mock.calls.length;
     monthState.month = 8;

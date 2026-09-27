@@ -61,7 +61,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 602 -> 604: 2026-09-23 card 20260923_5 — the silent-409 toast fix
   // (d9e7e2ee) maps the remove-container rejection to a typed error branch in
   // the query keys module. Split candidate unchanged.
-  'src/api/keys.ts': 604,
+  // Bumped 604 -> 606: 2026-09-27 lint sweep (@tingting/no-bare-query-key) —
+  // the last inline page keys move into the composed ./pageQueryKeys domain
+  // (one import + one spread are the only lines keys.ts grows). Split
+  // candidate unchanged: further domains should keep landing there.
+  'src/api/keys.ts': 606,
   // Added as baseline 460 (was new-file capped): 2026-09-22 — card 18's
   // combined-invoice tracking page landed over the ceiling without a
   // baseline; refrozen here to unblock cut #24. Split candidate.

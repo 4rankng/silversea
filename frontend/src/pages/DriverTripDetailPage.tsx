@@ -323,7 +323,7 @@ function DriverTripDetailContent() {
   // (/my-trips/:id/pod) — this page only links there. The footer still
   // surfaces the two mandatory-photo gaps so the driver knows what is missing
   // before tapping through.
-  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
+  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and

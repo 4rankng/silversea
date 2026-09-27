@@ -5,6 +5,7 @@ import { useAnimatedOverlay, type EntranceFn, type ExitFn } from '../../hooks/us
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { formatCurrency } from '../../lib/format';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import {
   type AccountingDebitBoardRow,
   type CreateSettlementRoundBody,
@@ -186,24 +187,27 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
             <BufferedUuiDateInput label="Đến ngày" value={dateTo} onChange={setDateTo} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            <label style={fieldStyle}>
-              <span style={labelStyle}>Lần</span>
-              <select className="input" value={roundNo} onChange={(e) => setRoundNo(Number(e.target.value))}>
-                {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Lần {i + 1}</option>)}
-              </select>
-            </label>
-            <label style={fieldStyle}>
-              <span style={labelStyle}>Tháng</span>
-              <select className="input" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-                {monthOptions().map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </label>
-            <label style={fieldStyle}>
-              <span style={labelStyle}>Năm</span>
-              <select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-                {yearOptions().map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </label>
+            <UuiSelectField
+              label="Lần"
+              size="md"
+              value={String(roundNo)}
+              onChange={(event) => setRoundNo(Number(event.target.value))}
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Lần ${i + 1}` }))}
+            />
+            <UuiSelectField
+              label="Tháng"
+              size="md"
+              value={String(month)}
+              onChange={(event) => setMonth(Number(event.target.value))}
+              options={monthOptions().map((o) => ({ value: String(o.value), label: o.label }))}
+            />
+            <UuiSelectField
+              label="Năm"
+              size="md"
+              value={String(year)}
+              onChange={(event) => setYear(Number(event.target.value))}
+              options={yearOptions().map((o) => ({ value: String(o.value), label: o.label }))}
+            />
           </div>
           <fieldset style={{ border: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             <legend style={labelStyle}>Chiều đối soát</legend>
