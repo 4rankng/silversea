@@ -36,7 +36,7 @@ grep -rnE 'ManagerDecisionInbox|ApprovalQueueCard|useApprovalQueue|DASHBOARD_APP
 - `testplan/qa/2026-09-10_approval-removal-chunk{4,6,7}.md` — these ARE the verification criteria for the teardown (TC-CHUNK4-A1, TC-CHUNK7-001 through TC-CHUNK7-006). Don't delete; the names appear in the assertions themselves.
 - `testplan/qa/2026-09-17_18f4a2dd-verification-checklist.md` — this IS the verification master checklist. Lines 149-153 reference `/dashboard/approval-queue`, `ApprovalQueueCard`, `ManagerDecisionInbox` as F2 rule checks.
 - `testplan/qa/artifacts/2026-09-10_approval-removal-chunk7_*` — QA run reports showing the teardown PASSED. Historical evidence.
-- `testplan/qa/artifacts/2026-09-{08,09,10}_*_frontend-test.log` — historical test logs that PASSED ManagerDecisionInbox tests **before the teardown** (those tests have since been removed). The logs themselves are archive.
+- `testplan/qa/artifacts/2026-09-{08,09,10}_*_frontend-test.log` — historical test logs that PASSED ManagerDecisionInbox tests **before the teardown** (those tests have since been removed). The logs themselves were transit: purged 2026-09-27 under the testplan evidence retention law (durable record is the Drive card docx); recoverable from git history.
 
 ### Category B — RETAINED-FLOW labels (do NOT sweep; these are alive by design)
 

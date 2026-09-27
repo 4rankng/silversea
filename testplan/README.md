@@ -10,7 +10,7 @@ Reorganized 2026-09-26 (Chief order): bloated local evidence purged; retention p
 | `testaccounts.txt` | CANONICAL test accounts for every environment. Byte-content sacred — never duplicate account data elsewhere; update this file only. |
 | `qa/cases/` | Regression case library (dated waves + `case-QA-*` family). Every bugfix lands a case here first, per the repo AGENTS.md contract. |
 | `qa/evidence/` | CURRENT-WAVE ONLY. Transit artifacts (screenshots, logs) backing open rungs. See retention policy. |
-| `qa/artifacts/` | QA run command logs (exact command + exit + output). |
+| `qa/artifacts/` | QA findings reports from closed cycles (text-only, git-tracked). Binary transit purged 2026-09-27 per the retention law — durable record is the Drive card docx; new gate logs go to repo-root `qa/`. |
 | `qa/scripts/`, `qa/lib/`, `package.json` | QA runner tooling. |
 | `flows/`, `roles/`, `matrix/`, `deploy/`, `fixtures/` | Test flows, role maps, coverage matrix, deploy test notes, fixtures. |
 | `*.md` (dated) | Historical per-wave test/verification plans (09-10 → present). Append-only record; do not delete. |
