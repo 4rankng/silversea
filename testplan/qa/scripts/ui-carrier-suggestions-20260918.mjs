@@ -3,8 +3,8 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, writeFileSync } from 'fs';
 
-const BASE = 'http://localhost:7174';
-const API = 'http://localhost:3001/api';
+const BASE = 'http://localhost:7175';
+const API = 'http://localhost:3002/api';
 
 mkdirSync('qa', { recursive: true });
 const ts = new Date().toISOString().replace(/[:.]/g, '-');

@@ -4,8 +4,8 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, writeFileSync } from 'fs';
 
-const BASE = 'http://localhost:7174';
-const API = 'http://localhost:3001/api';
+const BASE = 'http://localhost:7175';
+const API = 'http://localhost:3002/api';
 const SHIPMENT_ID = Number(process.env.SHIPMENT_ID || 41987);
 const SUFFIX = process.env.SEARCH_SUFFIX || 'QACOPY-1789696973253';
 

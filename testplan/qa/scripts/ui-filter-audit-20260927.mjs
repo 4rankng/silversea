@@ -32,7 +32,7 @@ const REPO = path.resolve(HERE, '..', '..', '..');
 // on a root symlink that does not exist.
 const { chromium } = createRequire(path.join(REPO, 'frontend', 'package.json'))('@playwright/test');
 const OUT = process.env.OUT || path.join(REPO, 'qa', 'filter-audit');
-const BASE = (process.env.QA_BASE_URL || 'http://localhost:7174').replace(/\/$/, '');
+const BASE = (process.env.QA_BASE_URL || 'http://localhost:7175').replace(/\/$/, '');
 const PASS = process.env.QA_PASS || 'Abc123';
 const WIDTHS = (process.env.WIDTHS || '390,500,640,768,1024,1187,1440').split(',').map(Number);
 // A 768/1024 tablet is a touch device: `pointer: coarse` media queries key off
@@ -287,6 +287,39 @@ const contextFor = (browser, width) => (width > TOUCH_MAX
   }));
 
 await fs.mkdir(OUT, { recursive: true });
+// Card 20260928_192: check the stack before measuring it. Hitting the wrong
+// port makes every assertion fail for a reason that has nothing to do with the
+// page under test, and the resulting 401s read as an auth bug. A loud
+// "PREFLIGHT FAILED" naming both ports is worth more than 200 confusing
+// failures.
+const expectedPort = new URL(BASE).port || '80';
+{
+  const problems = [];
+  for (const [label, url] of [['frontend', BASE], ['api', `${BASE.replace(/\/$/, '')}/api/health`]]) {
+    try {
+      const res = await fetch(url, { redirect: 'manual' });
+      // Any answer proves something is bound; a 404 from the API is a routing
+      // answer, not a dead server.
+      void res.status;
+    } catch (e) {
+      problems.push(`${label} unreachable at ${url} (${e.cause?.code || e.message})`);
+    }
+  }
+  if (problems.length) {
+    console.error([
+      '',
+      'PREFLIGHT FAILED — this run would test the wrong thing:',
+      ...problems.map((p) => `  - ${p}`),
+      '',
+      `Expected the local stack on port ${expectedPort} (Makefile: frontend 7175, backend 3002).`,
+      'Start it with `make dev` from the repo root, or override:',
+      '  QA_BASE_URL=http://localhost:<port> node ' + path.basename(import.meta.filename ?? 'this-script.mjs'),
+      '',
+    ].join('\n'));
+    process.exit(1);
+  }
+}
+
 const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
 const contexts = new Map();
 const contextEntry = async (role, username, width) => {

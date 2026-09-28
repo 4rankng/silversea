@@ -73,3 +73,51 @@ export async function loadEnv() {
     },
   };
 }
+
+/**
+ * Fail loudly when the stack is not the one the harness thinks it is.
+ *
+ * Card 20260928_192. The silent version of this bug is expensive: point the
+ * harness at a port nothing serves and every API call 401s, which reads as an
+ * auth problem and gets debugged as one — for a long time — when the actual
+ * cause is that `pnpm dev` came up on a different port than the Makefile, or
+ * proxying to a backend that is not running.
+ *
+ * So check the two things a run actually depends on, and say which one is
+ * wrong rather than letting the suite discover it 200 assertions later:
+ *   - the frontend answers on `baseUrl`;
+ *   - the API answers on `api` (health probe, any 2xx/3xx/4xx counts as up —
+ *     a 401 proves something IS listening, which is the whole question).
+ */
+export async function preflight(env, { fetchImpl = fetch } = {}) {
+  const problems = [];
+
+  for (const [label, url] of [['frontend', env.baseUrl], ['api', env.api]]) {
+    try {
+      const res = await fetchImpl(url, { redirect: 'manual' });
+      // Any response at all means something is bound to that port. A 404 from
+      // the API is a routing answer, not a dead server.
+      void res.status;
+    } catch (e) {
+      problems.push(`${label} unreachable at ${url} (${e.cause?.code || e.message})`);
+    }
+  }
+
+  if (problems.length > 0) {
+    const lines = [
+      '',
+      'PREFLIGHT FAILED — this run would test the wrong thing:',
+      ...problems.map((p) => `  - ${p}`),
+      '',
+      'The local stack is two ports (Makefile line 6):',
+      '  frontend 7175  ·  backend 3002',
+      'Bring it up from the repo root with `make dev`, or override the port:',
+      '  QA_BASE_URL=http://localhost:<port> node <script>.mjs',
+      '',
+    ];
+    const err = new Error(lines.join('\n'));
+    err.preflight = true;
+    throw err;
+  }
+  return true;
+}

@@ -5,8 +5,8 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, writeFileSync } from 'fs';
 
-const BASE = process.env.BASE_URL || 'http://localhost:7174';
-const API = process.env.API_URL || 'http://localhost:3001/api';
+const BASE = process.env.BASE_URL || 'http://localhost:7175';
+const API = process.env.API_URL || 'http://localhost:3002/api';
 const SHIPMENT_ID = Number(process.env.SHIPMENT_ID || 41987);
 const SEARCH = process.env.SEARCH_SUFFIX || '9732531';
 const DIR = process.env.OUT_DIR || 'qa/2026-09-18-filter-layout';

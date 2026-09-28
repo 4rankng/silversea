@@ -5,7 +5,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-const BASE = process.env.BASE_URL || 'http://localhost:7174';
+const BASE = process.env.BASE_URL || 'http://localhost:7175';
 const USERNAME = process.env.CUS_USER || 'cus';
 const PASSWORD = process.env.CUS_PASS || 'Abc123';
 const OUT = 'qa/2026-08-16_cus-qa';

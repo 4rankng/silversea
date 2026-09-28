@@ -9,8 +9,8 @@
 import puppeteer from 'puppeteer';
 import { mkdirSync, writeFileSync } from 'fs';
 
-const BASE = process.env.BASE_URL || 'http://localhost:7174';
-const API = process.env.API_URL || 'http://localhost:3001/api';
+const BASE = process.env.BASE_URL || 'http://localhost:7175';
+const API = process.env.API_URL || 'http://localhost:3002/api';
 const ROWS = Number(process.env.ROWS || 5);
 const DIR = process.env.OUT_DIR || 'qa/2026-09-18-error-leak';
 mkdirSync(DIR, { recursive: true });
