@@ -99,7 +99,14 @@
        state and counts are untouched. */
     mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
   }
-  .shipments-control__tabs::-webkit-scrollbar { display: none; }
+  /* The CELLS must not shrink. `max-width: 100%` clamps the strip, and flex
+     would then compress the buttons instead of letting the strip scroll —
+     which clipped every count numeral inside its own cell (measured
+     2026-09-28: `countRight` past `btnRight` on all four tabs). The strip
+     scrolls; each cell keeps its intrinsic width. */
+  .shipments-control__tabs .ds-tabs__btn {
+    flex: 0 0 auto;
+  }
 }
 
 /* Card 20260927_152 — Row 2 is the shared ListFilterBar and `.filter-bar`
