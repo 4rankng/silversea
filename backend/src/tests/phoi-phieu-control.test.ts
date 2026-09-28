@@ -21,7 +21,7 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   }).returning({ id: s.users.id });
   track(s.users, user.id);
   if (accountantId === 0) accountantId = user.id;
-  const [customer] = await db.insert(s.customers).values({ name: `C12 customer ${cleanup.length}` }).returning({ id: s.customers.id });
+  const [customer] = await db.insert(s.customers).values({ name: `C12 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
   track(s.customers, customer.id);
   const [route] = await db.insert(s.routes).values({ name: 'C12 route' }).returning({ id: s.routes.id });
   track(s.routes, route.id);
@@ -191,7 +191,7 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
 describe('card 20260921_16 — same-truck rows group consecutively', () => {
   test('grouped mode lands paired trips of one truck adjacent; date sort overrides', async () => {
     const mk = async (plate: string | null, day: string) => {
-      const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${cleanup.length}` }).returning({ id: s.customers.id });
+      const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
       track(s.customers, customer.id);
       const [route] = await db.insert(s.routes).values({ name: 'C16 route' }).returning({ id: s.routes.id });
       track(s.routes, route.id);
@@ -489,7 +489,7 @@ describe('voucher consumes the approved chi-hộ set only (case QA-2026-09-24-01
   });
 
   async function mkDriverOnlyFixture(approved: boolean) {
-    const [customer] = await db.insert(s.customers).values({ name: `C12 driver-only customer ${cleanup.length}` }).returning({ id: s.customers.id });
+    const [customer] = await db.insert(s.customers).values({ name: `C12 driver-only customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
     track(s.customers, customer.id);
     const [route] = await db.insert(s.routes).values({ name: 'C12 driver-only route' }).returning({ id: s.routes.id });
     track(s.routes, route.id);
@@ -559,4 +559,37 @@ describe('soft-deleted shipments never surface on the phoi-phieu board (QA-fixtu
     const markerRows = await listPhoiPhieuRows({ search: marker });
     assert.equal(markerRows.length, 0);
   });
+});
+
+/**
+ * This file tracked every row it created and then never deleted any of them.
+ *
+ * The symptom looked like flake and was not: a run left `C12 customer N` rows
+ * behind, and the next run — whose names are derived from `cleanup.length`,
+ * which starts at 0 in a fresh process — collided on
+ * `customers_active_name_tax_code_uniq_idx`. Two consecutive runs failed with
+ * DIFFERENT test names, which is the tell for residue rather than a code
+ * change. Clearing the stale rows made the file green again (23/23) without any
+ * source edit.
+ *
+ * Two fixes, because either alone leaves the other half:
+ *   1. customer names carry the run-unique `suffix`, so a stale row can never
+ *      collide with a fresh run — the test no longer depends on DB history
+ *   2. this teardown actually drains `cleanup`, so the DB stops accumulating
+ *
+ * `cleanup` is unshift-ordered, so the newest row is deleted first and children
+ * go before the parents they reference. Deletion is best-effort: a row some
+ * other test or a soft-delete rule still references should not fail this file's
+ * teardown and mask a real failure with a constraint error.
+ */
+after(async () => {
+  for (const { table, id } of cleanup) {
+    try {
+      await db.delete(table).where(eq(table.id, id));
+    } catch {
+      /* best-effort: a referenced row must not fail the teardown */
+    }
+  }
+  try { await disconnectRedis(); } catch { /* already closed */ }
+  process.exit(0);
 });
