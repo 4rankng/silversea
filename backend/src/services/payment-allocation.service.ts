@@ -223,6 +223,15 @@ async function assertActiveCustomerTx(tx: Tx, customerId: number): Promise<void>
   }
 }
 
+/** Card 20260927_147 — the receivable contract is named here (the module that owns it)
+ *  so batched callers read the same shape instead of re-deriving it. */
+export interface TripReceivableState {
+  resolvedTripIds: number[];
+  tripCodeById: Map<number, string>;
+  authorityByTripId: Map<number, TripAuthoritySnapshot>;
+  outstandingByTargetKey: Map<string, number>;
+}
+
 type TripAuthoritySnapshot = {
   sourceTripId: number;
   targetType: 'TRIP' | 'BILLING_DOCUMENT';
@@ -255,7 +264,7 @@ export async function getTripReceivableState(
   tx: Tx,
   customerId: number,
   tripIds?: number[],
-) {
+): Promise<TripReceivableState> {
   const tripRows = await tx.select({
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,

@@ -4,7 +4,7 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import type { ExpenseAccountingSource } from './expense-accounting-source.service';
-import { getTripReceivableState } from './payment-allocation.service';
+import { getTripReceivableState, type TripReceivableState } from './payment-allocation.service';
 import { LedgerService } from './ledger.service';
 import { appendTreasuryReversal } from './treasury.service';
 
@@ -12,7 +12,10 @@ type ReceiptExpenseSource = Pick<ExpenseAccountingSource, 'id' | 'customerId' | 
 type SourceAllocation = { source: ReceiptExpenseSource; amount: number };
 interface ReceiptTarget { targetType: 'TRIP' | 'BILLING_DOCUMENT'; targetId: number; sourceTripId: number | null; }
 
-async function resolveExpenseTarget(tx: Tx, source: ReceiptExpenseSource): Promise<ReceiptTarget | null> {
+/** Resolves one source's receivable target. Card 20260927_147 — `receivableState` is the
+ *  basket-wide snapshot read once before the loop (`getTripReceivableState` already takes
+ *  an array of trip ids), so this no longer reads the receivable state per item. */
+async function resolveExpenseTarget(tx: Tx, source: ReceiptExpenseSource, receivableState: TripReceivableState | null): Promise<ReceiptTarget | null> {
   if (source.linkedTripExpenseId) {
     const rows = await tx.select({ id: s.billingDocuments.id }).from(s.billingDocumentLines)
       .innerJoin(s.billingDocuments, eq(s.billingDocuments.id, s.billingDocumentLines.documentId))
@@ -25,14 +28,22 @@ async function resolveExpenseTarget(tx: Tx, source: ReceiptExpenseSource): Promi
     if (ids.length) return { targetType: 'BILLING_DOCUMENT', targetId: ids[0], sourceTripId: source.tripId };
   }
   if (!source.tripId) return null;
-  const state = await getTripReceivableState(tx, source.customerId, [source.tripId]);
-  const authority = state.authorityByTripId.get(source.tripId);
+  // Card 20260927_147 — the basket's receivable state is fetched once before the loop
+  // (one read for every trip instead of one read per item). A trip the snapshot did not
+  // cover (other customer, deleted, or absent) yields no authority, exactly like the
+  // per-item call did.
+  const authority = receivableState?.authorityByTripId.get(source.tripId);
   return authority ? { targetType: authority.targetType, targetId: authority.targetId, sourceTripId: source.tripId } : null;
 }
 
-async function targetRemaining(tx: Tx, customerId: number, target: ReceiptTarget): Promise<number> {
+async function targetRemaining(tx: Tx, customerId: number, target: ReceiptTarget, receivableState: TripReceivableState | null = null): Promise<number> {
   if (target.targetType === 'TRIP') {
-    const state = await getTripReceivableState(tx, customerId, [target.targetId]);
+    // Card 20260927_147 — inside one call the loop writes a PAYMENT_RECEIVED ledger
+    // row per group with txnId = group.target.sourceTripId (below), and that row is a
+    // term of this trip's outstanding. The pre-loop snapshot is therefore only valid
+    // while no earlier group has credited this trip; the caller passes it in exactly
+    // that case and we re-read otherwise, so the cap check keeps its old fresh value.
+    const state = receivableState ?? (await getTripReceivableState(tx, customerId, [target.targetId]));
     return state.outstandingByTargetKey.get(`TRIP:${target.targetId}`) ?? 0;
   }
   const [document] = await tx.select().from(s.billingDocuments).where(and(eq(s.billingDocuments.id, target.targetId),
@@ -54,9 +65,20 @@ export async function allocateExpenseReceipt(tx: Tx, receiptId: number, items: S
   await LedgerService.lockEntity(tx, 'CUSTOMER', receipt.customerId);
   const assignments = new Map<number, number>();
   const targets = new Map<string, { target: ReceiptTarget; items: SourceAllocation[]; amount: number }>();
+  // Card 20260927_147 — every item shares one customer (the 409 below), and
+  // `getTripReceivableState` already takes a trip-id array, so the whole basket is read
+  // once here instead of once per item. Items of another customer are excluded from the
+  // batch (they are rejected inside the loop, before any target is resolved), so the
+  // read never spans customers.
+  const receivableTripIds = [...new Set(items
+    .filter(item => item.source.customerId === receipt.customerId && item.source.tripId != null)
+    .map(item => item.source.tripId as number))];
+  const receivableState = receivableTripIds.length > 0
+    ? await getTripReceivableState(tx, receipt.customerId, receivableTripIds)
+    : null;
   for (const item of items) {
     if (item.source.customerId !== receipt.customerId) throw new ApiError(409, 'Không phân bổ tiền giữa các khách hàng.');
-    const target = await resolveExpenseTarget(tx, item.source);
+    const target = await resolveExpenseTarget(tx, item.source, receivableState);
     if (!target) continue; // Pre-trip money stays unapplied, with explicit source attribution only.
     const key = `${target.targetType}:${target.targetId}:${target.sourceTripId ?? 0}`;
     const group = targets.get(key) ?? { target, items: [], amount: 0 };
@@ -66,8 +88,12 @@ export async function allocateExpenseReceipt(tx: Tx, receiptId: number, items: S
   if (total > Number(receipt.unappliedAmount)) throw new ApiError(409, 'Số tiền chưa phân bổ không đủ.');
   const existing = await tx.select().from(s.paymentAllocations).where(eq(s.paymentAllocations.paymentReceiptId, receipt.id)).orderBy(asc(s.paymentAllocations.id));
   let order = existing.reduce((max, row) => Math.max(max, row.allocationOrder ?? 0), 0);
+  // Trips whose outstanding the loop has already changed by posting its own credit.
+  const creditedTripIds = new Set<number>();
   for (const group of targets.values()) {
-    if (group.amount > await targetRemaining(tx, receipt.customerId, group.target)) throw new ApiError(409, 'Phân bổ vượt số dư còn lại của chứng từ.');
+    const snapshotForGroup = receivableState && group.target.targetType === 'TRIP' && !creditedTripIds.has(group.target.targetId)
+      ? receivableState : null;
+    if (group.amount > await targetRemaining(tx, receipt.customerId, group.target, snapshotForGroup)) throw new ApiError(409, 'Phân bổ vượt số dư còn lại của chứng từ.');
     const previous = existing.find(row => row.targetType === group.target.targetType && row.targetId === group.target.targetId && row.sourceTripId === group.target.sourceTripId);
     const [allocation] = previous ? await tx.update(s.paymentAllocations).set({ amount: String(Number(previous.amount) + group.amount) })
       .where(eq(s.paymentAllocations.id, previous.id)).returning()
@@ -83,6 +109,9 @@ export async function allocateExpenseReceipt(tx: Tx, receiptId: number, items: S
       entityType: 'CUSTOMER', entityId: receipt.customerId, debit: group.amount, credit: 0, note: 'Phân bổ tiền đã nhận — không phát sinh thu mới' });
     await LedgerService.postEntry(tx, { txnType: TxnType.PAYMENT_RECEIVED, txnId: group.target.sourceTripId ?? 0, receiptId: receipt.receiptId,
       entityType: 'CUSTOMER', entityId: receipt.customerId, debit: 0, credit: group.amount, note: 'Phân bổ tiền đã nhận cho khoản chi hộ' });
+    // That credit is a term of the trip's own outstanding (txnId = sourceTripId), so a
+    // later group on the same trip must re-read instead of trusting the snapshot.
+    if (group.target.sourceTripId != null) creditedTripIds.add(group.target.sourceTripId);
   }
   if (total) await tx.update(s.paymentReceipts).set({ allocatedTotal: String(Number(receipt.allocatedTotal) + total),
     unappliedAmount: String(Number(receipt.unappliedAmount) - total), version: receipt.version + 1 }).where(eq(s.paymentReceipts.id, receipt.id));
