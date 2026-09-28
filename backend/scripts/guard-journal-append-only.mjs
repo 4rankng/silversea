@@ -93,7 +93,8 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
   console.error('[journal-guard] ✗ REFUSED — _journal.json diff is not append-only:');
   for (const item of violations) console.error('  - ' + item);
   console.error('  Journal edits are append-only: new entries at the tail only.');
-  console.error('  Validate the file afterwards with: node scripts/check-migration-trio.mjs');
+  console.error('  Then check coherence, from the repo root:');
+  console.error('    node scripts/check-migration-trio.mjs');
   console.error('  Lead-signed repair: add the trailer "Journal-Repair: signed-by <lead>" to the commit message.');
   process.exit(1);
 }

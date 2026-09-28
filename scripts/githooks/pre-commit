@@ -23,6 +23,16 @@ fail=0
 if [ "$journal" -eq 1 ]; then
   echo "[pre-commit] journal append-only guard…"
   (cd "$root/backend" && node scripts/guard-journal-append-only.mjs) || fail=1
+  # Coherence of whatever the append-only guard just let through: journal ↔ .sql
+  # must stay a bijection and the ordering laws the runtime migrator keys on
+  # (strictly increasing idx, non-decreasing `when`) must hold. The guard only
+  # inspects the diff; this inspects the resulting tree. ~0.1s.
+  #
+  # Card 20260928_188: the guard's remedy line used to tell operators to run
+  # `node scripts/check-migration-trio.mjs`, which had never existed. It exists
+  # now and runs here, so the advice is mechanical instead of optional.
+  echo "[pre-commit] migration trio coherence…"
+  (cd "$root" && node scripts/check-migration-trio.mjs) || fail=1
 fi
 if [ "$fe" -eq 1 ]; then
   echo "[pre-commit] typechecking frontend…"
