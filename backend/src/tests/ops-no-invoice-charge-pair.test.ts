@@ -233,4 +233,36 @@ describe('card 20260921_5 — dispatch plan note path', () => {
     assert.ok(list.some((note) => note.includes('Thu khách: Phí xe nâng QA')), JSON.stringify(list));
     assert.ok(!list.some((note) => note.includes('20000')), 'the uncharged amount never enters the plan');
   });
+
+  // Card 20260928_162 criterion 3, closing the loop with the server-side rule
+  // added in 4743fdbd. The uncharged row above now carries a reason; this pins
+  // that the reason actually REACHES the board, because before the projection
+  // change it was written to `note` while the board read `recoveryNote` — the
+  // card's rule produced a field nobody ever saw.
+  test('the uncharged row\'s reason surfaces on the dispatch board, amount stays off', async () => {
+    const { loadDispatchExpenseNotes } = await import('../services/dispatch-expense-notes.service');
+    await mkLinkedOpsUser();
+    const shipmentId = await mkLotForUser(opsUserId);
+    const reason = 'Chi nội bộ, không thu khách';
+    const created = await api('POST', '/api/ops/expenses', {
+      shipmentId,
+      expenseTypeCode: 'OTHER',
+      amount: 20000,
+      paidAt: '2026-09-22',
+      costGroup: 'OPS_REGULAR',
+      customerChargeAmount: 0,
+      note: reason,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body).slice(0, 200));
+
+    const list = (await loadDispatchExpenseNotes([shipmentId])).get(shipmentId) ?? [];
+    assert.ok(
+      list.includes(reason),
+      `the reason kế toán / CUS are told is mandatory must reach them; board had: ${JSON.stringify(list)}`,
+    );
+    // The standing ruling in that service's header: the AMOUNT never enters the
+    // dispatch projection, whatever the note says. A reason that leaks money
+    // would break the ruling this projection was written for.
+    assert.ok(!list.some((note) => note.includes('20000')), 'the amount still must not enter the plan');
+  });
 });
