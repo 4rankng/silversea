@@ -2,10 +2,15 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { PhoiPhieuChiHoDialog } from './PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from './PhoiPhieuTienDuongDialog';
 import PhoiPhieuControlPage from '../../pages/accounting/PhoiPhieuControlPage';
+// Card 20260928_171 — the tiền-đường dialog edits amounts, so the tests assert
+// the exact payload the house client sends and the money strings the board and
+// the detail must agree on.
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { formatCurrency } from '../../lib/format';
 
 vi.mock('../../api/phoiPhieuClient', () => ({
   correctPhoiPhieuRow: vi.fn(),
@@ -22,12 +27,22 @@ vi.mock('../../api/phoiPhieuClient', () => ({
   }),
   getPhoiPhieuTienDuong: vi.fn().mockResolvedValue({
     tripCode: 'ST-2609-0001',
-    totals: { total: 2_000_000, confirmed: 500_000 },
+    // Card 20260928_171 — a SELF-CONSISTENT fixture: one approved row (2.000.000)
+    // and one unapproved (50.000). The board row ST-2609-0102 carries the same
+    // 2.000.000 in its Tiền đường cell, so a test can compare the board cell
+    // with the detail's approved total as one number, and prove the all-rows
+    // figure (2.050.000) is labelled as the gross, never as the board number.
+    totals: { total: 2_050_000, confirmed: 2_000_000 },
     rows: [
       {
         sourceId: 21, version: 1, costType: 'FUEL', feeName: 'Xăng đường',
-        occurredAt: '2026-09-22', driverName: 'Tuấn', driverEnteredAmount: 900_000,
-        amount: 1_000_000, confirmed: false,
+        occurredAt: '2026-09-22', driverName: 'Tuấn', driverEnteredAmount: 1_900_000,
+        amount: 2_000_000, confirmed: true,
+      },
+      {
+        sourceId: 22, version: 4, costType: 'OTHER', feeName: 'Cầu đường',
+        occurredAt: '2026-09-23', driverName: 'Tuấn', driverEnteredAmount: 50_000,
+        amount: 50_000, confirmed: false,
       },
     ],
   }),
@@ -75,7 +90,12 @@ vi.mock('../../api/phoiPhieuClient', () => ({
 }));
 
 vi.mock('../../api/expenseAccountingClient', () => ({
-  expenseAccountingClient: { catalog: vi.fn().mockResolvedValue({ feeCategories: [], employees: [] }) },
+  expenseAccountingClient: {
+    catalog: vi.fn().mockResolvedValue({ feeCategories: [], employees: [] }),
+    update: vi.fn().mockResolvedValue({}),
+    correct: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue({}),
+  },
 }));
 
 function makeWrapper() {
@@ -249,5 +269,95 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     const button = screen.getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).toContain('(2 khoản)');
     expect(button.textContent).not.toContain('dòng');
+  });
+});
+
+// Card 20260928_171 — "Xem chi tiết tiền đường" must (AC1) total the same money
+// as the board's Tiền đường column, (AC2) let the accountant fix a wrong amount
+// — including on a row the driver entered — and (AC3) add a row, following the
+// chi hộ dialog's existing pattern instead of a second one.
+//
+// AC1 definition, decided here and recorded on the card: the AUTHORITATIVE sum
+// is the APPROVED one, because that is what the chi phiếu for the driver posts
+// (phoi-phieu-control.service.ts:230-247 sums confirmed driver rows into the
+// board cell). The dialog therefore names its approved figure as the number
+// matching the outer column and keeps the all-rows figure under its own label,
+// so no money is hidden and no reader has to guess which total is which.
+describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, thêm dòng, tổng khớp cột ngoài', () => {
+  const EDIT_REASON = 'Kế toán sửa số tiền trong xem chi tiết tiền đường';
+
+  // The client mock is file-scoped, so each test starts from a clean call log —
+  // otherwise a sibling test's save leaks into a `not.toHaveBeenCalled()` here.
+  beforeEach(() => {
+    vi.mocked(expenseAccountingClient.update).mockClear();
+    vi.mocked(expenseAccountingClient.correct).mockClear();
+  });
+
+  async function findBoardRow(tripCode: string) {
+    await screen.findByText(tripCode);
+    const row = screen.getAllByRole('row').find((candidate) => candidate.textContent?.includes(tripCode));
+    expect(row).toBeDefined();
+    return row!;
+  }
+
+  it('AC1: cột Tiền đường của bảng và con số "đã duyệt" trong màn hình chi tiết là MỘT con số', async () => {
+    render(<PhoiPhieuControlPage />, { wrapper: makeWrapper() });
+    const row = await findBoardRow('ST-2609-0102');
+    expect(within(row).getByText(formatCurrency(2_000_000))).toBeInTheDocument();
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
+    await within(dialog).findByLabelText('Thực chi dòng 1');
+    const approvedLabel = within(dialog).getByText(/Đã duyệt — số vào phiếu chi, khớp cột Tiền đường/);
+    const footer = approvedLabel.closest('tr')!;
+    // the same string the board cell shows, now inside the detail
+    expect(within(footer).getByText(formatCurrency(2_000_000))).toBeInTheDocument();
+    // the gross stays visible, but under the label that says it is the gross
+    expect(within(footer).getByText(formatCurrency(2_050_000))).toBeInTheDocument();
+    expect(within(footer).getByText(/Tổng phát sinh — mọi dòng/)).toBeInTheDocument();
+  });
+
+  it('AC2: sửa số tiền dòng CHƯA duyệt lưu qua đường update của khoản chi lái xe, kèm version + lý do', async () => {
+    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
+    await screen.findByLabelText('Thực chi dòng 2');
+
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 2'), { target: { value: '70000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(vi.mocked(expenseAccountingClient.update)).toHaveBeenCalledWith(
+      { sourceKind: 'DRIVER', sourceId: 22, expectedVersion: 4 },
+      { expectedVersion: 4, reason: EDIT_REASON, amount: 70000 },
+    ));
+    expect(vi.mocked(expenseAccountingClient.correct)).not.toHaveBeenCalled();
+  });
+
+  it('AC2: sửa số tiền dòng ĐÃ duyệt (do lái xe nhập) đi đường điều chỉnh có lưu vết, không ghi đè', async () => {
+    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
+    await screen.findByLabelText('Thực chi dòng 1');
+
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '2100000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(vi.mocked(expenseAccountingClient.correct)).toHaveBeenCalledWith(
+      { sourceKind: 'DRIVER', sourceId: 21, expectedVersion: 1 },
+      { expectedVersion: 1, reason: EDIT_REASON, amount: 2_100_000 },
+    ));
+    expect(vi.mocked(expenseAccountingClient.update)).not.toHaveBeenCalled();
+  });
+
+  it('AC3: "＋ Thêm dòng" mở đúng panel thêm khoản chi của nhà, nhóm Tiền đường, và chỉ một bề mặt hiện ra', async () => {
+    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
+    await screen.findByLabelText('Thực chi dòng 1');
+
+    fireEvent.click(screen.getByRole('button', { name: '＋ Thêm dòng' }));
+    const panel = await screen.findByRole('dialog', { name: 'Thêm khoản chi' });
+    expect(panel).toBeInTheDocument();
+    // Card 20260923_11 rule carried to this dialog: never two live surfaces.
+    expect(screen.queryByRole('dialog', { name: 'Chi tiết tiền đường' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getAllByText('Tiền đường').length).toBeGreaterThan(0);
   });
 });
