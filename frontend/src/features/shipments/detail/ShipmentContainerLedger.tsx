@@ -28,6 +28,7 @@ import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import '../../../styles/table-sort.css';
+import type { LedgerColumn } from '../../../lib/column-visibility';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
 
@@ -585,6 +586,28 @@ function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, 
   );
 }
 
+/**
+ * The ledger's columns in table order (card 20260928_193). The ledger owns the
+ * keys because it owns the cells they name; the page reads this list to build the
+ * picker, so the two can never disagree about what exists.
+ *
+ * Pins follow card 20260917_4's own contract — the THREE identity columns
+ * (khách hàng, chứng từ, thông số container) cannot hide, because a container row
+ * scrolled out of its own context is unreadable. `notes` carries the same
+ * auto-hide rule as the workboard: hidden by default only while every rendered
+ * row's note cell is empty.
+ */
+export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
+  { key: 'customer', label: 'Khách hàng & lộ trình', pinned: true },
+  { key: 'documents', label: 'Chứng từ & hãng tàu', pinned: true },
+  { key: 'container', label: 'Thông số container', pinned: true },
+  { key: 'route', label: 'Địa điểm nâng / hạ' },
+  { key: 'schedule', label: 'Lịch trình' },
+  { key: 'vehicle', label: 'Phân xe' },
+  { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+  { key: 'status', label: 'Trạng thái' },
+];
+
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
   totalContainers: number;
@@ -607,7 +630,14 @@ interface ShipmentContainerLedgerProps {
   /** Card 20260921_2 — add/remove rows (per-row trip guard lives server-side). */
   onAddContainer?: (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => Promise<void>;
   onRemoveContainer?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
-  /** Cột bị ẩn theo tuỳ chỉnh người dùng (20260917_4) — khoá theo nhãn cột. */
+  /**
+   * Column keys the picker on the page's filter bar is hiding (card
+   * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
+   * conditionally so a `table-layout: fixed` table never shows ghost columns.
+   * Pinned columns are enforced upstream, at the resolver — a hidden key for an
+   * identity column is dropped before it reaches here.
+   */
+  hiddenColumns?: readonly string[];
 }
 
 export function ShipmentContainerLedger({
@@ -631,7 +661,9 @@ export function ShipmentContainerLedger({
   onSaveContainer,
   onAddContainer,
   onRemoveContainer,
+  hiddenColumns = [],
 }: ShipmentContainerLedgerProps) {
+  const isHidden = (key: string) => hiddenColumns.includes(key);
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
   // Card 20260921_2: the add-row form opens for a ROW's lot (the workboard is
   // multi-lot); removal is a per-row action. Both hide while an edit session
@@ -728,22 +760,22 @@ export function ShipmentContainerLedger({
             <col className="shipment-container-ledger__col--customer" />
             <col className="shipment-container-ledger__col--documents" />
             <col className="shipment-container-ledger__col--container" />
-            <col className="shipment-container-ledger__col--route" />
-            <col className="shipment-container-ledger__col--schedule" />
-            <col className="shipment-container-ledger__col--vehicle" />
-            <col className="shipment-container-ledger__col--notes" />
-            <col className="shipment-container-ledger__col--status" />
+            {!isHidden('route') && <col className="shipment-container-ledger__col--route" />}
+            {!isHidden('schedule') && <col className="shipment-container-ledger__col--schedule" />}
+            {!isHidden('vehicle') && <col className="shipment-container-ledger__col--vehicle" />}
+            {!isHidden('notes') && <col className="shipment-container-ledger__col--notes" />}
+            {!isHidden('status') && <col className="shipment-container-ledger__col--status" />}
             {canMutateRows && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Chứng từ &amp; hãng tàu" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Thông số container" sortKey="containerNumber" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />
+            {!isHidden('route') && <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('schedule') && <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('vehicle') && <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('status') && <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />}
             {canMutateRows && <th scope="col">Thao tác</th>}
           </tr></thead>
           <tbody>
@@ -790,16 +822,16 @@ export function ShipmentContainerLedger({
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
                   </td>
-<td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
+{!isHidden('route') && (<td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
                     {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
-                  </td>
-<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
+                  </td>)}
+{!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
                       <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
-                  </td>
-<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
+                  </td>)}
+{!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
                       {/* Card 20260922_24: the dispatch state ("Chờ phân xe") lives
                           in the Trạng thái cell; repeating it here as a badge made
@@ -811,15 +843,15 @@ export function ShipmentContainerLedger({
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                         : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
                     </div>)}
-                  </td>
-<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
+                  </td>)}
+{!isHidden('notes') && (<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
                       {row.customerNotes && <strong>{displayNote(row.customerNotes)}</strong>}
                       {row.operationalNotes && <span>{displayNote(row.operationalNotes)}</span>}
                       {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
                     </div>)}
-                  </td>
-<td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
+                  </td>)}
+{!isHidden('status') && (<td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
                     <div className="shipment-container-ledger__multiline">
                       <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
                       {row.informationStatus === 'MISSING' && (
@@ -838,7 +870,7 @@ export function ShipmentContainerLedger({
                         />
                       )}
                     </div>
-                  </td>
+                  </td>)}
                   {canMutateRows && (
                     <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
                       <div className="shipment-container-ledger__multiline">

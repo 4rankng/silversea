@@ -251,9 +251,16 @@ function probeGeometry() {
     const r = el.getBoundingClientRect();
     return { sel, h: Math.round(r.height), w: Math.round(r.width), top: Math.round(r.top), text: (el.textContent || '').trim().slice(0, 30) };
   };
+  // A row with no flags legitimately carries NO class (`className={flags ? … :
+  // undefined}` on the shipment container ledger), and `'.' + ''` is an invalid
+  // selector — the probe used to die there before printing anything
+  // (/shipments-detail, 4 empty-class `tr` of 23 candidates; card 20260928_193).
+  // Dropping the empty token is inert wherever every sampled element has a
+  // class: it can only remove the one entry that could never be measured.
   const containers = [...new Set([...document.querySelectorAll('main [class*="card"], main [class*="row"], main tbody tr, main [class*="grid__rule"]')]
     .filter(vis)
-    .map((el) => el.className.toString().trim().split(/\s+/)[0]))].slice(0, 14);
+    .map((el) => el.className.toString().trim().split(/\s+/)[0])
+    .filter(Boolean))].slice(0, 14);
   return {
     url: location.pathname + location.search,
     docHeight: document.documentElement.scrollHeight,

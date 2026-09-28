@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ListFilter } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
-import { useFilterBarMode } from './filter-bar-mode';
+import { useFilterBarMode, useFilterBarViewControls } from './filter-bar-mode';
 import './FilterDropdown.css';
 
 /**
@@ -76,6 +76,7 @@ export function FilterDropdown({
   className = '',
 }: FilterDropdownProps) {
   const barMode = useFilterBarMode();
+  const viewControls = useFilterBarViewControls();
   const dialogId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -144,6 +145,10 @@ export function FilterDropdown({
           <div className="filter-dropdown__presets">{presets}</div>
         ) : null}
         {children}
+        {/* The bar's view controls (card 20260928_193) fold in beside the
+            criteria: the bar publishes them, the bar renders them itself only
+            while it is `inline`, so this is the one instance at this width. */}
+        {viewControls}
         <div className="filter-dropdown__actions">
           <button type="button" className="filter-dropdown__reset" onClick={onReset}>
             Đặt lại

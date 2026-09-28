@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 /**
  * `filter-bar-mode` — who owns the secondary criteria: the bar or the `Bộ lọc`
@@ -36,6 +36,21 @@ const MODE_CONTEXT = createContext<FilterBarMode>('dialog');
 export const useFilterBarMode = () => useContext(MODE_CONTEXT);
 
 export const FilterBarModeProvider = MODE_CONTEXT.Provider;
+
+const VIEW_CONTROLS_CONTEXT = createContext<ReactNode>(null);
+
+/**
+ * A view control the bar hosts but does not own — the column picker of card
+ * 20260928_193. It obeys the SAME measured placement as a criterion: on the bar
+ * while the strip is `inline`, and inside `Bộ lọc` once the bar has folded
+ * (a view control may not be the item that pushes a frozen surface onto a third
+ * row). `ListFilterBar` publishes it here and renders it itself in `inline` mode
+ * only; `FilterDropdown` renders it in the dialog panel, so exactly one instance
+ * exists at any moment and the picker never becomes a declared breakpoint.
+ */
+export const useFilterBarViewControls = () => useContext(VIEW_CONTROLS_CONTEXT);
+
+export const FilterBarViewControlsProvider = VIEW_CONTROLS_CONTEXT.Provider;
 
 /** Dead band: the width must grow this far past a failing width to retry inline. */
 const RETRY_SLACK = 32;

@@ -296,6 +296,17 @@ function masterRow(): HTMLTableRowElement {
   return element;
 }
 
+/** Card 20260928_193: the row the auto-hide rule is measured against — a lot
+ *  with no note on either channel, at both the payload and the raw shape. */
+function noteLessRow() {
+  return {
+    ...row,
+    customerNotes: null,
+    operationalNotes: null,
+    raw: { ...row.raw, customerNotes: null, operationalNotes: null },
+  };
+}
+
 function masterRowDetailButton(): HTMLButtonElement {
   const element = document.querySelector('button.cus-dashboard-detail');
   if (!(element instanceof HTMLButtonElement)) throw new Error('shipment detail button not rendered');
@@ -820,13 +831,37 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
   });
 
+  // Card 20260928_193 (source card 20260927_67 item 3): GHI CHÚ hides itself by
+  // DEFAULT while every rendered row is empty, and shows the moment one row
+  // carries a note. The two cases below pin both halves of that contract at the
+  // page level; the resolver's own rules live in lib/column-visibility.test.ts.
+  it('hides the empty GHI CHÚ column by default, with the picker as the way back to it', async () => {
+    apiGet.mockResolvedValue(listResponse([noteLessRow()]));
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.queryByRole('columnheader', { name: 'Ghi chú' })).toBeNull();
+    // Six groups render instead of seven, and no column is left dangling.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
+    // The picker rides the bar (card 20260927_152's one filter plane), and it
+    // is the affordance that brings the column back.
+    expect(document.querySelector('.filter-bar.list-filter-bar .column-picker')).toBeTruthy();
+    expect(localStorage.getItem('cus-lots-hidden-cols')).toBeNull();
+  });
+
+  it('shows the GHI CHÚ column as soon as a rendered row carries a note', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...noteLessRow(), customerNotes: 'Gọi trước 30 phút' }]));
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByRole('columnheader', { name: 'Ghi chú' })).toBeTruthy();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
+  });
+
   it('CUS-OVERVIEW-04 keeps empty notes addable through the existing named edit action', async () => {
-    apiGet.mockResolvedValue(listResponse([{
-      ...row,
-      customerNotes: null,
-      operationalNotes: null,
-      raw: { ...row.raw, customerNotes: null, operationalNotes: null },
-    }]));
+    // The column hides by DEFAULT while it is empty (previous case), so this
+    // reaches the action the way an operator does — with the column shown by an
+    // explicit choice. The action itself is unchanged.
+    localStorage.setItem('cus-lots-hidden-cols', '[]');
+    apiGet.mockResolvedValue(listResponse([noteLessRow()]));
     renderPage();
     const trigger = await screen.findByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
     expect(trigger.textContent).toBe('Thêm ghi chú');

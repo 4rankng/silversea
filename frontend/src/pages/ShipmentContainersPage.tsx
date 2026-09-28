@@ -16,8 +16,10 @@ import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, P
 import { PageHeader } from '../components/UI';
 import {
   DISPATCH_STATUS,
+  LEDGER_COLUMNS,
   ShipmentContainerLedger,
 } from '../features/shipments/detail/ShipmentContainerLedger';
+import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import {
@@ -157,6 +159,17 @@ export default function ShipmentContainersPage() {
   }, [latestSearchParams, suffixParam]);
 
   const items = detail.data?.items ?? [];
+  // Card 20260928_193: column visibility for the container ledger. Storage is
+  // the key card 20260917_4 shipped for exactly this surface, so an operator who
+  // had configured the ledger before the feature was deleted gets their columns
+  // back. With no stored choice the default hides Ghi chú only while every
+  // rendered row's note cell is empty.
+  const ledgerColumns = useHiddenColumns({
+    storageKey: 'cus-containers-hidden-cols',
+    columns: LEDGER_COLUMNS,
+    hasData: (column) => column.key !== 'notes'
+      || items.some((row) => Boolean((row.customerNotes ?? '').trim() || (row.operationalNotes ?? '').trim())),
+  });
   const totalPages = detail.data?.totalPages ?? 0;
   const totalContainers = detail.data?.total ?? 0;
   const customers = detail.data?.filterOptions.customers ?? [];
@@ -252,6 +265,13 @@ export default function ShipmentContainersPage() {
                 error: searchError,
               }}
               presets={presetNode}
+              columns={{
+                items: LEDGER_COLUMNS,
+                hidden: ledgerColumns.hidden,
+                customized: ledgerColumns.customized,
+                onToggle: ledgerColumns.toggle,
+                onReset: ledgerColumns.reset,
+              }}
               actions={(
                 <UUIButton
                   size="sm"
@@ -299,7 +319,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
         </>}
       </section>
     </div>

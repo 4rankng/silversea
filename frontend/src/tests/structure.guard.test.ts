@@ -345,7 +345,14 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 872 -> 873: 2026-09-26 card 20260925_9 — the add-container row's
   // native date input swaps to the shared BufferedUuiDateInput (import line);
   // net +1. Split candidate stands.
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 873,
+  // Bumped 873 -> 905: 2026-09-28 card 20260928_193 — column visibility returns
+  // to the ledger (it was QA-passed on 2026-09-18 as card 20260917_4 and deleted
+  // by 03d584ec the next day). The cost is the column table (8 keys), the
+  // `hiddenColumns` prop and five `{!isHidden('…') && (…)}` wrappers on the
+  // `<col>`/`SortHeader`/`<td>` triple — the conditional must wrap all three or a
+  // `table-layout: fixed` table shows a ghost column. Split candidate stands and
+  // is now the bigger one: the tbody cell groups are the extraction seam.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 905,
   'src/features/tires/tire-controls.tsx': 527,
   'src/features/tires/tire-dialogs.tsx': 427,
   // Bumped 513 → 524: 2026-09-20 missing-ground-price chip (D2) — the 15T
@@ -428,7 +435,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // page carries the drawer ops instead of the removed ContainerManageDialog
   // wiring. The 20260922_83 shrink debt stays open and now has a named split:
   // extract the drawer body into a CusShipmentDrawer component.
-  'src/pages/ShipmentsPage.tsx': 759,
+  // Bumped 759 -> 779: 2026-09-28 card 20260928_193 — the workboard's column
+  // picker wiring: the `useHiddenColumns` call with its data predicate, the
+  // conditional `<col>`/`SortHeader` triple, and the `columns` prop on the bar.
+  'src/pages/ShipmentsPage.tsx': 779,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)

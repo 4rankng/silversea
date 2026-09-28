@@ -1,6 +1,12 @@
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { Search } from 'lucide-react';
-import { FilterBarModeProvider, useFilterBarFit } from './filter-bar-mode';
+import { ColumnPicker } from './ColumnPicker';
+import {
+  FilterBarModeProvider,
+  FilterBarViewControlsProvider,
+  useFilterBarFit,
+} from './filter-bar-mode';
+import type { LedgerColumn } from '../lib/column-visibility';
 import './FilterBar.css';
 import './ListFilterBar.css';
 
@@ -43,6 +49,15 @@ export interface ListFilterBarProps {
   /** Criteria in row order. Put the `Bộ lọc` trigger LAST: it is the item that
    *  arrives and leaves as the width changes. */
   children?: ReactNode;
+  /**
+   * Column visibility for the list this bar filters (card 20260928_193). The bar
+   * hosts the picker but does not own the choice: the page resolves it (an
+   * explicit user choice, else the default that hides a column only while it is
+   * empty) and passes it in. Placement is the bar's own measured decision — a bar
+   * item while the strip is `inline`, inside `Bộ lọc` once the width folds the
+   * criteria away — so a frozen surface can never be pushed onto a third row.
+   */
+  columns?: ListFilterBarColumns;
   /** Quick ranges (the shared segmented group), beside the dates they set. */
   presets?: ReactNode;
   /** Quick filters (toggles/chips) — after the presets. */
@@ -55,13 +70,38 @@ export interface ListFilterBarProps {
   actions?: ReactNode;
 }
 
-export function ListFilterBar({ search, children, presets, quickFilters, quickFiltersLabel, status, actions }: ListFilterBarProps) {
+export interface ListFilterBarColumns {
+  /** The surface's columns in table order (pinned ones are not offered). */
+  items: readonly LedgerColumn[];
+  /** The effective hidden keys the table is rendering now. */
+  hidden: readonly string[];
+  /** A stored user choice exists — "Mặc định" has a default to restore. */
+  customized: boolean;
+  onToggle: (key: string) => void;
+  onReset: () => void;
+}
+
+export function ListFilterBar({ search, children, columns, presets, quickFilters, quickFiltersLabel, status, actions }: ListFilterBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   // Keep every criterion inline while the strip still fits two rows; fold them
   // into `Bộ lọc` only when the width leaves no other choice.
   const mode = useFilterBarFit(barRef);
+  // The picker is ONE node in TWO possible homes: rendered here while the strip
+  // is inline, and published to `FilterDropdown` (which renders it in the dialog
+  // panel) once the width folds the criteria there. Exactly one instance exists
+  // at any moment, so its ids and its query surface stay unambiguous.
+  const columnPicker = columns ? (
+    <ColumnPicker
+      columns={columns.items}
+      hidden={columns.hidden}
+      customized={columns.customized}
+      onToggle={columns.onToggle}
+      onReset={columns.onReset}
+    />
+  ) : null;
   return (
     <FilterBarModeProvider value={mode}>
+      <FilterBarViewControlsProvider value={mode === 'inline' ? null : columnPicker}>
       <div className="filter-bar filter-bar--card list-filter-bar" ref={barRef}>
         {search && (
           // The cell is a stack: the shell plus the field's own validation line
@@ -96,6 +136,11 @@ export function ListFilterBar({ search, children, presets, quickFilters, quickFi
             {quickFilters}
           </div>
         )}
+        {/* The column picker (card 20260928_193) is the last content item while
+            the strip has room for it; once the width folds the criteria into
+            `Bộ lọc` the SAME node renders in that dialog instead (published
+            above), so it never becomes the item that costs a third row. */}
+        {mode === 'inline' && columnPicker}
         {/* The applied-count and the reset are ONE cluster at the right end of
             the line they land on; the spacer's `margin-left:auto` pins it. */}
         {(status || actions) && <div className="filter-bar__spacer" />}
@@ -106,6 +151,7 @@ export function ListFilterBar({ search, children, presets, quickFilters, quickFi
           </div>
         )}
       </div>
+      </FilterBarViewControlsProvider>
     </FilterBarModeProvider>
   );
 }

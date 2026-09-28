@@ -33,13 +33,14 @@ import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit'
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
 import { CusDrawerFooter } from '../features/shipments/cus/CusDrawerFooter';
 import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContainerLedger';
-import { CusShipmentRow } from '../features/shipments/cus/CusShipmentRow';
+import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
-import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
+import { useHiddenColumns } from '../hooks/useHiddenColumns';
+import { appointmentGroupFactorySegment, formatAppointmentGroupLine, noteLines, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -339,6 +340,17 @@ export default function ShipmentsPage() {
   // unfiltered page and this predicate slices it, same as the status tabs.
   const bucketLens = selectedBuckets.length >= 2 ? (item: ShipmentCusWorkspaceListItem) => selectedBuckets.includes(item.bucket) : null;
   const visibleItems = items.filter(statusTabDef.matches).filter((item) => (bucketLens ? bucketLens(item) : true));
+  // Card 20260928_193: column visibility for the workboard. The choice is the
+  // operator's, stored per surface (`localStorage`, the mechanism card
+  // 20260917_4 shipped and QA verified for reload); with no stored choice the
+  // default hides GHI CHÚ only while the rendered rows carry no note at all —
+  // one note anywhere and the column is information, not whitespace.
+  const rowColumns = useHiddenColumns({
+    storageKey: 'cus-lots-hidden-cols',
+    columns: CUS_ROW_COLUMNS,
+    hasData: (column) => column.key !== 'notes'
+      || visibleItems.some((item) => noteLines(item.customerNotes).length > 0 || noteLines(item.operationalNotes).length > 0),
+  });
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
   // Derived, not stored: the banner clears itself the moment the blocking
@@ -499,6 +511,13 @@ export default function ShipmentsPage() {
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
           }}
           presets={presetNode}
+          columns={{
+            items: CUS_ROW_COLUMNS,
+            hidden: rowColumns.hidden,
+            customized: rowColumns.customized,
+            onToggle: rowColumns.toggle,
+            onReset: rowColumns.reset,
+          }}
           actions={hasFilters ? (
             <UUIButton
               type="button" size="sm" color="tertiary"
@@ -572,20 +591,20 @@ export default function ShipmentsPage() {
                 <caption className="sr-only">Tổng hợp lô hàng theo bảy nhóm thông tin</caption>
                 <colgroup>
                   <col className="cus-dashboard-col--customer" />
-                  <col className="cus-dashboard-col--documents" />
-                  <col className="cus-dashboard-col--classification" />
-                  <col className="cus-dashboard-col--cargo" />
-                  <col className="cus-dashboard-col--schedule" />
-                  <col className="cus-dashboard-col--notes" />
+                  {!rowColumns.isHidden('documents') && <col className="cus-dashboard-col--documents" />}
+                  {!rowColumns.isHidden('classification') && <col className="cus-dashboard-col--classification" />}
+                  {!rowColumns.isHidden('cargo') && <col className="cus-dashboard-col--cargo" />}
+                  {!rowColumns.isHidden('schedule') && <col className="cus-dashboard-col--schedule" />}
+                  {!rowColumns.isHidden('notes') && <col className="cus-dashboard-col--notes" />}
                   <col className="cus-dashboard-col--status" />
                 </colgroup>
                 <thead><tr>
                   <SortHeader label="Khách hàng &amp; nhà máy" sortKey="customerName" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Chứng từ" sortKey="billOrBookNumber" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Phân loại &amp; hãng tàu" sortKey="shippingLineName" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Tổng quan hàng hóa" sortKey="cargoWeightKg" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Lịch trình &amp; điều xe" sortKey="transportDate" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={applySort} />
+                  {!rowColumns.isHidden('documents') && <SortHeader label="Chứng từ" sortKey="billOrBookNumber" sort={sort} onSortChange={applySort} />}
+                  {!rowColumns.isHidden('classification') && <SortHeader label="Phân loại &amp; hãng tàu" sortKey="shippingLineName" sort={sort} onSortChange={applySort} />}
+                  {!rowColumns.isHidden('cargo') && <SortHeader label="Tổng quan hàng hóa" sortKey="cargoWeightKg" sort={sort} onSortChange={applySort} />}
+                  {!rowColumns.isHidden('schedule') && <SortHeader label="Lịch trình &amp; điều xe" sortKey="transportDate" sort={sort} onSortChange={applySort} />}
+                  {!rowColumns.isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={applySort} />}
                   <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr></thead>
                 <tbody>
@@ -598,6 +617,7 @@ export default function ShipmentsPage() {
                       editing={quickEditDraft?.shipmentId === item.id}
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}
+                      hiddenColumns={rowColumns.hidden}
                       onStartQuickEdit={(item, field) => {
                         // Card 20260923_1: the cargo cell returns to quick-edit
                         // for every cargo mode — container composition is
