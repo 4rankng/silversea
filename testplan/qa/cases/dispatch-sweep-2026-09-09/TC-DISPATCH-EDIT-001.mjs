@@ -7,6 +7,7 @@ export const role = 'ADMIN';
 
 export default async function (ctx) {
   const { page } = ctx;
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/dispatch-detail');
   // First load of /dispatch-detail on staging can exceed 15s (cold cache);
   // 30s matches the harness nav timeout.
@@ -26,7 +27,7 @@ export default async function (ctx) {
     return { index: idx, total: triggers.length };
   });
   if (!clicked) {
-    return { verdict: 'BLOCKED', errors: ['Không có ô điều phối nào có thể chỉnh sửa (tất cả đã hoàn thành hoặc đang chờ phân xe lại) trên /dispatch-detail'] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} Không có ô điều phối nào có thể chỉnh sửa (tất cả đã hoàn thành hoặc đang chờ phân xe lại) trên /dispatch-detail`] };
   }
   await page.waitForSelector('.dispatch-assignment-dialog', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 1000));

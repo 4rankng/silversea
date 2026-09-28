@@ -7,6 +7,7 @@ export const caseId = 'TC-CUS-CREATE-028';
 export const role = 'CUS';
 
 export default async function (ctx) {
+  const envTag = `[${ctx.env.env}]`;
   // /api/shipments?page=1 returns summary items WITHOUT containers.
   // The detail endpoint returns { shipment, containers, ... }.
   // Pick the first shipment that has a BL AND at least one container with
@@ -40,7 +41,7 @@ export default async function (ctx) {
   await ctx.goto(`/shipments?searchSuffix=${encodeURIComponent(target.blNumber)}`);
   await ctx.screenshot('a_overview');
   const rowText = await ctx.rowContaining(target.blNumber);
-  if (!rowText) return { verdict: 'INCONCLUSIVE', errors: [`row for ${target.blNumber} not found in overview`] };
+  if (!rowText) return { verdict: 'INCONCLUSIVE', errors: [`${envTag} row for ${target.blNumber} not found in overview`] };
 
   const rowHasDate = /\d{1,2}\/\d{1,2}\/\d{4}/.test(rowText);
   const rowHasWaiting = /Chưa chốt ngày|Chờ chốt lịch|WAITING_DATE/i.test(rowText);

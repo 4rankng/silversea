@@ -25,6 +25,7 @@ const TABLE = '.cus-dashboard-table';
 export default async function (ctx) {
   const { page } = ctx;
   const errors = [];
+  const envTag = `[${ctx.env.env}]`;
 
   await ctx.goto('/shipments');
   await page.waitForSelector(`${TABLE} tbody tr`, { timeout: 15000 });
@@ -48,7 +49,7 @@ export default async function (ctx) {
   if (shipmentId == null) {
     return {
       verdict: 'BLOCKED',
-      errors: [`[${ctx.env.env}] no unlocked LCL row on /shipments page 1 as CUS — schedule/notes rungs not exercised`],
+      errors: [`${envTag} no unlocked LCL row on /shipments page 1 as CUS — schedule/notes rungs not exercised`],
     };
   }
 
@@ -61,7 +62,7 @@ export default async function (ctx) {
     return true;
   }, shipmentId);
   if (!schedClicked) {
-    return { verdict: 'FAIL', errors: ['Schedule trigger missing/disabled on the picked row'] };
+    return { verdict: 'FAIL', errors: [`${envTag} Schedule trigger missing/disabled on the picked row`] };
   }
 
   await new Promise((r) => setTimeout(r, 1000));
@@ -71,9 +72,9 @@ export default async function (ctx) {
     return { title: m.querySelector('h2, h3, .modal__title')?.innerText?.trim() ?? null };
   });
   await ctx.screenshot('02_schedule_modal_open');
-  if (!schedModal) errors.push('Schedule modal did not open');
+  if (!schedModal) errors.push(`${envTag} Schedule modal did not open`);
   else if (!schedModal.title?.toLowerCase().includes('lịch trình')) {
-    errors.push(`Schedule modal title mismatch: got "${schedModal.title}"`);
+    errors.push(`${envTag} Schedule modal title mismatch: got "${schedModal.title}"`);
   }
 
   const isModalOpen = () => page.evaluate(() => Boolean(document.querySelector('.modal__content')));
@@ -93,16 +94,16 @@ export default async function (ctx) {
     });
     await new Promise((r) => setTimeout(r, 500));
     if (!timeClicked) {
-      errors.push('Giờ (time) input not found inside schedule modal');
+      errors.push(`${envTag} Giờ (time) input not found inside schedule modal`);
     } else {
       await ctx.screenshot('03_after_time_click');
-      if (!(await isModalOpen())) errors.push('BUG: modal closed after clicking time field');
+      if (!(await isModalOpen())) errors.push(`${envTag} BUG: modal closed after clicking time field`);
       else {
         // Type a time value (draft only — discarded via Hủy below).
         await page.keyboard.type('14:30', { delay: 50 });
         await new Promise((r) => setTimeout(r, 500));
         await ctx.screenshot('04_after_time_type');
-        if (!(await isModalOpen())) errors.push('BUG: modal closed after typing time');
+        if (!(await isModalOpen())) errors.push(`${envTag} BUG: modal closed after typing time`);
       }
     }
 
@@ -116,7 +117,7 @@ export default async function (ctx) {
     await new Promise((r) => setTimeout(r, 500));
     const stillOpen = await isModalOpen();
     if (!closed || stillOpen) {
-      errors.push('Schedule modal did not close after Hủy (draft must be discarded)');
+      errors.push(`${envTag} Schedule modal did not close after Hủy (draft must be discarded)`);
     }
   }
 
@@ -129,7 +130,7 @@ export default async function (ctx) {
     return true;
   }, shipmentId);
   if (!notesClicked) {
-    errors.push('Notes trigger missing/disabled on the picked row (as CUS)');
+    errors.push(`${envTag} Notes trigger missing/disabled on the picked row (as CUS)`);
   } else {
     await new Promise((r) => setTimeout(r, 800));
     const notesModal = await page.evaluate(() => {
@@ -139,10 +140,10 @@ export default async function (ctx) {
     });
     await ctx.screenshot('05_notes_modal_open');
     if (!notesModal) {
-      errors.push('Notes modal did not open (as CUS)');
+      errors.push(`${envTag} Notes modal did not open (as CUS)`);
     } else {
       if (!notesModal.title?.toLowerCase().includes('ghi chú')) {
-        errors.push(`Notes modal title mismatch: got "${notesModal.title}"`);
+        errors.push(`${envTag} Notes modal title mismatch: got "${notesModal.title}"`);
       }
       const closed = await page.evaluate(() => {
         const m = document.querySelector('.modal__content');
@@ -153,7 +154,7 @@ export default async function (ctx) {
       await new Promise((r) => setTimeout(r, 500));
       const stillOpen = await isModalOpen();
       if (!closed || stillOpen) {
-        errors.push('Notes modal did not close after Hủy');
+        errors.push(`${envTag} Notes modal did not close after Hủy`);
       }
     }
   }

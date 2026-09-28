@@ -21,6 +21,7 @@ export const role = 'ADMIN';
 
 export default async function (ctx) {
   const { page } = ctx;
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/dispatch-detail');
   await page.waitForSelector('.dispatch-assignment-cell__trigger, .detailed-plan-grid', { timeout: 30000 });
   await new Promise((r) => setTimeout(r, 1500));
@@ -42,7 +43,7 @@ export default async function (ctx) {
     await ctx.screenshot('01_dispatch_detail_no_quick_issue');
     return {
       verdict: 'BLOCKED',
-      errors: ['Không có dòng plated-not-issued nào trên trang 1 — cần fixture (mã prefix QA0920-) ở trạng thái có biển nhưng chưa phát lệnh.'],
+      errors: [`${envTag} Không có dòng plated-not-issued nào trên trang 1 — cần fixture (mã prefix QA0920-) ở trạng thái có biển nhưng chưa phát lệnh.`],
       quickIssue,
     };
   }
@@ -69,7 +70,7 @@ export default async function (ctx) {
     await ctx.screenshot('02_no_editable_trigger');
     return {
       verdict: 'BLOCKED',
-      errors: ['Không có trigger điều phối ở chế độ sửa (mọi dòng đều đã phát lệnh/đã hoàn thành) — cần fixture plated-not-issued.'],
+      errors: [`${envTag} Không có trigger điều phối ở chế độ sửa (mọi dòng đều đã phát lệnh/đã hoàn thành) — cần fixture plated-not-issued.`],
       quickIssue,
       editable,
     };

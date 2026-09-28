@@ -40,11 +40,12 @@ async function api(ctx, method, path, body) {
 }
 
 export default async function (ctx) {
+  const envTag = `[${ctx.env.env}]`;
   // A real customer for the self-contained fixture leg (bootstrap is the same
   // CUS-scoped catalog the create form uses).
   const bootstrap = await ctx.apiGet('/catalogs/bootstrap');
   const realCustomer = (bootstrap.body?.customers ?? [])[0];
-  if (!realCustomer?.id) return { verdict: 'BLOCKED', errors: ['bootstrap returned no customers — cannot build the valid fixture'] };
+  if (!realCustomer?.id) return { verdict: 'BLOCKED', errors: [`${envTag} bootstrap returned no customers — cannot build the valid fixture`] };
 
   // Leg 1 — phantom customerId on create must be rejected with 400.
   const phantomCreate = await api(ctx, 'POST', '/shipments', { customerId: PHANTOM_ID });
@@ -57,7 +58,7 @@ export default async function (ctx) {
   // Leg 2 — self-contained valid fixture, then phantom routeId on update.
   const fixture = await api(ctx, 'POST', '/shipments', { customerId: realCustomer.id });
   if (fixture.status !== 201) {
-    return { verdict: 'BLOCKED', errors: [`fixture create failed: ${fixture.status} ${JSON.stringify(fixture.body).slice(0, 300)}`] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} fixture create failed: ${fixture.status} ${JSON.stringify(fixture.body).slice(0, 300)}`] };
   }
   const fixtureId = fixture.body?.id;
   const expectedVersion = fixture.body?.version ?? 1;
@@ -78,7 +79,7 @@ export default async function (ctx) {
       verdict: 'SKIP',
       ...legs,
       reason: 'fix not deployed (pre-fix 201/200 observed) — rerun after the staging cut',
-      errors: skips.map((leg) => leg.detail),
+      errors: skips.map((leg) => `${envTag} ${leg.detail}`),
     };
   }
   return { verdict: 'PASS', ...legs };

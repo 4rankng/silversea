@@ -6,22 +6,23 @@ export const caseId = 'TC-CUS-CREATE-026';
 export const role = 'CUS';
 
 export default async function (ctx) {
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/shipments/new');
 
-  // 1. Pick an existing BL from the staging DB so we can collide with it.
+  // 1. Pick an existing BL from the DB under test so we can collide with it.
   const list = await ctx.apiGet('/shipments?page=1&limit=10');
   const items = list.body.items || list.body.data || [];
   const existingBLs = items.map((s) => s.blNumber || s.bl_number).filter(Boolean);
   if (existingBLs.length === 0) {
-    return { verdict: 'BLOCKED', errors: [`[${ctx.env.env}] no shipments available to test duplicate Bill/Booking against`] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} no shipments available to test duplicate Bill/Booking against`] };
   }
   const dupBL = existingBLs[0];
 
   // 2. Fill required fields: customer + hình thức + the duplicate BL.
   const cust = await ctx.pickComboboxByPlaceholder('Gõ để tìm kiếm', 'Long Minh');
-  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`kh: ${cust.error}`] };
+  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`${envTag} kh: ${cust.error}`] };
   const hinhThuc = await ctx.pickHinhThucNhapKhau();
-  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`hình thức: ${hinhThuc.error}`] };
+  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`${envTag} hình thức: ${hinhThuc.error}`] };
 
   // Find the Bill/Booking field by label
   const billHandle = await ctx.page.evaluateHandle(() => {
@@ -35,7 +36,7 @@ export default async function (ctx) {
     return null;
   });
   const billEl = billHandle.asElement();
-  if (!billEl) return { verdict: 'BLOCKED', errors: ['Bill/Booking field not found'] };
+  if (!billEl) return { verdict: 'BLOCKED', errors: [`${envTag} Bill/Booking field not found`] };
 
   await billEl.click();
   await ctx.page.evaluate((node) => { node.value = ''; }, billEl);

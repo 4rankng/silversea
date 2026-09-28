@@ -13,6 +13,7 @@ export const role = 'ADMIN';
 export default async function (ctx) {
   const { page } = ctx;
   const errors = [];
+  const envTag = `[${ctx.env.env}]`;
 
   await ctx.goto('/shipments');
   await page.waitForSelector('.cus-dashboard-table tbody tr', { timeout: 15000 });
@@ -26,7 +27,7 @@ export default async function (ctx) {
     return false;
   });
   if (!detailClicked) {
-    return { verdict: 'FAIL', errors: ['No "Mở chi tiết" button found on /shipments'] };
+    return { verdict: 'FAIL', errors: [`${envTag} No "Mở chi tiết" button found on /shipments`] };
   }
   await page.waitForSelector('[role="dialog"]', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 1200));
@@ -35,7 +36,7 @@ export default async function (ctx) {
   // (b) No reason textarea — the approval-era reason field is gone.
   const textareas = await page.evaluate(() => document.querySelectorAll('[role="dialog"] textarea').length);
   if (textareas > 0) {
-    errors.push(`Reason textarea still present in drawer (${textareas}) — no-approval violation`);
+    errors.push(`${envTag} Reason textarea still present in drawer (${textareas}) — no-approval violation`);
   }
 
   // (a) ADMIN taps 'Khóa lô' → permission toast 'Chỉ CUS được khóa lô.'
@@ -48,7 +49,7 @@ export default async function (ctx) {
     return true;
   });
   if (!lockTapped) {
-    errors.push('No "Khóa lô" button found in drawer');
+    errors.push(`${envTag} No "Khóa lô" button found in drawer`);
   } else {
     await new Promise((r) => setTimeout(r, 800));
     // ADMIN contract: a persistent inline note 'Chỉ CUS được khóa lô.' renders
@@ -60,14 +61,14 @@ export default async function (ctx) {
     });
     await ctx.screenshot('03_admin_lock_note');
     if (lockNote === 0) {
-      errors.push("Expected inline note 'Chỉ CUS được khóa lô.' beside the Khóa lô control");
+      errors.push(`${envTag} Expected inline note 'Chỉ CUS được khóa lô.' beside the Khóa lô control`);
     }
     // (c) Cancel cleanly — close the drawer, nothing mutated.
     await page.keyboard.press('Escape');
     await new Promise((r) => setTimeout(r, 600));
     await new Promise((r) => setTimeout(r, 800));
     const drawerGone = await page.evaluate(() => !document.querySelector('[role="dialog"]'));
-    if (!drawerGone) errors.push('Drawer did not close after cancel');
+    if (!drawerGone) errors.push(`${envTag} Drawer did not close after cancel`);
   }
 
   return {

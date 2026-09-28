@@ -19,10 +19,11 @@ export const role = 'ADMIN';
  */
 export default async function (ctx) {
   const { api } = ctx;
+  const envTag = `[${ctx.env.env}]`;
 
   // ── Step 1: Find a route with a road_allowance for exactly one trailer type ──
   const routesRes = await api.get('/api/routes');
-  if (!routesRes.ok) return { verdict: 'BLOCKED', errors: ['Cannot fetch routes'] };
+  if (!routesRes.ok) return { verdict: 'BLOCKED', errors: [`${envTag} Cannot fetch routes`] };
   const routes = routesRes.data.items;
 
   let targetRoute = null;
@@ -52,7 +53,7 @@ export default async function (ctx) {
   if (!targetRoute) {
     return {
       verdict: 'BLOCKED',
-      errors: ['No route found with road_allowance for exactly one trailer type. Need a route with rate for A but not B.'],
+      errors: [`${envTag} No route found with road_allowance for exactly one trailer type. Need a route with rate for A but not B.`],
     };
   }
 
@@ -86,7 +87,7 @@ export default async function (ctx) {
   if (!cargoTypeId || !containerTypeId || !customerId) {
     return {
       verdict: 'BLOCKED',
-      errors: [`Cannot resolve the ids createTripSchema requires — cargoTypeId=${cargoTypeId}, containerTypeId=${containerTypeId}, customerId=${customerId}. This env's master data is empty, which is a seed problem, not a case problem.`],
+      errors: [`${envTag} Cannot resolve the ids createTripSchema requires — cargoTypeId=${cargoTypeId}, containerTypeId=${containerTypeId}, customerId=${customerId}. This env's master data is empty, which is a seed problem, not a case problem.`],
     };
   }
 
@@ -111,7 +112,7 @@ export default async function (ctx) {
   if (!truckId) {
     return {
       verdict: 'BLOCKED',
-      errors: ['No tractor unit on this env — createTripSchema requires truckId for an internal trip. That is a seed problem, not a case problem.'],
+      errors: [`${envTag} No tractor unit on this env — createTripSchema requires truckId for an internal trip. That is a seed problem, not a case problem.`],
     };
   }
 
@@ -134,7 +135,7 @@ export default async function (ctx) {
     const detail = typeof createRes.data === 'string'
       ? createRes.data
       : createRes.data?.error || JSON.stringify(createRes.data?.details ?? createRes.data);
-    return { verdict: 'BLOCKED', errors: [`Trip creation failed: ${createRes.status} — ${String(detail).slice(0, 300)}`] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} Trip creation failed: ${createRes.status} — ${String(detail).slice(0, 300)}`] };
   }
   const tripId = createRes.data.id;
   const initialAllowance = Number(createRes.data.roadAllowanceBaseApplied || 0);
@@ -143,7 +144,7 @@ export default async function (ctx) {
   if (initialAllowance === 0) {
     return {
       verdict: 'BLOCKED',
-      errors: [`Route ${targetRoute.id} type ${typeWithRate} has allowance in DB but initial trip got 0. Check seed data.`],
+      errors: [`${envTag} Route ${targetRoute.id} type ${typeWithRate} has allowance in DB but initial trip got 0. Check seed data.`],
     };
   }
 
@@ -152,7 +153,7 @@ export default async function (ctx) {
     trailerType: typeWithoutRate,
   });
   if (!updateRes.ok) {
-    return { verdict: 'BLOCKED', errors: [`Trip update failed: ${updateRes.status}`] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} Trip update failed: ${updateRes.status}`] };
   }
 
   const updatedAllowance = Number(updateRes.data.roadAllowanceBaseApplied || 0);
@@ -170,8 +171,8 @@ export default async function (ctx) {
     updatedAllowance,
     ...(pass ? {} : {
       errors: [
-        `Expected roadAllowanceBaseApplied=0 after switching to ${typeWithoutRate} (no rate).`,
-        `Got ${updatedAllowance} — this is the old ${typeWithRate} rate, indicating fallback to previous trailer type.`,
+        `${envTag} Expected roadAllowanceBaseApplied=0 after switching to ${typeWithoutRate} (no rate).`,
+        `${envTag} Got ${updatedAllowance} — this is the old ${typeWithRate} rate, indicating fallback to previous trailer type.`,
       ],
     }),
   };

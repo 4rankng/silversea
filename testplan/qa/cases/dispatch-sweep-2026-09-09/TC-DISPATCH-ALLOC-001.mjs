@@ -7,6 +7,7 @@ export const role = 'ADMIN';
 
 export default async function (ctx) {
   const { page } = ctx;
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/dispatch');
   await page.waitForSelector('.master-plan-grid__allocation-trigger', { timeout: 15000 });
 
@@ -14,7 +15,7 @@ export default async function (ctx) {
 
   const triggers = await page.$$('.master-plan-grid__allocation-trigger');
   if (triggers.length === 0) {
-    return { verdict: 'BLOCKED', errors: ['Không tìm thấy nút Phân bổ trên /dispatch'] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} Không tìm thấy nút Phân bổ trên /dispatch`] };
   }
 
   await triggers[0].evaluate((el) => {
