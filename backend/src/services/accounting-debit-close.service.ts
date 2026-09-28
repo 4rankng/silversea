@@ -21,6 +21,7 @@
 import { and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
+import { sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
@@ -159,16 +160,39 @@ export async function getAccountingDebitBoard(query: {
   const zoneCostByLot = new Map<number, number>();
   const zoneChargeByLot = new Map<number, number>();
   const otherOpsByLot = new Map<number, number>();
+  // Card 20260928_197 — ops cost `amount` is signed, so a negative row must
+  // leave the board exactly as if it did not exist. Bucketing happens first and
+  // the money is then read through the one shared rule (`sumExcludingNegative`),
+  // so both maps below count only the same rows. `customerChargeAmount` (the
+  // receivable side) is NOT signed and keeps its plain add.
+  const zoneCostRows = new Map<number, Array<{ amount: string }>>();
+  const otherOpsRows = new Map<number, Array<{ amount: string }>>();
   for (const row of opsRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
     if (row.expenseTypeCode === zoneCode) {
-      zoneCostByLot.set(lot, (zoneCostByLot.get(lot) ?? 0) + toNumber(row.amount));
+      const bucket = zoneCostRows.get(lot) ?? [];
+      bucket.push({ amount: row.amount });
+      zoneCostRows.set(lot, bucket);
       if (row.customerChargeAmount != null) {
         zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.customerChargeAmount));
       }
     } else {
-      otherOpsByLot.set(lot, (otherOpsByLot.get(lot) ?? 0) + toNumber(row.amount));
+      const bucket = otherOpsRows.get(lot) ?? [];
+      bucket.push({ amount: row.amount });
+      otherOpsRows.set(lot, bucket);
+    }
+  }
+  for (const [lot, bucket] of zoneCostRows) {
+    // A lot whose only ZONE_SURCHARGE rows are negative must not read as a
+    // KNOWN 0, so the "known" flag is set from the counted rows.
+    if (bucket.some((row) => Number(row.amount) >= 0)) {
+      zoneCostByLot.set(lot, sumExcludingNegative(bucket, (row) => row.amount));
+    }
+  }
+  for (const [lot, bucket] of otherOpsRows) {
+    if (bucket.some((row) => Number(row.amount) >= 0)) {
+      otherOpsByLot.set(lot, sumExcludingNegative(bucket, (row) => row.amount));
     }
   }
 

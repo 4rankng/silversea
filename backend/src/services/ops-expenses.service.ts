@@ -41,15 +41,26 @@ type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Card 20260928_197 — a SIGNED integer VND amount, the same contract
+ *  `signedExpenseVndSchema` gives the shared layer (card 20260928_181): a cost
+ *  row may carry a negative number, and every total that reads this column
+ *  drops such a row via `sumExcludingNegative` instead of netting it against
+ *  the positive rows. The magnitude ceiling is unchanged and symmetric, and 0
+ *  stays rejected — 0 is an empty row, not a signed one. This is the BigInt
+ *  mirror of the shared schema, so the value never touches a float. */
 export function parseOpsMoney(value: string | number, field = 'Số tiền'): bigint {
-  const isNumericString = typeof value === 'string' && /^\d+$/.test(value.trim());
+  const text = typeof value === 'string' ? value.trim() : String(value);
+  const isNumericString = typeof value === 'string' && /^-?\d+$/.test(text);
   const isInt = typeof value === 'number' && Number.isInteger(value);
   if (!isNumericString && !isInt) {
-    throw new ApiError(400, `${field} phải là số nguyên dương (VND, không phân tách thập phân).`);
+    throw new ApiError(400, `${field} phải là số nguyên (VND, không phân tách thập phân).`);
   }
-  const amount = BigInt(typeof value === 'number' ? value : value.trim());
-  if (amount <= 0n) throw new ApiError(400, `${field} phải lớn hơn 0.`);
-  if (amount > 999_999_999_999_999n) throw new ApiError(400, `${field} vượt quá giới hạn.`);
+  // `String(value)` is only safe for the string branch: a numeric literal
+  // above 1e21 stringifies as `1e+21`, which BigInt cannot read, so the number
+  // branch converts the value itself.
+  const amount = BigInt(typeof value === 'number' ? value : text);
+  if (amount === 0n) throw new ApiError(400, `${field} không được bằng 0.`);
+  if (amount > 999_999_999_999_999n || amount < -999_999_999_999_999n) throw new ApiError(400, `${field} vượt quá giới hạn.`);
   return amount;
 }
 
@@ -428,13 +439,17 @@ export async function listOpsExpensePhotos(
   }));
 }
 
-/** Sum of the still-linked entries; used after rejects unlink entries. */
+/** Sum of the still-linked entries; used after rejects unlink entries.
+ *  Card 20260928_197 — the aggregate is SQL, so it takes the query-level
+ *  equivalent of `sumExcludingNegative`: `filter (where amount >= 0)`. Same
+ *  rule (strictly negative rows are dropped, 0 is kept), same integer money —
+ *  the sum never leaves `numeric`. */
 export async function recomputeOpsSettlementTotal(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   settlementId: number,
 ): Promise<void> {
   const [row] = await tx
-    .select({ total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)` })
+    .select({ total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)` })
     .from(s.opsExpenseEntries)
     .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId));
   await tx
@@ -604,8 +619,16 @@ export interface SettlementGrouping {
   totals: { withInvoice: string; withoutInvoice: string; grand: string };
 }
 
+/** BigInt money sum carrying the `sumExcludingNegative` rule (card
+ *  20260928_197): a strictly negative amount is dropped, never netted against
+ *  the positive ones. Written in BigInt because these totals are integer VND —
+ *  routing them through the number-returning helper would put the money on a
+ *  float. Same predicate, integer-only arithmetic. */
 function sumBig(values: string[]): bigint {
-  return values.reduce((acc, value) => acc + BigInt(value || '0'), 0n);
+  return values.reduce((acc, value) => {
+    const amount = BigInt(value || '0');
+    return amount < 0n ? acc : acc + amount;
+  }, 0n);
 }
 
 /**
@@ -634,8 +657,14 @@ export function groupOpsExpensesForSettlement(
     }
     const basket = entry.requiresInvoice ? group.withInvoice : group.withoutInvoice;
     basket.items.push(entry);
-    basket.total = (BigInt(basket.total) + BigInt(entry.amount || '0')).toString();
-    group.total = (BigInt(group.total) + BigInt(entry.amount || '0')).toString();
+    // Card 20260928_197 — a negative entry stays in `items` (the row is real
+    // and the reviewer must see it) but never reaches a total: the basket and
+    // the group add only the same ">= 0" money `sumExcludingNegative` keeps.
+    const entryAmount = BigInt(entry.amount || '0');
+    if (entryAmount >= 0n) {
+      basket.total = (BigInt(basket.total) + entryAmount).toString();
+      group.total = (BigInt(group.total) + entryAmount).toString();
+    }
   }
 
   const groups = [...byShipment.values()].sort((a, b) =>

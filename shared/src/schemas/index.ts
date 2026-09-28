@@ -2031,10 +2031,12 @@ export const driverIncidentalCostSchema = z.object({
   payerKind: z.enum(['USER', 'COMPANY']).optional(),
   ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
-  // Card 20260928_181 — O/D (Ops expense, driver incidental) amounts stay
-  // positive-only for now: their totals are a follow-up wave, so allowing a
-  // negative here would publish a wrong number on 27 unfixed aggregates.
-  amount: expenseVndSchema.refine(v => v > 0, 'Số tiền phải lớn hơn 0'),
+  // Card 20260928_197 — O/D (Ops expense, driver incidental) amounts are now
+  // SIGNED, the same contract trip_expenses.buy_amount got in card
+  // 20260928_181. The 27 aggregates that read this column were fixed to
+  // `sumExcludingNegative` first, so a negative row leaves every total exactly
+  // as if the row did not exist.
+  amount: signedExpenseVndSchema,
   occurredAt: expenseDateSchema,
   note: z.string().max(1000).optional(),
   receiptStorageKey: z.string().max(255).optional(),

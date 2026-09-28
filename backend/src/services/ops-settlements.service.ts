@@ -11,6 +11,18 @@ import { groupOpsExpensesForSettlement } from './ops-expenses.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** Card 20260928_197 — the frozen-batch total carries the `sumExcludingNegative`
+ *  rule: a strictly negative entry is dropped from `totalAmount`, never netted
+ *  against the positive entries. Integer VND, so the skip is expressed in
+ *  BigInt (no float ever touches the money) with the same ">= 0" predicate the
+ *  shared helper uses. Both call sites below share this one implementation. */
+function sumOpsAmounts(entries: ReadonlyArray<{ amount: string }>): bigint {
+  return entries.reduce((acc, entry) => {
+    const amount = BigInt(entry.amount);
+    return amount < 0n ? acc : acc + amount;
+  }, 0n);
+}
+
 async function generateOpsSettlementCode(tx: Tx, now: Date = new Date()): Promise<string> {
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -55,7 +67,7 @@ export async function createOpsSettlement(
 
     await assertOpsSettlementEvidence(tx, entries.map((entry) => entry.id));
 
-    const total = entries.reduce((acc, entry) => acc + BigInt(entry.amount), 0n);
+    const total = sumOpsAmounts(entries);
     const code = await generateOpsSettlementCode(tx);
     const [settlement] = await tx
       .insert(s.opsSettlements)
@@ -206,7 +218,7 @@ export async function finalizeOpsSettlement(userId: number, settlementId: number
     if (!entries.length) throw new ApiError(400, 'Phiếu không có khoản chi để quyết toán.');
     if (entries.some((entry) => entry.status !== 'RECORDED' && entry.status !== 'APPROVED')) throw new ApiError(400, 'Phiếu còn khoản chi chưa ghi nhận hợp lệ.');
     await assertOpsSettlementEvidence(tx, entries.map((entry) => entry.id));
-    const total = entries.reduce((sum, entry) => sum + BigInt(entry.amount), 0n);
+    const total = sumOpsAmounts(entries);
     const [recorded] = await tx.update(s.opsSettlements).set({ status: 'RECORDED', totalAmount: total.toString(), updatedAt: new Date() })
       .where(eq(s.opsSettlements.id, settlementId)).returning();
     await tx.insert(s.auditLogs).values({ userId, entityType: 'ops-settlements', entityId: settlementId, message: 'Ghi nhận phiếu quyết toán trực tiếp', payload: { beforeStatus: settlement.status, status: 'RECORDED' } });

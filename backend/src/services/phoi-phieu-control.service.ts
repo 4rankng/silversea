@@ -12,11 +12,11 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
-import { createExpenseVoucher, getExpenseCashTotals } from './expense-accounting-voucher.service';
+import { createExpenseVoucher, getExpenseCashTotals, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { expenseVndSchema, TripStatus } from '@tingting/shared';
+import { expenseVndSchema, sumExcludingNegative, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
 
 const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
@@ -182,9 +182,21 @@ export async function listPhoiPhieuRows(query: {
       eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
       isNotNull(s.expenseAccountingSources.confirmedAt)));
   const confirmedRoadByTrip = new Map<number, number>();
+  const confirmedRoadRows = new Map<number, Array<{ amount: string }>>();
   for (const row of confirmedRoad) {
     if (row.tripId == null) continue;
-    confirmedRoadByTrip.set(row.tripId, (confirmedRoadByTrip.get(row.tripId) ?? 0) + Number(row.amount));
+    const bucket = confirmedRoadRows.get(row.tripId) ?? [];
+    bucket.push({ amount: row.amount });
+    confirmedRoadRows.set(row.tripId, bucket);
+  }
+  // Card 20260928_197 — the driver cost amount is signed, so a negative row
+  // must leave the Tien-duong cell exactly as if it did not exist. The map is
+  // set only for trips that still hold a counted row, so a trip whose rows are
+  // all negative reads "chưa xác định" (null) rather than a known 0.
+  for (const [tripId, bucket] of confirmedRoadRows) {
+    if (bucket.some((row) => Number(row.amount) >= 0)) {
+      confirmedRoadByTrip.set(tripId, sumExcludingNegative(bucket, (row) => row.amount));
+    }
   }
   // Eligible-set preview (case QA-2026-09-24-01): the per-source cash ledger
   // grouped once for the listed rows, mirroring getExpenseCashTotals.
@@ -230,7 +242,11 @@ export async function listPhoiPhieuRows(query: {
   const out: PhoiPhieuRow[] = [];
   for (const row of displayRows) {
     const shipmentSources = byShipment.get(row.shipmentId) ?? [];
-    const chiHoTra = shipmentSources.length ? shipmentSources.reduce((sum, source) => sum + Number(source.amount ?? 0), 0) : null;
+    // Card 20260928_197 — `amount` is signed; a negative row leaves the chi-hộ
+    // total exactly as if it did not exist (`sumExcludingNegative`). A lot whose
+    // rows are ALL negative still has rows, so the cell stays a known 0 —
+    // "we looked and there is no money" stays distinct from "chưa xác định".
+    const chiHoTra = shipmentSources.length ? sumExcludingNegative(shipmentSources, (source) => source.amount ?? 0) : null;
     const chiHoThu = shipmentSources.length
       ? shipmentSources.reduce((sum, source) => sum + Number(source.customerChargeAmount ?? 0), 0)
       : null;
@@ -345,6 +361,9 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<string, number>();
     const seenSourceIds = new Set<number>();
+    // Card 20260927_147 — the row loop below needs one source's recorded cash totals to
+    // decide its remaining amount; read the whole selection once instead of once per source.
+    const cashBySourceId = await getExpenseCashTotalsBatch(tx, sources.map((source) => source.id));
     for (const trip of tripRows) {
       const shipmentId = trip.shipmentId as number;
       const customerId = customerIdByShipment.get(shipmentId);
@@ -357,7 +376,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
           continue;
         }
         seenSourceIds.add(source.id);
-        const cash = await getExpenseCashTotals(tx, source.id);
+        const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
         const chargeSide = Number(source.entryCharge ?? 0);
         const costSide = Number(source.entryAmount) - Number(source.allocatedAdvanceAmount ?? 0);
         const remaining = Math.max(args.direction === 'IN' ? chargeSide - cash.IN : costSide - cash.OUT, 0);
@@ -372,7 +391,10 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         const key = `ops:${customerId}`;
         const bucket = groups.get(key) ?? [];
         groups.set(key, [...bucket, ...entries]);
-        totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + entries.reduce((sum, entry) => sum + entry.amount, 0));
+        // Card 20260928_197 — the voucher group total drops negative rows via
+        // the shared rule. Entries are `remaining` amounts (already floored at
+        // 0 upstream), so this is a guard, not a behaviour change today.
+        totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + sumExcludingNegative(entries, (entry) => entry.amount));
       }
     }
     let grandTotal = 0;
@@ -479,7 +501,10 @@ export async function getPhoiPhieuChiHo(tripId: number): Promise<{
     rows: feeRows,
     totals: {
       thu: feeRows.reduce((sum, row) => sum + (row.amountThu ?? 0), 0),
-      tra: feeRows.reduce((sum, row) => sum + row.amountTra, 0),
+      // Card 20260928_197 — `tra` is the signed cost side: a negative row must
+      // leave Tổng trả exactly as if it did not exist. `thu` is the receivable
+      // side (customerChargeAmount) and is NOT signed, so it keeps its add.
+      tra: sumExcludingNegative(feeRows, (row) => row.amountTra),
     },
   };
 }
@@ -601,8 +626,13 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
     tripCode: trip.tripCode,
     rows: feeRows,
     totals: {
-      total: feeRows.reduce((sum, row) => sum + row.amount, 0),
-      confirmed: confirmedRows.reduce((sum, row) => sum + row.amount, 0),
+      // Card 20260928_197 — the driver cost amount is signed, so a negative row
+      // must leave both road-fee totals exactly as if it did not exist. A trip
+      // holding only negative rows still holds rows, so both cells read a known
+      // 0 rather than "chưa xác định" — the same distinction the totals below
+      // made before the column became signed.
+      total: sumExcludingNegative(feeRows, (row) => row.amount),
+      confirmed: sumExcludingNegative(confirmedRows, (row) => row.amount),
     },
   };
 }
@@ -736,7 +766,10 @@ export async function getPhoiPhieuReport(query: {
     const party = partyInfo?.name ?? 'Chưa xác định';
     const bucket = groups.get(party) ?? { tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null };
     const bucketKey = bucketByCategory(source.category);
-    const amount = Number(source.amount ?? 0);
+    // Card 20260928_197 — the signed cost side drops negative rows; `da` (the
+    // recorded cash allocation) is a separate money flow and keeps its add.
+    // The row still creates the party bucket so its cash is still reported.
+    const amount = sumExcludingNegative([source], (row) => row.amount ?? 0);
     if (bucketKey === 'nang') bucket.tienNang += amount;
     else if (bucketKey === 'ha') bucket.tienHa += amount;
     else bucket.psKhac += amount;

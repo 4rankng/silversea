@@ -44,7 +44,7 @@ export const expenseInputFields = {
 };
 export const expenseAccountingUpdateSchema = z.object({
   expectedVersion: z.number().int().positive(), reason: z.string().trim().min(1).max(1000),
-  ...expenseInputFields, amount: expenseVndSchema.refine(v => v > 0).optional(), customerChargeAmount: expenseVndSchema.optional(),
+  ...expenseInputFields, amount: signedExpenseVndSchema.optional(), customerChargeAmount: expenseVndSchema.optional(),
   expenseDate: expenseDateSchema.optional(), note: z.string().max(2000).nullable().optional(),
   payerKind: z.enum(['USER', 'COMPANY', 'SUPPLIER']).optional(), payerUserId: z.number().int().positive().nullable().optional(),
   photoStorageKeys: z.array(z.string().min(1).max(500)).max(20).optional(),
@@ -141,7 +141,11 @@ export interface ExpenseWorkList {
 }
 export const expenseAccountingCreateSchema = z.object({
   tripId: z.number().int().positive(), expenseTypeCode: z.string().trim().min(1).max(50),
-  amount: expenseVndSchema.refine(v => v > 0), customerChargeAmount: expenseVndSchema,
+  // Card 20260928_197 — the expense amount is SIGNED (card 20260928_181's
+  // `signedExpenseVndSchema`); every total that reads it drops negative rows
+  // via `sumExcludingNegative`. `customerChargeAmount` is the receivable side
+  // and stays unsigned — money owed by a customer is never negative.
+  amount: signedExpenseVndSchema, customerChargeAmount: expenseVndSchema,
   expenseDate: expenseDateSchema, costGroup: z.enum(EXPENSE_COST_GROUPS), feeName: z.string().trim().min(1).max(200),
   invoiceNumber: z.string().trim().max(100).nullable().optional(), invoiceDate: expenseDateSchema.nullable().optional(),
   payerKind: z.enum(['COMPANY', 'USER', 'SUPPLIER']), payerUserId: z.number().int().positive().nullable().optional(),

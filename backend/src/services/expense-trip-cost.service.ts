@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
-import { round2dp } from '@tingting/shared';
+import { round2dp, sumExcludingNegative } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
@@ -10,13 +10,20 @@ import { captureProfitabilityAttributionSnapshot } from './profitability.service
 import { LedgerService } from './ledger.service';
 import { SnapshotServices } from './snapshot-services';
 
+/** Card 20260928_197 — the driver cost column is signed, so a negative row must
+ *  leave this snapshot exactly as if it did not exist: `sumExcludingNegative`
+ *  drops it instead of netting it, and keeps the `round2dp` money contract.
+ *  `toll` stays `null` when there is no TOLL row at all (unknown ≠ known 0). */
 export function reconciledDriverCosts(rows: ReadonlyArray<{ costType: string; costGroup: string | null; amount: string; customerChargeAmount: string | null }>) {
   const tolls = rows.filter(row => row.costType === 'TOLL');
   return {
-    toll: tolls.length ? tolls.reduce((sum, row) => round2dp(sum + Number(row.amount)), 0) : null,
-    extra: rows.filter(row => row.costType !== 'TOLL' && row.costType !== 'ROAD_ALLOWANCE'
-      && (row.costGroup === 'DRIVER_ROAD' || Number(row.customerChargeAmount ?? 0) === 0))
-      .reduce((sum, row) => round2dp(sum + Number(row.amount)), 0),
+    // The `null` (unknown) test is a question about ROWS, so it keeps the same
+    // rule as the money: a TOLL set holding only negative rows reads exactly
+    // like no TOLL row at all, and the caller falls back to the station math.
+    toll: tolls.some((row) => Number(row.amount) >= 0) ? sumExcludingNegative(tolls, (row) => row.amount) : null,
+    extra: sumExcludingNegative(rows.filter(row => row.costType !== 'TOLL' && row.costType !== 'ROAD_ALLOWANCE'
+      && (row.costGroup === 'DRIVER_ROAD' || Number(row.customerChargeAmount ?? 0) === 0)),
+    (row) => row.amount),
   };
 }
 

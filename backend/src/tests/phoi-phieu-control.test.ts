@@ -7,6 +7,7 @@ import * as s from '../db/schema';
 import { Role, TxnType } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 import { listPhoiPhieuRows, createPhoiPhieuVoucher, getPhoiPhieuReport, getPhoiPhieuChiHo, getPhoiPhieuTienDuong, listPhoiPhieuStk } from '../services/phoi-phieu-control.service';
+import { getExpenseCashTotalsBatch } from '../services/expense-accounting-voucher.service';
 import { listFundBook } from '../services/treasury-fund-book.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -883,6 +884,87 @@ describe('card 20260928_170 — ô STK nguồn quỹ, dấu tiền vào sổ qu�
     // divergence is card 20260928_171's, deliberately not changed here.
     assert.equal(row!.tienDuong, detail.totals.confirmed, 'ô trên bảng = tổng các dòng đã duyệt bên dưới');
     assert.notEqual(row!.tienDuong, detail.totals.total, 'dòng chưa duyệt không được cộng vào ô');
+  });
+});
+
+// Card 20260927_147 — the consolidated phiếu now reads its selection's recorded cash
+// totals in ONE batch instead of once per source. This pins that each source is still
+// read against ITS OWN totals: a shared bucket changes a per-source remaining, and here
+// it silently drops the second entry (15000 < the other source's 40000).
+describe('card 20260927_147 — a multi-source phiếu reads each source own cash totals', () => {
+  test('getExpenseCashTotalsBatch keeps one bucket per source, zero for sources with no rows', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000, extra: [{ amount: 40000, charge: 15000 }] });
+    const [acct] = await db.insert(s.treasuryAccounts).values({
+      code: `TA-147b-${suffix}-${cleanup.length}`, name: `Quỹ 147b ${suffix}`, type: 'CASH', fundCode: 'COMPANY',
+      status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, acct.id);
+    const [movement] = await db.insert(s.treasuryMovements).values({
+      treasuryAccountId: acct.id, direction: 'IN', amount: '40000', valueDate: '2026-09-22',
+      physicalReference: `PR-147b-${suffix}-${cleanup.length}`, sourceVersion: 1, paymentContractVersion: 1, createdBy: accountantId,
+    }).returning({ id: s.treasuryMovements.id });
+    track(s.treasuryMovements, movement.id);
+    const [prior] = await db.insert(s.expenseCashVouchers).values({
+      code: `VC-147b-${suffix}-${cleanup.length}`, counterpartyType: 'USER', counterpartyId: accountantId,
+      treasuryMovementId: movement.id, status: 'RECORDED', createdById: accountantId,
+    }).returning({ id: s.expenseCashVouchers.id });
+    track(s.expenseCashVouchers, prior.id);
+    const [priorAllocation] = await db.insert(s.expenseCashAllocations).values({
+      voucherId: prior.id, expenseAccountingSourceId: fixture.source.id, sourceVersion: 1, amount: '40000',
+    }).returning({ id: s.expenseCashAllocations.id });
+    track(s.expenseCashAllocations, priorAllocation.id);
+
+    // The source WITHOUT allocations is asked FIRST: a batch that funnels every row into
+    // one bucket, or reuses the first bucket for all ids, cannot hide behind query order.
+    const totals = await getExpenseCashTotalsBatch(db as never, [fixture.extras[0]!.sourceId, fixture.source.id, 2_147_000_000]);
+    assert.deepEqual(totals.get(fixture.extras[0]!.sourceId), { IN: 0, OUT: 0 }, 'nguồn không có dòng nào = 0');
+    assert.deepEqual(totals.get(fixture.source.id), { IN: 40000, OUT: 0 }, 'nguồn có dòng = đúng số của chính nó');
+    assert.deepEqual(totals.get(2_147_000_000), { IN: 0, OUT: 0 }, 'id không tồn tại vẫn có mặt trong map và bằng 0');
+  });
+
+  test('a source with recorded cash and a source without keep their own remaining', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000, extra: [{ amount: 40000, charge: 15000 }] });
+    const [acct] = await db.insert(s.treasuryAccounts).values({
+      code: `TA-147-${suffix}-${cleanup.length}`, name: `Quỹ 147 ${suffix}`, type: 'CASH', fundCode: 'COMPANY',
+      status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id });
+    track(s.treasuryAccounts, acct.id);
+    const [movement] = await db.insert(s.treasuryMovements).values({
+      treasuryAccountId: acct.id, direction: 'IN', amount: '40000', valueDate: '2026-09-22',
+      physicalReference: `PR-147-${suffix}-${cleanup.length}`, sourceVersion: 1, paymentContractVersion: 1, createdBy: accountantId,
+    }).returning({ id: s.treasuryMovements.id });
+    track(s.treasuryMovements, movement.id);
+    const [prior] = await db.insert(s.expenseCashVouchers).values({
+      code: `VC-147-${suffix}-${cleanup.length}`, counterpartyType: 'USER', counterpartyId: accountantId,
+      treasuryMovementId: movement.id, status: 'RECORDED', createdById: accountantId,
+    }).returning({ id: s.expenseCashVouchers.id });
+    track(s.expenseCashVouchers, prior.id);
+    // 40000 of the first source's 100000 charge is already collected; the second source
+    // (charge 15000) has nothing recorded.
+    const [priorAllocation] = await db.insert(s.expenseCashAllocations).values({
+      voucherId: prior.id, expenseAccountingSourceId: fixture.source.id, sourceVersion: 1, amount: '40000',
+    }).returning({ id: s.expenseCashAllocations.id });
+    track(s.expenseCashAllocations, priorAllocation.id);
+
+    const result = await createPhoiPhieuVoucher({
+      tripIds: [fixture.trip.id], direction: 'IN', treasuryAccountId: acct.id,
+      actor: { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never,
+    });
+    // The service writes its own voucher/movement/allocation rows; track them too so this
+    // case does not add to the local DB pile (the teardown only drains `cleanup`).
+    const createdVouchers = await db.select({ id: s.expenseCashVouchers.id, movementId: s.expenseCashVouchers.treasuryMovementId })
+      .from(s.expenseCashVouchers).where(eq(s.expenseCashVouchers.code, result.code as unknown as string));
+    const createdAllocations = await db.select({
+      id: s.expenseCashAllocations.id, sourceRowId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount,
+    }).from(s.expenseCashAllocations).where(inArray(s.expenseCashAllocations.voucherId, createdVouchers.map((row) => row.id)));
+    for (const row of createdVouchers) track(s.treasuryMovements, row.movementId);
+    for (const row of createdVouchers) track(s.expenseCashVouchers, row.id);
+    for (const row of createdAllocations) track(s.expenseCashAllocations, row.id);
+
+    const bySource = new Map(createdAllocations.map((row) => [row.sourceRowId, String(row.amount)]));
+    assert.equal(bySource.get(fixture.source.id), '60000', 'nguồn 1: 100000 phải thu − 40000 đã thu');
+    assert.equal(bySource.get(fixture.extras[0]!.sourceId), '15000', 'nguồn 2 giữ 15000 của chính nó, không dùng totals của nguồn 1');
+    assert.equal(result.total, 75000, 'tổng phiếu = tổng hai phần còn lại độc lập');
   });
 });
 

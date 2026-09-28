@@ -11,7 +11,7 @@
 // history; null-category (chưa phân loại) rows land in the catch-all beside
 // the KHAC rows so no money can leave the table.
 import { and, eq, isNull, ne } from 'drizzle-orm';
-import { ExpenseTypeCategory } from '@tingting/shared';
+import { ExpenseTypeCategory, sumExcludingNegative } from '@tingting/shared';
 import { db } from '../db';
 import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import * as s from '../db/schema';
@@ -52,15 +52,19 @@ export async function computeLotPayablesBreakdown(shipmentId: number): Promise<L
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(and(eq(s.opsExpenseEntries.shipmentId, shipmentId), liveDebitOpsExpense()));
   const withRows = rows.length > 0;
-  const bucketTotal = (predicate: (category: string | null) => boolean): number =>
-    rows.reduce((sum, row) => {
-      if (!predicate(row.category)) return sum;
-      const amount = Number(row.amount);
-      if (!Number.isFinite(amount)) {
+  // Card 20260928_197 — `amount` is signed, so a negative row must leave this
+  // breakdown exactly as if it did not exist. The money comes from the ONE
+  // shared rule (`sumExcludingNegative`); the non-finite guard stays a hard
+  // throw because a NaN row is corrupt data, not a correction.
+  const bucketTotal = (predicate: (category: string | null) => boolean): number => {
+    const bucket = rows.filter((row) => predicate(row.category));
+    for (const row of bucket) {
+      if (!Number.isFinite(Number(row.amount))) {
         throw new Error('Non-finite ops expense amount — refusing to sum.');
       }
-      return sum + amount;
-    }, 0);
+    }
+    return sumExcludingNegative(bucket, (row) => row.amount);
+  };
   const hqgsFee = withRows ? bucketTotal((c) => c === ExpenseTypeCategory.HQGS) : null;
   const phatSinhFee = withRows ? bucketTotal((c) => c === ExpenseTypeCategory.PHAT_SINH) : null;
   const unclassifiedFee = withRows

@@ -41,9 +41,13 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   expenseDateSchema.parse(from);
   expenseDateSchema.parse(to);
   if (from > to) throw new ApiError(400, 'Khoảng ngày không hợp lệ.');
+  // Card 20260928_197 — ĐNTT is a SQL aggregate, so it takes the query-level
+  // equivalent of `sumExcludingNegative`: `filter (where amount >= 0)`. Same
+  // rule as the in-memory helper (strictly negative rows dropped, 0 kept), and
+  // the sum stays integer `::int` — no float touches the money.
   const costRows = await db.select({
     staffId: s.opsExpenseEntries.paidById,
-    dntt: sql<number>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::int`,
+    dntt: sql<number>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)::int`,
   }).from(s.opsExpenseEntries)
     .innerJoin(s.expenseAccountingSources, and(
       eq(s.expenseAccountingSources.sourceKind, 'OPS'),

@@ -3,6 +3,7 @@
 // own module so the lock service and the debit-detail producer can both use
 // it without an import cycle.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { sumExcludingNegative } from '@tingting/shared';
 import { db } from '../db';
 import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import * as s from '../db/schema';
@@ -32,8 +33,14 @@ export async function resolveLotZoneSurcharge(
       eq(s.opsExpenseEntries.expenseTypeCode, ZONE_SURCHARGE_EXPENSE_TYPE),
       liveDebitOpsExpense(),
     ));
-  if (overrideRows.length > 0) {
-    const total = overrideRows.reduce((sum, row) => sum + Number(row.amount), 0);
+  // Card 20260928_197 — an Ops cost row may now be NEGATIVE, and the PM rule
+  // is "a negative row must leave the result exactly as if it did not exist".
+  // The ladder's population test is a question about ROWS, so it uses the same
+  // keep-rule as the money below: a rung holding only negative rows is EMPTY
+  // and falls through to the next rung instead of publishing a known 0.
+  const countedOverride = overrideRows.filter((row) => Number(row.amount) >= 0);
+  if (countedOverride.length > 0) {
+    const total = sumExcludingNegative(overrideRows, (row) => row.amount);
     return { label: configLabel, amount: total, source: 'OVERRIDE' };
   }
   const lotTrips = await db.select({ id: s.trips.id })
@@ -45,8 +52,10 @@ export async function resolveLotZoneSurcharge(
       inArray(s.driverIncidentalCosts.tripId, lotTrips.length > 0 ? lotTrips.map((trip) => trip.id) : [0]),
       eq(s.driverIncidentalCosts.costType, 'LIFT_DROP_ZONE'),
     ));
-  if (incidentalRows.length > 0) {
-    const total = incidentalRows.reduce((sum, row) => sum + Number(row.amount), 0);
+  // Same rule as the OVERRIDE rung above: only negative rows = an empty rung.
+  const countedIncidental = incidentalRows.filter((row) => Number(row.amount) >= 0);
+  if (countedIncidental.length > 0) {
+    const total = sumExcludingNegative(incidentalRows, (row) => row.amount);
     return { label: configLabel, amount: total, source: 'INCIDENTAL' };
   }
   if (configRows.length > 0) {

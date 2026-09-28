@@ -16,12 +16,34 @@ import { allocateExpenseReceipt, reverseExpenseReceipt } from './expense-receipt
 import { recordDriverPayoutTx, recordVendorPaymentTx, recordOpsReimbursementTx } from './financial.service';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
-export async function getExpenseCashTotals(tx: Tx, sourceId: number) {
-  const rows = await tx.select({ direction: s.treasuryMovements.direction, amount: s.expenseCashAllocations.amount })
+/** Card 20260927_147 — the per-source form is a 3-table join filtered by ONE source id,
+ *  so a selection that reads it per row pays one query per row. This is the same join with
+ *  `inArray`, grouped in memory: every requested id gets `{IN, OUT}`, zeroed when it has no
+ *  recorded allocation, which is exactly what `getExpenseCashTotals` returned for it. */
+export async function getExpenseCashTotalsBatch(tx: Tx, sourceIds: number[]): Promise<Map<number, { IN: number; OUT: number }>> {
+  const totalsBySourceId = new Map<number, { IN: number; OUT: number }>();
+  for (const sourceId of new Set(sourceIds)) totalsBySourceId.set(sourceId, { IN: 0, OUT: 0 });
+  if (totalsBySourceId.size === 0) return totalsBySourceId;
+  const rows = await tx.select({
+    sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
+    direction: s.treasuryMovements.direction,
+    amount: s.expenseCashAllocations.amount,
+  })
     .from(s.expenseCashAllocations).innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
     .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
-    .where(and(eq(s.expenseCashAllocations.expenseAccountingSourceId, sourceId), eq(s.expenseCashVouchers.status, 'RECORDED')));
-  return rows.reduce((totals, row) => { totals[row.direction as 'IN' | 'OUT'] += Number(row.amount); return totals; }, { IN: 0, OUT: 0 });
+    .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, [...totalsBySourceId.keys()]),
+      eq(s.expenseCashVouchers.status, 'RECORDED')));
+  for (const row of rows) {
+    const totals = totalsBySourceId.get(row.sourceId);
+    if (totals) totals[row.direction as 'IN' | 'OUT'] += Number(row.amount);
+  }
+  return totalsBySourceId;
+}
+
+/** Single-source form keeps the shared domain name: three call sites read one source's cash
+ *  totals and must stay on the same join/filter as the batch form above. */
+export async function getExpenseCashTotals(tx: Tx, sourceId: number) {
+  return (await getExpenseCashTotalsBatch(tx, [sourceId])).get(sourceId)!;
 }
 
 export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: ExpenseVoucherInput, recordedAction?: GovernanceActionRow) {
