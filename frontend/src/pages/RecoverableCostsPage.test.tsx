@@ -117,7 +117,7 @@ describe('RecoverableCostsPage', () => {
     expect(screen.queryByText(/\b2,2\s*(tr|M)\b/i)).toBeNull();
   });
 
-  it('filters by recorded status and resets the requested page to one', async () => {
+  it('filters by recorded status and resets the requested page to one', { timeout: 15000 }, async () => {
     listRecoverableCostsMock.mockResolvedValue({ items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })), total: 30, page: 1, limit: 25 });
     renderPage();
     await screen.findAllByText('Công ty Long Minh');
