@@ -111,7 +111,17 @@ listed in `./README.md`. All numbers below are counted from the tree
   |---|---|
   | 575px and below | A filter bar is too narrow to pack side by side, so a full-width block (`.list-filter-bar__quick`) may own its row. |
   | 576–767px | The bar is past the 560px two-row floor, so it must fit two rows and its groups pack. |
-  | 768px+ | Desktop density; `ListFilterBar` renders every criterion inline and `Bộ lọc` may not exist at all. |
+  | 768–815px | Desk-ish width, but the /shipments control plane still cannot fit title + 4 status tabs + 2 actions on one line. |
+  | 816px+ | The /shipments tab group fits inline and shrink-wraps; the whole control row is one 38px line. |
+  | 1024px+ | Full desktop density for the control plane. |
+
+  A page's own control-plane crossover is a **content measurement**, not a guess:
+  the four status cells are 429px at every width, and title(127) + tabs(429) +
+  actions(212) + two 16px gaps need 800px of row, which lands the breakpoint at
+  815px. When a group's intrinsic width changes, re-measure and move the
+  breakpoint with it — a stale breakpoint does not fail loudly, it stretches a
+  429px group across 921px and leaves an empty container that reads as a broken
+  element (card 20260928_196).
 
 - **The one rule that matters** — the 560px two-row floor and the 575px full-width
   breakpoint are *complementary halves of one decision*, not two independent numbers. The

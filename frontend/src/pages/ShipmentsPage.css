@@ -78,15 +78,31 @@
   .shipments-control__row--primary { row-gap: 10px; }
   .shipments-control__title { order: 1; }
   .shipments-control__actions { order: 2; flex: 0 0 auto; }
-  .shipments-control__tabs { order: 3; flex: 1 1 100%; }
-  /* The group owns a full row here, and four status cells do not fit a phone
-     (measured 2026-09-28 at 390px: 90+122+107+113 = 432px of cells in a 374px
-     row, so the fourth tab wrapped alone onto a second line and the group cost
-     72px instead of 38px). One scrolling row is the sanctioned answer — the
-     page may hand the primitive `overflow-x` as a layout hook and nothing
-     else (docs/design-system/02 §"Button groups / segmented controls"); the
-     group's own shape, selected state and counts stay untouched. */
+  .shipments-control__tabs { order: 3; }
+  /* The CELLS must not shrink, at any width. `max-width` clamps the strip and
+     flex would then compress the buttons instead of letting the strip scroll —
+     which clipped every count numeral inside its own cell (measured 2026-09-28:
+     `countRight` past `btnRight` on all four tabs). The strip scrolls; each
+     cell keeps its intrinsic width. */
+  .shipments-control__tabs .ds-tabs__btn { flex: 0 0 auto; }
+}
+
+/* Card 20260928_196. The tab group takes a FULL row only in the band where the
+   three groups genuinely cannot share one line, and that is the narrow band —
+   not everything under 1024px. Measured 2026-09-28: the four cells are 429px of
+   content at EVERY width, and title(127) + tabs(429) + actions(212) + the two
+   16px gaps need 800px of row. Above ~815px the group fits inline, but
+   `flex: 1 1 100%` still stretched it to the whole row — 921px at 1024, leaving
+   492px of empty container. With the trailing-edge `mask-image` that empty area
+   was faded, so the strip appeared to end in a broken, empty fifth tab cell
+   (the operator's screenshot).
+
+   The mask is the tell: it says "there is more this way", so it may only exist
+   where there IS more. Above the band the group shrink-wraps, leaves no empty
+   space, and needs no mask. */
+@media (max-width: 815px) {
   .shipments-control__tabs {
+    flex: 1 1 100%;
     flex-wrap: nowrap;
     width: max-content;
     max-width: 100%;
@@ -96,16 +112,8 @@
     /* The last cell is cut at the container edge, which reads as a rendering
        fault unless the edge itself says "there is more this way". A soft fade
        on the trailing edge is the affordance; the primitive's shape, selected
-       state and counts are untouched. */
+       state and counts stay untouched. */
     mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
-  }
-  /* The CELLS must not shrink. `max-width: 100%` clamps the strip, and flex
-     would then compress the buttons instead of letting the strip scroll —
-     which clipped every count numeral inside its own cell (measured
-     2026-09-28: `countRight` past `btnRight` on all four tabs). The strip
-     scrolls; each cell keeps its intrinsic width. */
-  .shipments-control__tabs .ds-tabs__btn {
-    flex: 0 0 auto;
   }
 }
 
