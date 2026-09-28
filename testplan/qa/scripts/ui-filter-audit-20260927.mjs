@@ -74,7 +74,14 @@ const SURFACES = [
   // tripDetailOnly = ADMIN | MANAGER | ACCOUNTANT — the dispatcher is deliberately
   // excluded from Sổ chuyến đi, so this surface audits as `ketoan`.
   { label: 'trips', path: '/trips', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'dispatch-detail', path: '/dispatch-detail', role: 'dieuvan', widths: [1440, 1024, 768] },
+  // Card 20260928_158: this entry no longer restricts its widths. The phone
+  // band was a blind spot, and it happened to be the only band where the real
+  // defect lived — the sheet covered its own trigger at 390 and cleared it by
+  // 4px at 1024/1440, so auditing only the three desk widths reported the
+  // surface as healthy while it was broken where phones live. The `widths`
+  // restriction below is a sweep-runtime budget, not a correctness claim, and
+  // this surface now passes the full set (7 widths, 0 flagged).
+  { label: 'dispatch-detail', path: '/dispatch-detail', role: 'dieuvan' },
   { label: 'fleet-vehicles', path: '/fleet/vehicles', role: 'dieuvan', widths: [1440, 1024, 768] },
   { label: 'fleet-drivers', path: '/fleet/drivers', role: 'dieuvan', widths: [1440, 1024, 768] },
   { label: 'fleet-external', path: '/fleet/external', role: 'dieuvan', widths: [1440, 1024, 768] },
