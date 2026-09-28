@@ -121,6 +121,9 @@ describe('card 20260921_8 - vehicle assignment + board scope', () => {
         shipmentId: fixture.trip.shipmentId!, expenseTypeCode: 'OTHER',
         amount: 50000, paidAt: new Date().toISOString().slice(0, 10),
         costGroup: 'OPS_REGULAR', feeName: `card8 phí ${fixture.customerMarker}`, customerChargeAmount: 0,
+        // Card 162 AC2 (rule landed 4743fdbd) refuses an uncharged Ops cost with no
+        // reason; this fixture predates the rule and now owes it.
+        note: `card8 board-scope fixture — không thu khách hàng (${fixture.customerMarker})`,
       });
       track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, (created as { id: number }).id)); });
       track(async () => {
