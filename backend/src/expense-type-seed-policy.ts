@@ -11,6 +11,14 @@ export const INVOICE_REQUIRED_EXPENSE_TYPE_CODES = new Set([
   'WEIGHING',
   'INFRASTRUCTURE',
   'INSPECTION',
+  // Card 20260928_181: CUSTOMS sat in NEITHER set, so
+  // expenseTypeSeedPolicy returned requiresInvoice:false AND
+  // substituteEvidenceAllowed:false — a contradictory state where the approval
+  // gate and the evidence gate disagree, and nothing said so. It is a real
+  // service with real documentation, not a computed rate: forwarder.service.ts
+  // requires a `declarationNumber` for it ("Số tờ khai là bắt buộc cho phí hải
+  // quan"), which is the same class as nâng/hạ/cân hàng above.
+  'CUSTOMS',
   // Card 20260921_4 — the customer's chi-hộ fee list: all invoice-bearing.
   'LIFT_EMPTY',
   'LIFT_CARGO',
@@ -30,6 +38,13 @@ export const INVOICE_REQUIRED_EXPENSE_TYPE_CODES = new Set([
 export const NO_INVOICE_EXPENSE_TYPE_CODES = new Set([
   'INSPECTION_SVC',
   'OTHER',
+  // Card 20260928_181: the other half of the pair CUSTOMS/ZONE_SURCHARGE that
+  // was in neither set. Classified the OPPOSITE way on purpose — the two are
+  // not alike. A zone surcharge is a rate, not a vendor bill:
+  // zone-surcharge.service.ts reads it from portZoneSurcharges config, or an
+  // ops override, or a driver incidental cost. There is no supplier document
+  // to attach, so demanding one would block a legitimate entry.
+  'ZONE_SURCHARGE',
 ]);
 
 export function expenseTypeSeedPolicy(code: string): { requiresInvoice: boolean; substituteEvidenceAllowed: boolean } {
