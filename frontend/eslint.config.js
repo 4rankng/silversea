@@ -311,11 +311,23 @@ export default defineConfig([
   // as the all-route sweep entry point, so it is deliberately NOT ignored, and
   // the only thing standing between it and the gate is this block actually
   // disabling the type-aware parse.
+  // `tsconfigRootDir` is set explicitly even though `projectService` is false
+  // here. ESLint v10 locates `eslint.config.*` per linted file, so a file under
+  // frontend/ has two candidate roots in play — this directory and the repo
+  // root that re-bases the frontend blocks. typescript-eslint refuses to guess
+  // between them and fails the parse with "No tsconfigRootDir was set, and
+  // multiple candidate TSConfigRootDirs are present", naming that exact
+  // directory pair. Pinning it here is the fix the error itself asks for, and
+  // it costs nothing when type-aware linting is already off.
   {
     ...tseslint.configs.disableTypeChecked,
     files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,
+      parserOptions: {
+        ...tseslint.configs.disableTypeChecked.languageOptions?.parserOptions,
+        tsconfigRootDir: import.meta.dirname,
+      },
       globals: globals.node,
     },
   },
@@ -332,6 +344,10 @@ export default defineConfig([
     files: ['**/*.mjs'],
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,
+      parserOptions: {
+        ...tseslint.configs.disableTypeChecked.languageOptions?.parserOptions,
+        tsconfigRootDir: import.meta.dirname,
+      },
       globals: {
         ...globals.node,
         ...globals.browser,
