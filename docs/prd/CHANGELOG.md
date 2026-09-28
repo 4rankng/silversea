@@ -35,11 +35,11 @@ tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc 
   container, phí hạ container) được nhận đúng nhóm; các loại còn lại — nâng vỏ, nâng hàng, lưu
   bãi lúc nâng, hạ vỏ, hạ hàng, lưu vỏ, lưu bãi lúc hạ — bị dồn vào Phí khác dù danh mục đã ghi
   đúng nhóm. (card 20260928_161)
-- **Màn hình công nợ khách hàng có tick "Bỏ xe công ty"**: bỏ các lô chạy bằng xe công ty khỏi số
-  liệu công nợ đang xem; phép tính chạy ở máy chủ theo chủ sở hữu chuyến thực tế, không phải phép
-  trừ ở trình duyệt, và giữ đúng nguyên tắc phân biệt xe nội bộ với nhà xe ngoài đã ghi tại
-  QuyTrinhO2C.md §7.6. Chưa có trang PRD nào mô tả màn hình công nợ khách hàng — đây là nơi ghi
-  nhận duy nhất của mặt việc này. (card 20260928_177)
+- **Màn hình công nợ khách hàng có tick "Bỏ xe công ty"** (QuyTrinhO2C.md §7.10): bỏ các lô chạy
+  bằng xe công ty khỏi số liệu công nợ đang xem; phép tính chạy ở máy chủ theo chủ sở hữu chuyến
+  thực tế, không phải phép trừ ở trình duyệt, tệp xuất dùng đúng bộ lọc đang bật nên số trên màn
+  hình và trong tệp khớp nhau, và tick không ẩn khách hàng nào khỏi danh sách. Nguyên tắc phân
+  biệt xe nội bộ với nhà xe ngoài đã ghi tại §7.6. (card 20260928_177)
 - **Gán nhiều xe cho một kế toán trong một thao tác** (QuyTrinhO2C.md §7.4; tiêu chí
   AC-CP-KT-01 tại §7.8): chọn nhiều xe rồi gán cùng lúc thay vì gán từng xe; cả lượt gán là một giao dịch —
   một xe sai thì không xe nào bị gán nửa vời. Lịch sử người đã đối chiếu/chi tiền vẫn giữ như khi

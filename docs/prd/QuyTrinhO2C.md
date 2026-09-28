@@ -353,6 +353,14 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 
 **Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. VAT trên chốt debit đã có quy tắc hiệu lực (chốt PM 24/09): VAT 0/5/8/10% gắn với từng đợt chốt qua popup Chọn Debit — xem mục Kế toán chốt debit bên dưới. Riêng **thời điểm ghi công nợ phải trả (AP) trên chuỗi debit vendor** vẫn chưa có đặc tả: giữ quy tắc hiện hành cho tới khi khách xác nhận, không tự áp mô tả còn tạm thời.
 
+### 7.10 Công nợ khách hàng theo khách (bổ sung 28/09)
+
+Màn hình khách hàng tổng hợp **cước/công nợ theo từng khách** — số chuyến, cước thu, cước trả — trên dữ liệu chuyến thật. Mỗi dòng chuyến mang sẵn nhận diện **xe nhà hay xe ngoài**, đúng trục mà bảng đối chiếu vận tải và báo cáo lãi lỗ đang dùng (trường `carrier_type` của thông tin nhà vận tải theo chuyến, giá trị Xe nhà / Xe ngoài, mặc định Xe nhà; cùng bộ khóa nhận diện với Chọn Debit). Không suy ra xe nhà/xe ngoài từ tên xe, biển số hay nhà vận tải gõ tay.
+
+Tick **"Bỏ xe công ty"** trả lời câu hỏi "nếu chỉ tính xe ngoài thì công nợ của khách này là bao nhiêu": bật tick thì **máy chủ tính lại** số liệu của từng khách, loại các chuyến chạy bằng xe công ty; phép trừ không chạy ở trình duyệt, và **tệp xuất ra dùng đúng bộ lọc đang bật** nên số trên màn hình và số trong tệp luôn khớp nhau. Bật tick cũng được ghi rõ trên tiêu đề tệp xuất để người nhận biết số liệu đã bỏ xe công ty.
+
+Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sách** — nó chỉ đổi số liệu cước của từng khách (và tệp xuất), để người xem vẫn đối chiếu được với danh sách đầy đủ. Vì vậy không mô tả tick này như một bộ lọc ẩn dòng, và không thêm phép trừ ở trình duyệt cho khớp màn hình. (card 20260928_177)
+
 ### Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (bổ sung 22/09)
 
 - Màn hình kế toán mới: bảng theo lô với đầy đủ cột thu/trả cước vận chuyển (cước thu tự động, Lạch
