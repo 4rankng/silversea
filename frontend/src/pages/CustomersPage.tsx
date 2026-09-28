@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'; // useEffect remains for the form modal's reset-on-open
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Download,
   Pencil, Trash2, X, Save, Loader2, Truck,
@@ -15,6 +16,12 @@ import { EntityFormSection, RequiredHint } from '../components/shared/EntityForm
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
 import { CustomerFilters, type CustomerFilterKey } from '../features/customers/CustomerFilters';
+import {
+  customerDebtSummaryQuery,
+  customerFreightMap,
+  type CustomerDebtSummaryResponse,
+} from '../features/customers/customer-debt-projection';
+import { CustomerDrawerHistories } from '../features/customers/CustomerDrawerHistories';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency } from '../lib/format';
 import type { Customer, LedgerEntry } from '@tingting/shared';
@@ -72,78 +79,6 @@ export function buildCustomerDebtMap(entries: LedgerEntry[]): Map<number, number
     );
   }
   return map;
-}
-
-// ─── Card _37 drawer histories (BE endpoints by the BE lane, 4607fa20) ──────
-
-interface CustomerLogisticsItem {
-  id: number; shipmentCode: string; blNumber: string | null; bookingRef: string | null;
-  status: string; tradeDirection: string | null; expectedDeliveryDate: string | null; createdAt: string;
-}
-interface CustomerPaymentItem {
-  id: number; timestamp: string; txnType: string; receiptId: number | null;
-  credit: string | null; debit: string | null; balance: string | null; note: string | null;
-}
-
-/** Slide-over history sections for the row drawer. Wired against the BE
- * history endpoints (ADMIN/MANAGER/ACCOUNTANT only); numerics arrive as
- * drizzle strings and coerce on render. */
-function CustomerDrawerHistories({ customerId }: { customerId: number }) {
-  const [logistics, setLogistics] = useState<CustomerLogisticsItem[] | null>(null);
-  const [payments, setPayments] = useState<CustomerPaymentItem[] | null>(null);
-  const [outstanding, setOutstanding] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    setLogistics(null); setPayments(null); setOutstanding(null); setFailed(false);
-    // lib/api resolves the parsed JSON body directly (no .data wrapper).
-    api.get(`/customers/${customerId}/logistics-history?limit=5`).then(
-      (r: unknown) => { if (alive) setLogistics((r as { items?: CustomerLogisticsItem[] })?.items ?? []); },
-      () => { if (alive) setFailed(true); },
-    );
-    api.get(`/customers/${customerId}/payment-history?limit=5`).then(
-      (r: unknown) => {
-        if (!alive) return;
-        const body = r as { items?: CustomerPaymentItem[]; outstanding?: string | number };
-        setPayments(body?.items ?? []);
-        setOutstanding(body?.outstanding != null ? Number(body.outstanding) : null);
-      },
-      () => { if (alive) setFailed(true); },
-    );
-    return () => { alive = false; };
-  }, [customerId]);
-
-  if (failed) return <p style={{ color: 'var(--ink-3)', margin: 0 }}>Không tải được lịch sử.</p>;
-  return (
-    <>
-      <dl className="customers-drawer__section">
-        <dt>Công nợ phải thu (AR)</dt>
-        <dd style={outstanding != null && outstanding > 0 ? { color: 'var(--warning-text)' } : undefined}>
-          {outstanding != null ? <Money value={outstanding} /> : '…'}
-        </dd>
-      </dl>
-      <dl className="customers-drawer__section">
-        <dt>Đơn logistics gần đây</dt>
-        {logistics == null ? <dd>…</dd> : logistics.length === 0 ? <dd>—</dd> : logistics.map((item) => (
-          <dd key={item.id} style={{ fontWeight: 400 }}>
-            {item.shipmentCode}{item.blNumber ? ` · ${item.blNumber}` : ''} — {item.status}
-            {item.expectedDeliveryDate ? ` · giao ${item.expectedDeliveryDate.slice(0, 10)}` : ''}
-          </dd>
-        ))}
-      </dl>
-      <dl className="customers-drawer__section">
-        <dt>Thanh toán gần đây</dt>
-        {payments == null ? <dd>…</dd> : payments.length === 0 ? <dd>—</dd> : payments.map((item) => (
-          <dd key={item.id} style={{ fontWeight: 400 }}>
-            {item.timestamp.slice(0, 10)} · {item.note || item.txnType} ·{' '}
-            {Number(item.credit ?? 0) > 0 ? `+${Number(item.credit).toLocaleString('vi-VN')}` : `-${Number(item.debit ?? 0).toLocaleString('vi-VN')}`}
-            {item.balance != null ? ` · còn lại ${Number(item.balance).toLocaleString('vi-VN')}` : ''}
-          </dd>
-        ))}
-      </dl>
-    </>
-  );
 }
 
 // ─── Modal-based Form ────────────────────────────────────────────────────────
@@ -321,6 +256,10 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
 export default function CustomersPage() {
   const { toast } = useToast();
   const [filter, setFilter] = useState<CustomerFilterKey>('all');
+  // Card 20260928_177 — "Bỏ xe công ty". The tick's state IS the request: it
+  // rides the projection's `excludeOwnFleet` param so the server drops the
+  // company-vehicle lines from the freight figures (and the export matches).
+  const [excludeOwnFleet, setExcludeOwnFleet] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -355,7 +294,7 @@ export default function CustomersPage() {
   });
   const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError, setFilter: setSortFilter } = table;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const hasActiveFilters = Boolean(search.trim() || filter !== 'all');
+  const hasActiveFilters = Boolean(search.trim() || filter !== 'all' || excludeOwnFleet);
 
   // KBD: Meta/Ctrl+K focuses the customer search inside the shared bar.
   useEffect(() => {
@@ -395,6 +334,19 @@ export default function CustomersPage() {
   const debtMap = useMemo(() => {
     return buildCustomerDebtMap(ledgerEntries ?? []);
   }, [ledgerEntries]);
+
+  // Server-side freight figures for the rows on screen. Keyed by the visible
+  // customer ids so the projection stays bounded to the page the user sees —
+  // the same rows the CSV export writes.
+  const debtSummaryIds = customers.map((customer) => customer.id);
+  const { data: debtSummary } = useQuery({
+    queryKey: qk.customerDebtSummary(debtSummaryIds.join(','), excludeOwnFleet),
+    enabled: debtSummaryIds.length > 0,
+    queryFn: () => api.get<CustomerDebtSummaryResponse>(
+      `/customers/debt-summary${customerDebtSummaryQuery(debtSummaryIds, excludeOwnFleet)}`,
+    ),
+  });
+  const freightByCustomer = useMemo(() => customerFreightMap(debtSummary), [debtSummary]);
 
   // Concentration signal (card 20260926_60): the top-4 debtors' share of all
   // tracked debt — drives the ⚠️ badge in the strip; the popover breaks the
@@ -506,21 +458,29 @@ export default function CustomersPage() {
   }
 
   /** The strip's Xuất Excel action: the button is `CustomerFilters`', the data
-   *  (and the toast) stay on the page that owns the filtered rows. */
+   *  (and the toast) stay on the page that owns the filtered rows. The three
+   *  freight columns come from the server projection under the same
+   *  `excludeOwnFleet` filter, so the sheet matches the screen. */
   async function exportCustomers() {
-    const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái'];
-    const rows = filtered.map(c => [
-      c.name,
-      c.taxCode || '',
-      c.contactPerson || '',
-      c.phone || '',
-      c.creditLimit || '',
-      STATUS_LABELS[c.status] || c.status,
-    ]);
+    const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
+    const rows = filtered.map(c => {
+      const freight = freightByCustomer.get(c.id);
+      return [
+        c.name,
+        c.taxCode || '',
+        c.contactPerson || '',
+        c.phone || '',
+        c.creditLimit || '',
+        STATUS_LABELS[c.status] || c.status,
+        freight?.tripCount ?? 0,
+        freight?.freightRevenue ?? 0,
+        freight?.freightPayable ?? 0,
+      ];
+    });
     await downloadCSV(`khach-hang-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
       title: 'DANH SÁCH KHÁCH HÀNG',
-      subtitle: `${filtered.length} khách hàng đang quản lý`,
-      columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text'],
+      subtitle: `${filtered.length} khách hàng đang quản lý${excludeOwnFleet ? ' · đã bỏ xe công ty' : ''}`,
+      columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text', 'number', 'currency', 'currency'],
     });
     toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
   }
@@ -557,8 +517,10 @@ export default function CustomersPage() {
         concentration={concentration}
         onExport={exportCustomers}
         onAdd={() => { setShowAddForm(true); setEditingId(null); }}
-        onReset={() => { setSearch(''); setFilter('all'); }}
+        onReset={() => { setSearch(''); setFilter('all'); setExcludeOwnFleet(false); }}
         hasActiveFilters={hasActiveFilters}
+        excludeOwnFleet={excludeOwnFleet}
+        onExcludeOwnFleetChange={setExcludeOwnFleet}
       />
 
       {/* ── Mobile card list (≤820px) ──────────────────────────────────── */}
@@ -617,6 +579,20 @@ export default function CustomersPage() {
                     <Money value={debtMap.get(c.id) ?? 0} />
                   </span>
                 </div>
+                {/* Card 20260928_177 — the freight figures the "Bỏ xe công ty"
+                    tick changes, read off the server projection. */}
+                {(() => {
+                  const freight = freightByCustomer.get(c.id);
+                  if (!freight) return null;
+                  return (
+                    <div className="m-card__row">
+                      <span className="m-card__row-label">Cước thu / trả</span>
+                      <span className="m-card__row-value" style={{ fontFamily: 'var(--font-data)' }}>
+                        <Money value={freight.freightRevenue} compact /> · <Money value={freight.freightPayable} compact />
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div className="m-card-edit-row">
                   <button className="btn btn--ghost btn--sm" onClick={(e) => { e.stopPropagation(); setEditingId(c.id); setShowAddForm(false); }}>
                     Sửa
@@ -640,10 +616,14 @@ export default function CustomersPage() {
             className="btn btn--secondary btn--sm"
             onClick={async () => {
               const chosen = filtered.filter(c => selected.has(c.id));
-              const headers = ['Tên KH', 'Tên ngắn', 'MST', 'Người liên hệ', 'Điện thoại', 'Trạng thái'];
-              await downloadCSV(`khach-hang-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, chosen.map(c => [
-                c.name, c.shortName || '', c.taxCode || '', c.contactPerson || '', c.phone || '', STATUS_LABELS[c.status] || c.status,
-              ]), { title: 'KHÁCH HÀNG ĐÃ CHỌN' });
+              const headers = ['Tên KH', 'Tên ngắn', 'MST', 'Người liên hệ', 'Điện thoại', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
+              await downloadCSV(`khach-hang-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, chosen.map(c => {
+                const freight = freightByCustomer.get(c.id);
+                return [
+                  c.name, c.shortName || '', c.taxCode || '', c.contactPerson || '', c.phone || '', STATUS_LABELS[c.status] || c.status,
+                  freight?.tripCount ?? 0, freight?.freightRevenue ?? 0, freight?.freightPayable ?? 0,
+                ];
+              }), { title: 'KHÁCH HÀNG ĐÃ CHỌN' });
               toast({ kind: 'success', message: 'Đã xuất khách hàng đã chọn' });
             }}
           >
@@ -679,6 +659,7 @@ export default function CustomersPage() {
                 <col style={{ width: 120 }} />
                 <col style={{ width: 200 }} />
                 <col style={{ width: 110 }} />
+                <col style={{ width: 158 }} />
                 <col style={{ width: 80 }} />
               </colgroup>
               <thead>
@@ -698,24 +679,25 @@ export default function CustomersPage() {
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
                   <SortHeader label="Liên hệ & SĐT" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                   <th>Trạng thái</th>
+                  <th>Cước thu / trả</th>
                   <th></th>
                 </tr>
               </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
@@ -779,6 +761,24 @@ export default function CustomersPage() {
                       <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'warn'}>
                         {STATUS_LABELS[c.status] || c.status}
                       </StatusPill>
+                    </td>
+                    <td
+                      data-label="Cước thu / trả"
+                      className="customers-mono-cell"
+                      title={freightByCustomer.get(c.id)
+                        ? `${freightByCustomer.get(c.id)!.tripCount} chuyến · xe công ty: ${freightByCustomer.get(c.id)!.ownFleetTripCount} chuyến`
+                        : undefined}
+                    >
+                      {(() => {
+                        const freight = freightByCustomer.get(c.id);
+                        if (!freight) return <span className="customers-muted">—</span>;
+                        return (
+                          <span className="customers-contact-stack">
+                            <span>Thu <Money value={freight.freightRevenue} compact /></span>
+                            <span>Trả <Money value={freight.freightPayable} compact /></span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td data-label="" className="record-table__action customers-actions-cell">
                       <div className="row-actions">

@@ -24,4 +24,11 @@ export const pageQueryKeys = {
     all: ['quotation-fuel-approvals'] as const,
     pending: ['quotation-fuel-approvals', 'PENDING'] as const,
   },
+  /** Customers screen: the server-side freight projection behind the "Bỏ xe
+   *  công ty" tick (card 20260928_177). The tick is a REQUEST parameter, so it
+   *  is part of the key — a different tick is a different, server-recomputed
+   *  figure, and sharing one cache entry between ON and OFF would show stale
+   *  numbers. */
+  customerDebtSummary: (customerIds: string, excludeOwnFleet: boolean) =>
+    ['customer-debt-summary', customerIds, excludeOwnFleet] as const,
 };

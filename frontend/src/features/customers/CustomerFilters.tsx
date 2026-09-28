@@ -30,9 +30,14 @@ export interface CustomerFiltersProps {
   concentration: CustomerConcentration;
   onExport: () => void;
   onAdd: () => void;
-  /** Clears exactly the strip's own criteria (search + status). */
+  /** Clears exactly the strip's own criteria (search + status + tick). */
   onReset: () => void;
   hasActiveFilters: boolean;
+  /** "Bỏ xe công ty" — ON drops the shipments that ran on a company vehicle.
+   *  The figures are recomputed SERVER-SIDE, so the tick maps to the request,
+   *  never to a client-side subtraction. */
+  excludeOwnFleet: boolean;
+  onExcludeOwnFleetChange: (value: boolean) => void;
 }
 
 /**
@@ -53,6 +58,7 @@ export function CustomerFilters({
   filter, onFilter,
   total, activeCount, lockedCount, resultCount, concentration,
   onExport, onAdd, onReset, hasActiveFilters,
+  excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
   return (
     <ListFilterBar
@@ -64,17 +70,38 @@ export function CustomerFilters({
         inputRef: searchInputRef,
         inputProps: { name: 'customerSearch' },
       }}
+      quickFiltersLabel="Lọc nhanh khách hàng"
       quickFilters={(
-        <Tabs variant="boxed"
-          tabs={[
-            { id: 'all', label: 'Tất cả', count: total },
-            { id: 'active', label: 'Hoạt động', count: activeCount, countTone: 'accent' },
-            { id: 'locked', label: 'Tạm khoá', count: lockedCount, countTone: 'warning' },
-          ]}
-          value={filter}
-          onChange={(id) => onFilter(id as CustomerFilterKey)}
-          ariaLabel="Lọc theo trạng thái khách hàng"
-        />
+        <>
+          <Tabs variant="boxed"
+            tabs={[
+              { id: 'all', label: 'Tất cả', count: total },
+              { id: 'active', label: 'Hoạt động', count: activeCount, countTone: 'accent' },
+              { id: 'locked', label: 'Tạm khoá', count: lockedCount, countTone: 'warning' },
+            ]}
+            value={filter}
+            onChange={(id) => onFilter(id as CustomerFilterKey)}
+            ariaLabel="Lọc theo trạng thái khách hàng"
+          />
+          {/* Card 20260928_177 — "Bỏ xe công ty": the accounting vocabulary for
+              the own fleet is CarrierType.OWN ("Xe nhà"). Ticking it drops the
+              shipment lines that ran on a company vehicle from each customer's
+              freight figures; the numbers are recomputed SERVER-SIDE (the
+              `excludeOwnFleet` request param), never by subtracting here, so the
+              exported sheet shows the same figure. Chip = the shared
+              `.filter-chip` shape; a labelled checkbox rather than a button
+              because the control carries an on/off state (Tailkit
+              `a-c-form-elements-04` inline checkbox inside the table-card
+              criteria row, `a-c-tables-14`; Untitled UI `base/checkbox`). */}
+          <label className="filter-chip">
+            <input
+              type="checkbox"
+              checked={excludeOwnFleet}
+              onChange={(event) => onExcludeOwnFleetChange(event.target.checked)}
+            />
+            <span>Bỏ xe công ty</span>
+          </label>
+        </>
       )}
       status={(
         <>
