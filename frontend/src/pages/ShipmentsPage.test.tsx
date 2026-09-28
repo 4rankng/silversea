@@ -1068,7 +1068,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     });
   });
 
-  it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', async () => {
+  it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', { timeout: 15000 }, async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
@@ -1165,7 +1165,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
 
 
-  it('uses exactly one full-cell button to open the matching edit dialog', async () => {
+  // 15s, not the 5s default (card 20260928_196). This is the slowest test in
+  // the file and it was never flaky — it is deterministically over the default
+  // when run alone, and only passes at 5s when earlier tests in the same file
+  // have already paid the first-render cost. Measured: 8.53s of test time with
+  // `--testTimeout=90000`, against a 1.2s average for the file's 120 tests.
+  //
+  // The cost is honest work, not a hang: the loop below opens SIX dialogs, and
+  // each one pays a findByRole plus two waitFor cycles (close, then focus
+  // restore) before the next cell is touched. Six modal lifecycles in jsdom do
+  // not fit in 5s.
+  //
+  // Raising the ceiling, not the work: every assertion below is unchanged, and
+  // a genuine hang still fails — at 15s instead of 5s. Matches the two
+  // `{ timeout: 15000 }` cases already in this file (lines ~2003, ~2029).
+  it('uses exactly one full-cell button to open the matching edit dialog', { timeout: 15000 }, async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     await screen.findByRole('table');
@@ -1258,7 +1272,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' })).toBeTruthy();
   });
 
-  it('adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)', async () => {
+  it('adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)', { timeout: 15000 }, async () => {
     let containers = manageDetail.containers.slice(0, 1);
     let listSummary = '2x40HC';
     apiGet.mockImplementation((url: string) => (
@@ -1363,7 +1377,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/Container đã gắn chuyến xe TRIP-9/)).toBeTruthy();
   });
 
-  it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', async () => {
+  it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', { timeout: 15000 }, async () => {
     // Trip-attached rows are blocked in the UI (card 20260923_1), so the
     // clear-all path is exercised on detached lines — the guard itself is
     // pinned by the dedicated trip-attached test above.
@@ -1888,7 +1902,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPut).not.toHaveBeenCalled();
   });
 
-  it.each(['appointment', 'plate'] as const)('VID-CUS-DRAWER keeps the save lifecycle mounted when %s moves its row out of the list', async (field) => {
+  it.each(['appointment', 'plate'] as const)('VID-CUS-DRAWER keeps the save lifecycle mounted when %s moves its row out of the list', { timeout: 15000 }, async (field) => {
     const waitingRow = { ...row, transportDate: null, appointmentGroups: [], customerAppointmentAts: [], operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const } };
     const waitingDetail = { ...detail, summary: waitingRow, containers: [{ ...detail.containers[0], customerAppointmentAt: null }] };
     let saved = false;
