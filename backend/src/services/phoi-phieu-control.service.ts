@@ -127,11 +127,31 @@ export async function listPhoiPhieuRows(query: {
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
     .where(and(...tripConditions))
-    .orderBy(...(query.sortBy === 'date'
-      ? [desc(s.trips.departureDate), desc(s.trips.id)]
-      : [asc(s.trucks.licensePlate), desc(s.trips.departureDate), desc(s.trips.id)]))
+    // Card 20260928_172 criterion 3. The WINDOW is always chosen in date order,
+    // so `limit(300)` returns the same row SET whichever display order the board
+    // asks for. Grouping becomes a display-order rule (below), never a
+    // re-ordering of this query: an ORDER BY before this LIMIT let the two modes
+    // return different 300-row windows, which is exactly what the card forbids —
+    // and what this function's own doc comment already promised.
+    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
     .limit(300);
   if (rows.length === 0) return [];
+
+  // Card 20260928_172 criteria 2+3: repeated plates adjacent, date order kept
+  // INSIDE each plate group. This sorts the already-selected window, so the row
+  // identity SET is identical to `sortBy='date'` — the property criterion 3 asks
+  // to be proven, and the reason the grouping cannot live in the query. A
+  // comparator returning 0 leans on V8's stable sort, i.e. the window's own date
+  // order within a group; null plates go last, matching the `asc` NULLS-LAST the
+  // SQL used before.
+  const displayRows = query.sortBy === 'date' ? rows : [...rows].sort((a, b) => {
+    const aPlate = a.plateNumber;
+    const bPlate = b.plateNumber;
+    if (aPlate === bPlate) return 0;
+    if (aPlate == null) return 1;
+    if (bPlate == null) return -1;
+    return aPlate < bPlate ? -1 : 1;
+  });
 
   const shipmentIds = [...new Set(rows.map((row) => row.shipmentId))];
   const tripIds = rows.map((row) => row.tripId);
@@ -208,7 +228,7 @@ export async function listPhoiPhieuRows(query: {
   }
 
   const out: PhoiPhieuRow[] = [];
-  for (const row of rows) {
+  for (const row of displayRows) {
     const shipmentSources = byShipment.get(row.shipmentId) ?? [];
     const chiHoTra = shipmentSources.length ? shipmentSources.reduce((sum, source) => sum + Number(source.amount ?? 0), 0) : null;
     const chiHoThu = shipmentSources.length
