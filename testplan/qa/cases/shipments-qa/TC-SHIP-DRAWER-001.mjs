@@ -2,8 +2,21 @@
 // /shipments drawer: open detail, check workflow/signals/appointments,
 // check document custody, check container ledger, close.
 //
-// Verdict: PASS when drawer opens, shows workflow section with signals,
-// has appointment display, custody select, and container ledger rows.
+// Row selection is by PROPERTY, not by position. The case used to open the
+// FIRST row of /shipments, which in a suite run is whatever lot an earlier case
+// created most recently — and those throwaway lots have no containers, so
+// CusContainerLedger rendered `<p class="cus-detail-empty">Lô hàng chưa có dữ
+// liệu container.</p>` with no table and the ledger rung reported a FAIL for a
+// row nobody chose. `pickContainerBearingShipment` (lib/fixtures.mjs) asks the
+// API for a lot that actually has containers; when the env has none, the case is
+// BLOCKED naming the env, never FAIL.
+//
+// Verdict: PASS when the drawer opens on a container-bearing lot, shows the
+// workflow section, an appointment display, the custody select, and a
+// container ledger with rows.
+
+import { pickContainerBearingShipment } from '../../lib/fixtures.mjs';
+import { QE, SEL } from '../../lib/selectors.mjs';
 
 export const caseId = 'TC-SHIP-DRAWER-001';
 export const role = 'ADMIN';
@@ -11,37 +24,42 @@ export const role = 'ADMIN';
 export default async function (ctx) {
   const { page } = ctx;
   const errors = [];
+  const envTag = `[${ctx.env.env}]`;
 
-  await ctx.goto('/shipments');
-  await page.waitForSelector('.cus-dashboard-table tbody tr', { timeout: 15000 });
-  await ctx.screenshot('01_page_loaded');
-
-  // --- Open first shipment detail ---
-  const detailClicked = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('button'));
-    const match = buttons.find((b) => {
-      const name = (b.getAttribute('aria-label') || '').toLowerCase();
-      return name.includes('mở chi tiết');
-    });
-    if (match) {
-      match.scrollIntoView({ block: 'center' });
-      match.click();
-      return match.getAttribute('aria-label');
-    }
-    return null;
-  });
-
-  if (!detailClicked) {
-    return { verdict: 'BLOCKED', errors: ['No detail button found'] };
+  const lot = await pickContainerBearingShipment(ctx);
+const DRAWER = '.cus-shipment-drawer';
+  if (!lot) {
+    return {
+      verdict: 'BLOCKED',
+      errors: [`${envTag} no lot with containers to open — the drawer rungs need one; earlier cases in a run create container-less lots that used to land on top of the list`],
+    };
   }
 
+  // Narrow the workboard to the chosen lot through the app's own search, then
+  // open THAT lot's row (CusShipmentRow.tsx:235 → `cus-dashboard-detail-<id>`).
+  const board = `/shipments?limit=200&searchSuffix=${encodeURIComponent(lot.ref)}`;
+  await ctx.goto(board);
+  await ctx.screenshot('01_page_loaded');
+
+  const rowPresent = await page.waitForSelector(SEL.rowDetailButton(lot.id), { timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!rowPresent) {
+    return {
+      verdict: 'FAIL',
+      lot,
+      errors: [`${envTag} lot #${lot.id} (${lot.ref}, ${lot.containerCount} cont) is in the API but its row never rendered on ${board}`],
+    };
+  }
+
+  const detailClicked = await page.evaluate(QE.clickRowDetailButton(lot.id));
   await new Promise((r) => setTimeout(r, 2000));
   await ctx.screenshot('02_drawer_open');
 
   // Check drawer opened
-  const drawer = await page.$('.cus-shipment-drawer');
+  const drawer = await page.$(DRAWER);
   if (!drawer) {
-    return { verdict: 'FAIL', errors: ['Drawer did not open'] };
+    return { verdict: 'FAIL', lot, detailClicked, errors: [`${envTag} drawer did not open for lot #${lot.id}`] };
   }
 
   // --- Check workflow section ---
@@ -57,11 +75,9 @@ export default async function (ctx) {
   });
 
   if (!workflow) {
-    errors.push('Workflow section not found in drawer');
-  } else {
-    if (!workflow.title.includes('Trạng thái')) {
-      errors.push(`Workflow title unexpected: "${workflow.title}"`);
-    }
+    errors.push(`${envTag} workflow section not found in drawer`);
+  } else if (!workflow.title.includes('Trạng thái')) {
+    errors.push(`${envTag} workflow title unexpected: "${workflow.title}"`);
   }
 
   // --- Check appointment display ---
@@ -77,7 +93,7 @@ export default async function (ctx) {
   });
 
   if (!appointments) {
-    errors.push('Appointment section not found');
+    errors.push(`${envTag} appointment section not found`);
   }
 
   // --- Check document custody select ---
@@ -91,33 +107,23 @@ export default async function (ctx) {
   });
 
   if (!custody) {
-    errors.push('Document custody select not found');
+    errors.push(`${envTag} document custody select not found`);
   }
 
   // --- Check container ledger ---
-  const ledger = await page.evaluate(() => {
-    const table = document.querySelector('.shipment-container-ledger table, .cus-container-ledger table');
-    if (!table) return null;
-    const rows = table.querySelectorAll('tbody tr');
-    return {
-      rowCount: rows.length,
-      headers: Array.from(table.querySelectorAll('th')).map((th) => th.innerText.trim()).filter(Boolean),
-    };
-  });
-
-  if (!ledger) {
-    // Ledger might load async — wait a bit more
+  // The lot was chosen for HAVING containers, so the ledger must render a table
+  // with at least one line — the empty-ledger paragraph is a real defect here,
+  // not the shape of a container-less lot.
+  let ledger = await page.evaluate(QE.containerLedgerState);
+  if (!ledger.hasTable || ledger.rowCount === 0) {
+    // Ledger loads async — give it one more beat before calling it a defect.
     await new Promise((r) => setTimeout(r, 2000));
-    const ledger2 = await page.evaluate(() => {
-      const table = document.querySelector('.shipment-container-ledger table, .cus-container-ledger table');
-      if (!table) return null;
-      return { rowCount: table.querySelectorAll('tbody tr').length };
-    });
-    if (!ledger2 || ledger2.rowCount === 0) {
-      errors.push('Container ledger not found or empty');
-    }
+    ledger = await page.evaluate(QE.containerLedgerState);
+  }
+  if (!ledger.hasTable) {
+    errors.push(`${envTag} no container-ledger table for lot #${lot.id} (${lot.containerCount} cont via API); empty-ledger line: "${ledger.emptyText ?? 'none'}"`);
   } else if (ledger.rowCount === 0) {
-    errors.push('Container ledger has 0 rows');
+    errors.push(`${envTag} container ledger for lot #${lot.id} has 0 rows`);
   }
 
   await ctx.screenshot('03_drawer_detail');
@@ -133,11 +139,12 @@ export default async function (ctx) {
 
   return {
     verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+    lot,
     detailClicked,
     workflow,
     appointments,
     custody,
-    ledger,
+    ledger: { hasTable: ledger.hasTable, rowCount: ledger.rowCount },
     errors,
   };
 }

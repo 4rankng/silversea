@@ -13,7 +13,7 @@ export default async function (ctx) {
   const items = list.body.items || list.body.data || [];
   const existingBLs = items.map((s) => s.blNumber || s.bl_number).filter(Boolean);
   if (existingBLs.length === 0) {
-    return { verdict: 'BLOCKED', errors: ['no shipments on staging to test against'] };
+    return { verdict: 'BLOCKED', errors: [`[${ctx.env.env}] no shipments available to test duplicate Bill/Booking against`] };
   }
   const dupBL = existingBLs[0];
 

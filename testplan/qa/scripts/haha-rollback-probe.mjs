@@ -2,7 +2,6 @@
 // requiresInvoice type with no evidence must make the settlement create throw
 // inside runTx — 400 + ROLLBACK (no partial settlement, entry stays open).
 const API = (process.env.STAGING_URL || 'https://vantai.tingting.vip').replace(/\/$/, '') + '/api';
-const IDK = () => crypto.randomUUID();
 
 async function login(identifier) {
   const r = await fetch(`${API}/auth/login`, {

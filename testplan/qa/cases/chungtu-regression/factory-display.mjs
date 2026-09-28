@@ -29,7 +29,7 @@ export default async function (ctx) {
       break;
     }
   }
-  if (!target) return { verdict: 'BLOCKED', errors: ['no shipment matching the regression shape on staging'] };
+  if (!target) return { verdict: 'BLOCKED', errors: [`[${ctx.env.env}] no shipment matching the regression shape on this env`] };
 
   await ctx.goto(`/shipments/${target.id}`);
   await ctx.screenshot('a_detail');

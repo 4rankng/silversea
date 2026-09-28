@@ -9,7 +9,6 @@
 // where helpers is `{ env, runId, evidenceDir }`.
 
 import path from 'node:path';
-import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadEnv } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';

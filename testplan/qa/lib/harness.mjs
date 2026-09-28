@@ -14,7 +14,6 @@ import puppeteer from 'puppeteer';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { QE } from './selectors.mjs';
-import { loadEnv } from './env.mjs';
 
 const SETTLE_DEFAULT_MS = 500;
 const NAV_TIMEOUT_MS = 30000;

@@ -276,16 +276,43 @@ Two things to change in the harness, both worth doing:
   top rows of `/shipments` and will keep poisoning first-row finders until
   `pnpm db:reset && pnpm db:seed`.
 
-## Linked artifacts
+## Kanban cards
 
-- `testplan/qa/evidence/2026-09-27T17-32-54-499Z_87192_chungtu-regression/`
-- `testplan/qa/evidence/2026-09-27T17-33-32-312Z_88259_dispatch-sweep-2026-09-09/`
-- `testplan/qa/evidence/2026-09-27T17-34-00-210Z_89032_shipments-qa/`
-- `testplan/qa/evidence/2026-09-27T17-37-39-554Z_98232_driver-chrome/`
-- `testplan/qa/evidence/2026-09-27-17-38-40_create-flow-pixel/`
-- `testplan/qa/evidence/20260928_humanqa_filter-audit/report.json`
-- `testplan/qa/evidence/2026-09-27T17-50-21-187Z_29535_TC-DV-DISPATCH-051/`
-- `testplan/qa/evidence/2026-09-27T17-50-36-552Z_30121_TC-ROAD-ALLOWANCE-001/`
-- `testplan/qa/evidence/2026-09-27T17-55-41-455Z_42221_TC-DISPATCH-REASSIGN-001/`
-- Commits referenced: `c1075f25` (revert), `5bd7d0b8` (reverted fix),
-  `19a7762` (origin of the idx hole)
+Mọi phát hiện trong báo cáo này đã được tách thành card trên board
+(`Kanban-PROD/TODO`), sinh bằng `scripts/kanban-cards-20260928-qa-sweep.py`:
+
+| Card | Vấn đề | Mức |
+|---|---|---|
+| `20260928_152-drizzle-journal-idx-127-reverted` | F-1 | P0 gate |
+| `20260928_153-frontend-vitest-red-and-flaky` | F-7 | P0 gate |
+| `20260928_154-pnpm-lint-broken-at-root-no-backend-config` | F-5 | gate hỏng |
+| `20260928_155-three-orphan-cases-never-registered` | F-3 | test-suite |
+| `20260928_156-create-flow-pixel-driver-captures-nothing` | F-4 | evidence |
+| `20260928_157-customer-role-untestable-by-harness` | F-6 | testplan gap |
+| `20260928_158-dispatch-detail-filter-panel-covers-its-trigger` | F-2 | UI, cần lệnh sản phẩm |
+| `20260928_159-qa-cases-stale-selectors-and-assertions` | 11 case hỏng | test asset |
+
+## Trạng thái sửa (vòng 1 — 2026-09-28)
+
+| Card | Việc đã làm | Bằng chứng |
+|---|---|---|
+| 152 | Đánh số lại 5 entry cuối của `backend/drizzle/meta/_journal.json` cho liên tục `0..131` (chỉ metadata, **không file `.sql` nào đổi**). Re-apply đúng thay đổi của commit `5bd7d0b8` đã bị revert. | `pnpm test:unit` → **228/228 xanh** (trước: 227/228). Đếm chéo: 132 entry ↔ 132 file `.sql`, 0 mồ côi, 0 lệch idx, `when` đơn điệu. |
+| 152 | Phát hiện thêm: `scripts/check-migration-trio.mjs` — script mà commit `5bd7d0b8` tự nhận đã dùng để validate — **chưa bao giờ được commit** (`git log --all --diff-filter=A` rỗng). Message của commit đó khai một bằng chứng không tồn tại. | `ls scripts/check-migration-trio.mjs` → No such file. |
+| 154 | Thêm `eslint.config.mjs` ở gốc: dùng lại nguyên config frontend (re-base qua `basePath`), thêm khối **backend** + **shared** + **testplan/qa**/**scripts** (backend trước đây **không có** lint nào). Dùng `createRequire` từ `frontend/package.json` — đúng pattern sẵn có trong repo, không nhân bản dependency. | `pnpm lint` trước: exit 2 *"couldn't find an eslint.config"* → nay chạy thật. |
+| 154 | Dọn dead code thật phát hiện khi bật lint: 158 → còn 55 lỗi `no-unused-vars` ở `backend/src` (tsc không bắt vì `noUnusedLocals` tắt). Đã xoá 103 chỗ. | `npx tsc --noEmit` exit **0** sau khi xoá. |
+| 154 | Bỏ 5 dead bindings ở harness: `loadEnv` (harness.mjs), `fs` (run-case.mjs), `podVersion`, `IDK`, `pendingLots`. Thêm `caughtErrorsIgnorePattern: '^_'` để `catch (_)` — idiom sẵn có — không bị flag. | `npx eslint shared testplan` → **exit 0**. |
+| 155 | Đăng ký 3 case mồ côi vào `dispatch-sweep-2026-09-09/index.mjs`, **kèm tripwire mới** `lib/case-registration.test.mjs` (3 assertion/topic: file chưa đăng ký, đăng ký file không tồn tại, id trùng). | `node --test testplan/qa/lib/*.test.mjs` → **20/20** (trước 10/10). |
+| 157 | Thêm khoá `CUSTOMER:` vào `testaccounts.txt` (local: `samsung-cs, canon-cs`) + thêm `'CUSTOMER'` vào `smoke.mjs`. Đồng thời sửa `smoke.mjs` **in ra `FAIL` nhưng vẫn exit 0** — nay role đăng nhập hỏng sẽ làm gate đỏ thật (role local-only thì vẫn được dung thứ). | `node testplan/qa/scripts/smoke.mjs` → **8/8 vai trò OK**, exit 0. |
+| 156 | Viết lại `ui-create-flow-pixel-20260927.mjs`: chờ tín hiệu render thật (`#shipment-trade-direction`) thay vì ngủ cứng 2500ms; selector thật đo từ DOM; option picking **scoped vào listbox đang mở** và **lọc placeholder**; **exit ≠ 0 khi không chụp được gì**. | Chạy thật → **exit 1** + liệt kê đúng 3 bước không chụp được, thay vì in dòng thành công rỗng. Trước: toàn `no-trigger` ở 1440 nhưng exit 0. |
+| 153 | Sửa 2 assertion CSS **brittle** (nhạy khoảng trắng): `RecoverableCostsPage` (`overflow-wrap:anywhere` không khoảng trắng → có khoảng trắng) và `csc-customer-popover` (`var(--surface, #fff)` → `var(--surface)`). Cả hai rule **vẫn đúng**, chỉ là test ghim quá chặt vào byte. | Cả 2 file xanh. |
+| 153 | `ShipmentsPage.test.tsx`: **5 assertion CSS cũ** — CSS đã đổi **có chủ đích** (mỗi thay đổi đều kèm comment giải thích) còn test thì chưa cập nhật. Đã ghim lại **ý định** thay vì literal đã chết. VD `border-radius: 7px` → `8px` (commit `cd862de4` đưa app về 8px chuẩn; 7px giờ chỉ còn trong `styles/utilities.css`). | `npx vitest run --no-file-parallelism src/pages/ShipmentsPage.test.tsx` → **118/118 xanh**; `tsc -b` 0; `eslint` 0. **CSS không bị sửa.** |
+
+### Chưa xong
+
+- **Card 154:** còn **55** lỗi `no-unused-vars` ở `backend/src` (đang xử lý).
+- **Card 159:** 6 case harness (đang xử lý).
+- **Card 153:** cần chạy lại **toàn bộ** suite 2 lần để chứng minh hết flaky.
+- **Card 158:** `/dispatch-detail` — **cần CHIEF ra lệnh** trước: neo panel dưới nút, hay cho audit miễn trừ panel dạng sheet. Không sửa theo phỏng đoán.
+- **Ngoài phạm vi lần này:** 225 `no-console` warning ở `backend/src` (không fail gate; backend có `pino`) — cần một quyết định policy riêng, không gộp vào đợt này.
+
+## Linked artifacts

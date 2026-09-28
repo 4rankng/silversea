@@ -32,7 +32,7 @@ export default async function (ctx) {
       break;
     }
   }
-  if (!target) return { verdict: 'BLOCKED', errors: ['no BL-bearing shipment with container appointment on staging'] };
+  if (!target) return { verdict: 'BLOCKED', errors: [`[${ctx.env.env}] no BL-bearing shipment with a container appointment on this env`] };
 
   // Visit overview, find this shipment's row
   // The overview is paginated. Search for the selected fixture instead of

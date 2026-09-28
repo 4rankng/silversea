@@ -48,7 +48,7 @@ export default async function (ctx) {
   if (shipmentId == null) {
     return {
       verdict: 'BLOCKED',
-      errors: ['No unlocked LCL row on /shipments page 1 as CUS — schedule/notes rungs not exercised'],
+      errors: [`[${ctx.env.env}] no unlocked LCL row on /shipments page 1 as CUS — schedule/notes rungs not exercised`],
     };
   }
 

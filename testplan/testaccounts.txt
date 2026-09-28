@@ -36,6 +36,13 @@ local:
     DRIVER:      laixe, thu, pho, quyet, bqhuong, btdung, vvtrung, tvtham
                  (the four dev-seed drivers exist only on dev-seed; the rest
                  are from the 38 named staging drivers — no Mã NV)
+    # Customer-portal accounts (roles/07-khachhang.md). Local-only by design:
+    # prod has no CUSTOMER-role users, so there is nothing to mirror to
+    # staging. Row-scoped — samsung-cs sees only the Samsung lots.
+    # Added 2026-09-28 (card 20260928_157): the CUSTOMER key was missing
+    # entirely, so env.candidatesFor('CUSTOMER') returned [] and no case could
+    # ever log a customer in.
+    CUSTOMER:    samsung-cs, canon-cs
 
 staging:
   baseUrl: https://vantai.tingting.vip
