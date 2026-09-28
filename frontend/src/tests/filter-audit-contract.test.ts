@@ -36,7 +36,11 @@ describe('filter audit carve-outs', () => {
 
   it('records the exemption with its reason instead of passing it silently', () => {
     expect(audit).toMatch(/rowExemptReason: rowExempt \? '3\+ rows and no Bộ lọc trigger to fold into' : null/);
-    expect(audit).toMatch(/const mark = row\.flagged \? 'FAIL' : row\.rowExempt \? 'EXPT' : 'ok  ';/);
+    // The 'ok  ' case is space-padded to line its verdicts up in the audit
+    // output. Those two spaces are written `{2}` rather than typed literally:
+    // a run of bare spaces in a regex is invisible in review, and this is the
+    // only part of the verdict string whose width matters.
+    expect(audit).toMatch(/const mark = row\.flagged \? 'FAIL' : row\.rowExempt \? 'EXPT' : 'ok {2}';/);
     expect(audit).toMatch(/row-law exemptions: \$\{exempt\.length\} — reasoned, NOT clean passes/);
   });
 
