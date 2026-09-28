@@ -99,6 +99,24 @@ porting anything new:
 | `frontend/src/design-system/EmptyState.tsx` | MCP audit (T1) | Shared empty-state resolver. |
 | `frontend/src/components/UI.tsx` | `a-c-statistics-11` pattern | Stat tile, hand-rolled SVG. |
 
+### A port that was measured and refused
+
+`/shipments` phone control plane (card `20260928_161`, commits `bff253ce` · `8c85ec9b` · `3344e5e4`)
+consulted `a-c-page-headings-03` and `a-c-tabs-01` alongside Untitled UI PRO `filter-bar`. Both
+suggested fixes for the operator's "component too oversize compared to text" complaint were then
+measured and **rejected**, and the rejections are recorded in `ShipmentsPage.css` so the next
+session does not re-attempt them:
+
+- Shrinking the actions to 36px fails — 40px is the touch floor (`--control-max-h` →
+  `--control-touch-h`) and the `tapFloor` design-lock measures against it.
+- Enlarging the heading to Tailkit's `text-2xl` rhythm fails the same way round: at 14px the
+  heading is 127px and the heading + action cluster + gap is 359px inside a 372px row; at 16px it
+  is 145px and 377px, so the cluster wraps and the control plane went 96px → 125.2px. Tailkit's
+  own heading block only works because its buttons do not share the line at that width.
+
+A catalog is a reference, not an oracle. The measured number won both times, and the losing
+option is written down next to the code so the next port starts from the measurement.
+
 ## Reporting
 
 Say which component you looked at, by id, in the handoff — e.g. "modelled on `a-c-navigation-01`,
