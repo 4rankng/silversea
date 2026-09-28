@@ -94,10 +94,15 @@ export default defineConfig([
       '**/frontend/dispatch-toolbar-shot.mjs',
       '**/frontend/qa/tmp-*.mjs',
       // Archived harness scripts, preserved verbatim as history (qa/README
-      // "scripts/_legacy/ — archived scripts"). One of them does not even
-      // parse, so linting them would report noise, not defects.
-      '**/testplan/qa/scripts/_legacy/**',
-      '**/backend/scripts/archive/**',
+      // "scripts/_legacy/ — archived scripts"). These are .sql and .py only:
+      // the one .mjs that lived here was a 34-line truncated fragment that has
+      // never parsed in any revision (card 20260928_187), so it was removed
+      // rather than ignored. Nothing lintable remains, so nothing is ignored.
+      //
+      // '**/backend/scripts/archive/**' used to be listed here. It is gone
+      // because the broader '**/backend/scripts/**' below already covers it —
+      // keeping both implied archive was handled separately when it is not.
+
       // Card 20260928_154 follow-up: these trees are one-off tooling with NO
       // tsconfig, so projectService cannot parse them and every file reports a
       // "Parsing error" that says nothing about code quality. The gate covers
