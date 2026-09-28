@@ -76,6 +76,12 @@ export default [
   // full-width sections, each with its own label line, at 375px for a row with no
   // data at all; it is a two-column fact grid now with the label riding the first
   // value's line and all-placeholder cells collapsing onto one line.
+  //
+  // Re-measured 2026-09-28 after the inline fact-run rework: the label no longer
+  // owns a grid column of its own (it squeezed the value into a ~100px strip that
+  // wrapped), so the same empty row went 241px → 198px at 390 and 219px → 194px
+  // at 500. The ceilings below are the measured maxima with headroom for a row
+  // that DOES carry data (a scheduled lot with containers and a note).
   {
     id: 'shipments/phone/record-card-density',
     role: 'cus',
@@ -84,7 +90,17 @@ export default [
     kind: 'maxHeight',
     selector: '.cus-dashboard-row',
     max: 230,
-    note: 'measured 203px after the dense rework (375px before) — a card taller than this means a section regained a full-width row or a label line of its own',
+    note: 'measured 219px after the inline fact-run rework (241px before, 203px in the 2026-09-27 pass) — a card taller than this means the label regained a column of its own or a section regained a full-width row',
+  },
+  {
+    id: 'shipments/phone-390/record-card-density',
+    role: 'cus',
+    path: '/shipments',
+    width: 390,
+    kind: 'maxHeight',
+    selector: '.cus-dashboard-row',
+    max: 245,
+    note: 'measured 238px at 390px after the inline fact-run rework (241px before); an empty row is 198px, the headroom covers a row carrying real cargo and notes',
   },
   {
     id: 'shipments/tablet/record-card-density',
@@ -93,7 +109,7 @@ export default [
     width: 768,
     kind: 'maxHeight',
     selector: '.cus-dashboard-row',
-    max: 285,
-    note: 'measured 263px after the dense rework (379px before); the tablet card holds two facts per line and the identity cell still spans both columns',
+    max: 220,
+    note: 'measured 210px after the inline fact-run rework (263px in the 2026-09-27 pass); the tablet card holds two facts per line and the identity cell still spans both columns',
   },
 ];

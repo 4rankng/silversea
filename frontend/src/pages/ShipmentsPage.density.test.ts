@@ -30,7 +30,12 @@ describe('shipment container editor density', () => {
   });
 
   it('binds touch-friendly cell triggers to an explicit edit dialog', () => {
-    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*44px;[^}]*touch-action:\s*manipulation;/);
+    // The floor is the shared control token, not a private 44px: the operator
+    // ruling of 2026-09-27 caps every component at 40px (`--control-max-h`,
+    // which `--control-touch-h` resolves to) and the 44px inflation around
+    // 12px text is the defect that ruling names. A cell trigger still clears
+    // the floor, still opts out of double-tap zoom, and still opens a dialog.
+    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h[^}]*touch-action:\s*manipulation;/);
     expect(rowSource).toContain('aria-haspopup="dialog"');
     expect(rowSource).toContain("onStartQuickEdit(item, 'schedule')");
     expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");

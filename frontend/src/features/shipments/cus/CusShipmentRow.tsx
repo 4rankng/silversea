@@ -57,12 +57,6 @@ export function CusShipmentRow({
   // single number.
   const declarationNumbers = item.declarationNumbers ?? (item.declarationNumber ? [item.declarationNumber] : []);
   const primarySignal = derivePrimaryShipmentSignal(item, ['schedule']);
-  // Density (operator 2026-09-27: "redesign this to make it data dense
-  // card"): the card prints the two missing-identity placeholders on ONE
-  // line when neither the factory nor the route exists, and the CSS uses
-  // `data-facts='inline'` to join them with ' · '.
-  const emptyIdentityFactCount = (item.effectiveFactoryNames.length > 0 || item.factoryName ? 0 : 1)
-    + (item.routeName || item.deliveryLocation ? 0 : 1);
   const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
   const customerNoteLines = noteLines(item.customerNotes);
   const operationalNoteLines = noteLines(item.operationalNotes);
@@ -79,6 +73,13 @@ export function CusShipmentRow({
     : '';
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const lotScheduleValue = scheduleTimestamp(item);
+
+  // Law §1 (2026-09-22): a missing value is named once, not printed twice.
+  // The cargo cell already says "Chưa có hàng hóa" for a lot that carries no
+  // measurement at all, so the metric line underneath must not render a bare
+  // "— kg" beside that name. One predicate drives both the density flag and
+  // the suppression so the two cannot drift apart again.
+  const cargoMetricsMissing = item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm);
   const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
@@ -108,7 +109,7 @@ export function CusShipmentRow({
     >
       <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell" data-facts={emptyIdentityFactCount === 2 ? 'inline' : undefined}>
+        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
           <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}{item.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}</strong>
           <span title={[...item.effectiveFactoryNames, item.factoryName].find(Boolean) || 'Chưa có nhà máy'} className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
             ? item.effectiveFactoryNames.join(' + ')
@@ -117,7 +118,7 @@ export function CusShipmentRow({
         </span></button>
       </th>
       <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono" data-facts={item.billOrBookNumber || declarationNumbers.length > 0 ? undefined : 'inline'}>
+        <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
           <span className={declarationNumbers.length > 0 ? undefined : 'cus-empty'}>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : 'Chưa có tờ khai'}</span>
         </span></button>
@@ -135,7 +136,7 @@ export function CusShipmentRow({
         </span></button>
       </td>
       <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" data-cell-short="Hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => onStartQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary" data-facts={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'inline' : undefined}>
+        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" data-cell-short="Hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => onStartQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
           {(() => {
             // Customer feedback L2 — when a date filter is
             // active, show the per-day cont count instead of
@@ -159,13 +160,15 @@ export function CusShipmentRow({
             }
             return <strong className="cus-cargo-summary__containers">{quantity}</strong>;
           })()}
-          <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
-            <span className="cus-cargo-summary__weight">
-              {item.cargoMode === 'LCL'
-                ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
-                : `${formatQuantity(item.weightKg)} kg`}
+          {!cargoMetricsMissing && (
+            <span className="cus-cargo-summary__metrics">
+              <span className="cus-cargo-summary__weight">
+                {item.cargoMode === 'LCL'
+                  ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
+                  : `${formatQuantity(item.weightKg)} kg`}
+              </span>
             </span>
-          </span>
+          )}
         </span></button>
       </td>
       <td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>

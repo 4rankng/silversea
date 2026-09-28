@@ -79,6 +79,27 @@
   .shipments-control__title { order: 1; }
   .shipments-control__actions { order: 2; flex: 0 0 auto; }
   .shipments-control__tabs { order: 3; flex: 1 1 100%; }
+  /* The group owns a full row here, and four status cells do not fit a phone
+     (measured 2026-09-28 at 390px: 90+122+107+113 = 432px of cells in a 374px
+     row, so the fourth tab wrapped alone onto a second line and the group cost
+     72px instead of 38px). One scrolling row is the sanctioned answer — the
+     page may hand the primitive `overflow-x` as a layout hook and nothing
+     else (docs/design-system/02 §"Button groups / segmented controls"); the
+     group's own shape, selected state and counts stay untouched. */
+  .shipments-control__tabs {
+    flex-wrap: nowrap;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    /* The last cell is cut at the container edge, which reads as a rendering
+       fault unless the edge itself says "there is more this way". A soft fade
+       on the trailing edge is the affordance; the primitive's shape, selected
+       state and counts are untouched. */
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  }
+  .shipments-control__tabs::-webkit-scrollbar { display: none; }
 }
 
 /* Card 20260927_152 — Row 2 is the shared ListFilterBar and `.filter-bar`
@@ -127,7 +148,7 @@
   margin: 0 16px;
   padding: 10px 0 0;
   border-bottom: 0;
-  color: var(--ink-2, #53615a);
+  color: var(--ink-2);
   font-size: var(--text-caption-size);
 }
 
@@ -160,7 +181,7 @@
 }
 
 .cus-drawer-workflow__action p {
-  color: var(--ink-2, #53615a);
+  color: var(--ink-2);
   font-size: var(--text-caption-size);
   line-height: 1.4;
 }
@@ -332,8 +353,7 @@
 }
 
 /* All seven columns pin an explicit share (sums to 100%) sized from real
-   production-shaped data, not the flat/auto split this table shipped with:
-   `classification` and `cargo` were `width: auto`, which table-layout: fixed
+   production-shaped data, not the flat/auto split this table shipped with: `classification` and `cargo` were `width: auto`, which table-layout: fixed
    only measures from the first rendered row, so real customer/carrier names
    and cargo weights (e.g. "38.000 kg") clipped on later rows even though the
    first row looked fine. `schedule` was pinned to 24% to compensate for a
@@ -342,13 +362,20 @@
    now that it wraps, it needs less width than the workaround assumed.
    `documents` is sized for 16-char mono Bill/Booking codes (e.g.
    "EGLV149607019409") to render un-ellipsized at common desktop widths. */
-.cus-dashboard-table col.cus-dashboard-col--customer { width: 16%; }
+/* Measured 2026-09-28 against the real rendered cells at 1440px, twice: the
+   previous split gave `classification` 9% (102px), which wrapped its own header
+   onto FOUR lines, while `notes` took 14% (158px) to print "Thêm ghi chú" on
+   almost every row. Width follows the value a column actually holds — the same
+   rule the filter strip got on 2026-09-24, applied to the grid. The second
+   pass re-homed 4% because "Thêm ghi chú" needs ~110px to stay on one line at
+   8% and `cargo` still wrapped "Chưa có hàng hóa" at 11%. */
+.cus-dashboard-table col.cus-dashboard-col--customer { width: 19%; }
 .cus-dashboard-table col.cus-dashboard-col--documents { width: 15%; }
-.cus-dashboard-table col.cus-dashboard-col--classification { width: 9%; }
-.cus-dashboard-table col.cus-dashboard-col--cargo { width: 11%; }
-.cus-dashboard-table col.cus-dashboard-col--schedule { width: 20%; }
-.cus-dashboard-table col.cus-dashboard-col--notes { width: 14%; }
-.cus-dashboard-table col.cus-dashboard-col--status { width: 15%; }
+.cus-dashboard-table col.cus-dashboard-col--classification { width: 13%; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: 12%; }
+.cus-dashboard-table col.cus-dashboard-col--schedule { width: 18%; }
+.cus-dashboard-table col.cus-dashboard-col--notes { width: 10%; }
+.cus-dashboard-table col.cus-dashboard-col--status { width: 13%; }
 
 .cus-dashboard-table thead th {
   position: sticky;
@@ -404,7 +431,7 @@
      silently render as one clipped line instead of the multi-line content
      the row height and column width are sized for. */
   white-space: normal;
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 
 .cus-dashboard-row:hover > th,
@@ -415,15 +442,15 @@
    cell — the one that needs the dispatcher's action — so the highlight lands
    where "Chưa chốt ngày" already explains it. Identity keeps its per-bucket
    status strip; the rest of the row stays neutral. */
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] { background: var(--warning-bg, #fff8e8); }
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] { background: var(--warning-soft); }
 
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td[data-label='Lịch trình & điều xe'] { background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%); }
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td[data-label='Lịch trình & điều xe'] { background: color-mix(in srgb, var(--warning-soft) 78%, var(--warning) 8%); }
 
 /* The cell trigger's surface-2 hover would erase the tint from the only cell
    that carries it; blend that hover toward the warning tone instead. The
    trigger hover border still signals clickability. */
 .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] .cus-inline-trigger:not(:disabled):hover {
-  background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%);
+  background: color-mix(in srgb, var(--warning-soft) 78%, var(--warning) 8%);
 }
 
 .cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
@@ -432,7 +459,7 @@
 .cus-dashboard-cell--readonly { padding: 0 !important; }
 .cus-dashboard-cell--readonly > .cus-inline-trigger {
   cursor: default;
-  /* FCL schedules are display-only here. The trigger-hover and td:hover rules
+  /* FCL schedules are display-only here. The trigger-hover and td: hover rules
      below would still paint a chip on this div (a div never matches :disabled),
      so lock the resting transparent state to keep the cell from advertising
      clicks it does not have. */
@@ -558,16 +585,18 @@
   text-underline-offset: 3px;
 }
 
+/* No min-height floor: a cell whose facts are all placeholders printed one
+   line but occupied 44px, so the row read as a half-empty band (measured
+   2026-09-28: this cell held 44px of content inside a 110px row). The row's
+   own height comes from its tallest cell, which is the right place to spend. */
 .cus-multiline-cell.cus-classification {
-  grid-template-areas:
-    "shipping-line shipping-line"
+  grid-template-areas: "shipping-line shipping-line"
     "combined direction";
   grid-template-columns: minmax(0, 1fr) auto;
   /* Content-sized rows keep the direction badge hugging the carrier line;
      a stretched 1fr row stranded it at the bottom of tall cells. */
   grid-template-rows: auto auto;
   align-content: start;
-  min-height: 44px;
 }
 
 .cus-classification .cus-direction-badge {
@@ -601,17 +630,23 @@
    `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
 .cus-direction-badge--import,
 .cus-direction-badge--export { background: var(--surface-3); color: var(--ink-2) !important; }
-.cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
+.cus-combined-tag { background: var(--warning-soft); color: var(--warn, #a15c00) !important; }
 
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
    structural edge like the direction badge — never an accent fill. Squared
    corners distinguish mode (structural) from direction's full pill. */
+/* The cell is the click target, so it carries the shared control floor. It was
+   a bare 44px — a private number that both contradicted the 2026-09-27 ceiling
+   ruling ("component size max 40px", `--control-touch-h` = 40px) and inflated
+   every desktop row (measured 2026-09-28: the second-largest contributor to a
+   110px row). The token carries the floor at every width, so no band needs to
+   restate it. */
 .cus-inline-trigger {
   display: grid;
   align-content: start;
   gap: 3px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-touch-h, 40px);
   padding: 10px;
   border: 1px solid transparent;
   background: transparent;
@@ -623,7 +658,7 @@
   cursor: cell;
   touch-action: manipulation;
   border-radius: 6px;
-  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: background-color var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .cus-inline-trigger strong { color: var(--ink); font-size: var(--ops-table-primary-size); line-height: var(--ops-table-primary-line-height); }
@@ -665,8 +700,8 @@
   min-height: 38px;
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface-2, #f7f9f8);
+  border-radius: 8px;
+  background: var(--surface-2);
   color: var(--ink);
   font-size: var(--text-data-size);
   line-height: 1.45;
@@ -683,7 +718,7 @@
   min-height: 38px;
   padding: 7px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -714,7 +749,7 @@
 .cus-quick-edit-modal__fields .ds-uui-select button {
   min-height: 38px;
   border-color: var(--line-strong);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font-size: var(--control-field-font-size);
@@ -779,7 +814,7 @@
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
 .cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
-.cus-attention-label--info { color: var(--info, #2563eb); }
+.cus-attention-label--info { color: var(--info); }
 /* Card 20260922_24: the attention marker now carries its own visible label
    (icon-only markers rendered an unexplained duplicate icon). */
 .cus-attention-label__text { font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
@@ -838,55 +873,63 @@
   }
   .cus-dashboard-table tbody > tr > th::before,
   .cus-dashboard-table tbody > tr > td::before { display: none; }
+  /* The cell is a single inline fact run: the label flows in the text BEFORE
+     the value instead of owning a grid column of its own. Measured
+     2026-09-28 at 390px: `grid-template-columns: auto minmax(0,1fr)` gave the
+     label ~70px and left the value a ~100px strip, so "Chưa có Bill/Book"
+     wrapped to two lines and the card measured 241px. This is the shape the
+     shared `record-table` card band already uses (record-table.css:201) —
+     one answer for a labelled fact, not a second one. */
   .cus-dashboard-table .cus-inline-trigger {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    align-items: baseline;
-    gap: 2px;
+    display: block;
     height: 100%;
-    min-height: 40px;
-    padding: 6px 8px;
+    /* The shared touch floor, not a phone-local number: a cell trigger is the
+       only tap target for its whole cell, so it follows the same control floor
+       every other control in the app does. */
+    min-height: var(--control-touch-h, 40px);
+    padding: 5px 10px;
   }
-  /* Dense fact row: the section label rides the SAME line as the first value
-     ("Khách hàng  CARD8 CUSTFREE …") instead of owning a line of its own — one
-     line saved per cell, which is most of the card's height. `data-cell-short`
-     is the short form of the label the narrow half-width cells use. */
+  /* The label rides the same line as the first value ("Hàng hóa  Chưa có hàng
+     hóa") — one line saved per cell, which is most of the card's height.
+     `data-cell-short` is the short form the half-width cells use. */
   .cus-dashboard-table .cus-inline-trigger::before {
-    position: static;
+    display: inline;
     width: auto;
+    margin: 0 6px 0 0;
     color: var(--ink-3);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
     font-weight: var(--fw-medium);
     line-height: 1.3;
-    white-space: nowrap;
   }
   .cus-dashboard-table .cus-inline-trigger[data-cell-short]::before {
     content: attr(data-cell-short);
   }
-  /* Density: a cell whose facts are ALL placeholders prints them on one line
-     ("Chưa có nhà máy · Chưa có tuyến đường") instead of one line each — the
-     markup marks those cells `data-facts="inline"` (operator 2026-09-27:
-     "redesign this to make it data dense card"). */
-  .cus-dashboard-table [data-facts='inline'] {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 6px;
-  }
-  .cus-dashboard-table [data-facts='inline'] > *:not(:last-child)::after {
+  /* Every fact in a cell joins the next with a ` · ` separator so the inline
+     run stays readable ("Chưa chốt ngày · Toàn bộ chờ phân xe"). Before this
+     the separator existed only on all-placeholder cells (`data-facts="inline"`),
+     so a populated cell's facts ran together the moment the stack went inline.
+     The markup flag is now irrelevant here — the phone card always joins. */
+  /* The schedule cell paints its facts straight into the trigger (no
+     `.cus-multiline-cell` wrapper), so the separator is stated for the
+     trigger's DIRECT children too — otherwise that cell alone still printed
+     "Chưa chốt ngàyToàn bộ chờ phân xe" with the two facts fused. */
+  .cus-dashboard-table .cus-multiline-cell > *::after,
+  .cus-dashboard-table .cus-inline-trigger > *::after {
     color: var(--ink-3);
     content: ' ·';
     margin-left: 6px;
   }
-  /* The label takes its own column and the values take the rest, so a cell with
-     several facts stacks them beside its label rather than under it. */
-  .cus-dashboard-table .cus-inline-trigger:has(.cus-multiline-cell),
-  .cus-dashboard-table .cus-inline-trigger:has(.cus-cargo-summary) {
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 8px;
-    align-items: start;
+  .cus-dashboard-table .cus-multiline-cell > *:last-child::after,
+  .cus-dashboard-table .cus-inline-trigger > *:last-child::after {
+    content: none;
+  }
+  /* The fact stack flows as one inline run inside the cell, so a second fact
+     continues on the SAME line as the label instead of starting a new one.
+     `display: grid` here is what kept every card two lines taller than the
+     text actually needs. */
+  .cus-dashboard-table .cus-multiline-cell {
+    display: inline;
   }
   .cus-dashboard-table .cus-multiline-cell strong,
   .cus-dashboard-table .cus-multiline-cell span {
@@ -1341,7 +1384,7 @@
   min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--surface);
   scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent;
   scrollbar-width: thin;
@@ -1964,33 +2007,33 @@
   width: 100%;
   min-height: 28px;
   padding: 2px 6px;
-  border: 1px solid var(--line, #e2e8f0);
+  border: 1px solid var(--line);
   border-radius: var(--app-radius-sm, 6px);
-  background: var(--surface, #ffffff);
-  color: var(--ink-1, #0f172a);
+  background: var(--surface);
+  color: var(--ink);
   font-family: inherit;
   font-size: var(--text-caption-size);
   line-height: 1.3;
   text-align: left;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all var(--t-fast);
   box-sizing: border-box;
 }
 
 .cus-appointment-trigger:hover {
-  border-color: var(--brand-600, #005a2d);
-  background: var(--surface-2, #f8fafc);
+  border-color: var(--brand);
+  background: var(--surface-2);
 }
 
 .cus-appointment-trigger:focus-visible {
-  outline: 2px solid var(--brand-600, #005a2d);
+  outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
 
 .cus-appointment-trigger--active {
-  border-color: var(--brand-600, #005a2d);
-  background: var(--surface-2, #f1f5f9);
-  box-shadow: 0 0 0 1px var(--brand-600, #005a2d);
+  border-color: var(--brand);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--brand);
 }
 
 .cus-appointment-trigger__text {
@@ -2002,7 +2045,7 @@
 }
 
 .cus-appointment-trigger__text--empty {
-  color: var(--ink-3, #94a3b8);
+  color: var(--ink-3);
   font-weight: 400;
 }
 
@@ -2023,9 +2066,9 @@
   width: 275px;
   max-width: calc(100vw - 32px);
   padding: 12px;
-  border: 1px solid var(--line-strong, #cbd5e1);
+  border: 1px solid var(--line-strong);
   border-radius: var(--app-radius-sm, 8px);
-  background: var(--surface, #ffffff);
+  background: var(--surface);
   box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
   animation: cusAppointmentPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2048,27 +2091,27 @@
   gap: 6px;
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--line, #e2e8f0);
+  border-bottom: 1px solid var(--line);
 }
 
 .cus-appointment-popover__title {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--ink-1, #0f172a);
+  color: var(--ink);
   font-size: var(--text-section-size);
   font-weight: 600;
 }
 
 .cus-appointment-popover__title svg {
-  color: var(--brand-600, #005a2d);
+  color: var(--brand);
 }
 
 .cus-appointment-popover__badge {
   font-size: var(--text-caption-size);
   font-weight: 500;
-  color: var(--ink-3, #64748b);
-  background: var(--surface-2, #f1f5f9);
+  color: var(--ink-3);
+  background: var(--surface-2);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -2082,18 +2125,18 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--ink-3, #64748b);
+  color: var(--ink-3);
   cursor: pointer;
 }
 
 .cus-appointment-popover__close:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--ink-1, #0f172a);
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .cus-appointment-popover__section-label {
   margin-bottom: 4px;
-  color: var(--ink-3, #64748b);
+  color: var(--ink-3);
   font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
@@ -2109,10 +2152,10 @@
 .cus-quick-pill {
   flex: 1;
   padding: 4px 6px;
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 5px;
-  background: var(--surface-2, #f8fafc);
-  color: var(--ink-2, #334155);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--ink-2);
   font-family: inherit;
   font-size: var(--text-control-compact-size);
   font-weight: 500;
@@ -2122,21 +2165,21 @@
 }
 
 .cus-quick-pill:hover {
-  background: var(--surface, #ffffff);
-  border-color: var(--brand-600, #005a2d);
-  color: var(--brand-600, #005a2d);
+  background: var(--surface);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .cus-quick-pill.is-active {
-  background: var(--brand-600, #005a2d);
-  border-color: var(--brand-600, #005a2d);
-  color: #ffffff;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--fg-inverse);
   font-weight: 600;
 }
 
 .cus-appointment-popover__inputs {
   display: grid;
-  /* Một trường "Ngày giờ" 24h duy nhất ("HH:mm DD/MM/YYYY") — input văn bản
+  /* Một trường "Ngày giờ" 24h duy nhất ("HH: mm DD/MM/YYYY") — input văn bản
      theo hợp đồng ngày+giờ kết hợp, pill nhanh bên dưới vẫn là đường tắt. */
   grid-template-columns: 1fr;
   gap: 8px;
@@ -2150,7 +2193,7 @@
 }
 
 .cus-appointment-input-wrap label {
-  color: var(--ink-3, #64748b);
+  color: var(--ink-3);
   font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
@@ -2160,17 +2203,17 @@
   width: 100%;
   height: 30px;
   padding: 2px 6px;
-  border: 1px solid var(--line-strong, #cbd5e1);
-  border-radius: 5px;
-  background: var(--surface, #ffffff);
-  color: var(--ink-1, #0f172a);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
   font-family: inherit;
   font-size: var(--control-field-font-size);
   box-sizing: border-box;
 }
 
 .cus-appointment-input:focus {
-  outline: 2px solid var(--brand-600, #005a2d);
+  outline: 2px solid var(--brand);
   outline-offset: -1px;
 }
 
@@ -2202,16 +2245,16 @@
   width: 28px;
   height: 30px;
   flex: 0 0 28px;
-  border: 1px solid var(--line-strong, #cbd5e1);
-  border-radius: 5px;
-  background: var(--surface, #ffffff);
-  color: var(--ink-2, #334155);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-2);
   cursor: pointer;
 }
 
 .cus-appointment-picker-btn:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--brand-600, #005a2d);
+  background: var(--surface-2);
+  color: var(--brand);
 }
 
 .cus-appointment-popover__times {
@@ -2223,10 +2266,10 @@
 .cus-time-pill {
   flex: 1;
   padding: 3px 2px;
-  border: 1px solid var(--line, #e2e8f0);
+  border: 1px solid var(--line);
   border-radius: 4px;
   background: transparent;
-  color: var(--ink-2, #475569);
+  color: var(--ink-2);
   font-family: inherit;
   font-size: var(--text-control-compact-size);
   text-align: center;
@@ -2235,14 +2278,14 @@
 }
 
 .cus-time-pill:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--brand-600, #005a2d);
+  background: var(--surface-2);
+  color: var(--brand);
 }
 
 .cus-time-pill.is-active {
-  background: var(--surface-2, #f1f5f9);
-  border-color: var(--brand-600, #005a2d);
-  color: var(--brand-600, #005a2d);
+  background: var(--surface-2);
+  border-color: var(--brand);
+  color: var(--brand);
   font-weight: 600;
 }
 
@@ -2252,14 +2295,14 @@
   justify-content: space-between;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid var(--line, #e2e8f0);
+  border-top: 1px solid var(--line);
 }
 
 .cus-appointment-popover__clear {
   padding: 2px 4px;
   border: 0;
   background: transparent;
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   font-family: inherit;
   font-size: var(--text-control-compact-size);
   cursor: pointer;
@@ -2273,7 +2316,7 @@
 
 .cus-appointment-popover__hint {
   font-size: var(--text-caption-size);
-  color: var(--ink-3, #94a3b8);
+  color: var(--ink-3);
 }
 
 .cus-container-row--dirty {
@@ -2291,16 +2334,16 @@
 
 .cus-drawer-footer__status {
   font-size: var(--text-data-size);
-  color: var(--ink-2, #475569);
+  color: var(--ink-2);
 }
 
 .cus-drawer-footer__dirty-note {
-  color: var(--brand-700, #005a2d);
+  color: var(--brand);
   font-weight: 500;
 }
 
 .cus-drawer-footer__clean-note {
-  color: var(--ink-3, #94a3b8);
+  color: var(--ink-3);
 }
 
 .cus-drawer-footer__actions {
@@ -2323,14 +2366,14 @@
   justify-content: space-between;
   padding: 8px 12px;
   margin-top: 8px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: var(--app-radius-sm, 6px);
 }
 
 .cus-container-ledger__sticky-note {
   font-size: var(--text-caption-size);
-  color: var(--brand-700, #005a2d);
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -2350,8 +2393,8 @@
   white-space: nowrap;
 }
 .cus-container-confirm--floating {
-  background-color: var(--brand-600, #005a2d) !important;
-  color: #fff !important;
+  background-color: var(--brand) !important;
+  color: var(--fg-inverse) !important;
 }
 
 .cus-container-row-error {
@@ -2359,7 +2402,7 @@
 }
 .cus-container-row-error__cell {
   padding: 6px 12px !important;
-  background: var(--surface-2, #f8fafc);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--line);
 }
 .cus-container-row-error__banner {
@@ -2369,9 +2412,9 @@
   gap: 12px;
   padding: 8px 12px;
   border-radius: var(--app-radius-sm, 6px);
-  background: var(--danger-soft, #fef2f2);
-  border: 1px solid var(--danger-line, #fecaca);
-  color: var(--danger-text, #991b1b);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft);
+  color: var(--danger-text);
   font-size: var(--text-caption-size);
   line-height: 1.4;
   position: sticky;
@@ -2401,7 +2444,7 @@
 }
 .cus-container-confirm:focus-visible,
 .cus-container-revert:focus-visible {
-  outline: 2px solid var(--accent, #2563eb);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 /* Anchored editors must remain reachable with the keyboard open or in landscape. */
@@ -2446,7 +2489,7 @@
 }
 .cus-drawer-lot-error {
   margin: 0;
-  color: var(--danger-text, #b42318);
+  color: var(--danger-text);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }
@@ -2473,7 +2516,7 @@
   color: var(--ink-3);
   cursor: pointer;
 }
-.cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text, #b42318); }
+.cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text); }
 .cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
 .cus-container-row:hover .cus-container-row__remove,
 .cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
@@ -2533,7 +2576,7 @@
 
 .cus-container-ledger__add-error {
   margin: 6px 0 0;
-  color: var(--danger-text, #b42318);
+  color: var(--danger-text);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }

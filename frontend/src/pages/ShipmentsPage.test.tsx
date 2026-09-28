@@ -721,9 +721,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // label rides the first value's line instead of owning one.
     expect(recordCss).toMatch(/th\[data-label='Khách hàng & nhà máy'\]\s*\{\s*grid-column:\s*1 \/ -1;/);
     expect(recordCss).toMatch(/th:not\(\[data-label='Khách hàng & nhà máy'\]\),[\s\S]*?td\s*\{\s*grid-column:\s*auto;/);
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*white-space:\s*nowrap;/);
+    // The label no longer owns a box of its own (measured 2026-09-28 at
+    // 390px: a label column gave it ~70px and left the value a ~100px strip,
+    // so "Chưa có Bill/Book" wrapped to two lines). It is an inline run in
+    // the cell's own text flow, the shape the shared record-table card band uses.
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*inline\s*;[^}]*width\s*:\s*auto\s*;/);
     expect(recordCss).toMatch(/\.cus-inline-trigger\[data-cell-short\]::before\s*\{[^}]*content:\s*attr\(data-cell-short\);/);
-    expect(recordCss).toMatch(/\[data-facts='inline'\][\s\S]*?content:\s*' ·';/);
+    // The ` · ` join is now UNCONDITIONAL in the phone card: the
+    // `data-facts="inline"` markup flag is gone from every source file (the
+    // card always joins), and the separator is stated for the trigger's direct
+    // children too, because the schedule cell paints its facts straight into
+    // the trigger without a `.cus-multiline-cell` wrapper.
+    expect(recordCss).toMatch(/\.cus-multiline-cell > \*::after,\s*\.cus-dashboard-table \.cus-inline-trigger > \*::after\s*\{[^}]*content:\s*' ·'\s*;/);
+    // No trailing separator on the last fact, or every cell ends in ' ·'.
+    expect(recordCss).toMatch(/\.cus-multiline-cell > \*:last-child::after,\s*\.cus-dashboard-table \.cus-inline-trigger > \*:last-child::after\s*\{[^}]*content:\s*none\s*;/);
+    expect(css).not.toMatch(/\[data-facts/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
   });
@@ -2121,7 +2133,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('uses an unbounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);
-    expect(css).toMatch(/\.cus-dashboard-table col\.cus-dashboard-col--status\s*\{[^}]*width:\s*15%;/);
+    // Re-measured 2026-09-28 at 1440px: the split follows what each column
+    // actually holds, but the contract is unchanged — all seven columns pin an
+    // explicit percentage (table-layout: fixed only measures from the FIRST
+    // rendered row, so an `auto` column clips real names on later rows) and the
+    // seven shares still sum to 100%.
+    const columnWidths = [...css.matchAll(/col\.cus-dashboard-col--[a-z]+\s*\{[^}]*width:\s*(\d+)%\s*;/g)]
+      .map(([, percent]) => Number(percent));
+    // The contract is structural, not numeric: all seven columns pin an
+    // explicit percentage and the seven shares sum to 100%. The individual
+    // percentages follow what each column actually holds and are re-measured
+    // as the data shape moves (2026-09-28: classification 9%→13%, notes
+    // 14%→10% after the header wrapped to four lines and the notes column
+    // printed "Thêm ghi chú" on nearly every row).
+    expect(columnWidths).toHaveLength(7);
+    expect(columnWidths.reduce((sum, percent) => sum + percent, 0)).toBe(100);
     expect(css).not.toMatch(/\.cus-dashboard-viewport\s*\{[^}]*max-height/);
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
@@ -2277,7 +2303,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rowSource).toContain('className="cus-multiline-cell cus-classification"');
     expect(rowSource).toContain("className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}");
     expect(css).toMatch(/\.cus-multiline-cell \.cus-classification__shipping-line\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*grid-template-areas:[\s\S]*?"shipping-line shipping-line"[\s\S]*?"combined direction";[^}]*min-height:\s*44px;/);
+    // No min-height floor (2026-09-28): a placeholder-only cell used to reserve
+    // 44px inside a 110px row, and stretching the row to 1fr stranded the
+    // direction badge at the bottom of tall cells. The two rows are now
+    // content-sized (`auto auto`) and packed to the top.
+    expect(css).toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*grid-template-areas:[\s\S]*?"shipping-line shipping-line"[\s\S]*?"combined direction";[^}]*grid-template-rows:\s*auto auto\s*;[^}]*align-content:\s*start\s*;/);
+    expect(css).not.toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*min-height\s*:/);
     expect(css).toMatch(/\.cus-classification \.cus-direction-badge\s*\{[^}]*grid-area:\s*direction;[^}]*align-self:\s*end;[^}]*justify-self:\s*end;/);
     expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
   });
@@ -2293,7 +2324,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // selectors match markup this Select never renders), so the modal conforms
     // label + trigger metrics locally instead of via UuiSelectField.css.
     expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select label\s*\{[^}]*color:\s*var\(--ink-2\);[^}]*font-size:\s*var\(--text-label-size\);[^}]*font-weight:\s*var\(--fw-semibold\);/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*38px;[^}]*border-radius:\s*7px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
+    // 8px, not 7px: commit cd862de4 moved the app-wide control radius to 8px
+    // as the design-system standard (7px survives only in utilities.css).
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height\s*:\s*38px\s*;[^}]*border-radius\s*:\s*8px\s*;[^}]*font-size\s*:\s*var\(--control-field-font-size\)\s*;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields \{ grid-template-columns:\s*1fr; \}[\s\S]*?\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*44px;/);
   });
 
@@ -2320,11 +2353,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('CUS-OVERVIEW-01 rides the label on the value line and wraps complete identifiers without inherited fixed columns', () => {
-    // The dense rework (operator 2026-09-27) replaces the stacked label line with
-    // a fact row: the trigger is a label column + a value column, and the label
-    // itself never wraps (its short form is what the paired cells print).
-    expect(recordCss).toMatch(/\.cus-inline-trigger:has\(\.cus-multiline-cell\)[\s\S]*?grid-template-columns:\s*auto minmax\(0, 1fr\);/);
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*white-space:\s*nowrap;/);
+    // The dense rework (operator 2026-09-27) makes the trigger a single inline
+    // fact run: the label flows in the text BEFORE the first value
+    // ("Hàng hóa  Chưa có hàng hóa"), one line saved per cell. The
+    // `grid-template-columns: auto minmax(0, 1fr)` label/value grid it
+    // replaced is gone for good — re-measured 2026-09-28 at 390px it gave the
+    // label ~70px and left the value a ~100px strip, so "Chưa có Bill/Book"
+    // wrapped to two lines and the card measured 241px.
+    expect(recordCss).not.toMatch(/\.cus-inline-trigger:has\(\.cus-multiline-cell\)/);
+    // The fact stack is inline too, so a second fact continues on the SAME
+    // line as the label instead of starting one (`display: grid` here is what
+    // kept every card two lines taller than the text needs).
+    expect(recordCss).toMatch(/\.cus-dashboard-table \.cus-multiline-cell\s*\{[^}]*display\s*:\s*inline\s*;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*inline\s*;[^}]*width\s*:\s*auto\s*;[^}]*margin\s*:\s*0 6px 0 0\s*;[^}]*content\s*:\s*attr\(data-cell-label\)\s*;/);
     expect(recordCss).toMatch(/\.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
