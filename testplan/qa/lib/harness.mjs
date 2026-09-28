@@ -13,6 +13,7 @@
 import puppeteer from 'puppeteer';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { QE } from './selectors.mjs';
 
 const SETTLE_DEFAULT_MS = 500;
@@ -130,12 +131,36 @@ export async function createSession({ env, role, evidenceDir, runId }) {
     // (ctx.apiGet stays read-only). Returns the fetch-like shape cases
     // expect ({ok, status, data}). Paths may carry a leading "/api" —
     // env.api already ends in /api, so it is stripped to avoid doubling.
+    //
+    // `Idempotency-Key` on every write (card 20260928_196). The backend
+    // rejects a material write without one:
+    //
+    //   POST /api/trips  ->  400 "Idempotency-Key là bắt buộc cho thao tác
+    //   ghi dữ liệu này."
+    //
+    // and this client never sent it, so EVERY case that created or mutated
+    // through ctx.api failed at the first write — reported as a bare
+    // "Trip creation failed: 400", which reads like a product defect and sent
+    // the investigation after the data instead of the client. Two cases had
+    // quietly hand-rolled their own fetch with the header (see
+    // chungtu-regression/TC-CUS-API-MASTERREF-001.mjs), which is why the gap
+    // survived: the workaround was in the file, not in the shared client.
+    //
+    // A fresh key per call, not a per-case constant: each call is a distinct
+    // operation and a shared key would make the second write look like a
+    // replay of the first. GETs are left alone — the backend only requires it
+    // on declared material writes.
     api: {
       async _call(method, path, body) {
         const clean = path.startsWith('/api/') ? path.slice(4) : path;
+        const isWrite = method !== 'GET' && method !== 'HEAD';
         const r = await fetch(`${env.api.replace(/\/$/, '')}/${clean.replace(/^\//, '')}`, {
           method,
-          headers: { Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            ...(isWrite ? { 'Idempotency-Key': randomUUID() } : {}),
+          },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         });
         const text = await r.text();
