@@ -278,6 +278,15 @@
     font-size: 12px;
     line-height: 1.2;
   }
+  /* Card 20260928_161 — the block above is a FALLBACK title, and on a page that
+     prints its own `<h1>` it is a second copy of the same words. At ≤640px the
+     two land within 40px of each other and the fallback wraps to a second line,
+     which is what the operator photographed on /shipments. The page heading is
+     the one that belongs to the content, so the fallback steps aside — desktop
+     keeps it, where it is a persistent orientation cue rather than a repeat.
+     Scoped to `.app--page-own-heading` (lib/page-heading-policy.ts): every
+     other phone route still needs this block as its only visible title. */
+  .app--page-own-heading .topbar__context { display: none; }
   .topbar .icon-btn { display: none; }
   /* Hamburger is the primary nav control on phones: full 44×44 touch floor
      (design-guidelines §5) — width was 32px, the most-tapped element under
