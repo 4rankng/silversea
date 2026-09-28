@@ -142,6 +142,22 @@ function evaluateLock(lock) {
       const top = el.getBoundingClientRect().top;
       return { pass: top <= lock.max + tol, actual: `first record at ${num(top)}px (max ${lock.max})`, detail: desc(el) };
     }
+    case 'clearOf': {
+      // Anchoring: a popover must start BELOW the control that opened it.
+      // Measured as a gap against the anchor rather than a fixed `top`, because
+      // the honest invariant is the relationship, not a pixel: page chrome moves
+      // both boxes together, so pinning an absolute top would fail on a harmless
+      // header change while a panel sitting on its own trigger would pass.
+      // Card 20260928_158: a filter sheet bounded to the viewport instead of to
+      // the space under its trigger grew to `100dvh - 24px`, and the viewport
+      // clamp then pinned it to the top padding with the trigger inside it.
+      const el = first(lock.selector);
+      if (!el) return { pass: false, actual: 'selector matched nothing' };
+      const anchor = first(lock.relative);
+      if (!anchor) return { pass: false, actual: 'relative selector matched nothing' };
+      const gap = el.getBoundingClientRect().top - anchor.getBoundingClientRect().bottom;
+      return { pass: gap >= (lock.min ?? 0) - tol, actual: `${num(gap)}px below its anchor (min ${lock.min ?? 0})`, detail: [desc(el), desc(anchor)] };
+    }
     case 'count': {
       const n = all(lock.selector).length;
       return { pass: n <= (lock.max ?? 0), actual: `${n} matches (max ${lock.max ?? 0})`, detail: all(lock.selector).slice(0, 4).map(desc) };

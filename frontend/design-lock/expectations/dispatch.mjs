@@ -62,6 +62,19 @@ export default [
   { id: 'dispatch-detail/desktop/facets-in-drawer', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'visible', selector: '.detailed-plan-filter-panel__quick', open: 'drawer' },
   { id: 'dispatch-detail/phone/drawer-facet-group-count', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'count', selector: '.detailed-plan-filter-panel__quick > *', max: 5, open: 'drawer', note: 'the facet group lives in the drawer (Khách + Hướng + Điều xe + Dữ liệu + Xe/Tài xế — the vehicle facet landed in 0a2b2864 and this max was left at 4, a stale pin); the two `no-ribbon-facet-grid` hidden locks are what keep it out of the header' },
 
+  // --- Anchoring (card 20260928_158) ---------------------------------------
+  // The card reported the sheet covering its own trigger at 1024 and 1440. That
+  // no longer reproduces — a later density pass took the panel 876px -> 580px,
+  // and at both widths it already cleared the trigger by 4px. The defect is
+  // real at 390 instead, and it is the same root cause: the panel was bounded to
+  // the VIEWPORT (`100dvh - 24px`) rather than to the space under its trigger,
+  // so a sheet taller than that space grew to the viewport ceiling, and the
+  // hook's viewport clamp then pinned it to the top padding with the trigger
+  // inside it. Measured before the fix: panel top 12 against a trigger bottom of
+  // 245, so it covered the trigger by 233px.
+  { id: 'dispatch-detail/phone/sheet-clears-its-trigger', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'clearOf', selector: '.filter-dropdown__popover', relative: '.filter-dropdown__trigger', min: 0, open: 'drawer', note: 'the sheet opens BELOW the button that opened it. A sheet that needs more room than its anchor has below must cap and scroll (583px measured, body 581 visible of 822), never grow to the viewport and slide up over its own trigger' },
+  { id: 'dispatch-detail/desktop/sheet-clears-its-trigger', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'clearOf', selector: '.filter-dropdown__popover', relative: '.filter-dropdown__trigger', min: 0, open: 'drawer', note: 'same invariant at desk width, where the card first reported it. Currently 4px and not scrolling, so this holds it rather than catching a live regression' },
+
   // --- Header shape --------------------------------------------------------
   { id: 'dispatch-detail/desktop/header-one-row', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxHeight', selector: '.detailed-plan-header', max: 40, note: 'title + presets + range + Gán xe on one 36px row at desk width' },
   { id: 'dispatch-detail/phone/clear-control-not-stretched', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxWidth', selector: '.detailed-plan-filters__clear', max: 120, note: 'Xóa lọc claimed half the row in the rejected layout (186px+); it now hugs its content next to Bộ lọc' },
