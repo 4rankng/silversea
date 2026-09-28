@@ -310,6 +310,12 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
     const epoch = Date.UTC(2026, 0, 1);
     for (let i = 1; i <= 301; i += 1) {
       const day = new Date(epoch + (i - 1) * 86_400_000).toISOString().slice(0, 10);
+      // One shipment per trip: `trips_shipment_without_fulfillment_live_uniq`
+      // admits only ONE fulfillment-less live trip per shipment.
+      const [shipment] = await db.insert(s.shipments)
+        .values({ customerId: customer.id, cargoMode: 'FCL', status: 'DISPATCHED' })
+        .returning({ id: s.shipments.id });
+      track(s.shipments, shipment.id);
       const [trip] = await db.insert(s.trips).values({
         shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
         truckId: i <= 150 ? truckIds[0] : truckIds[1],
