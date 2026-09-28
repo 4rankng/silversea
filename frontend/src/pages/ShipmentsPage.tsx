@@ -370,10 +370,17 @@ export default function ShipmentsPage() {
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
   // Card 20260927_152: the three criteria behind `Bộ lọc` — the count feeds the
   // trigger badge, `Đặt lại` clears exactly those three and nothing else.
-  const secondaryCount = (direction ? 1 : 0) + (adHoc ? 1 : 0) + (selectedBuckets.length ? 1 : 0);
-  const resetSecondary = () => { updateParam('direction', null); updateParam('adHoc', null); updateBuckets([]); };
+  const secondaryCount = (direction ? 1 : 0) + (adHoc ? 1 : 0) + (selectedBuckets.length ? 1 : 0) + (dateFrom || dateTo ? 1 : 0);
+  // Card 20260928_161: the date range rides in the dropdown now, so its reset clears it too.
+  const resetSecondary = () => { updateParam('direction', null); updateParam('adHoc', null); updateBuckets([]); applyDateRange({ from: '', to: '' }); };
   const presetNode = <DateRangePresets className="shipments-control__date-presets" presets={LOT_DATE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh" />;
   const presetDialogNode = <DateRangePresetSelect presets={LOT_DATE_PRESETS} value={{ from: dateFrom, to: dateTo }} onChange={applyDateRange} ariaLabel="Khoảng ngày nhanh" />;
+  // Card 20260928_161 (D). The pair used to be a DIRECT bar child, so it sat
+  // outside the bar's fold ladder: with the criteria and quick ranges already
+  // foldable nothing was left to move and the strip held three rows on a phone
+  // (2026-09-28, 390px: search 300 · dates 348 · trigger 104). `FilterDropdown`
+  // shows children inline while the bar fits two rows, in the dialog when it does not.
+  const dateRangeNode = <DateRangeFields className="shipments-control__range" id="lot-date-range" size="sm" ariaLabel="Khoảng ngày giao" from={dateFrom} to={dateTo} onChange={applyDateRange} />;
   const exportWorksheet = async () => {
     setExporting(true);
     ws.setError(null);
@@ -480,9 +487,8 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
-        {/* Card 20260927_152: the shared bar. Xuất/Nhập, Loại and Kế hoạch
-            render INLINE while the strip still fits two rows and only collapse
-            into `Bộ lọc (N)` when the width leaves no other choice. */}
+        {/* Card 20260927_152: the shared bar. Every criterion renders INLINE while
+            the strip fits two rows, collapsing into `Bộ lọc (N)` when it cannot. */}
         <ListFilterBar
           search={{
             value: searchInput,
@@ -503,14 +509,8 @@ export default function ShipmentsPage() {
             </UUIButton>
           ) : undefined}
         >
-          <DateRangeFields
-            className="shipments-control__range"
-            id="lot-date-range"
-            size="sm"
-            ariaLabel="Khoảng ngày giao"
-            from={dateFrom} to={dateTo} onChange={applyDateRange}
-          />
           <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" presets={presetDialogNode} onReset={resetSecondary}>
+            {dateRangeNode}
             <InlineLabelSelect
               className="shipments-control__chip"
               id="lot-direction-filter"

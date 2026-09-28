@@ -147,6 +147,28 @@
   }
 }
 
+/* Card 20260928_161 (E) — the phone band reads "component too oversize
+   compared to text" beside a 40px control. Both tempting fixes were measured
+   and both are refused, so they are recorded here rather than re-attempted:
+
+   1. Shrinking the buttons to 36px fails. 40px is the touch floor
+      (`--control-max-h` -> `--control-touch-h`, tokens.css) and the `tapFloor`
+      design-lock measures against 40px by default (scripts/design-lock.mjs), so
+      a 36px button breaks the gate that exists to protect the target.
+   2. Growing the heading to the 16px dialog-title size also fails, and this one
+      is subtler: at 14px "Tong quan lo hang" is 127px, and heading + the 220px
+      action cluster + the 12px gap is 359px inside a 372px row. At 16px the
+      heading is 145px, the pair is 377px, and the action cluster wraps onto a
+      row of its own — the control plane went 96px -> 125.2px, measured the same
+      day by the design-lock harness that now pins the ceiling. A bigger heading
+      costs more height than it buys in rhythm.
+
+   So the heading keeps the 14px section rung and the control keeps the 40px
+   touch floor. The row rhythm the Tailkit `a-c-page-headings-03` heading block
+   depends on comes from the ACTIONS sitting on the heading's line (the
+   2026-09-27 "button same row with page title" ruling, held by the order rules
+   in the <=1024px block above), not from enlarging the type.
+   Modelled on that component, retokenized per frontend/docs/tailkit-ui.md. */
 
 .cus-worksheet-meta {
   display: flex;
