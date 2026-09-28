@@ -11,7 +11,7 @@ import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
 import { Role } from '@tingting/shared';
 import { throwValidation } from '../lib/validation';
-import { assignTruckAccountant, confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
+import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
 import { listExpenseAccountingWork } from '../services/expense-accounting-work.service';
@@ -218,6 +218,20 @@ router.post('/assignments', asyncHandler(async (req, res) => {
   const input = parse(z.object({ truckId: idSchema, accountantId: idSchema.nullable(), expectedVersion: z.number().int().nonnegative() }).strict(), req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để cập nhật phân công.');
   const result = await runShipmentWrite(req, 'expense-accounting.assign', input, async tx => ({ body: await assignTruckAccountant(tx, getUser(req), input.truckId, input.accountantId, input.expectedVersion), status: 200, auditEntityId: input.truckId }));
+  sendShipmentWrite(res, result.result);
+}));
+// Card 20260928_166 AC1 — the 39-truck split in one request. All-or-nothing:
+// `assignTruckAccountantsBatch` runs inside this one transaction, so a bad truck
+// aborts every assignment in the batch rather than leaving a half-applied split.
+router.post('/assignments/batch', asyncHandler(async (req, res) => {
+  const input = parse(z.object({
+    accountantId: idSchema.nullable(),
+    truckIds: z.array(idSchema).min(1).max(200),
+  }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Cần mã thao tác để cập nhật phân công.');
+  const result = await runShipmentWrite(req, 'expense-accounting.assign-batch', input, async tx => ({
+    body: { items: await assignTruckAccountantsBatch(tx, getUser(req), input) }, status: 200, auditEntityId: input.truckIds[0],
+  }));
   sendShipmentWrite(res, result.result);
 }));
 router.get('/reports', asyncHandler(async (req, res) => res.json(await getExpenseAccountingReport(getUser(req), parse(reportSchema, req.query)))));

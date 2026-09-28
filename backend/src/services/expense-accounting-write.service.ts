@@ -241,3 +241,47 @@ export async function assignTruckAccountant(tx: Tx, actor: ExpenseActor, truckId
   await tx.insert(s.auditLogs).values({ userId: actor.userId, message: 'TRUCK_ACCOUNTANT_ASSIGNED', entityType: 'truck_accountant_assignment', entityId: after.id, payload: { before: before ?? null, after } });
   return after;
 }
+
+/**
+ * Card 20260928_166 AC1 — the split PM describes (2 accountants, 39 trucks,
+ * 13/26) done in one action instead of 39 round trips.
+ *
+ * Each truck goes through `assignTruckAccountant`, so the single-assign rules
+ * (active accountant of the ACCOUNTANT role, open-row version check, `endedAt`
+ * history, audit row) are never duplicated here — this function only decides
+ * WHICH trucks to touch.
+ *
+ * All-or-nothing: the caller runs it inside one transaction, so the first
+ * failing truck aborts the batch and no truck is written. A half-applied split
+ * is worse than a retry — the operator cannot tell which trucks landed, and the
+ * board would hold a mixture that matches neither the old nor the new split.
+ *
+ * Idempotent for an already-correct pair: a truck whose open row already names
+ * the requested accountant (including both being unassigned) is left untouched,
+ * so re-sending the same batch after a timeout writes no history.
+ */
+export async function assignTruckAccountantsBatch(
+  tx: Tx,
+  actor: ExpenseActor,
+  input: { accountantId: number | null; truckIds: number[] },
+): Promise<Array<{ truckId: number; accountantId: number | null; assignmentId: number; version: number; changed: boolean }>> {
+  requireExpenseFinance(actor);
+  // A repeated truck id would otherwise be processed twice and burn a version.
+  const truckIds = [...new Set(input.truckIds)];
+  const results: Array<{ truckId: number; accountantId: number | null; assignmentId: number; version: number; changed: boolean }> = [];
+  for (const truckId of truckIds) {
+    const [open] = await tx.select({
+      id: s.truckAccountantAssignments.id,
+      accountantId: s.truckAccountantAssignments.accountantId,
+      version: s.truckAccountantAssignments.version,
+    }).from(s.truckAccountantAssignments)
+      .where(and(eq(s.truckAccountantAssignments.truckId, truckId), isNull(s.truckAccountantAssignments.endedAt)));
+    if (open && (open.accountantId ?? null) === (input.accountantId ?? null)) {
+      results.push({ truckId, accountantId: input.accountantId, assignmentId: open.id, version: open.version, changed: false });
+      continue;
+    }
+    const after = await assignTruckAccountant(tx, actor, truckId, input.accountantId, open?.version ?? 0);
+    results.push({ truckId, accountantId: input.accountantId, assignmentId: after.id, version: after.version, changed: true });
+  }
+  return results;
+}
