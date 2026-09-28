@@ -103,6 +103,28 @@ async function openOptions(triggerSelector) {
   });
 }
 
+/**
+ * Read a field back the way a person would see it.
+ *
+ * CARD 20260928_156, second layer. These are React-Aria comboboxes whose
+ * `input` is a `text-transparent` proxy — the visible value is rendered by the
+ * wrapper — so a raw `input.value` reads empty even on a good pick. Reading
+ * the wrapper is what lets the driver tell "I clicked an option" from "the
+ * field actually took it".
+ */
+async function readFieldValue(selector) {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    if (typeof el.value === 'string' && el.value !== '') return el.value;
+    const box = el.closest('.uui-combobox, .csc-uui-field, [class*="uui-field"]');
+    const text = (box?.innerText || '').trim();
+    if (!text) return null;
+    // A wrapper can hold the label too; the value is the last non-empty line.
+    return text.split('\n').map((s) => s.trim()).filter(Boolean).pop() ?? null;
+  }, selector);
+}
+
 /** Pick the first enabled option of the listbox opened from `triggerSelector`. */
 async function pickFirstOption(triggerSelector, label) {
   const options = await openOptions(triggerSelector);
@@ -123,16 +145,30 @@ async function pickFirstOption(triggerSelector, label) {
   }, first.text);
   if (!clicked) return `pick-failed:${label}`;
   await new Promise((r) => setTimeout(r, 500));
-  return first.text;
+
+  // The click is not the result. A synthetic `.click()` on a React-Aria option
+  // can do nothing at all — that is exactly how the customer pick "succeeded"
+  // while leaving the field empty, which is why `Nhà máy` stayed disabled for
+  // the rest of the run. Confirm the value landed before claiming a pick.
+  const after = await readFieldValue(triggerSelector);
+  if (after === null) return `no-commit:${label}`;
+  return after;
 }
 
 async function typeInto(selector, value) {
   const handle = await page.$(selector);
   if (!handle) return `no-input:${selector}`;
+  // The click is best-effort (these proxy inputs can refuse a real click);
+  // verification below is what actually decides success.
   await handle.click({ clickCount: 3 }).catch(() => {});
   await page.keyboard.type(value, { delay: 20 });
   await new Promise((r) => setTimeout(r, 200));
-  return value;
+  // Same discipline as pickFirstOption: do not report a value we only TRIED to
+  // type. Before this, `containerCount=1` in the metadata could have meant the
+  // keystrokes went nowhere.
+  const after = await readFieldValue(selector);
+  if (after === null || !String(after).includes(String(value))) return `no-commit:${selector}`;
+  return after;
 }
 
 const buildHash = await page
@@ -172,8 +208,13 @@ for (const width of WIDTHS) {
     wanted.click();
     return (wanted.textContent || '').trim();
   });
-  notes.push(`direction=${direction ?? 'no-option:trade-direction'}`);
+  // Same rule as pickFirstOption: the click is not the result. The direction
+  // field is a `csc-uui-field` button, not an input, so verify through it.
+  const directionAfter = await readFieldValue(HOOKS.directionButton);
+  const directionOk = Boolean(direction) && directionAfter !== null;
+  notes.push(`direction=${directionOk ? directionAfter : `no-commit:trade-direction`}`);
   if (!direction) note(`${at} direction`, 'no Nhập khẩu/Xuất khẩu option in the trade-direction listbox');
+  else if (!directionOk) note(`${at} direction`, 'clicked the option but the field never took the value');
   await new Promise((r) => setTimeout(r, 700));
 
   for (const [label, selector] of [
@@ -185,6 +226,8 @@ for (const width of WIDTHS) {
   ]) {
     const value = await pickFirstOption(selector, label);
     notes.push(`${label}=${value}`);
+    // `no-commit` joins the other failure shapes: the click happened, the field
+    // did not change, so the screenshot is missing data it claims to show.
     if (value.startsWith('no-') || value.startsWith('pick-')) note(`${at} ${label}`, value);
   }
 
