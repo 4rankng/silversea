@@ -182,6 +182,39 @@ export default defineConfig([
       // projectService cannot parse them (dedicated Python e2e/ lives at the
       // repo root; these are browser-globals test files).
       'e2e/**',
+
+      // Card 20260928_154. THESE LIVE HERE, NOT AT THE REPO ROOT.
+      //
+      // ESLint v10 resolves each file against the NEAREST config, so everything
+      // under frontend/ is linted by THIS file and never by the root
+      // eslint.config.mjs. The root config lists twelve frontend ignores
+      // (`**/frontend/scripts/**`, `frontend/*.mjs`,
+      // `**/frontend/design-lock/expectations/**`, the cus-qa*/probe-*/drill*
+      // probes …) and every one of them is dead: it looks right, it is never
+      // consulted. The visible symptom was 29 "Parsing error: No
+      // tsconfigRootDir was set" errors for build scripts that have no defect
+      // at all — they live in no tsconfig, so the type-aware parser cannot
+      // read them, and the errors said nothing about code quality.
+      //
+      // These trees are one-off tooling with no tsconfig, so they are excluded
+      // for the same reason `*.config.ts` is above. Moved here so the exclusion
+      // is actually in force. If one of these is later promoted to real
+      // source, delete its line here rather than re-adding it at the root,
+      // where it would again do nothing.
+      'scripts/**',
+      'design-lock/expectations/**',
+      // Throwaway browser probes that live next to the code they poke. None is
+      // referenced by a documented command; they are session scratch.
+      // `role-ui-sweep.mjs` and `role-ui-sweep-report.mjs` are NOT ignored —
+      // .claude/CLAUDE.md documents the former as the all-route sweep entry.
+      'cus-qa*.mjs',
+      'probe-*.mjs',
+      'drill*.mjs',
+      'shotall.mjs',
+      'drv-repro.mjs',
+      'mobile-ux-sweep.mjs',
+      'dispatch-toolbar-shot.mjs',
+      'qa/tmp-*.mjs',
     ],
   },
 
@@ -268,10 +301,21 @@ export default defineConfig([
 
   // Plain JS/MJS files (build scripts like scripts/check-size.mjs): no
   // type-checked rules, and node globals so process/console/URL resolve.
+  //
+  // `languageOptions` is MERGED, not replaced. Spreading
+  // `tseslint.configs.disableTypeChecked` and then declaring `languageOptions`
+  // wholesale below it throws away the `parserOptions` that spread installed,
+  // so `projectService: false` was dropped and these files stayed on the
+  // type-aware parser. That is invisible for a .mjs in a tsconfig and fatal
+  // for one that is not: `role-ui-sweep.mjs` is documented in .claude/CLAUDE.md
+  // as the all-route sweep entry point, so it is deliberately NOT ignored, and
+  // the only thing standing between it and the gate is this block actually
+  // disabling the type-aware parse.
   {
-    files: ['**/*.js', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
       globals: globals.node,
     },
   },
@@ -282,11 +326,12 @@ export default defineConfig([
   // via `page.evaluate`/`$$eval`, where `document`, `window`, `getComputedStyle`
   // are the page's globals. Both sets are intentional, exactly like the
   // `qa/scripts/*.cjs` probes below; without this block every probe callback
-  // reported a false `no-undef`.
+  // reported a false `no-undef`. Merged for the same reason as the block above.
   {
-    files: ['**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+    files: ['**/*.mjs'],
     languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
       globals: {
         ...globals.node,
         ...globals.browser,

@@ -81,6 +81,21 @@ export default defineConfig([
       '**/shared/src/**/*.test.ts',
       '**/shared/test-zod.ts',
       '**/shared/test-zod-null.ts',
+      // The frontend probes and tooling trees below are listed here as well as
+      // in frontend/eslint.config.js, and THAT is the copy that does the work.
+      //
+      // ESLint v10 resolves each file against the NEAREST config, so every
+      // file under frontend/ is linted by frontend/eslint.config.js and this
+      // file is never consulted for it. These entries are therefore dead on
+      // the default path — they were the reason the root gate reported 29
+      // "Parsing error: No tsconfigRootDir was set" errors for build scripts
+      // with no defect. They are kept because they take effect under
+      // `eslint . --no-config-lookup`, which forces one config over the repo,
+      // and duplicating them costs nothing.
+      //
+      // If you add a frontend ignore, add it to frontend/eslint.config.js too
+      // or it will not run. Card 20260928_154.
+      //
       // Throwaway browser probes that live next to the code they poke. None
       // is referenced by any documented command; they are session scratch.
       // `role-ui-sweep.mjs` and `role-ui-sweep-report.mjs` are NOT ignored —
