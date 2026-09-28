@@ -19,6 +19,16 @@ Before any task, select the smallest relevant skill(s). Read each `SKILL.md` ful
 
 **Mandatory tool routing:**
 - **PostgreSQL / Drizzle ORM** → `postgres-drizzle` skill; match installed Drizzle version and existing patterns. For data backfills, constraint tightening, deployment ordering, or rollback → also `drizzle-safe-migrations` (replace its generic examples with this repo's `pnpm` commands).
+- **Any UI/UX design problem** — layout, component choice, interaction pattern, form, table, dialog, empty state, density, visual polish → **use the paid UI catalogs before inventing anything.** You are expected to *actively call* them, not merely know they exist. These are licensed catalogs; not using them wastes the licence and produces worse UI.
+
+  | Catalog | Role | Tools |
+  |---|---|---|
+  | **Untitled UI PRO** (`untitledui` MCP) | The repo's component **source** | `search_components`, `get_page_templates` to discover · `get_component` / `get_component_bundle` for the install command · `search_icons` for exact `@untitledui/icons` names. Pass `version: 8`. Run the returned `pnpm uui:add:*` from `frontend/`. |
+  | **Tailkit UI** (`tailkit` MCP) | **Pattern reference only** | `browse_catalog` → real ids (they are **plural**: `a-c-tables-13`, `m-s-pricing-01`) · `get_component_code` for the layout idea. |
+
+  - **Never paste Tailkit class names into this repo.** Its components are built on a `secondary-{50..900}` colour ramp, `@headlessui/react`, and Heroicons `hi-*` classes that this project does not have — it renders colourless or breaks the build. Take the *layout*, rebuild it in house tokens.
+  - Untitled UI path: [`frontend/docs/untitled-ui.md`](frontend/docs/untitled-ui.md) · Tailkit path: [`frontend/docs/tailkit-ui.md`](frontend/docs/tailkit-ui.md).
+  - **Report which catalog you consulted** in the handoff, by component id (`a-c-tables-13`) or Untitled component name. A UI decision with no catalog consultation and no stated reason is an incomplete decision — the same bar as a UI claim with no screenshot.
 
 ## Development context loading
 
@@ -78,7 +88,7 @@ A task is done **only when all** are true:
 5. Docs updated if user-visible behavior, commands, or architecture changed.
 6. All QA artifacts saved under `qa/`.
 7. `.ua/` knowledge base is current (see *Knowledge Base* below).
-8. For any UI-facing bug or feature: the **UI verification contract** below is satisfied per claim.
+8. For any UI-facing bug or feature: the **UI verification contract** below is satisfied per claim, **and** the paid UI catalogs were consulted per the mandatory tool routing above — or a house primitive was chosen deliberately, with the reason stated.
 
 ---
 
@@ -134,6 +144,21 @@ Auth for headless runs: use the `puppeteer-spa-auth` skill (`evaluateOnNewDocume
 ```
 
 The **Not covered** column must never be empty or "n/a". If you genuinely cannot think of an untested edge, list at least: other roles, mobile viewport, staging vs local, and error/rollback path. Omitting this block means the task is not done.
+
+### Design provenance — the licensed catalogs are part of the evidence
+
+A UI claim is only complete if you can say where the design came from.
+
+- **State the catalog and the component** you consulted: `a-c-tables-13` (Tailkit), or the Untitled UI
+  component name from `src/components/untitled-ui/installed.json`.
+- **Inventing a pattern without looking is a defect**, not a shortcut — it is the named anti-pattern in
+  the design law book (§9 "reference before invention"). The catalogues are licensed; the point of the
+  licence is that agents actually open them.
+- Choosing an **existing house primitive** is a legitimate answer — say so, and say why the catalog
+  search confirmed nothing better fit. Silence is what fails.
+- Both catalogs are **dark-mode- and brand-blind**: their output is a *layout idea* that must be
+  rebuilt in house tokens. The app is light-only and the brand is TransTing emerald. See
+  [`frontend/docs/tailkit-ui.md`](frontend/docs/tailkit-ui.md) for the port checklist.
 
 ### Prohibited phrasings
 

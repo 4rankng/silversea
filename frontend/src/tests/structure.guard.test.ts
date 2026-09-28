@@ -494,6 +494,36 @@ describe('frontend structure guard', () => {
     expect(missing, `stale entries: ${missing.join(', ')} — remove or rename them after file moves`).toEqual([]);
   });
 
+  it('the Untitled UI manifest matches what is actually vendored', () => {
+    // The manifest is the "do not re-run add over this" record. Every file the
+    // Untitled UI CLI drops under components/untitled-ui/ is locally adapted, so
+    // the next `pnpm uui:add:*` must not be allowed to silently overwrite it.
+    // Deriving the list from the filesystem keeps it honest in both directions:
+    // adding a component without recording it fails, and so does deleting one.
+    const VENDOR_ROOT = 'src/components/untitled-ui';
+    const manifestPath = join(process.cwd(), VENDOR_ROOT, 'installed.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { files: string[] };
+
+    const walk = (rel: string, acc: string[] = []): string[] => {
+      for (const entry of readdirSync(join(process.cwd(), rel))) {
+        const childRel = `${rel}/${entry}`;
+        if (statSync(join(process.cwd(), childRel)).isDirectory()) walk(childRel, acc);
+        else if (entry !== 'installed.json' && !entry.includes('.test.')) acc.push(childRel);
+      }
+      return acc;
+    };
+    const onDisk = walk(VENDOR_ROOT)
+      .map((rel) => rel.slice(VENDOR_ROOT.length + 1))
+      .sort();
+    const recorded = [...manifest.files].sort();
+
+    const unrecorded = onDisk.filter((file) => !manifest.files.includes(file));
+    const gone = manifest.files.filter((file) => !onDisk.includes(file));
+    expect(unrecorded, `vendored but not in installed.json: ${unrecorded.join(', ')} — regenerate the manifest in the same commit`).toEqual([]);
+    expect(gone, `listed in installed.json but not on disk: ${gone.join(', ')} — regenerate the manifest in the same commit`).toEqual([]);
+    expect(recorded, 'installed.json.files must be sorted').toEqual(recorded);
+  });
+
   it('no new local date formatters outside lib/format and the documented exceptions', () => {
     // Documented intentional variants (phase-4 inventory): midnight-normalized
     // CUS dates, print-precision day/month, host-local tables with raw-echo

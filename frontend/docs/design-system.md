@@ -86,6 +86,20 @@ retrieved with the pinned version-8 workflow in
 the component layer, then compose them through the product-specific design
 system and feature modules above.
 
+`src/components/untitled-ui/installed.json` lists every vendored file. Check it
+before running `pnpm uui:add:*` — a listed file is locally adapted and must not
+be overwritten.
+
+## Tailkit UI reference
+
+Tailkit is a **pattern reference, not a component layer** — no Tailkit code is
+installed and its class names must never reach this repo. Look up a layout there,
+then rebuild it in house tokens; the port checklist and the recorded
+incompatibilities are in [`tailkit-ui.md`](./tailkit-ui.md).
+
+Both catalogs are mandatory to consult for a UI/UX problem, per the mandatory
+tool routing in [`AGENTS.md`](../../AGENTS.md).
+
 ## Control density contract
 
 Control size is owned by the shared primitive, never by page CSS:

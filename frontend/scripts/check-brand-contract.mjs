@@ -67,6 +67,27 @@ for (const requiredToken of [
   }
 }
 
+// The Untitled UI theme is upstream-derived but hand-recoloured for TransTing.
+// Re-fetching it from upstream without re-applying the brand diff is the one
+// failure no other check catches: the app keeps painting --brand while every
+// vendored Untitled component silently renders Untitled's stock palette.
+const untitledThemeSource = await readFile(new URL('../src/styles/theme.css', import.meta.url), 'utf8');
+for (const requiredUntitledToken of [
+  '--color-brand-600: #005A2D',
+  '--color-brand-500: #4A9E7D',
+]) {
+  if (!untitledThemeSource.includes(requiredUntitledToken)) {
+    failures.push(`src/styles/theme.css: missing Untitled brand recolour ${requiredUntitledToken}`);
+  }
+}
+
+// components.json pins the Untitled library major, and theme.css is a v8 theme.
+// A silent major bump would break the token names every vendored component uses.
+const untitledConfigSource = await readFile(new URL('../components.json', import.meta.url), 'utf8');
+if (!/"version"\s*:\s*"8"/.test(untitledConfigSource)) {
+  failures.push('components.json: Untitled library version must stay "8" — theme.css is a v8 theme');
+}
+
 for (const [sourceName, source, requiredRule] of [
   [
     'src/components/Button.css',
