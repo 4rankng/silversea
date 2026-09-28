@@ -148,9 +148,21 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'users',
     label: 'QA users',
-    predicate: `username ILIKE 'qa%' OR full_name ILIKE 'QA%'`,
+    // The original `qa%` rule matched nothing: every QA lane names its
+    // fixtures `<purpose>-<epoch-ms>-<rand>` (card8-, c5-, adc-, e2e-,
+    // ops-portal-, clerk-unscoped-, cus-inv-…), so the local dev DB reached
+    // 899 users of which ~890 were fixtures, and the users page paginated
+    // them into a 500-row cap. `-[0-9]{13}-` is the run-scoped signature and
+    // cannot match the real roster, whose names are name-based (thanhdc,
+    // dungnv, giamdoc) and never carry a 13-digit epoch stamp.
+    predicate: `username ILIKE 'qa%' OR full_name ILIKE 'QA%' OR username ~ '-[0-9]{13}-' OR username ILIKE '%-inv-%'`,
     action: 'soft-delete',
-    guards: [],
+    // Never purge a user another row still points at: a live shipment link or
+    // an assigned truck means the row is load-bearing, not leftover.
+    guards: [
+      { table: 'user_shipment_links', column: 'user_id' },
+      { table: 'truck_accountant_assignments', column: 'accountant_id' },
+    ],
   },
   {
     table: 'forwarder_expense_types',
