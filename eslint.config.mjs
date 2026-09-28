@@ -151,7 +151,52 @@ export default defineConfig([
       // TS resolves undefined identifiers itself; base no-undef false-positives
       // on ambient types and globals the tsconfig declares.
       'no-undef': 'off',
+      // Card 20260928_183 — policy decided 2026-09-28, option (a) of the card:
+      // a console is ALLOWED where printing to stdout IS the job, and stays a
+      // warning everywhere else.
+      //
+      // The other two options, and why they lost:
+      // (b) port seed/CLI to pino — those scripts run once, on demand, with a
+      //     human watching stdout; pino is configured for the long-lived
+      //     server. Rewriting 204 call sites in code whose entire job is
+      //     printing would be churn that buys no correctness.
+      // (c) keep all 225 warnings — 225 identical lines do not read as a to-do
+      //     list, they read as noise, and a warning you have learned to skip
+      //     stops warning you on the rows that are real.
+      //
+      // Both sides measured, not assumed — `cd backend && npx eslint src` on
+      // ef7495db: before 225 warnings / 0 errors / 37 files; after 21 warnings
+      // / 0 errors / 10 files (the override lives in the next block).
+      // The 204 that go away are 68 in the top-level seed-named modules, 101
+      // under src/seed/, and 35 in hand-run migrations plus src/scripts
+      // tooling. The 21 that stay are the ones worth a reviewer's eye: 9 in
+      // index.ts (scheduler ticks and request logging that belong in the
+      // logger), 2 in ocr.ts, one each in email/push/casbin/config-helpers —
+      // and 6 in tests, which are deliberately NOT exempt: a console left in a
+      // test is usually a debug line someone forgot to take out.
       'no-console': ['warn', { allow: ['error', 'warn'] }],
+    },
+  },
+
+  // ---- Where a console IS the job: seed data + hand-run CLI tooling -------
+  // Card 20260928_183, option (a) — kept exactly as narrow as the policy says:
+  // modules whose NAME says seed, the one-off migrations, and the ad-hoc
+  // src/scripts tooling. A console in a service, route or middleware still
+  // warns, which is the signal this boundary exists to preserve.
+  //
+  // `backend/scripts/**` is deliberately absent: the global ignores above
+  // already drop that whole tree (no tsconfig, so projectService reports parse
+  // errors for it), so an entry here would be dead config that reads like a
+  // live decision.
+  {
+    files: [
+      'backend/src/*seed*.ts',       // seed.ts, seed-dashboard.ts, reset-seed.ts
+      'backend/src/seed/**/*.ts',    // the seed steps under src/seed/
+      'backend/src/db/*migrate*.ts', // hand-run schema/data migrations
+      'backend/src/scripts/**/*.ts', // backfill / recalc / probe tooling
+    ],
+    rules: {
+      'no-console': 'off',
     },
   },
 
