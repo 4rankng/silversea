@@ -502,7 +502,10 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('detailed-plan-filters__date-scope-controls');
     expect(css).not.toContain('detailed-plan-filters__date-mode');
     expect(css).not.toContain('detailed-plan-filters__date-shortcut');
-    expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
+    // A plated row stays on the plain surface tint — never a brand/semantic
+    // wash. `--surface` is defined app-wide (tokens.css), so the `, #fff`
+    // defensive fallback was dropped from the sheet.
+    expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface);');
     // The dialog body is the panel the drawer used to hold: the design-lock
     // selection `[role="dialog"]:has(.detailed-plan-filter-panel)` and the
     // visible `.detailed-plan-filter-panel__quick` must keep resolving.
@@ -786,17 +789,31 @@ describe('DetailedPlanGrid — blank notes cell collapse', () => {
   });
 });
 
-// Secondary-info contrast (QA-007): --text-secondary/--text-tertiary are
-// undefined app-wide, so each rule's FALLBACK is the computed color. Muted
-// operational lines (Giờ times, weights, customer notes) and the editor's
-// placeholder copy must resolve to the WCAG-passing slate-500 (4.76:1 on
-// white, 4.55:1 on the hover tint) — never back to the 2.5:1 pale grays.
+// Secondary-info contrast (QA-007): muted operational lines (Giờ times,
+// weights, customer notes) and the editor's placeholder copy must read as
+// secondary TEXT, never as disabled UI. These rules originally pinned the
+// FALLBACK of `--text-secondary`/`--text-tertiary`, which were undefined
+// app-wide, so the fallback was the computed color (WCAG-passing slate-500,
+// 4.76:1). The text ramp has since migrated to the app-wide `--fg-*` tokens,
+// which ARE defined in src/styles/tokens.css — so the rules now resolve to a
+// real token and the old `, #64748b` fallbacks are gone from the sheets.
+// Contrast intent is unchanged and in fact stronger: --fg-2 = 7.05:1 on
+// white, --fg-3 = 5.66:1, both above the 4.5:1 AA floor, and far above the
+// 2.56:1 pale #94a3b8 these pins exist to keep out.
 // Decorative middot separators stay lighter by design (exempt).
 describe('DetailedPlanGrid — secondary text contrast pins', () => {
   it('resolves muted operational lines to the contrast-passing fallback', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const muted = css.match(/\.detailed-plan-grid__line--muted \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-secondary, #64748b)');
+    // CONTRAST INTENT (QA-007): muted operational lines — Giờ times, weights,
+    // customer notes — must read as secondary text, never as disabled UI.
+    // This rule used to pin the *fallback* of the undefined `--text-secondary`
+    // (slate-500, 4.76:1). The text ramp migrated to the app-wide `--fg-*`
+    // tokens, which ARE defined in src/styles/tokens.css, so there is no
+    // fallback left to resolve: `--fg-2` (#535963) computes 7.05:1 on white
+    // and 6.69:1 on the fine-pointer hover tint — above the 4.5:1 AA floor and
+    // far stronger than the pale #94a3b8 (2.56:1) this pin keeps out.
+    expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--fg-2)');
   });
 
   it('Tuyến cell shows the route, then the destination, then an explicit missing label — never a silent dash', () => {
@@ -827,7 +844,12 @@ describe('DetailedPlanGrid — secondary text contrast pins', () => {
   it('resolves the editor placeholder copy to the contrast-passing fallback', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const placeholder = css.match(/\.dispatch-assignment-cell__plate\.is-placeholder,[\s\S]*?\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-tertiary, #64748b)');
+    // CONTRAST INTENT (QA-007): placeholder copy ("CUS sẽ bổ sung", "Chưa phân
+    // xe") is operational guidance, not disabled UI. `--text-tertiary` was
+    // undefined app-wide and resolved to its slate-500 fallback (4.76:1);
+    // the migrated `--fg-3` token (#5F6872) computes 5.66:1 on white — still
+    // comfortably WCAG-passing, so the contrast guarantee is preserved.
+    expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--fg-3)');
   });
 });
 

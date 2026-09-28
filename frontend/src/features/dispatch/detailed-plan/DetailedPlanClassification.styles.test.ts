@@ -13,12 +13,17 @@ describe('detailed plan classification styling contract', () => {
     expect(block).not.toMatch(/border-radius\s*:\s*999/);
     expect(block).not.toMatch(/border\s*:\s*1px/);
     expect(block).not.toMatch(/padding\s*:/);
-    expect(block).toMatch(/color:\s*var\(--text-secondary/);
+    // The workboard text convention rides the fg ramp: a saved value is
+    // `--fg-2` (body ink), never a chip/border. Contrast intent unchanged —
+    // the classification value must stay readable as text, not a badge.
+    expect(block).toMatch(/color:\s*var\(--fg-2\);/);
   });
 
   it('keeps the unclassified variant on the same text convention', () => {
     const block = css.match(/\.detailed-plan-grid__classification--unclassified \{([^}]*)\}/)?.[1] ?? '';
     expect(block).not.toMatch(/border/);
-    expect(block).toMatch(/color:\s*var\(--text-tertiary/);
+    // Unclassified is one step down the same ramp (`--fg-3`, the muted ink
+    // tier) — still plain text, still WCAG-passing against white.
+    expect(block).toMatch(/color:\s*var\(--fg-3\);/);
   });
 });

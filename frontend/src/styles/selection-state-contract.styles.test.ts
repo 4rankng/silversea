@@ -24,8 +24,19 @@ describe('selection-state contract', () => {
     expect(read('src/features/app-settings/FinancePolicySection.tsx')).toContain('variant="bordered"');
     expect(read('src/design-system/Tabs.css')).toContain('.ds-tabs--bordered .ds-tabs__btn--active {\n  color: var(--ink);\n  border-bottom-color: var(--ink);\n  background: transparent;');
     expect(read('src/pages/config/config-page.css')).toContain('.cfg-provider-option.is-selected {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
-    expect(read('src/pages/TruckTiresPage.css')).toContain('.ttp-unmount-choice.is-active {\n  border-color: var(--fg-1, #101828);\n  background: var(--bg-1, #fff);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);');
-    expect(read('src/pages/TruckTiresPage.css')).toContain(".ttp-position-picker-option[aria-selected='true'] {\n  background: var(--surface, #fff);\n  color: var(--fg-1, #101828);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);");
+    // Token migration: `--fg-1`/`--bg-1` are defined app-wide in
+    // src/styles/tokens.css, so the defensive `, #101828` / `, #fff`
+    // fallbacks were dropped from the sheet. The selection contract is that
+    // the state is NEUTRAL INK STRUCTURE — a 3px inset ink edge, never a
+    // brand/semantic tint — so that is what stays pinned.
+    expect(read('src/pages/TruckTiresPage.css')).toContain('.ttp-unmount-choice.is-active {\n  border-color: var(--fg-1);\n  background: var(--bg-1);\n  box-shadow: inset 3px 0 0 var(--fg-1);');
+    expect(read('src/pages/TruckTiresPage.css')).toContain(".ttp-position-picker-option[aria-selected='true'] {\n  background: var(--surface);\n  color: var(--fg-1);\n  box-shadow: inset 3px 0 0 var(--fg-1);");
+    // No semantic/brand colour may leak into either selected state.
+    for (const sel of ['.ttp-unmount-choice.is-active', ".ttp-position-picker-option[aria-selected='true']"]) {
+      const block = read('src/pages/TruckTiresPage.css').match(new RegExp(`${sel.replace(/[[\]']/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
+      expect(block, `${sel} exists`).not.toBe('');
+      expect(block, `${sel} must not tint with brand/semantic colour`).not.toMatch(/var\(--(?:brand|accent|success|warning|danger|info)/);
+    }
     // The audit ledger rides the shared record-table base: its selection edge
     // and neutral fine-pointer hover are pinned by the record-table block
     // below, so this page only has to keep the adoption classes in place.
@@ -40,7 +51,10 @@ describe('selection-state contract', () => {
     // on design-system/Tabs.css above), per the operator ruling 2026-09-27.
     expect(read('src/pages/AdvanceWorkspacePage.tsx')).toContain('variant="bordered"');
     expect(read('src/pages/config/SalaryPeriodConfigPage.css')).toContain('.sp-mode-card.active {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
-    expect(read('src/pages/portal/CustomerPortalLayout.css')).toContain('.customer-shell__bottom-nav a.is-active {\n    background: var(--surface, #fff);\n    color: var(--ink, #101828);\n    box-shadow: inset 0 2px 0 var(--ink, #101828);');
+    // Same token migration as the TruckTires pins above: `--surface`/`--ink`
+    // are defined app-wide, so the `, #fff` / `, #101828` fallbacks are gone.
+    // The contract is the neutral-ink TOP edge on the active portal tab.
+    expect(read('src/pages/portal/CustomerPortalLayout.css')).toContain('.customer-shell__bottom-nav a.is-active {\n    background: var(--surface);\n    color: var(--ink);\n    box-shadow: inset 0 2px 0 var(--ink);');
     expect(read('src/pages/trip-list/table-extras.css')).toContain('.trip-list-page .page-btn.active { background: var(--ink);');
     expect(read('src/components/layout/bottom-nav.css')).toContain('.bottom-nav-item.active .bottom-nav-icon-wrap {\n    background: var(--surface-3);\n    color: var(--ink);');
     expect(read('src/components/layout/bottom-nav.css')).toContain('  .bottom-nav-indicator {');

@@ -72,11 +72,21 @@ describe('mobile touch floor (design-guidelines §5)', () => {
 
   it('leaves expense list action-button height to the shared .btn primitive', () => {
     const css = read('src/pages/ExpenseListPage.css');
-    const block = css.match(
-      /\.expense-list-page \.page-actions \.btn \{[^}]*border-radius: 13px[^}]*\}/,
-    )?.[0] ?? '';
-    expect(block, 'expense action-button block exists').not.toBe('');
-    expect(block, 'page CSS must not own control height').not.toMatch(/min-height/);
+    // Anchor on the SELECTOR, not on a cosmetic value. This block used to be
+    // found by `border-radius: 13px`; the radius later moved to the app-wide
+    // 14px control scale, so the anchor silently stopped matching and the
+    // test failed on its own scaffolding rather than on the real contract.
+    // The contract is only ever the negative: the page must NOT own height.
+    // Check EVERY rule with this selector — there is more than one (the
+    // grouped `width: auto` rule plus the padding/radius rule), and the
+    // 2026-09-26 regression was height sneaking back into any of them.
+    const blocks = [...css.matchAll(/\.expense-list-page \.page-actions \.btn \{[^}]*\}/g)].map((m) => m[0]);
+    expect(blocks.length, 'expense action-button rules exist').toBeGreaterThan(0);
+    for (const block of blocks) {
+      expect(block, `page CSS must not own control height: ${block}`).not.toMatch(/(?:min-)?height\s*:/);
+    }
+    // …and the shared phone floor is what supplies it.
+    expect(css).toContain('Height belongs to the shared .btn phone floor');
   });
 
   it('raises the bare expense quick-create action to the touch floor on phone/coarse pointers', () => {
