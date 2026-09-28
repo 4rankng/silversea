@@ -11,6 +11,7 @@ import { Role } from '@tingting/shared';
 import { parseId } from '../utils/parse-id';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { getCustomerLogisticsHistory, getCustomerPaymentHistory, notifyCustomers, setCustomersStatus } from '../../services/customers-screen.service';
+import { getCustomerDebtSummary } from '../../services/customer-debt-summary.service';
 
 const router = Router();
 
@@ -19,6 +20,36 @@ const router = Router();
 // that exact set. CUS/DISPATCHER keep their catalog-read bypass for the
 // shipment-create dropdowns but get no drawer or bulk access.
 const SCREEN_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
+
+// ─── 0. Debt projection (card 20260928_177) ─────────────────────────────────
+//
+// The screen's "Bỏ xe công ty" tick must never be a client-side subtraction:
+// the export shows the same number, so the server owns the arithmetic. The
+// response carries, per shipment/trip line, whether it ran on a company vehicle
+// (`isOwnFleet` / `carrierKey === 'OWN'`), plus each customer's freight figures
+// recomputed under `excludeOwnFleet`. Declared here rather than in shared/src
+// (another lane owns that file this run) — the FE reads it from this contract.
+const debtSummaryQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày bắt đầu không hợp lệ').optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày kết thúc không hợp lệ').optional(),
+  excludeOwnFleet: z.enum(['true', 'false']).optional(),
+  customerIds: z.string().optional(),
+});
+
+router.get('/debt-summary', requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
+  const query = debtSummaryQuerySchema.parse(req.query);
+  const customerIds = (query.customerIds ?? '')
+    .split(',')
+    .map((raw) => Number(raw.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .slice(0, 200);
+  res.json(await getCustomerDebtSummary({
+    from: query.from,
+    to: query.to,
+    excludeOwnFleet: query.excludeOwnFleet === 'true',
+    customerIds: customerIds.length > 0 ? customerIds : undefined,
+  }));
+}));
 
 // ─── 1. Logistics history (drawer) ──────────────────────────────────────────
 
