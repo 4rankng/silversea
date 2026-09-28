@@ -26,8 +26,13 @@ describe('driver cost confirmation uses current source version', () => {
   });
   it('shows the current amount and configured label alongside the original value', async () => {
     mount(); await screen.findByText('Phụ cấp cấu hình');
+    // The "Lái xe nhập ban đầu" cell is read-only, formatted currency.
     expect(screen.getByText('73.000 ₫')).toBeInTheDocument();
-    expect(screen.getAllByText('75.000 ₫')).toHaveLength(2);
+    // "Thực chi hiện tại" became an EDITABLE input in 18db820e so the accountant
+    // can adjust the amount inline; a number input carries the raw value, so it
+    // is asserted on the control rather than as formatted text.
+    const current = screen.getByLabelText('Thực chi dòng 1');
+    expect(current).toHaveValue('75000');
     expect(screen.getByRole('columnheader', { name: 'Thực chi hiện tại (đ)' })).toBeInTheDocument();
   });
   it('does not duplicate a pending confirmation', async () => {
