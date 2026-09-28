@@ -13,6 +13,7 @@ import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
 import { getModernRole } from './lib/role-helpers';
+import { canViewInvoiceTracking } from './lib/app-access';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
   const params = new URLSearchParams(search);
@@ -294,10 +295,13 @@ export function AppRoutes() {
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           {/* Invoice tracking (card 20260921_18): kế toán full CRUD, CUS reaches
               the page read-only — the page-internal canWrite mirrors the server's
-              requireRoles gate on writes. */}
+              requireRoles gate on writes. The admitted set lives in
+              INVOICE_TRACKING_ROLES (app-access.ts) so the policy is one source
+              of truth and can be pinned by role, not only by hiding a menu —
+              which is what card 20260928_178 asks to be verified. */}
           <Route
             path="/accounting/invoice-tracking"
-            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
+            element={canViewInvoiceTracking(currentRole) ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
           />
           <Route
             path="/accounting/deposit-tracker"
