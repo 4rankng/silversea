@@ -5,6 +5,7 @@
  *  The consolidated phiếu reuses createExpenseVoucher: one call posts ONE
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
+import { createHash } from 'node:crypto';
 import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -311,6 +312,28 @@ export interface PhoiPhieuVoucherInput {
   actor: AuthUser;
 }
 
+/** Card 20260928_170 — the reference the phơi-phiếu screen generates for itself.
+ *
+ *  The screen never sends a `physicalReference`, so this fallback is what every
+ *  consolidated phiếu used to carry. It joined EVERY selected trip id, and the
+ *  treasury authority (`normalizeTreasuryPhysicalReference`, treasury.service.ts)
+ *  rejects anything over 160 chars — so "tích chọn All" could never issue a
+ *  phiếu on a lot with enough trips. Ticket "All" itself.
+ *
+ *  The reference is also the uniqueness key
+ *  (`lockApplicationOwnedUniqueness` keys on treasuryAccountId + direction +
+ *  physicalReference), so the fallback must be DETERMINISTIC: the ids are
+ *  sorted before hashing, and a too-long value is hashed rather than truncated —
+ *  two different selections can never collide on a truncated prefix. This
+ *  mirrors `expenseVoucherCode`, the house pattern on the sibling path. */
+export function phoiPhieuPhysicalReference(groupKey: string, tripIds: number[]): string {
+  const selection = [...tripIds].sort((a, b) => a - b).join('-');
+  const raw = `PHOI-PHIEU-${groupKey}-${selection}`;
+  return raw.length <= 150
+    ? raw
+    : `PHOI-PHIEU-${createHash('sha256').update(raw).digest('hex')}`;
+}
+
 /** Consolidated phiếu: one createExpenseVoucher call over every open OPS
  *  source of the selected trips — ONE treasury movement adjusts the quỹ. */
 export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?: Tx): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
@@ -404,7 +427,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         direction: args.direction,
         treasuryAccountId: args.treasuryAccountId,
         valueDate: new Date().toISOString().slice(0, 10),
-        physicalReference: args.physicalReference ?? `PHOI-PHIEU-${groupKey}-${tripRows.map((row) => row.tripId).join('-')}`,
+        physicalReference: args.physicalReference ?? phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId)),
         entries,
       });
       grandTotal += totalsByGroup.get(groupKey) ?? 0;
