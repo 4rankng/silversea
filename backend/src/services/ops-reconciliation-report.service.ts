@@ -20,6 +20,8 @@ export interface OpsReconciliationReportRow {
 }
 export interface OpsReconciliationReport {
   from: string; to: string;
+  /** Card 20260928_169 — set when the caller scoped the report to one đợt. */
+  reconciliation?: { id: number; code: string; from: string; to: string };
   rows: OpsReconciliationReportRow[];
   totals: { dntt: number; advanced: number; remaining: number };
 }
@@ -33,7 +35,7 @@ export interface OpsReconciliationReport {
  *  − company collects the advance — never a bare negative). Vouchers ride the
  *  existing engine; once its phiếu chi/thu posts, the fund book and this
  *  report converge (the card-10 invariant). */
-export async function listMonthlyReconciliationReport(actor: ExpenseActor, query: { from?: string; to?: string }): Promise<OpsReconciliationReport> {
+export async function listMonthlyReconciliationReport(actor: ExpenseActor, query: { from?: string; to?: string; reconciliationId?: number }): Promise<OpsReconciliationReport> {
   requireExpenseFinance(actor);
   const today = new Date().toISOString().slice(0, 10);
   const from = query.from ?? `${today.slice(0, 7)}-01`;
@@ -41,6 +43,47 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   expenseDateSchema.parse(from);
   expenseDateSchema.parse(to);
   if (from > to) throw new ApiError(400, 'Khoảng ngày không hợp lệ.');
+
+  // Card 20260928_169 — the "đợt làm đề nghị" filter.
+  //
+  // A "đợt" is an `expense_reconciliations` lot. The PRD (OpsVanHanh §9.2)
+  // defines it by semantics — a batch that OWNS a set of costs, ALLOCATES
+  // received advances to them, and never lets one item land in two batches.
+  // A reconciliation links to advance requests through
+  // `expense_reconciliation_advances`; it does NOT link to individual cost
+  // rows, so the costs it owns are its `opsUserId` within its own from/to
+  // window. That is the same ownership rule, expressed on the data that
+  // actually exists.
+  //
+  // When a đợt is selected it DEFINES the report: its own window and its own
+  // single staff member. An explicit from/to that disagrees with the lot would
+  // produce a number the lot does not own, so the lot wins and the caller is
+  // told which window was used.
+  let batchStaffId: number | null = null;
+  let batchInfo: OpsReconciliationReport['reconciliation'];
+  if (query.reconciliationId !== undefined) {
+    const [lot] = await db.select({
+      id: s.expenseReconciliations.id,
+      code: s.expenseReconciliations.code,
+      opsUserId: s.expenseReconciliations.opsUserId,
+      from: s.expenseReconciliations.from,
+      to: s.expenseReconciliations.to,
+    }).from(s.expenseReconciliations)
+      .where(eq(s.expenseReconciliations.id, query.reconciliationId));
+    if (!lot) throw new ApiError(404, 'Không tìm thấy đợt đối soát.');
+    const [voided] = await db.select({ voidedAt: s.expenseReconciliations.voidedAt })
+      .from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, query.reconciliationId));
+    if (voided?.voidedAt) throw new ApiError(400, 'Đợt đối soát đã bị hủy, không dùng để báo cáo.');
+    batchStaffId = lot.opsUserId;
+    batchInfo = {
+      id: lot.id,
+      code: lot.code,
+      from: String(lot.from).slice(0, 10),
+      to: String(lot.to).slice(0, 10),
+    };
+  }
+  const costFrom = batchInfo ? batchInfo.from : from;
+  const costTo = batchInfo ? batchInfo.to : to;
   // Card 20260928_197 — ĐNTT is a SQL aggregate, so it takes the query-level
   // equivalent of `sumExcludingNegative`: `filter (where amount >= 0)`. Same
   // rule as the in-memory helper (strictly negative rows dropped, 0 kept), and
@@ -56,8 +99,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     ))
     .where(and(
       eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
-      gte(s.opsExpenseEntries.paidAt, from),
-      lte(s.opsExpenseEntries.paidAt, to),
+      gte(s.opsExpenseEntries.paidAt, costFrom),
+      lte(s.opsExpenseEntries.paidAt, costTo),
+      // A đợt owns exactly one staff member's costs in its own window.
+      batchStaffId === null ? undefined : eq(s.opsExpenseEntries.paidById, batchStaffId),
     ))
     .groupBy(s.opsExpenseEntries.paidById);
   const costByStaff = new Map(costRows.map((row) => [row.staffId, Number(row.dntt)] as const));
@@ -75,10 +120,22 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     .where(sql`${s.expenseReconciliations.voidedAt} is null`)
     .groupBy(s.expenseReconciliations.opsUserId);
   const heldByStaff = new Map<string, number>();
-  for (const row of heldRows) heldByStaff.set(String(row.staffId), Number(row.held));
-  for (const row of consumedRows) {
-    const key = String(row.staffId);
-    heldByStaff.set(key, (heldByStaff.get(key) ?? 0) - Number(row.consumed));
+  if (batchInfo) {
+    // Scoped to one đợt: "ĐÃ ỨNG" is what the lot ALLOCATED, not what the staff
+    // happens to still hold. PRD §9.2 — "tiền ứng thực nhận được phân bổ";
+    // using the staff's whole held balance here would charge advances to a
+    // batch that never received them.
+    const [row] = await db.select({
+      allocated: sql<number>`coalesce(sum(${s.expenseReconciliationAdvances.amount}), 0)::int`,
+    }).from(s.expenseReconciliationAdvances)
+      .where(eq(s.expenseReconciliationAdvances.reconciliationId, batchInfo.id));
+    if (row) heldByStaff.set(String(batchStaffId), Number(row.allocated));
+  } else {
+    for (const row of heldRows) heldByStaff.set(String(row.staffId), Number(row.held));
+    for (const row of consumedRows) {
+      const key = String(row.staffId);
+      heldByStaff.set(key, (heldByStaff.get(key) ?? 0) - Number(row.consumed));
+    }
   }
   const heldByStaffKeyed = new Map<string, number>();
   for (const [staffKey, held] of heldByStaff) heldByStaffKeyed.set(staffKey, held);
@@ -111,7 +168,8 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   }
   rows.sort((a, b) => a.staffName.localeCompare(b.staffName, 'vi'));
   return {
-    from, to,
+    from: costFrom, to: costTo,
+    ...(batchInfo ? { reconciliation: batchInfo } : {}),
     rows,
     totals: {
       dntt: rows.reduce((sum, row) => sum + row.dntt, 0),

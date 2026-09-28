@@ -68,6 +68,9 @@ router.get('/reconciliation-report', asyncHandler(async (req, res) => {
   requireExpenseFinance(getUser(req));
   const query = parse(z.object({
     from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+    // Card 20260928_169 — "đợt làm đề nghị". A đợt is an expense_reconciliations
+    // lot; when given it defines the report's window and staff.
+    reconciliationId: z.coerce.number().int().positive().optional(),
   }), req.query);
   res.json(await listMonthlyReconciliationReport(getUser(req), query));
 }));

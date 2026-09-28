@@ -58,6 +58,10 @@ async function mkCostEntry(staff: { id: number }, shipmentId: number, amount: nu
     costGroup: 'OPS_REGULAR',
     feeName: `card11 phí ${cleanup.length}`,
     customerChargeAmount: 0,
+    // Card 20260928_162 guard: a cost line that is NOT charged to the customer
+    // must carry a reason. The guard landed with its rule; these fixtures
+    // predate it and were left failing.
+    note: `card11 không thu khách ${cleanup.length}`,
   });
   track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, (created as { id: number }).id)); });
   track(async () => {
