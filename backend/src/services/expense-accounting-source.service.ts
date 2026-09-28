@@ -1,5 +1,5 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import { expenseVndSchema, expenseDateSchema, type ExpenseCostGroup, type ExpenseSourceKind } from '@tingting/shared';
+import { expenseVndSchema, expenseDateSchema, signedExpenseVndSchema, type ExpenseCostGroup, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
 import type { Tx } from './trip-shared';
@@ -97,7 +97,11 @@ export async function assertExpenseSourceMutable(tx: Tx, row: ExpenseAccountingS
 }
 
 export async function upsertExpenseAccountingSource(tx: Tx, input: ExpenseAccountingSourceInput) {
-  expenseVndSchema.refine(n => n > 0).parse(input.amount);
+  // Card 20260928_181 — the mirror carries the native expense amount, so it
+  // accepts a signed amount (a negative trip expense must still be linkable to
+  // a shipment invoice). Ops/driver sources cannot be negative yet because
+  // their own validators stay positive-only.
+  signedExpenseVndSchema.parse(input.amount);
   const charge = input.customerChargeAmount == null ? null : expenseVndSchema.parse(input.customerChargeAmount);
   expenseDateSchema.parse(input.expenseDate);
   if (input.invoiceDate) expenseDateSchema.parse(input.invoiceDate);

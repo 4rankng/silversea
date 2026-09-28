@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { expenseInputFields, expenseDateSchema, expenseVndSchema } from '../expense-accounting';
+import { expenseInputFields, expenseDateSchema, expenseVndSchema, signedExpenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
@@ -1447,7 +1447,11 @@ export const baseTripExpenseSchema = z.object({
   // codes) is asserted at the route against forwarder_expense_types; the
   // old fixed enum rejected configured categories at save time.
   expenseType: z.string().trim().min(1).max(50),
-  buyAmount: z.number().positive(),
+  // Card 20260928_181 — signed expense amount: the PM rule lets an expense
+  // line be negative, and a negative line is excluded from every total (see
+  // `sumExcludingNegative`). Integer VND inside the money ceiling; 0 rejected
+  // (0 is an empty row, not a signed row).
+  buyAmount: signedExpenseVndSchema,
   sellAmount: z.number().min(0).optional().default(0),
   settlementMethod: z.enum(['COMPANY_DIRECT', 'OPS_ADVANCE']).default('OPS_ADVANCE'),
   supplierId: z.number().int().positive().optional(),
@@ -2027,6 +2031,9 @@ export const driverIncidentalCostSchema = z.object({
   payerKind: z.enum(['USER', 'COMPANY']).optional(),
   ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
+  // Card 20260928_181 — O/D (Ops expense, driver incidental) amounts stay
+  // positive-only for now: their totals are a follow-up wave, so allowing a
+  // negative here would publish a wrong number on 27 unfixed aggregates.
   amount: expenseVndSchema.refine(v => v > 0, 'Số tiền phải lớn hơn 0'),
   occurredAt: expenseDateSchema,
   note: z.string().max(1000).optional(),

@@ -5,6 +5,7 @@ import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './li
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { sumExcludingNegative } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 
 const EXPENSE_TYPE_LABELS: Record<string, string> = {
@@ -169,7 +170,10 @@ export async function renderSettlementHtml(data: SettlementExportData): Promise<
   const expenses: LinkedExpense[] = data.linkedExpenses || [];
   const requests: LinkedRequest[] = data.linkedRequests || [];
   const totalAdvance = requests.reduce((sum: number, r) => sum + Number(r.amount), 0);
-  const totalExpense = expenses.reduce((sum: number, e) => sum + Number(e.amount), 0);
+  // Card 20260928_181 — same exclusion rule as the stored settlement total
+  // (advance-settlement.service.ts), so the printed figure and the stored one
+  // can never disagree when a negative expense row is in the phiếu.
+  const totalExpense = sumExcludingNegative(expenses, (e) => e.amount);
   const refund = Number(data.refundAmount || 0);
   const balance = totalAdvance - totalExpense - refund;
   const rows = buildPrintRows(expenses);
@@ -254,7 +258,8 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
   const expenses: LinkedExpense[] = data.linkedExpenses || [];
   const requests: LinkedRequest[] = data.linkedRequests || [];
   const totalAdvance = requests.reduce((sum: number, r) => sum + Number(r.amount), 0);
-  const totalExpense = expenses.reduce((sum: number, e) => sum + Number(e.amount), 0);
+  // Card 20260928_181 — same exclusion rule as the stored settlement total.
+  const totalExpense = sumExcludingNegative(expenses, (e) => e.amount);
   const refund = Number(data.refundAmount || 0);
   const balance = totalAdvance - totalExpense - refund;
   const rows = buildPrintRows(expenses);

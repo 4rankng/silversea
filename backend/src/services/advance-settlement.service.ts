@@ -7,7 +7,7 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
-import { NotificationType, TxnType, round2dp } from '@tingting/shared';
+import { NotificationType, TxnType, round2dp, sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { filterWholeSettlementAdvances } from './advance-consumption.service';
@@ -79,10 +79,12 @@ export async function createAdvanceSettlement(
         requireCurrentAssignment: false,
       });
 
-    // Auto-calculate total from selected expenses
+    // Auto-calculate total from selected expenses. Card 20260928_181 — a
+    // negative expense row behaves as if it did not exist (single rule lives
+    // in sumExcludingNegative).
     let totalExpenseAmount = data.totalExpenseAmount ?? 0;
     if (tripExpenseRows.length > 0) {
-      totalExpenseAmount = tripExpenseRows.reduce((sum, exp: typeof s.tripExpenses.$inferSelect) => sum + Number(exp.buyAmount), 0);
+      totalExpenseAmount = sumExcludingNegative(tripExpenseRows, (exp: typeof s.tripExpenses.$inferSelect) => exp.buyAmount);
     }
 
     const code = await generateSettlementCode(tx);
@@ -395,7 +397,8 @@ function assertSettlementBalanced(input: {
   refundAmount: number;
 }) {
   const advanceTotal = round2dp(input.advanceRequests.reduce((sum, item) => sum + Number(item.amount), 0));
-  const expenseTotal = round2dp(input.tripExpenses.reduce((sum, item) => sum + Number(item.buyAmount), 0));
+  // Card 20260928_181 — negative expense rows behave as if absent.
+  const expenseTotal = sumExcludingNegative(input.tripExpenses, (item) => item.buyAmount);
   const difference = round2dp(advanceTotal - expenseTotal - input.refundAmount);
   if (Math.abs(difference) > 1) {
     throw new AdvanceError(400, `Phiếu chưa cân đối: tạm ứng ${advanceTotal}, chi phí ${expenseTotal}, hoàn lại ${input.refundAmount}`);
@@ -612,7 +615,8 @@ async function applyNewSettlementEffects(
     // gone — the settlement applies at creation with the forwarder (whose own
     // expenses are in it) as the approver.
 
-    const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
+    // Card 20260928_181 — negative expense rows behave as if absent.
+    const totalExpenseAmount = sumExcludingNegative(links, (link) => link.buyAmount);
     const [updated] = await tx.update(s.advanceSettlements)
       .set({
         totalExpenseAmount: String(totalExpenseAmount),

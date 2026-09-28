@@ -176,7 +176,9 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   const legacyExpenseRows = await db.select({
     supplierId: s.tripExpenses.supplierId,
     truckId: s.trips.truckId,
-    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${recordedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})), 0)`,
+    // Card 20260928_181 — a negative fuel-expense row behaves as if it did
+    // not exist; the row filter is on the expense's own buy_amount.
+    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${recordedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})) filter (where ${s.tripExpenses.buyAmount} > 0), 0)`,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))

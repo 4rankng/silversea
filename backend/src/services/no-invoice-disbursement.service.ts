@@ -3,6 +3,7 @@ import {
   NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NO_INVOICE_POLICY_DEFAULTS,
   NO_INVOICE_REQUIRED_SCOPE,
+  sumExcludingNegative,
   type NoInvoiceEvidenceType,
   type NoInvoicePolicySnapshot,
 } from '@tingting/shared';
@@ -229,8 +230,13 @@ export async function getNoInvoiceDisbursementReport(opts: {
     items,
     totals: {
       count: items.length,
-      sumBuyAmount: items.reduce((sum, item) => sum + item.buyAmount, 0),
+      // Card 20260928_181 — negative expense rows behave as if absent, so the
+      // sum excludes them instead of netting them against the positive rows.
+      sumBuyAmount: sumExcludingNegative(items, (item) => item.buyAmount),
       overThresholdCount: items.filter((item) => item.overThreshold).length,
+      // Unchanged by design: `overThreshold` is a PER-ROW test
+      // (buyAmount > itemLimit, set above), so a negative row can never enter
+      // this bucket and the threshold sum is untouched by definition.
       overThresholdSum: items.filter((item) => item.overThreshold).reduce((sum, item) => sum + item.buyAmount, 0),
     },
   };

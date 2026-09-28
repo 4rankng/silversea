@@ -13,11 +13,12 @@ export {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, TRIP_POD_REQUIRED_FILE_TYPES,
   DriverIncidentalCostType, DRIVER_INCIDENTAL_COST_LABELS,
   DRIVER_EDITABLE_COST_TYPES, CHI_PHI_KHAC_SUBOPTIONS,
+  DRIVER_LOT_COST_EXPENSE_TYPES, driverLotCostIsInvoiced,
   SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS, canonicalShipmentStatus,
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   OPS_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
-  EXPENSE_FEE_GROUP_LABELS, expenseFeeGroupOf,
+  EXPENSE_FEE_GROUP_LABELS, expenseFeeGroupOf, opsInvoicedCostGroupOf,
   NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
   NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
@@ -322,6 +323,7 @@ export type {
 } from './schemas';
 
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
+export { sumExcludingNegative } from './calculations/expenseTotals';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
 export {
   CONTAINER_PRICE_CLASS_LABELS,

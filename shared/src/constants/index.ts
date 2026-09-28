@@ -231,6 +231,44 @@ export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
   { value: DriverIncidentalCostType.OTHER, label: 'Khác' },
 ] as const;
 
+/** Card 20260928_163 — the driver lot-cost family's CATALOG refs. Classification
+ *  is the catalog's (`forwarder_expense_types.requires_invoice`), never "did the
+ *  driver type an invoice number": the driver form sends `expenseTypeCode` and the
+ *  server reads the row. `invoiced` mirrors `requires_invoice`, and the form shows
+ *  (and requires) Số hóa đơn only for an invoiced row — so a no-invoice item can
+ *  never be pushed into phải thu khách hàng (card 20260928_164 AC2).
+ *
+ *  The invoiced refs are the canonical ops/chi-hộ codes — FEE_CLEANING 'Phí vệ
+ *  sinh', YARD_STORAGE 'Phí lưu bãi', FEE_WAREHOUSE 'Phí lưu kho' — plus the
+ *  container pair LIFTING/LOWERING. The card-6 twins SANITATION/STORAGE_FEE were
+ *  duplicate display names of the first two (two identical dropdown labels, case
+ *  QA-2026-09-25-01) and are retired by migration 20260928_duplicate_fee_codes.
+ *
+ *  backend/src/tests/card6-driver-lot-cost-classification.test.ts pins this table
+ *  against the live catalog rows, so a drift goes red instead of shipping.
+ */
+export const DRIVER_LOT_COST_EXPENSE_TYPES: ReadonlyArray<{ code: string; invoiced: boolean }> = [
+  { code: 'LIFTING', invoiced: true },
+  { code: 'LOWERING', invoiced: true },
+  { code: 'FEE_CLEANING', invoiced: true },
+  { code: 'YARD_STORAGE', invoiced: true },
+  { code: 'FEE_WAREHOUSE', invoiced: true },
+  { code: 'WAREHOUSE_LABOR', invoiced: false },
+  { code: 'CONTAINER_WELD', invoiced: false },
+  { code: 'TIRE_WEIGH', invoiced: false },
+  { code: 'CONTAINER_SWAP', invoiced: false },
+  { code: 'TWO_POINT_DROP', invoiced: false },
+  { code: 'CARGO_RESTACK', invoiced: false },
+  { code: 'FORKLIFT_DANGKHOA', invoiced: false },
+];
+
+/** True when the catalog class of `code` carries an invoice. An unknown or absent
+ *  code is NOT invoiced: an entry without a catalog ref keeps the legacy
+ *  heuristic and offers no invoice field. */
+export function driverLotCostIsInvoiced(code: string | null | undefined): boolean {
+  return DRIVER_LOT_COST_EXPENSE_TYPES.some((type) => type.code === code && type.invoiced);
+}
+
 /** Card 20260919_3 — explicit settlement-screen categories on the expense
  *  type catalog (forwarder_expense_types.category). Buckets for the per-lot
  *  payables split (Bảng 2.1 HQGS, Bảng 2.2/2.3 fee columns). Values are
@@ -552,6 +590,22 @@ export function expenseFeeGroupOf(category: string | null | undefined): ExpenseF
   if (category === 'LIFT') return 'LIFT';
   if (category === 'DROP') return 'DROP';
   return 'OTHER';
+}
+
+/** Card 20260928_161 — the Ops cost group ('Nâng' / 'Hạ' / 'Phí khác') of an
+ *  invoice-bearing chi-hộ fee. Both the Ops declaration form and the server
+ *  side of `POST /api/ops/expenses` derive the group from the catalog row's
+ *  settlement `category` through this ONE rule, so a code like `LIFT_EMPTY`,
+ *  `LIFT_CARGO` or `YARD_STORAGE_LIFT` lands in Nâng instead of the Phí khác
+ *  catch-all, and re-categorising a fee in the admin catalog moves it without
+ *  a code change. Codes are never matched: they are data an admin can rename.
+ *  Non-invoice rows are out of scope — the caller's default (`OPS_REGULAR`)
+ *  stands, because "có hóa đơn hay không" is a separate axis. */
+export function opsInvoicedCostGroupOf(category: string | null | undefined): 'INVOICED_LIFT' | 'INVOICED_DROP' | 'INVOICED_OTHER' {
+  const group = expenseFeeGroupOf(category);
+  if (group === 'LIFT') return 'INVOICED_LIFT';
+  if (group === 'DROP') return 'INVOICED_DROP';
+  return 'INVOICED_OTHER';
 }
 
 export type NoInvoiceEvidenceType = typeof NO_INVOICE_EVIDENCE_TYPES[number];

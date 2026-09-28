@@ -6,7 +6,7 @@
  * Legacy settlement refund fields alone do not prove returned cash.
  * VND sums use BigInt and return integer strings without rounding large balances.
  */
-import { TxnType } from '@tingting/shared';
+import { TxnType, sumExcludingNegative } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
@@ -110,10 +110,16 @@ export async function getOpsWalletSummary(userId: number, executor: typeof db | 
     .where(and(inArray(s.treasuryMovements.reversalOfId, refundRows.map(row => row.id)), eq(s.treasuryMovements.status, 'POSTED'))) : [];
   return computeOpsWalletSummary({
     approvedAdvanceAmounts: [...funded.values()],
+    // Card 20260928_181 — a negative expense row behaves as if it did not
+    // exist, so the wallet's expense side excludes it. The rule lives in
+    // sumExcludingNegative; the figure feeds the BigInt formula as one amount.
     expenseAmounts: {
-      PENDING: expenseRows.filter((row) => row.status === 'PENDING').map((row) => row.amount),
-      APPROVED: [...expenseRows, ...proxyRows].filter((row) => (row.status === 'RECORDED' || row.status === 'APPROVED')).map((row) => row.amount),
-      REJECTED: expenseRows.filter((row) => (row.status === 'VOIDED' || row.status === 'REJECTED')).map((row) => row.amount),
+      PENDING: [sumExcludingNegative(expenseRows.filter((row) => row.status === 'PENDING'), (row) => row.amount)],
+      APPROVED: [sumExcludingNegative(
+        [...expenseRows, ...proxyRows].filter((row) => (row.status === 'RECORDED' || row.status === 'APPROVED')),
+        (row) => row.amount,
+      )],
+      REJECTED: [sumExcludingNegative(expenseRows.filter((row) => row.status === 'VOIDED' || row.status === 'REJECTED'), (row) => row.amount)],
     },
     approvedRefundAmounts: [...refundRows.map(row => row.amount), ...reversedRefunds.map(row => -Number(row.amount)), ...expenseCash.filter(row => row.direction === 'IN').map(row => row.amount)],
     reimbursementAmounts: expenseCash.filter(row => row.direction === 'OUT').map(row => row.amount),
@@ -210,11 +216,19 @@ export async function getOpsFundBook(userId: number): Promise<OpsFundBook> {
     }
   }
   for (const row of opsExpenseRows) {
-    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${row.expenseTypeCode}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(Number(row.amount))) });
+    // Card 20260928_181 — a negative expense row behaves as if it did not
+    // exist: the fund book emits no entry for it. Emitting one would flip the
+    // sign (the entry is stored as -amount) and RAISE the closing balance.
+    const expenseAmount = Number(row.amount);
+    if (expenseAmount <= 0) continue;
+    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${row.expenseTypeCode}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of proxyRows) {
+    // Card 20260928_181 — same rule for the trip-expense entries.
+    const expenseAmount = Number(row.buyAmount);
+    if (expenseAmount <= 0) continue;
     const label = `Chi phí: ${row.feeName ?? row.expenseType}`;
-    items.push({ key: `trip-expense-${row.id}`, date: fundBookIsoDate(row.expenseDate ?? row.createdAt), kind: 'EXPENSE', label, reference: null, amount: String(-Math.round(Number(row.buyAmount))) });
+    items.push({ key: `trip-expense-${row.id}`, date: fundBookIsoDate(row.expenseDate ?? row.createdAt), kind: 'EXPENSE', label, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of refundRows) {
     items.push({ key: `refund-${row.movementId}`, date: fundBookIsoDate(row.valueDate), kind: 'REFUND', label: 'Hoàn tiền về công ty', reference: row.settlementCode, amount: String(-Math.round(Number(row.amount))) });

@@ -4,7 +4,7 @@ import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm';
-import { Role, EXPENSE_COST_GROUP_LABELS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp,
+import { Role, EXPENSE_COST_GROUP_LABELS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp, sumExcludingNegative,
   type ExpenseAccountingEntry, type ExpenseAccountingList, type ExpenseListQuery, type ExpenseSourceKind,
   type ExpenseReconciliation, type ExpenseVoucher, type TruckAccountantAssignment } from '@tingting/shared';
 import { db } from '../db';
@@ -78,7 +78,9 @@ export function expenseEntryPage(rows: readonly ExpenseAccountingEntry[], actor:
     canViewPayments: actor.role !== Role.CUS,
     unknownReceivableCount: filtered.filter(row => row.outstandingReceivable == null).length,
     unknownPayableCount: filtered.filter(row => row.outstandingPayable == null).length,
-    totals: { amount: sum(filtered.map(row => row.amount)), customerChargeAmount: nullableSum(filtered.map(row => row.customerChargeAmount)),
+    // Card 20260928_181 — a negative expense row behaves as if it did not
+    // exist, so the amount total excludes it (single rule: sumExcludingNegative).
+    totals: { amount: sumExcludingNegative(filtered, row => row.amount), customerChargeAmount: nullableSum(filtered.map(row => row.customerChargeAmount)),
       receivedAmount: nullableSum(filtered.map(row => row.receivedAmount)), paidAmount: nullableSum(filtered.map(row => row.paidAmount)),
       outstandingReceivable: nullableSum(filtered.map(row => row.outstandingReceivable)), outstandingPayable: nullableSum(filtered.map(row => row.outstandingPayable)) } };
 }
@@ -170,7 +172,7 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
   const ids = (values: Array<number | null>) => [...new Set(values.filter((value): value is number => value != null))];
   const shipmentIds = ids(sources.map(row => row.shipmentId));
   const tripIds = ids(sources.map(row => row.tripId));
-  const userIds = ids(sources.map(row => row.payerUserId));
+  const userIds = ids([...sources.map(row => row.payerUserId), ...sources.map(row => row.confirmedById)]);
   const reversalMovement = alias(s.treasuryMovements, 'expense_reversal');
   const [shipments, trips, users, customers, containers, assignments, locks, allocations, photos, attachments] = await Promise.all([
     executor.select().from(s.shipments).where(inArray(s.shipments.id, shipmentIds)),
@@ -204,6 +206,12 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
     const shipment = shipments.find(item => item.id === row.shipmentId);
     const trip = trips.find(item => item.trip.id === row.tripId);
     const payer = users.find(item => item.id === row.payerUserId);
+    // Card 20260928_168 AC1 — the ops approval board must say WHO approved; the
+    // write path stores only `confirmedById` (`confirmAccountingExpenses`), so
+    // the reader resolves the display name here, exactly like the payer above.
+    // Null while the row is unapproved: an absent name must never read as
+    // "approved by nobody".
+    const confirmer = row.confirmedAt == null ? undefined : users.find(item => item.id === row.confirmedById);
     const assignment = assignments.find(item => item.assignment?.truckId === row.truckId)?.assignment;
     const storedPhotos = row.photoStorageKeys.length ? row.photoStorageKeys : row.sourceKind === 'OPS' ? photos.filter(photo => photo.opsExpenseId === row.sourceId).map(photo => photo.storageKey) : [];
     const payment = expensePaymentAmounts(row, allocations.filter(item => item.direction === 'IN' || item.direction === 'OUT')
@@ -219,7 +227,8 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
       truckPlate: trucks.find(truck => truck.id === row.truckId)?.plate ?? trip?.trip.externalPlateNumber ?? null,
       customerName: customers.find(customer => customer.id === row.customerId)?.name ?? shipment?.rawCustomerName ?? `#${row.customerId}`,
       containerNumber: containers.find(container => container.id === row.shipmentContainerId)?.containerNumber ?? null,
-      payerName: payer?.name ?? payer?.username ?? null, confirmedAt: iso(row.confirmedAt), photoStorageKeys: [...new Set([...storedPhotos, ...attachments.filter(e => e.expenseAccountingSourceId === row.id).map(e => e.storageKey)])],
+      payerName: payer?.name ?? payer?.username ?? null, confirmedByName: confirmer?.name?.trim() || confirmer?.username || null,
+      confirmedAt: iso(row.confirmedAt), photoStorageKeys: [...new Set([...storedPhotos, ...attachments.filter(e => e.expenseAccountingSourceId === row.id).map(e => e.storageKey)])],
       ...payment, ...(canViewPayments ? {} : { receivedAmount: null, paidAmount: null, outstandingReceivable: null, outstandingPayable: null }),
       allocatedAdvanceAmount: canViewPayments && !row.legacy ? Number(row.allocatedAdvanceAmount) : null,
       accountantId: assignment?.accountantId ?? null, evidenceMissing: storedPhotos.length === 0 && !attachments.some(e => e.expenseAccountingSourceId === row.id),
@@ -337,7 +346,13 @@ export function expenseAccountingReportRows(entries: readonly ExpenseAccountingE
       carrierCode, lift: 0, drop: 0, other: 0, total: 0, settled: 0, outstanding: 0, entries: [] };
     const category = row.costGroup === 'INVOICED_LIFT' ? 'lift' : row.costGroup === 'INVOICED_DROP' ? 'drop' : 'other';
     group.entries.push(row);
-    group[category] = sum([group[category], amount]); group.total = sum([group.total, amount]);
+    // Card 20260928_181 — on the OUT side `amount` is the expense amount, and a
+    // negative row behaves as if it did not exist; the row still shows in
+    // `entries` (visibility is never suppressed). IN rows carry the customer
+    // charge, which this rule does not touch.
+    if (!(direction === 'OUT' && row.amount < 0)) {
+      group[category] = sum([group[category], amount]); group.total = sum([group.total, amount]);
+    }
     const cash = direction === 'IN' ? row.receivedAmount : nullableSum([row.paidAmount, row.allocatedAdvanceAmount]);
     const remaining = direction === 'IN' ? row.outstandingReceivable : row.outstandingPayable;
     group.settled = nullableSum([group.settled, cash]); group.outstanding = nullableSum([group.outstanding, remaining]);

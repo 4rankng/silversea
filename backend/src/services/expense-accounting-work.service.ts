@@ -70,7 +70,10 @@ export async function listExpenseAccountingWork(actor: ExpenseActor, query: Expe
         carrierName: t.carrierType === 'OWN' ? 'SilverSea' : (t.externalEntityType === 'SUPPLIER' ? suppliers : carriers).find(c => c.id === t.externalEntityId)?.name ?? 'Chưa xác định nhà xe',
         vehiclePlate: plate ?? t.externalPlateNumber, driverName: driver ?? t.externalDriverName,
         operationalNotes: shipment.operationalNotes, driverNotes: t.notes,
-        receivable: sum(rowEntries.map(e => e.customerChargeAmount)), payable: sum(rowEntries.filter(e => e.costGroup !== 'DRIVER_ROAD').map(e => e.payerKind === 'COMPANY' ? 0 : e.payableEntityId == null ? null : e.amount)),
+        // Card 20260928_181 — a negative expense row behaves as if it did not
+        // exist, so it is dropped from the payable roll-up (the row itself
+        // still rides `entries`). `receivable` is the customer charge side.
+        receivable: sum(rowEntries.map(e => e.customerChargeAmount)), payable: sum(rowEntries.filter(e => e.costGroup !== 'DRIVER_ROAD' && e.amount >= 0).map(e => e.payerKind === 'COMPANY' ? 0 : e.payableEntityId == null ? null : e.amount)),
         roadBreakdown, road: sum([roadBreakdown.roadAllowance, roadBreakdown.shiftAllowance, roadBreakdown.toll, roadBreakdown.extra]), entries: rowEntries };
     }).flatMap(row => filterExpenseWorkRow(row, query, search))
     .sort((a, b) => query.groupByVehicle === 'true'
@@ -95,6 +98,7 @@ export function filterExpenseWorkRow(row: ExpenseWorkRow, query: ExpenseListQuer
   if (!entries.length && (!identityMatches || query.sourceKind || query.payerId != null || query.confirmed != null)) return [];
   return [{ ...row, entries,
     receivable: sum(entries.map(entry => entry.customerChargeAmount)),
-    payable: sum(entries.filter(entry => entry.costGroup !== 'DRIVER_ROAD').map(entry => entry.payerKind === 'COMPANY' ? 0 : entry.payableEntityId == null ? null : entry.amount)),
+    // Card 20260928_181 — same exclusion as the unfiltered roll-up above.
+    payable: sum(entries.filter(entry => entry.costGroup !== 'DRIVER_ROAD' && entry.amount >= 0).map(entry => entry.payerKind === 'COMPANY' ? 0 : entry.payableEntityId == null ? null : entry.amount)),
   }];
 }

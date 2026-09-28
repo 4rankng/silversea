@@ -112,9 +112,12 @@ export async function getShipmentDebitSummary(query: {
   }
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).
+  // Card 20260928_181 — a negative expense row behaves as if it did not
+  // exist, so the SQL aggregate filters it out (buy_amount > 0 means
+  // "not negative" here: amounts are whole VND and 0 is rejected at intake).
   const chiHoRows = await db.select({
     shipmentId: s.trips.shipmentId,
-    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)::text`,
+    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}) filter (where ${s.tripExpenses.buyAmount} > 0), 0)::text`,
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
@@ -185,7 +188,10 @@ export async function getShipmentDebitSummary(query: {
     } else {
       // Pass-through recharge at cost; the type's markup rule says otherwise
       // only when a markup mechanism exists — none lands before one does.
-      entry.derived += Number(row.buy ?? 0);
+      // Card 20260928_181 — a negative buy row behaves as if absent, so it
+      // contributes nothing to the pass-through recharge either.
+      const buy = Number(row.buy ?? 0);
+      if (buy >= 0) entry.derived += buy;
     }
     revenueByLot.set(row.shipmentId, entry);
   }
@@ -215,7 +221,10 @@ export async function getShipmentDebitSummary(query: {
 
   const opsRows = await db.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
-    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}), 0)::text`,
+    // Card 20260928_181 — a negative Ops expense row behaves as if absent
+    // (`cnt` still counts the row: visibility is never suppressed, only the
+    // money total is).
+    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} > 0), 0)::text`,
     cnt: sql<number>`count(*)::int`,
   }).from(s.opsExpenseEntries)
     .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()))
@@ -258,7 +267,7 @@ export async function getShipmentDebitSummary(query: {
   // lot scope: N = trips, X = the excluded fees' buy-sum.
   const [shadow] = await db.select({
     trips: sql<number>`count(distinct ${s.trips.id})::int`,
-    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)::text`,
+    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}) filter (where ${s.tripExpenses.buyAmount} > 0), 0)::text`,
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),

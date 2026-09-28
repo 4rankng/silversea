@@ -21,7 +21,7 @@ import { getLotDeclaredChannel } from './shipment-documents.service';
 import { activeTripConditions } from './active-trip-scope';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
-import { ExpenseTypeCategory, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
+import { ExpenseTypeCategory, sumExcludingNegative, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 
 const MANAGED_PROJECTION_KINDS = ['OPS', 'DRIVER', 'INVOICE'] as const;
@@ -409,13 +409,18 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
         note: expense.note,
         invoiceNumber: expense.invoiceNumber,
       })),
-      feeTotal: rows.reduce((sum, expense) => sum + Number(expense.buyAmount), 0),
+      // Card 20260928_181 — a negative expense row behaves as if absent.
+      feeTotal: sumExcludingNegative(rows, (expense) => expense.buyAmount),
     };
   });
 
   const hasChiHoData = chiHoRows.some((row) => row.items.length > 0 || row.otherFees.length > 0);
-  const chiHoTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.amount ?? 0), 0)), 0);
-  const thuKhachTotal = chiHoRows.reduce((sum, row) => sum + (row.items.reduce((s2, item) => s2 + (item.thuKhach ?? 0), 0)), 0);
+  // Card 20260928_181 — chi-hộ rows recharge at cost, so `amount` and
+  // `thuKhach` are the same buy amount for every core row; both totals drop a
+  // negative row (which keeps the two figures in step with each other).
+  const chiHoItems = chiHoRows.flatMap((row) => row.items);
+  const chiHoTotal = sumExcludingNegative(chiHoItems, (item) => item.amount ?? 0);
+  const thuKhachTotal = sumExcludingNegative(chiHoItems, (item) => item.thuKhach ?? 0);
 
   // 2.3 payables (ruling 2026-09-19): locked lots read the FROZEN snapshot
   // composition (ruling hardening c) — a catalog rename must not rewrite a

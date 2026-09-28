@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
-import { TxnType, Role, type ExpenseReconciliationInput } from '@tingting/shared';
+import { TxnType, Role, sumExcludingNegative, type ExpenseReconciliationInput } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
@@ -49,14 +49,20 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
     }
     sources.push(row);
   }
-  const amount = sources.reduce((sum, row) => sum + Number(row.amount), 0);
+  // Card 20260928_181 — a negative expense row behaves as if it did not exist,
+  // so the đợt total excludes it (single rule: sumExcludingNegative).
+  const amount = sumExcludingNegative(sources, (row) => row.amount);
   if (![amount, advanceAmount].every(Number.isSafeInteger)) throw new ApiError(400, 'Tổng tiền vượt giới hạn.');
   const [batch] = await tx.insert(s.expenseReconciliations).values({ code: `HU-${randomUUID()}`, opsUserId: input.opsUserId,
     from: input.from, to: input.to, amount: String(amount), advanceAmount: String(advanceAmount), createdById: actor.userId, note: input.note }).returning();
   if (input.advances.length) await tx.insert(s.expenseReconciliationAdvances).values(input.advances.map(a => ({ reconciliationId: batch.id, advanceRequestId: a.advanceRequestId, amount: String(a.amount) })));
   let remainingAdvance = advanceAmount;
   for (const row of sources) {
-    const allocated = Math.min(Number(row.amount), remainingAdvance);
+    // Card 20260928_181 — a negative expense row behaves as if it did not
+    // exist: it consumes no advance, and it must not INCREASE what is left for
+    // the rows after it (Math.min with a negative amount would do exactly that).
+    const rowAmount = Number(row.amount);
+    const allocated = rowAmount < 0 ? 0 : Math.min(rowAmount, remainingAdvance);
     remainingAdvance -= allocated;
     await tx.update(s.expenseAccountingSources).set({ reconciliationId: batch.id, allocatedAdvanceAmount: String(allocated), version: row.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, row.id));
   }

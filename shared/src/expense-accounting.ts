@@ -19,6 +19,18 @@ export const OPS_EXPENSE_SUGGESTIONS: ReadonlyArray<{ group: ExpenseCostGroup; n
   { group: 'OPS_INCIDENTAL', names: ['Sửa tờ khai', 'Vận chuyển phát sinh', 'Chi công nhân', 'Ngoài giờ', 'Nợ phơi', 'Xe nâng', 'Kẹp chì hải quan', 'Bóc tem nguy hiểm'] },
 ];
 export const expenseVndSchema = z.number().finite().int().min(0).max(999_999_999_999_999);
+/**
+ * Card 20260928_181 — a SIGNED expense amount. The PM rule lets an expense row
+ * carry a negative number, and such a row is then excluded from every total
+ * (see `sumExcludingNegative`). The constraints stay as tight as the unsigned
+ * schema: integer VND inside the money ceiling, with 0 rejected — 0 is an empty
+ * row, not a signed row. Use this ONLY for the amount of an expense line
+ * (trip expense buy amount, Ops expense amount, driver incidental amount);
+ * revenue, deposits, advances and voucher/treasury amounts keep `expenseVndSchema`.
+ */
+export const signedExpenseVndSchema = z.number().finite().int()
+  .min(-999_999_999_999_999).max(999_999_999_999_999)
+  .refine(value => value !== 0, 'Số tiền không được bằng 0.');
 export const expenseDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
@@ -71,6 +83,10 @@ export interface ExpenseAccountingEntry {
   amount: number; customerChargeAmount: number | null; invoiceNumber: string | null; invoiceDate: string | null;
   expenseDate: string; payerKind: 'USER' | 'COMPANY' | 'SUPPLIER' | null; payerUserId: number | null;
   payerName: string | null; recordedById: number | null; confirmedById: number | null; confirmedAt: string | null;
+  /** Card 20260928_168 AC1 — who approved, resolved for display. The write path
+   *  stores only `confirmedById`; a reader that has the name fills it. Null when
+   *  the row is unapproved, so a UI must not read it as "approved by nobody". */
+  confirmedByName: string | null;
   note: string | null; recoveryNote: string | null; photoStorageKeys: string[];
   receivedAmount: number | null; paidAmount: number | null; outstandingReceivable: number | null; outstandingPayable: number | null;
   payableEntityType: 'FORWARDER' | 'DRIVER' | 'VENDOR' | 'CARRIER' | null; payableEntityId: number | null;
