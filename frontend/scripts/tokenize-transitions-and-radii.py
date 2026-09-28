@@ -92,7 +92,10 @@ for path in files:
     out_lines = []
     for line in original.splitlines(keepends=True):
         line = fix_transitions(line, rel)
-        line = RADIUS_DECL.sub(lambda m: m.group(1) + fix_radius(m.group(2), rel) + m.group(3), line)
+        # `rel` is bound as a default argument rather than closed over: a Python
+        # closure captures the VARIABLE, so a lambda built in a loop reads the
+        # LAST iteration's value if it is ever called after the loop (B023).
+        line = RADIUS_DECL.sub(lambda m, r=rel: m.group(1) + fix_radius(m.group(2), r) + m.group(3), line)
         out_lines.append(line)
     updated = "".join(out_lines)
     if updated != original and APPLY:

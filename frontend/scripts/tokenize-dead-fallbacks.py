@@ -103,10 +103,13 @@ for path in files:
     original = path.read_text()
     changed = [original]
 
-    def transform(css: str) -> str:
+    # `path` is bound as a default argument rather than closed over: a Python
+    # closure captures the VARIABLE, not the value, so these read the LAST
+    # iteration's path if they are ever called after the loop ends (B023).
+    def transform(css: str, path=path) -> str:
         global stripped, replaced
 
-        def sub(m: re.Match[str]) -> str:
+        def sub(m: re.Match[str], path=path) -> str:
             global stripped, replaced
             name, fallback = m.group(1), m.group(2)
             hexes = re.findall(r"#[0-9a-fA-F]{3,8}", fallback)
