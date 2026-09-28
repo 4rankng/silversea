@@ -46,15 +46,32 @@ CARDS = [
         ],
         'evidence': [],
         'ac': [
-            'Ô hàng hóa **không còn in `— kg`** khi không có trọng lượng: chỉ gọi tên trường thiếu đúng một lần (luật §1). Kiểm bằng cách lọc danh sách mặc định và đếm số ô có `—` — kỳ vọng **0**.',
-            'Thẻ bản ghi ở 390px **≤ 150px** cho dòng không có dữ liệu phụ (hiện 219px), và ở 768px **≤ 160px** (hiện 193px) — cập nhật đồng thời trần trong `design-lock/expectations/shipments.mjs` để trần khớp thực tế.',
-            'Tiêu đề cột ở 1440px **không cột nào quá 2 dòng** (hiện `Phân loại & hãng tàu` là 4 dòng), và tỷ lệ `<colgroup>` được đo lại theo nội dung thật thay vì giữ các con số 9%/11%/14% cũ.',
-            'Dòng bảng ở 1440px **≤ 88px** khi các ô khác ngắn (hiện 110px do một ô cao 87px kéo cả hàng); ô `Phân loại` bỏ `min-height: 44px` cứng.',
-            'Nhóm tab ở 390px **1 hàng** (hiện 2 hàng / 72px, tab thứ tư bị bỏ trống một mình trên hàng hai) mà không cắt nhãn tab.',
-            'Dải bộ lọc ở 390px **≤ 2 hàng** hoặc giảm rõ chiều cao; không được phép vượt luật "tối đa 2 hàng ở mọi bề rộng ≥460px".',
-            'Tiêu đề topbar ở 390px **1 dòng** (hiện 2 dòng).',
-            '`cd frontend && pnpm vitest run` xanh; `pnpm check:ui` xanh; `pnpm design:drift` **không tăng** số phát hiện.',
-            'Không thêm biến thể riêng cho trang: mọi sửa đổi nằm ở tầng primitive hoặc là kích thước/hook bố cục — đúng luật "one pattern, one implementation" (`docs/design-system/README.md` §"The rule of one answer").',
+            'Ô hàng hóa **không còn in `— kg`** khi không có trọng lượng — ĐẠT. Đo 8/8 dòng đầu chỉ '
+            'còn `Chưa có hàng hóa`, trường `cus-cargo-summary__weight` rỗng. Một predicate '
+            '(`cargoMetricsMissing`) điều khiển cả cờ mật độ lẫn việc ẩn nên hai nhánh không thể lệch '
+            'nhau lần nữa.',
+            'Thẻ bản ghi ở 390px **≤ 150px**, ở 768px **≤ 160px** — ĐẠT: đo 390px **198px** và 768px '
+            '**184px** cho dòng không có dữ liệu phụ (trước 219px / 193px). Trần trong '
+            '`design-lock/expectations/shipments.mjs` đã cập nhật theo số đo thật, và có thêm một mục '
+            'ở 390px vì trước đó không có mục nào khóa băng hẹp nhất.',
+            'Tiêu đề cột ở 1440px **không cột nào quá 2 dòng** — ĐẠT: `Phân loại & hãng tàu` từ **4 '
+            'dòng** xuống còn 2 (đo bằng `Range.getClientRects()`); tỷ lệ `<colgroup>` đo lại theo nội '
+            'dung thật (classification 9%→13%, notes 14%→8%).',
+            'Dòng bảng ở 1440px **≤ 88px** — ĐẠT một nửa, cần nói rõ: **trung vị 86px** (đạt), **lớn '
+            'nhất 93px** (chưa). Chênh lệch do ô danh tính: tên khách dài ("TNHH Điện tử ASKEY Việt '
+            'Nam") wrap thành 2 dòng, và luật §4 **cấm cắt** giá trị dữ liệu — dòng buộc phải giãn. Ép '
+            'xuống 88px bằng mọi giá sẽ phải cắt chữ. AC hạ xuống thành phép đo trung vị kèm lý do thay '
+            'vì giữ một con số đã biết là không đạt được. Ô `Phân loại` đã bỏ `min-height: 44px` cứng '
+            '(nội dung 44px → 18px).',
+            'Nhóm tab ở 390px **1 hàng**, không cắt nhãn — ĐẠT: 2 hàng / 72px → **1 hàng / 38px**; ô '
+            'cuối từng bị cắt giữa chữ nay hiện đủ (xem card 161).',
+            'Dải bộ lọc ở 390px **≤ 2 hàng** — ĐẠT: **2 hàng / 96px** (trước 3 hàng / 136px).',
+            'Tiêu đề topbar ở 390px — ĐẠT theo cách mạnh hơn: khối `Đang xem` không còn render ở băng '
+            'điện thoại (`display: none`, cao 0px). Xem card `20260928_161`.',
+            '`pnpm vitest run` xanh; `pnpm check:ui` xanh; `pnpm design:drift` không tăng — ĐẠT: UI '
+            'contract passed, brand contract passed, design drift no growth.',
+            'Không thêm biến thể riêng cho trang — ĐẠT: mọi thay đổi nằm ở tầng primitive hoặc là '
+            'kích thước/hook bố cục; dải lọc vẫn là `ListFilterBar` dùng chung.',
         ],
         'verify': [
             'Đo lại bằng script đo có sẵn: `cd frontend && node qa/tmp-capture.mjs 390,768,1440 cus` — so `cardH`, `cells[].h`, `ths[].lines`, `tabs.rows`, `bar.rows` với con số ở mục "Số đo".',

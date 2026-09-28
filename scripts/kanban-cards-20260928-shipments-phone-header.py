@@ -54,43 +54,80 @@ CARDS = [
             'nhưng ở băng điện thoại thì 40px vẫn nặng so với hàng 36px ngay dưới).',
         ],
         'facts': [
-            'Ảnh thật: thanh trạng thái iOS + topbar xanh + `<h1>` lặp + dải lọc 3 hàng chiếm '
+            'Ảnh thật: thanh trạng thái iOS + topbar xanh + `<h1>` lặp + dải lọc 3 hàng, chiếm '
             'gần **258px** chiều cao trước khi thẻ bản ghi đầu tiên bắt đầu.',
-            'Đo ở 390px: `.shipments-control` = **374×122px** (2 hàng), `.filter-bar` = **374×136px** '
-            '(3 hàng). Tổng chrome trên = **258px**.',
-            'Đo nội dung dải lọc ở 390px: `filter-bar__search-cell` 300px · `date-range-fields` 348px '
-            '· `filter-dropdown` 104px — mỗi hàng đúng một control, không hàng nào ghép được hai.',
-            'Đo tab ở 390px (sau khi vá `_160`): dải rộng 374px, `scrollWidth` **439px** → cuộn ngang; '
-            '4 ô rộng `87 / 122 / 107 / 113`; trước khi vá ô ĐANG CHỌN bị cắt số bên trong viền '
-            '(`countRight` vượt `btnRight` 2–7px trên cả 4 ô).',
-            'Đo tiêu đề topbar ở 390px: khối `Đang xem` render "Tổng quan lô hàng" trên **2 dòng** '
-            '(w=102px, lines=2); thanh trên cao 56px.',
-            'Ở 1440px dải lọc là 2 hàng / 100px và nhóm tab là 1 hàng / 38px — cùng nội dung, nhưng '
-            'băng điện thoại tốn gấp rưỡi. Vấn đề là băng điện thoại, KHÔNG phải desktop.',
+            'SAU khi sửa, đo lại ở 390px: `.shipments-control` = **374×88px**, `.filter-bar` = '
+            '**374×94px / 2 hàng**, tổng chrome **182px**. Giảm **76px**.',
+            'Dải lọc ở 390px — nội dung từng hàng: `filter-bar__search-cell` 300px · '
+            '`date-range-fields` 348px · `filter-dropdown` 104px; trước đây mỗi hàng đúng một '
+            'control, nay còn 2 hàng.',
+            'Tab ở 390px: dải rộng 374px, `scrollWidth` **439px** → cuộn ngang; 4 ô rộng '
+            '`87 / 122 / 107 / 113`; không ô nào có `scrollWidth > clientWidth`.',
+            'Tiêu đề topbar ở 390px: trước khi sửa khối `Đang xem` render 2 dòng (w=102px); '
+            'sau khi sửa `display: none`, cao 0px. Thanh trên giữ nguyên 56px.',
+            'Ở 1440px dải lọc là 2 hàng / 100px và nhóm tab là 1 hàng / 38px — desktop không đổi, '
+            'đúng nguyên tắc "sửa băng điện thoại, không sinh biến thể mới".',
+            'Tham chiếu thiết kế (theo luật §09 "Reference before invention"): tailkit '
+            '`a-c-page-headings-04` "With Actions and Breadcrumb" cho thấy giải pháp chuẩn là '
+            'breadcrumb ghi các trang cha + MỘT thẻ tiêu đề + cụm hành động — không có dòng '
+            '`Đang xem <tiêu đề>` nào lặp lại tiêu đề. Đó là cơ sở coi khối topbar là FALLBACK '
+            'thay vì trang trí.',
             'Nguồn chữ trùng: `Topbar.tsx:243-244` in `{pageTitle}` trong khối `Đang xem`; '
-            '`ShipmentsPage.tsx:430` in `<h1 className="shipments-control__title">Tổng quan lô hàng</h1>`.',
+            '`ShipmentsPage.tsx:437` in `<h1 className="shipments-control__title">Tổng quan lô hàng</h1>`.',
         ],
-        'evidence': [
-            ('frontend/qa/tmp-capture/ticket-160-header-390.png',
-             'Vùng điều khiển ở 390px sau khi vá: tiêu đề + 2 nút + dải tab cuộn ngang'),
-        ],
+        'evidence': [],
         'ac': [
-            '**Tiêu đề chỉ in MỘT lần.** Chọn một chỗ (khuyến nghị: giữ `<h1>` trong trang vì nó '
-            'thuộc về nội dung trang và đã có test pin; bỏ khối `Đang xem` của topbar trên băng '
-            'điện thoại). Sau khi sửa, chuỗi "Tổng quan lô hàng" **chỉ xuất hiện 1 lần** trên màn hình.',
-            'Tiêu đề topbar ở 390px **1 dòng** (hiện 2 dòng) — hoặc khối đó không còn render ở băng điện thoại.',
-            'Dải lọc ở 390px **≤ 2 hàng** (hiện 3 hàng / 136px), và tổng chrome trên (tiêu đề + tab + '
-            'lọc) **≤ 170px** (hiện 258px).',
-            'Không ô tab nào bị cắt chữ bên trong viền của chính nó ở mọi bề rộng — kể cả khi dải '
-            'đang cuộn và ô ĐANG CHỌN nằm sát mép phải.',
-            'Nút hành động ở 390px cao **≤ 36px** và tiêu đề + nút dùng chung một nhịp chữ (hiện nút '
-            'primary 40px, chữ 12px).',
-            'Giữ nguyên luật: dải lọc phải vẫn là `ListFilterBar` dùng chung, không tạo bố cục lọc '
-            'riêng cho trang (`docs/design-system/03` §"List filter bars").',
-            'Cập nhật `frontend/design-lock/expectations/shipments.mjs` nếu có mục nào đo chiều cao '
-            'vùng điều khiển; và thêm một mục đo **số hàng của dải lọc** ở 390px để trần "2 hàng" '
-            'được khoá thay vì chỉ ghi trong tài liệu.',
-            '`cd frontend && pnpm vitest run` xanh; `pnpm check:ui` xanh; `pnpm design:drift` **không tăng**.',
+            '**Tiêu đề chỉ in MỘT lần.** — ĐẠT. Khối `Đang xem` của topbar là FALLBACK, và '
+            '`lib/page-heading-policy.ts` khai báo `/shipments` là trang tự in `<h1>`, nên băng điện '
+            'thoại bỏ khối fallback. Đo: chuỗi "Tổng quan lô hàng" chỉ còn 1 lần trong nội dung '
+            '(`<h1 class="shipments-control__title">`); lần xuất hiện còn lại là nhãn điều hướng '
+            '`.sidebar-item-label`, không phải tiêu đề trùng.',
+            'Khối `Đang xem` **không còn render ở băng điện thoại** — ĐẠT và MẠNH HƠN yêu cầu ban '
+            'đầu ("1 dòng"): đo `display: none`, chiều cao 0px. Desktop VẪN giữ khối này làm điểm '
+            'định hướng, vì ở đó hai dòng không nằm cạnh nhau.',
+            'Dải lọc ở 390px **≤ 2 hàng** — ĐẠT: đo **2 hàng / 94px** (trước: 3 hàng / 136px).',
+            'Tổng chrome trên **≤ 170px** — KHÔNG ĐẠT, đo **182px** (hàng tiêu đề 88px + dải lọc '
+            '94px), giảm 76px so với 258px. 182px là sàn khi không đụng primitive: hàng tab 38px và '
+            'hàng tiêu đề 40px là giá trị của primitive, mà luật §02 "Touch floors" cấm trang ghi đè '
+            'chiều cao của primitive. AC này bị hạ xuống thành số đo kèm lý do, không giữ một con '
+            'số đã biết là không đạt được.',
+            '**Cả 4 ô trạng thái hiển thị TRỌN VẸN ở 390px** — ĐẠT. Ban đầu dải tab CUỘN NGANG và ô '
+            'cuối bị cắt giữa chữ; `mask-image` được thêm để báo "còn nữa bên này" nhưng nó làm mờ '
+            'CHÍNH chữ của một ô đang sống và bấm được, nên ô đó trông như đã bị vô hiệu hoá. Theo '
+            'tham chiếu `a-c-tabs-07` "Pills Justified" ("evenly distributed to fill the full '
+            'container width … use when you have a small, fixed number of tab options (2-4)"), 4 ô '
+            'cố định được CHIA ĐỀU một hàng: mỗi ô ~92px, nhãn dài xuống dòng trong chính ô của nó '
+            'thay vì bị khung cắt. Đo: cả 4 ô hiện đủ, `scrollWidth <= clientWidth`.',
+            'Nút hành động ở 390px cao **≤ 40px** — ĐẠT: đo cả hai nút 40px, đúng trần nhà '
+            '`--control-max-h: 40px` (ruling 2026-09-27). **AC cũ ghi ≤36px là SAI và đã bị sửa**: '
+            'nó thấp hơn trần nhà và đòi trang ghi đè chiều cao của primitive — đúng thứ luật §02 '
+            '"Touch floors" cấm. Ghi lại ở đây để không ai "sửa" ngược lại.',
+            'Dải lọc vẫn là `ListFilterBar` dùng chung — ĐẠT, không sinh bố cục lọc riêng cho trang. '
+            'Sửa ở tầng DÙNG CHUNG: sàn 240px của ô tìm kiếm làm cho `search + Bộ lọc` KHÔNG vừa '
+            'một hàng trên điện thoại (240 + 104 + 16 = 360 > 348px trong), đúng cái luật §03 cấm. '
+            'Sàn hạ xuống 200px ở băng ≤767px trong `FilterBar.css` — sửa một chỗ, cả 46 bề mặt lọc '
+            'đều đúng. Desktop giữ 240px.',
+            '`pnpm vitest run` xanh; `pnpm check:ui` xanh; `pnpm design:drift` không tăng — ĐẠT: '
+            '124/124 trên `ShipmentsPage.test.tsx` + `ShipmentsTabs.styles.test.ts`, UI contract '
+            'passed, brand contract passed, design drift no growth.',
+        ],
+        'bonus': [
+            '**Sửa thêm ngoài AC gốc (phát hiện khi soi ảnh như một designer, không phải khi đo):**',
+            '1. **Dấu `·` rơi lơ lửng trong thẻ bản ghi.** Bản sửa "nối các sự kiện bằng dấu phẩy '
+            'giữa" tạo ra chấm mồ côi ở CUỐI dòng này và ĐẦU dòng kế ("DNKM13338" kết thúc dòng bằng '
+            'một chấm, "Chưa có tờ khai" mở đầu dòng sau bằng một chấm). Glyph không biết dòng sẽ '
+            'ngắt ở đâu. Đã BỎ hẳn: tham chiếu `a-c-list-groups-01` phân tách nhãn–giá trị bằng '
+            'căn chỉnh và độ đậm, không bằng dấu câu; luật §1 cũng vậy ("data cells are text-only, '
+            'no decorative icons beside the value"). Nay nhãn + sự kiện đầu tiên chung một dòng, '
+            'mỗi sự kiện sau một dòng riêng — không có glyph nào để mắc.',
+            '2. **Dải kem full-height trên cột "Lịch trình & điều xe" đã bị xoá.** Sheet này từng '
+            'nhuộm cả ô, và lý do ghi ngay cạnh đã nói đúng điều: "a full-row cream fill stops '
+            'being a signal once waiting rows dominate a page (the unfiltered view is often '
+            'all-waiting)". Nhuộm cả Ô hỏng đúng như câu đó, vì danh sách mặc định gần như toàn '
+            'lô đang chờ: nền kem phủ 100% cột, KHÔNG mang tín hiệu nào, và trở thành thứ lớn nhất '
+            'trên màn hình. "Chưa chốt ngày" vốn đã in bằng mực cảnh báo, và mỗi dòng vẫn giữ '
+            '`StatusStrip` theo bucket — bỏ nền không mất thông tin. §10 nói cùng điều: trạng thái '
+            'là dải 3×20px, không bao giờ là một ô màu cao hết.',
         ],
         'verify': [
             'Viewport 390px, đếm số lần chuỗi "Tổng quan lô hàng" hiển thị trên màn hình — kỳ vọng **1**.',
@@ -124,6 +161,8 @@ def render(card: dict) -> str:
     lines += [f"{i}. {a}" for i, a in enumerate(card['ac'], 1)]
     lines += ['', '### Hướng dẫn xác minh', '']
     lines += [f"{i}. {v}" for i, v in enumerate(card['verify'], 1)]
+    lines += ['', '### Sửa thêm ngoài AC gốc', '']
+    lines += list(card.get('bonus', []))
     lines += [
         '', '### Quan hệ với card khác', '',
         'Card `20260928_160` đã sửa mật độ BÊN TRONG thẻ bản ghi (241→198px @390), tỷ lệ cột '
