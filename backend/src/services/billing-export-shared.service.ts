@@ -5,7 +5,7 @@
 // verbatim (pure code movement); leaves import these one-way.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { inArray, eq, sql } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
 import { canonicalFreightDescription } from '@tingting/shared';
 import type { BillingDocumentLine, DebitNoteTemplateColumn } from '@tingting/shared';
 import {

@@ -169,7 +169,7 @@ test('t5: the cash voucher refuses an unapproved DRIVER source and names the fee
       shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
     const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING', amount: '200000',
       occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0', feeName: 'Phí giữ xe kiểm thử' }).returning();
-    const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+    await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
       tripId: trip.id, confirmedAt: null, recordedById: actor.userId }).returning();
     await assert.rejects(
       () => createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
@@ -198,7 +198,7 @@ test('t6: the payout consumes approved-only money — allocations decrement the 
     const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
       tripId: trip.id, confirmedAt: new Date(), confirmedById: actor.userId, recordedById: actor.userId }).returning();
     await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, entityType: 'DRIVER', entityId: driver.id, debit: 0, credit: 300000, receiptId: `EXPENSE_SOURCE:${source.id}` });
-    const voucher = await createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+    await createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
       entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: 1, amount: 100000 }] });
     const allocations = await tx.select({ amount: s.expenseCashAllocations.amount }).from(s.expenseCashAllocations)
       .where(eq(s.expenseCashAllocations.expenseAccountingSourceId, source.id));

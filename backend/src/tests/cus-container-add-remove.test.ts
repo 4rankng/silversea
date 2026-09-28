@@ -42,7 +42,6 @@ function track(table: any, id: number) {
 }
 
 let server: http.Server;
-let baseUrl = '';
 let cusId = 0;
 
 async function api(method: string, path: string, body?: Record<string, unknown>) {
@@ -130,7 +129,6 @@ before(async () => {
   app.use(globalErrorHandler);
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
 after(async () => {

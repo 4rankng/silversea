@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import { db } from '../db';

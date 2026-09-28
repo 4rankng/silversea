@@ -1,7 +1,7 @@
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { listExpenseAccountingEntries } from './expense-accounting-reads.service';
 import { expenseListQuerySchema } from '@tingting/shared';
-import type { ExpenseAccountingEntry, ExpenseAccountingList, ExpenseListQuery } from '@tingting/shared';
+import type { ExpenseAccountingEntry, ExpenseAccountingList } from '@tingting/shared';
 
 export const OPS_REVIEW_PROGRESS = ['CHUA_XAC_NHAN', 'DA_XAC_NHAN', 'DA_LAP_PHIEU'] as const;
 export type OpsReviewProgress = typeof OPS_REVIEW_PROGRESS[number];

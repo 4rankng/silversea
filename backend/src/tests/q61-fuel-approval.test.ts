@@ -3,7 +3,7 @@
 // the OLD period until kế toán ticks Đồng ý; Không/Để sau keep the old price.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';

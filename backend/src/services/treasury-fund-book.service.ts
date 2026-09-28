@@ -63,11 +63,10 @@ export async function listFundBook(source: FundSource): Promise<FundBook> {
         .orderBy(asc(s.treasuryMovements.valueDate), asc(s.treasuryMovements.id))
     : [];
   const movementsByAccount = new Map<number, FundBookMovement[]>();
-  for (const movement of movements) {
-    const list = movementsByAccount.get(movement.treasuryAccountId) ?? [];
-    const { treasuryAccountId: _drop, ...rest } = movement;
-    list.push({ ...rest, direction: rest.direction as 'IN' | 'OUT' });
-    movementsByAccount.set(movement.treasuryAccountId, list);
+  for (const { treasuryAccountId, ...movement } of movements) {
+    const list = movementsByAccount.get(treasuryAccountId) ?? [];
+    list.push({ ...movement, direction: movement.direction as 'IN' | 'OUT' });
+    movementsByAccount.set(treasuryAccountId, list);
   }
   const bookAccounts: FundBookAccount[] = accounts.map((account) => {
     const position = positionByAccount.get(account.id)!;

@@ -23,7 +23,6 @@ let ownUserId = 0;
 let ownShipmentId = 0;
 let ownTripId = 0;
 let ownFulfillmentId = 0;
-let ownProgressEventId = 0;
 const routeIds: number[] = [];
 const cargoTypeIds: number[] = [];
 const driverIds: number[] = [];
@@ -149,7 +148,6 @@ before(async () => {
     occurredAt: new Date('2026-08-22T08:00:00.000Z'),
   }).returning();
   progressEventIds.push(progress.id);
-  ownProgressEventId = progress.id;
 });
 
 /** Fresh driver-progress event per attempt — delivery_attempts enforces

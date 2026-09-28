@@ -13,7 +13,7 @@
  *   recordDepositFromIntake: auto-row from the intake tick, amount optional,
  *       idempotent per shipment.
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, asc, eq } from 'drizzle-orm';
 
@@ -119,7 +119,7 @@ describe('card 20260921_19 - deposit refund tracker', () => {
 
   test('markRefunded posts ONE COMPANY IN movement; re-tick rejected; fund-book sees it', async () => {
     await mkActor();
-    const account = await mkCompanyAccount('1000000');
+    await mkCompanyAccount('1000000');
     const [resolvedAccount] = await db.select().from(s.treasuryAccounts)
       .where(and(eq(s.treasuryAccounts.fundCode, 'COMPANY'), eq(s.treasuryAccounts.status, 'ACTIVE')))
       .orderBy(asc(s.treasuryAccounts.id)).limit(1);

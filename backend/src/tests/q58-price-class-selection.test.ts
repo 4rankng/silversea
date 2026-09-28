@@ -20,7 +20,6 @@ const createdTermsIds: number[] = [];
 const createdPricingIds: number[] = [];
 const createdNormIds: number[] = [];
 const createdFuelPeriodIds: number[] = [];
-const createdSnapshotIds: number[] = [];
 
 /** Canonical catalog rows are seeded (global-unique codes) — reuse them. */
 async function classIdByCode(code: string): Promise<number> {
@@ -82,14 +81,6 @@ async function mkNorm(classId: number, litersPerKm: string) {
   return n;
 }
 
-async function mkFuelPeriod(unitPrice: string, dayOffset: number) {
-  const [f] = await db.insert(s.fuelPricePeriods).values({
-    unitPrice,
-    effectiveFrom: `2026-08-${String(10 + dayOffset).padStart(2, '0')}`,
-  }).returning();
-  createdFuelPeriodIds.push(f.id);
-  return f;
-}
 
 /** One priced container lot: shipment + typed container with cargo weight. */
 async function mkLot(input: { baseRateKey: string; cargoWeightKg: number | null; cont20LightPrice?: string; cont20HeavyPrice?: string; cont20BasePrice?: string }) {

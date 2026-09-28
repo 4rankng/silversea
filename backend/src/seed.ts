@@ -1,14 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { db } from './db';
 import * as schema from './db/schema';
-import {
-  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  OPS_EXPENSE_TYPE_DEFAULTS,
-  NO_INVOICE_POLICY_DEFAULTS,
-  Role,
-} from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { eq, and, desc, isNotNull, isNull, sql } from 'drizzle-orm';
-import { expenseTypeSeedPolicy } from './expense-type-seed-policy';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
 import { ZONE_SURCHARGE_KIND } from './services/zone-surcharge.service';

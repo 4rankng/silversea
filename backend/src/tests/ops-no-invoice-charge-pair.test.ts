@@ -10,7 +10,6 @@ import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 import { initEnforcer } from '../casbin/enforcer';
-import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import opsRoutes from '../routes/ops';
 
@@ -20,7 +19,6 @@ function track(table: any, id: number) {
   cleanup.unshift({ table, id });
 }
 let server: http.Server;
-let baseUrl = '';
 let opsUserId = 0;
 
 async function api(method: string, path: string, body?: Record<string, unknown>) {
@@ -82,7 +80,6 @@ before(async () => {
   app.use(globalErrorHandler);
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
 after(async () => {
@@ -139,7 +136,7 @@ describe('card 20260921_5 — no-invoice charge pair', () => {
 describe('card 20260921_5 — dispatch plan note path', () => {
   test('charged no-invoice fees surface by fee name; uncharged stay silent', async () => {
     const { loadDispatchExpenseNotes } = await import('../services/dispatch-expense-notes.service');
-    const userId = await mkLinkedOpsUser();
+    await mkLinkedOpsUser();
     const shipmentId = await mkLotForUser(opsUserId);
 
     const charged = await api('POST', '/api/ops/expenses', {

@@ -42,7 +42,6 @@ const created = {
 let server: http.Server;
 let baseUrl = '';
 let dispatcherToken = '';
-let dispatcherUserId = 0;
 let adminToken = '';
 let adminUserId = 0;
 
@@ -67,7 +66,6 @@ async function mkUser(role: Role, tag: string): Promise<void> {
   }).returning();
   created.userIds.push(user.id);
   if (role === Role.DISPATCHER) {
-    dispatcherUserId = user.id;
     dispatcherToken = signToken(user.id, role, user.username ?? `disp-${user.id}`);
   } else {
     adminUserId = user.id;

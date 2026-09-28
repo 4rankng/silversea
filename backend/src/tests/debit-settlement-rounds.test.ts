@@ -77,15 +77,6 @@ async function mkCarrierCost(tripId: number, value: string) {
   return track(s.tripCarrierInfo, row);
 }
 
-async function mkExternalCarrierInfo(tripId: number, opts: { entityId?: number; entityType?: string; plate?: string }) {
-  const [row] = await db.insert(s.tripCarrierInfo).values({
-    tripId, carrierType: 'EXTERNAL',
-    externalEntityId: opts.entityId ?? null,
-    externalEntityType: opts.entityType ?? null,
-    externalPlateNumber: opts.plate ?? null,
-  }).returning();
-  return track(s.tripCarrierInfo, row);
-}
 
 /** ApiError with statusCode 400 and a business-language message matching `pattern`. */
 function rejects400(promise: Promise<unknown>, pattern: RegExp, note: string) {

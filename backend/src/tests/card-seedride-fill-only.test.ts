@@ -8,7 +8,7 @@
  * Fixtures: mutates + restores two catalog rows on the local DB (:5441),
  * prefix `seedride-`, announced; no demo data created.
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
 
@@ -21,7 +21,7 @@ const EDIT_TYPE_CODE = 'LIFTING';
 
 describe('card 20260922_1 — cut seed rides fill-only', () => {
   test('norms: second run inserts nothing; hand-tuned amount survives reruns', async () => {
-    const first = await seedDriverFeeNorms();
+    await seedDriverFeeNorms();
     const [before] = await db.select().from(s.driverFeeNorms)
       .where(eq(s.driverFeeNorms.code, 'LIFT_DROP_ALLOWANCE'));
     assert.ok(before, 'LIFT_DROP_ALLOWANCE must exist after fill');

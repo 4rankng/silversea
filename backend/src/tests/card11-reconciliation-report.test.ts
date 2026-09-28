@@ -10,7 +10,7 @@
  *   Consumption: advances consumed by existing reconciliations reduce held.
  *   AC4: vouchers ride the existing engine (cited; engine has own suites).
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq } from 'drizzle-orm';
 

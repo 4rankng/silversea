@@ -32,7 +32,7 @@ export async function checkRedisAtBoot(url: string, timeoutMs = 2500): Promise<R
     retryStrategy: () => null,
   });
   const verdict = await new Promise<RedisBootCheck>((resolve) => {
-    const timer = setTimeout(() => resolve({ ok: false, url: shown, error: `no response within ${timeoutMs}ms` }), timeoutMs + 500);
+    setTimeout(() => resolve({ ok: false, url: shown, error: `no response within ${timeoutMs}ms` }), timeoutMs + 500);
     client.connect()
       .then(() => resolve({ ok: true, url: shown }))
       .catch((err: Error) => resolve({ ok: false, url: shown, error: err.message }));

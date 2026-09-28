@@ -31,7 +31,6 @@ const suffix = `${Date.now()}-chan-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
 const shipmentIds: number[] = [];
 const routeIds: number[] = [];
-const declarationIds: number[] = [];
 const userIds: number[] = [];
 const lockIds: number[] = [];
 const documentIds: number[] = [];

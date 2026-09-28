@@ -1,4 +1,4 @@
-import { driverCommandIdentity, vendorCommandIdentity } from './cash-command-identity.service';
+import { vendorCommandIdentity } from './cash-command-identity.service';
 /**
  * Financial operations service — owns all mutating financial transactions:
  * payment recording, trip adjustments, and penalty creation.
@@ -228,36 +228,6 @@ export async function recordOpsReimbursementTx(tx: Tx, input: { opsUserId: numbe
   return LedgerService.postEntry(tx, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,
     debit: 0, credit: input.amount, receiptId: input.receiptId, note: input.note ?? 'Hoàn chi phí cho OPS',
     timestamp: new Date(`${input.date}T00:00:00+07:00`) });
-}
-
-export async function recordDriverPayoutIdempotent(args: {
-  input: DriverPayoutInput;
-  idempotencyKey: string | undefined;
-  createdBy?: number | null;
-}) {
-  return runIdempotent<LedgerEntryRow>({
-    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT,
-    idempotencyKey: args.idempotencyKey,
-    payload: driverCommandIdentity(args.input),
-    createdBy: args.createdBy ?? null,
-    entityType: 'ledger',
-    replayResult: async (snapshot, tx) => {
-      const saved = snapshot as { id: number; ledgerEntryId?: number | null; applicationResult?: { ledgerId?: number } };
-      return loadLedgerEntryTx(tx, saved.ledgerEntryId ?? saved.applicationResult?.ledgerId ?? saved.id);
-    },
-    create: async (tx) => {
-      const treasury = await resolveTreasuryPaymentContract(tx, args.input, new Date());
-      const row = await recordDriverPayoutTx(tx, args.input);
-      if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
-        if (!args.createdBy) throw new ApiError(400, 'Cần người ghi nhận giao dịch quỹ.');
-        await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: Number(args.input.amount),
-          valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: row.id,
-          sourceVersion: row.id, paymentContractVersion: treasury.paymentContractVersion, createdBy: args.createdBy });
-      }
-      return row;
-    },
-    load: async (entityId, tx) => loadLedgerEntryTx(tx, entityId),
-  });
 }
 
 export async function requestDriverPayoutGovernance(input: {
@@ -824,43 +794,8 @@ export async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): 
     : posted;
 }
 
-async function loadVendorPaymentResultTx(tx: Tx, ledgerId: number): Promise<VendorPaymentResult> {
-  const row = await loadLedgerEntryTx(tx, ledgerId);
-  return applyOverpaymentMetadata(row, buildVendorOverpaymentWarning);
-}
-
 export async function recordVendorPayment(input: VendorPaymentInput) {
   return db.transaction((tx) => recordVendorPaymentTx(tx, input));
-}
-
-export async function recordVendorPaymentIdempotent(args: {
-  input: VendorPaymentInput;
-  idempotencyKey: string | undefined;
-  createdBy?: number | null;
-}) {
-  return runIdempotent<VendorPaymentResult>({
-    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
-    idempotencyKey: args.idempotencyKey,
-    payload: vendorCommandIdentity(args.input),
-    createdBy: args.createdBy ?? null,
-    entityType: 'ledger',
-    replayResult: async (snapshot, tx) => {
-      const saved = snapshot as { id: number; ledgerEntryId?: number | null; applicationResult?: { ledgerId?: number } };
-      return loadVendorPaymentResultTx(tx, saved.ledgerEntryId ?? saved.applicationResult?.ledgerId ?? saved.id);
-    },
-    create: async (tx) => {
-      const treasury = await resolveTreasuryPaymentContract(tx, args.input, new Date());
-      const row = await recordVendorPaymentTx(tx, args.input);
-      if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
-        if (!args.createdBy) throw new ApiError(400, 'Cần người ghi nhận giao dịch quỹ.');
-        await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: Number(args.input.amount),
-          valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: row.id,
-          sourceVersion: row.id, paymentContractVersion: treasury.paymentContractVersion, createdBy: args.createdBy });
-      }
-      return row;
-    },
-    load: async (entityId, tx) => loadVendorPaymentResultTx(tx, entityId),
-  });
 }
 
 export async function requestVendorPaymentGovernance(input: {

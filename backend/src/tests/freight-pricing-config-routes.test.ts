@@ -288,7 +288,7 @@ describe('freight rate terms config CRUD', () => {
       const rejected = await api('POST', '/freight-rate-terms', accountantId, { ...base, fuelLagDays });
       assert.equal(rejected.status, 400, `Unknown lag ${String(fuelLagDays)}: ${JSON.stringify(rejected.body)}`);
     }
-    const { surchargeThresholdPct: _threshold, ...noThreshold } = base;
+    const noThreshold = { customerId: base.customerId, routeId: base.routeId, billingKmOneWay: base.billingKmOneWay, baseFuelPrice: base.baseFuelPrice };
     const missingThreshold = await api('POST', '/freight-rate-terms', accountantId, { ...noThreshold, fuelLagDays: 0 });
     // 20260917_11 three-state model: creating WITHOUT a threshold is legal —
     // the row lands in UNSET (nothing customer-confirmed yet) and the ENGINE,

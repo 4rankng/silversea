@@ -43,7 +43,7 @@ before(async () => {
     encoding: 'utf8', timeout: 120000,
   });
   assert.equal(dump.status, 0, 'schema dump must succeed (local docker required)');
-  const restore = spawnSync('docker', ['exec', '-i', 'ss-prod-db', 'psql', '-U', 'postgres', '-d', TMP_DB, '-q'], {
+  spawnSync('docker', ['exec', '-i', 'ss-prod-db', 'psql', '-U', 'postgres', '-d', TMP_DB, '-q'], {
     input: dump.stdout, encoding: 'utf8', timeout: 180000,
   });
   const probe = postgres(TMP_URL);

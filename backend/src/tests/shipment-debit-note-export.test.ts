@@ -149,7 +149,6 @@ describe('20260918_19 Xuất Debit Note từ snapshot khóa lô', () => {
     await lockLot(shipment.id, cusId);
     const [lock] = await db.select().from(s.shipmentCostLocks).where(eq(s.shipmentCostLocks.shipmentId, shipment.id));
     assert.ok(lock);
-    const snapshot = lock.costSnapshot as Record<string, unknown>;
     const result = await api('POST', `/api/shipments/${shipment.id}/debit-note`, accountantId, {});
     assert.equal(result.status, 201, JSON.stringify(result.body));
     docIds.push(Number(result.body.id));

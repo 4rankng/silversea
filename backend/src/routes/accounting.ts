@@ -24,7 +24,6 @@ import {
 } from '../services/invoice-tracking.service';
 import { requireRoles } from '../middleware/casbin';
 import { runIdempotent } from '../services/idempotency.service';
-import { parseId as sharedParseId } from './utils/parse-id';
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   const raw = Array.isArray(value) ? value[0] : value;

@@ -3,7 +3,7 @@
 // the kỳ kế toán lock: guards chain (the accounting lock still wins for cost
 // edits). Snapshots are assembled server-side from engine values and are
 // never recomputed after lock — "mở kỳ mới không đổi số đã khóa".
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import * as s from '../db/schema';
 import { db } from '../db';

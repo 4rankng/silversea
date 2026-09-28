@@ -16,13 +16,11 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { normForBase } from '../services/quotation-import.service';
 
-const suffix = `qnf-${Date.now().toString(36)}`;
 const created = {
   classIds: [] as number[],
   normIds: [] as number[],
 };
 
-const CODES = ['1.25T', '2.5T', '3.5T'];
 
 async function ensureClass(code: string, name: string): Promise<number> {
   const [inserted] = await db.insert(s.vehicleSizeClasses)

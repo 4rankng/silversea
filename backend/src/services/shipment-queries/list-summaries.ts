@@ -13,19 +13,16 @@ import type { ShipmentStatus } from '../shipment-types';
 import { containerTransportDateSql } from '../cus-shipment-workspace-reads.service';
 import * as s from '../../db/schema';
 import { CARGO_MODE } from '../../db/schema';
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { localDateInBusinessZone, round2dp, TripStatus } from '@tingting/shared';
+import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 
-import { escapeLikeTerm } from '../../lib/format';
-import { operationalName } from '../../db/master-data-name';
-import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';
-import { filterContainersByDateRange } from '../container-date-filter';
+import type { DispatchSummary } from '@tingting/shared';
 
 // Codebase convention: each query service defines its own operational-name
 // expression (see driver/gps/dispatch-planning/trip-queries services).
 
-import { inferContainerBucket, computeContainerAggregates, AllocationStatus, ALLOCATION_STATUSES, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, activeFulfillment } from './shared';
+import { AllocationStatus, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME } from './shared';
 import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
 import type { ShipmentContainerPortGroup } from './container-aggregates';
 import { loadShipmentListContainerPortGroups } from './container-aggregates';

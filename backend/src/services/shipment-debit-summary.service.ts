@@ -8,11 +8,10 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { aliasedTable, and, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
-import { ApiError } from '../errors';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
@@ -20,17 +19,6 @@ import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : 0;
-}
-
-function lineEffectiveAmount(line: {
-  excluded: boolean;
-  grossAmount: string | null;
-  baseAmount: string | null;
-  amountOverride: string | null;
-}): number {
-  if (line.excluded) return 0;
-  if (line.grossAmount != null) return toNumber(line.grossAmount);
-  return toNumber(line.amountOverride ?? line.baseAmount);
 }
 
 export async function getShipmentDebitSummary(query: {

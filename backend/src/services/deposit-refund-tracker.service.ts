@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';

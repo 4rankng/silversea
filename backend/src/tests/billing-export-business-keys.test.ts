@@ -7,7 +7,6 @@ import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { renderColumnValue } from '../services/billing-export-shared.service';
-import type { DebitNoteTemplateColumn } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 
 type ExportLine = Parameters<typeof renderColumnValue>[0];

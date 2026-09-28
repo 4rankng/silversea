@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -26,7 +26,6 @@ const createdUserIds: number[] = [];
 const createdPeriodIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
-let adminToken: string;
 let accountantToken: string;
 let dispatcherToken: string;
 
@@ -79,7 +78,7 @@ before(async () => {
       resolve();
     });
   });
-  adminToken = sign(await mkUser(`q61g-admin-${suffix}`, Role.ADMIN));
+await mkUser(`q61g-admin-${suffix}`, Role.ADMIN);
   accountantToken = sign(await mkUser(`q61g-ketoan-${suffix}`, Role.ACCOUNTANT));
   dispatcherToken = sign(await mkUser(`q61g-dieuvan-${suffix}`, Role.DISPATCHER));
 });

@@ -1,6 +1,6 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -174,7 +174,7 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     const lotB = await mkLot(customer.id, '2026-09-27');
     const route = await mkRoute(`Debit route ${suffix}`);
     const tripA = await mkTrip(lotA.id, customer.id, route.id);
-    const tripB = await mkTrip(lotB.id, customer.id, route.id);
+    await mkTrip(lotB.id, customer.id, route.id);
     await mkExpense(tripA.id, '250000');
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const itemA = result.items.find((row) => row.shipmentId === lotA.id)!;

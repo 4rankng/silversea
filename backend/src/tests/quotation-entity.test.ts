@@ -19,7 +19,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import {
-  createQuotation, deleteQuotation, getQuotation, updateQuotation,
+  createQuotation, getQuotation, updateQuotation,
 } from '../services/quotation.service';
 import { computeFreightRate } from '@tingting/shared';
 

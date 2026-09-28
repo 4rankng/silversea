@@ -3,7 +3,9 @@ import type {
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
-  DispatchClassification,
+  // DispatchClassification is intentionally NOT imported here: it is re-exported
+  // straight from '../constants' further down, so an import only shadowed that
+  // re-export (flagged unused by @typescript-eslint).
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────

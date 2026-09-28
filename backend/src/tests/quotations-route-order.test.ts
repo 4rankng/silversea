@@ -24,7 +24,6 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import configRoutes, { catalogBootstrapRouter } from '../routes/config';
-import quotationsRouter from '../routes/config/quotations.routes';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { auditLogMiddleware } from '../middleware/audit';

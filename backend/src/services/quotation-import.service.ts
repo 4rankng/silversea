@@ -6,7 +6,7 @@
 // Ruling 6: commit creates a NEW quotation frame — never overwrites.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, ne } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';

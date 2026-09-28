@@ -13,7 +13,6 @@ import * as s from '../db/schema';
 import { and, asc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
-import type { AuthUser } from '../middleware/auth';
 import type { InvoiceTrackingCreateInput, InvoiceTrackingPatchInput } from '@tingting/shared';
 
 const CHI_PHI_HOA_DON = 'Chi phí hóa đơn';

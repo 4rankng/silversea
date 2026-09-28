@@ -13,7 +13,7 @@
  *   AC4 phiếu hoàn ứng: the refs feed the existing expenseReconciliationSchema
  *       (cited, not re-tested here).
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq } from 'drizzle-orm';
 
@@ -31,14 +31,12 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const cleanup: Array<() => Promise<void>> = [];
 const track = (fn: () => Promise<void>) => cleanup.unshift(fn);
 
-let accountant = 0;
 
 async function mkActor() {
   const [acc] = await db.insert(s.users).values({
     username: `card10-${suffix}-acct-${cleanup.length}`, passwordHash: 'x', role: 'ACCOUNTANT',
   }).returning();
   track(async () => { await db.delete(s.users).where(eq(s.users.id, acc.id)); });
-  accountant = acc.id;
   return acc;
 }
 

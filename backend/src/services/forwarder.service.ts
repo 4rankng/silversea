@@ -55,7 +55,6 @@ async function lockTripExpenseMutation(tx: Tx, expenseId: number): Promise<void>
   await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
 }
 
-
 type TripExpenseRequiredFieldState = {
   expenseType: string;
   declarationNumber: string | null;
@@ -206,7 +205,6 @@ export class NoForwarderProfileError extends Error {
     this.name = 'NoForwarderProfileError';
   }
 }
-
 
 export async function getForwarderByUserId(userId: number) {
   const [user] = await db.select({
@@ -365,7 +363,6 @@ async function lockTripExpenseCreateRelationships(
 
   return { trip, tripContainerId, containerLabel };
 }
-
 
 export async function createTripExpense(
   txOrDb: DbOrTx,
@@ -717,42 +714,6 @@ export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
     .leftJoin(s.suppliers, eq(s.tripExpenses.supplierId, s.suppliers.id))
     .where(eq(s.tripExpenses.tripId, tripId))
     .orderBy(desc(s.tripExpenses.createdAt));
-}
-
-export async function deleteTripExpense(expenseId: number, forwarderId: number) {
-  return db.transaction(async (tx) => {
-    await lockTripExpenseMutation(tx, expenseId);
-    const [existing] = await tx.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, expenseId)).limit(1);
-    if (!existing) return null;
-    if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.');
-    if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
-    await assertTripShipmentAccountingUnlocked(tx, existing.tripId);
-    await assertForwarderMutableTripScope(existing.tripId, forwarderId, tx);
-    const scopeKey = existing.tripContainerId ?? -existing.tripId;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
-      .where(eq(s.trips.id, existing.tripId)).limit(1);
-    // O2C: CANCELED trips are immutable; COMPLETED trips allow cost edits
-    // (deletion re-evaluates both snapshots for the reconciliation queues).
-    if (trip?.status === 'CANCELED') {
-      throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã hủy');
-    }
-    const [activeLink] = await tx.select({ id: s.settlementExpenses.id })
-      .from(s.settlementExpenses)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-      .where(and(
-        eq(s.settlementExpenses.tripExpenseId, expenseId),
-        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-      )).limit(1);
-    if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
-    await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
-    await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
-    if (trip?.status === 'COMPLETED') {
-      await SnapshotServices.markBothDirty(existing.tripId, tx);
-    }
-    return 'DELETED';
-  });
 }
 
 export async function deleteTripExpenseInTx(

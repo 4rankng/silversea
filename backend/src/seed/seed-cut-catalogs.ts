@@ -1,4 +1,3 @@
-import { db } from '../db';
 import { seedDriverFeeNorms } from './seed-driver-fee-norms';
 import { seedForwarderExpenseTypes } from './seed-expense-types';
 import { seedXeNhaCustomer } from './seed-xe-nha-customer';

@@ -453,9 +453,8 @@ export async function seedTrips(seedActors: SeedActors & {
       // completion scope, so they must land before the scope rows below.
       const expensePlan = OPS_EXPENSE_PLANS.find(expense => expense.ref === plan.ref);
       if (seedActors.ops && expensePlan) {
-        const { ref: _ref, ...expenseData } = expensePlan;
         await createTripExpense(db, {
-          ...expenseData,
+          ...expensePlan,
           tripId: order.trip.id,
           forwarderId: seedActors.ops.id,
           createdBy: seedActors.ops.id,

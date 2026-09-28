@@ -11,7 +11,7 @@ import type { Tx } from '../services/trip-shared';
 import { upsertExpenseAccountingSource, hydrateExpenseAccountingSource } from '../services/expense-accounting-source.service';
 import { confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { createOpsExpense, updateOpsExpense, deleteOpsExpense } from '../services/ops-expenses.service';
+import { createOpsExpense, updateOpsExpense } from '../services/ops-expenses.service';
 import { assertExpenseOwnerWriteScope, assertOpsExpenseAssignment } from '../services/expense-owner-scope.service';
 import { updateTripExpense, deleteTripExpenseGuarded } from '../services/forwarder.service';
 import { insertTripComposite, getTripCompositeInTx, upsertTripFinancialState } from '../services/trip-composite.service';

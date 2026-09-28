@@ -86,7 +86,11 @@ export async function buildQuotationExport(quotationId: number, version?: number
       }
       cursor += 1;
     }
-    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+    // SAFETY: exceljs types writeBuffer() as StreamingXLSX.Buffer, but it resolves a
+  // Node Buffer once the whole workbook is serialised. Both call sites await
+  // this and pass the Buffer to the XLSX response, so the runtime shape is what
+  // is asserted, not merely assumed.
+  return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
   }
 
   const [frame] = await db.select().from(s.quotations)
@@ -117,7 +121,6 @@ export async function buildQuotationExport(quotationId: number, version?: number
       isNull(s.freightRateTerms.deletedAt),
     ))
     .orderBy(desc(s.freightRateTerms.effectiveDate)).limit(1);
-  const sharePct = termsRow ? Number(termsRow.sharePct) : 2;
   sheet.getCell('A2').value = 'Giá dầu tham chiếu';
   sheet.getCell('B2').value = termsRow ? Number(termsRow.baseFuelPrice) : null;
   sheet.getCell('C2').value = 'Lag Day n';
@@ -220,5 +223,7 @@ export async function buildQuotationExport(quotationId: number, version?: number
     }
     cursor += 1;
   }
+  // SAFETY: as above — exceljs resolves a Node Buffer here, and the caller
+  // awaits it and streams it as the XLSX body.
   return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
 }

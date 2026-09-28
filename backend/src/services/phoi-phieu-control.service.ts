@@ -12,14 +12,11 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
-import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { createExpenseVoucher, getExpenseCashTotals } from './expense-accounting-voucher.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { expenseVndSchema, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
-
-type Executor = Tx | typeof db;
 
 const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
 const liftPort = aliasedTable(s.ports, 'lift_port');
@@ -224,7 +221,6 @@ export async function listPhoiPhieuRows(query: {
     }
     const cusDispatchNotes = [row.customerNote, row.operationalNotes, ...(shipDispatchNotes.get(row.shipmentId) ?? [])]
       .filter((value): value is string => Boolean(value && value.trim()));
-    const dropName = row.dropSite;
     // Eligible-set preview counts (case QA-2026-09-24-01): approved ∧
     // remaining>0 per direction — the same set the consolidated voucher
     // consumes, so the toolbar preview equals the voucher contents.
@@ -327,7 +323,6 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     }
     const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<string, number>();
-    let skipped = 0;
     const seenSourceIds = new Set<number>();
     for (const trip of tripRows) {
       const shipmentId = trip.shipmentId as number;
@@ -338,7 +333,6 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       for (const source of shipmentSources) {
         if (customerId == null) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
-          skipped += 1;
           continue;
         }
         seenSourceIds.add(source.id);
@@ -347,7 +341,6 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         const costSide = Number(source.entryAmount) - Number(source.allocatedAdvanceAmount ?? 0);
         const remaining = Math.max(args.direction === 'IN' ? chargeSide - cash.IN : costSide - cash.OUT, 0);
         if (remaining <= 0) {
-          skipped += 1;
           continue;
         }
         entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining });
@@ -718,6 +711,10 @@ export async function getPhoiPhieuReport(query: {
     if (bucketKey === 'nang') bucket.tienNang += amount;
     else if (bucketKey === 'ha') bucket.tienHa += amount;
     else bucket.psKhac += amount;
+    // SAFETY: `getExpenseCashTotals` takes a transaction handle so its caller can
+    // read inside the same tx; `db` is the module-level handle, which satisfies that
+    // parameter at runtime. The cast only bridges drizzle's `Tx` vs `typeof db`
+    // types — it does not change which connection the query runs on.
     const cash = await getExpenseCashTotals(db as unknown as Tx, source.id);
     bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
     groups.set(party, bucket);

@@ -34,7 +34,6 @@ import { createFulfillmentForAddedContainer, ensureShipmentFulfillmentsInTx, ope
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { assertContainerSetValid } from './shipment-containers.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 
@@ -915,7 +914,7 @@ export async function addCusShipmentContainer(args: {
     // extend a partial set.
     await createFulfillmentForAddedContainer(tx, args.shipmentId, inserted!.id, args.actor.userId);
 
-    const shipmentVersion = await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
+    await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
     void shipment;
 

@@ -16,7 +16,7 @@
  *       sellAmount = charge + invoice number.
  *   Legacy: enum-only entry (no expenseTypeCode) keeps the old heuristic.
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 

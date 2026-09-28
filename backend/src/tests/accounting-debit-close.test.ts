@@ -138,7 +138,7 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
   });
 
   test('null propagation: a bare lot reads Chưa xác định everywhere', async () => {
-    const userId = await mkUser(Role.ACCOUNTANT);
+    await mkUser(Role.ACCOUNTANT);
     const customer = await mkCustomer('ADC N');
     const lot = await mkLot(customer.id, '2026-09-26');
     await mkUser(Role.ADMIN); // keep user counter exercised; unused otherwise

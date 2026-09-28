@@ -12,7 +12,7 @@ import { disconnectRedis } from '../lib/redis';
 import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import { lockShipmentCost, SHIPMENT_COST_LOCKED_MESSAGE } from '../services/shipment-cost-lock.service';
+import { lockShipmentCost } from '../services/shipment-cost-lock.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import shipmentRoutes from '../routes/shipments';
 

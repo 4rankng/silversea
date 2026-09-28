@@ -8,7 +8,7 @@
  *   AC2 board scope: report filter honors accountantId / includeUnassigned /
  *       explicit-null (unassigned-only); absent params = no filtering.
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 

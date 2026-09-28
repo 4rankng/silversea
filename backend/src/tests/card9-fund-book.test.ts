@@ -11,9 +11,9 @@
  *       never mixed in; non-POSTED movements excluded.
  *   AC3 xe-nhà customer code: fill-only seed idempotent.
  */
-import { after, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
