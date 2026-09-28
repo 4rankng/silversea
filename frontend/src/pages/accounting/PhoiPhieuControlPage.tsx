@@ -248,7 +248,7 @@ export default function PhoiPhieuControlPage() {
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
             <th scope="col" className="ppc-col--date">Ngày</th>
-            <th scope="col" className="ppc-col--ghichu">Ghi chú vận đơn</th>
+            <th scope="col" className="ppc-col--ghichu">Ghi chú vận tải (cả cus + điều vận)</th>
             <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>
           </tr></thead>
           <tbody>

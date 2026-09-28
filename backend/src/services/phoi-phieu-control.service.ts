@@ -13,6 +13,7 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { createExpenseVoucher, getExpenseCashTotals } from './expense-accounting-voucher.service';
+import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { expenseVndSchema, TripStatus } from '@tingting/shared';
@@ -375,10 +376,18 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
   return outer ? run(outer) : db.transaction(run);
 }
 
+/** Card 20260928_167/170 — the STK field offers the TWO fund sources only.
+ *  `type='CASH'` alone also matched accounts nobody assigned a fund to
+ *  (`fund_code IS NULL`), and the voucher engine then refuses that choice
+ *  (`assertTreasuryFundAssigned`, treasury.service.ts), so the board could
+ *  offer an STK the accountant can never post against. `FUND_SOURCES` is the
+ *  same constant the fund book groups by, so the two cannot disagree about
+ *  what a fund source is. */
 export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: string; name: string }>> {
   return db.select({ id: s.treasuryAccounts.id, code: s.treasuryAccounts.code, name: s.treasuryAccounts.name })
     .from(s.treasuryAccounts)
-    .where(and(eq(s.treasuryAccounts.status, 'ACTIVE'), eq(s.treasuryAccounts.type, 'CASH')))
+    .where(and(eq(s.treasuryAccounts.status, 'ACTIVE'), eq(s.treasuryAccounts.type, 'CASH'),
+      inArray(s.treasuryAccounts.fundCode, [...FUND_SOURCES])))
     .orderBy(asc(s.treasuryAccounts.code));
 }
 
