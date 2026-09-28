@@ -27,6 +27,7 @@ import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot } from './debit-settlement-shared';
+import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -347,6 +348,14 @@ export async function getAccountingDebitBoard(query: {
     phanXeByLot.set(lotId, [...new Set(labels)]);
   }
 
+  // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
+  // "Ghi chú" column that was hardcoded null, so the reason an uncharged Ops
+  // cost is REQUIRED to carry never reached the page whose title matches the
+  // card verbatim — and the page where kế toán ticks rows and bills the customer
+  // on the debit. Reuses the SAME projection as the dispatch board; no second
+  // copy of the note is derived here. Same executor default (db) as this file.
+  const opsNotesByShipment = await loadDispatchExpenseNotes(lots.map((lot) => lot.id));
+
   // Row assembly — P1 arithmetic: Tổng 1 EXCLUDES Phí RU; lợi nhuận =
   // Tổng thu − Tổng 1 − Phí RU (null when any component null).
   const items: AccountingDebitBoardRow[] = lots.map((lot) => {
@@ -403,7 +412,7 @@ export async function getAccountingDebitBoard(query: {
       thu: { cuocThu, lachHuyen: lachHuyenThu, phuPs, phatSinhCus, tongThu },
       tra: { cuocTraDv, lachHuyenDv, phatSinhDv, tong1, phiRu },
       loiNhuan,
-      ghiChu: null,
+      ghiChu: opsNotesByShipment.get(lot.id)?.join(' · ') ?? null,
       adjustment: adj == null
         ? { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null }
         : {

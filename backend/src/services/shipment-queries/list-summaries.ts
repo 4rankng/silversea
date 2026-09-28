@@ -840,7 +840,13 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       items.map((row) => row.shipment),
     );
   }
-  const opsRecoveryNotes = options.actor && [Role.ADMIN, Role.DISPATCHER].includes(options.actor.role)
+  // Card 20260928_162 criterion 3. This projection was written for
+  // "cus/accounting" (dispatch-expense-notes.service.ts header, card
+  // 20260921_5), yet the gate handed the map to ADMIN/DISPATCHER only — so both
+  // roles the card names received an empty array on the board it names, and the
+  // reason an uncharged Ops cost is REQUIRED to carry reached nobody.
+  const opsRecoveryNotes = options.actor
+    && [Role.ADMIN, Role.DISPATCHER, Role.ACCOUNTANT, Role.CUS].includes(options.actor.role)
     ? await loadDispatchExpenseNotes(items.map(row => row.shipment.id)) : new Map<number, string[]>();
   const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),

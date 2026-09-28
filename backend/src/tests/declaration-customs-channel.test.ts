@@ -222,3 +222,64 @@ describe('card 20260919_5 — declaration-level customs channel', () => {
     assert.equal(rows.length, 1, 'the locked row must survive');
   });
 });
+
+// Card 20260928_162 criterion 3 — the read path for the two roles the card
+// names. The projection was written for "cus/accounting" (card 20260921_5), but
+// the gate handed it to ADMIN/DISPATCHER only, so BOTH named readers received an
+// empty array on the board the card names. This asserts on the endpoint each
+// role can actually read that the mandatory reason arrives.
+//
+// Rung note: this is the CUS read path (CUS has no page that renders the note —
+// App.tsx:187-191 dispatchOnly keeps it out of both dispatch boards, and
+// /accounting/debit-board is 403 for CUS). ACCOUNTANT's page-reachable path is
+// pinned in accounting-debit-close.test.ts.
+describe('card 20260928_162 — the uncharged Ops reason reaches kế toán / CUS', () => {
+  type NoteRow = { id: number; opsRecoveryNotes?: string[] };
+  const isNoteRow = (value: unknown): value is NoteRow =>
+    typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'number';
+
+  async function listAs(token: string, query: string) {
+    const response = await fetch(`${baseUrl}/api/shipments${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload: unknown = await response.json().catch(() => null);
+    const items = payload && typeof payload === 'object' && 'items' in payload && Array.isArray(payload.items)
+      ? payload.items.filter(isNoteRow)
+      : [];
+    return { status: response.status, items };
+  }
+
+  test('ACCOUNTANT and CUS both receive opsRecoveryNotes on the lot list', async () => {
+    const shipmentId = await mkCustomerShipment('162notes');
+    const [lot] = await db.select({ code: s.shipments.shipmentCode }).from(s.shipments)
+      .where(eq(s.shipments.id, shipmentId));
+    const reason = 'Chi nội bộ, không thu khách';
+    const [ops] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId, expenseTypeCode: 'OTHER', amount: '20000',
+      customerChargeAmount: '0', paidById: cusId, paidAt: '2026-09-19', note: reason,
+    }).returning();
+
+    try {
+      const accountant = await mkUser(Role.ACCOUNTANT);
+      const accountantToken = jwt.sign({
+        userId: accountant.id, username: accountant.username ?? `user-${accountant.id}`,
+        email: null, fullName: null, role: Role.ACCOUNTANT, customerId: null, customerIds: [],
+      }, config.jwtSecret);
+
+      for (const [label, token] of [['CUS', cusToken], ['ACCOUNTANT', accountantToken]] as const) {
+        const res = await listAs(token, `?q=${encodeURIComponent(lot!.code ?? '')}`);
+        assert.equal(res.status, 200, `${label} must be able to read the lot list — got ${res.status}`);
+        const row = res.items.find((item) => item.id === shipmentId);
+        assert.ok(row, `${label}: the lot must be on the list`);
+        assert.ok(
+          row!.opsRecoveryNotes?.includes(reason),
+          `${label} must receive the mandatory reason on this endpoint; got ${JSON.stringify(row!.opsRecoveryNotes)}`,
+        );
+        // Standing ruling of the shared projection: the amount never rides along.
+        assert.ok(!JSON.stringify(row!.opsRecoveryNotes).includes('20000'), `${label}: no amount in the notes`);
+      }
+    } finally {
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, ops.id));
+    }
+  });
+});

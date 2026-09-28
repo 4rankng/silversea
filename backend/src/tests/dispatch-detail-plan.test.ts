@@ -246,7 +246,7 @@ type DetailPlanRow = {
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
-  notes: { vehicleNote: string | null; customerNote: string | null };
+  notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     // Carrier-less planned rows surface as null — the editor auto-loads the
     // own-fleet truck list for them and promotes via the atomic plan save.
@@ -770,6 +770,51 @@ describe('dispatch detail plan rows', () => {
       token: signToken(unscoped),
     });
     assert.equal(unscopedResponse.status, 403);
+  });
+
+  // Card 20260928_162 criterion 3. This route already ADMITTED accountant
+  // (requireRoles at dispatch-planning.routes.ts:165, and assertDispatchReadActor
+  // lists it), yet the note map was blanked for exactly that role — so the reason
+  // an uncharged Ops cost is REQUIRED to carry reached nobody on the board kế
+  // toán triage. CUS is NOT assertable here: this route 403s CUS, and its read
+  // path is pinned in declaration-customs-channel.test.ts.
+  test('ACCOUNTANT receives the uncharged Ops reason on the detail plan', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(shipment.customerId != null, 'allocated fixture must carry a catalog customer');
+    const accountant = await mkUser(Role.ACCOUNTANT, 'accountant-notes');
+    await db.insert(s.userCustomerLinks).values({ userId: accountant.id, customerId: shipment.customerId });
+    const token = jwt.sign({
+      userId: accountant.id,
+      username: accountant.username,
+      email: null,
+      fullName: null,
+      role: Role.ACCOUNTANT,
+      customerId: shipment.customerId,
+      customerIds: [shipment.customerId],
+    }, config.jwtSecret);
+
+    const reason = 'Chi nội bộ, không thu khách';
+    const [ops] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: shipment.id, expenseTypeCode: 'OTHER', amount: '20000',
+      customerChargeAmount: '0', paidById: accountant.id, paidAt: '2026-09-19', note: reason,
+    }).returning();
+
+    try {
+      const res = await apiFetch<{ items: DetailPlanRow[] }>(
+        `/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`,
+        { token },
+      );
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      const notes = res.data.items[0]?.notes.opsRecoveryNotes ?? [];
+      assert.ok(
+        notes.includes(reason),
+        `kế toán must read the mandatory reason on this board; got ${JSON.stringify(notes)}`,
+      );
+      // Standing ruling of the shared projection: the amount never rides along.
+      assert.ok(!JSON.stringify(notes).includes('20000'), 'no amount in the notes');
+    } finally {
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, ops.id));
+    }
   });
 
   test('delivery point facet endpoint lists distinct sites', async () => {

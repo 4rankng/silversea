@@ -248,6 +248,45 @@ describe('accounting debit-close board (card 20260921_21 CORE)', () => {
     assert.ok(ids.includes(lotSep.id), 'September lot present');
     assert.ok(!ids.includes(lotOct.id), 'October lot absent');
   });
+
+  // Card 20260928_162 criterion 3 (lead ruling (b)). The reason an uncharged Ops
+  // cost is REQUIRED to carry is enforced server-side; this pins that kế toán can
+  // actually READ it on the board whose title matches the card verbatim. Before
+  // this, the column was hardcoded null, so the mandatory reason reached nobody.
+  test('card 20260928_162: the uncharged reason reaches kế toán on this board', async () => {
+    const userId = await mkUser(Role.ACCOUNTANT);
+    const customer = await mkCustomer('ADC 162');
+    const route = await mkRoute('ADC 162 route');
+    const lot = await mkLot(customer.id, '2026-09-26', { routeId: route.id });
+    const reason = 'Chi nội bộ, không thu khách';
+    const [uncharged] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: lot.id, expenseTypeCode: 'OTHER', amount: '20000',
+      customerChargeAmount: '0', paidById: userId, paidAt: '2026-09-19', note: reason,
+    }).returning();
+    await track(s.opsExpenseEntries, uncharged);
+
+    const result = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
+    const row = result.items.find((r) => r.shipmentId === lot.id)!;
+    assert.ok(row, 'row present in the September window');
+    assert.equal(row.ghiChu, reason, 'the mandatory reason must be readable on this board');
+    // Standing ruling of the shared projection: the AMOUNT never enters it.
+    assert.ok(!row.ghiChu!.includes('20000'), 'no amount in the note column');
+
+    // A charged row keeps its own behaviour — it surfaces by FEE NAME (card
+    // 20260921_5), so reusing the projection here must not change that.
+    const [charged] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: lot.id, expenseTypeCode: 'OTHER', amount: '40000',
+      customerChargeAmount: '60000', paidById: userId, paidAt: '2026-09-19', feeName: 'Phí xe nâng QA',
+    }).returning();
+    await track(s.opsExpenseEntries, charged);
+    const withCharged = await getAccountingDebitBoard({ dateFrom: '2026-09-01', dateTo: '2026-09-30' });
+    const row2 = withCharged.items.find((r) => r.shipmentId === lot.id)!;
+    assert.ok(
+      row2.ghiChu?.includes('Thu khách: Phí xe nâng QA'),
+      `a charged no-invoice fee still surfaces by fee name; got ${JSON.stringify(row2.ghiChu)}`,
+    );
+    assert.ok(!row2.ghiChu!.includes('40000') && !row2.ghiChu!.includes('60000'), 'no amounts in the note column');
+  });
 });
 
 async function livePendingId(shipmentId: number): Promise<number> {

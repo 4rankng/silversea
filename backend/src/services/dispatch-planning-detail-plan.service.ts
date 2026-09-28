@@ -475,7 +475,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     ]);
     const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
-    const opsRecoveryNotes = input.actor.role === Role.ACCOUNTANT ? new Map<number, string[]>() : await loadDispatchExpenseNotes(shipmentIds, tx);
+    // Card 20260928_162 criterion 3. Kế toán reads this board too: the route
+    // admits ACCOUNTANT (dispatch-planning.routes.ts:165) and
+    // assertDispatchReadActor lists it. The reason an uncharged Ops cost MUST
+    // carry is exactly what they triage. Blanking the map here was an oversight
+    // of the bulk patch a980c53c, not a redaction — this projection still carries
+    // free text only, never an amount (file standing ruling), so opening it for
+    // ACCOUNTANT does not widen what the role can see.
+    const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
