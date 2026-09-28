@@ -10,7 +10,7 @@
 
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loadEnv } from '../lib/env.mjs';
+import { loadEnv, blockedForMissingRole } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
 import { tagNonPassErrors } from '../lib/env-tag.mjs';
 
@@ -40,15 +40,24 @@ async function main() {
     throw new Error(`case file must export default function; got ${typeof caseMod.default}`);
   }
 
-  const ctx = await createSession({ env, role: caseMod.role, evidenceDir, runId });
+  const ctx = await createSession({ env, role: caseMod.role, evidenceDir, runId }).catch((e) => {
+    // Card 20260928_157: a role this env has no account for is BLOCKED, not a
+    // crash. See lib/env.mjs → missingRoleError / blockedForMissingRole.
+    if (e.code === 'NO_ROLE_CANDIDATES') return null;
+    throw e;
+  });
   const helpers = { env, evidenceDir, runId };
 
   const t0 = Date.now();
   let result;
-  try {
-    result = await caseMod.default(ctx, helpers);
-  } catch (e) {
-    result = { verdict: 'ERROR', errors: [e.stack || e.message] };
+  if (ctx === null) {
+    result = blockedForMissingRole(caseMod.role, env.env);
+  } else {
+    try {
+      result = await caseMod.default(ctx, helpers);
+    } catch (e) {
+      result = { verdict: 'ERROR', errors: [e.stack || e.message] };
+    }
   }
   // Card 20260928_189: a BLOCKED verdict must name the env, enforced here so
   // no case can forget. See lib/env-tag.mjs for why this is the boundary.
@@ -63,7 +72,7 @@ async function main() {
   console.log(`[run-case] ${result.verdict || 'INCONCLUSIVE'} in ${durationMs}ms`);
   console.log('[run-case] summary written to', path.join(evidenceDir, 'results.json'));
 
-  await ctx.close();
+  if (ctx) await ctx.close();
   process.exit(result.verdict === 'PASS' ? 0 : 1);
 }
 

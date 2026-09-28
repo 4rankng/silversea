@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseAccountsTxt } from './env.mjs';
+import { parseAccountsTxt, missingRoleError, blockedForMissingRole } from './env.mjs';
+import { tagNonPassErrors } from './env-tag.mjs';
 
 // Card _46: prose prefixes on a role line must never become username
 // candidates — the DRIVER line used to start with "38 named drivers…",
@@ -30,4 +31,29 @@ test('old prose-first format loses the first listed driver but stays parseable',
   // entry (and bqhuong inside it) is filtered — this is why the fixture file
   // now lists usernames FIRST.
   assert.deepEqual(old.staging.DRIVER, ['btdung']);
+});
+
+// Card 20260928_157: CUSTOMER is local-only, so pointing a runner at staging
+// used to kill the whole topic with `FATAL no username for role CUSTOMER`
+// (exit 2) — a crash, not a verdict. The role gap is now a marked error the
+// runners turn into a BLOCKED result.
+test('a role the env has no account for raises a marked error, not a bare throw', () => {
+  const err = missingRoleError('CUSTOMER', 'staging');
+  assert.equal(err.code, 'NO_ROLE_CANDIDATES');
+  assert.equal(err.role, 'CUSTOMER');
+  assert.match(err.message, /no username for role CUSTOMER in env staging/);
+});
+
+test('the missing-role result is BLOCKED and leads with the env', () => {
+  const blocked = blockedForMissingRole('CUSTOMER', 'staging');
+  assert.equal(blocked.verdict, 'BLOCKED');
+  assert.equal(blocked.errors.length, 1);
+  assert.ok(blocked.errors[0].startsWith('[staging] '), 'the env must lead the message');
+});
+
+test('the runner boundary does not double-tag the missing-role BLOCKED', () => {
+  const blocked = blockedForMissingRole('CUSTOMER', 'staging');
+  tagNonPassErrors(blocked, { env: 'staging' });
+  const tags = [...blocked.errors[0].matchAll(/\[\s*(?:local|staging)\s*\]/g)];
+  assert.equal(tags.length, 1, 'exactly one env tag, not two');
 });

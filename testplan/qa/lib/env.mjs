@@ -75,6 +75,38 @@ export async function loadEnv() {
 }
 
 /**
+ * Card 20260928_157: a role the env simply does not have is not an exception,
+ * it is a BLOCKED run.
+ *
+ * CUSTOMER is local-only by design — prod has no customer-portal users, so
+ * `make stgdb` mirrors none to staging. Before this, pointing any runner at
+ * staging made `createSession` throw `no username for role CUSTOMER`, and
+ * run-all's per-role `createSession` sits OUTSIDE its per-case try/catch: the
+ * topic died with `FATAL ... no username for role CUSTOMER` (exit 2) instead
+ * of reporting the role as unavailable. A crash reads like a harness defect;
+ * BLOCKED naming the env reads like what it is.
+ *
+ * The marker travels on the error so both runners can recognise it without
+ * string-matching the message.
+ */
+export function missingRoleError(role, envName) {
+  const err = new Error(`no username for role ${role} in env ${envName}; check testplan/testaccounts.txt`);
+  err.code = 'NO_ROLE_CANDIDATES';
+  err.role = role;
+  return err;
+}
+
+/** The BLOCKED verdict for every case of a role this env cannot log in. */
+export function blockedForMissingRole(role, envName) {
+  return {
+    verdict: 'BLOCKED',
+    errors: [
+      `[${envName}] role ${role} has no account in env ${envName} — no case for this role can log in here; add a ${role} user to testplan/testaccounts.txt or run this topic on an env that has one`,
+    ],
+  };
+}
+
+/**
  * Fail loudly when the stack is not the one the harness thinks it is.
  *
  * Card 20260928_192. The silent version of this bug is expensive: point the

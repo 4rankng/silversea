@@ -15,6 +15,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { QE } from './selectors.mjs';
+import { missingRoleError } from './env.mjs';
 
 const SETTLE_DEFAULT_MS = 500;
 const NAV_TIMEOUT_MS = 30000;
@@ -43,7 +44,7 @@ export async function createSession({ env, role, evidenceDir, runId }) {
   const override = process.env[`QA_USER_${role}`];
   const candidates = override ? [override] : env.candidatesFor(role).filter((u) => /^[a-z][a-z0-9-]+$/i.test(u));
   if (candidates.length === 0) {
-    throw new Error(`no username for role ${role} in env ${env.env}; check testplan/testaccounts.txt`);
+    throw missingRoleError(role, env.env);
   }
 
   // Get token via API (fast, no DOM interaction)

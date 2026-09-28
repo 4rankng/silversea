@@ -36,6 +36,9 @@ testplan/qa/
 │       ├── TC-CUS-CREATE-023.mjs   # Cảng nâng/hạ X clear
 │       ├── TC-CUS-CREATE-026.mjs   # Duplicate BL guard
 │       └── TC-CUS-CREATE-028.mjs   # Overview ↔ detail sync
+│   └── portal-customer/       # CUSTOMER role — LOCAL-ONLY (no CUSTOMER user
+│       ├── index.mjs          #   on staging; run-all reports it BLOCKED there)
+│       └── TC-PORTAL-SHIP-001.mjs  # /portal/shipments row-scope, no leak
 └── evidence/
     ├── _legacy/               # all pre-consolidation artifacts (date-prefixed)
     └── <timestamp>_<pid>_<topic>/  # one unique folder per attempt
@@ -60,6 +63,12 @@ live in `testplan/cycles/<YYYY-MM>/` (moved 2026-09-27). `testplan/README.md` is
 - **Role is the only thing cases hardcode.** Username is picked by the harness
   from `testplan/testaccounts.txt` for the active env. A case declares its
   `role` and the harness picks the right user.
+- **A role the env does not have is BLOCKED, never a crash.** `CUSTOMER` and
+  `MANAGER` are local-only (prod has no such users, so staging mirrors none).
+  When a role has no candidate in the active env, `run-all`/`run-case` report
+  every case of that role BLOCKED naming the env (`lib/env.mjs`
+  `blockedForMissingRole`) — the topic still exits nonzero, and the run stays
+  readable instead of dying with `FATAL no username for role …`.
 
 ## Running
 

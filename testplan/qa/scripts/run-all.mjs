@@ -8,7 +8,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loadEnv } from '../lib/env.mjs';
+import { loadEnv, blockedForMissingRole } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
 import { runExitCode } from '../lib/run-result.mjs';
 import { tagNonPassErrors } from '../lib/env-tag.mjs';
@@ -55,7 +55,24 @@ async function main() {
   const allResults = [];
   for (const [role, cases] of byRole.entries()) {
     console.log(`\n[run-all] — role ${role}: ${cases.length} case(s)`);
-    const ctx = await createSession({ env, role, evidenceDir, runId });
+    let ctx;
+    try {
+      ctx = await createSession({ env, role, evidenceDir, runId });
+    } catch (e) {
+      // Card 20260928_157: a role this env has no account for (CUSTOMER is
+      // local-only — prod has no portal users) blocks every case of that role.
+      // Before, this throw sat outside the per-case try/catch and the whole
+      // topic died with FATAL + exit 2 instead of reporting the gap.
+      if (e.code !== 'NO_ROLE_CANDIDATES') throw e;
+      const blocked = blockedForMissingRole(role, env.env);
+      for (const c of cases) {
+        const row = { caseId: c.id, role, file: c.file, durationMs: 0, ...blocked };
+        allResults.push(row);
+        console.log(`  ${row.caseId}: ${row.verdict} (no ${role} account in ${env.env})`);
+        console.log('    errors:', row.errors);
+      }
+      continue;
+    }
     for (const c of cases) {
       const t0 = Date.now();
       let result;
