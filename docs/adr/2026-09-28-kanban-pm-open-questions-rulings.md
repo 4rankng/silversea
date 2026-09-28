@@ -132,6 +132,22 @@ The PM's source document says the same thing and is even more specific: the note
 goes on "bảng kế hoạch điều vận", "để kế toán/cus tích vào và thu khách hàng
 trên debit".
 
+**Correction (2026-09-29, after reading the source).** The backend half of
+card 162 already shipped: `createOpsExpense` refuses a line that is not charged
+to the customer unless it carries a reason — *"Dòng chi không thu khách hàng thì
+bắt buộc nhập ghi chú — ghi rõ lý do để kế toán / CUS đọc được"*
+(`backend/src/services/ops-expenses.service.ts:227`). So the validation and
+persistence exist; what is genuinely missing is the **surface**: no frontend
+calls `GET /api/expense-accounting/ops-review` at all, so neither CUS nor the
+accountant can read the reason on a list today. Card 162 is a UI/consumer gap,
+not a validation gap.
+
+That guard also had a side effect worth recording: its fixtures create
+`customerChargeAmount: 0` lines without a note, so
+`card11-reconciliation-report.test.ts` was left **red on trunk** (1/3) by the
+guard landing. Fixed in `b0354126` — a third instance of the same pattern in
+this codebase, where a backend rule lands and takes an existing suite with it.
+
 Both candidate answers on the card are therefore wrong as stated:
 - option (b), widening the accounting debit-close board, is **not** a surface the
   PRD names, and that board's "Ghi chú" is the accountant's own working column;
