@@ -243,6 +243,23 @@
   min-width: 240px;
   max-width: 300px;
 }
+/* The rule above states the intent: the search and `Bộ lọc` ALWAYS share the
+   primary row. The 240px floor is measured for a 566px bar — but on a phone the
+   bar's inner width is ~350px, and 240 (search) + 104 (`Bộ lọc`) + 16 (gap) =
+   360 does not fit, so the search took a line of its own and `Bộ lọc` was
+   orphaned below it. That is the exact layout the law forbids, and it is what
+   the operator's phone screenshot shows.
+
+   So the FLOOR yields, not the intent: on a phone the search gives up enough
+   width for the pair to share one line. Desktop keeps 240 — there the search
+   still fits beside the from/to group and the strip holds two rows. */
+@media (max-width: 767px) {
+  .filter-bar > .filter-bar__search,
+  .filter-bar__search-cell {
+    flex-basis: 200px;
+    min-width: 200px;
+  }
+}
 .filter-bar__search-cell {
   display: grid;
   align-content: end;

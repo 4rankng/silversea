@@ -101,19 +101,38 @@
    where there IS more. Above the band the group shrink-wraps, leaves no empty
    space, and needs no mask. */
 @media (max-width: 815px) {
+  /* The four status cells are a FIXED set, and the reference for that case is
+     explicit: `a-c-tabs-07` "Pills Justified" — "evenly distributed to fill the
+     full container width … use when you have a small, fixed number of tab
+     options (2-4)". Four tabs, one row, every option visible.
+
+     This replaces a horizontally SCROLLING strip. Scrolling was defensible in
+     the abstract but it did not look right: the four cells are 429px of
+     content in a 370px strip, so the last tab was always sliced mid-word, and
+     the `mask-image` fade — added to signal "more this way" — faded the text
+     itself, so a live, clickable tab read as disabled. A filter whose options
+     are half off-screen is not a filter the operator can use.
+
+     The cells now take an EQUAL share (≈92px each). A long label wraps to a
+     second line inside its own cell rather than being cut by the container,
+     which is the §4 no-truncation rule applied to the control. The group's
+     shape, selected pill and count tones are the primitive's, untouched. */
   .shipments-control__tabs {
     flex: 1 1 100%;
     flex-wrap: nowrap;
-    width: max-content;
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    /* The last cell is cut at the container edge, which reads as a rendering
-       fault unless the edge itself says "there is more this way". A soft fade
-       on the trailing edge is the affordance; the primitive's shape, selected
-       state and counts stay untouched. */
-    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+    width: 100%;
+  }
+  .shipments-control__tabs .ds-tabs {
+    width: 100%;
+  }
+  .shipments-control__tabs .ds-tabs__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    /* Justified cells buy their share back from the chrome, not from the
+       label: the boxed cell's 10px side padding is the widest thing here. */
+    padding-inline: 4px;
+    gap: 4px;
   }
 }
 
@@ -474,22 +493,17 @@
 .cus-dashboard-row:hover > th,
 .cus-dashboard-row:hover > td { background: var(--surface-2); }
 
-/* A full-row cream fill stops being a signal once waiting rows dominate a
-   page (the unfiltered view is often all-waiting). Tint only the schedule
-   cell — the one that needs the dispatcher's action — so the highlight lands
-   where "Chưa chốt ngày" already explains it. Identity keeps its per-bucket
-   status strip; the rest of the row stays neutral. */
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] { background: var(--warning-soft); }
-
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td[data-label='Lịch trình & điều xe'] { background: color-mix(in srgb, var(--warning-soft) 78%, var(--warning) 8%); }
-
-/* The cell trigger's surface-2 hover would erase the tint from the only cell
-   that carries it; blend that hover toward the warning tone instead. The
-   trigger hover border still signals clickability. */
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] .cus-inline-trigger:not(:disabled):hover {
-  background: color-mix(in srgb, var(--warning-soft) 78%, var(--warning) 8%);
-}
-
+/* The attention signal lives in the CELL'S TEXT, not in a colour field. This
+   sheet used to tint the whole schedule cell cream, and its own reasoning said
+   the right thing: "a full-row cream fill stops being a signal once waiting
+   rows dominate a page (the unfiltered view is often all-waiting)". A
+   full-CELL fill fails that test for the same reason — the unfiltered view
+   here is nearly all-waiting, so the tint covered 100% of the column and
+   signalled nothing while becoming the loudest thing on screen: a solid beige
+   band the full height of the table. "Chưa chốt ngày" already renders in the
+   warning ink, and the row keeps its per-bucket StatusStrip, so dropping the
+   fill costs no information. §10 is the same rule from the parity side: a
+   status is the 3×20px strip, never a full-height colour fill. */
 .cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
 
 .cus-dashboard-cell--editable { padding: 0 !important; }
@@ -957,29 +971,42 @@
   .cus-dashboard-table .cus-inline-trigger[data-cell-short]::before {
     content: attr(data-cell-short);
   }
-  /* Every fact in a cell joins the next with a ` · ` separator so the inline
-     run stays readable ("Chưa chốt ngày · Toàn bộ chờ phân xe"). Before this
-     the separator existed only on all-placeholder cells (`data-facts="inline"`),
-     so a populated cell's facts ran together the moment the stack went inline.
-     The markup flag is now irrelevant here — the phone card always joins. */
-  /* The schedule cell paints its facts straight into the trigger (no
-     `.cus-multiline-cell` wrapper), so the separator is stated for the
-     trigger's DIRECT children too — otherwise that cell alone still printed
-     "Chưa chốt ngàyToàn bộ chờ phân xe" with the two facts fused. */
-  .cus-dashboard-table .cus-multiline-cell > *::after,
-  .cus-dashboard-table .cus-inline-trigger > *::after {
-    color: var(--ink-3);
-    content: ' ·';
-    margin-left: 6px;
+  /* Facts are separated by WEIGHT, not punctuation. The reference
+     (tailwind `a-c-list-groups-01`, "With Text") separates a label from its
+     value with alignment and weight and never a bullet glyph; law §1 is the
+     same rule in this codebase — "data cells are text-only, no decorative
+     icons beside the value".
+
+     A ` · ` separator was tried here and reverted: a cell's facts wrap at
+     arbitrary points, so a trailing separator strands a dot at the end of one
+     line while the next line opens with another (measured on the phone card:
+     "DNKM13338" ended a line with a dot and "Chưa có tờ khai" opened the next
+     with one). The glyph cannot know where the line will break.
+
+     What separates a fact is already in the markup: the primary fact is a
+     `strong` in the data face, every secondary fact is muted. That contrast
+     carries the distinction with no glyph to strand. */
+  /* Label + FIRST fact share one line; every later fact takes its own line —
+     "Chứng từ  DNKM13338" then "Chưa có tờ khai" underneath. Nothing is
+     trying to share a line after the first, so there is no "where does one
+     fact end" question and no glyph to strand.
+
+     `:first-child`, NOT `:first-of-type`: these cells alternate `strong` and
+     `span`, and `:first-of-type` matched the first `strong` AND the first
+     `span` — which fused the first two facts into "DNKM13338Chưa có tờ
+     khai". Position, not type, is what "share a line with the label" means. */
+  .cus-dashboard-table .cus-multiline-cell > *,
+  .cus-dashboard-table .cus-inline-trigger > * {
+    display: block;
   }
-  .cus-dashboard-table .cus-multiline-cell > *:last-child::after,
-  .cus-dashboard-table .cus-inline-trigger > *:last-child::after {
-    content: none;
+  .cus-dashboard-table .cus-multiline-cell > *:first-child,
+  .cus-dashboard-table .cus-inline-trigger > *:first-child {
+    display: inline;
   }
-  /* The fact stack flows as one inline run inside the cell, so a second fact
-     continues on the SAME line as the label instead of starting a new one.
-     `display: grid` here is what kept every card two lines taller than the
-     text actually needs. */
+  /* The fact stack itself stays an inline run so the LABEL (`::before`, which
+     lives on the trigger) and the first fact land on the same line; the
+     children above decide where each later fact breaks. `display: grid` here
+     was what kept every card two lines taller than the text actually needs. */
   .cus-dashboard-table .cus-multiline-cell {
     display: inline;
   }
@@ -1000,9 +1027,6 @@
   }
   .cus-dashboard-table .cus-classification__shipping-line { flex-basis: 100%; }
   .cus-dashboard-table .cus-classification .cus-direction-badge { margin: 0; }
-  .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] {
-    background: transparent;
-  }
   .cus-dashboard-table .cus-dashboard-cell--empty-notes .cus-inline-trigger {
     min-height: 32px;
     align-content: center;

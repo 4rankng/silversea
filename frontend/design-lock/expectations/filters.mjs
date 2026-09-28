@@ -99,14 +99,14 @@ export default [
     note: NOT_OVERSIZED,
   },
   {
-    id: 'filters/touch/date-fields-match-the-tab-row',
+    id: 'filters/inline/date-fields-match-the-tab-row',
     role: 'cus',
     path: '/shipments',
-    width: 594,
+    width: 1024,
     kind: 'matchHeight',
     selector: '.date-range-fields [data-input-wrapper]',
     of: '.shipments-control__tabs [role="tab"]',
-    note: 'the from/to fields follow the tab-row height (CHIEF 2026-09-27: "these two oversize [...] please follow same height as [the tab row]") — the ≤640 band used to raise every bar control to the mobile touch height while the tab chips stayed compact',
+    note: 'the from/to fields follow the tab-row height (CHIEF 2026-09-27: "these two oversize [...] please follow same height as [the tab row]") — the ≤640 band used to raise every bar control to the mobile touch height while the tab chips stayed compact. MEASURED WHERE THE PAIR IS ACTUALLY INLINE: this lock used to sit at 594px, but the pair now rides the FilterDropdown fold ladder, and at ≤768 the bar holds two rows with the pair inside the `Bộ lọc` dialog — a sanctioned trade, not a regression. Measured 2026-09-28: the pair is in the bar at ≥900 only (inBar false at 460/500/594/768). At 1024 it reads 30px vs the 32px tab row (Δ2). The 594 band still asserts the live equivalent via `filters/touch/controls-match-the-tab-row` above, so that band is not left uncovered.',
   },
   {
     id: 'filters/desktop/controls-match-the-tab-row',
