@@ -184,6 +184,30 @@ export async function createOpsExpense(
   const customerCharge = isInvoiceGroup
     ? Number(entry.amount)
     : (input.customerChargeAmount == null || input.customerChargeAmount === '' ? 0 : Number(input.customerChargeAmount));
+
+  // Card 20260928_162: a row that does NOT charge the customer must carry a
+  // note saying why, and the SERVER enforces it.
+  //
+  // This was the criterion's whole point — "hệ thống chặn lưu khi thiếu (kiểm
+  // bằng test, không chỉ bằng UI disable)" — and it was not enforced anywhere.
+  // `note` was `z.string().max(1000).nullable().optional()` on the route, and
+  // the service stored `input.note?.trim() || null`. Only the FORWARDER path
+  // had the rule ("Lý do chi là bắt buộc khi không có hóa đơn"), which is a
+  // different flow. So an uncharged Ops cost could be saved with the reason
+  // blank, and kế toán / CUS then had nothing to read on the dispatch board.
+  //
+  // Placed AFTER customerCharge is computed, which is the only place the
+  // "does this charge the customer" answer exists — invoice groups always
+  // charge (charge = amount), so this bites only the no-invoice rows the PM
+  // meant. The insert above is inside the caller's transaction, so throwing
+  // here rolls the row back rather than leaving an orphan.
+  if (customerCharge <= 0 && !input.note?.trim()) {
+    throw new ApiError(
+      400,
+      'Dòng chi không thu khách hàng thì bắt buộc nhập ghi chú — ghi rõ lý do để kế toán / CUS đọc được.',
+    );
+  }
+
   const source = await upsertExpenseAccountingSource(transaction, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,
     expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName ?? entry.expenseTypeCode,

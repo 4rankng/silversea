@@ -490,7 +490,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     await db.insert(s.userShipmentLinks).values({ userId: ops2.id, shipmentId });
     const shared = await api('/expenses', {
       method: 'POST', token: ops2Token,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     assert.equal(shared.status, 201);
     createdExpenseIds.push(shared.body.id);
@@ -514,7 +514,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('settlement freeze; later entries stay open (KP-149: batch decisions removed)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     createdExpenseIds.push(created.body.id);
 
@@ -548,7 +548,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const after = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     createdExpenseIds.push(after.body.id);
     assert.equal(after.body.opsSettlementId, null);

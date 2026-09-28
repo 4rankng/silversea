@@ -131,6 +131,71 @@ describe('card 20260921_5 — no-invoice charge pair', () => {
     assert.ok(entry, 'the expense entry exists');
     assert.equal(String(entry.customerChargeAmount), '100000');
   });
+  // Card 20260928_162 criterion 2. The PM was explicit that this must be
+  // enforced by the SYSTEM, not by a disabled button: "hệ thống chặn lưu khi
+  // thiếu (kiểm bằng test, không chỉ bằng UI disable)". Nothing enforced it —
+  // `note` was optional on the route and the service stored null.
+  test('an UNCHARGED no-invoice row is refused server-side when the note is blank', async () => {
+    await mkLinkedOpsUser();
+    const shipmentId = await mkLotForUser(opsUserId);
+    const before = await db.select({ id: s.opsExpenseEntries.id })
+      .from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
+
+    // customerChargeAmount omitted ⇒ charges the customer nothing.
+    const rejected = await api('POST', '/api/ops/expenses', {
+      shipmentId,
+      expenseTypeCode: 'OTHER',
+      amount: 50000,
+      paidAt: '2026-09-22',
+    });
+    assert.equal(rejected.status, 400, 'the save must be refused, not silently accepted');
+    assert.match(String(rejected.body?.error ?? ''), /bắt buộc nhập ghi chú/);
+
+    // A blank/whitespace note is the same as no note — trimming first means a
+    // row of spaces cannot buy its way past the rule.
+    const blank = await api('POST', '/api/ops/expenses', {
+      shipmentId,
+      expenseTypeCode: 'OTHER',
+      amount: 50000,
+      paidAt: '2026-09-22',
+      note: '   ',
+    });
+    assert.equal(blank.status, 400, 'a whitespace-only note is not a reason');
+
+    // And nothing was written: the insert happens before the guard computes the
+    // charge, so this also pins that the throw rolls the row back.
+    const after = await db.select({ id: s.opsExpenseEntries.id })
+      .from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.shipmentId, shipmentId));
+    assert.equal(after.length, before.length, 'a refused row must not leave an orphan behind');
+  });
+
+  test('the same uncharged row saves once a reason is given', async () => {
+    await mkLinkedOpsUser();
+    const shipmentId = await mkLotForUser(opsUserId);
+    const ok = await api('POST', '/api/ops/expenses', {
+      shipmentId,
+      expenseTypeCode: 'OTHER',
+      amount: 50000,
+      paidAt: '2026-09-22',
+      note: 'Sửa tờ khai, khách tự chi, không thu lại',
+    });
+    assert.equal(ok.status, 201, JSON.stringify(ok.body).slice(0, 200));
+  });
+
+  test('a CHARGED no-invoice row needs no note — the rule must not over-reach', async () => {
+    // Without this, "require a note" could silently start rejecting the ordinary
+    // case where Ops is recovering the cost from the customer.
+    await mkLinkedOpsUser();
+    const shipmentId = await mkLotForUser(opsUserId);
+    const created = await api('POST', '/api/ops/expenses', {
+      shipmentId,
+      expenseTypeCode: 'OTHER',
+      amount: 50000,
+      paidAt: '2026-09-22',
+      customerChargeAmount: 50000,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body).slice(0, 200));
+  });
 });
 
 describe('card 20260921_5 — dispatch plan note path', () => {
@@ -149,6 +214,9 @@ describe('card 20260921_5 — dispatch plan note path', () => {
       customerChargeAmount: 60000,
     });
     assert.equal(charged.status, 201);
+    // Card 20260928_162 made the note mandatory on uncharged rows, so this row
+    // now carries one. The assertion below is unchanged and still the point of
+    // the test: being uncharged keeps the amount off the dispatch plan.
     const silent = await api('POST', '/api/ops/expenses', {
       shipmentId,
       expenseTypeCode: 'OTHER',
@@ -156,8 +224,9 @@ describe('card 20260921_5 — dispatch plan note path', () => {
       paidAt: '2026-09-22',
       costGroup: 'OPS_REGULAR',
       customerChargeAmount: 0,
+      note: 'Chi nội bộ, không thu khách',
     });
-    assert.equal(silent.status, 201);
+    assert.equal(silent.status, 201, JSON.stringify(silent.body).slice(0, 200));
 
     const notes = await loadDispatchExpenseNotes([shipmentId]);
     const list = notes.get(shipmentId) ?? [];
