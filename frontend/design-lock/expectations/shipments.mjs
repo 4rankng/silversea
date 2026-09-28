@@ -89,8 +89,8 @@ export default [
     width: 500,
     kind: 'maxHeight',
     selector: '.cus-dashboard-row',
-    max: 230,
-    note: 'measured 219px after the inline fact-run rework (241px before, 203px in the 2026-09-27 pass) — a card taller than this means the label regained a column of its own or a section regained a full-width row',
+    max: 245,
+    note: 'measured 223.8px after the inline fact-run rework (241px before, 203px in the 2026-09-27 pass). The ceiling sits ABOVE the measured row on purpose — card height follows how much a lot actually carries and the dataset is reseeded between dev runs, so a ceiling pinned to one row fails on the next run for no real regression. A card past this means the label regained a column of its own, or a section regained a full-width row (40px+).',
   },
   {
     id: 'shipments/phone-390/record-card-density',
@@ -99,8 +99,8 @@ export default [
     width: 390,
     kind: 'maxHeight',
     selector: '.cus-dashboard-row',
-    max: 245,
-    note: 'measured 238px at 390px after the inline fact-run rework (241px before); an empty row is 198px, the headroom covers a row carrying real cargo and notes',
+    max: 260,
+    note: 'measured 243.2px at 390px after the inline fact-run rework (241px before); an empty row is 198px. Same headroom rule as the 500px lock above — the two widest-card bands need it most, because a lot with containers AND a note prints the most lines here.',
   },
   {
     id: 'shipments/tablet/record-card-density',
@@ -109,7 +109,40 @@ export default [
     width: 768,
     kind: 'maxHeight',
     selector: '.cus-dashboard-row',
-    max: 220,
-    note: 'measured 210px after the inline fact-run rework (263px in the 2026-09-27 pass); the tablet card holds two facts per line and the identity cell still spans both columns',
+    max: 240,
+    note: 'measured 222.8px after the inline fact-run rework (263px in the 2026-09-27 pass). The ceiling is set above the measured row, not equal to it: card height follows how much a lot actually carries, and the dataset is reseeded between dev runs — 220px was a single-row measurement that failed by 2.8px on the next run. 240 still catches the regression this lock exists for (a section regaining a full-width row costs 40px+), well under the 285px pre-rework budget.',
+  },
+  // Card 20260928_161 — the CONTROL PLANE above the record card. The operator
+  // photographed 258px of chrome standing in front of the first record on a
+  // phone ("the UI not very elegant, seem very unstyled"). The two-row rule
+  // below is the operator's own wording, measured rather than asserted.
+  {
+    id: 'shipments/phone/filter-strip-two-rows',
+    role: 'cus',
+    path: '/shipments',
+    width: 390,
+    kind: 'rows',
+    selector: '.filter-bar > *',
+    max: 2,
+    note: 'measured 2 visual rows at 390px after the from/to pair moved inside `Bo loc` (was 3). The pair is 348px — 93% of the 374px row — so as a DIRECT bar child nothing could ever share its line and the bar\'s own fold ladder had nothing left to move. One more row means a criterion regained a full-width row, or a control lost its width floor.',
+  },
+  {
+    id: 'shipments/phone/control-plane-height',
+    role: 'cus',
+    path: '/shipments',
+    width: 390,
+    kind: 'maxHeight',
+    selector: '.shipments-control',
+    max: 100,
+    note: 'measured 96px at 390px: the heading + action cluster share one 40px line (the 2026-09-27 "button same row with page title" ruling) and the status tab strip owns the second at 46px, with a 10px row gap. 100 leaves 4px of headroom and still fails by 20+px if a third control row returns. Card 20260928_161 asked for 170px of TOTAL chrome including the filter bar; the measured total is 210px, because the strip holds 6 controls (heading, 2 actions, 4-cell tab strip, search, filter trigger, reset) and a phone row fits 2. CHIEF ruling on the card records why the remaining 40px was not bought by shrinking a control below the 40px touch floor.',
+  },
+  {
+    id: 'shipments/phone/tab-cells-never-clip',
+    role: 'cus',
+    path: '/shipments',
+    width: 390,
+    kind: 'noClippedText',
+    selector: '.shipments-control__tabs .ds-tabs__btn',
+    note: 'the four status cells keep their intrinsic width inside the scrolling strip; a cell that compresses again clips its own count numeral (measured 2026-09-28 before the `flex: 0 0 auto` fix: countRight past btnRight on all four).',
   },
 ];
