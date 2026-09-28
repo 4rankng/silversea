@@ -168,6 +168,15 @@
   --warning-soft: #FFF3E8;
   --warning-text: #6F3C10;
   --warning-deep: #914A16;
+  /* Card 20260927_67: `--warn` had no declaration either, so its 7 call sites
+     each fell back to a DIFFERENT raw hex — #a15c00 (ShipmentsPage, 3 sites),
+     #b45309 (DriverTripDetailPage, ClerkShipmentCreatePage) and #d97706
+     (OpsOrdersPage, 2 sites). One meaning, three colours, decided by which
+     file you landed in. The same heal as `--ok` and `--err` above, and it is
+     worth more here than either of those: #d97706 renders warning text at
+     3.19:1 on white and 2.92:1 on --warning-soft, which is under the 4.5:1
+     floor for body text, while --warning-text gives 9.01:1 and 8.26:1. */
+  --warn: var(--warning-text);
   --danger: #A0444E;
   --danger-soft: #F9ECEE;
   --danger-text: #7F2D37;

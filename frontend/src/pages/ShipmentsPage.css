@@ -659,7 +659,7 @@
    `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
 .cus-direction-badge--import,
 .cus-direction-badge--export { background: var(--surface-3); color: var(--ink-2) !important; }
-.cus-combined-tag { background: var(--warning-soft); color: var(--warn, #a15c00) !important; }
+.cus-combined-tag { background: var(--warning-soft); color: var(--warn) !important; }
 
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
    structural edge like the direction badge — never an accent fill. Squared
@@ -707,7 +707,7 @@
   background: var(--surface);
   box-shadow: inset 0 0 0 2px var(--brand-subtle);
 }
-.cus-schedule-missing { color: var(--warn, #a15c00) !important; }
+.cus-schedule-missing { color: var(--warn) !important; }
 
 .cus-quick-edit-modal { display: grid; gap: 14px; }
 .cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); line-height: 1.35; }
@@ -841,7 +841,7 @@
 .cus-row-actions__lifecycle { display: inline-flex; align-items: center; min-width: 0; }
 .cus-row-actions__signal { display: inline-flex; align-items: center; min-width: 0; }
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
-.cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
+.cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
 .cus-attention-label--info { color: var(--info); }
 /* Card 20260922_24: the attention marker now carries its own visible label

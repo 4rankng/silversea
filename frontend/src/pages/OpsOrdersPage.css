@@ -61,7 +61,7 @@
 }
 
 .ops-orders__table tbody tr.is-pinned {
-  background: color-mix(in srgb, var(--warn, #d97706) 7%, transparent);
+  background: color-mix(in srgb, var(--warn) 7%, transparent);
 }
 
 .ops-orders__table tbody tr {
@@ -100,7 +100,7 @@
 }
 
 .ops-pin.is-on {
-  color: var(--warn, #d97706);
+  color: var(--warn);
 }
 
 .ops-orders__expense {

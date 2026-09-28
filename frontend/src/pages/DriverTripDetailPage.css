@@ -917,7 +917,7 @@
 
 .driver-task-fuel-offline {
   font-size: var(--text-body-size);
-  color: var(--warn, #b45309);
+  color: var(--warn);
 }
 
 .driver-task-fuel-details {
