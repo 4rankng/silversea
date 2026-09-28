@@ -341,8 +341,8 @@ describe('card 20260928_181 — a negative expense row behaves as if absent', ()
     const [category] = await db.insert(s.forwarderExpenseTypes).values({
       code: `C181-${suffix}`.slice(0, 50), name: `C181 no-invoice ${suffix}`,
       requiresInvoice: false, substituteEvidenceAllowed: true,
-      noInvoiceEvidenceTypes: ['RECEIPT'], noInvoicePerItemLimit: PER_ITEM_THRESHOLD,
-      noInvoicePerDayLimit: PER_ITEM_THRESHOLD * 10,
+      noInvoiceEvidenceTypes: ['RECEIPT'], noInvoicePerItemLimit: String(PER_ITEM_THRESHOLD),
+      noInvoicePerDayLimit: String(PER_ITEM_THRESHOLD * 10),
     }).returning();
     await track(s.forwarderExpenseTypes, s.forwarderExpenseTypes.id, category);
 
@@ -397,7 +397,7 @@ describe('card 20260928_181 — a negative expense row behaves as if absent', ()
     assert.ok(Number(before.thuKhachTotal) > 0, 'fixture sanity: the recharge total is visible');
     const unattachedBefore = before.unattachedTrips.find((section) => section.tripId === unattachedTrip.id);
     assert.ok(unattachedBefore, 'fixture sanity: the fulfillment-NULL trip renders its own section');
-    assert.ok(unattachedBefore.feeTotal > 0, 'fixture sanity: the unattached fee total is not vacuous');
+    assert.ok(unattachedBefore.feeTotal != null && unattachedBefore.feeTotal > 0, 'fixture sanity: the unattached fee total is not vacuous');
 
     const negativeLinked = await mkExpense(linkedTrip.id, '-100000', { expenseType: 'PHI_CHI_HO' });
     const negativeUnattached = await mkExpense(unattachedTrip.id, '-90000', { expenseType: 'PHI_CHI_HO' });
@@ -853,7 +853,7 @@ async function renderXlsxTotals(data: SettlementExportData): Promise<{ summary: 
 /** The read model's entry shape, filled with the minimum an OUT report needs. */
 function accountingEntry(over: Partial<ExpenseAccountingEntry> & { sourceId: number }): ExpenseAccountingEntry {
   return {
-    id: over.sourceId, sourceKind: 'OPS', sourceId: over.sourceId, version: 1,
+    id: over.sourceId, sourceKind: 'OPS', version: 1,
     shipmentId: 1, shipmentContainerId: null, tripId: 1, truckId: null,
     customerId: 1, shipmentCode: 'C181-LOT', tripCode: 'C181-TRIP', truckPlate: null,
     customerName: 'C181 khách', containerNumber: null, costGroup: 'OPS_REGULAR',

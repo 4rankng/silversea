@@ -15,6 +15,7 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, isNull } from 'drizzle-orm';
+import { Role } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -57,7 +58,7 @@ async function allRows(truckId: number) {
 }
 
 /** Runs the batch in its own committed transaction. */
-async function runBatch(actor: { userId: number; role: 'ACCOUNTANT' | 'ADMIN' }, input: { accountantId: number | null; truckIds: number[] }) {
+async function runBatch(actor: { userId: number; role: Role }, input: { accountantId: number | null; truckIds: number[] }) {
   return db.transaction(async tx => assignTruckAccountantsBatch(tx, actor, input));
 }
 
@@ -75,7 +76,7 @@ describe('card 20260928_166 - bulk truck assignment (AC1)', () => {
     const acct = await mkActor('ACCOUNTANT');
     const trucks = [await mkTruck('B1'), await mkTruck('B2'), await mkTruck('B3')];
 
-    const results = await runBatch({ userId: admin.id, role: 'ADMIN' }, { accountantId: acct.id, truckIds: trucks.map(t => t.id) });
+    const results = await runBatch({ userId: admin.id, role: Role.ADMIN }, { accountantId: acct.id, truckIds: trucks.map(t => t.id) });
 
     assert.equal(results.length, 3);
     for (const result of results) {
@@ -99,7 +100,7 @@ describe('card 20260928_166 - bulk truck assignment (AC1)', () => {
     const admin = await mkActor('ADMIN');
     const acct = await mkActor('ACCOUNTANT');
     const trucks = [await mkTruck('I1'), await mkTruck('I2')];
-    const actor = { userId: admin.id, role: 'ADMIN' as const };
+    const actor = { userId: admin.id, role: Role.ADMIN as const };
     const input = { accountantId: acct.id, truckIds: trucks.map(t => t.id) };
 
     const first = await runBatch(actor, input);
@@ -120,7 +121,7 @@ describe('card 20260928_166 - bulk truck assignment (AC1)', () => {
     const acct = await mkActor('ACCOUNTANT');
     const truck = await mkTruck('D1');
 
-    const results = await runBatch({ userId: admin.id, role: 'ADMIN' }, { accountantId: acct.id, truckIds: [truck.id, truck.id, truck.id] });
+    const results = await runBatch({ userId: admin.id, role: Role.ADMIN }, { accountantId: acct.id, truckIds: [truck.id, truck.id, truck.id] });
 
     assert.equal(results.length, 1, 'the duplicate ids collapse to one truck');
     assert.equal((await allRows(truck.id)).length, 1, 'and only one assignment row exists');
@@ -133,7 +134,7 @@ describe('card 20260928_166 - bulk truck assignment (AC1)', () => {
     const missingTruckId = 2_000_000_000 + (Date.now() % 1000);
 
     await assert.rejects(
-      () => runBatch({ userId: admin.id, role: 'ADMIN' }, { accountantId: acct.id, truckIds: [...good.map(t => t.id), missingTruckId] }),
+      () => runBatch({ userId: admin.id, role: Role.ADMIN }, { accountantId: acct.id, truckIds: [...good.map(t => t.id), missingTruckId] }),
       /Không tìm thấy xe/,
     );
 
@@ -148,7 +149,7 @@ describe('card 20260928_166 - bulk truck assignment (AC1)', () => {
     const acctA = await mkActor('ACCOUNTANT');
     const acctB = await mkActor('ACCOUNTANT');
     const truck = await mkTruck('H1');
-    const actor = { userId: admin.id, role: 'ADMIN' as const };
+    const actor = { userId: admin.id, role: Role.ADMIN as const };
 
     await runBatch(actor, { accountantId: acctA.id, truckIds: [truck.id] });
     const [firstRow] = await activeRows(truck.id);
