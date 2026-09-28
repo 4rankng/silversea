@@ -32,10 +32,20 @@ export async function checkRedisAtBoot(url: string, timeoutMs = 2500): Promise<R
     retryStrategy: () => null,
   });
   const verdict = await new Promise<RedisBootCheck>((resolve) => {
-    setTimeout(() => resolve({ ok: false, url: shown, error: `no response within ${timeoutMs}ms` }), timeoutMs + 500);
+    // The guard handle is kept so the early paths can clear it. Without the
+    // handle, a Redis that connects instantly still left the timer pending
+    // for timeoutMs+500 — the boot verdict was correct but the process stayed
+    // alive for that extra window on every start. "Whoever holds the handle
+    // clears it" is the rule; the fire path clears nothing because it has
+    // already fired.
+    const guard = setTimeout(() => resolve({ ok: false, url: shown, error: `no response within ${timeoutMs}ms` }), timeoutMs + 500);
+    const settle = (result: RedisBootCheck): void => {
+      clearTimeout(guard);
+      resolve(result);
+    };
     client.connect()
-      .then(() => resolve({ ok: true, url: shown }))
-      .catch((err: Error) => resolve({ ok: false, url: shown, error: err.message }));
+      .then(() => settle({ ok: true, url: shown }))
+      .catch((err: Error) => settle({ ok: false, url: shown, error: err.message }));
     // Both resolve paths are settled exactly once; the timer only guards a
     // hung connect (ioredis connectTimeout should fire first).
   });
