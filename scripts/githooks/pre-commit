@@ -6,10 +6,14 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-fe=0; be=0; journal=0
+fe=0; be=0; journal=0; be_tests=0
 while IFS= read -r f; do
   case "$f" in
     frontend/src/*.ts|frontend/src/*.tsx) fe=1 ;;
+    # Card 20260928_201: this arm must stay ABOVE the plain backend arm. A bash
+    # `case` glob `*` matches `/`, so backend/src/*.ts already matches
+    # backend/src/tests/**; this arm is first so test files also set be_tests.
+    backend/src/tests/*|backend/src/*.test.ts|backend/src/*.spec.ts) be=1; be_tests=1 ;;
     backend/src/*.ts|backend/src/*.tsx) be=1 ;;
     backend/drizzle/meta/_journal.json) journal=1 ;;
   esac
@@ -52,8 +56,18 @@ if [ "$fe" -eq 1 ]; then
   (cd "$root/frontend" && node scripts/check-design-drift.mjs) || fail=1
 fi
 if [ "$be" -eq 1 ]; then
-  echo "[pre-commit] typechecking backend…"
-  (cd "$root/backend" && pnpm exec tsc --noEmit -p tsconfig.build.json) || fail=1
+  if [ "$be_tests" -eq 1 ]; then
+    # Card 20260928_201: tsconfig.build.json EXCLUDES src/tests, so every
+    # backend test file was invisible to this hook — 4 real type errors reached
+    # two landings with a green hook. tsconfig.json is a strict superset (the
+    # build config only adds `exclude`), so one run covers build AND tests; the
+    # cheaper build-only run is kept for the no-test-files case.
+    echo "[pre-commit] typechecking backend (incl. tests)…"
+    (cd "$root/backend" && pnpm exec tsc --noEmit) || fail=1
+  else
+    echo "[pre-commit] typechecking backend…"
+    (cd "$root/backend" && pnpm exec tsc --noEmit -p tsconfig.build.json) || fail=1
+  fi
 fi
 
 if [ "$fail" -eq 1 ]; then
