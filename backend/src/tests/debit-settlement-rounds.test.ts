@@ -344,6 +344,49 @@ describe('debit settlement rounds (card 20260923_12 Chọn Debit)', () => {
     );
   });
 
+  // Card 20260928_175. The PM's acceptance criterion is arithmetic at ALL FOUR
+  // selectable VAT levels: "VAT chỉ chọn được trong {0, 5, 8, 10}%, hệ thống tự
+  // tính số tiền VAT, và cột Tổng = số tiền phải trả + VAT — kiểm chứng bằng
+  // test số học trên cả 4 mức."
+  //
+  // The suite had the 400 guard for an out-of-range rate and one worked
+  // example at 8%. Neither proves the arithmetic at 0/5/10, and 0% is the one
+  // that can hide a divide-by-zero or an `|| 0` fallback that turns "no VAT"
+  // into a wrong total. Each level gets its own customer so the lot-overlap
+  // guard cannot reject the later rounds, and the amounts are chosen to be
+  // divisible by 100 so an off-by-a-centi rounding bug is visible as an exact
+  // integer mismatch rather than being rounded away.
+  for (const vatRate of [0, 5, 8, 10] as const) {
+    test(`VAT ${vatRate}%: vatAmount = amount × rate, totalAmount = amount + vat`, async () => {
+      const userId = await mkUser(Role.ACCOUNTANT);
+      const customer = await mkCustomer(`DSR VAT${vatRate} ${suffix}`);
+      const route = await mkRoute(`DSR VAT${vatRate} route ${suffix}`);
+      const truck = await mkTruck(null);
+      const lot = await mkLot(customer.id, '2026-09-21', { routeId: route.id });
+      const trip = await mkTrip(lot.id, customer.id, route.id, truck.id);
+      await mkFreight(lot.id, trip.id, '1200000'); // tổng thu 1.200.000
+
+      const created = await createDebitSettlementRound({
+        shipmentIds: [lot.id],
+        dateFrom: '2026-09-01', dateTo: '2026-09-30',
+        roundNo: 1, month: 9, year: 2026,
+        direction: 'THU', vatRate,
+        userId,
+      });
+
+      assert.equal(created.amount, '1200000', 'the round amounts the filtered revenue');
+
+      const row = (await listDebitSettlementRounds()).items.find((r) => r.id === created.id)!;
+      const expectedVat = Math.round((1_200_000 * vatRate) / 100);
+      assert.equal(row.vatRate, vatRate, 'the level persists exactly as chosen');
+      assert.equal(row.vatAmount, expectedVat, `${vatRate}% of 1.200.000`);
+      // The card's formula: Tổng = số tiền phải trả + VAT. Asserted as the sum
+      // so the two columns can never drift apart — a total that is not exactly
+      // the sum means one of them was computed from something else.
+      assert.equal(row.totalAmount, 1_200_000 + expectedVat, 'Tổng = phải trả + VAT');
+    });
+  }
+
   test('missing lot → 404', async () => {
     const userId = await mkUser(Role.ACCOUNTANT);
     await assert.rejects(
