@@ -25,7 +25,7 @@ export function DatePickerSurface({ id, label, value, min, max, onPick, onDismis
   return createPortal(
     <div id={id} ref={panelRef} className="date-picker__popup"
       data-positioned={position ? 'true' : undefined}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0 }}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }}
       role="dialog" aria-label={label} data-date-picker="true" data-escape-boundary="true"
       onClick={(event) => event.stopPropagation()}
       onFocusCapture={() => {

@@ -127,7 +127,7 @@ export function FilterDropdown({
       // jsdom (which does not load stylesheets) still sees the dialog its tests
       // need to query.
       data-positioned={position ? 'true' : undefined}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0 }}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }}
       role="dialog"
       aria-label={dialogLabel}
     >

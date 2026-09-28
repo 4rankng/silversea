@@ -4,6 +4,12 @@ import type { RefObject } from 'react';
 export interface PopoverPosition {
   top: number;
   left: number;
+  /**
+   * Ceiling for the panel on the side it opens towards, in px. Undefined when
+   * the anchor has no room on either side — the panel then keeps its natural
+   * size and the viewport clamp applies, which is the only legal outcome.
+   */
+  maxHeight?: number;
 }
 
 /**
@@ -74,8 +80,20 @@ export function usePopoverPosition(
       const spaceBelow = viewportTop + vh - triggerRect.bottom - gap - padding;
       const spaceAbove = triggerRect.top - viewportTop - gap - padding;
 
+      // Card 20260928_158: the side is chosen first, then the panel is bounded
+      // by the space on THAT side. Bounding it to the viewport instead (the old
+      // `max-height: 100dvh - 24px`) is what made a filter sheet taller than
+      // its anchor slide up over the button that opened it: the clamp above
+      // pins a full-viewport panel to the top padding, and the trigger sits
+      // inside it. Measured 2026-09-28 on /dispatch-detail at 390px — a sheet
+      // needing 820px, only 583px available below the trigger, so it covered
+      // the trigger by 233px. Bounded to the anchor it opens under the trigger
+      // and scrolls instead, which is the whole point of a scrollable body.
+      const opensBelow = popoverHeight <= spaceBelow || spaceBelow >= spaceAbove;
+      const room = Math.max(0, opensBelow ? spaceBelow : spaceAbove);
+
       let top: number;
-      if (popoverHeight <= spaceBelow || spaceBelow >= spaceAbove) {
+      if (opensBelow) {
         top = triggerRect.bottom + gap;
       } else {
         top = triggerRect.top - gap - popoverHeight;
@@ -87,8 +105,15 @@ export function usePopoverPosition(
 
       const top_ = Math.round(top);
       const left_ = Math.round(left);
+      // Room is the ceiling, not a fixed size: a short panel keeps its natural
+      // height and only a panel that outgrows its anchor is capped and scrolled.
+      const maxHeight_ = room > 0 ? Math.round(room) : undefined;
       // Identity-stable so the rAF passes below are free when nothing moved.
-      setCoords((prev) => (prev && prev.top === top_ && prev.left === left_ ? prev : { top: top_, left: left_ }));
+      setCoords((prev) => (
+        prev && prev.top === top_ && prev.left === left_ && prev.maxHeight === maxHeight_
+          ? prev
+          : { top: top_, left: left_, maxHeight: maxHeight_ }
+      ));
     };
 
     let popoverObserver: ResizeObserver | null = null;

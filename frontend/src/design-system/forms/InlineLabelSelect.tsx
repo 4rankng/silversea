@@ -59,7 +59,7 @@ export function InlineLabelSelect({
   const panel = isOpen ? (
     <div ref={panelRef} id={listboxId} className="inline-label-select__popover"
       data-positioned={position ? 'true' : undefined}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0 }} role="listbox" aria-label={ariaLabel}>
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }} role="listbox" aria-label={ariaLabel}>
       {items.map((item) => (
         <button
           key={item.id}

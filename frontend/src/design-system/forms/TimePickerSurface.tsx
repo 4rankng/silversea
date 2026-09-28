@@ -57,7 +57,7 @@ export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss
   if (inline) return <div ref={panelRef} className="time-picker__inline" onKeyDown={keyDown}>{content}</div>;
   return createPortal(<div id={id} ref={panelRef} role="dialog" aria-label={label} className="time-picker__popup" data-escape-boundary="true"
     data-positioned={position ? 'true' : undefined}
-    style={{ top: position?.top ?? 0, left: position?.left ?? 0 }} onKeyDown={keyDown} onClick={(event) => event.stopPropagation()}
+    style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }} onKeyDown={keyDown} onClick={(event) => event.stopPropagation()}
     onBlur={(event) => {
       const next = event.relatedTarget as Node | null;
       if (next && !event.currentTarget.contains(next) && ![anchorRef, ...additionalRefs].some((ref) => ref.current?.contains(next))) onExit();

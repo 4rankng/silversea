@@ -234,6 +234,7 @@ export function CusAppointmentPopover({
           position: 'fixed',
           top: `${coords.top}px`,
           left: `${coords.left}px`,
+          maxHeight: coords.maxHeight ? `${coords.maxHeight}px` : undefined,
           right: 'auto',
           bottom: 'auto',
         } : undefined}
