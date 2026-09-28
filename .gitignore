@@ -76,6 +76,11 @@ frontend/qa-*.js
 frontend/scripts/qa-*.mjs
 qa/scripts/*
 screenshot_filter_check.mjs
+# Session scratch from browser probes. The root eslint config already treats
+# frontend/qa/tmp-*.mjs as throwaway (it is ignored there); without this the
+# files sit untracked-but-not-ignored, so they show up in every `git status`
+# and can be swept into a commit by `git add -A`.
+/frontend/qa/
 
 # Playwright artifacts
 playwright-report/
