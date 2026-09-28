@@ -190,13 +190,16 @@ export default async function (ctx) {
     }
   }
 
+  // A BLOCKED verdict must carry its reason in `errors` — that is the field the
+  // runner logs and the env-tag boundary inspects (lib/env-tag.mjs). Keeping the
+  // reason only in `blocked` printed a bare "BLOCKED" with no explanation.
   return {
     verdict: errors.length > 0 ? 'FAIL' : blocked.length > 0 ? 'BLOCKED' : 'PASS',
     rowUnderTest: shipmentId,
     rowDirection: lclRow?.direction ?? null,
     fclIdentityClicked: fclClicked,
     fieldsTested: FIELD_GROUPS.map((f) => f.label),
-    errors,
+    errors: errors.length > 0 ? errors : blocked,
     blocked: blocked.length > 0 ? blocked : undefined,
   };
 }

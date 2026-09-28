@@ -22,6 +22,29 @@ const WIDEST_PAGE = 200;
 /** Pages of `/shipments` scanned before the picker gives up. */
 const MAX_SCAN_PAGES = 4;
 
+/**
+ * Scan `/shipments` pages until an item satisfies `predicate`, else null.
+ *
+ * Card 20260928_159: a finder that reads only page 1 is a POSITION-based finder
+ * wearing a property test. Earlier cases in a run (and other lanes) push
+ * throwaway lots to the top of the list, so "page 1" is whatever ran last and
+ * the verdict depends on run order. Scan the list by property instead.
+ *
+ * @param {object} ctx harness session (apiGet)
+ * @param {(item: object) => boolean} predicate
+ */
+export async function findShipmentWhere(ctx, predicate, { maxPages = MAX_SCAN_PAGES, limit = 100 } = {}) {
+  for (let page = 1; page <= maxPages; page += 1) {
+    const res = await ctx.apiGet(`/shipments?limit=${limit}&page=${page}`);
+    const items = Array.isArray(res.body?.items) ? res.body.items : [];
+    if (items.length === 0) break;
+    const hit = items.find(predicate);
+    if (hit) return hit;
+    if (items.length < limit) break;
+  }
+  return null;
+}
+
 function firstSearchableRef(detail) {
   const summary = detail?.summary ?? {};
   const candidates = [
