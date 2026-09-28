@@ -732,9 +732,27 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // card always joins), and the separator is stated for the trigger's direct
     // children too, because the schedule cell paints its facts straight into
     // the trigger without a `.cus-multiline-cell` wrapper.
-    expect(recordCss).toMatch(/\.cus-multiline-cell > \*::after,\s*\.cus-dashboard-table \.cus-inline-trigger > \*::after\s*\{[^}]*content:\s*' ·'\s*;/);
-    // No trailing separator on the last fact, or every cell ends in ' ·'.
-    expect(recordCss).toMatch(/\.cus-multiline-cell > \*:last-child::after,\s*\.cus-dashboard-table \.cus-inline-trigger > \*:last-child::after\s*\{[^}]*content:\s*none\s*;/);
+    // Card c6b02380 REPLACED the ` · ` join at phone widths, and this pin used
+    // to assert the join's presence — so it went red on correct code and
+    // nobody could tell a real regression from the intended change. The new
+    // contract is the opposite shape: in the phone card the LABEL
+    // (`.cus-inline-trigger::before`) shares a line with the FIRST fact, and
+    // every later fact takes its own line as a block. There is deliberately no
+    // separator glyph, because nothing is trying to share a line after the
+    // first, so there is no "where does one fact end" question to mark and no
+    // glyph to strand on a narrow screen.
+    //
+    // Pinned on the behaviour that replaced the join, not merely dropped:
+    //   - the stack is an inline run, so the label and first fact stay together
+    //   - children are blocks, so each later fact breaks to its own line
+    //   - :first-child is the inline exception, and it is :first-child and NOT
+    //     :first-of-type because these cells alternate `strong` and `span`
+    expect(recordCss).toMatch(/\.cus-dashboard-table \.cus-multiline-cell\s*\{[^}]*display:\s*inline\s*;/);
+    expect(recordCss).toMatch(/\.cus-dashboard-table \.cus-multiline-cell > \*,\s*\.cus-dashboard-table \.cus-inline-trigger > \*\s*\{[^}]*display:\s*block\s*;/);
+    expect(recordCss).toMatch(/\.cus-dashboard-table \.cus-multiline-cell > \*:first-child,\s*\.cus-dashboard-table \.cus-inline-trigger > \*:first-child\s*\{[^}]*display:\s*inline\s*;/);
+    // And the join must stay gone — this is the assertion that fails if the
+    // old separator is reintroduced alongside the new stacking.
+    expect(recordCss).not.toMatch(/::after[^{}]*content:\s*' ·'/);
     expect(css).not.toMatch(/\[data-facts/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
@@ -756,9 +774,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(masterRow()).queryByText('Chờ chốt lịch')).toBeNull();
     expect(within(masterRow()).getByText('Sẵn sàng điều xe')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
-    expect(css).toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > td\[data-label='Lịch trình & điều xe'\]\s*\{[^}]*background:/);
-    expect(css).not.toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > th\s*\{/);
-    expect(css).toMatch(/--waiting > td\[data-label='Lịch trình & điều xe'\] \.cus-inline-trigger:not\(:disabled\):hover\s*\{[^}]*background:\s*color-mix/);
+    // The attention signal is the CELL'S TEXT, not a colour field. This sheet
+    // once tinted the whole schedule cell cream; when nearly every row is
+    // waiting — which is the unfiltered default — the tint covered 100% of the
+    // column, signalled nothing, and became a solid beige band the full height
+    // of the table. §10 is the same rule from the parity side: a status is the
+    // 3×20px strip, never a full-height fill. "Chưa chốt ngày" carries it in
+    // the warning ink, and the row keeps its per-bucket StatusStrip.
+    expect(css).not.toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting[^{]*\{[^}]*background/);
+    expect(css).toMatch(/\.cus-schedule-missing\s*\{[^}]*color:/);
+    // The per-bucket status strip on the identity cell stays.
+    expect(css).toMatch(/\.cus-dashboard-row \.status-strip\s*\{[^}]*pointer-events:\s*none;/);
   });
 
   it('CUS-OVERVIEW-03 retains a distinct recovery warning after deduplicating the missing-date signal', async () => {
